@@ -5,7 +5,7 @@ import { CreateTaxonomyTermForm } from "./create-taxonomy-term-form";
 import { TaxonomyFieldMappingPanel } from "./taxonomy-field-mapping-panel";
 import { TaxonomyReorderPanel } from "./taxonomy-reorder-panel";
 import { TaxonomyTermForm } from "./taxonomy-term-form";
-import { byLabel } from "@/lib/field-engine/sort-comparators";
+import { byLabel as byLabelCmp } from "@/lib/field-engine/sort-comparators";
 
 export const dynamic = "force-dynamic";
 
@@ -267,7 +267,7 @@ async function loadTaxonomy(): Promise<{
     >
   )
     .map((f) => ({ ...f, label: f.label_i18n?.en ?? "" }))
-    .sort((a, b) => byLabel(a, b) || a.field_key.localeCompare(b.field_key));
+    .sort((a, b) => byLabelCmp(a, b) || a.field_key.localeCompare(b.field_key));
   const fieldById = new Map(fieldOptions.map((field) => [field.id, field] as const));
   const recs = (recsR.data ?? []) as Array<{
     id: string;
