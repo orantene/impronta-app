@@ -347,7 +347,7 @@ function PagePicker({
     setNavigating(true);
     try {
       await flushThenNavigate({
-        dirty,
+        dirty: dirty ?? false,
         flush: editCtx?.flushBuilderTreeSave,
         navigate: () => {
           setOpen(false);
@@ -375,7 +375,7 @@ function PagePicker({
         // Flush the current page's draft before navigating to the new page so
         // un-persisted edits aren't lost on the route change (see navToPage).
         await flushThenNavigate({
-          dirty,
+          dirty: dirty ?? false,
           flush: editCtx?.flushBuilderTreeSave,
           navigate: () => {
             setOpen(false);
