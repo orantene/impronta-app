@@ -97,6 +97,15 @@ export default async function PlatformTalentLayout({
     return <>{children}</>;
   }
 
+  // The guided onboarding wizard is a focused, full-screen flow that owns its
+  // own chrome (like the page-builder editor). It opts OUT of the heavy
+  // dashboard shell so the talent sees one step at a time without the nav rail
+  // competing for attention. The route itself enforces auth + loads its own
+  // data via loadTalentDashboardData (the canonical completeness source).
+  if (pathname.startsWith("/talent/onboarding")) {
+    return <>{children}</>;
+  }
+
   const baseProfile = await loadTalentSelfProfileByUser(session.user.id);
   if (!baseProfile) {
     if (isTalentRoot) {
