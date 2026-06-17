@@ -101,6 +101,20 @@ const COMPLIANCE_PREFIXES = [
   "/api/unsubscribe",
 ] as const;
 
+/**
+ * PWA fallback route reachable on every surface, regardless of host kind:
+ *   - `/offline` → the service-worker offline fallback page (force-static,
+ *                  no tenant/auth data). The SW pre-caches it during install
+ *                  by fetching it over the network, so it must return 200 on
+ *                  every host (app, agency subdomain, custom domain, hub).
+ *                  Without this entry the proxy 404s it on tenant hosts and
+ *                  the SW can never cache the fallback. Goes through the proxy
+ *                  (unlike sw.js/manifest, which are static files exempted at
+ *                  the matcher) so the force-dynamic root layout still gets its
+ *                  locale + host headers.
+ */
+const PWA_PATHS = ["/offline"] as const;
+
 const AUTH_PREFIXES = [
   "/login",
   "/register",
@@ -412,6 +426,7 @@ export function isPathAllowedForHostKind(
 ): boolean {
   if (pathname === "/") return true;
   if (anyExact(pathname, STATIC_PATHS)) return true;
+  if (anyExact(pathname, PWA_PATHS)) return true;
   if (hasPrefix(pathname, PROTOTYPE_PREFIX)) return true;
   if (anyPrefix(pathname, SHARED_API_PREFIXES)) return true;
   if (anyPrefix(pathname, COMPLIANCE_PREFIXES)) return true;
