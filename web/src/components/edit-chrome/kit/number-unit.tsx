@@ -27,7 +27,7 @@
  *   control = one decision.
  */
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { CHROME, CHROME_SHADOWS } from "./tokens";
 
@@ -98,6 +98,70 @@ export function NumberUnit({
   useEffect(() => {
     setDraft(value ? String(value.value) : "");
   }, [value]);
+
+  // ── Drag-to-scrub (INS-3) ────────────────────────────────────────────────
+  // Pointer-lock-based horizontal scrubbing on the input itself.
+  // Hold and drag left/right to adjust the number. Modifier keys change step:
+  //   default → step; Shift → step×10; Alt/Option → step÷10 (snapped to 1dp).
+  const scrubRef = useRef<{
+    startX: number;
+    startValue: number;
+    accumulated: number;
+  } | null>(null);
+  const isScrubbing = useRef(false);
+
+  const onScrubPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLInputElement>) => {
+      if (disabled) return;
+      // Only initiate scrub on plain left-click-drag (no text selection intent).
+      if (e.button !== 0) return;
+      const currentValue = value?.value ?? (Number(draft) || 0);
+      if (!Number.isFinite(currentValue)) return;
+      scrubRef.current = { startX: e.clientX, startValue: currentValue, accumulated: 0 };
+      isScrubbing.current = false;
+
+      const el = e.currentTarget;
+
+      function onPointerMove(ev: PointerEvent) {
+        if (!scrubRef.current) return;
+        const dx = ev.clientX - scrubRef.current.startX;
+        // Only enter scrub mode after 4px of movement to preserve normal click-to-focus.
+        if (!isScrubbing.current && Math.abs(dx) < 4) return;
+        if (!isScrubbing.current) {
+          isScrubbing.current = true;
+          el.setPointerCapture(ev.pointerId);
+          el.style.cursor = "ew-resize";
+        }
+        const effectiveStep = ev.shiftKey ? step * 10 : ev.altKey ? step / 10 : step;
+        const rawNext = scrubRef.current.startValue + dx * effectiveStep;
+        let snapped = Math.round(rawNext / effectiveStep) * effectiveStep;
+        if (typeof min === "number" && snapped < min) snapped = min;
+        if (typeof max === "number" && snapped > max) snapped = max;
+        // Round to avoid floating-point noise from Alt÷10 step.
+        snapped = Math.round(snapped * 100) / 100;
+        onChange({ value: snapped, unit: value?.unit ?? defaultUnit ?? units[0] ?? "px" });
+      }
+
+      function onPointerUp(ev: PointerEvent) {
+        document.removeEventListener("pointermove", onPointerMove);
+        document.removeEventListener("pointerup", onPointerUp);
+        if (isScrubbing.current) {
+          el.releasePointerCapture(ev.pointerId);
+          el.style.cursor = "";
+          // Brief timeout so the click event (which fires after pointerup) doesn't
+          // select all text and interrupt the new value.
+          window.setTimeout(() => {
+            isScrubbing.current = false;
+          }, 0);
+        }
+        scrubRef.current = null;
+      }
+
+      document.addEventListener("pointermove", onPointerMove);
+      document.addEventListener("pointerup", onPointerUp);
+    },
+    [disabled, draft, value, step, min, max, onChange, defaultUnit, units],
+  );
 
   const activeUnit: LengthUnit =
     value?.unit ?? defaultUnit ?? units[0] ?? "px";
@@ -203,6 +267,14 @@ export function NumberUnit({
         value={value ? String(value.value) : draft}
         placeholder={value ? undefined : placeholder}
         disabled={disabled}
+        onPointerDown={onScrubPointerDown}
+        onClick={(e) => {
+          // If scrub just finished, don't select-all — the scrub already committed
+          // a new value and selecting would feel jarring.
+          if (isScrubbing.current) {
+            e.preventDefault();
+          }
+        }}
         onChange={(e) => {
           const raw = e.target.value.trim();
           setDraft(raw);
@@ -222,6 +294,7 @@ export function NumberUnit({
           }
         }}
         className="min-w-[44px] flex-1 text-center"
+        title="Drag to scrub, or click to type"
         style={{
           background: "transparent",
           border: "none",
@@ -231,6 +304,7 @@ export function NumberUnit({
           color: value ? CHROME.ink : CHROME.muted,
           fontVariantNumeric: "tabular-nums",
           padding: 0,
+          cursor: disabled ? "default" : "ew-resize",
         }}
       />
       {showButtons ? (

@@ -14,6 +14,7 @@ import {
   writeClasses,
 } from "@/lib/site-admin/builder-node/style-classes-storage";
 import { CHROME } from "../kit/tokens";
+import { InlineNameInput } from "./kit/inline-name-input";
 
 /**
  * Wave 3 · Item 3B — LINKED STYLE CLASSES inspector control.
@@ -68,6 +69,8 @@ export function LinkedStyleClassesBar({
   const [namingValue, setNamingValue] = useState("");
   const [renameClassId, setRenameClassId] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+  // INS-3: inline confirm for delete (replaces window.confirm).
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     setClasses(readClasses(pageId));
@@ -188,14 +191,13 @@ export function LinkedStyleClassesBar({
     setRenameClassId(klass.id);
   };
 
-  const deleteClass = (classId: string) => {
-    if (
-      !window.confirm(
-        "Delete this style class? Blocks linked to it keep their current look.",
-      )
-    ) {
-      return;
-    }
+  const confirmDeleteClass = (classId: string) => {
+    // Show inline confirm — user must click the confirm button (replaces window.confirm).
+    setConfirmDeleteId(classId);
+  };
+
+  const commitDeleteClass = (classId: string) => {
+    setConfirmDeleteId(null);
     persist(classes.filter((c) => c.id !== classId));
     if (linkedId === classId) {
       const klass = classes.find((c) => c.id === classId);
@@ -382,50 +384,62 @@ export function LinkedStyleClassesBar({
       {picking && classes.length > 0 ? (
         <div className="flex flex-col gap-1" data-builder-style-class-picker="">
           {classes.map((klass) => (
-            <div
-              key={klass.id}
-              className="flex items-center justify-between gap-2 rounded-md"
-              style={{
-                paddingInline: 8,
-                height: 28,
-                background: CHROME.surface2,
-                border: `1px solid ${CHROME.line}`,
-              }}
-            >
-              <button
-                type="button"
-                data-builder-style-class-pick={klass.id}
-                className="flex-1 text-left"
+            <div key={klass.id} className="flex flex-col gap-1">
+              <div
+                className="flex items-center justify-between gap-2 rounded-md"
                 style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: linkedId === klass.id ? CHROME.accent : CHROME.ink,
-                  background: "transparent",
+                  paddingInline: 8,
+                  height: 28,
+                  background: CHROME.surface2,
+                  border: `1px solid ${CHROME.line}`,
                 }}
-                onClick={() => applyClass(klass.id)}
-                title={`Apply "${klass.name}"`}
               >
-                {linkedId === klass.id ? "◆ " : ""}
-                {klass.name}
-              </button>
-              <button
-                type="button"
-                className="cursor-pointer"
-                style={{ fontSize: 11, color: CHROME.muted, background: "transparent" }}
-                onClick={() => startRenameClass(klass)}
-                title="Rename"
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                className="cursor-pointer leading-none"
-                style={{ fontSize: 14, color: CHROME.muted, background: "transparent" }}
-                onClick={() => deleteClass(klass.id)}
-                title="Delete class"
-              >
-                ×
-              </button>
+                <button
+                  type="button"
+                  data-builder-style-class-pick={klass.id}
+                  className="flex-1 text-left"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: linkedId === klass.id ? CHROME.accent : CHROME.ink,
+                    background: "transparent",
+                  }}
+                  onClick={() => applyClass(klass.id)}
+                  title={`Apply "${klass.name}"`}
+                >
+                  {linkedId === klass.id ? "◆ " : ""}
+                  {klass.name}
+                </button>
+                <button
+                  type="button"
+                  className="cursor-pointer"
+                  style={{ fontSize: 11, color: CHROME.muted, background: "transparent" }}
+                  onClick={() => startRenameClass(klass)}
+                  title="Rename"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="cursor-pointer leading-none"
+                  style={{ fontSize: 14, color: CHROME.muted, background: "transparent" }}
+                  onClick={() => confirmDeleteClass(klass.id)}
+                  title="Delete class"
+                >
+                  ×
+                </button>
+              </div>
+              {confirmDeleteId === klass.id ? (
+                <InlineNameInput
+                  mode="confirm"
+                  title={`Delete class "${klass.name}"?`}
+                  description="Blocks linked to this class keep their current look."
+                  confirmLabel="Delete"
+                  cancelLabel="Keep"
+                  onConfirm={() => commitDeleteClass(klass.id)}
+                  onCancel={() => setConfirmDeleteId(null)}
+                />
+              ) : null}
             </div>
           ))}
         </div>

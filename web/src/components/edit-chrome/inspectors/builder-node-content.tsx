@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -41,6 +42,7 @@ import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import { KIT } from "./kit/tokens";
 import { MediaPickerButton } from "./kit";
+import { InlineNameInput } from "./kit/inline-name-input";
 import { MyBlocksPanel } from "./my-blocks-panel";
 import { ComponentLibraryPanel } from "./component-library-panel";
 import { GenericContent } from "./generic-content";
@@ -192,20 +194,22 @@ export function BuilderNodeContentInspector({
     }
   }
 
-  function commitSavePreset() {
-    const defaultName = copiedBuilderNodeKind
-      ? `${BUILDER_NODE_REGISTRY[copiedBuilderNodeKind].label} pattern`
-      : "Saved block pattern";
-    const name =
-      typeof window === "undefined"
-        ? defaultName
-        : window.prompt("Preset name", defaultName);
-    if (name === null) return;
-    const result = saveCopiedBuilderNodeAsPreset(name);
-    if (!result.ok && result.error) {
-      reportMutationError(result.error);
-    }
-  }
+  // INS-3: commitSavePreset now accepts the name from the inline naming overlay
+  // rendered inside NestedBlocksCard (replaces window.prompt).
+  const defaultPresetName = copiedBuilderNodeKind
+    ? `${BUILDER_NODE_REGISTRY[copiedBuilderNodeKind].label} pattern`
+    : "Saved block pattern";
+
+  const commitSavePreset = useCallback(
+    (name: string) => {
+      const trimmed = name.trim() || defaultPresetName;
+      const result = saveCopiedBuilderNodeAsPreset(trimmed);
+      if (!result.ok && result.error) {
+        reportMutationError(result.error);
+      }
+    },
+    [defaultPresetName, saveCopiedBuilderNodeAsPreset, reportMutationError],
+  );
 
   async function commitPastePreset(presetId: string, targetNodeId: string) {
     const result = await pasteBuilderBlockPreset(presetId, targetNodeId);
@@ -2464,7 +2468,7 @@ function NestedBlocksCard({
   copiedKind: BuilderNodeKind | null;
   pastePreview: BuilderNodePastePreview | null;
   presets: ReadonlyArray<BuilderBlockPreset>;
-  onSavePreset: () => void;
+  onSavePreset: (name: string) => void;
   onPastePreset: (
     presetId: string,
     targetNodeId: string,
@@ -2487,6 +2491,8 @@ function NestedBlocksCard({
   const [packCategory, setPackCategory] = useState<
     "all" | BuilderNodeCompositionPreset["category"]
   >("all");
+  // INS-3: inline naming for "Save pattern" (replaces window.prompt).
+  const [savePatternNamingOpen, setSavePatternNamingOpen] = useState(false);
   useEffect(() => {
     const currentIds = new Set(nodes.map((node) => node.id));
     setSelectedChildIds((current) => {
@@ -2737,12 +2743,26 @@ function NestedBlocksCard({
                 <button
                   type="button"
                   className={KIT.ghostButton}
-                  onClick={onSavePreset}
+                  onClick={() => setSavePatternNamingOpen(true)}
                 >
                   Save pattern
                 </button>
               ) : null}
             </div>
+          ) : null}
+          {savePatternNamingOpen ? (
+            <InlineNameInput
+              mode="text"
+              title="Name this block pattern"
+              placeholder="Pattern name…"
+              defaultValue="Saved block pattern"
+              confirmLabel="Save"
+              onConfirm={(name) => {
+                setSavePatternNamingOpen(false);
+                onSavePreset(name.trim() || "Saved block pattern");
+              }}
+              onCancel={() => setSavePatternNamingOpen(false)}
+            />
           ) : null}
           {compositionPresets.length > 0 ? (
             <details
