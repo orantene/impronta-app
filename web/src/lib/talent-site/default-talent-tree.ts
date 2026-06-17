@@ -460,7 +460,7 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
                 style: { flexWrap: "wrap", marginTop: "s" },
               },
               children: [
-                // "Max" VIP pill — premium visual identity
+                // MAX VIP gold pill — premium membership chip
                 {
                   id: id("max-badge-pill"),
                   kind: "card",
@@ -468,11 +468,12 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
                     variant: "outline",
                     style: {
                       radius: "pill",
-                      paddingX: "s",
+                      paddingX: "m",
                       paddingY: "s",
                       backgroundColor:
-                        "color-mix(in srgb, var(--plt-forest) 8%, transparent)",
-                      borderColor: "var(--plt-forest)",
+                        "linear-gradient(135deg, #C9A24B 0%, #E8C766 50%, #C9A24B 100%)",
+                      borderColor: "#A07830",
+                      boxShadow: "0 1px 4px rgba(168,120,48,0.25)",
                     },
                   },
                   children: [
@@ -480,19 +481,19 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
                       id: id("max-badge-pill-label"),
                       kind: "paragraph",
                       props: {
-                        text: "✦ Max",
+                        text: "♔ MAX",
                         style: {
                           size: "sm",
-                          tone: "muted",
                           textTransform: "uppercase",
-                          letterSpacing: "0.12em",
-                          textColor: "var(--plt-forest)",
+                          letterSpacing: "0.14em",
+                          fontWeight: 700,
+                          textColor: "#3D2800",
                         },
                       },
                     },
                   ],
                 },
-                // "Visit my site" CTA linking to the Max site
+                // Visit my site CTA — dark premium button, gold border and text
                 {
                   id: id("max-badge-site-link"),
                   kind: "button",
@@ -500,6 +501,12 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
                     label: "Visit my site →",
                     href: "{{maxSiteUrl}}",
                     tone: "secondary",
+                    style: {
+                      backgroundColor: "#1A0F00",
+                      borderColor: "#C9A24B",
+                      textColor: "#E8C766",
+                      fontWeight: 600,
+                    },
                   },
                 },
               ],
