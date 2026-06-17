@@ -471,6 +471,104 @@ test("Task 1: a RE-DELIVERED same partial refund replays the SAME reversal (no d
   assert.equal(reversals[0].key, "reverse_partial_tr_w_re_a");
 });
 
+// ── M2: partial reversal caps at the leg's REMAINING (un-reversed) amount ────
+//
+// Each partial reversal must be capped at `amount_cents − already_reversed` (the
+// leg's residual, read live from the transfer's `amount_reversed`), NOT the leg's
+// full transferred amount. Two additive partials on one leg must reverse the
+// correct remaining amounts and never sum past the leg total — correct even if
+// the talent-protective split didn't already bound it.
+
+/** Like makeReversalStripe but `createReversal` ACCRUES onto the transfer's
+ *  `amount_reversed`, so a later `transfers.list` reflects the running total —
+ *  this is what lets a second partial see how much the first already reversed. */
+function makeAccruingReversalStripe(transfers: FakeTransfer[]) {
+  const reversals: Array<{ transferId: string; amount: number; key?: string }> = [];
+  const seen = new Map<string, { id: string }>();
+  const byId = new Map(transfers.map((t) => [t.id, t]));
+  const stripe = {
+    transfers: {
+      list: async () => ({ data: transfers }),
+      createReversal: async (transferId: string, params: { amount: number }, opts?: { idempotencyKey?: string }) => {
+        const key = opts?.idempotencyKey;
+        if (key && seen.has(key)) return seen.get(key);
+        const r = { id: `trr_${reversals.length + 1}` };
+        reversals.push({ transferId, amount: params.amount, key });
+        if (key) seen.set(key, r);
+        const t = byId.get(transferId);
+        if (t) t.amount_reversed += params.amount; // Stripe accrues amount_reversed
+        return r;
+      },
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  return { reversals, stripe };
+}
+
+test("M2 partial: clawback is capped at the leg's REMAINING amount, not its full amount", async () => {
+  // 20000 leg, 15000 already reversed by a prior partial → only 5000 left.
+  const legs = [legRow({ id: "L2", party: "workspace", participant_id: "p1", amount_cents: 20000, stripe_transfer_id: "tr_w" })];
+  const { reversals, stripe } = makeReversalStripe([{ id: "tr_w", amount: 20000, amount_reversed: 15000 }]);
+  const out = await reverseBookingPayouts(
+    "bk_1",
+    {
+      mode: "partial",
+      reference: "partial_refund re_b",
+      // ask to claw 9000, but only 5000 remains un-reversed
+      workspaceClawbackByLeg: new Map([[reversalLegKey("p1", "workspace"), 9000]]),
+      partialReversalAnchor: "re_b",
+    },
+    { sb: makeReversalSupabase(legs), stripe },
+  );
+  assert.equal(reversals.length, 1);
+  assert.equal(reversals[0].amount, 5000, "capped at remaining (20000 − 15000), NOT the requested 9000 or the full 20000");
+  assert.equal(out.find((o) => o.legId === "L2")?.amountCents, 5000);
+});
+
+test("M2 partial: a fully-reversed leg → no further reversal (remaining is 0)", async () => {
+  const legs = [legRow({ id: "L2", party: "workspace", participant_id: "p1", amount_cents: 20000, stripe_transfer_id: "tr_w" })];
+  const { reversals, stripe } = makeReversalStripe([{ id: "tr_w", amount: 20000, amount_reversed: 20000 }]);
+  const out = await reverseBookingPayouts(
+    "bk_1",
+    {
+      mode: "partial",
+      reference: "partial_refund re_c",
+      workspaceClawbackByLeg: new Map([[reversalLegKey("p1", "workspace"), 5000]]),
+      partialReversalAnchor: "re_c",
+    },
+    { sb: makeReversalSupabase(legs), stripe },
+  );
+  assert.equal(reversals.length, 0, "nothing left to reverse on an already fully-reversed leg");
+  assert.equal(out.find((o) => o.legId === "L2")?.result, "noop");
+});
+
+test("M2 partial: two ADDITIVE partials on one leg reverse the correct remaining + never exceed the leg total", async () => {
+  // One 20000 workspace leg. Two distinct partial refunds claw 12000 then 15000.
+  // The 1st reverses 12000 (remaining was 20000). The 2nd is REQUESTED for 15000
+  // but only 8000 remains (20000 − 12000) → it must cap at 8000. Cumulative = the
+  // full 20000 and never a cent more, even though each request alone was ≤ 20000.
+  const legs = [legRow({ id: "L2", party: "workspace", participant_id: "p1", amount_cents: 20000, stripe_transfer_id: "tr_w" })];
+  const sb = makeReversalSupabase(legs);
+  const { reversals, stripe } = makeAccruingReversalStripe([{ id: "tr_w", amount: 20000, amount_reversed: 0 }]);
+
+  const plan = (anchor: string, amount: number) => ({
+    mode: "partial" as const,
+    reference: `partial_refund ${anchor}`,
+    workspaceClawbackByLeg: new Map([[reversalLegKey("p1", "workspace"), amount]]),
+    partialReversalAnchor: anchor,
+  });
+
+  await reverseBookingPayouts("bk_1", plan("re_a", 12000), { sb, stripe });
+  await reverseBookingPayouts("bk_1", plan("re_b", 15000), { sb, stripe });
+
+  assert.equal(reversals.length, 2, "both distinct partials applied");
+  assert.equal(reversals[0].amount, 12000, "1st partial reverses its full requested amount (fits in remaining)");
+  assert.equal(reversals[1].amount, 8000, "2nd partial capped at the REMAINING 8000, not its requested 15000");
+  const total = reversals.reduce((s, r) => s + r.amount, 0);
+  assert.equal(total, 20000, "cumulative reversed == leg total");
+  assert.ok(total <= 20000, "cumulative reversed never exceeds the leg total");
+});
+
 test("clawback: refund within the platform fee → platform absorbs all, nobody clawed", () => {
   const r = computeTalentProtectiveClawback({
     platformFeeCents: 10000,
