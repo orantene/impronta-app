@@ -78,6 +78,20 @@ export const PRODUCT_ANALYTICS_EVENTS = {
 
   /** Stub for step 4 (budget UI) — fired when budget unit/amount is set. */
   inquiry_budget_set: "inquiry_budget_set",
+
+  // ---------------------------------------------------------------------------
+  // First-party page-view analytics (B3 — ANALYTICS-1 foundation)
+  // The component that fires this event is built in ANALYTICS-2.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Fired once per page render on any public surface (storefront, talent-profile,
+   * talent-site). Payload: { surface, tenant_id, page_id?, page_slug?, referrer? }
+   *
+   * tenant_id is written to analytics_events.tenant_id (not payload-only) so
+   * admin-data.ts .eq('tenant_id') filters return real rows instead of 0.
+   */
+  view_site_page: "view_site_page",
 } as const;
 
 export type ProductAnalyticsEventName =
