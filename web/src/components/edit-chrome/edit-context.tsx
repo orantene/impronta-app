@@ -167,6 +167,12 @@ import {
   toRegistry as toStyleClassRegistry,
   publishStyleClassRegistry,
 } from "@/lib/site-admin/builder-node/style-classes-storage";
+import {
+  readPresets as readStylePresets,
+  seedPresetsFromHydration,
+  presetRegistryHasContent,
+  publishStylePresetRegistry,
+} from "@/lib/site-admin/builder-node/style-presets-storage";
 import { normalizeCompositionSlots } from "./composition-slots";
 import {
   loadWorkspaceLayout,
@@ -2086,6 +2092,23 @@ function defaultHomepageBuilderConfig(): BuilderContextConfig {
   return cachedDefaultHomepageConfig;
 }
 
+/**
+ * STYLE-1 — read the page's site-scoped style classes from the local mirror into
+ * the `styleClasses` save envelope (or `undefined` when empty). Centralizes the
+ * read so every save/publish call site threads the registry identically.
+ */
+function styleClassesForSave(pageId: string | null) {
+  const classes = readStyleClasses(pageId);
+  return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
+}
+
+/** STYLE-1 — read the page's site-scoped presets into the `stylePresets` save
+ *  envelope (or `undefined` when empty). */
+function stylePresetsForSave(pageId: string | null) {
+  const registry = readStylePresets(pageId);
+  return presetRegistryHasContent(registry) ? registry : undefined;
+}
+
 export function EditProvider({
   tenantId,
   workspacePlan = null,
@@ -2682,8 +2705,11 @@ export function EditProvider({
   // — additive, does not enter the value memo.
   useEffect(() => {
     publishStyleClassRegistry(toStyleClassRegistry(readStyleClasses(pageId)));
+    // STYLE-1 — same bridge republish for the site-scoped preset registry.
+    publishStylePresetRegistry(readStylePresets(pageId));
     return () => {
       publishStyleClassRegistry(null);
+      publishStylePresetRegistry(null);
     };
   }, [pageId]);
 
@@ -4086,6 +4112,10 @@ export function EditProvider({
     if (data.styleClasses && Object.keys(data.styleClasses).length > 0) {
       writeStyleClasses(data.pageId, Object.values(data.styleClasses));
     }
+    // STYLE-1 — seed the site-scoped preset registry from the DB-hydrated
+    // envelope (no-ops if this browser already has presets for the page, so an
+    // in-session edit isn't clobbered).
+    seedPresetsFromHydration(data.pageId, data.stylePresets);
     setCompositionLoaded(true);
     setCompositionError(null);
   }, []);
@@ -4761,10 +4791,8 @@ export function EditProvider({
               expectedVersion: casVersion,
               ...stripSnapshotForSave(next),
               builderTree: builderTreeForSave,
-              styleClasses: (() => {
-                const classes = readStyleClasses(pageId);
-                return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
-              })(),
+              styleClasses: styleClassesForSave(pageId),
+              stylePresets: stylePresetsForSave(pageId),
             },
           ),
         {
@@ -5228,10 +5256,8 @@ export function EditProvider({
               metadata: snapshot.metadata,
               slots: stripSnapshotForSave(snapshot).slots,
               builderTree: nextTree,
-              styleClasses: (() => {
-                const classes = readStyleClasses(pageId);
-                return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
-              })(),
+              styleClasses: styleClassesForSave(pageId),
+              stylePresets: stylePresetsForSave(pageId),
               // WS1-D — stamp this save with the per-tab session token + next seq
               // so the pagehide beacon can last-write-wins against the stored draft.
               // The homepage adapter forwards editSession to saveDraftHomepageAction.
@@ -7021,10 +7047,8 @@ export function EditProvider({
               expectedVersion: pageVersionRef.current!,
               ...stripSnapshotForSave(normalizedTarget),
               builderTree: builderTreeForSave,
-              styleClasses: (() => {
-                const classes = readStyleClasses(pageId);
-                return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
-              })(),
+              styleClasses: styleClassesForSave(pageId),
+              stylePresets: stylePresetsForSave(pageId),
             },
           ),
         {
@@ -7605,10 +7629,8 @@ export function EditProvider({
               builderTreeRef.current,
               snap.slots,
             ),
-            styleClasses: (() => {
-              const classes = readStyleClasses(pageId);
-              return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
-            })(),
+            styleClasses: styleClassesForSave(pageId),
+            stylePresets: stylePresetsForSave(pageId),
           },
         ),
       {
