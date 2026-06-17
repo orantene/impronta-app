@@ -93,6 +93,19 @@ export interface BuilderSurfaceCapabilities {
   themeTokens: boolean;
   customCss: boolean;
   responsiveBreakpoints: boolean;
+  /**
+   * SEO-1 — whether this surface has a PUBLIC, server-rendered page whose
+   * `<head>` consumes the shared SEO metadata envelope (meta/OG/canonical/
+   * noindex/JSON-LD). When false the editor suppresses the Page-settings SEO
+   * tab for that surface — the correct unification for surfaces with no public
+   * render (`platform_lab` is ephemeral with no pageId; `site_shell` is the
+   * shared header/footer, not a page). This is a CAPABILITY FLAG so the editor
+   * never branches on `surfaceKind` to decide SEO visibility.
+   *
+   *   true  → homepage / cms_page / talent_page (public SSR surfaces).
+   *   false → platform_lab / site_shell (no public page render).
+   */
+  seo: boolean;
 }
 
 export interface BuilderContextConfig {
@@ -173,6 +186,8 @@ export function buildHomepageBuilderConfig(
       themeTokens: true,
       customCss: true,
       responsiveBreakpoints: true,
+      // Homepage is a public SSR surface backed by cms_pages SEO columns.
+      seo: true,
     },
   };
 }
@@ -263,6 +278,8 @@ export function buildCmsPageBuilderConfig(
       themeTokens: true,
       customCss: true,
       responsiveBreakpoints: true,
+      // Agency freeform pages are public SSR surfaces backed by cms_pages SEO columns.
+      seo: true,
     },
   };
 }
@@ -323,6 +340,9 @@ export function buildTalentPageBuilderConfig(
       themeTokens: isMaxTier,
       customCss: isMaxTier,
       responsiveBreakpoints: true,
+      // Talent Max pages are public SSR surfaces; the SEO-1 talent_pages
+      // migration adds the columns SEO-2 wires into the route + adapter.
+      seo: true,
     },
   };
 }
@@ -394,6 +414,9 @@ export function buildSiteShellBuilderConfig(
       themeTokens: true,
       customCss: true,
       responsiveBreakpoints: true,
+      // site_shell is the shared header/footer, not a public page — suppress the
+      // SEO tab here (the wrapping page carries SEO, the shell never does).
+      seo: false,
     },
   };
 }
@@ -489,6 +512,9 @@ export function buildPlatformLabBuilderConfig(
       themeTokens: true,
       customCss: true,
       responsiveBreakpoints: true,
+      // platform_lab edits template BODIES with no persistent pageId and no
+      // public SSR surface — SEO is inert here (suppress, not fork).
+      seo: false,
     },
   };
 }

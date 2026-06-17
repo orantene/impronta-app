@@ -113,6 +113,9 @@ export function buildTalentSiteShellComposition(
       ogImageUrl: null,
       canonicalUrl: null,
       noindex: false,
+      // SEO-1 contract field. The talent site-shell is the shared header/footer,
+      // not a public page (capabilities.seo === false), so structured data is null.
+      jsonLd: null,
     },
     slots: {},
     builderTree,

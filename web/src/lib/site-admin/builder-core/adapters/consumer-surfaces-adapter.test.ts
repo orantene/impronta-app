@@ -34,6 +34,17 @@ import {
   LegacyBuilderWriteError,
 } from "../legacy-write-guard";
 
+import {
+  buildHomepageBuilderConfig,
+  buildCmsPageBuilderConfig,
+  buildTalentPageBuilderConfig,
+  buildSiteShellBuilderConfig,
+  buildPlatformLabBuilderConfig,
+} from "../config";
+import type { BuilderSurfaceAdapter } from "../surface-adapter";
+import type { BuilderSurfaceKind } from "../surface-kind";
+import type { CompositionData, CompositionSaveInput } from "../../edit-mode/composition-actions";
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeFakeTalentPageRow(overrides: Partial<TalentPageRow> = {}): TalentPageRow {
@@ -303,4 +314,113 @@ test("[talent] no homepage action functions appear in adapter mutations", async 
     "saveHomepageCompositionAction must never be called by talent_page adapter",
   );
   void fakeSaveHomepageAction; // suppress unused warning
+});
+
+// ── SEO-1 · Shared SEO metadata engine — cross-surface parity ─────────────────
+//
+// Proves the SEO-1 contract is built ONCE in the shared layer and adopted via
+// config flags, NOT forked per surface:
+//   1. The shared metadata envelope (CompositionData / CompositionSaveInput
+//      `.metadata`) carries the full OG/canonical/noindex set PLUS `jsonLd`,
+//      in ONE place — a value typed against the shared field set assigns to it.
+//   2. `capabilities.seo` resolves true for public-render surfaces
+//      (homepage / cms_page / talent_page) and false for the no-public-render
+//      surfaces (platform_lab / site_shell), entirely via config flags.
+
+/** Minimal stub adapter — the config factories only read `.kind`. */
+function stubAdapter(kind: BuilderSurfaceKind): BuilderSurfaceAdapter {
+  return { kind } as BuilderSurfaceAdapter;
+}
+
+test("[SEO-1] shared metadata type carries the full SEO field set incl. jsonLd (one envelope)", () => {
+  // Compile-time + runtime witness: a value typed as the SHARED load-side
+  // metadata satisfies every SEO field once — OG/canonical/noindex + jsonLd.
+  const loadMeta: CompositionData["metadata"] = {
+    title: "Page",
+    metaTitle: null,
+    metaDescription: null,
+    introTagline: null,
+    ogTitle: null,
+    ogDescription: null,
+    ogImageUrl: null,
+    canonicalUrl: null,
+    noindex: false,
+    jsonLd: { "@type": "WebPage" },
+  };
+  // The save-side envelope shares the same SEO field names (jsonLd optional).
+  const saveMeta: CompositionSaveInput["metadata"] = {
+    title: "Page",
+    ogTitle: "OG",
+    ogDescription: "desc",
+    ogImageUrl: "https://example.test/og.png",
+    canonicalUrl: "https://example.test/page",
+    noindex: true,
+    jsonLd: loadMeta.jsonLd,
+  };
+
+  // Every SEO field is present on the shared load-side metadata.
+  for (const key of [
+    "ogTitle",
+    "ogDescription",
+    "ogImageUrl",
+    "canonicalUrl",
+    "noindex",
+    "jsonLd",
+  ] as const) {
+    assert.ok(
+      key in loadMeta,
+      `shared CompositionData.metadata must carry "${key}" once`,
+    );
+  }
+  // jsonLd round-trips through the save envelope (same field, not a fork).
+  assert.deepEqual(saveMeta.jsonLd, loadMeta.jsonLd);
+});
+
+test("[SEO-1] capabilities.seo resolves true/false per surface (flag, not surfaceKind branch)", () => {
+  const homepage = buildHomepageBuilderConfig(stubAdapter("homepage"));
+  const cmsPage = buildCmsPageBuilderConfig(stubAdapter("cms_page"));
+  const talentPage = buildTalentPageBuilderConfig(stubAdapter("talent_page"));
+  const siteShell = buildSiteShellBuilderConfig(stubAdapter("site_shell"));
+  const platformLab = buildPlatformLabBuilderConfig(
+    stubAdapter("platform_lab"),
+    "talent",
+  );
+
+  // Public-render surfaces expose SEO.
+  assert.equal(homepage.capabilities.seo, true, "homepage seo must be true");
+  assert.equal(cmsPage.capabilities.seo, true, "cms_page seo must be true");
+  assert.equal(
+    talentPage.capabilities.seo,
+    true,
+    "talent_page seo must be true",
+  );
+
+  // No-public-render surfaces suppress SEO via the flag.
+  assert.equal(
+    siteShell.capabilities.seo,
+    false,
+    "site_shell seo must be false (shared shell, not a page)",
+  );
+  assert.equal(
+    platformLab.capabilities.seo,
+    false,
+    "platform_lab seo must be false (ephemeral, no public page)",
+  );
+});
+
+test("[SEO-1] EVERY surface config exposes the seo flag (no surface omits it)", () => {
+  const configs = [
+    buildHomepageBuilderConfig(stubAdapter("homepage")),
+    buildCmsPageBuilderConfig(stubAdapter("cms_page")),
+    buildTalentPageBuilderConfig(stubAdapter("talent_page")),
+    buildSiteShellBuilderConfig(stubAdapter("site_shell")),
+    buildPlatformLabBuilderConfig(stubAdapter("platform_lab"), "workspace"),
+  ];
+  for (const cfg of configs) {
+    assert.equal(
+      typeof cfg.capabilities.seo,
+      "boolean",
+      `surface "${cfg.surface.kind}" must declare capabilities.seo as a boolean flag`,
+    );
+  }
 });

@@ -160,6 +160,10 @@ export function buildEmptyTalentPageComposition(
       ogImageUrl: null,
       canonicalUrl: null,
       noindex: false,
+      // SEO-1 contract field. SEO-2 wires the actual `talent_pages.json_ld`
+      // column read here (the column lands in the SEO-1 migration). Null until
+      // then so a not-yet-migrated read degrades safely.
+      jsonLd: null,
     },
     slots: {},
     builderTree: (row.blocks as CompositionData["builderTree"]) ?? [],
