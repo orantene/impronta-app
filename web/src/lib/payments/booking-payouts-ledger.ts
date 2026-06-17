@@ -525,7 +525,14 @@ export function partialReversalIdempotencyKey(transferId: string, anchor: string
 /** Partial workspace-leg reversal (talent untouched). Idempotent per (transfer,
  *  refund): a re-delivered same refund replays the SAME reversal, a genuinely
  *  different partial gets its own. `anchor` is the stable per-refund key (Stripe
- *  `re_...`, else the charge id). */
+ *  `re_...`, else the charge id).
+ *
+ *  The clawback is capped at the leg's REMAINING (un-reversed) amount —
+ *  `amount_cents − alreadyReversedCents` — NOT the leg's full transferred amount.
+ *  `alreadyReversedCents` is the transfer's live `amount_reversed` (read by the
+ *  caller from `stripe.transfers.list`, the same source the full path uses), so
+ *  two additive partials on the SAME leg can never cumulatively over-reverse past
+ *  the leg total — correct independent of the talent-protective split. */
 async function partialReverseLeg(
   sb: SupabaseClient,
   stripe: Stripe | null,
@@ -533,9 +540,11 @@ async function partialReverseLeg(
   clawbackCents: number,
   reference: string,
   anchor: string | null,
+  alreadyReversedCents = 0,
 ): Promise<PayoutReversalOutcome> {
   const base = { legId: leg.id, participantId: leg.participant_id, party: leg.party } as const;
-  const amount = Math.min(Math.max(0, Math.round(clawbackCents)), leg.amount_cents);
+  const remaining = Math.max(0, leg.amount_cents - Math.max(0, alreadyReversedCents));
+  const amount = Math.min(Math.max(0, Math.round(clawbackCents)), remaining);
   if (amount <= 0) return { ...base, amountCents: 0, result: "noop" };
 
   if (!leg.stripe_transfer_id || !stripe) {
@@ -618,10 +627,13 @@ export async function reverseBookingPayouts(
     if (error || !data?.length) return [];
     const legs = data as LedgerLegRow[];
 
-    // For 'full', read each live transfer's already-reversed amount once so we
-    // reverse only the remaining (correct after a prior partial reversal).
+    // Read each live transfer's already-reversed amount once (both modes) so we
+    // reverse only the leg's REMAINING amount: 'full' reverses the whole residual,
+    // 'partial' caps each clawback at the residual. This makes a second additive
+    // partial on the same leg correct (and a partial-then-full sequence safe)
+    // regardless of the talent-protective split.
     const reversedAlready = new Map<string, number>();
-    if (plan.mode === "full" && stripe) {
+    if (stripe) {
       try {
         const list = await stripe.transfers.list({ transfer_group: `booking_${bookingId}`, limit: 100 });
         for (const t of list.data) reversedAlready.set(t.id, t.amount_reversed ?? 0);
@@ -641,7 +653,10 @@ export async function reverseBookingPayouts(
       if (plan.mode === "partial") {
         const clawback = plan.workspaceClawbackByLeg?.get(reversalLegKey(leg.participant_id, leg.party)) ?? 0;
         if (leg.party !== "workspace" || leg.status !== "transferred" || clawback <= 0) continue;
-        outcomes.push(await partialReverseLeg(sb, stripe, leg, clawback, plan.reference, plan.partialReversalAnchor ?? null));
+        const already = leg.stripe_transfer_id ? (reversedAlready.get(leg.stripe_transfer_id) ?? 0) : 0;
+        outcomes.push(
+          await partialReverseLeg(sb, stripe, leg, clawback, plan.reference, plan.partialReversalAnchor ?? null, already),
+        );
         continue;
       }
 
