@@ -21,12 +21,13 @@ import {
   useMemo,
   useState,
   type ComponentType,
+  type DragEvent,
   type MouseEventHandler,
   type ReactNode,
 } from "react";
 import { ArrowDown, ArrowUp, Lock, LockOpen, Plus, X } from "lucide-react";
 
-import { CHROME, CHROME_RADII } from "./kit";
+import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./kit";
 import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
 import { useEditContext } from "./edit-context";
 import { useBuilderTree } from "./builder-tree-bridge";
@@ -41,6 +42,7 @@ import {
   type BuilderNodeKind,
   type BuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
+import { resolveFreeformLayerDrop } from "@/lib/site-admin/builder-node/freeform-layers-drop";
 import {
   resolveLayerDisplayName,
   resolveResponsiveOverrides,
@@ -78,6 +80,15 @@ interface LayerRow {
   index: number;
   /** Number of siblings in this node's parent list (reorder only when > 1). */
   siblingCount: number;
+  /**
+   * CANVAS-5 — parent container id (`null` at the page root). Drives the
+   * flat→tree drop resolver so a layer drag reuses moveBuilderNodeToParentIndex.
+   */
+  parentId: string | null;
+  /** CANVAS-5 — parent kind (`null` at root) for the drop-policy child-kind check. */
+  parentKind: BuilderNodeKind | null;
+  /** CANVAS-5 — whether the parent container is locked (block reparent/reorder in). */
+  parentLocked: boolean;
   /** Registry-allowed child kinds (pre-gate); non-empty drives per-row "add child". */
   rawChildKinds: ReadonlyArray<BuilderNodeKind>;
   /** P3-LOCK — mirrors BuilderNodeBase.locked for the row renderer. */
@@ -108,6 +119,27 @@ interface FlattenedTree {
   rootContainerId: string | null;
   /** Raw allowed-child kinds of the resolved root container — gated-non-empty drives the header pill (so it shows even when the root is hoisted). */
   rootContainerKinds: ReadonlyArray<BuilderNodeKind>;
+  /**
+   * CANVAS-5 — for every node, the set of ids inside its subtree (excluding
+   * itself). Used by the drop resolver as the cycle guard so you cannot drag a
+   * node into one of its own descendants.
+   */
+  descendantsByNode: Map<string, Set<string>>;
+}
+
+/** Collect every descendant id of `node` (excluding `node` itself). */
+function collectDescendantIds(node: BuilderNode): Set<string> {
+  const ids = new Set<string>();
+  const visit = (n: BuilderNode): void => {
+    if ("children" in n && Array.isArray(n.children)) {
+      for (const child of n.children) {
+        ids.add(child.id);
+        visit(child);
+      }
+    }
+  };
+  visit(node);
+  return ids;
 }
 
 /** Depth-first: the first `container` node anywhere in the tree, else `null`. */
@@ -128,9 +160,17 @@ function findFirstContainer(nodes: ReadonlyArray<BuilderNode>): BuilderNode | nu
  */
 function flattenTree(tree: BuilderNodeTree): FlattenedTree {
   const rows: LayerRow[] = [];
+  const descendantsByNode = new Map<string, Set<string>>();
 
-  const walk = (nodes: ReadonlyArray<BuilderNode>, depth: number): void => {
+  const walk = (
+    nodes: ReadonlyArray<BuilderNode>,
+    depth: number,
+    parentId: string | null,
+    parentKind: BuilderNodeKind | null,
+    parentLocked: boolean,
+  ): void => {
     nodes.forEach((node, index) => {
+      descendantsByNode.set(node.id, collectDescendantIds(node));
       rows.push({
         id: node.id,
         kind: node.kind,
@@ -139,12 +179,15 @@ function flattenTree(tree: BuilderNodeTree): FlattenedTree {
         depth,
         index,
         siblingCount: nodes.length,
+        parentId,
+        parentKind,
+        parentLocked,
         rawChildKinds: rawChildKindsForKind(node.kind),
         locked: node.locked === true,
         responsive: resolveResponsiveOverrides(node),
       });
       if ("children" in node && Array.isArray(node.children) && node.children.length > 0) {
-        walk(node.children, depth + 1);
+        walk(node.children, depth + 1, node.id, node.kind, node.locked === true);
       }
     });
   };
@@ -165,16 +208,19 @@ function flattenTree(tree: BuilderNodeTree): FlattenedTree {
 
   if (onlyRoot && "children" in onlyRoot && Array.isArray(onlyRoot.children)) {
     // The hoisted wrapper has NO row of its own, so the header must target it by
-    // id + its real child kinds — else the kind-gated pill never renders.
-    walk(onlyRoot.children, 0);
+    // id + its real child kinds — else the kind-gated pill never renders. The
+    // hoisted children's real parent IS the wrapper, so the drop resolver routes
+    // a depth-0 reorder back through it (not the page root).
+    walk(onlyRoot.children, 0, onlyRoot.id, onlyRoot.kind, onlyRoot.locked === true);
     return {
       rows,
       rootContainerId: onlyRoot.id,
       rootContainerKinds: rawChildKindsForKind(onlyRoot.kind),
+      descendantsByNode,
     };
   }
 
-  walk(tree, 0);
+  walk(tree, 0, null, null, false);
   // No hoisted wrapper: target the first container ANYWHERE (a page may nest its
   // only container under a section). With none, target tree root (`null`) + the
   // container catalog so the operator can still seed a first block.
@@ -185,6 +231,7 @@ function flattenTree(tree: BuilderNodeTree): FlattenedTree {
     rootContainerKinds: firstContainer
       ? rawChildKindsForKind(firstContainer.kind)
       : rawChildKindsForKind("container"),
+    descendantsByNode,
   };
 }
 
@@ -288,6 +335,7 @@ export function FreeformLayersTree({
   const {
     selectBuilderNode,
     moveBuilderNodeWithinParent,
+    moveBuilderNodeToParentIndex,
     removeBuilderNode,
     insertBuilderNode,
     insertBuilderSectionEmbed,
@@ -301,7 +349,7 @@ export function FreeformLayersTree({
   const hoveredBuilderNodeId = useHoveredBuilderNodeId(); // W2-T3 — value from the bridge
   const selectedBuilderNodeId = useSelectedBuilderNodeId(); // W2 (selection-bridge) — value from the micro-store
 
-  const { rows, rootContainerId, rootContainerKinds } = useMemo(
+  const { rows, rootContainerId, rootContainerKinds, descendantsByNode } = useMemo(
     () => flattenTree(builderTree),
     [builderTree],
   );
@@ -320,6 +368,19 @@ export function FreeformLayersTree({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [insertTarget, setInsertTarget] = useState<InsertTarget | null>(null);
+  // CANVAS-5 — HTML5 drag-reorder/reparent state, mirroring the navigator's
+  // draggingChildNode + childDropTarget pair. `draggingNode` is the row being
+  // dragged; `dropTarget` is the resolved {targetRowId, before} drop indicator.
+  const [draggingNode, setDraggingNode] = useState<{
+    id: string;
+    kind: BuilderNodeKind;
+    parentId: string | null;
+    index: number;
+  } | null>(null);
+  const [dropTarget, setDropTarget] = useState<{
+    targetRowId: string;
+    before: boolean;
+  } | null>(null);
   const treeRef = useLayersTreeContainer();
 
   // Progressive disclosure — collapse to an outline; logic + persistence in hook.
@@ -442,6 +503,138 @@ export function FreeformLayersTree({
       }
     },
     [pending, removeBuilderNode],
+  );
+
+  // CANVAS-5 — drag-reorder + reparent wiring. Mirrors the navigator child-row
+  // HTML5 drag (onChildDragStart/onChildDragOver/onChildDrop) and routes through
+  // the SAME moveBuilderNodeToParentIndex chokepoint — no parallel move path.
+  const endDrag = useCallback(() => {
+    setDraggingNode(null);
+    setDropTarget(null);
+  }, []);
+
+  const handleDragStart = useCallback(
+    (event: DragEvent<HTMLDivElement>, row: LayerRow) => {
+      // Locked rows are frozen — never draggable (parity with hidden actions).
+      if (row.locked || pending) {
+        event.preventDefault();
+        return;
+      }
+      // Never initiate a row drag from an interactive control (action buttons,
+      // disclosure chevron) — a drag there is an accidental grab, not a reorder.
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest("button")
+      ) {
+        event.preventDefault();
+        return;
+      }
+      event.stopPropagation();
+      setDraggingNode({
+        id: row.id,
+        kind: row.kind,
+        parentId: row.parentId,
+        index: row.index,
+      });
+      setDropTarget(null);
+      selectBuilderNode(row.id);
+      event.dataTransfer.effectAllowed = "move";
+      // Payload is ignored (id lives in state) but Firefox needs a setData call
+      // for the drag to initiate at all — mirrors the navigator.
+      event.dataTransfer.setData("text/plain", row.id);
+    },
+    [pending, selectBuilderNode],
+  );
+
+  const handleRowDragOver = useCallback(
+    (event: DragEvent<HTMLDivElement>, row: LayerRow) => {
+      if (!draggingNode) return;
+      // Don't show an indicator on the dragged row or its own descendants.
+      if (
+        row.id === draggingNode.id ||
+        descendantsByNode.get(draggingNode.id)?.has(row.id)
+      ) {
+        setDropTarget(null);
+        return;
+      }
+      const rect = event.currentTarget.getBoundingClientRect();
+      const onUpperHalf = event.clientY - rect.top < rect.height / 2;
+      const result = resolveFreeformLayerDrop({
+        sourceId: draggingNode.id,
+        sourceKind: draggingNode.kind,
+        sourceParentId: draggingNode.parentId,
+        sourceIndex: draggingNode.index,
+        descendantIds: descendantsByNode.get(draggingNode.id) ?? new Set(),
+        targetRow: {
+          id: row.id,
+          kind: row.kind,
+          parentId: row.parentId,
+          parentKind: row.parentKind,
+          parentLocked: row.parentLocked,
+          index: row.index,
+        },
+        onUpperHalf,
+      });
+      // Only paint the indicator when the drop would actually move the node.
+      if (result.kind !== "move") {
+        setDropTarget(null);
+        return;
+      }
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      setDropTarget({ targetRowId: row.id, before: onUpperHalf });
+    },
+    [draggingNode, descendantsByNode],
+  );
+
+  const handleDrop = useCallback(
+    async (event: DragEvent<HTMLDivElement>, row: LayerRow) => {
+      if (!draggingNode) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const rect = event.currentTarget.getBoundingClientRect();
+      const onUpperHalf = event.clientY - rect.top < rect.height / 2;
+      const result = resolveFreeformLayerDrop({
+        sourceId: draggingNode.id,
+        sourceKind: draggingNode.kind,
+        sourceParentId: draggingNode.parentId,
+        sourceIndex: draggingNode.index,
+        descendantIds: descendantsByNode.get(draggingNode.id) ?? new Set(),
+        targetRow: {
+          id: row.id,
+          kind: row.kind,
+          parentId: row.parentId,
+          parentKind: row.parentKind,
+          parentLocked: row.parentLocked,
+          index: row.index,
+        },
+        onUpperHalf,
+      });
+      const nodeId = draggingNode.id;
+      endDrag();
+      if (result.kind !== "move") return;
+      setPending(true);
+      try {
+        const moved = await moveBuilderNodeToParentIndex(
+          nodeId,
+          result.targetParentId,
+          result.targetIndex,
+        );
+        if (!moved.ok && moved.error) {
+          reportMutationError(moved.error);
+        }
+      } finally {
+        setPending(false);
+      }
+    },
+    [
+      draggingNode,
+      descendantsByNode,
+      endDrag,
+      moveBuilderNodeToParentIndex,
+      reportMutationError,
+    ],
   );
 
   /** P3-LOCK — toggle locked state for a node via the normal patch path. */
@@ -578,8 +771,16 @@ export function FreeformLayersTree({
           : canAddChild
             ? 120
             : 96;
+        // CANVAS-5 — drag affordances. Locked rows stay non-draggable (frozen).
+        const draggable = !row.locked && !pending;
+        const isDragging = draggingNode?.id === row.id;
+        const showDropBefore =
+          dropTarget?.targetRowId === row.id && dropTarget.before;
+        const showDropAfter =
+          dropTarget?.targetRowId === row.id && !dropTarget.before;
         return (
           <div key={row.id}>
+          {showDropBefore ? <LayerDropLine indent={ROOT_PADDING + row.depth * DEPTH_INDENT} /> : null}
           <div
             role="treeitem"
             aria-level={row.depth + 1}
@@ -590,6 +791,11 @@ export function FreeformLayersTree({
             data-builder-node-kind={row.kind}
             data-selected={selected ? "true" : "false"}
             data-locked={row.locked ? "true" : undefined}
+            draggable={draggable}
+            onDragStart={(e) => handleDragStart(e, row)}
+            onDragOver={(e) => handleRowDragOver(e, row)}
+            onDragEnd={endDrag}
+            onDrop={(e) => void handleDrop(e, row)}
             onClick={() => handleRowSelect(row.id)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
@@ -630,8 +836,11 @@ export function FreeformLayersTree({
               color: selected ? BUILDER_VISUAL.accent : row.locked ? CHROME.amber : CHROME.muted,
               fontWeight: selected ? 600 : 500,
               fontSize: ROW_FONT_SIZE,
-              cursor: "pointer",
-              opacity: pending ? 0.72 : 1,
+              // CANVAS-5 — grab affordance on draggable rows; dim the row in flight.
+              cursor: draggable ? "grab" : "pointer",
+              opacity: isDragging ? 0.45 : pending ? 0.72 : 1,
+              // Touch parity nudge: keep the page scroll from swallowing a row drag.
+              touchAction: draggable ? "none" : undefined,
               boxShadow: selected
                 ? `inset 3px 0 0 ${BUILDER_VISUAL.accent}`
                 : row.locked
@@ -783,9 +992,37 @@ export function FreeformLayersTree({
               onDismiss={() => setInsertTarget(null)}
             />
           ) : null}
+          {showDropAfter ? <LayerDropLine indent={ROOT_PADDING + row.depth * DEPTH_INDENT} /> : null}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * CANVAS-5 — the drop-position indicator for a layer drag. Mirrors the
+ * navigator's DropLine (blue 2px rule + dropLine shadow) but is indented to the
+ * dragged-to row's depth so the operator sees the target nesting level.
+ */
+function LayerDropLine({ indent }: { indent: number }) {
+  return (
+    <div
+      aria-hidden
+      style={{ position: "relative", height: 0, margin: "1px 0" }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: indent,
+          right: 6,
+          top: -1,
+          height: 2,
+          borderRadius: 999,
+          background: CHROME.blue,
+          boxShadow: CHROME_SHADOWS.dropLine,
+        }}
+      />
     </div>
   );
 }
