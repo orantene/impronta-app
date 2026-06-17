@@ -27,6 +27,7 @@ import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
   BuilderNodeRendererStyles,
+  collectPresentNodeKinds,
   hasRenderableBuilderNodes,
   indexBuilderSectionChildNodeIds,
   indexBuilderSectionNodeIds,
@@ -321,10 +322,18 @@ export async function HomepageCmsSections({
         locale,
         publicPathPrefix,
       });
+      // REND-2 — scope the renderer sheet to the kinds on this freeform page,
+      // but only on the PUBLISHED path. Edit/preview keep the FULL sheet so an
+      // author can drop any kind onto the canvas without a re-fetch. Falls back
+      // to the full sheet on any uncertainty (buildScopedRendererCss).
+      const freeformScopedKinds =
+        editMode || previewActive
+          ? undefined
+          : collectPresentNodeKinds(freeform.tree, freeformComponents);
       const freeformStyles =
         includeBuilderNodeRendererStyles &&
         hasRenderableBuilderNodes(freeform.tree, { mode: "freeform" }) ? (
-          <BuilderNodeRendererStyles />
+          <BuilderNodeRendererStyles kinds={freeformScopedKinds} />
         ) : null;
 
       // W3 Sub-step B — CLIENT-RENDERED CANVAS (default OFF; flag-gated).
@@ -430,10 +439,20 @@ export async function HomepageCmsSections({
     includeBuilderNodeRendererStyles &&
     hasRenderableBuilderNodes(builderTreeResolution.tree, { mode: "freeform" });
 
+  // REND-2 — scope the single shared renderer sheet to the kinds present in the
+  // page's builder tree (the curated React sections carry their own CSS, so the
+  // builder sheet only needs builder-node kinds). Published path only; edit /
+  // preview keep the full sheet so authoring any kind is safe. Conservative
+  // full-sheet fallback lives in buildScopedRendererCss.
+  const builderScopedKinds =
+    editMode || previewActive
+      ? undefined
+      : collectPresentNodeKinds(builderTreeResolution.tree, builderComponents);
+
   return (
     <>
       {shouldIncludeBuilderNodeRendererStyles ? (
-        <BuilderNodeRendererStyles />
+        <BuilderNodeRendererStyles kinds={builderScopedKinds} />
       ) : null}
       {entries.map((entry) => {
         // Registry entries are keyed by type key; we widen to the generic

@@ -102,16 +102,21 @@ import {
   type BuilderNodeKind,
   type BuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
-import { buildHeadingOutlineFromBuilderTree } from "@/lib/site-admin/builder-node/freeform-heading-outline";
+import {
+  buildHeadingOutlineFromBuilderTree,
+  lintBuilderTreeA11y,
+} from "@/lib/site-admin/builder-node/freeform-heading-outline";
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
 import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
 import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
 import { HeadingLintBadge } from "./inspectors/HeadingLintBadge";
+import { MissingAltBadge } from "./inspectors/MissingAltBadge";
 import { loadHeadingProbeForLint } from "@/lib/site-admin/edit-mode/heading-lint-action";
 import {
   buildHeadingOutline,
   buildStructuralHeadingOutline,
   lintHeadingOutline,
+  type HeadingLintIssue,
   type HeadingNode,
 } from "@/lib/site-admin/a11y/heading-hierarchy";
 import {
@@ -866,6 +871,18 @@ export function NavigatorPanel() {
     }
     return lintHeadingOutline(buildStructuralHeadingOutline(flatLite));
   }, [flat, headingProbe]);
+
+  // A11Y-3 — freeform builder-tree a11y lint (heading-outline skips +
+  // images missing alt). Surfaced advisory-only at the edit point for
+  // every freeform surface (Lab playground, freeform cms_page, /t/[code]
+  // profile, talent_pages); never blocks save. Section-slot pages keep the
+  // props-aware `headingIssues` above — this covers the no-slot tree path.
+  const freeformA11y = useMemo(() => {
+    if (builderTree.length === 0) {
+      return { headingIssues: [] as HeadingLintIssue[], missingAlt: [] };
+    }
+    return lintBuilderTreeA11y(builderTree);
+  }, [builderTree]);
 
   // Sprint 4 — modifier-aware click handler shared by navigator rows.
   // Plain click → primary selection (clears multi). Shift → extend.
@@ -1964,12 +1981,30 @@ export function NavigatorPanel() {
           </button>
         </div>
 
-        {/* Phase 10 — heading hierarchy lint badge. */}
+        {/* Phase 10 — heading hierarchy lint badge (section-slot pages). */}
         {flat.length > 0 ? (
           <div style={{ padding: "2px 8px 4px" }}>
             <HeadingLintBadge
               issues={headingIssues}
               onFocusSection={selectNavigatorSectionById}
+            />
+          </div>
+        ) : null}
+
+        {/* A11Y-3 — freeform builder-tree a11y badges (heading outline +
+            missing alt). Shown when the page is a no-slot freeform tree.
+            Advisory only; click a finding to focus the offending node. */}
+        {flat.length === 0 && builderTree.length > 0 ? (
+          <div
+            style={{ padding: "2px 8px 4px", display: "flex", flexDirection: "column", gap: 4 }}
+          >
+            <HeadingLintBadge
+              issues={freeformA11y.headingIssues}
+              onFocusSection={selectNavigatorSectionById}
+            />
+            <MissingAltBadge
+              findings={freeformA11y.missingAlt}
+              onFocusNode={selectNavigatorSectionById}
             />
           </div>
         ) : null}

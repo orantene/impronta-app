@@ -27,7 +27,12 @@ import {
   isPreviewActiveForTenant,
   loadHomepageForRender,
 } from "@/lib/site-admin/server/homepage-reads";
-import { BuilderNodeRendererStyles } from "@/lib/site-admin/builder-node";
+import {
+  BuilderNodeRendererStyles,
+  collectPresentNodeKinds,
+  resolveSnapshotBuilderTree,
+} from "@/lib/site-admin/builder-node";
+import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { jsonLdDocumentToScript } from "@/lib/site-admin/cms-seo";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
@@ -166,6 +171,26 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     ((cmsSectionCount > 0 || hasFreeformBuilderTree) &&
       Boolean(cmsHomepage?.snapshot));
 
+  // REND-2 — scope this storefront's single shared renderer sheet to the kinds
+  // its builder body uses. This top-level sheet ALSO covers the snapshot site
+  // shell (header/footer) when it is active, whose trees are not resolved here;
+  // so we only scope when the shell is NOT active (legacy PublicHeader is plain
+  // React, no builder nodes), on the published path, AND the body tree has no
+  // living-component instances (whose master subtree + kinds are loaded deeper,
+  // not here). Any of those uncertain → undefined → full sheet (byte-safe).
+  const storefrontBodyTree =
+    cmsHomepage?.snapshot != null
+      ? resolveSnapshotBuilderTree(cmsHomepage.snapshot).tree
+      : [];
+  const storefrontScopedKinds =
+    snapshotShellActive ||
+    editActive ||
+    previewActive ||
+    storefrontBodyTree.length === 0 ||
+    treeHasInstances(storefrontBodyTree)
+      ? undefined
+      : collectPresentNodeKinds(storefrontBodyTree);
+
   // No-published-composition fallback. The edit-mode empty-canvas starter, the
   // freeform branch, and the curated-slot branch all win first (mirrors the JSX
   // mutex below). When NONE of them render, the public visitor would otherwise
@@ -256,7 +281,9 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
         <DirectoryInquiryModalProvider>
           <FavoritesDrawerProvider>
         <PublicFlashHost dismissAria={t("public.directory.ui.flash.dismissAria")} />
-        {shouldRenderBuilderNodeStyles ? <BuilderNodeRendererStyles /> : null}
+        {shouldRenderBuilderNodeStyles ? (
+          <BuilderNodeRendererStyles kinds={storefrontScopedKinds} />
+        ) : null}
         {/* A11Y-2 — skip link must be first focusable element before any nav. */}
         <SkipToContent />
         {/* Phase B.2.A mutex — snapshot shell wins when its gates open;

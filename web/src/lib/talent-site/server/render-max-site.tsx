@@ -7,6 +7,7 @@ import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import {
   BuilderNodeFontLinks,
   BuilderNodeRendererStyles,
+  collectPresentNodeKinds,
   hasRenderableBuilderNodes,
   renderBuilderNodes,
   renderFreeformPageRootTree,
@@ -317,7 +318,13 @@ async function renderMaxSiteDocument(args: {
     >
       {/* A11Y-2 — first focusable element on every talent Max site surface. */}
       <SkipToContent />
-      <BuilderNodeRendererStyles />
+      {/* REND-2 — public render: ONE shared renderer sheet for shell + body,
+          scoped to the kinds present across BOTH trees (mirrors the FontLinks
+          nodes union below). Live-resolved instance kinds are included; any
+          uncertainty falls back to the full sheet. */}
+      <BuilderNodeRendererStyles
+        kinds={collectPresentNodeKinds([...shellTree, ...blocks], components)}
+      />
       <BuilderNodeFontLinks nodes={[...shellTree, ...blocks]} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}
 

@@ -61,6 +61,9 @@ import { NodeMotionPanel } from "./inspectors/node-motion-panel";
 import {
   InspectorDraftStatus,
   InspectorViewportRail,
+  InspectorSearchProvider,
+  InspectorSearchField,
+  useInspectorSearch,
 } from "./inspectors/kit";
 import { countPresentationOverrides, countStyleOverrides } from "./inspectors/responsive-field-state";
 import type { ViewportDevice } from "./inspectors/responsive-field-state";
@@ -346,6 +349,18 @@ export function InspectorDock() {
     }
     return null;
   }, [selectedSectionId, slots]);
+
+  const { query: searchQuery, setQuery: setSearchQuery, clear: clearSearch } = useInspectorSearch();
+
+  // Clear search when the selected block changes so results don't ghost across selections.
+  const prevSelectionKey = useRef<string | null>(null);
+  useEffect(() => {
+    const key = selectedBuilderNodeId ?? selectedSectionId ?? null;
+    if (key !== prevSelectionKey.current) {
+      prevSelectionKey.current = key;
+      clearSearch();
+    }
+  }, [selectedBuilderNodeId, selectedSectionId, clearSearch]);
 
   const [tab, setTab] = useState<TabKey>("content");
   useEffect(() => {
@@ -1183,6 +1198,10 @@ export function InspectorDock() {
             padding="18px 20px 36px"
             className="min-h-0 min-w-0 flex-1 overflow-x-hidden"
           >
+            <InspectorSearchField
+              value={searchQuery}
+              onChange={setSearchQuery}
+            />
             {saveError ? (
               <div
                 role="status"
@@ -1224,6 +1243,7 @@ export function InspectorDock() {
                 </span>
               </div>
             ) : null}
+            <InspectorSearchProvider query={searchQuery}>
             {(currentLoadedSection || selectedStandaloneBuilderNode) ? (
               <InspectorViewportRail
                 device={viewportDevice}
@@ -1354,6 +1374,7 @@ export function InspectorDock() {
                 />
               )
             ) : null}
+            </InspectorSearchProvider>
           </DrawerBody>
         </div>
       )}
