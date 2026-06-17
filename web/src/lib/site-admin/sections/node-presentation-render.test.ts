@@ -2403,8 +2403,9 @@ test("W4-T2 seam: curated emitter == freeform emitter (sharedNodeStyle∘bridge)
 
 test("W4-T2 seam: the three DELIBERATE divergences are pinned (size/tone/inline have no lossless Engine-A home)", () => {
   // A section-scoped size mapper, exactly as a curated Component passes one.
+  // STYLE-2: 'display' added to the sizeMapper to match the expanded NodePresentationValue["size"] union.
   const sizeMapper = (s: NonNullable<NodePresentationValue["size"]>): string =>
-    ({ sm: "0.9rem", md: "1rem", lg: "1.4rem", xl: "clamp(2.25rem, 5.6vw, 4.35rem)" }[s]);
+    ({ sm: "0.9rem", md: "1rem", lg: "1.4rem", xl: "clamp(2.25rem, 5.6vw, 4.35rem)", display: "clamp(3.5rem, 6vw, 6rem)" }[s]);
 
   // (1) size — curated maps it through the section sizeMapper; freeform drops it.
   {

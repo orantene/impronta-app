@@ -33,30 +33,33 @@ const MAP_PIN_POSITIONS = [
   { left: 54, top: 70 },
 ] as const;
 
-function eyebrowSize(size: "sm" | "md" | "lg" | "xl"): string {
+function eyebrowSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
   return {
     sm: "0.68rem",
     md: "0.75rem",
     lg: "0.85rem",
     xl: "0.95rem",
+    display: "1.1rem",
   }[size];
 }
 
-function headingSize(size: "sm" | "md" | "lg" | "xl"): string {
+function headingSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
   return {
     sm: "clamp(2rem, 4vw, 3.8rem)",
     md: "clamp(2.4rem, 5vw, 5rem)",
     lg: "clamp(3rem, 6vw, 6.2rem)",
     xl: "clamp(3.4rem, 7vw, 7.4rem)",
+    display: "clamp(3.5rem, 6vw, 6rem)",
   }[size];
 }
 
-function paragraphSize(size: "sm" | "md" | "lg" | "xl"): string {
+function paragraphSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
   return {
     sm: "0.95rem",
     md: "1.05rem",
     lg: "1.18rem",
     xl: "1.32rem",
+    display: "clamp(2rem, 4vw, 4.5rem)",
   }[size];
 }
 

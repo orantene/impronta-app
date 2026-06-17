@@ -120,14 +120,14 @@ function textToneColor(tone?: "default" | "muted" | "strong"): CSSProperties["co
   return undefined;
 }
 
-function headingSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+function headingSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["fontSize"] {
   if (size === "sm") return "0.95rem";
   if (size === "lg") return "1.2rem";
   if (size === "xl") return "1.35rem";
   return undefined;
 }
 
-function ctaSize(size?: "sm" | "md" | "lg" | "xl"): Pick<CSSProperties, "padding" | "fontSize"> {
+function ctaSize(size?: "sm" | "md" | "lg" | "xl" | "display"): Pick<CSSProperties, "padding" | "fontSize"> {
   if (size === "sm") return { padding: "0.5rem 0.85rem", fontSize: "0.84rem" };
   if (size === "lg") return { padding: "0.72rem 1.2rem", fontSize: "1rem" };
   if (size === "xl") return { padding: "0.8rem 1.35rem", fontSize: "1.03rem" };
@@ -174,7 +174,7 @@ function textNodeStyle(
         paddingInlinePx?: number;
         paddingLeftPx?: number;
         paddingRightPx?: number;
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         tone?: "default" | "muted" | "strong";
         visibility?: "visible" | "hidden";
       }
@@ -215,7 +215,7 @@ function textNodeStyle(
 function ctaNodeStyle(
   node:
     | {
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         marginTopPx?: number;
         marginBottomPx?: number;
         marginInlinePx?: number;
@@ -274,7 +274,7 @@ function textNodeDecls(
         paddingInlinePx?: number;
         paddingLeftPx?: number;
         paddingRightPx?: number;
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         tone?: "default" | "muted" | "strong";
         visibility?: "visible" | "hidden";
       }
@@ -287,7 +287,7 @@ function textNodeDecls(
 function ctaDecls(
   node:
     | {
-        size?: "sm" | "md" | "lg" | "xl";
+        size?: "sm" | "md" | "lg" | "xl" | "display";
         marginTopPx?: number;
         marginBottomPx?: number;
         marginInlinePx?: number;
