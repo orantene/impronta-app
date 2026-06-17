@@ -173,23 +173,28 @@ export function ProfileHeader({
             {/* Max VIP badge + "Visit my site" CTA — only when Max + published */}
             {maxSiteUrl ? (
               <div className="flex flex-wrap items-center gap-2">
-                {/* "Max" VIP pill */}
+                {/* MAX VIP gold pill — premium membership chip */}
                 <span
-                  className="plt-mono inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.18em]"
+                  className="plt-mono inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[0.625rem] font-bold uppercase tracking-[0.14em]"
                   style={{
-                    borderColor: "var(--plt-forest)",
                     background:
-                      "color-mix(in srgb, var(--plt-forest) 8%, transparent)",
-                    color: "var(--plt-forest)",
+                      "linear-gradient(135deg, #C9A24B 0%, #E8C766 50%, #C9A24B 100%)",
+                    borderColor: "#A07830",
+                    boxShadow: "0 1px 4px rgba(168,120,48,0.25)",
+                    color: "#3D2800",
                   }}
                 >
-                  ✦ Max
+                  ♔ MAX
                 </span>
-                {/* "Visit my site" link */}
+                {/* "Visit my site" — dark premium button, gold border and text */}
                 <Link
                   href={maxSiteUrl}
-                  className="plt-mono inline-flex items-center gap-1 text-[0.75rem] font-medium underline-offset-2 hover:underline"
-                  style={{ color: "var(--plt-forest)" }}
+                  className="plt-mono inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.12em] transition-opacity hover:opacity-80"
+                  style={{
+                    backgroundColor: "#1A0F00",
+                    borderColor: "#C9A24B",
+                    color: "#E8C766",
+                  }}
                   target={maxSiteUrl.startsWith("http") ? "_blank" : undefined}
                   rel={
                     maxSiteUrl.startsWith("http")
