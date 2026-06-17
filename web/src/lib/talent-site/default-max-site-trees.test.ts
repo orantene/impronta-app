@@ -39,6 +39,37 @@ test("default shell tree uses an image logo when logoUrl is provided", () => {
   assert.equal(headerChildren[0].kind, "image");
 });
 
+test("default shell renders the brand ONCE — nav carries no duplicate brand", () => {
+  // FIX B — the header logo/wordmark is the single brand. The nav node must NOT
+  // also carry a `brand`/`brandHref` (the nav renderer would paint it a second
+  // time beside the logo).
+  for (const input of [
+    { displayName: "Morena" },
+    { displayName: "Morena", logoUrl: "https://cdn.example/logo.png" },
+  ]) {
+    const tree = buildDefaultShellTree(input, seqIds());
+    const headerChildren = (tree[0] as {
+      children: { kind: string; props: Record<string, unknown> }[];
+    }).children;
+
+    const navNode = headerChildren.find((c) => c.kind === "nav");
+    assert.ok(navNode, "header should still contain a nav node");
+    assert.equal(
+      navNode!.props.brand,
+      undefined,
+      "nav must NOT carry a brand (the header logo is the sole brand)",
+    );
+    assert.equal(navNode!.props.brandHref, undefined, "nav must carry no brandHref");
+
+    // Exactly ONE brand-bearing node in the header: the logo image OR the
+    // wordmark heading — never both, and never a nav brand on top.
+    const brandNodes = headerChildren.filter(
+      (c) => c.kind === "image" || c.kind === "heading",
+    );
+    assert.equal(brandNodes.length, 1, "exactly one brand node in the header");
+  }
+});
+
 test("default shell tree validates through the builder-node validator", () => {
   const tree = buildDefaultShellTree({
     displayName: "Morena",

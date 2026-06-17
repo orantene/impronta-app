@@ -8,6 +8,12 @@ import {
   buildDefaultShellTree,
   buildStarterHomePageTree,
 } from "../default-max-site-trees";
+import {
+  buildDefaultTalentProfileTree,
+  hydrateTalentTree,
+} from "../default-talent-tree";
+import { talentProfileTokens } from "../default-talent-template";
+import { loadDefaultTalentFreeformContext } from "./default-talent-context";
 
 export type ProvisionMaxSiteResult =
   | {
@@ -19,6 +25,42 @@ export type ProvisionMaxSiteResult =
   | { ok: false; error: string };
 
 const STARTER_HOME_SLUG = "home";
+
+/**
+ * Build the starter HOME page `blocks` for a freshly-provisioned Max site.
+ *
+ * Reuses the talent PROFILE's enriched freeform tree + hydration so a brand-new
+ * site home already looks premium (hero with name + photo, About bio, Services
+ * grid, gallery, inquiry CTA) before the talent touches the editor — instead of
+ * the bare "Your headline here" placeholder.
+ *
+ * `maxSiteUrl` is passed EMPTY on purpose: this IS the talent's own site home, so
+ * a self-referential "♔ MAX / Visit my site" badge would link the page to
+ * itself. The empty token makes `hydrateTalentTree → pruneEmptyMaxBadge` drop the
+ * whole badge container, so no self-link renders.
+ *
+ * Falls back to the minimal `buildStarterHomePageTree` when the talent has no
+ * loadable profile data (no profile row / no service role), so provisioning never
+ * fails to seed *a* valid home tree. Degrade-safe — any load error falls back too.
+ */
+async function buildStarterHomeBlocks(
+  talentProfileId: string,
+  displayName: string,
+): Promise<BuilderNode[]> {
+  try {
+    const ctx = await loadDefaultTalentFreeformContext(talentProfileId);
+    if (ctx?.profile) {
+      // maxSiteUrl = "" → the Max badge / "Visit my site" CTA prunes (no
+      // self-referential link on the site's own home page).
+      const tokens = talentProfileTokens(ctx.profile, ctx.media, "");
+      return hydrateTalentTree(buildDefaultTalentProfileTree(), tokens);
+    }
+  } catch (err) {
+    logServerError("talentMaxSite.provision.starterHomeHydrate", err);
+  }
+  // No profile data (or a load failure) → the minimal valid starter.
+  return buildStarterHomePageTree({ displayName });
+}
 
 /**
  * Ensure a talent has a complete Talent Max Site scaffold:
@@ -191,7 +233,12 @@ export async function provisionTalentMaxSite(
         return { ok: true, created, siteId, siteSlug };
       }
     } else {
-      const starterTree = buildStarterHomePageTree({ displayName });
+      // Seed the home with the talent's REAL profile data (hero/about/services/
+      // gallery/CTA), hydrated from the profile tree; falls back to the minimal
+      // starter when the talent has no data. Only ever runs on first provision
+      // (this branch is reached only when no home page + no `home`-slug page
+      // exists), so an authored home is never overwritten.
+      const starterTree = await buildStarterHomeBlocks(talentProfileId, displayName);
       const { error: pageErr } = await admin.from("talent_pages").insert({
         talent_profile_id: talentProfileId,
         slug: STARTER_HOME_SLUG,

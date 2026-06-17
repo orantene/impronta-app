@@ -46,7 +46,11 @@ export function buildDefaultShellTree(
       layerLabel: "Header",
     },
     children: [
-      // Logo slot — an image when a logo URL exists, otherwise a wordmark.
+      // SINGLE brand slot — the header logo (image when a `logoUrl` is set,
+      // otherwise the display-name wordmark). This is the ONE place the brand
+      // renders. The `nav` node below deliberately carries NO `brand`/`brandHref`
+      // so the brand is not painted twice (the nav renderer would otherwise
+      // render `brand` as a second bolded link beside this logo).
       input.logoUrl
         ? ({
             id: makeId(),
@@ -71,8 +75,7 @@ export function buildDefaultShellTree(
         id: makeId(),
         kind: "nav",
         props: {
-          brand: input.displayName,
-          brandHref: homeHref,
+          // No `brand`/`brandHref` — the header logo above is the sole brand.
           ariaLabel: "Primary",
           links: [{ id: makeId(), label: "Home", href: homeHref }],
         },
