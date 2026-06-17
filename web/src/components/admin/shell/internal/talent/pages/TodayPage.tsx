@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { computePaidThisMonth } from "@/lib/talent/paid-this-month";
 import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT } from "../../messages";
 import { EmptyState, Icon, PrimaryButton } from "../../primitives";
@@ -245,15 +246,25 @@ export function TalentTodayPage() {
                 {onboardingCompleteness.missing.length} field{onboardingCompleteness.missing.length === 1 ? "" : "s"} left before you can publish + take bookings.
               </div>
             </div>
-            <PrimaryButton
-              size="sm"
-              onClick={() => {
-                const first = onboardingCompleteness.missing[0];
-                openSection(first ? onboardingSectionForLabel(first.label) : "identity");
-              }}
-            >
-              Continue setup →
-            </PrimaryButton>
+            <div className="flex flex-col items-end gap-1.5">
+              <PrimaryButton
+                size="sm"
+                onClick={() => {
+                  const first = onboardingCompleteness.missing[0];
+                  openSection(first ? onboardingSectionForLabel(first.label) : "identity");
+                }}
+              >
+                Continue setup →
+              </PrimaryButton>
+              {/* Additive alternate path: the guided step-by-step wizard. The
+                  drawer-based "Continue setup" above stays the default. */}
+              <Link
+                href="/talent/onboarding"
+                className="text-admin-11h font-semibold text-admin-accent-deep underline underline-offset-2 hover:opacity-80"
+              >
+                Guided setup
+              </Link>
+            </div>
           </div>
           {onboardingCompleteness.missing.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
