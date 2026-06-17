@@ -19,11 +19,13 @@ import {
   createDraftPageAction,
   duplicatePageAction,
   listPagesForPickerAction,
-  quickDeletePageAction,
-  quickRenamePageAction,
   type PagePickerAvailability,
   type PagePickerItem,
 } from "@/lib/server-actions/admin-site-pages";
+import {
+  quickDeletePageAction,
+  quickRenamePageAction,
+} from "@/lib/server-actions/admin-site-pages-inline";
 import { useDirty } from "./dirty-bridge";
 import { useEditContext } from "./edit-context";
 import { DockFloatingPanel } from "./dock-floating-panel";

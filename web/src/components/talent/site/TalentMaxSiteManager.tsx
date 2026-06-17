@@ -46,6 +46,12 @@ import {
   type MaxSiteTemplateSummary,
 } from "@/lib/talent-site/max-site-templates/registry";
 import { TalentSiteDomainPanel } from "@/components/talent/site/TalentSiteDomainPanel";
+import {
+  PageAddForm,
+  PageDeleteConfirm,
+  PageRenameForm,
+  slugifyPageTitle,
+} from "@/components/talent/site/TalentMaxSiteManagerPageForms";
 
 type Props = { locale?: "en" | "es" };
 
@@ -348,155 +354,9 @@ function LogoPanel({ state, onSaved }: { state: MaxSiteManagerState; onSaved: ()
 }
 
 // ── Pages ────────────────────────────────────────────────────────────────────
-
-/**
- * ONB-4 — pure client slugify that mirrors `slugifyPageName` on the server so
- * the slug preview is accurate as the user types (no network call needed).
- */
-function slugifyPageTitle(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 120);
-}
-
-/** ONB-4 — inline rename form with live slug preview. */
-function PageRenameForm({
-  page,
-  siteSlug,
-  onSave,
-  onCancel,
-}: {
-  page: MaxSiteManagerPage;
-  siteSlug: string | null;
-  onSave: (title: string, navLabel: string) => void;
-  onCancel: () => void;
-}) {
-  const [title, setTitle] = useState(page.title);
-  const titleRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { titleRef.current?.focus(); titleRef.current?.select(); }, []);
-
-  const previewSlug = page.isHome ? "" : slugifyPageTitle(title);
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") { onSave(title.trim(), title.trim()); }
-    if (e.key === "Escape") { onCancel(); }
-  }
-
-  return (
-    <div style={{ padding: "10px 12px", border: `1.5px solid ${COLORS.accent ?? "#7c3aed"}`, borderRadius: 10, background: "#fff" }}>
-      <input
-        ref={titleRef}
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Page title"
-        style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: 6 }}
-      />
-      {!page.isHome ? (
-        <p style={{ margin: "0 0 8px", fontSize: 10.5, color: COLORS.inkMuted }}>
-          Path preview: /t/site/{siteSlug ?? "…"}/{previewSlug || "…"}
-        </p>
-      ) : null}
-      <div style={{ display: "flex", gap: 6 }}>
-        <button
-          type="button"
-          onClick={() => onSave(title.trim(), title.trim())}
-          disabled={!title.trim()}
-          style={{ ...miniBtn, background: COLORS.accent ?? "#7c3aed", color: "#fff", border: "none" }}
-        >
-          Save
-        </button>
-        <button type="button" onClick={onCancel} style={miniBtn}>Cancel</button>
-      </div>
-    </div>
-  );
-}
-
-/** ONB-4 — styled inline delete confirm (no window.confirm). */
-function PageDeleteConfirm({
-  page,
-  onConfirm,
-  onCancel,
-}: {
-  page: MaxSiteManagerPage;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div style={{ padding: "10px 12px", border: `1.5px solid ${COLORS.criticalDeep}`, borderRadius: 10, background: "rgba(176,48,58,0.04)" }}>
-      <p style={{ margin: "0 0 8px", fontSize: 12.5, color: COLORS.ink }}>
-        Delete <strong>{page.title}</strong>? This can&rsquo;t be undone.
-      </p>
-      <div style={{ display: "flex", gap: 6 }}>
-        <button
-          type="button"
-          onClick={onConfirm}
-          style={{ ...miniBtn, background: COLORS.criticalDeep, color: "#fff", border: "none" }}
-        >
-          Delete page
-        </button>
-        <button type="button" onClick={onCancel} style={miniBtn}>Cancel</button>
-      </div>
-    </div>
-  );
-}
-
-/** ONB-4 — inline add-page form (title + live slug preview). */
-function PageAddForm({
-  siteSlug,
-  onSave,
-  onCancel,
-}: {
-  siteSlug: string | null;
-  onSave: (title: string) => void;
-  onCancel: () => void;
-}) {
-  const [title, setTitle] = useState("");
-  const titleRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { titleRef.current?.focus(); }, []);
-
-  const previewSlug = slugifyPageTitle(title);
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") { if (title.trim()) onSave(title.trim()); }
-    if (e.key === "Escape") { onCancel(); }
-  }
-
-  return (
-    <div style={{ padding: "10px 12px", border: `1.5px solid ${COLORS.accent ?? "#7c3aed"}`, borderRadius: 10, background: "#fff", marginBottom: 6 }}>
-      <input
-        ref={titleRef}
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="New page title"
-        style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: 6 }}
-      />
-      {title.trim() ? (
-        <p style={{ margin: "0 0 8px", fontSize: 10.5, color: COLORS.inkMuted }}>
-          Path preview: /t/site/{siteSlug ?? "…"}/{previewSlug || "…"}
-        </p>
-      ) : null}
-      <div style={{ display: "flex", gap: 6 }}>
-        <button
-          type="button"
-          onClick={() => { if (title.trim()) onSave(title.trim()); }}
-          disabled={!title.trim()}
-          style={{ ...miniBtn, background: COLORS.accent ?? "#7c3aed", color: "#fff", border: "none" }}
-        >
-          Add page
-        </button>
-        <button type="button" onClick={onCancel} style={miniBtn}>Cancel</button>
-      </div>
-    </div>
-  );
-}
+// Inline form components (PageRenameForm, PageDeleteConfirm, PageAddForm) and
+// slugifyPageTitle are extracted to TalentMaxSiteManagerPageForms.tsx to keep
+// this file under the 800-line ESLint cap. They are re-imported above.
 
 function PagesPanel({
   state,
