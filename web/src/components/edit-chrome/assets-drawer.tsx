@@ -454,6 +454,9 @@ export function AssetsDrawer(): ReactElement | null {
           tenantId,
           ownerTalentProfileId: raw.ownerTalentProfileId ?? null,
           variantKind: raw.variantKind ?? "original",
+          // MEDIA-1 — the upload routes echo `assetKind`; fall back to the
+          // tab-derived upload kind for the optimistic prepend.
+          assetKind: raw.assetKind ?? uploadKind,
           storagePath: raw.storagePath,
           publicUrl: raw.publicUrl,
           width: raw.width ?? null,
@@ -461,6 +464,7 @@ export function AssetsDrawer(): ReactElement | null {
           fileSize: raw.fileSize ?? file.size,
           mime: raw.mime ?? null,
           alt: raw.alt ?? null,
+          tags: raw.tags ?? [],
           createdAt: raw.createdAt ?? new Date().toISOString(),
           sourceHint: raw.sourceHint ?? null,
           folderIds: raw.folderIds ?? [],
