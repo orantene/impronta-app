@@ -442,6 +442,19 @@ const GRID_COLUMNS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "3", label: "3" },
   { value: "4", label: "4" },
 ];
+// REND-1 — HTML landmark tag options for container nodes. Compact short labels
+// fit the chip strip; full descriptions appear in the helper text below.
+// Values mirror BuilderContainerNode.props.htmlTag in types.ts.
+const CONTAINER_HTML_TAG_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "div", label: "div" },
+  { value: "section", label: "section" },
+  { value: "article", label: "article" },
+  { value: "aside", label: "aside" },
+  { value: "header", label: "header" },
+  { value: "footer", label: "footer" },
+  { value: "nav", label: "nav" },
+  { value: "main", label: "main" },
+];
 const SPLIT_RATIO_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "50-50", label: "50 / 50" },
   { value: "40-60", label: "40 / 60" },
@@ -1233,6 +1246,29 @@ function AdvancedNodeLayoutEditor({
             />
           </div>
         </div>
+        {/* REND-1 — Semantic HTML tag picker. Only shown when editing the base
+            desktop tier (not a breakpoint override), because htmlTag is a
+            document-structure decision not a responsive one. Default (div) is
+            the standard value that keeps existing trees byte-stable. */}
+        {!editingOverride ? (
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>HTML tag</span>
+            <Segmented
+              fullWidth
+              compact
+              value={node.props.htmlTag ?? "div"}
+              onChange={(next) => {
+                onPatch({ htmlTag: next === "div" ? undefined : next });
+              }}
+              options={CONTAINER_HTML_TAG_OPTIONS}
+            />
+            <span className={INHERIT_HINT}>
+              Semantic landmark element emitted in the page HTML. Default (div) keeps the
+              standard layout box. Use section/article for content regions, header/footer
+              for page-level landmarks, nav for navigation, aside for supplementary content.
+            </span>
+          </div>
+        ) : null}
       </div>
     );
   }

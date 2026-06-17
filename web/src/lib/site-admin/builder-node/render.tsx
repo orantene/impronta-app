@@ -2940,9 +2940,14 @@ function renderBuilderNodeElement(
       return options.renderSectionEmbed
         ? options.renderSectionEmbed(node)
         : null;
-    case "container":
+    case "container": {
+      // REND-1: use the author-chosen semantic landmark tag (default: div).
+      // All CSS classes, data-* attrs, and inline styles are preserved
+      // regardless of tag — it is a pure drop-in replacement. Trees that
+      // omit htmlTag render as <div> (byte-stable for existing trees).
+      const ContainerTag = (node.props.htmlTag ?? "div") as "div";
       return (
-        <div
+        <ContainerTag
           key={node.id}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
@@ -2958,8 +2963,9 @@ function renderBuilderNodeElement(
           style={containerStyle(node)}
         >
           {renderDataBoundContainerChildren(node, options)}
-        </div>
+        </ContainerTag>
       );
+    }
     case "split":
       return (
         <div
