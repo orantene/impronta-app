@@ -2456,3 +2456,164 @@ test("W4-T2 seam: the three DELIBERATE divergences are pinned (size/tone/inline 
     assert.equal((freeform as Record<string, unknown>).marginRight, "9px");
   }
 });
+
+// ── FORMS-1 — rich field type rendering tests ────────────────────────────────
+
+test("FORMS-1: contact form renders date field as <input type='date'>", () => {
+  const props: ContactFormV1 = {
+    action: "internal",
+    method: "POST",
+    fields: [{ name: "event_date", label: "Event date", type: "date", required: true }],
+    submitLabel: "Send",
+    honeypot: "website",
+    successMessage: "Thanks!",
+    variant: "card",
+    captcha: "none",
+    presentation: {},
+  };
+  const html = renderToStaticMarkup(
+    createElement(ContactFormComponent, {
+      props,
+      tenantId: "00000000-0000-0000-0000-000000000001",
+      locale: "en",
+      preview: false,
+    }),
+  );
+  assert.match(html, /type="date"/);
+  assert.match(html, /name="event_date"/);
+  assert.match(html, /required/);
+});
+
+test("FORMS-1: contact form renders number field with min/max attributes", () => {
+  const props: ContactFormV1 = {
+    action: "internal",
+    method: "POST",
+    fields: [{ name: "guests", label: "Guest count", type: "number", required: true, numberMin: 1, numberMax: 500 }],
+    submitLabel: "Send",
+    honeypot: "website",
+    successMessage: "Thanks!",
+    variant: "card",
+    captcha: "none",
+    presentation: {},
+  };
+  const html = renderToStaticMarkup(
+    createElement(ContactFormComponent, {
+      props,
+      tenantId: "00000000-0000-0000-0000-000000000001",
+      locale: "en",
+      preview: false,
+    }),
+  );
+  assert.match(html, /type="number"/);
+  assert.match(html, /min="1"/);
+  assert.match(html, /max="500"/);
+});
+
+test("FORMS-1: contact form renders file field with accept and data-max-size-mb", () => {
+  const props: ContactFormV1 = {
+    action: "internal",
+    method: "POST",
+    fields: [{ name: "brief", label: "Brief", type: "file", required: false, fileAccept: ".pdf,image/*", fileMaxSizeMb: 8 }],
+    submitLabel: "Send",
+    honeypot: "website",
+    successMessage: "Thanks!",
+    variant: "card",
+    captcha: "none",
+    presentation: {},
+  };
+  const html = renderToStaticMarkup(
+    createElement(ContactFormComponent, {
+      props,
+      tenantId: "00000000-0000-0000-0000-000000000001",
+      locale: "en",
+      preview: false,
+    }),
+  );
+  assert.match(html, /type="file"/);
+  assert.match(html, /accept="\.pdf,image\/\*"/);
+  assert.match(html, /data-max-size-mb="8"/);
+});
+
+test("FORMS-1: contact form renders consent checkbox with consentText", () => {
+  const props: ContactFormV1 = {
+    action: "internal",
+    method: "POST",
+    fields: [{ name: "gdpr", label: "GDPR", type: "consent", required: true, consentText: "I agree to the privacy policy." }],
+    submitLabel: "Send",
+    honeypot: "website",
+    successMessage: "Thanks!",
+    variant: "card",
+    captcha: "none",
+    presentation: {},
+  };
+  const html = renderToStaticMarkup(
+    createElement(ContactFormComponent, {
+      props,
+      tenantId: "00000000-0000-0000-0000-000000000001",
+      locale: "en",
+      preview: false,
+    }),
+  );
+  assert.match(html, /type="checkbox"/);
+  assert.match(html, /required/);
+  assert.match(html, /I agree to the privacy policy\./);
+  // consent checkbox must have site-form__field--check class
+  assert.match(html, /site-form__field--check/);
+});
+
+test("FORMS-1: contact form renders regular checkbox (optional)", () => {
+  const props: ContactFormV1 = {
+    action: "internal",
+    method: "POST",
+    fields: [{ name: "newsletter", label: "Subscribe to updates", type: "checkbox", required: false }],
+    submitLabel: "Send",
+    honeypot: "website",
+    successMessage: "Thanks!",
+    variant: "card",
+    captcha: "none",
+    presentation: {},
+  };
+  const html = renderToStaticMarkup(
+    createElement(ContactFormComponent, {
+      props,
+      tenantId: "00000000-0000-0000-0000-000000000001",
+      locale: "en",
+      preview: false,
+    }),
+  );
+  assert.match(html, /type="checkbox"/);
+  assert.match(html, /Subscribe to updates/);
+  // optional checkbox must NOT have required attr
+  assert.doesNotMatch(html, /name="newsletter"[^>]*required/);
+});
+
+test("FORMS-1: existing legacy form renders unchanged (backward compat)", () => {
+  const props: ContactFormV1 = {
+    action: "/api/cms/forms/submit",
+    method: "POST",
+    fields: [
+      { name: "name", label: "Name", type: "text", required: true, placeholder: "Your name" },
+      { name: "email", label: "Email", type: "email", required: true },
+      { name: "message", label: "Message", type: "textarea", required: false },
+    ],
+    submitLabel: "Send",
+    honeypot: "website",
+    successMessage: "Thanks!",
+    variant: "card",
+    captcha: "none",
+    presentation: {},
+  };
+  const html = renderToStaticMarkup(
+    createElement(ContactFormComponent, {
+      props,
+      tenantId: "00000000-0000-0000-0000-000000000001",
+      locale: "en",
+      preview: false,
+    }),
+  );
+  // All original field types still render correctly
+  assert.match(html, /type="text"/);
+  assert.match(html, /type="email"/);
+  assert.match(html, /<textarea/);
+  assert.match(html, /placeholder="Your name"/);
+});

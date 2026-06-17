@@ -57,6 +57,7 @@ import type {
   BuilderNodeStyleValue,
 } from "./types";
 import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
+import { isRenderableEmptySection } from "./render-prune";
 
 export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
@@ -3967,6 +3968,16 @@ export function renderBuilderNodes(
   };
   const nodeViews = nodes
     .filter((node) => shouldRenderNode(node, normalizedOptions))
+    // HYGIENE-1 Q5 — Prune top-level data-bound repeater sections whose resolved
+    // collection is empty AND have no static fallback children. This prevents
+    // empty "Selected work" / "Services" sections from rendering over nothing.
+    // The predicate is conservative: it only fires when the source is known and
+    // definitely empty; unknown sources and sections with manual content are kept.
+    // The editor canvas passes no dataSources → pruning is inert in edit mode.
+    .filter(
+      (node) =>
+        !isRenderableEmptySection(node, normalizedOptions.dataSources),
+    )
     .map((node) => (
       <BuilderNodeView key={node.id} node={node} options={normalizedOptions} />
     ));

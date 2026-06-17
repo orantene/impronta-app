@@ -589,50 +589,129 @@ export function ContactFormComponent({
               .map((s) => s.trim())
               .filter((s) => s);
             return (
-              <div className="site-form__field" key={id}>
-                <label htmlFor={id} className="site-form__label">
-                  {f.label}
-                  {f.required ? (
-                    <span aria-hidden className="site-form__required">
-                      *
+              <div
+                className={
+                  f.type === "consent" || f.type === "checkbox"
+                    ? "site-form__field site-form__field--check"
+                    : "site-form__field"
+                }
+                key={id}
+              >
+                {/* ── consent / checkbox: label wraps the input ──────────── */}
+                {f.type === "consent" ? (
+                  <label htmlFor={id} className="site-form__label site-form__label--consent">
+                    <input
+                      id={id}
+                      name={f.name}
+                      type="checkbox"
+                      required
+                      className="site-form__checkbox"
+                    />
+                    <span>
+                      {f.consentText ?? f.label}
+                      {/* consent is always required — no optional star */}
                     </span>
-                  ) : null}
-                </label>
-                {f.type === "textarea" ? (
-                  <textarea
-                    id={id}
-                    name={f.name}
-                    required={f.required}
-                    placeholder={f.placeholder}
-                    rows={4}
-                    className="site-form__input"
-                  />
-                ) : f.type === "select" ? (
-                  <select
-                    id={id}
-                    name={f.name}
-                    required={f.required}
-                    className="site-form__input"
-                    defaultValue=""
-                  >
-                    <option value="" disabled>
-                      {f.placeholder ?? "Choose…"}
-                    </option>
-                    {opts.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
+                  </label>
+                ) : f.type === "checkbox" ? (
+                  <label htmlFor={id} className="site-form__label site-form__label--check">
+                    <input
+                      id={id}
+                      name={f.name}
+                      type="checkbox"
+                      required={f.required}
+                      className="site-form__checkbox"
+                    />
+                    <span>
+                      {f.label}
+                      {f.required ? (
+                        <span aria-hidden className="site-form__required">
+                          *
+                        </span>
+                      ) : null}
+                    </span>
+                  </label>
                 ) : (
-                  <input
-                    id={id}
-                    name={f.name}
-                    type={f.type}
-                    required={f.required}
-                    placeholder={f.placeholder}
-                    className="site-form__input"
-                  />
+                  /* ── all other types: separate label + control ─────────── */
+                  <>
+                    <label htmlFor={id} className="site-form__label">
+                      {f.label}
+                      {f.required ? (
+                        <span aria-hidden className="site-form__required">
+                          *
+                        </span>
+                      ) : null}
+                    </label>
+                    {f.type === "textarea" ? (
+                      <textarea
+                        id={id}
+                        name={f.name}
+                        required={f.required}
+                        placeholder={f.placeholder}
+                        rows={4}
+                        className="site-form__input"
+                      />
+                    ) : f.type === "select" ? (
+                      <select
+                        id={id}
+                        name={f.name}
+                        required={f.required}
+                        className="site-form__input"
+                        defaultValue=""
+                      >
+                        <option value="" disabled>
+                          {f.placeholder ?? "Choose…"}
+                        </option>
+                        {opts.map((o) => (
+                          <option key={o} value={o}>
+                            {o}
+                          </option>
+                        ))}
+                      </select>
+                    ) : f.type === "file" ? (
+                      /* FORMS-1 — file input (URL/metadata capture only;
+                         no binary upload on Supabase free tier).
+                         Client size guard: the inline script below enforces
+                         fileMaxSizeMb before submit. */
+                      <>
+                        <input
+                          id={id}
+                          name={f.name}
+                          type="file"
+                          required={f.required}
+                          accept={f.fileAccept ?? undefined}
+                          className="site-form__input site-form__input--file"
+                          data-max-size-mb={f.fileMaxSizeMb ?? 5}
+                        />
+                        <script
+                          dangerouslySetInnerHTML={{
+                            __html: `(function(){var el=document.getElementById(${JSON.stringify(id)});if(!el)return;el.addEventListener('change',function(){var maxMb=parseFloat(el.getAttribute('data-max-size-mb')||'5');var f=el.files&&el.files[0];if(f&&f.size>maxMb*1024*1024){alert('File is too large. Maximum size is '+maxMb+' MB.');el.value='';}});})();`,
+                          }}
+                        />
+                      </>
+                    ) : f.type === "number" ? (
+                      /* FORMS-1 — number input with optional min/max bounds */
+                      <input
+                        id={id}
+                        name={f.name}
+                        type="number"
+                        required={f.required}
+                        placeholder={f.placeholder}
+                        min={typeof f.numberMin === "number" ? f.numberMin : undefined}
+                        max={typeof f.numberMax === "number" ? f.numberMax : undefined}
+                        className="site-form__input"
+                      />
+                    ) : (
+                      /* text / email / tel / date — native input type pass-through */
+                      <input
+                        id={id}
+                        name={f.name}
+                        type={f.type}
+                        required={f.required}
+                        placeholder={f.placeholder}
+                        className="site-form__input"
+                      />
+                    )}
+                  </>
                 )}
               </div>
             );

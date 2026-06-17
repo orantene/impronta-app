@@ -710,7 +710,12 @@ html[data-public-font-preset="editorial"] {
   --admin-gold-border: rgba(255, 255, 255, 0.12);
   --admin-sidebar-bg: #0f0f10;
   --admin-sidebar-hover: rgba(255, 255, 255, 0.05);
-  --admin-gold-muted: rgba(228, 228, 231, 0.45);
+  /* A11Y-2 — raised from 0.45 (ratio ~3.8) to 0.60 (ratio ~5.9) on the
+   * dark sidebar (#0f0f10) to meet WCAG AA 4.5:1 for the 10px uppercase
+   * labels rendered with this token (inspector-job-section, admin-shell
+   * nav-group labels, inspector dt labels). Visual delta is subtle: the
+   * labels step from dimmed to legibly muted. No gold/rust introduced. */
+  --admin-gold-muted: rgba(228, 228, 231, 0.60);
   --admin-nav-active-label: #fafafa;
   --admin-nav-idle: rgba(228, 228, 231, 0.58);
   --admin-nav-hover-fg: #f4f4f5;

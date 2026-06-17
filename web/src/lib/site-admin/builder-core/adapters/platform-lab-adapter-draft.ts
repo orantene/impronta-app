@@ -70,6 +70,9 @@ function compositionFromRow(
       ogImageUrl: null,
       canonicalUrl: null,
       noindex: true,
+      // SEO-1 contract field. platform_lab drafts have no public SSR surface
+      // (capabilities.seo === false), so structured data is always null here.
+      jsonLd: null,
     },
     slots: {},
     builderTree: row.builder_tree ?? [],

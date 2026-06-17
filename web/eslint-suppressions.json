@@ -1789,6 +1789,11 @@
       "count": 1
     }
   },
+  "src/lib/site-admin/sections/contact_form/Component.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/lib/site-admin/sections/directory/Editor.tsx": {
     "max-lines": {
       "count": 1

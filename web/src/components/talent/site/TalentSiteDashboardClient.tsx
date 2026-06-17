@@ -371,7 +371,9 @@ function ConnectedContentPanel() {
 }
 
 function FuturePlaceholders() {
-  const items = ["Custom domain", "SEO controls", "Page analytics"];
+  // HYGIENE-1 Q7 — "Custom domain" removed: TalentSiteDomainPanel is live
+  // (TalentMaxSiteManager.tsx). Only honest not-yet-shipped items remain.
+  const items = ["SEO controls", "Page analytics"];
   return (
     <div
       style={{

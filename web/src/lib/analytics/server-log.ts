@@ -6,6 +6,9 @@ export type LogAnalyticsEventInput = {
   sessionId?: string | null;
   userId?: string | null;
   talentId?: string | null;
+  /** Agency/tenant UUID. When provided, per-tenant analytics queries return real rows
+   * instead of 0 (admin-data.ts already filters .eq('tenant_id', tenantId)). */
+  tenantId?: string | null;
   path?: string | null;
   locale?: string | null;
 };
@@ -23,6 +26,7 @@ export async function logAnalyticsEventServer(input: LogAnalyticsEventInput): Pr
     session_id: input.sessionId ?? null,
     user_id: input.userId ?? null,
     talent_id: input.talentId ?? null,
+    tenant_id: input.tenantId ?? undefined,
     path: input.path ?? null,
     locale: input.locale ?? null,
   });

@@ -3,6 +3,8 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { SkipToContent } from "@/components/accessibility/skip-to-content";
+
 import { LightProfileLayout } from "./_light/LightProfileLayout";
 import { ProfileShareRow } from "./_light/ProfileShareRow";
 import { ProfileHubsIndicator } from "./_light/ProfileHubsIndicator";
@@ -2222,6 +2224,8 @@ export default async function PublicTalentProfilePage({
             />
           ) : null}
           <PublicFlashHost dismissAria={ui.flash.dismissAria} />
+          {/* A11Y-2 — skip link is first focusable element, before all navigation. */}
+          <SkipToContent />
           <ProfileViewAnalytics talentId={profile.id} locale={locale} />
 
           {platformChrome ? (
@@ -2238,9 +2242,10 @@ export default async function PublicTalentProfilePage({
                 account={marketingAccount}
                 signOutAction={signOut}
               />
-              <main className="flex-1 pt-[var(--plt-header-h,64px)] sm:pt-[72px]">
+              {/* id="main-content" lives inside LightProfileLayout (<main>) */}
+              <div className="flex-1 pt-[var(--plt-header-h,64px)] sm:pt-[72px]">
                 {profileBody}
-              </main>
+              </div>
               <MarketingFooter />
             </div>
           ) : (

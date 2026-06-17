@@ -2,6 +2,18 @@ import { z } from "zod";
 import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
+/**
+ * FORMS-1 — rich field types + consent.
+ *
+ * The `type` enum gains: date, file, checkbox, number.
+ * A dedicated `consent` type carries a `consentText` label (legal/GDPR consent).
+ * Per-field validation bounds:
+ *   - number: `numberMin` / `numberMax`
+ *   - file:   `fileAccept` (MIME type list, e.g. "image/*,.pdf") / `fileMaxSizeMb`
+ *
+ * BACKWARD COMPAT: all new fields are optional with safe defaults; any existing
+ * saved schema that only uses text/email/tel/textarea/select validates unchanged.
+ */
 const fieldSchema = z.object({
   name: z
     .string()
@@ -9,11 +21,54 @@ const fieldSchema = z.object({
     .max(60)
     .regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/, "Use letters, digits, _ and - only"),
   label: z.string().min(1).max(80),
-  type: z.enum(["text", "email", "tel", "textarea", "select"]).default("text"),
+  type: z
+    .enum([
+      // Original types (backward-compat)
+      "text",
+      "email",
+      "tel",
+      "textarea",
+      "select",
+      // FORMS-1 new types
+      "date",
+      "file",
+      "checkbox",
+      "number",
+      // FORMS-1 consent — boolean checkbox with a required consentText
+      "consent",
+    ])
+    .default("text"),
   required: z.boolean().default(false),
   placeholder: z.string().max(120).optional(),
   /** Newline-separated options for `select`. */
   options: z.string().max(2000).optional(),
+  // ── FORMS-1 additions ────────────────────────────────────────────────────────
+  /**
+   * Consent/legal copy rendered beside the consent checkbox.
+   * Only used when `type === "consent"`.
+   */
+  consentText: z.string().max(500).optional(),
+  /**
+   * Minimum numeric value. Only used when `type === "number"`.
+   */
+  numberMin: z.number().optional(),
+  /**
+   * Maximum numeric value. Only used when `type === "number"`.
+   */
+  numberMax: z.number().optional(),
+  /**
+   * Accepted MIME types / extensions for file inputs (comma-separated,
+   * e.g. "image/*,.pdf"). Only used when `type === "file"`.
+   * Defaults to a safe allowlist when absent.
+   */
+  fileAccept: z.string().max(200).optional(),
+  /**
+   * Maximum file size in megabytes. Only used when `type === "file"`.
+   * Enforced client-side (size guard before submit) — no binary upload
+   * on the Supabase free tier; the submit route stores a URL/metadata record.
+   * Hard-capped server-side at FILE_MAX_SIZE_MB_HARD_CAP (10 MB).
+   */
+  fileMaxSizeMb: z.number().min(0.1).max(10).default(5).optional(),
 });
 
 export const contactFormSchemaV1 = z.object({

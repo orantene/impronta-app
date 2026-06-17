@@ -2,6 +2,8 @@ import "server-only";
 
 import type { ReactNode } from "react";
 
+import { SkipToContent } from "@/components/accessibility/skip-to-content";
+
 import {
   BuilderNodeFontLinks,
   BuilderNodeRendererStyles,
@@ -79,11 +81,29 @@ export interface RenderTalentMaxSiteInput {
   previewDraft?: boolean;
 }
 
+/**
+ * SEO-1 — the talent-site SEO envelope, widened to the SAME field set the
+ * cms_pages-backed metadata carries (title/description/OG/canonical/noindex +
+ * JSON-LD). This is the shared contract the 3 talent-site routes destructure;
+ * SEO-2 populates these from the SEO-1 `talent_pages` columns (meta_description,
+ * og_*, canonical_url, noindex, json_ld). Every added field is OPTIONAL so a
+ * not-yet-migrated read degrades to undefined and never throws.
+ */
 export interface MaxSiteSeo {
   title: string;
   description?: string;
   /** Set on the draft preview so a preview is never indexed. */
   noindex: boolean;
+  /** og:title — falls back to `title` when absent. */
+  ogTitle?: string;
+  /** og:description — falls back to `description` when absent. */
+  ogDescription?: string;
+  /** Absolute og:image URL for the page. */
+  ogImageUrl?: string;
+  /** Absolute canonical URL for THIS site page (never the /t/[code] profile). */
+  canonical?: string;
+  /** Structured-data (JSON-LD) document emitted in a `<script type="application/ld+json">`. */
+  jsonLd?: unknown;
 }
 
 export type RenderTalentMaxSiteResult =
@@ -295,6 +315,8 @@ async function renderMaxSiteDocument(args: {
         flexDirection: "column",
       }}
     >
+      {/* A11Y-2 — first focusable element on every talent Max site surface. */}
+      <SkipToContent />
       <BuilderNodeRendererStyles />
       <BuilderNodeFontLinks nodes={[...shellTree, ...blocks]} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}
@@ -328,7 +350,7 @@ async function renderMaxSiteDocument(args: {
         </header>
       ) : null}
 
-      <main data-talent-max-site-main="" style={{ flex: "1 0 auto" }}>
+      <main id="main-content" data-talent-max-site-main="" style={{ flex: "1 0 auto" }}>
         {renderFreeformPageRootTree(blocks, {
           publicPathPrefix,
           mode: "freeform",
