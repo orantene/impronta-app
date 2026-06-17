@@ -49,7 +49,8 @@
         "forgot": "¿Olvidaste tu contraseña?",
         "remember": "Mantener mi sesión activa por 30 días",
         "noAccount": "¿No tienes cuenta?",
-        "signUp": "Regístrate"
+        "signUp": "Regístrate",
+        "sessionExpired": "Tu sesión expiró. Vuelve a iniciar sesión."
       },
       "register": {
         "title": "Crea tu cuenta",

@@ -363,6 +363,14 @@ export async function updateSession(
     }
     if (decision.loginNext) {
       redirectUrl.searchParams.set("next", decision.loginNext);
+      // Distinguish a DROPPED/expired session (an auth cookie was present but
+      // produced no user — e.g. a refresh-token rotation race) from a plain
+      // never-logged-in visit, so /login can explain the forced re-login
+      // instead of silently showing a bare sign-in form. UX only; the redirect
+      // itself is unchanged.
+      if (!user && hasStaleAuthCookie) {
+        redirectUrl.searchParams.set("reason", "session_expired");
+      }
     }
 
     return clearStaleAuthCookies(
