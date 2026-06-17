@@ -230,8 +230,9 @@ export function ScheduleDrawer() {
     <Drawer
       kind="schedule"
       open={open}
-      data-edit-drawer="schedule"
       ariaLabelledBy="schedule-drawer-title"
+      modal
+      onRequestClose={isSaving ? undefined : onClose}
     >
       <DrawerHead
         titleId="schedule-drawer-title"

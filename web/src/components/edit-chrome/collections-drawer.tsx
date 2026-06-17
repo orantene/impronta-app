@@ -91,7 +91,13 @@ export function CollectionsDrawer() {
   if (!collectionsOpen) return null;
 
   return (
-    <Drawer kind="collections" open={collectionsOpen} testId="collections-drawer">
+    <Drawer
+      kind="collections"
+      open={collectionsOpen}
+      testId="collections-drawer"
+      modal
+      onRequestClose={closeCollections}
+    >
       <DrawerHead
         title={activeId ? "Edit collection" : "Collections"}
         meta={

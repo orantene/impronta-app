@@ -536,6 +536,8 @@ export function AssetsDrawer(): ReactElement | null {
       open={assetsOpen}
       zIndex={87}
       ariaLabelledBy="assets-drawer-title"
+      modal
+      onRequestClose={uploading ? undefined : closeAssets}
       floating
       floatLabel="Assets"
       floatPanelId="assets"

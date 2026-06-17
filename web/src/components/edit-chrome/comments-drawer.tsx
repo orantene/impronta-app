@@ -438,6 +438,8 @@ export function CommentsDrawer() {
       open={open}
       testId="comments-drawer"
       ariaLabelledBy="comments-drawer-title"
+      modal
+      onRequestClose={onClose}
       floating
       floatLabel="Comments"
       floatPanelId="comments"

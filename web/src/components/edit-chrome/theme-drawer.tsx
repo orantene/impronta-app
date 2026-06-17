@@ -664,6 +664,8 @@ export function ThemeDrawer(): ReactElement | null {
       open={themeOpen}
       zIndex={87}
       ariaLabelledBy="theme-drawer-title"
+      modal
+      onRequestClose={busy === "publishing" ? undefined : closeTheme}
       floating
       floatLabel="Theme"
       floatPanelId="theme"

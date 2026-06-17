@@ -618,6 +618,8 @@ export function PublishDrawer() {
       open={publishOpen}
       zIndex={88}
       ariaLabelledBy="publish-drawer-title"
+      modal
+      onRequestClose={state.kind === "publishing" ? undefined : closePublish}
       floating
       floatLabel="Publish"
       floatPanelId="publish"
