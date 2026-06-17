@@ -21,7 +21,7 @@
  * preference. Operators can set props freely; the renderer handles the rest.
  */
 
-import { useRef, type ReactElement } from "react";
+import { useRef, useState, type ReactElement } from "react";
 
 import {
   type BuilderNode,
@@ -38,6 +38,8 @@ import {
   InspectorNotice,
   InspectorSection,
 } from "./kit/inspector-ui";
+import { triggerAnimationReplay } from "./kit/motion-animation-replay";
+import { CHROME } from "../kit/tokens";
 
 // ── Prop shape types ──────────────────────────────────────────────────────────
 
@@ -223,6 +225,60 @@ function cleanHoverStyle(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+// ── AnimationPreviewButton ────────────────────────────────────────────────────
+
+/**
+ * Live preview "Play" button for the node-level Motion inspector.
+ * Triggers an animation replay on the canvas for the selected node.
+ */
+function AnimationPreviewButton({ onPlay }: { onPlay: () => void }) {
+  const [playing, setPlaying] = useState(false);
+
+  function handlePlay() {
+    if (playing) return;
+    setPlaying(true);
+    onPlay();
+    setTimeout(() => setPlaying(false), 1500);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handlePlay}
+      disabled={playing}
+      aria-label="Preview animation in canvas"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "5px 10px",
+        borderRadius: 6,
+        border: `1px solid ${CHROME.controlBorder}`,
+        background: playing ? CHROME.surface2 : CHROME.surface,
+        color: playing ? CHROME.muted : CHROME.ink,
+        fontSize: 11.5,
+        fontWeight: 500,
+        cursor: playing ? "default" : "pointer",
+        transition: "all 120ms",
+        alignSelf: "flex-start",
+        opacity: playing ? 0.7 : 1,
+      }}
+    >
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 24 24"
+        fill={playing ? CHROME.muted : CHROME.accent}
+        aria-hidden
+        style={{ flexShrink: 0 }}
+      >
+        <polygon points="5,3 19,12 5,21" />
+      </svg>
+      {playing ? "Playing…" : "Preview"}
+    </button>
+  );
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 interface NodeMotionPanelProps {
@@ -378,6 +434,12 @@ export function NodeMotionPanel({ node, onPatchNodeProps }: NodeMotionPanelProps
             );
           })}
         </div>
+        {/* Live preview — replays the animation on the canvas element. */}
+        {hasEntrance ? (
+          <AnimationPreviewButton
+            onPlay={() => triggerAnimationReplay(null, node.id)}
+          />
+        ) : null}
       </InspectorSection>
 
       {/* Trigger + timing — only shown when a preset is set */}

@@ -62,6 +62,7 @@ import {
   useSelectedSectionId,
   useSelectedBuilderNodeId,
 } from "./selection-bridge";
+import { performAnimationReplay, type ReplayAnimationMessage } from "./inspectors/kit/motion-animation-replay";
 
 // Discriminated union of all bridge messages. Used as a runtime
 // guard via the `type` string and as the typescript shape for
@@ -79,7 +80,11 @@ type BridgeMessage =
   // CanvasLinkInterceptor and set body[data-edit-preview="1"] so its
   // local affordances hide. The iframe has an independent EditContext
   // so we sync it explicitly rather than rely on a shared store.
-  | { type: "editor:setPreviewing"; previewing: boolean };
+  | { type: "editor:setPreviewing"; previewing: boolean }
+  // parent → child (MOTION-1) — replay the animation for a section or
+  // builder node inside the iframe canvas. Handled by IframeBridgeChild
+  // which calls performAnimationReplay from the motion-animation-replay kit.
+  | ReplayAnimationMessage;
 
 const BRIDGE_NAMESPACE = "editor:";
 
@@ -195,6 +200,14 @@ export function IframeBridgeChild() {
 
       if (msg.type === "editor:setPreviewing") {
         setPreviewing(msg.previewing);
+        return;
+      }
+
+      // MOTION-1: replay the animation for a section or builder node
+      // rendered inside this iframe. The performAnimationReplay function
+      // lives in the shared kit and handles the DOM class-flip + rAF.
+      if (msg.type === "editor:replayAnimation") {
+        performAnimationReplay(msg.sectionId, msg.builderNodeId);
         return;
       }
     }

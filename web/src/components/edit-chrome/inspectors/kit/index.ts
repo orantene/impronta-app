@@ -85,3 +85,13 @@ export {
   useInspectorSearchFilter,
   useInspectorSearchQuery,
 } from "./inspector-search";
+// MOTION-1 — shared CSS editor with error hints + CSS validator
+export { CssEditorWithHints } from "./css-editor-with-hints";
+export { validateCss, type CssError } from "./css-validator";
+// MOTION-1 — animation replay trigger + canvas-side listener
+export {
+  triggerAnimationReplay,
+  registerCanvasAnimationReplayListener,
+  performAnimationReplay,
+  type ReplayAnimationMessage,
+} from "./motion-animation-replay";

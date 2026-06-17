@@ -43,6 +43,14 @@ import { RemoteCursorsLayer } from "./remote-cursors-layer";
 import { ThemePreviewProjector } from "./theme-preview-projector";
 import { CHROME, CHROME_SHADOWS, EDIT_TOPBAR_H } from "./kit";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
+import {
+  loadChecklistState,
+  saveChecklistState,
+  deriveContentDone,
+  deriveAddSectionDone,
+  derivePublishDone,
+  LAUNCH_CHECKLIST_STEPS,
+} from "./launch-checklist";
 import { SelectionLayer } from "./selection-layer";
 import { InEditorCanvasRegion } from "./in-editor-canvas-region";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
@@ -1415,95 +1423,154 @@ function FirstPaintTip() {
 }
 
 /**
- * W6-T2 — post-apply "Make it yours" checklist.
+ * ONB-2 — Guided first-edit launch checklist (enhanced from W6-T2).
  *
- * After an operator applies a full-page design or a section kit, the canvas
- * fills with a polished-but-generic page: real layout, placeholder words, and
- * stock placeholder photos. The documented #1 acceptance blocker is operators
- * not realizing those photos are placeholders to swap — and not knowing where
- * the three first edits live (inline text, the Assets drawer, the Theme
- * drawer). This checklist is the guided first edit.
+ * After a template is applied (or immediately on mount when the tree is
+ * non-empty), shows a persistent guided checklist to help operators complete
+ * the four core first edits:
+ *   1. Edit the words   → track via selectedSectionId (clicking a section).
+ *   2. Set your brand style → track via themeOpen.
+ *   3. Add a section    → derive from tree having ≥ 2 section nodes, or via
+ *                         the AddGallery panel being opened (toggleAddMenu).
+ *   4. Publish          → derive from liveSitePublishedAt being non-null.
  *
- * It mounts hidden and only appears on the `impronta:starter-applied` event
- * (dispatched by EmptyCanvasStarter's requestStarterSync for BOTH a section-kit
- * apply and a one-click full-page design). Each step deep-links its action and
- * auto-checks when the operator engages that surface:
- *   1. Edit the words   → clicks the first section to open inline editing.
- *   2. Swap the photos   → opens the Assets drawer (explicitly flags the
- *                          shipped photos as placeholders).
- *   3. Make it your color→ opens the Theme drawer.
+ * Dismissible; persisted in localStorage keyed by page ID so it survives page
+ * reload and does not re-nag once dismissed or all steps complete.
  *
- * Dismissable, and the dismissal persists in sessionStorage so it never
- * re-nags after the operator closes it or finishes all three. Session-scoped
- * for the same reason as FirstPaintTip — it's an orientation aid, not a
- * setting, and per-tenant persistence isn't worth wiring for a checklist.
+ * Suppressed on `platform_lab` (Lab authors are not end-user operators
+ * onboarding themselves). All other end-user surfaces (homepage, cms_page,
+ * talent_page) inherit this via the shared EditShell chrome — no surface
+ * branch in the editor.
+ *
+ * The snapshot+undo half of ONB-2 was shipped as CANVAS-4
+ * (applyTemplateWithUndo). This component handles the checklist half only.
  */
-const MAKE_IT_YOURS_DISMISS_KEY = "edit:make-it-yours:dismissed";
-
 function MakeItYoursChecklist() {
-  const { openTheme, openAssets, themeOpen, assetsOpen } = useEditContext();
-  // W2 (selection-bridge) — selected-section VALUE from the micro-store.
+  const {
+    openTheme,
+    openPublish,
+    toggleAddMenu,
+    themeOpen,
+    addMenuOpen,
+    surfaceKind,
+    liveSitePublishedAt,
+  } = useEditContext();
+  // W2 (selection-bridge) — selected-section value from the micro-store.
   const selectedSectionId = useSelectedSectionId();
-  // Hidden until a starter/design is applied this session. A separate
-  // "visible" flag (vs. relying on done-counts) lets us keep the panel mounted
-  // through the celebratory all-done state before it auto-dismisses.
-  const [visible, setVisible] = useState(false);
-  const [done, setDone] = useState<{
-    content: boolean;
-    photos: boolean;
-    theme: boolean;
-  }>({ content: false, photos: false, theme: false });
+  // Builder tree — read via the micro-store so a tree edit only re-renders
+  // checklist readers, not the whole chrome (builder-tree-bridge pattern).
+  const builderTree = useBuilderTree();
 
-  // Appear on apply — unless the operator already dismissed it this session.
+  // Stable page key for localStorage — use the composition id when available,
+  // fall back to a session-scoped sentinel so the checklist still works if the
+  // adapter provides no id (e.g. platform_lab ephemeral sessions).
+  const [pageKey] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const url = window.location.href;
+      // Extract a stable segment: last path segment or full href hash.
+      const segments = url.replace(/[?#].*$/, "").split("/").filter(Boolean);
+      const last = segments[segments.length - 1] ?? "";
+      return last.length > 3 ? `page:${last}` : `session:${Date.now()}`;
+    }
+    return `session:${Date.now()}`;
+  });
+
+  // Suppress on Lab — authors don't need the end-user onboarding guide.
+  const isLabSurface = surfaceKind === "platform_lab";
+
+  // Hidden until a starter/template is applied OR the tree already has content
+  // (e.g. editor opened on a page that already had a template applied before).
+  const [visible, setVisible] = useState(false);
+  const [done, setDone] = useState(() => {
+    // Load persisted completion from localStorage on mount.
+    const persisted = loadChecklistState(pageKey);
+    return persisted.done;
+  });
+  const [dismissed, setDismissed] = useState(() => {
+    return loadChecklistState(pageKey).dismissed;
+  });
+
+  // Show the checklist when a template is applied (event), OR when the tree
+  // is non-empty on mount (operator already has a page with content).
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (isLabSurface || dismissed) return;
+    // Already visible — no action needed.
+    if (visible) return;
+    // Show immediately when the tree has content (loaded page).
+    if (deriveContentDone(builderTree)) {
+      setVisible(true);
+    }
+  }, [builderTree, visible, dismissed, isLabSurface]);
+
+  // Also appear on the impronta:starter-applied event (emitted by EmptyCanvasStarter).
+  useEffect(() => {
+    if (isLabSurface) return;
     function onApplied() {
-      try {
-        if (
-          window.sessionStorage.getItem(MAKE_IT_YOURS_DISMISS_KEY) === "1"
-        ) {
-          return;
-        }
-      } catch {
-        // sessionStorage can throw in private mode — fall through and show it.
-      }
+      if (dismissed) return;
       setVisible(true);
     }
     window.addEventListener("impronta:starter-applied", onApplied);
     return () =>
       window.removeEventListener("impronta:starter-applied", onApplied);
-  }, []);
+  }, [dismissed, isLabSurface]);
 
-  // Auto-check each step when its surface is engaged.
+  // ── Step-completion derivation (from real editor state) ─────────────────
+
+  // Step 1 — content: clicking a section (inline editing started).
   useEffect(() => {
     if (selectedSectionId) {
-      setDone((prev) => (prev.content ? prev : { ...prev, content: true }));
+      setDone((prev) => {
+        if (prev.content) return prev;
+        const next = { ...prev, content: true };
+        saveChecklistState(pageKey, { dismissed, done: next });
+        return next;
+      });
     }
-  }, [selectedSectionId]);
-  useEffect(() => {
-    if (assetsOpen) {
-      setDone((prev) => (prev.photos ? prev : { ...prev, photos: true }));
-    }
-  }, [assetsOpen]);
+  }, [selectedSectionId, dismissed, pageKey]);
+
+  // Step 2 — theme: theme drawer opened at least once.
   useEffect(() => {
     if (themeOpen) {
-      setDone((prev) => (prev.theme ? prev : { ...prev, theme: true }));
+      setDone((prev) => {
+        if (prev.theme) return prev;
+        const next = { ...prev, theme: true };
+        saveChecklistState(pageKey, { dismissed, done: next });
+        return next;
+      });
     }
-  }, [themeOpen]);
+  }, [themeOpen, dismissed, pageKey]);
+
+  // Step 3 — addSection: AddGallery opened OR tree has ≥ 2 section nodes.
+  useEffect(() => {
+    if (addMenuOpen || deriveAddSectionDone(builderTree)) {
+      setDone((prev) => {
+        if (prev.addSection) return prev;
+        const next = { ...prev, addSection: true };
+        saveChecklistState(pageKey, { dismissed, done: next });
+        return next;
+      });
+    }
+  }, [addMenuOpen, builderTree, dismissed, pageKey]);
+
+  // Step 4 — publish: liveSitePublishedAt becomes non-null after publish.
+  useEffect(() => {
+    if (derivePublishDone(liveSitePublishedAt)) {
+      setDone((prev) => {
+        if (prev.publish) return prev;
+        const next = { ...prev, publish: true };
+        saveChecklistState(pageKey, { dismissed, done: next });
+        return next;
+      });
+    }
+  }, [liveSitePublishedAt, dismissed, pageKey]);
 
   const dismiss = useCallback(() => {
     setVisible(false);
-    if (typeof window === "undefined") return;
-    try {
-      window.sessionStorage.setItem(MAKE_IT_YOURS_DISMISS_KEY, "1");
-    } catch {
-      // Degrade silently — worst case the operator sees it again next apply.
-    }
-  }, []);
+    setDismissed(true);
+    saveChecklistState(pageKey, { dismissed: true, done });
+  }, [pageKey, done]);
 
-  // Step 1 deep-link — click the first section so the inline editor opens.
-  // Going through a synthetic click reuses SelectionLayer's resolution, so it
-  // works for both curated sections and a freeform full-page design.
+  // Step 1 deep-link — click the first section to open the inline editor.
   const focusFirstSection = useCallback(() => {
     if (typeof document === "undefined") return;
     const first = document.querySelector<HTMLElement>("[data-cms-section]");
@@ -1511,41 +1578,44 @@ function MakeItYoursChecklist() {
       first.scrollIntoView({ behavior: "smooth", block: "center" });
       first.click();
     }
-    setDone((prev) => ({ ...prev, content: true }));
-  }, []);
+    setDone((prev) => {
+      if (prev.content) return prev;
+      const next = { ...prev, content: true };
+      saveChecklistState(pageKey, { dismissed, done: next });
+      return next;
+    });
+  }, [pageKey, dismissed]);
 
-  const steps = [
-    {
-      key: "content" as const,
-      label: "Edit the words",
-      hint: "The headlines and copy are placeholders — click in and rewrite them.",
-      cta: "Start editing",
-      action: focusFirstSection,
-    },
-    {
-      key: "photos" as const,
-      label: "Swap the photos",
-      hint: "Every image shipped is a placeholder. Open Assets to drop in your own.",
-      cta: "Open Assets",
-      action: openAssets,
-    },
-    {
-      key: "theme" as const,
-      label: "Make it your color",
-      hint: "Set your brand color and fonts once — the whole page follows.",
-      cta: "Open Theme",
-      action: openTheme,
-    },
-  ];
+  // Map step keys to actions.
+  const actionMap: Record<string, () => void> = {
+    content: focusFirstSection,
+    theme: openTheme,
+    addSection: toggleAddMenu,
+    publish: openPublish,
+  };
+
+  const steps = LAUNCH_CHECKLIST_STEPS.map((step) => ({
+    ...step,
+    action: actionMap[step.key] ?? (() => undefined),
+  }));
 
   const doneCount = steps.filter((step) => done[step.key]).length;
   const allDone = doneCount === steps.length;
 
-  if (!visible) return null;
+  // Auto-dismiss after a short delay once all steps are done.
+  useEffect(() => {
+    if (!allDone || !visible) return;
+    const timer = setTimeout(() => {
+      dismiss();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [allDone, visible, dismiss]);
+
+  if (!visible || dismissed || isLabSurface) return null;
 
   return (
     <div
-      data-edit-overlay="make-it-yours"
+      data-edit-overlay="launch-checklist"
       className="pointer-events-auto fixed bottom-5 right-5 z-[89] w-[300px] overflow-hidden rounded-xl"
       style={{
         background: "rgba(255, 255, 255, 0.98)",
@@ -1569,7 +1639,7 @@ function MakeItYoursChecklist() {
               letterSpacing: "-0.01em",
             }}
           >
-            {allDone ? "Looking good." : "Make it yours"}
+            {allDone ? "You're ready to publish." : "Launch checklist"}
           </div>
           <div
             style={{
@@ -1579,16 +1649,20 @@ function MakeItYoursChecklist() {
             }}
           >
             {allDone
-              ? "You've made the three core edits — keep going or publish."
-              : `${doneCount} of ${steps.length} — your design is live in this draft.`}
+              ? "All steps done. Your page is ready."
+              : `${doneCount} of ${steps.length} steps done`}
           </div>
         </div>
         <button
           type="button"
           onClick={dismiss}
-          aria-label="Dismiss checklist"
+          aria-label="Dismiss launch checklist"
           className="inline-flex size-[20px] shrink-0 items-center justify-center rounded-full transition hover:bg-black/5"
-          style={{ color: "rgba(39, 39, 42, 0.45)", border: "none", background: "transparent" }}
+          style={{
+            color: "rgba(39, 39, 42, 0.45)",
+            border: "none",
+            background: "transparent",
+          }}
         >
           <svg
             width="11"
@@ -1621,7 +1695,9 @@ function MakeItYoursChecklist() {
                     border: isDone
                       ? "1px solid rgba(22, 163, 74, 0.9)"
                       : "1px solid rgba(24, 24, 27, 0.25)",
-                    background: isDone ? "rgba(22, 163, 74, 0.9)" : "transparent",
+                    background: isDone
+                      ? "rgba(22, 163, 74, 0.9)"
+                      : "transparent",
                   }}
                 >
                   {isDone ? (

@@ -472,6 +472,11 @@ export function InspectorDeviceCards<T extends string>({
     label: string;
     hint?: string;
     icon: ReactNode;
+    /**
+     * RESP-2 — optional advisory count badge rendered in the top-right corner
+     * of the card. Shows when > 0. Advisory only — never blocks navigation.
+     */
+    badgeCount?: number;
   }>;
 }) {
   // Column count tracks the registry-driven option list (RESP-1) so adding a
@@ -484,19 +489,48 @@ export function InspectorDeviceCards<T extends string>({
     >
       {options.map((opt) => {
         const active = opt.key === value;
+        const hasBadge = (opt.badgeCount ?? 0) > 0;
         return (
           <button
             key={opt.key}
             type="button"
             onClick={() => onChange(opt.key)}
             aria-pressed={active}
-            className="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-2 py-3 transition-colors"
+            aria-label={
+              hasBadge
+                ? `${opt.label} — ${opt.badgeCount} mobile health issue${opt.badgeCount === 1 ? "" : "s"}`
+                : opt.label
+            }
+            className="relative flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-2 py-3 transition-colors"
             style={{
               background: active ? "rgba(124, 58, 237, 0.08)" : CHROME.surface,
               borderColor: active ? CHROME.accent : CHROME.line,
               color: active ? CHROME.accent : CHROME.muted,
             }}
           >
+            {hasBadge ? (
+              <span
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  top: 4,
+                  right: 5,
+                  minWidth: 15,
+                  height: 15,
+                  borderRadius: 999,
+                  background: "#c2410c",
+                  color: "#fff",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  lineHeight: "15px",
+                  textAlign: "center",
+                  padding: "0 3px",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {(opt.badgeCount ?? 0) > 99 ? "99+" : opt.badgeCount}
+              </span>
+            ) : null}
             <span aria-hidden>{opt.icon}</span>
             <span className="text-[11px] font-semibold">{opt.label}</span>
             {opt.hint ? (
