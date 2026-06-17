@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { improntaLog } from "@/lib/server/structured-log";
 
 /** User-facing copy — never include DB or stack details. */
@@ -42,6 +43,18 @@ export function logServerError(context: string, err: unknown): void {
   const { line, stack } = formatUnknownError(err);
   // eslint-disable-next-line no-console
   console.error(`[${context}]`, line, stack ?? "");
+
+  // Best-effort Sentry capture — must never throw into the caller.
+  try {
+    const exception = err instanceof Error ? err : new Error(line);
+    Sentry.captureException(exception, {
+      tags: { context },
+      extra: { context, message: line.slice(0, 500), hasStack: Boolean(stack) },
+    });
+  } catch {
+    // Intentionally swallowed — observability must not affect request path.
+  }
+
   if (process.env.NODE_ENV === "production") {
     void improntaLog("server_error", {
       context,

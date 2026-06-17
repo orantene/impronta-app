@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
@@ -234,8 +235,13 @@ function displayNameFromProfile(
  * Load every open inquiry for the Messages inbox enriched with unread,
  * lineup, coordinator, offer, source, last-message preview, and per-user
  * flags. Designed to power the prototype-fidelity inbox in one round trip.
+ *
+ * Wrapped in React `cache()` so repeated calls with the same tenantId within
+ * a single RSC render tree (e.g. layout + admin page child) share one DB
+ * round-trip. Safe because this is a pure per-request read with no side
+ * effects and no mutation dependency.
  */
-export async function loadInquiriesForMessages(
+export const loadInquiriesForMessages = cache(async function loadInquiriesForMessages(
   tenantId: string,
 ): Promise<WorkspaceInquiryForMessages[]> {
   try {
@@ -660,4 +666,4 @@ export async function loadInquiriesForMessages(
     logServerError("workspace.loadInquiriesForMessages", err);
     return [];
   }
-}
+});
