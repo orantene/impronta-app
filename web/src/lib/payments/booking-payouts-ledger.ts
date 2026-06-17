@@ -502,13 +502,37 @@ async function markLegReversed(
     .eq("id", leg.id);
 }
 
-/** Partial workspace-leg reversal (talent untouched). Idempotent per transfer. */
+/**
+ * Build the per-partial-reversal Stripe idempotency key.
+ *
+ * UNIQUE per distinct partial refund (so two genuinely-different partials on the
+ * SAME workspace transfer each get their own reversal) yet STABLE for a
+ * re-delivered same refund (so it replays the identical reversal — no
+ * double-claw). The stable per-refund anchor is the Stripe Refund id (`re_...`),
+ * which Stripe emits once per refund and which is also persisted as
+ * `provider_refund_id`; we fall back to the charge id (still per refund event on
+ * the legacy/trimmed-payload path) only when no refund id is present.
+ *
+ * Before this, the key was `reverse_partial_<transferId>` — reused for EVERY
+ * partial against the same transfer, so a 2nd distinct partial reused the key
+ * with a different amount and Stripe rejected it (the reversal was logged +
+ * escalated, never applied). Anchoring on the refund id fixes that.
+ */
+export function partialReversalIdempotencyKey(transferId: string, anchor: string | null): string {
+  return anchor ? `reverse_partial_${transferId}_${anchor}` : `reverse_partial_${transferId}`;
+}
+
+/** Partial workspace-leg reversal (talent untouched). Idempotent per (transfer,
+ *  refund): a re-delivered same refund replays the SAME reversal, a genuinely
+ *  different partial gets its own. `anchor` is the stable per-refund key (Stripe
+ *  `re_...`, else the charge id). */
 async function partialReverseLeg(
   sb: SupabaseClient,
   stripe: Stripe | null,
   leg: LedgerLegRow,
   clawbackCents: number,
   reference: string,
+  anchor: string | null,
 ): Promise<PayoutReversalOutcome> {
   const base = { legId: leg.id, participantId: leg.participant_id, party: leg.party } as const;
   const amount = Math.min(Math.max(0, Math.round(clawbackCents)), leg.amount_cents);
@@ -523,14 +547,15 @@ async function partialReverseLeg(
   }
 
   try {
-    // `reverse_partial_<transferId>` is stable per transfer: a re-delivered
-    // refund replays the SAME reversal (no double-claw). A genuinely DIFFERENT
-    // later partial refund would reuse the key with a different amount → Stripe
-    // rejects it, which we log + escalate rather than risk a stacked reversal.
+    // `reverse_partial_<transferId>_<refundId>` is unique per distinct partial
+    // refund yet stable for a re-delivered same refund: a re-delivery replays the
+    // SAME reversal (no double-claw), while a genuinely DIFFERENT later partial
+    // refund (different `re_...`) gets a NEW key → Stripe applies it as a second,
+    // distinct reversal of this transfer instead of rejecting a key reuse.
     const reversal = await stripe.transfers.createReversal(
       leg.stripe_transfer_id,
       { amount },
-      { idempotencyKey: `reverse_partial_${leg.stripe_transfer_id}` },
+      { idempotencyKey: partialReversalIdempotencyKey(leg.stripe_transfer_id, anchor) },
     );
     await sb
       .from("booking_payouts")
@@ -557,7 +582,11 @@ async function partialReverseLeg(
  *   mode 'partial' — partial refund. ONLY the workspace legs named in
  *     `workspaceClawbackByLeg` are reversed, each by its clawback amount (a
  *     partial Stripe reversal). Talent legs and held legs are left intact (the
- *     talent keeps their protected quote).
+ *     talent keeps their protected quote). `partialReversalAnchor` is the stable
+ *     per-refund key (the Stripe Refund id `re_...`, else the charge id) the
+ *     partial idempotency key is built from — UNIQUE per distinct refund so two
+ *     partials on the same transfer don't collide, STABLE on a re-delivery so the
+ *     same refund replays the same reversal.
  *
  * Idempotent + best-effort; never throws (the refund/chargeback already settled
  * at Stripe). Full reversals reuse `reverse_<transferId>` and reverse only the
@@ -566,7 +595,14 @@ async function partialReverseLeg(
  */
 export async function reverseBookingPayouts(
   bookingId: string,
-  plan: { mode: PayoutReversalMode; reference: string; workspaceClawbackByLeg?: Map<string, number> },
+  plan: {
+    mode: PayoutReversalMode;
+    reference: string;
+    workspaceClawbackByLeg?: Map<string, number>;
+    /** Partial mode only: stable per-refund anchor (Stripe `re_...` / charge id)
+     *  for the partial-reversal idempotency key. */
+    partialReversalAnchor?: string | null;
+  },
   deps: ReverseDeps = {},
 ): Promise<PayoutReversalOutcome[]> {
   const sb = deps.sb ?? createServiceRoleClient();
@@ -605,7 +641,7 @@ export async function reverseBookingPayouts(
       if (plan.mode === "partial") {
         const clawback = plan.workspaceClawbackByLeg?.get(reversalLegKey(leg.participant_id, leg.party)) ?? 0;
         if (leg.party !== "workspace" || leg.status !== "transferred" || clawback <= 0) continue;
-        outcomes.push(await partialReverseLeg(sb, stripe, leg, clawback, plan.reference));
+        outcomes.push(await partialReverseLeg(sb, stripe, leg, clawback, plan.reference, plan.partialReversalAnchor ?? null));
         continue;
       }
 

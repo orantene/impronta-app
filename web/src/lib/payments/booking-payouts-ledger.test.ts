@@ -16,6 +16,7 @@ import {
   reverseBookingPayouts,
   computeTalentProtectiveClawback,
   reversalLegKey,
+  partialReversalIdempotencyKey,
 } from "@/lib/payments/booking-payouts-ledger";
 
 type Row = {
@@ -396,6 +397,78 @@ test("partial reversal: only the workspace leg is clawed; talent leg untouched",
   assert.equal(legs.find((l) => l.id === "L1")!.status, "transferred", "talent leg untouched");
   assert.equal(legs.find((l) => l.id === "L2")!.status, "transferred", "workspace leg stays transferred (partial)");
   assert.equal(out.find((o) => o.legId === "L2")?.result, "reversed_partial");
+});
+
+// ── Task 1: unique-per-refund partial-reversal idempotency key ───────────────
+
+test("partialReversalIdempotencyKey: anchored is unique per refund, null falls back to legacy", () => {
+  assert.equal(partialReversalIdempotencyKey("tr_w", "re_a"), "reverse_partial_tr_w_re_a");
+  assert.equal(partialReversalIdempotencyKey("tr_w", "re_b"), "reverse_partial_tr_w_re_b");
+  assert.notEqual(
+    partialReversalIdempotencyKey("tr_w", "re_a"),
+    partialReversalIdempotencyKey("tr_w", "re_b"),
+    "distinct refunds → distinct keys",
+  );
+  // No anchor (legacy/trimmed payload) → the original per-transfer key.
+  assert.equal(partialReversalIdempotencyKey("tr_w", null), "reverse_partial_tr_w");
+});
+
+test("partial reversal: the supplied anchor is used as the idempotency key", async () => {
+  const legs = [legRow({ id: "L2", party: "workspace", participant_id: "p1", amount_cents: 20000, stripe_transfer_id: "tr_w" })];
+  const { reversals, stripe } = makeReversalStripe([]);
+  await reverseBookingPayouts(
+    "bk_1",
+    {
+      mode: "partial",
+      reference: "partial_refund re_a",
+      workspaceClawbackByLeg: new Map([[reversalLegKey("p1", "workspace"), 5000]]),
+      partialReversalAnchor: "re_a",
+    },
+    { sb: makeReversalSupabase(legs), stripe },
+  );
+  assert.equal(reversals.length, 1);
+  assert.equal(reversals[0].key, "reverse_partial_tr_w_re_a", "anchored unique-per-refund key");
+});
+
+test("Task 1: two DISTINCT partial refunds on the SAME transfer → two reversals, distinct keys", async () => {
+  // The bug: with the old `reverse_partial_<transferId>` key, a 2nd distinct
+  // partial reused the SAME key with a different amount and Stripe rejected the
+  // 2nd reversal (never applied). With per-refund anchors, both are applied.
+  const legs = [legRow({ id: "L2", party: "workspace", participant_id: "p1", amount_cents: 20000, stripe_transfer_id: "tr_w" })];
+  const sb = makeReversalSupabase(legs);
+  const { reversals, stripe } = makeReversalStripe([]);
+
+  const plan = (anchor: string, amount: number) => ({
+    mode: "partial" as const,
+    reference: `partial_refund ${anchor}`,
+    workspaceClawbackByLeg: new Map([[reversalLegKey("p1", "workspace"), amount]]),
+    partialReversalAnchor: anchor,
+  });
+
+  await reverseBookingPayouts("bk_1", plan("re_a", 5000), { sb, stripe });
+  await reverseBookingPayouts("bk_1", plan("re_b", 3000), { sb, stripe });
+
+  assert.equal(reversals.length, 2, "both distinct partials applied (not rejected on key reuse)");
+  assert.deepEqual(reversals.map((r) => r.key), ["reverse_partial_tr_w_re_a", "reverse_partial_tr_w_re_b"]);
+  assert.equal(new Set(reversals.map((r) => r.key)).size, 2, "keys are distinct");
+});
+
+test("Task 1: a RE-DELIVERED same partial refund replays the SAME reversal (no double-claw)", async () => {
+  const legs = [legRow({ id: "L2", party: "workspace", participant_id: "p1", amount_cents: 20000, stripe_transfer_id: "tr_w" })];
+  const sb = makeReversalSupabase(legs);
+  const { reversals, stripe } = makeReversalStripe([]);
+
+  const plan = {
+    mode: "partial" as const,
+    reference: "partial_refund re_a",
+    workspaceClawbackByLeg: new Map([[reversalLegKey("p1", "workspace"), 5000]]),
+    partialReversalAnchor: "re_a",
+  };
+  await reverseBookingPayouts("bk_1", plan, { sb, stripe });
+  await reverseBookingPayouts("bk_1", plan, { sb, stripe }); // same refund re-delivered
+
+  assert.equal(reversals.length, 1, "same anchor → same key → Stripe replays, no 2nd reversal");
+  assert.equal(reversals[0].key, "reverse_partial_tr_w_re_a");
 });
 
 test("clawback: refund within the platform fee → platform absorbs all, nobody clawed", () => {
