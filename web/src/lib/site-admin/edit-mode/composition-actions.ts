@@ -144,6 +144,15 @@ export interface CompositionData {
     ogImageUrl: string | null;
     canonicalUrl: string | null;
     noindex: boolean;
+    /**
+     * SEO-1 — structured-data (JSON-LD) payload carried through the SAME shared
+     * metadata envelope as the OG/canonical set, so every surface describes SEO
+     * identically (storefront already backs this with `cms_pages.json_ld`;
+     * talent-site backs it with the SEO-1 `talent_pages.json_ld` migration).
+     * Nullable: a surface with no structured data (or a not-yet-migrated read)
+     * degrades to `null`, never throws.
+     */
+    jsonLd: unknown | null;
   };
   slots: Record<string, CompositionSectionRef[]>;
   /**
@@ -346,7 +355,7 @@ export async function loadHomepageCompositionAction(input: {
     const { data: pageRow, error: pageErr } = await admin
       .from("cms_pages")
       .select(
-        "id, title, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, version, published_at",
+        "id, title, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld, version, published_at",
       )
       .eq("tenant_id", scope.tenantId)
       .eq("locale", locale)
@@ -362,6 +371,9 @@ export async function loadHomepageCompositionAction(input: {
         og_image_url: string | null;
         canonical_url: string | null;
         noindex: boolean;
+        // SEO-1 — cms_pages already carries json_ld; surface it through the
+        // shared metadata envelope so storefront/cms_page read it identically.
+        json_ld: unknown | null;
         version: number;
         published_at: string | null;
       }>();
@@ -498,6 +510,7 @@ export async function loadHomepageCompositionAction(input: {
           ogImageUrl: pageRow.og_image_url,
           canonicalUrl: pageRow.canonical_url,
           noindex: pageRow.noindex,
+          jsonLd: pageRow.json_ld ?? null,
         },
         slots,
         builderTree: resolveBuilderTreeForSnapshot({
@@ -647,6 +660,7 @@ export async function loadHomepageCompositionAction(input: {
         ogImageUrl: page.ogImageUrl,
         canonicalUrl: page.canonicalUrl,
         noindex: page.noindex,
+        jsonLd: page.jsonLd ?? null,
       },
       slots,
       builderTree: preferredHomepageBuilderTree
@@ -683,6 +697,13 @@ export interface CompositionSaveInput {
     ogImageUrl?: string | null;
     canonicalUrl?: string | null;
     noindex?: boolean;
+    /**
+     * SEO-1 — structured-data (JSON-LD) payload. Optional on the SAVE envelope
+     * (a save that doesn't touch SEO omits it; the persisted value is preserved
+     * by the adapter). Same shared field the load-side `CompositionData.metadata`
+     * exposes — never a per-surface struct.
+     */
+    jsonLd?: unknown | null;
   };
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
   /**

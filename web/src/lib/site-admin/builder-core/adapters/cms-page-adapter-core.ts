@@ -115,6 +115,10 @@ export function buildCmsFreeformComposition(
       ogImageUrl: null,
       canonicalUrl: null,
       noindex: false,
+      // SEO-1 contract field (cms_pages already has the json_ld column;
+      // the freeform empty-seed sets null — full reads stay on the homepage
+      // metadata path).
+      jsonLd: null,
     },
     slots: {},
     builderTree: (row.blocks as CompositionData["builderTree"]) ?? [],
