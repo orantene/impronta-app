@@ -29,6 +29,7 @@ import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
   BuilderNodeRendererStyles,
+  collectPresentNodeKinds,
   collectBuilderCollectionSourceKeys,
   collectBuilderImageMediaIds,
   hasRenderableBuilderNodes,
@@ -357,7 +358,17 @@ async function renderShellSlot(
       }
     >
       {shouldIncludeBuilderNodeRendererStyles ? (
-        <BuilderNodeRendererStyles />
+        // REND-2 — scope the shell-slot's renderer sheet to the kinds this slot
+        // uses (incl. live-resolved instance kinds via builderComponents). Edit
+        // canvas keeps the full sheet so any kind can be added. Falls back to
+        // the full sheet on any uncertainty (buildScopedRendererCss).
+        <BuilderNodeRendererStyles
+          kinds={
+            editModeActive
+              ? undefined
+              : collectPresentNodeKinds(builderSectionChildren, builderComponents)
+          }
+        />
       ) : null}
       <Comp
         sectionId={slot.sectionId}

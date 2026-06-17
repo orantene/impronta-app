@@ -21,6 +21,10 @@ import {
   type ComponentDefinitions,
 } from "./component-instances";
 import {
+  buildScopedRendererCss,
+  collectPresentNodeKinds,
+} from "./renderer-css-scope";
+import {
   buildGoogleFontsHrefForFamilies,
   collectBuilderNodeFontFamilies,
 } from "./fonts-registry";
@@ -53,6 +57,7 @@ import { isLocalizableProp } from "@/lib/i18n/builder-i18n-props";
 import type {
   BuilderNavLink,
   BuilderNode,
+  BuilderNodeKind,
   BuilderNodeStyle,
   BuilderNodeStyleValue,
 } from "./types";
@@ -4099,14 +4104,33 @@ export function BuilderNodeFontLinks({
   );
 }
 
-export function BuilderNodeRendererStyles(): ReactNode {
+/**
+ * The single shared `<style>` that carries the renderer stylesheet for every
+ * public render path. By default (no `kinds`) it emits the FULL sheet — the Lab
+ * editor canvas and any un-migrated caller keep today's behavior byte-for-byte.
+ *
+ * REND-2 — a PUBLIC-RENDER optimization: when a caller passes the set of
+ * node-kinds present on the page (via `collectPresentNodeKinds`), the sheet is
+ * scoped to the base rules plus only those kinds' rules. `buildScopedRendererCss`
+ * falls back to the full sheet on any uncertainty, so the emitted sheet is always
+ * a superset of what the present kinds need. The single-sheet-per-page invariant
+ * (render-perf-budget.test.ts) is unchanged — this only shrinks the one sheet.
+ */
+export function BuilderNodeRendererStyles({
+  kinds,
+}: {
+  kinds?: ReadonlySet<BuilderNodeKind> | null;
+} = {}): ReactNode {
+  const css = buildScopedRendererCss(BUILDER_NODE_RENDERER_CSS, kinds);
   return (
     <style
       data-builder-node-renderer-styles=""
-      dangerouslySetInnerHTML={{ __html: BUILDER_NODE_RENDERER_CSS }}
+      dangerouslySetInnerHTML={{ __html: css }}
     />
   );
 }
+
+export { buildScopedRendererCss, collectPresentNodeKinds };
 
 export function hasRenderableBuilderNodes(
   nodes: ReadonlyArray<BuilderNode>,

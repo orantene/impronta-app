@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   BuilderNodeFontLinks,
   BuilderNodeRendererStyles,
+  collectPresentNodeKinds,
   hasRenderableBuilderNodes,
   renderBuilderNodes,
   type BuilderNode,
@@ -115,7 +116,12 @@ export async function TalentSiteFreeformRenderer({
         minHeight: "100vh",
       }}
     >
-      <BuilderNodeRendererStyles />
+      {/* REND-2 — public render: scope the renderer sheet to the kinds this
+          talent-site page uses (incl. live-resolved instance kinds). Falls back
+          to the full sheet on any uncertainty (buildScopedRendererCss). */}
+      <BuilderNodeRendererStyles
+        kinds={collectPresentNodeKinds(tree, components)}
+      />
       <BuilderNodeFontLinks nodes={tree} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={tokens} /> : null}
       {renderBuilderNodes(tree, {

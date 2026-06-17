@@ -33,6 +33,7 @@ import {
 import {
   BuilderNodeFontLinks,
   BuilderNodeRendererStyles,
+  collectPresentNodeKinds,
   hasRenderableBuilderNodes,
 } from "@/lib/site-admin/builder-node/render";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
@@ -172,8 +173,13 @@ export default async function PublicTalentFreeformPage({
     >
       <PublicHeader />
       {/* Renderer styles + fonts emitted once at the page level; the root-tree
-          helper sets includeRendererStyles/includeFontLinks=false per block. */}
-      <BuilderNodeRendererStyles />
+          helper sets includeRendererStyles/includeFontLinks=false per block.
+          REND-2 — public render: scope the renderer sheet to the kinds this
+          page actually uses (including live-resolved component-instance kinds).
+          buildScopedRendererCss falls back to the full sheet on any uncertainty. */}
+      <BuilderNodeRendererStyles
+        kinds={collectPresentNodeKinds(blocks, components)}
+      />
       <BuilderNodeFontLinks nodes={blocks} components={components} />
       {/* Load any Google fonts the talent picked in their theme. No-op when no
           picker tokens are set. */}
