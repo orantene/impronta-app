@@ -2,9 +2,18 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { canTransition, resolveNextActionBy } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { getCoordinatorTimeoutHours, getInquiryExpiryHours } from "./inquiry-settings";
-import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
+import {
+  ENGINE_EVENT_TYPES,
+  emitStandardEngineEvent,
+  engineListenerCount,
+  runEngineListener,
+  type EngineEvent,
+  type EngineEventType,
+  type EngineEventPriority,
+} from "./inquiry-events";
 import { inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import { buildInquiryBells } from "./inquiry-notifications";
+import { logServerError } from "@/lib/server/safe-error";
 import type { EngineResult } from "./inquiry-engine.types";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. Staff lifecycle actions
@@ -343,21 +352,137 @@ export async function processExpirations(supabase: SupabaseClient): Promise<{ pr
   return { processed };
 }
 
+/** Attempt cap — mirrors the original `.lt("attempt_count", 5)` selection. */
+const MAX_RETRY_ATTEMPTS = 5;
+
+/**
+ * Exponential backoff between retries: ~5min, 25min, ~2h, ~10h, then capped.
+ * Keyed on the NEXT attempt number so a fresh failure (attempt_count 0→1)
+ * waits ~5min, not zero. A poison row can't hot-loop the sweep.
+ */
+function nextRetryBackoffMs(nextAttempt: number): number {
+  const base = 5 * 60 * 1000; // 5 minutes
+  const capped = Math.min(nextAttempt, 4); // cap the exponent
+  return base * Math.pow(5, capped - 1);
+}
+
+type FailedEffectRow = {
+  id: string;
+  inquiry_id: string;
+  event_id: string;
+  listener_name: string;
+  engine_action: string;
+  priority: EngineEventPriority | null;
+  attempt_count: number | null;
+  event_type: string | null;
+  event_payload: EngineEvent["payload"] | null;
+  event_actor_user_id: string | null;
+  created_at: string | null;
+};
+
+/**
+ * Cron: re-run post-commit engine effects that failed the first time. Tenant-less
+ * by design (system sweep across all tenants).
+ *
+ * Each unresolved row records exactly ONE listener (`listener_${i}`) that threw
+ * inside `emitEngineEvents`. The fix: reconstruct the original `EngineEvent`
+ * from the persisted `event_*` columns and RE-INVOKE ONLY that one listener via
+ * `runEngineListener` — never the whole chain, so listeners that already
+ * succeeded are not double-applied. `event_id` is preserved, so the dispatcher's
+ * `dedupe_key` no-ops anything that partially landed.
+ *
+ * A row is marked `resolved = true` ONLY after the listener re-runs cleanly.
+ * On failure (or when the row predates the replay-context migration and so
+ * can't be faithfully replayed) we increment `attempt_count` and push
+ * `next_retry_at` out on an exponential backoff — we never falsely resolve.
+ * Rows that exhaust the attempt cap stay unresolved for the ops alert.
+ */
 export async function retryFailedEngineEffects(supabase: SupabaseClient): Promise<{ retried: number }> {
+  const nowIso = new Date().toISOString();
+
   const { data: rows } = await supabase
     .from("failed_engine_effects")
-    .select("id")
+    .select(
+      "id, inquiry_id, event_id, listener_name, engine_action, priority, attempt_count, event_type, event_payload, event_actor_user_id, created_at",
+    )
     .eq("resolved", false)
-    .lt("attempt_count", 5)
+    .lt("attempt_count", MAX_RETRY_ATTEMPTS)
+    .or(`next_retry_at.is.null,next_retry_at.lte.${nowIso}`)
     .limit(50);
 
   let retried = 0;
-  for (const row of rows ?? []) {
-    await supabase
-      .from("failed_engine_effects")
-      .update({ attempt_count: 1, retried_at: new Date().toISOString(), resolved: true })
-      .eq("id", row.id as string);
-    retried += 1;
+  for (const row of (rows ?? []) as FailedEffectRow[]) {
+    const attemptsSoFar = row.attempt_count ?? 0;
+    const nextAttempt = attemptsSoFar + 1;
+
+    const listenerIndex = parseListenerIndex(row.listener_name);
+    const eventType = (row.event_type ?? row.engine_action) as EngineEventType;
+
+    // A row is faithfully replayable only if we captured the original event
+    // payload (added in migration 20261032000002). Legacy rows logged before
+    // that lack `event_payload` — we can't reconstruct the input, so we MUST
+    // NOT mark them resolved. Back them off and leave them for the ops alert.
+    const replayable =
+      listenerIndex !== null &&
+      listenerIndex < engineListenerCount() &&
+      row.event_payload != null;
+
+    let succeeded = false;
+    if (replayable) {
+      const event: EngineEvent = {
+        type: eventType,
+        inquiryId: row.inquiry_id,
+        actorUserId: row.event_actor_user_id,
+        eventId: row.event_id,
+        timestamp: row.created_at ?? nowIso,
+        priority: (row.priority ?? "medium") as EngineEventPriority,
+        payload: row.event_payload as EngineEvent["payload"],
+      };
+      try {
+        await runEngineListener(supabase, listenerIndex as number, event);
+        succeeded = true;
+      } catch (err) {
+        logServerError(
+          "inquiry-engine-lifecycle/retryFailedEngineEffects",
+          err instanceof Error ? err : new Error(String(err)),
+        );
+      }
+    }
+
+    if (succeeded) {
+      await supabase
+        .from("failed_engine_effects")
+        .update({
+          attempt_count: nextAttempt,
+          retried_at: nowIso,
+          resolved: true,
+        })
+        .eq("id", row.id);
+      retried += 1;
+    } else {
+      // Re-run failed (or row not replayable). Increment the counter and back
+      // off — NEVER resolve without a successful re-run.
+      await supabase
+        .from("failed_engine_effects")
+        .update({
+          attempt_count: nextAttempt,
+          retried_at: nowIso,
+          next_retry_at: new Date(Date.now() + nextRetryBackoffMs(nextAttempt)).toISOString(),
+        })
+        .eq("id", row.id);
+    }
   }
+
+  // `retried` counts only successful re-runs (rows actually resolved), so the
+  // cron's success metric reflects effects recovered, not rows merely touched.
   return { retried };
+}
+
+/** Parse the listener index out of a `listener_${i}` name. Returns null if the
+ *  name doesn't match (e.g. an older free-form failed_step label). */
+function parseListenerIndex(listenerName: string): number | null {
+  const m = /^listener_(\d+)$/.exec(listenerName);
+  if (!m) return null;
+  const idx = Number.parseInt(m[1], 10);
+  return Number.isInteger(idx) && idx >= 0 ? idx : null;
 }
