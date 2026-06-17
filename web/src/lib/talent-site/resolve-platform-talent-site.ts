@@ -43,15 +43,12 @@ export type PlatformTalentSiteResolveResult =
  * rendered by `renderTalentMaxSite()`. The legacy snapshot columns remain in the
  * DB (untouched) — they are simply no longer the profile render. Because the
  * snapshot is never served here, the previous published-snapshot plan gate +
- * draft-preview snapshot branches are gone; the profile's own preview (`?
- * preview=1`) and `LightProfileLayout` are byte-identical to before.
+ * draft-preview snapshot branches are gone (including the now-removed
+ * `previewDraft` option); the profile's own preview (`?preview=1`) and
+ * `LightProfileLayout` are byte-identical to before.
  */
 export async function resolvePlatformTalentSiteForProfile(
   profileCode: string,
-  // `opts.previewDraft` is retained for call-site compatibility but no longer
-  // serves a draft SNAPSHOT here (the snapshot is not the profile anymore). The
-  // Max site's own draft preview lives on `/t/site/<slug>?preview=draft`.
-  _opts: { previewDraft?: boolean } = {},
 ): Promise<PlatformTalentSiteResolveResult> {
   const loaded = await loadTalentPublicSiteByProfileCode(profileCode);
 
@@ -59,13 +56,12 @@ export async function resolvePlatformTalentSiteForProfile(
     return { kind: "not_found" };
   }
 
-  // Resolve the talent_profile_id regardless of whether a legacy published
-  // snapshot still exists — the snapshot is intentionally ignored as the
-  // profile render. Both load kinds carry the talent_profile_id.
-  const talentProfileId =
-    loaded.kind === "published"
-      ? loaded.row.talent_profile_id
-      : loaded.talentProfileId;
+  // Both load kinds now carry only the `talent_profile_id` (the legacy published
+  // snapshot is intentionally never read as the profile render). The previous
+  // `previewDraft` option drove a draft-snapshot-as-profile branch that no
+  // longer exists — the Max site's own draft preview lives on
+  // `/t/site/<slug>?preview=draft` — so it is gone.
+  const talentProfileId = loaded.talentProfileId;
 
   // ALWAYS the discovery profile: the freeform default when enabled, otherwise
   // `{ kind: "fallback" }` → the untouched `LightProfileLayout`.
