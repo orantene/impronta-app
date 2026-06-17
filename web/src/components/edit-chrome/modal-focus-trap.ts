@@ -9,8 +9,11 @@ import { useEffect, useRef } from "react";
 const FOCUSABLE =
   'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
-export function useModalFocusTrap(active: boolean, onEscape?: () => void) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+export function useModalFocusTrap<T extends HTMLElement = HTMLDivElement>(
+  active: boolean,
+  onEscape?: () => void,
+) {
+  const containerRef = useRef<T | null>(null);
   const priorFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {

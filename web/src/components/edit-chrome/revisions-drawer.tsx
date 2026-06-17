@@ -280,6 +280,8 @@ export function RevisionsDrawer(): ReactElement | null {
       open={revisionsOpen}
       zIndex={87}
       ariaLabelledBy="revisions-drawer-title"
+      modal
+      onRequestClose={pendingId ? undefined : closeRevisions}
       floating
       floatLabel="Revisions"
       floatPanelId="revisions"

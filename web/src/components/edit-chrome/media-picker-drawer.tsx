@@ -308,6 +308,8 @@ export function MediaPickerDrawer({
         open
         zIndex={120}
         testId="media-picker-drawer"
+        modal
+        onRequestClose={handleClose}
       >
         <input
           ref={fileInputRef}

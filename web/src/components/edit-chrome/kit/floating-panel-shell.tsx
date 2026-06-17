@@ -60,6 +60,10 @@ export interface FloatingPanelShellProps {
   dataEditDrawer?: string;
   dataEditOverlay?: string;
   ariaLabelledBy?: string;
+  /** A11Y-1 — ARIA role; set to "dialog" when the panel is a modal drawer. */
+  role?: "dialog";
+  /** A11Y-1 — marks the panel modal for assistive tech (paired with role). */
+  ariaModal?: boolean;
   onDragLeave?: (event: import("react").DragEvent<HTMLElement>) => void;
   onDrop?: (event: import("react").DragEvent<HTMLElement>) => void;
   onDragOver?: (event: import("react").DragEvent<HTMLElement>) => void;
@@ -102,6 +106,8 @@ export function FloatingPanelShell({
   children,
   dataEditDrawer,
   ariaLabelledBy,
+  role,
+  ariaModal,
   compactBottomSheetBelowLg = false,
   sideInsetPx,
   dockedToRail = false,
@@ -145,8 +151,11 @@ export function FloatingPanelShell({
       data-edit-drawer-floating=""
       data-edit-float-panel-id={panelId}
       data-testid={testId}
+      role={role}
+      aria-modal={ariaModal}
       aria-labelledby={ariaLabelledBy}
-      aria-hidden={!open}
+      // A modal dialog must not be aria-hidden while open.
+      aria-hidden={role === "dialog" ? (open ? undefined : true) : !open}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       onDragOver={onDragOver}

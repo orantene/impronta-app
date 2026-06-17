@@ -52,7 +52,13 @@
  * doesn't manage state — that lives in the consumer (or in EditContext).
  */
 
-import { useEffect, useRef, type ComponentType, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 
 import {
   CHROME,
@@ -61,12 +67,14 @@ import {
   Z_INDEX,
   type DrawerKind,
 } from "./tokens";
+import { acquireBehindDrawerInert } from "./drawer-modal-inert";
 import {
   FloatingPanelDragProvider,
   useFloatingDrag,
   useFloatingPanelDrag,
   type UseFloatingDragOptions,
 } from "../floating-panel";
+import { useModalFocusTrap } from "../modal-focus-trap";
 import { FloatingPanelHeader } from "./floating-panel-header";
 import { FloatingPanelShell } from "./floating-panel-shell";
 
@@ -95,10 +103,30 @@ interface DrawerProps {
   topPx?: number;
   /**
    * When the drawer closes, move focus back to the element that had focus when
-   * it opened (typically the toolbar control that opened it). Does **not** trap
-   * focus inside the drawer — see DRAWER-MUTEX.md.
+   * it opened (typically the toolbar control that opened it).
+   *
+   * NOTE: when {@link modal} is set, focus capture/restore is owned by the
+   * modal focus trap (`useModalFocusTrap`) instead, so this primitive's own
+   * capture/restore effect stands down to avoid a double restore.
    */
   restoreFocusOnClose?: boolean;
+  /**
+   * A11Y-1 — make this a true modal dialog. Sets `role="dialog"`
+   * + `aria-modal="true"`, installs the shared focus trap (Tab cycles within
+   * the drawer, Escape closes via {@link onRequestClose}, focus restores to the
+   * opener on close), and marks the editor chrome behind the drawer `inert`
+   * while it's open. Utility drawers (Publish/Theme/Revisions/Page settings/
+   * Assets/Collections/Schedule/Comments/Media) opt in; the persistent,
+   * selection-driven Inspector does NOT (it stays a non-modal panel).
+   */
+  modal?: boolean;
+  /**
+   * Close callback used by the modal focus trap when the operator presses
+   * Escape (only consulted when {@link modal} is true). Wire the drawer's own
+   * close handler here so Escape-to-close works from inside the trapped drawer
+   * without relying on the shell's global Escape ladder.
+   */
+  onRequestClose?: () => void;
   /**
    * Render as a Paint-style FLOATING, DRAGGABLE card (detached from the right
    * edge, rounded, with a grip handle) instead of the default edge-anchored
@@ -139,6 +167,8 @@ export function Drawer({
   zIndex = Z_INDEX.panels,
   topPx = 52,
   restoreFocusOnClose = true,
+  modal = false,
+  onRequestClose,
   floating = false,
   floatLabel: _floatLabel,
   floatPanelId,
@@ -156,8 +186,34 @@ export function Drawer({
   });
   const floatingMoved = float.offset.x !== 0 || float.offset.y !== 0;
 
+  // A11Y-1 — modal focus trap. The trap returns a container ref we attach to
+  // whichever <aside> renders (edge-anchored or floating). When `modal` is
+  // false the hook is inert (active=false) so non-modal panels (the inspector)
+  // are untouched. The trap owns focus capture + restore, so the primitive's
+  // own restore effect below stands down whenever `modal` is set.
+  const trapRef = useModalFocusTrap<HTMLElement>(modal && open, onRequestClose);
+
+  // Merge the trap container ref with the floating-drag panel-node setter so a
+  // floating modal drawer feeds the same DOM node to BOTH systems.
+  const setMergedPanelNode = useCallback(
+    (node: HTMLElement | null) => {
+      float.setPanelNode(node);
+      if (modal) trapRef.current = node;
+    },
+    [float, modal, trapRef],
+  );
+
+  // A11Y-1 — make the editor chrome behind the drawer inert while a modal
+  // drawer is open. Ref-counted across stacked drawers (see drawer-modal-inert).
   useEffect(() => {
-    if (!restoreFocusOnClose) return;
+    if (!modal || !open) return undefined;
+    const release = acquireBehindDrawerInert();
+    return release;
+  }, [modal, open]);
+
+  useEffect(() => {
+    // When modal, the focus trap owns capture + restore — don't double-run.
+    if (!restoreFocusOnClose || modal) return;
 
     if (open) {
       const captureId = window.setTimeout(() => {
@@ -186,7 +242,7 @@ export function Drawer({
       }
     }, slideMs);
     return () => window.clearTimeout(restoreId);
-  }, [open, restoreFocusOnClose]);
+  }, [open, restoreFocusOnClose, modal]);
 
   const resolvedWidth =
     width === "fullscreen"
@@ -216,7 +272,7 @@ export function Drawer({
           testId={testId}
           showDragStrip={false}
           panelId={floatPanelId}
-          setPanelNode={float.setPanelNode}
+          setPanelNode={modal ? setMergedPanelNode : float.setPanelNode}
           transform={float.transform}
           dragging={float.dragging}
           onHandlePointerDown={float.onHandlePointerDown}
@@ -224,6 +280,8 @@ export function Drawer({
           onReset={float.reset}
           dataEditDrawer={kind}
           ariaLabelledBy={ariaLabelledBy}
+          role={modal ? "dialog" : undefined}
+          ariaModal={modal ? true : undefined}
           compactBottomSheetBelowLg={compactBottomSheetBelowLg}
           sideInsetPx={floatSideInsetPx}
           dockedToRail={dockedToRail}
@@ -238,10 +296,15 @@ export function Drawer({
 
   return (
     <aside
+      ref={modal ? trapRef : undefined}
       data-edit-drawer={kind}
       data-testid={testId}
+      role={modal ? "dialog" : undefined}
+      aria-modal={modal ? true : undefined}
       aria-labelledby={ariaLabelledBy}
-      aria-hidden={!open}
+      // A modal dialog must not be aria-hidden while open; keep the hidden flag
+      // only for the closed (off-screen) state of non-modal panels.
+      aria-hidden={modal ? (open ? undefined : true) : !open}
       className={`fixed flex flex-col font-sans ${className ?? ""}`}
       style={{
         top: topPx,
