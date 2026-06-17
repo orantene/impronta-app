@@ -27,7 +27,10 @@ import type {
   PublishResult,
 } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { RevisionRestoreResult } from "@/lib/site-admin/edit-mode/revisions-actions";
-import type { BuilderStyleClassRegistry } from "@/lib/site-admin/builder-node/style-classes";
+import type {
+  BuilderStyleClassRegistry,
+  BuilderStylePresetRegistry,
+} from "@/lib/site-admin/builder-node/style-classes";
 
 import type { BuilderSurfaceKind } from "./surface-kind";
 
@@ -60,6 +63,9 @@ export interface BuilderSurfaceSaveDraftInput {
   slots: CompositionSaveInput["slots"];
   builderTree?: CompositionSaveInput["builderTree"];
   styleClasses?: BuilderStyleClassRegistry;
+  /** STYLE-1 — site-scoped style presets + clipboard, persisted next to
+   *  `styleClasses` through the active adapter. */
+  stylePresets?: BuilderStylePresetRegistry;
   /** Per-tab edit session stamp (id + seq) so the homepage pagehide beacon can
    *  last-write-wins against the stored draft. Homepage-only; other surfaces
    *  ignore it. Forwarded verbatim by the homepage adapter. */
@@ -71,6 +77,8 @@ export interface BuilderSurfaceSaveDraftInput {
 export interface BuilderSurfacePublishInput {
   expectedVersion: number;
   styleClasses?: BuilderStyleClassRegistry;
+  /** STYLE-1 — site-scoped style presets + clipboard published alongside classes. */
+  stylePresets?: BuilderStylePresetRegistry;
 }
 
 /** Input the seam accepts for a revision restore. */

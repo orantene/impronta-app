@@ -8,7 +8,9 @@ import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import type {
   BuilderStyleClass,
   BuilderStyleClassRegistry,
+  BuilderStylePresetRegistry,
 } from "@/lib/site-admin/builder-node/style-classes";
+import { coerceStylePresetRegistry } from "@/lib/site-admin/builder-node/style-registry-coerce";
 
 function isStyleClass(value: unknown): value is BuilderStyleClass {
   return (
@@ -33,6 +35,19 @@ export function parseStyleClassesFromSnapshot(
     if (isStyleClass(val)) out[id] = val;
   }
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** STYLE-1 — parse style presets stored alongside builderTree in revision
+ *  snapshots (homepage / cms_page slot path). Mirrors the class parser. */
+export function parseStylePresetsFromSnapshot(
+  snapshot: unknown,
+): BuilderStylePresetRegistry | undefined {
+  if (!snapshot || typeof snapshot !== "object" || !("stylePresets" in snapshot)) {
+    return undefined;
+  }
+  return coerceStylePresetRegistry(
+    (snapshot as { stylePresets: unknown }).stylePresets,
+  );
 }
 
 export function parseBuilderTreeFromSnapshot(

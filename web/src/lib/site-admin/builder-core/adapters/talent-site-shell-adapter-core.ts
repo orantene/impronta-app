@@ -37,6 +37,12 @@ import type {
   BuilderSurfaceSaveDraftInput,
 } from "../surface-adapter";
 import { assertNoLegacyBuilderWrite } from "../legacy-write-guard";
+import {
+  coerceStyleClassRegistry,
+  coerceStylePresetRegistry,
+  serializeStyleClassRegistry,
+  serializeStylePresetRegistry,
+} from "@/lib/site-admin/builder-node/style-registry-coerce";
 
 /** Minimal `talent_sites` row shape the talent-shell adapter reads. */
 export interface TalentSiteShellRow {
@@ -49,6 +55,10 @@ export interface TalentSiteShellRow {
   /** `talent_sites.site_published_at` — surfaces as the live-published marker. */
   sitePublishedAt: string | null;
   updatedAt: string;
+  /** STYLE-1 — site-scoped style-class registry (talent_sites.style_classes). */
+  styleClasses?: unknown;
+  /** STYLE-1 — site-scoped presets envelope (talent_sites.style_presets). */
+  stylePresets?: unknown;
 }
 
 /** pageVersion = `updated_at` epoch seconds (matches every freeform adapter). */
@@ -60,6 +70,10 @@ function versionFromRow(row: TalentSiteShellRow): number {
 export interface TalentSiteShellPatch {
   shellTree: unknown;
   updatedAt: string;
+  /** STYLE-1 — serialized style-class registry (`undefined` = leave untouched). */
+  style_classes?: unknown;
+  /** STYLE-1 — serialized presets envelope (`undefined` = untouched). */
+  style_presets?: unknown;
 }
 
 /**
@@ -121,9 +135,26 @@ export function buildTalentSiteShellComposition(
     builderTree,
     slotDefs: [],
     library: [],
-    styleClasses: undefined,
+    // STYLE-1 — the talent site registries travel with the SITE row.
+    styleClasses: coerceStyleClassRegistry(row.styleClasses),
+    stylePresets: coerceStylePresetRegistry(row.stylePresets),
     availableLocales: [locale as CompositionData["locale"]],
   };
+}
+
+/** STYLE-1 — map a save input's style registries to the talent-site patch slice. */
+function talentSiteShellStyleRegistryPatch(input: {
+  styleClasses?: CompositionSaveInput["styleClasses"];
+  stylePresets?: CompositionSaveInput["stylePresets"];
+}): Pick<TalentSiteShellPatch, "style_classes" | "style_presets"> {
+  const patch: Pick<TalentSiteShellPatch, "style_classes" | "style_presets"> = {};
+  if (input.styleClasses !== undefined) {
+    patch.style_classes = serializeStyleClassRegistry(input.styleClasses);
+  }
+  if (input.stylePresets !== undefined) {
+    patch.style_presets = serializeStylePresetRegistry(input.stylePresets);
+  }
+  return patch;
 }
 
 /**
@@ -151,6 +182,7 @@ export function createTalentSiteShellAdapter(
   async function persistTree(
     talentProfileId: string,
     builderTree: BuilderNodeTree | undefined,
+    stylePatch: Pick<TalentSiteShellPatch, "style_classes" | "style_presets"> = {},
   ): Promise<CompositionSaveResult> {
     guard("talent_sites");
     if (!talentProfileId) {
@@ -158,7 +190,11 @@ export function createTalentSiteShellAdapter(
     }
     const result = await actions.saveShell({
       talentProfileId,
-      patch: { shellTree: builderTree ?? [], updatedAt: new Date().toISOString() },
+      patch: {
+        shellTree: builderTree ?? [],
+        updatedAt: new Date().toISOString(),
+        ...stylePatch,
+      },
     });
     if (!result.ok) return { ok: false, error: result.error };
     return {
@@ -183,14 +219,22 @@ export function createTalentSiteShellAdapter(
       ctx: BuilderSurfaceContext,
       input: CompositionSaveInput,
     ): Promise<CompositionSaveResult> {
-      return persistTree(captured || ctx.pageId || "", input.builderTree);
+      return persistTree(
+        captured || ctx.pageId || "",
+        input.builderTree,
+        talentSiteShellStyleRegistryPatch(input),
+      );
     },
 
     async saveDraft(
       ctx: BuilderSurfaceContext,
       input: BuilderSurfaceSaveDraftInput,
     ): Promise<SaveDraftResult> {
-      const result = await persistTree(captured || ctx.pageId || "", input.builderTree);
+      const result = await persistTree(
+        captured || ctx.pageId || "",
+        input.builderTree,
+        talentSiteShellStyleRegistryPatch(input),
+      );
       if (!result.ok) return { ok: false, error: result.error };
       return {
         ok: true,

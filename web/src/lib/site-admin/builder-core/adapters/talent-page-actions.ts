@@ -23,22 +23,32 @@ import type {
   TalentPageRow,
 } from "./talent-page-adapter-core";
 
+// STYLE-1 — the dedicated style_classes/style_presets columns are selected on a
+// graceful path: a pre-migration DB (columns absent) ERRORS the whole PostgREST
+// query (data:null), so the BASE list omits them and the editor falls back to it.
+const TALENT_PAGE_BASE_COLS =
+  "id, talent_profile_id, slug, title, status, blocks, theme, required_talent_tier, published_at, updated_at";
+const TALENT_PAGE_COLS = `${TALENT_PAGE_BASE_COLS}, style_classes, style_presets`;
+
 export async function loadTalentPageAction(
   input: Parameters<TalentPageAdapterActions["loadPage"]>[0],
 ): Promise<TalentPageRow | null> {
   try {
     const sb = await getCachedServerSupabase();
     if (!sb) return null;
-    const { data, error } = await sb
-      .from("talent_pages")
-      .select(
-        "id, talent_profile_id, slug, title, status, blocks, theme, required_talent_tier, published_at, updated_at",
-      )
-      .eq("talent_profile_id", input.talentProfileId)
-      .eq("slug", input.slug)
-      .single();
-    if (error || !data) return null;
-    return data as TalentPageRow;
+    const selectRow = (cols: string) =>
+      sb
+        .from("talent_pages")
+        .select(cols)
+        .eq("talent_profile_id", input.talentProfileId)
+        .eq("slug", input.slug)
+        .single();
+    const { data, error } = await selectRow(TALENT_PAGE_COLS);
+    if (!error && data) return data as TalentPageRow;
+    // STYLE-1 graceful fallback — style columns not yet migrated.
+    const fallback = await selectRow(TALENT_PAGE_BASE_COLS);
+    if (fallback.error || !fallback.data) return null;
+    return fallback.data as TalentPageRow;
   } catch (err) {
     logServerError("talentPageAdapter/loadPage", err);
     return null;
@@ -48,59 +58,72 @@ export async function loadTalentPageAction(
 export async function ensureTalentPageAction(
   input: Parameters<TalentPageAdapterActions["ensurePage"]>[0],
 ): Promise<TalentPageRow | null> {
-  const SELECT_COLS =
-    "id, talent_profile_id, slug, title, status, blocks, theme, required_talent_tier, published_at, updated_at";
   try {
     const sb = await getCachedServerSupabase();
     if (!sb) return null;
 
-    // 1. Try to load the existing row.
-    const { data: existing, error: loadErr } = await sb
-      .from("talent_pages")
-      .select(SELECT_COLS)
-      .eq("talent_profile_id", input.talentProfileId)
-      .eq("slug", input.slug)
-      .maybeSingle();
+    const selectExisting = (cols: string) =>
+      sb
+        .from("talent_pages")
+        .select(cols)
+        .eq("talent_profile_id", input.talentProfileId)
+        .eq("slug", input.slug)
+        .maybeSingle();
 
-    if (loadErr) {
-      logServerError("talentPageAdapter/ensurePage/load", loadErr);
-      return null;
+    // 1. Try to load the existing row (style columns first, base on fallback).
+    let existing: unknown = null;
+    {
+      const ext = await selectExisting(TALENT_PAGE_COLS);
+      if (!ext.error && ext.data) {
+        existing = ext.data;
+      } else {
+        const base = await selectExisting(TALENT_PAGE_BASE_COLS);
+        if (base.error) {
+          logServerError("talentPageAdapter/ensurePage/load", base.error);
+          return null;
+        }
+        existing = base.data;
+      }
     }
     if (existing) return existing as TalentPageRow;
 
-    // 2. No row — INSERT a draft.
-    const { data: inserted, error: insertErr } = await sb
-      .from("talent_pages")
-      .insert({
-        talent_profile_id: input.talentProfileId,
-        slug: input.slug,
-        status: "draft",
-        blocks: [],
-        theme: {},
-      })
-      .select(SELECT_COLS)
-      .single();
+    // 2. No row — INSERT a draft. Re-select with graceful fallback.
+    const insertReturning = async (cols: string) =>
+      sb
+        .from("talent_pages")
+        .insert({
+          talent_profile_id: input.talentProfileId,
+          slug: input.slug,
+          status: "draft",
+          blocks: [],
+          theme: {},
+        })
+        .select(cols)
+        .single();
 
-    if (insertErr) {
+    let inserted = await insertReturning(TALENT_PAGE_COLS);
+    if (inserted.error && inserted.error.code !== "23505") {
+      // Could be the missing-style-column error; retry the insert returning base.
+      inserted = await insertReturning(TALENT_PAGE_BASE_COLS);
+    }
+
+    if (inserted.error) {
       // 23505 = unique_violation — concurrent insert; re-select.
-      if (insertErr.code === "23505") {
-        const { data: raced, error: raceErr } = await sb
-          .from("talent_pages")
-          .select(SELECT_COLS)
-          .eq("talent_profile_id", input.talentProfileId)
-          .eq("slug", input.slug)
-          .maybeSingle();
-        if (raceErr) {
-          logServerError("talentPageAdapter/ensurePage/race-reselect", raceErr);
+      if (inserted.error.code === "23505") {
+        const raced = await selectExisting(TALENT_PAGE_COLS);
+        if (!raced.error && raced.data) return raced.data as TalentPageRow;
+        const racedBase = await selectExisting(TALENT_PAGE_BASE_COLS);
+        if (racedBase.error) {
+          logServerError("talentPageAdapter/ensurePage/race-reselect", racedBase.error);
           return null;
         }
-        return (raced as TalentPageRow) ?? null;
+        return (racedBase.data as TalentPageRow) ?? null;
       }
-      logServerError("talentPageAdapter/ensurePage/insert", insertErr);
+      logServerError("talentPageAdapter/ensurePage/insert", inserted.error);
       return null;
     }
 
-    return inserted as TalentPageRow;
+    return inserted.data as TalentPageRow;
   } catch (err) {
     logServerError("talentPageAdapter/ensurePage", err);
     return null;
@@ -149,13 +172,25 @@ export async function saveTalentPageAction(
     };
     if (patch.title !== undefined) updatePayload.title = patch.title;
 
-    const { data, error } = await sb
-      .from("talent_pages")
-      .update(updatePayload)
-      .eq("id", pageId)
-      .eq("talent_profile_id", talentProfileId)
-      .select("updated_at")
-      .single();
+    // STYLE-1 — also persist the dedicated columns when the caller touched them.
+    const stylePatch: Record<string, unknown> = {};
+    if (patch.style_classes !== undefined) stylePatch.style_classes = patch.style_classes;
+    if (patch.style_presets !== undefined) stylePatch.style_presets = patch.style_presets;
+
+    const runUpdate = (payload: Record<string, unknown>) =>
+      sb
+        .from("talent_pages")
+        .update(payload)
+        .eq("id", pageId)
+        .eq("talent_profile_id", talentProfileId)
+        .select("updated_at")
+        .single();
+
+    let { data, error } = await runUpdate({ ...updatePayload, ...stylePatch });
+    // STYLE-1 graceful fallback — style columns not yet migrated → retry without.
+    if (error && Object.keys(stylePatch).length > 0) {
+      ({ data, error } = await runUpdate(updatePayload));
+    }
 
     if (error || !data)
       return { ok: false as const, error: error?.message ?? "Talent page save failed." };

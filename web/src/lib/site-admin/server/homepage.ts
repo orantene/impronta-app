@@ -86,6 +86,7 @@ import {
 import {
   resolveBuilderTreeClassRefs,
   type BuilderStyleClassRegistry,
+  type BuilderStylePresetRegistry,
 } from "@/lib/site-admin/builder-node/style-classes";
 
 import { enforceFreePlanNestedBuilderDraftGuard } from "./free-plan-draft-save-guard";
@@ -286,6 +287,8 @@ function buildRevisionSnapshot(args: {
   composition: HomepageSnapshotSection[];
   builderTree?: BuilderNodeTree | null;
   styleClasses?: BuilderStyleClassRegistry | null;
+  /** STYLE-1 — site-scoped style presets + clipboard, stored alongside classes. */
+  stylePresets?: BuilderStylePresetRegistry | null;
   kind: "draft" | "published" | "rollback";
 }): Record<string, unknown> {
   const snapshot: Record<string, unknown> = {
@@ -319,6 +322,12 @@ function buildRevisionSnapshot(args: {
   }
   if (args.styleClasses && Object.keys(args.styleClasses).length > 0) {
     snapshot.styleClasses = args.styleClasses;
+  }
+  if (
+    args.stylePresets &&
+    (args.stylePresets.presets.length > 0 || args.stylePresets.clipboard)
+  ) {
+    snapshot.stylePresets = args.stylePresets;
   }
   return snapshot;
 }
@@ -618,6 +627,9 @@ export async function saveHomepageDraftComposition(
     values: HomepageSaveDraftValues;
     /** Page-scoped linked style classes (editor localStorage mirror). */
     styleClasses?: BuilderStyleClassRegistry;
+    /** STYLE-1 — site-scoped style presets + clipboard, persisted in the draft
+     *  revision snapshot alongside styleClasses. */
+    stylePresets?: BuilderStylePresetRegistry;
     actorProfileId: string | null;
     correlationId?: string;
     /**
@@ -869,6 +881,7 @@ export async function saveHomepageDraftComposition(
       composition: compositionSnapshot,
       builderTree: draftBuilderTree,
       styleClasses: params.styleClasses,
+      stylePresets: params.stylePresets,
       kind: "draft",
     }),
     actorProfileId,
@@ -923,6 +936,8 @@ export async function applyHomepageDraftBeacon(
     tenantId: string;
     values: HomepageSaveDraftValues;
     styleClasses?: BuilderStyleClassRegistry;
+    /** STYLE-1 — preserve presets across a pagehide beacon save. */
+    stylePresets?: BuilderStylePresetRegistry;
     actorProfileId: string | null;
     editSession: { id: string; seq: number };
     /** Whether the incoming beacon tree has real content (non-empty). */
@@ -997,6 +1012,7 @@ export async function applyHomepageDraftBeacon(
       tenantId,
       values: { ...values, expectedVersion: liveRow.version },
       styleClasses: params.styleClasses,
+      stylePresets: params.stylePresets,
       actorProfileId: params.actorProfileId,
       correlationId: params.correlationId,
       editSession,
@@ -1116,6 +1132,9 @@ export async function publishHomepage(
      * the server through this client-supplied param.
      */
     styleClasses?: BuilderStyleClassRegistry;
+    /** STYLE-1 — site-scoped presets + clipboard baked into the published
+     *  snapshot alongside styleClasses (same client-supplied envelope). */
+    stylePresets?: BuilderStylePresetRegistry;
   },
 ): Promise<
   Phase5Result<{ id: string; version: number; publishedAt: string }>
@@ -1403,6 +1422,9 @@ export async function publishHomepage(
       page: afterRow,
       composition: compositionSnapshot,
       builderTree: publishedBuilderTree,
+      // STYLE-1 — carry presets through the published revision so a reload after
+      // publish still surfaces the author's site-scoped presets.
+      stylePresets: params.stylePresets,
       kind: "published",
     }),
     actorProfileId,
