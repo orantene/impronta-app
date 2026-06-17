@@ -2,13 +2,9 @@
 
 /**
  * AddGalleryPanel — builder Add Gallery (Elements / Sections / Connected).
- * All inserts route through builderTree only via performAddGalleryInsert.
- *
- * CANVAS-1: inserts land adjacent to the current selection (afterIndex in the
- * selected node's owning section chain, or root after-section) rather than
- * always appending at the end of the tree. Scroll-into-view is handled by the
- * existing selection-layer scroll effect which fires on selectedBuilderNodeId
- * change (triggered by the selectBuilderNode call after every insert).
+ * CANVAS-1: inserts land adjacent to the current selection via
+ * resolveGalleryInsertHint; scroll-into-view is inherited from the
+ * selection-layer effect that fires on selectedBuilderNodeId change.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -35,7 +31,6 @@ import {
   resolveCategoriesForTab,
   type CatalogStructureMap,
 } from "@/lib/site-admin/add-gallery/catalog-structure";
-import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 
 import { useEditContext } from "../edit-context";
 import { useBuilderTree } from "../builder-tree-bridge";
@@ -45,74 +40,13 @@ import { CHROME } from "../kit";
 import { AddGalleryCardInfo } from "./add-gallery-card-info";
 import { AddGalleryIcon } from "./add-gallery-icons";
 import { AddGallerySectionPreview } from "./add-gallery-section-previews";
+import { resolveGalleryInsertHint } from "./gallery-insert-hint";
 
 const PANEL_WIDTH = 592;
 const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
 
-// ── CANVAS-1: insert-at-selection hint ──────────────────────────────────────
-
-/**
- * The resolved target for the next gallery insert.
- *
- * - `parentId: null` with an `index` → insert at root level after the section
- *   that owns the current selection (typical for sections/connected blocks).
- * - `parentId: <id>` with an `index` → insert after the selected node inside
- *   its parent container (typical for element inserts into a layout block).
- */
-interface GalleryInsertHint {
-  parentId: string | null;
-  index: number;
-}
-
-/**
- * Walk the tree to find:
- * 1. The root index of the section containing `nodeId` (for root-level inserts).
- * 2. The direct parent + sibling-after-index for nested element inserts.
- *
- * Returns `null` when the node is not found in the tree (stale selection) so
- * the caller falls back to end-of-tree.
- */
-function resolveGalleryInsertHint(
-  tree: BuilderNodeTree,
-  selectedNodeId: string,
-): GalleryInsertHint | null {
-  // Walk with DFS; track the nearest parent and root-section index.
-  function walk(
-    nodes: ReadonlyArray<BuilderNode>,
-    parentId: string | null,
-    rootSectionIndex: number,
-  ): GalleryInsertHint | null {
-    for (let i = 0; i < nodes.length; i += 1) {
-      const node = nodes[i]!;
-      const isRootSection = parentId === null && node.kind === "section";
-      const effectiveRootIdx = isRootSection ? i : rootSectionIndex;
-
-      if (node.id === selectedNodeId) {
-        // Prefer nested parent context when the selected node lives inside a
-        // container (parentId is non-null). For root-level section nodes, use
-        // the root index so the insert lands after that section.
-        if (parentId !== null) {
-          return { parentId, index: i + 1 };
-        }
-        return { parentId: null, index: effectiveRootIdx + 1 };
-      }
-
-      if ("children" in node && Array.isArray(node.children) && node.children.length > 0) {
-        const nested = walk(node.children, node.id, effectiveRootIdx);
-        if (nested !== null) return nested;
-      }
-    }
-    return null;
-  }
-
-  return walk(tree, null, 0);
-}
-
-/** Code-default tab order + labels — the synchronous seed shown while the
- *  admin-editable structure loads (and the fallback if the fetch fails). On open
- *  the panel fetches `listCatalogStructure()` and re-resolves tabs + categories
- *  so a super-admin's renames/reorders/hides (Catalog Studio, WS-B) reflect in
- *  the live "+" gallery. With no structure this is the code default verbatim. */
+/** Synchronous seed (code-default tabs) — shown immediately; overwritten by
+ *  listCatalogStructure() on open so admin renames/reorders are reflected. */
 const CODE_TAB_DEFS_SEED: ReadonlyArray<{ id: AddGalleryTab; label: string }> =
   resolveTabs();
 
@@ -560,11 +494,9 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     selectBuilderNode,
     gallerySurface,
   } = useEditContext();
-  // WS2 — tree read from the micro-store (builder-tree-bridge) instead of the
-  // context value, so an edit no longer re-renders this panel via the value memo.
+  // WS2 — read tree from micro-store so edits don't re-render this panel.
   const builderTree = useBuilderTree();
-  // CANVAS-1 — read selected node id from the selection-bridge micro-store so a
-  // selection change re-renders only this panel, not all context consumers.
+  // CANVAS-1 — read selection from micro-store for insert-at-selection hint.
   const selectedBuilderNodeId = useSelectedBuilderNodeId();
 
   const [tab, setTab] = useState<AddGalleryTab>("layout");
@@ -572,9 +504,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
 
-  // P1 — the merged catalog (code items ∪ gated published DB templates) for this
-  // surface. Seeded synchronously with the code-only set so the panel paints
-  // instantly, then refreshed from `fetchSurfaceGalleryItems` on open.
+  // P1 — merged catalog seeded synchronously from code; refreshed on open.
   const codeSeed = useMemo(
     () =>
       codeGalleryItemsForPolicy({
@@ -585,8 +515,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   );
   const [mergedItems, setMergedItems] =
     useState<ReadonlyArray<AddGalleryItem>>(codeSeed);
-  // Admin-editable catalog structure (tab/category renames, order, hides).
-  // Empty until the open-effect fetch resolves ⇒ code-default taxonomy.
+  // Admin-editable catalog structure; empty until open-effect fetch resolves.
   const [structure, setStructure] = useState<CatalogStructureMap>({});
   const fetchSeqRef = useRef(0);
 
@@ -684,36 +613,22 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       if (pending || !isAddGalleryItemAvailable(item)) return;
       setPending(true);
       try {
-        // CANVAS-1 — resolve the insert target from the current selection:
-        //   • If a node is selected, compute the hint (parentId + afterIndex).
-        //   • Guard against a stale selection by validating against the live tree
-        //     (resolveGalleryInsertHint returns null when node not found).
-        //   • Fall back to end-of-tree when there is no valid selection context.
-        const hint =
-          selectedBuilderNodeId !== null
-            ? resolveGalleryInsertHint(builderTree, selectedBuilderNodeId)
-            : null;
-        const insertTarget = hint ?? { parentId: null, index: builderTree.length };
-
+        // CANVAS-1 — insert adjacent to the current selection; null hint falls
+        // back to end-of-tree. resolveGalleryInsertHint guards stale selections.
+        const hint = selectedBuilderNodeId !== null
+          ? resolveGalleryInsertHint(builderTree, selectedBuilderNodeId)
+          : null;
         const result = await performAddGalleryInsert(
           item,
-          insertTarget,
-          {
-            insertBuilderNode,
-            insertBuilderSectionEmbed,
-            insertBuilderComponent,
-          },
+          hint ?? { parentId: null, index: builderTree.length },
+          { insertBuilderNode, insertBuilderSectionEmbed, insertBuilderComponent },
         );
         if (!result.ok && result.error) {
           reportMutationError(result.error);
           return;
         }
-        if (result.nodeId) {
-          // Select the inserted node — this triggers the selection-layer's
-          // scroll-into-view effect (selectedBuilderNodeId dep), which retries
-          // until the RSC-refreshed DOM contains the new node's element.
-          selectBuilderNode(result.nodeId);
-        }
+        // selectBuilderNode triggers the selection-layer scroll-into-view effect.
+        if (result.nodeId) selectBuilderNode(result.nodeId);
         onClose();
       } finally {
         setPending(false);

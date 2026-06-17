@@ -1,8 +1,8 @@
 /**
  * CANVAS-1 — insert-at-selection ordering unit tests.
  *
- * Tests the resolveGalleryInsertHint helper that replaces the hard-coded
- * { parentId: null, index: tree.length } target in AddGalleryPanel.
+ * Tests resolveGalleryInsertHint (gallery-insert-hint.ts) which replaces the
+ * hard-coded { parentId: null, index: tree.length } target in AddGalleryPanel.
  *
  * Run: NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' \
  *        npx tsx --test src/components/edit-chrome/add-gallery/add-gallery-panel.canvas-1.test.ts
@@ -11,47 +11,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
-
-// ── Re-export the pure helper under test ─────────────────────────────────────
-// We duplicate the function here so the test stays isolated from the React
-// component (which imports React, JSX, and client APIs that Node can't run).
-// Keep this copy byte-identical to the implementation in add-gallery-panel.tsx.
-interface GalleryInsertHint {
-  parentId: string | null;
-  index: number;
-}
-
-function resolveGalleryInsertHint(
-  tree: BuilderNodeTree,
-  selectedNodeId: string,
-): GalleryInsertHint | null {
-  function walk(
-    nodes: ReadonlyArray<BuilderNode>,
-    parentId: string | null,
-    rootSectionIndex: number,
-  ): GalleryInsertHint | null {
-    for (let i = 0; i < nodes.length; i += 1) {
-      const node = nodes[i]!;
-      const isRootSection = parentId === null && node.kind === "section";
-      const effectiveRootIdx = isRootSection ? i : rootSectionIndex;
-
-      if (node.id === selectedNodeId) {
-        if (parentId !== null) {
-          return { parentId, index: i + 1 };
-        }
-        return { parentId: null, index: effectiveRootIdx + 1 };
-      }
-
-      if ("children" in node && Array.isArray(node.children) && node.children.length > 0) {
-        const nested = walk(node.children, node.id, effectiveRootIdx);
-        if (nested !== null) return nested;
-      }
-    }
-    return null;
-  }
-
-  return walk(tree, null, 0);
-}
+import { resolveGalleryInsertHint } from "./gallery-insert-hint";
 
 // ── Minimal tree-node factory (no real builder-node deps needed) ─────────────
 function makeSection(id: string, children: BuilderNode[] = []): BuilderNode {
