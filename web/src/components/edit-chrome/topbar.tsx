@@ -56,6 +56,7 @@ import {
   type EditDevice,
   type PreviewFrameOverride,
 } from "./edit-context";
+import { flushThenNavigate } from "./page-switch-flush";
 import { CHROME, EDIT_TOPBAR_H, SaveChip } from "./kit";
 import { usePagePresence } from "./presence-provider";
 import { RailPresenceStack } from "./chrome-icon-rail";
@@ -239,6 +240,7 @@ function PagePicker({
   const [loadingPages, setLoadingPages] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [creatingPage, setCreatingPage] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
   const router = useRouter();
   const pagePickerMenuId = useId();
@@ -335,10 +337,26 @@ function PagePicker({
     return () => document.removeEventListener("keydown", onKey, true);
   }, [open]);
 
-  function navToPage(slug: string) {
-    if (dirty && !confirm("You have unsaved changes. Leave this page?")) return;
-    setOpen(false);
-    router.push(slug === "" ? "/?edit=1" : `/${slug}?edit=1`);
+  // CANVAS-2 — silent autosave flush on page switch (no blocking confirm()).
+  // The shared flushThenNavigate awaits the EditProvider flush when dirty so the
+  // debounced draft commits before navigating; firing-and-forgetting would let an
+  // in-flight save race the route change and trip VERSION_CONFLICT. The
+  // `navigating` guard disables the row while the flush settles.
+  async function navToPage(slug: string) {
+    if (navigating) return;
+    setNavigating(true);
+    try {
+      await flushThenNavigate({
+        dirty,
+        flush: editCtx?.flushBuilderTreeSave,
+        navigate: () => {
+          setOpen(false);
+          router.push(slug === "" ? "/?edit=1" : `/${slug}?edit=1`);
+        },
+      });
+    } finally {
+      setNavigating(false);
+    }
   }
 
   async function handleCreatePage() {
@@ -354,11 +372,16 @@ function PagePicker({
     try {
       const result = await createDraftPageAction();
       if (result.ok) {
-        setOpen(false);
-        if (dirty && !confirm("You have unsaved changes. Leave this page?")) {
-          return;
-        }
-        router.push(result.slug ? `/${result.slug}?edit=1` : "/?edit=1");
+        // Flush the current page's draft before navigating to the new page so
+        // un-persisted edits aren't lost on the route change (see navToPage).
+        await flushThenNavigate({
+          dirty,
+          flush: editCtx?.flushBuilderTreeSave,
+          navigate: () => {
+            setOpen(false);
+            router.push(result.slug ? `/${result.slug}?edit=1` : "/?edit=1");
+          },
+        });
       } else {
         setFetchErr(result.error);
       }
@@ -649,9 +672,9 @@ function PagePicker({
                       border: "none",
                     }}
                     onClick={() => {
-                      if (!isCurrent) navToPage(page.slug);
+                      if (!isCurrent) void navToPage(page.slug);
                     }}
-                    disabled={isCurrent}
+                    disabled={isCurrent || navigating}
                   >
                     <span
                       className="inline-flex shrink-0 items-center justify-center rounded-[4px]"
@@ -707,7 +730,8 @@ function PagePicker({
                       (e.currentTarget as HTMLElement).style.color = CHROME.muted;
                       (e.currentTarget as HTMLElement).style.background = "transparent";
                     }}
-                    onClick={() => navToPage(page.slug)}
+                    disabled={navigating}
+                    onClick={() => void navToPage(page.slug)}
                   >
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -2235,14 +2259,30 @@ function ExitButton() {
  * action pipeline the same way it cancels native submits.
  */
 function ExitForm({ dirty, saving }: { dirty: boolean; saving: boolean }) {
+  const editCtx = useMaybeEditContext();
+  // CANVAS-2 — flush the autosave queue before tearing down the EditProvider
+  // instead of prompting with a blocking confirm(). When there are un-persisted
+  // edits (or a save is mid-flight) we intercept the submit, AWAIT the shared
+  // flush so the debounced draft lands, then re-submit the form to run the
+  // server action. `flushingRef` lets the re-submit pass straight through
+  // without re-intercepting.
+  const flushingRef = useRef(false);
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    if (flushingRef.current) return; // re-submit after the flush — let it run
     if (!dirty && !saving) return;
-    const ok = window.confirm(
-      "Exit edit mode with unsaved changes?\n\n" +
-        "Your inspector field edits aren't saved yet — exiting now will discard them. " +
-        "Composition moves are already auto-saved as a draft.",
-    );
-    if (!ok) e.preventDefault();
+    if (!editCtx) return; // no provider mounted → nothing to flush, exit as-is
+    e.preventDefault();
+    const form = e.currentTarget;
+    flushingRef.current = true;
+    void editCtx
+      .flushBuilderTreeSave()
+      .catch(() => {
+        // Flush failure (e.g. version conflict) still lets the operator exit;
+        // the draft state is preserved server-side and surfaced on next open.
+      })
+      .finally(() => {
+        form.requestSubmit();
+      });
   };
   return (
     <form action={exitEditModeAction} onSubmit={handleSubmit}>

@@ -21,6 +21,7 @@ import {
 import { useDirty } from "./dirty-bridge";
 import { useEditContext } from "./edit-context";
 import { DockFloatingPanel } from "./dock-floating-panel";
+import { flushThenNavigate } from "./page-switch-flush";
 import { CHROME } from "./kit";
 
 interface AllPagesPanelProps {
@@ -31,12 +32,14 @@ interface AllPagesPanelProps {
 export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   const router = useRouter();
   const dirty = useDirty();
-  const { pageId, pageSlug, openRevisions } = useEditContext();
+  const { pageId, pageSlug, openRevisions, flushBuilderTreeSave } =
+    useEditContext();
   const [pages, setPages] = useState<PagePickerItem[] | null>(null);
   const [availability, setAvailability] = useState<PagePickerAvailability | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [moreOpenId, setMoreOpenId] = useState<string | null>(null);
 
@@ -71,10 +74,26 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     loadPages();
   }, [open, loadPages]);
 
-  function navToPage(slug: string) {
-    if (dirty && !confirm("You have unsaved changes. Leave this page?")) return;
-    onClose();
-    router.push(slug === "" ? "/?edit=1" : `/${slug}?edit=1`);
+  // CANVAS-2 — silent autosave flush on page switch (no blocking confirm()).
+  // The shared flushThenNavigate awaits the EditProvider flush when dirty so the
+  // debounced draft commits before the route change (a fire-and-forget save
+  // would race the navigation and trip VERSION_CONFLICT). The `navigating` guard
+  // disables the nav controls so the operator can't double-trigger mid-flush.
+  async function navToPage(slug: string) {
+    if (navigating) return;
+    setNavigating(true);
+    try {
+      await flushThenNavigate({
+        dirty,
+        flush: flushBuilderTreeSave,
+        navigate: () => {
+          onClose();
+          router.push(slug === "" ? "/?edit=1" : `/${slug}?edit=1`);
+        },
+      });
+    } finally {
+      setNavigating(false);
+    }
   }
 
   async function handleCreatePage() {
@@ -89,9 +108,16 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     try {
       const result = await createDraftPageAction();
       if (result.ok) {
-        onClose();
-        if (dirty && !confirm("You have unsaved changes. Leave this page?")) return;
-        router.push(result.slug ? `/${result.slug}?edit=1` : "/?edit=1");
+        // Flush the current page's draft before navigating to the new page so
+        // un-persisted edits aren't lost when the route changes (see navToPage).
+        await flushThenNavigate({
+          dirty,
+          flush: flushBuilderTreeSave,
+          navigate: () => {
+            onClose();
+            router.push(result.slug ? `/${result.slug}?edit=1` : "/?edit=1");
+          },
+        });
       } else {
         setFetchErr(result.error);
       }
@@ -193,8 +219,8 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
             >
               <button
                 type="button"
-                disabled={isCurrent}
-                onClick={() => navToPage(page.slug)}
+                disabled={isCurrent || navigating}
+                onClick={() => void navToPage(page.slug)}
                 className="flex min-w-0 flex-1 cursor-pointer items-center gap-[8px] rounded-[8px] border-none bg-transparent px-[6px] py-[6px] text-left disabled:cursor-default"
               >
                 <span className="min-w-0 flex-1 truncate text-[13px] font-medium" style={{ color: CHROME.ink }}>
