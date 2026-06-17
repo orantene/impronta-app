@@ -12,7 +12,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { validateCss } from "./css-validator.ts";
+import { validateCss } from "./css-validator";
 
 describe("validateCss", () => {
   // ── Empty / blank ──────────────────────────────────────────────────────────
