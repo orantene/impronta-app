@@ -68,6 +68,34 @@ export interface BuilderStyleClass {
 export type BuilderStyleClassRegistry = Readonly<Record<string, BuilderStyleClass>>;
 
 /**
+ * STYLE-1 — a named style PRESET. Unlike a class, a preset is COPIED onto a
+ * block (apply = overlay the preset's top-level keys over the node's style), so
+ * the two stay independent afterwards. Presets used to live in a GLOBAL
+ * per-browser localStorage key; STYLE-1 lifts them onto the same site-scoped
+ * adapter envelope as classes.
+ */
+export interface BuilderStylePreset {
+  /** Stable id (derived from name + count by the inspector bar). */
+  id: string;
+  /** Human label shown on the preset chip. */
+  name: string;
+  /** The copied style bundle. */
+  style: BuilderNodeStyle;
+}
+
+/**
+ * STYLE-1 — the site-scoped presets envelope persisted through the adapter. It
+ * carries BOTH the named-preset list AND the single copy/paste clipboard slot
+ * (the two things `style-presets-bar.tsx` previously kept in two separate global
+ * localStorage keys). A surface with no presets degrades to `undefined`.
+ */
+export interface BuilderStylePresetRegistry {
+  presets: ReadonlyArray<BuilderStylePreset>;
+  /** The "Copy style" clipboard slot, if any. */
+  clipboard?: BuilderNodeStyle | null;
+}
+
+/**
  * Shallow-merge two style buckets (the flat value bags used at the top level and
  * inside responsive / containerQueries / hover). `override` keys win; an
  * `undefined` override key does NOT clobber the base (so a node only overrides

@@ -37,6 +37,10 @@ import {
   toRegistry,
 } from "@/lib/site-admin/builder-node/style-classes-storage";
 import {
+  readPresets,
+  presetRegistryHasContent,
+} from "@/lib/site-admin/builder-node/style-presets-storage";
+import {
   loadPublishedSnapshotRowsAction,
   type PublishedSnapshotRow,
 } from "@/lib/site-admin/edit-mode/publish-diff-action";
@@ -457,6 +461,12 @@ export function PublishDrawer() {
     // server can bake the classes into the published snapshot. Without this the
     // public page renders linked blocks with no class styles.
     const styleClasses = toRegistry(readClasses(pageId));
+    // STYLE-1 — bake the page's site-scoped presets into the publish too, so
+    // they survive a publish→reload and travel with the site (not the browser).
+    const presetRegistry = readPresets(pageId);
+    const stylePresets = presetRegistryHasContent(presetRegistry)
+      ? presetRegistry
+      : undefined;
     // safeAction wrapper: if the dev server restarts mid-publish or the
     // network drops, we get a graceful "Network error" toast instead of
     // a stuck "Publishing…" pending state and a leaked Next.js overlay.
@@ -476,10 +486,12 @@ export function PublishDrawer() {
               pageId: pageSlug ? pageId : null,
               expectedVersion: casVersion,
               styleClasses,
+              stylePresets,
             })
           : publishViaSurfaceAdapter({
               expectedVersion: casVersion,
               styleClasses,
+              stylePresets,
             }),
       {
         name: "publishPage",

@@ -59,18 +59,30 @@ export async function loadTalentSiteShellRow(
     if (!gate.ok) return null;
     const sb = await getCachedServerSupabase();
     if (!sb) return null;
-    const { data, error } = await sb
-      .from("talent_sites")
-      .select("id, shell_tree, shell_published, site_published_at, updated_at")
-      .eq("talent_profile_id", gate.talentProfileId)
-      .maybeSingle();
+    const selectRow = (cols: string) =>
+      sb
+        .from("talent_sites")
+        .select(cols)
+        .eq("talent_profile_id", gate.talentProfileId)
+        .maybeSingle();
+    // STYLE-1 — try with the style columns, fall back when not yet migrated.
+    let { data, error } = await selectRow(
+      "id, shell_tree, shell_published, site_published_at, updated_at, style_classes, style_presets",
+    );
+    if (error || !data) {
+      ({ data, error } = await selectRow(
+        "id, shell_tree, shell_published, site_published_at, updated_at",
+      ));
+    }
     if (error || !data) return null;
-    const row = data as {
+    const row = data as unknown as {
       id: string;
       shell_tree: unknown;
       shell_published: unknown;
       site_published_at: string | null;
       updated_at: string;
+      style_classes?: unknown;
+      style_presets?: unknown;
     };
     return {
       id: row.id,
@@ -78,6 +90,8 @@ export async function loadTalentSiteShellRow(
       shellPublished: row.shell_published,
       sitePublishedAt: row.site_published_at,
       updatedAt: row.updated_at,
+      styleClasses: row.style_classes,
+      stylePresets: row.style_presets,
     };
   } catch (err) {
     logServerError("talentSiteShell/loadShell", err);
@@ -106,12 +120,29 @@ export async function saveTalentSiteShellRow(
       (current as { shell_tree: unknown } | null)?.shell_tree,
     );
 
-    const { data, error } = await sb
-      .from("talent_sites")
-      .update({ shell_tree: enforced, updated_at: input.patch.updatedAt })
-      .eq("talent_profile_id", gate.talentProfileId)
-      .select("updated_at")
-      .single();
+    // STYLE-1 — only set the style columns when the caller touched them.
+    const stylePatch: Record<string, unknown> = {};
+    if (input.patch.style_classes !== undefined) {
+      stylePatch.style_classes = input.patch.style_classes;
+    }
+    if (input.patch.style_presets !== undefined) {
+      stylePatch.style_presets = input.patch.style_presets;
+    }
+
+    const runUpdate = (payload: Record<string, unknown>) =>
+      sb
+        .from("talent_sites")
+        .update(payload)
+        .eq("talent_profile_id", gate.talentProfileId)
+        .select("updated_at")
+        .single();
+
+    const base = { shell_tree: enforced, updated_at: input.patch.updatedAt };
+    let { data, error } = await runUpdate({ ...base, ...stylePatch });
+    // STYLE-1 graceful fallback — style columns not yet migrated → retry without.
+    if (error && Object.keys(stylePatch).length > 0) {
+      ({ data, error } = await runUpdate(base));
+    }
     if (error || !data) {
       return { ok: false as const, error: error?.message ?? "Could not save your shell." };
     }

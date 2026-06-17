@@ -1,43 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import type { BuilderNodeStyle } from "@/lib/site-admin/builder-node/types";
+import type {
+  BuilderStylePreset,
+  BuilderStylePresetRegistry,
+} from "@/lib/site-admin/builder-node/style-classes";
+import {
+  readPresets,
+  writePresets,
+  subscribeStylePresetRegistry,
+  getStylePresetRegistrySnapshot,
+  getStylePresetRegistryServerSnapshot,
+} from "@/lib/site-admin/builder-node/style-presets-storage";
 import { CHROME } from "../kit/tokens";
 
 /**
  * Copy/paste style + named style presets — a Figma/Webflow-style convenience
- * layer over a freeform node's full style object. Persisted in localStorage
- * (per-browser, no DB migration): a single clipboard slot + a named-preset
- * list. Apply uses OVERLAY semantics (the stored style's top-level keys are
- * merged over the target node's current style), so pasting a preset never
- * blanks unrelated properties.
+ * layer over a freeform node's full style object.
+ *
+ * STYLE-1 — presets + the copy/paste clipboard are now SITE-SCOPED and
+ * DB-backed (not the old GLOBAL per-browser localStorage keys). They live in the
+ * shared `style-presets-storage` registry keyed by `pageId`, seeded on load from
+ * `CompositionData.stylePresets` and persisted through the active surface adapter
+ * on save/publish. This bar reads/writes that registry and subscribes to its
+ * cross-subtree bridge so every editor surface sees the same presets. Apply uses
+ * OVERLAY semantics (the stored style's top-level keys merge over the target
+ * node's current style), so pasting a preset never blanks unrelated properties.
  */
 
-const CLIPBOARD_KEY = "tulala:builder:style-clipboard";
-const PRESETS_KEY = "tulala:builder:style-presets";
-
-interface StylePreset {
-  id: string;
-  name: string;
-  style: BuilderNodeStyle;
-}
-
-function readJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeJson(key: string, value: unknown) {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* quota / private-mode — non-fatal */
-  }
-}
+type StylePreset = BuilderStylePreset;
 
 const btnStyle = {
   height: 28,
@@ -52,31 +44,43 @@ const btnStyle = {
 };
 
 export function StylePresetsBar({
+  pageId,
   currentStyle,
   onApply,
 }: {
+  /** Site scope — the registry key. `null` → home page. */
+  pageId: string | null;
   currentStyle: BuilderNodeStyle | undefined;
   onApply: (style: BuilderNodeStyle) => void;
 }) {
-  const [presets, setPresets] = useState<ReadonlyArray<StylePreset>>([]);
-  const [hasClipboard, setHasClipboard] = useState(false);
+  // Subscribe to the shared cross-subtree registry so the bar reflects the
+  // SSR-hydrated seed + any writes, identically on every editor surface.
+  const registry = useSyncExternalStore<BuilderStylePresetRegistry>(
+    subscribeStylePresetRegistry,
+    getStylePresetRegistrySnapshot,
+    getStylePresetRegistryServerSnapshot,
+  );
+  const presets = registry.presets;
+  const hasClipboard = Boolean(registry.clipboard);
 
-  // Hydrate from localStorage on mount (client-only — avoids SSR mismatch).
-  useEffect(() => {
-    setPresets(readJson<StylePreset[]>(PRESETS_KEY, []));
-    setHasClipboard(Boolean(window.localStorage.getItem(CLIPBOARD_KEY)));
-  }, []);
+  const persist = useCallback(
+    (next: BuilderStylePresetRegistry) => {
+      // writePresets republishes to the bridge, so the subscription above
+      // re-renders this bar (and the canvas) with the new envelope.
+      writePresets(pageId, next);
+    },
+    [pageId],
+  );
 
   const hasStyle = Boolean(currentStyle && Object.keys(currentStyle).length > 0);
 
   const copyStyle = () => {
     if (!currentStyle) return;
-    writeJson(CLIPBOARD_KEY, currentStyle);
-    setHasClipboard(true);
+    persist({ ...readPresets(pageId), clipboard: currentStyle });
   };
 
   const pasteStyle = () => {
-    const clip = readJson<BuilderNodeStyle | null>(CLIPBOARD_KEY, null);
+    const clip = readPresets(pageId).clipboard;
     if (clip) onApply(clip);
   };
 
@@ -87,15 +91,16 @@ export function StylePresetsBar({
     // Stable id without Date.now()/Math.random() (both unavailable here) —
     // derive from name + current count.
     const id = `${name.trim().toLowerCase().replace(/\s+/g, "-")}-${presets.length}`;
-    const next = [...presets, { id, name: name.trim(), style: currentStyle }];
-    setPresets(next);
-    writeJson(PRESETS_KEY, next);
+    const current = readPresets(pageId);
+    persist({
+      ...current,
+      presets: [...current.presets, { id, name: name.trim(), style: currentStyle }],
+    });
   };
 
   const deletePreset = (id: string) => {
-    const next = presets.filter((p) => p.id !== id);
-    setPresets(next);
-    writeJson(PRESETS_KEY, next);
+    const current = readPresets(pageId);
+    persist({ ...current, presets: current.presets.filter((p) => p.id !== id) });
   };
 
   return (

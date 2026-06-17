@@ -28,6 +28,34 @@ import {
   type TalentPageRow,
   buildEmptyTalentPageComposition,
 } from "./talent-page-adapter-core";
+import {
+  createCmsPageAdapter,
+  type CmsPageAdapterActions,
+  type CmsFreeformPageRow,
+  type CmsFreeformPagePatch,
+} from "./cms-page-adapter-core";
+import {
+  createSiteShellAdapter,
+  type SiteShellAdapterActions,
+  type SiteShellRow,
+  type SiteShellPagePatch,
+} from "./site-shell-adapter-core";
+import {
+  createTalentSiteShellAdapter,
+  type TalentSiteShellAdapterActions,
+  type TalentSiteShellRow,
+  type TalentSiteShellPatch,
+} from "./talent-site-shell-adapter-core";
+import {
+  coerceStyleClassRegistry,
+  coerceStylePresetRegistry,
+  serializeStyleClassRegistry,
+  serializeStylePresetRegistry,
+} from "../../builder-node/style-registry-coerce";
+import type {
+  BuilderStyleClassRegistry,
+  BuilderStylePresetRegistry,
+} from "../../builder-node/style-classes";
 
 import {
   assertNoLegacyBuilderWrite,
@@ -423,4 +451,284 @@ test("[SEO-1] EVERY surface config exposes the seo flag (no surface omits it)", 
       `surface "${cfg.surface.kind}" must declare capabilities.seo as a boolean flag`,
     );
   }
+});
+
+// ── STYLE-1 · DB-backed, site-scoped style classes + presets — parity ─────────
+//
+// Proves the STYLE-1 capability is built ONCE in the shared envelope and adopted
+// by EVERY applicable surface adapter, not forked per surface:
+//   1. The pure coercion helpers round-trip both registries through the jsonb
+//      sink (tolerant: a null/malformed column degrades to undefined).
+//   2. Each DB-backed surface adapter (cms_page, talent_page, site_shell,
+//      talent-site-shell) LOADS styleClasses + stylePresets from its columns AND
+//      SAVES them back through the patch — a table-driven matrix so a surface
+//      missing the round-trip fails this suite.
+//   3. The talent_page adapter prefers the dedicated `style_classes` column but
+//      falls back to the legacy `theme` slice (pre-migration safety).
+
+const FIXTURE_CLASSES: BuilderStyleClassRegistry = {
+  "card-elevated": {
+    id: "card-elevated",
+    name: "Card elevated",
+    style: { textColor: "#fff", padding: "16px" } as never,
+  },
+};
+const FIXTURE_PRESETS: BuilderStylePresetRegistry = {
+  presets: [
+    { id: "pill-0", name: "Pill", style: { borderRadius: "999px" } as never },
+  ],
+  clipboard: { background: "#0a0a0a" } as never,
+};
+
+test("[STYLE-1] coerce helpers round-trip classes + presets and degrade safely", () => {
+  // Registry-map shape round-trips.
+  assert.deepEqual(
+    coerceStyleClassRegistry(serializeStyleClassRegistry(FIXTURE_CLASSES)),
+    FIXTURE_CLASSES,
+  );
+  assert.deepEqual(
+    coerceStylePresetRegistry(serializeStylePresetRegistry(FIXTURE_PRESETS)),
+    FIXTURE_PRESETS,
+  );
+  // Bare-array class blob (the localStorage shape) coerces to a map.
+  assert.deepEqual(
+    coerceStyleClassRegistry(Object.values(FIXTURE_CLASSES)),
+    FIXTURE_CLASSES,
+  );
+  // Null / malformed / empty → undefined (not-yet-migrated row degrades safely).
+  assert.equal(coerceStyleClassRegistry(null), undefined);
+  assert.equal(coerceStyleClassRegistry({ junk: 1 }), undefined);
+  assert.equal(coerceStylePresetRegistry(null), undefined);
+  assert.equal(coerceStylePresetRegistry({ presets: [] }), undefined);
+  // Empty registries serialize to null (clear the column), not an empty object.
+  assert.equal(serializeStyleClassRegistry(undefined), null);
+  assert.equal(serializeStylePresetRegistry({ presets: [] }), null);
+});
+
+const STYLE_CTX = { locale: "en" as const, pageSlug: "index", pageId: "p1" };
+
+test("[STYLE-1] cms_page adapter loads + saves styleClasses + stylePresets columns", async () => {
+  let savedPatch: CmsFreeformPagePatch | null = null;
+  const row: CmsFreeformPageRow = {
+    id: "cms-1",
+    slug: "index",
+    title: "Page",
+    status: "draft",
+    blocks: [],
+    is_freeform: true,
+    version: null,
+    published_at: null,
+    updated_at: new Date("2026-06-17T00:00:00Z").toISOString(),
+    style_classes: serializeStyleClassRegistry(FIXTURE_CLASSES),
+    style_presets: serializeStylePresetRegistry(FIXTURE_PRESETS),
+  };
+  const actions: CmsPageAdapterActions = {
+    async loadPage() {
+      return row;
+    },
+    async savePage(input) {
+      savedPatch = input.patch;
+      return { ok: true, updatedAt: new Date("2026-06-17T01:00:00Z").toISOString() };
+    },
+    async publishPage() {
+      return {
+        ok: true,
+        publishedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    },
+  };
+  const adapter = createCmsPageAdapter(actions, { assertNoLegacyWrite() {} });
+
+  const loaded = await adapter.load(STYLE_CTX);
+  assert.equal(loaded.ok, true);
+  if (!loaded.ok) return;
+  assert.deepEqual(loaded.data.styleClasses, FIXTURE_CLASSES);
+  assert.deepEqual(loaded.data.stylePresets, FIXTURE_PRESETS);
+
+  await adapter.save(
+    { ...STYLE_CTX, pageId: "cms-1" },
+    {
+      locale: "en",
+      pageId: "cms-1",
+      expectedVersion: 1,
+      metadata: { title: "Page" } as never,
+      slots: {},
+      builderTree: [],
+      styleClasses: FIXTURE_CLASSES,
+      stylePresets: FIXTURE_PRESETS,
+    },
+  );
+  const cmsPatch = savedPatch as CmsFreeformPagePatch | null;
+  assert.ok(cmsPatch, "save must call savePage");
+  assert.deepEqual(cmsPatch.style_classes, serializeStyleClassRegistry(FIXTURE_CLASSES));
+  assert.deepEqual(cmsPatch.style_presets, serializeStylePresetRegistry(FIXTURE_PRESETS));
+});
+
+test("[STYLE-1] talent_page adapter prefers style_classes, falls back to theme", async () => {
+  // (a) dedicated column present → used.
+  const withColumn = buildEmptyTalentPageComposition(
+    makeFakeTalentPageRow({
+      style_classes: serializeStyleClassRegistry(FIXTURE_CLASSES),
+      style_presets: serializeStylePresetRegistry(FIXTURE_PRESETS),
+      theme: {},
+    }),
+    "en",
+  );
+  assert.deepEqual(withColumn.styleClasses, FIXTURE_CLASSES);
+  assert.deepEqual(withColumn.stylePresets, FIXTURE_PRESETS);
+
+  // (b) pre-migration row — only legacy `theme` carries the registry.
+  const fromTheme = buildEmptyTalentPageComposition(
+    makeFakeTalentPageRow({ theme: FIXTURE_CLASSES }),
+    "en",
+  );
+  assert.deepEqual(fromTheme.styleClasses, FIXTURE_CLASSES);
+  assert.equal(fromTheme.stylePresets, undefined);
+});
+
+test("[STYLE-1] talent_page save threads style_classes + style_presets + theme", async () => {
+  let savedPatch: { theme?: unknown; style_classes?: unknown; style_presets?: unknown } | null =
+    null;
+  const actions = makeTalentActions();
+  actions.savePage = async (input) => {
+    savedPatch = input.patch;
+    return { ok: true, updatedAt: new Date("2026-06-17T01:00:00Z").toISOString() };
+  };
+  const adapter = createTalentPageAdapter(actions, {
+    talentProfileId: "p1",
+    assertNoLegacyWrite() {},
+  });
+  await adapter.save(
+    { ...STYLE_CTX, pageId: "tp-row-001" },
+    {
+      locale: "en",
+      pageId: "tp-row-001",
+      expectedVersion: 1,
+      metadata: { title: "x" } as never,
+      slots: {},
+      builderTree: [],
+      styleClasses: FIXTURE_CLASSES,
+      stylePresets: FIXTURE_PRESETS,
+    },
+  );
+  const tpPatch = savedPatch as {
+    theme?: unknown;
+    style_classes?: unknown;
+    style_presets?: unknown;
+  } | null;
+  assert.ok(tpPatch, "save must call savePage");
+  assert.deepEqual(tpPatch.style_classes, serializeStyleClassRegistry(FIXTURE_CLASSES));
+  assert.deepEqual(tpPatch.style_presets, serializeStylePresetRegistry(FIXTURE_PRESETS));
+  // theme keeps carrying the registry for pre-migration back-compat reads.
+  assert.deepEqual(tpPatch.theme, FIXTURE_CLASSES);
+});
+
+test("[STYLE-1] site_shell (agency) adapter loads + saves both registries", async () => {
+  let savedPatch: SiteShellPagePatch | null = null;
+  const row: SiteShellRow = {
+    id: "shell-1",
+    title: "Site shell",
+    status: "draft",
+    blocks: [],
+    snapshotBuilderTree: null,
+    version: null,
+    published_at: null,
+    updated_at: new Date("2026-06-17T00:00:00Z").toISOString(),
+    style_classes: serializeStyleClassRegistry(FIXTURE_CLASSES),
+    style_presets: serializeStylePresetRegistry(FIXTURE_PRESETS),
+  };
+  const actions: SiteShellAdapterActions = {
+    async loadShell() {
+      return row;
+    },
+    async saveShell(input) {
+      savedPatch = input.patch;
+      return { ok: true, updatedAt: new Date("2026-06-17T01:00:00Z").toISOString() };
+    },
+    async publishShell() {
+      return {
+        ok: true,
+        publishedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    },
+  };
+  const adapter = createSiteShellAdapter(actions, { assertNoLegacyWrite() {} });
+
+  const loaded = await adapter.load(STYLE_CTX);
+  assert.equal(loaded.ok, true);
+  if (!loaded.ok) return;
+  assert.deepEqual(loaded.data.styleClasses, FIXTURE_CLASSES);
+  assert.deepEqual(loaded.data.stylePresets, FIXTURE_PRESETS);
+
+  await adapter.save(STYLE_CTX, {
+    locale: "en",
+    expectedVersion: 1,
+    metadata: { title: "Site shell" } as never,
+    slots: {},
+    builderTree: [],
+    styleClasses: FIXTURE_CLASSES,
+    stylePresets: FIXTURE_PRESETS,
+  });
+  const shellPatch = savedPatch as SiteShellPagePatch | null;
+  assert.ok(shellPatch, "save must call saveShell");
+  assert.deepEqual(shellPatch.style_classes, serializeStyleClassRegistry(FIXTURE_CLASSES));
+  assert.deepEqual(shellPatch.style_presets, serializeStylePresetRegistry(FIXTURE_PRESETS));
+});
+
+test("[STYLE-1] talent-site-shell adapter loads + saves both registries", async () => {
+  let savedPatch: TalentSiteShellPatch | null = null;
+  const row: TalentSiteShellRow = {
+    id: "ts-1",
+    shellTree: [],
+    shellPublished: [],
+    sitePublishedAt: null,
+    updatedAt: new Date("2026-06-17T00:00:00Z").toISOString(),
+    styleClasses: serializeStyleClassRegistry(FIXTURE_CLASSES),
+    stylePresets: serializeStylePresetRegistry(FIXTURE_PRESETS),
+  };
+  const actions: TalentSiteShellAdapterActions = {
+    async loadShell() {
+      return row;
+    },
+    async saveShell(input) {
+      savedPatch = input.patch;
+      return { ok: true, updatedAt: new Date("2026-06-17T01:00:00Z").toISOString() };
+    },
+    async publishShell() {
+      return {
+        ok: true,
+        publishedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    },
+  };
+  const adapter = createTalentSiteShellAdapter(actions, {
+    talentProfileId: "p1",
+    assertNoLegacyWrite() {},
+  });
+
+  const loaded = await adapter.load({ ...STYLE_CTX, pageId: "p1" });
+  assert.equal(loaded.ok, true);
+  if (!loaded.ok) return;
+  assert.deepEqual(loaded.data.styleClasses, FIXTURE_CLASSES);
+  assert.deepEqual(loaded.data.stylePresets, FIXTURE_PRESETS);
+
+  await adapter.save(
+    { ...STYLE_CTX, pageId: "p1" },
+    {
+      locale: "en",
+      expectedVersion: 1,
+      metadata: { title: "Site shell" } as never,
+      slots: {},
+      builderTree: [],
+      styleClasses: FIXTURE_CLASSES,
+      stylePresets: FIXTURE_PRESETS,
+    },
+  );
+  const tsShellPatch = savedPatch as TalentSiteShellPatch | null;
+  assert.ok(tsShellPatch, "save must call saveShell");
+  assert.deepEqual(tsShellPatch.style_classes, serializeStyleClassRegistry(FIXTURE_CLASSES));
+  assert.deepEqual(tsShellPatch.style_presets, serializeStylePresetRegistry(FIXTURE_PRESETS));
 });

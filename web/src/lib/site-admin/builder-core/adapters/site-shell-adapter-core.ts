@@ -56,6 +56,12 @@ import type {
   BuilderSurfaceRestoreInput,
 } from "../surface-adapter";
 import { assertNoLegacyBuilderWrite } from "../legacy-write-guard";
+import {
+  coerceStyleClassRegistry,
+  coerceStylePresetRegistry,
+  serializeStyleClassRegistry,
+  serializeStylePresetRegistry,
+} from "@/lib/site-admin/builder-node/style-registry-coerce";
 
 /**
  * Minimal `site_shell` row shape the adapter needs. This is the shell
@@ -79,6 +85,10 @@ export interface SiteShellRow {
   version: number | null;
   published_at: string | null;
   updated_at: string;
+  /** STYLE-1 — site-scoped style-class registry (cms_pages.style_classes). */
+  style_classes?: unknown;
+  /** STYLE-1 — site-scoped presets envelope (cms_pages.style_presets). */
+  style_presets?: unknown;
 }
 
 /**
@@ -95,6 +105,10 @@ function versionFromRow(row: SiteShellRow): number {
 export interface SiteShellPagePatch {
   blocks: unknown;
   updated_at: string;
+  /** STYLE-1 — serialized style-class registry (`undefined` = leave untouched). */
+  style_classes?: unknown;
+  /** STYLE-1 — serialized presets envelope (`undefined` = untouched). */
+  style_presets?: unknown;
 }
 
 /**
@@ -167,9 +181,26 @@ export function buildSiteShellComposition(
     builderTree,
     slotDefs: [],
     library: [],
-    styleClasses: undefined,
+    // STYLE-1 — the agency shell shares the cms_pages style columns.
+    styleClasses: coerceStyleClassRegistry(row.style_classes),
+    stylePresets: coerceStylePresetRegistry(row.style_presets),
     availableLocales: [locale as CompositionData["locale"]],
   };
+}
+
+/** STYLE-1 — map a save input's style registries to the shell patch slice. */
+function shellStyleRegistryPatch(input: {
+  styleClasses?: CompositionSaveInput["styleClasses"];
+  stylePresets?: CompositionSaveInput["stylePresets"];
+}): Pick<SiteShellPagePatch, "style_classes" | "style_presets"> {
+  const patch: Pick<SiteShellPagePatch, "style_classes" | "style_presets"> = {};
+  if (input.styleClasses !== undefined) {
+    patch.style_classes = serializeStyleClassRegistry(input.styleClasses);
+  }
+  if (input.stylePresets !== undefined) {
+    patch.style_presets = serializeStylePresetRegistry(input.stylePresets);
+  }
+  return patch;
 }
 
 /**
@@ -191,6 +222,7 @@ export function createSiteShellAdapter(
   async function persistTree(
     builderTree: BuilderNodeTree | undefined,
     locale: string,
+    stylePatch: Pick<SiteShellPagePatch, "style_classes" | "style_presets"> = {},
   ): Promise<CompositionSaveResult> {
     guard("cms_pages");
     const row = await actions.loadShell({ locale });
@@ -200,6 +232,7 @@ export function createSiteShellAdapter(
       patch: {
         blocks: builderTree ?? [],
         updated_at: new Date().toISOString(),
+        ...stylePatch,
       },
     });
     if (!result.ok) return { ok: false, error: result.error };
@@ -227,14 +260,18 @@ export function createSiteShellAdapter(
       ctx: BuilderSurfaceContext,
       input: CompositionSaveInput,
     ): Promise<CompositionSaveResult> {
-      return persistTree(input.builderTree, ctx.locale);
+      return persistTree(input.builderTree, ctx.locale, shellStyleRegistryPatch(input));
     },
 
     async saveDraft(
       ctx: BuilderSurfaceContext,
       input: BuilderSurfaceSaveDraftInput,
     ): Promise<SaveDraftResult> {
-      const result = await persistTree(input.builderTree, ctx.locale);
+      const result = await persistTree(
+        input.builderTree,
+        ctx.locale,
+        shellStyleRegistryPatch(input),
+      );
       if (!result.ok) return { ok: false, error: result.error };
       return {
         ok: true,

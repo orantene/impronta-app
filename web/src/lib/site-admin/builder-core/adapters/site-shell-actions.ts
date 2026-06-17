@@ -43,8 +43,11 @@ import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import { isLocale, type Locale } from "@/i18n/config";
 import type { SiteShellRow } from "./site-shell-adapter-core";
 
-const SHELL_ROW_COLUMNS =
+// STYLE-1 — base list omits the style columns so a pre-migration read still
+// resolves; the extended list adds them and falls back on a missing-column error.
+const SHELL_ROW_BASE_COLUMNS =
   "id, title, status, blocks, version, published_at, updated_at, published_page_snapshot";
+const SHELL_ROW_COLUMNS = `${SHELL_ROW_BASE_COLUMNS}, style_classes, style_presets`;
 
 /**
  * Resolve the next `cms_page_revisions.version` for a page: max existing version
@@ -117,6 +120,8 @@ interface RawShellRow {
   published_at: string | null;
   updated_at: string;
   published_page_snapshot: HomepageSnapshot | null;
+  style_classes?: unknown;
+  style_presets?: unknown;
 }
 
 function asLocale(raw?: string): Locale {
@@ -137,15 +142,24 @@ export async function loadSiteShellRow(input: {
   if (!scope) return null;
 
   const locale = asLocale(input.locale);
-  const { data, error } = await auth.supabase
-    .from("cms_pages")
-    .select(SHELL_ROW_COLUMNS)
-    .eq("tenant_id", scope.tenantId)
-    .eq("locale", locale)
-    .eq("system_template_key", "site_shell")
-    .neq("status", "archived")
-    .maybeSingle()
-    .returns<RawShellRow>();
+  const selectShell = (cols: string) =>
+    auth.supabase
+      .from("cms_pages")
+      .select(cols)
+      .eq("tenant_id", scope.tenantId)
+      .eq("locale", locale)
+      .eq("system_template_key", "site_shell")
+      .neq("status", "archived")
+      .maybeSingle()
+      .returns<RawShellRow>();
+
+  let { data, error } = await selectShell(SHELL_ROW_COLUMNS);
+  if (error || !data) {
+    // STYLE-1 graceful fallback — style columns not yet migrated.
+    const fallback = await selectShell(SHELL_ROW_BASE_COLUMNS);
+    data = fallback.data;
+    error = fallback.error;
+  }
   if (error || !data) return null;
 
   // Resolve the published snapshot's freeform tree (the load fallback when the
@@ -166,6 +180,8 @@ export async function loadSiteShellRow(input: {
     version: data.version,
     published_at: data.published_at,
     updated_at: data.updated_at,
+    style_classes: data.style_classes,
+    style_presets: data.style_presets,
   };
 }
 
@@ -176,7 +192,12 @@ export async function loadSiteShellRow(input: {
  */
 export async function saveSiteShellRow(input: {
   pageId: string;
-  patch: { blocks: unknown; updated_at: string };
+  patch: {
+    blocks: unknown;
+    updated_at: string;
+    style_classes?: unknown;
+    style_presets?: unknown;
+  };
 }): Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -199,15 +220,32 @@ export async function saveSiteShellRow(input: {
     current?.blocks,
   );
 
-  const { data, error } = await auth.supabase
-    .from("cms_pages")
-    .update({ blocks: enforcedBlocks, updated_at: input.patch.updated_at })
-    .eq("id", input.pageId)
-    .eq("tenant_id", scope.tenantId)
-    .eq("system_template_key", "site_shell")
-    .select("updated_at")
-    .maybeSingle()
-    .returns<{ updated_at: string }>();
+  // STYLE-1 — only set the style columns when the caller touched them.
+  const stylePatch: Record<string, unknown> = {};
+  if (input.patch.style_classes !== undefined) {
+    stylePatch.style_classes = input.patch.style_classes;
+  }
+  if (input.patch.style_presets !== undefined) {
+    stylePatch.style_presets = input.patch.style_presets;
+  }
+
+  const runUpdate = (payload: Record<string, unknown>) =>
+    auth.supabase
+      .from("cms_pages")
+      .update(payload)
+      .eq("id", input.pageId)
+      .eq("tenant_id", scope.tenantId)
+      .eq("system_template_key", "site_shell")
+      .select("updated_at")
+      .maybeSingle()
+      .returns<{ updated_at: string }>();
+
+  const base = { blocks: enforcedBlocks, updated_at: input.patch.updated_at };
+  let { data, error } = await runUpdate({ ...base, ...stylePatch });
+  // STYLE-1 graceful fallback — style columns not yet migrated → retry without.
+  if (error && Object.keys(stylePatch).length > 0) {
+    ({ data, error } = await runUpdate(base));
+  }
   if (error || !data) {
     return { ok: false, error: error?.message ?? "Could not save the site shell." };
   }
