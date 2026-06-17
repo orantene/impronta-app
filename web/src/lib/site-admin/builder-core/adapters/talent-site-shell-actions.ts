@@ -17,6 +17,8 @@
  * (`createBoundTalentSiteShellAdapter`) lives in `talent-site-shell-adapter.ts`.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -24,11 +26,17 @@ import {
   assertTalentCanUseCustomBuilder,
 } from "@/lib/server/talent-self-guard";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
+import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 
 import type {
   TalentSiteShellAdapterActions,
   TalentSiteShellRow,
 } from "./talent-site-shell-adapter-core";
+import {
+  buildTalentSiteShellRevisionSnapshot,
+  isTalentSiteShellRevisionSnapshot,
+  nextTalentSiteShellRevisionVersion,
+} from "./talent-site-shell-revision-snapshot";
 
 /**
  * Resolve the signed-in talent + assert Max + assert the requested
@@ -37,7 +45,7 @@ import type {
 async function gateOwner(
   talentProfileId: string,
 ): Promise<
-  | { ok: true; talentProfileId: string }
+  | { ok: true; talentProfileId: string; actorProfileId: string }
   | { ok: false; error: string }
 > {
   const scope = await requireTalentSelf();
@@ -48,7 +56,72 @@ async function gateOwner(
   if (talentProfileId && talentProfileId !== scope.talentProfile.id) {
     return { ok: false, error: "Not your site." };
   }
-  return { ok: true, talentProfileId: scope.talentProfile.id };
+  return {
+    ok: true,
+    talentProfileId: scope.talentProfile.id,
+    actorProfileId: scope.session.user.id,
+  };
+}
+
+/**
+ * REV-1 — resolve the next `talent_site_revisions.version` for a site: max
+ * existing version + 1 (defaults to 1 for the first revision). Best-effort — a
+ * read failure falls back to 1, which never blocks a save/publish (the revision
+ * insert is itself best-effort).
+ */
+async function nextShellRevisionVersion(
+  sb: SupabaseClient,
+  talentSiteId: string,
+): Promise<number> {
+  const { data } = await sb
+    .from("talent_site_revisions")
+    .select("version")
+    .eq("talent_site_id", talentSiteId)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ version: number }>();
+  return nextTalentSiteShellRevisionVersion(data?.version);
+}
+
+/**
+ * REV-1 — write a `talent_site_revisions` row capturing the talent's freeform
+ * shell tree. Best-effort: a failure is swallowed (the shell is already
+ * saved/published once the row commits), mirroring `writeShellRevision` for the
+ * agency shell. The snapshot carries the freeform `builderTree` under a
+ * `surface: "talent_site_shell"` marker so it is never confused with the
+ * full-site `TalentSiteSnapshot` rows in the same table.
+ *
+ * `talent_site_revisions.kind` is CHECK-constrained to draft/published/
+ * unpublished (no `rollback` value), so a restore audit row reuses `draft`.
+ * Owner RLS (`talent_site_revisions_owner_insert`) backs the write — the
+ * caller's own client (not service-role) is used, scoped to their site.
+ */
+async function writeTalentSiteShellRevision(input: {
+  sb: SupabaseClient;
+  talentSiteId: string;
+  talentProfileId: string;
+  title: string;
+  shellTree: unknown;
+  kind: "draft" | "published";
+  actorProfileId: string | null;
+}): Promise<void> {
+  try {
+    const version = await nextShellRevisionVersion(input.sb, input.talentSiteId);
+    await input.sb.from("talent_site_revisions").insert({
+      talent_site_id: input.talentSiteId,
+      talent_profile_id: input.talentProfileId,
+      kind: input.kind,
+      version,
+      snapshot: buildTalentSiteShellRevisionSnapshot({
+        title: input.title,
+        shellTree: input.shellTree,
+      }),
+      created_by: input.actorProfileId,
+    });
+  } catch {
+    // Non-fatal: the shell is already persisted; a missing revision row only
+    // means this checkpoint isn't restorable, never that the save/publish failed.
+  }
 }
 
 export async function loadTalentSiteShellRow(
@@ -112,12 +185,13 @@ export async function saveTalentSiteShellRow(
     // current shell so a crafted client can't persist an edit to a locked prop.
     const { data: current } = await sb
       .from("talent_sites")
-      .select("shell_tree")
+      .select("id, shell_tree")
       .eq("talent_profile_id", gate.talentProfileId)
       .maybeSingle();
+    const currentRow = current as { id: string; shell_tree: unknown } | null;
     const enforced = enforceLockedPropsOnTree(
       input.patch.shellTree ?? [],
-      (current as { shell_tree: unknown } | null)?.shell_tree,
+      currentRow?.shell_tree,
     );
 
     // STYLE-1 — only set the style columns when the caller touched them.
@@ -146,6 +220,21 @@ export async function saveTalentSiteShellRow(
     if (error || !data) {
       return { ok: false as const, error: error?.message ?? "Could not save your shell." };
     }
+
+    // REV-1 — checkpoint the saved freeform shell tree as a restorable
+    // `talent_site_revisions` row (kind=draft). Best-effort, never blocks.
+    if (currentRow?.id) {
+      await writeTalentSiteShellRevision({
+        sb,
+        talentSiteId: currentRow.id,
+        talentProfileId: gate.talentProfileId,
+        title: "Site shell",
+        shellTree: enforced,
+        kind: "draft",
+        actorProfileId: gate.actorProfileId,
+      });
+    }
+
     return { ok: true as const, updatedAt: data.updated_at as string };
   } catch (err) {
     logServerError("talentSiteShell/saveShell", err);
@@ -165,10 +254,11 @@ export async function publishTalentSiteShellRow(
     // Bake shell_tree → shell_published (publishes ONLY the shell, not the pages).
     const { data: current } = await sb
       .from("talent_sites")
-      .select("shell_tree")
+      .select("id, shell_tree")
       .eq("talent_profile_id", gate.talentProfileId)
       .maybeSingle();
-    const shellTree = (current as { shell_tree: unknown } | null)?.shell_tree ?? [];
+    const currentRow = current as { id: string; shell_tree: unknown } | null;
+    const shellTree = currentRow?.shell_tree ?? [];
 
     const now = new Date().toISOString();
     const { data, error } = await sb
@@ -180,9 +270,116 @@ export async function publishTalentSiteShellRow(
     if (error || !data) {
       return { ok: false as const, error: error?.message ?? "Could not publish your shell." };
     }
+
+    // REV-1 — checkpoint the just-published freeform shell tree as a restorable
+    // `talent_site_revisions` row (kind=published). Best-effort, never blocks.
+    if (currentRow?.id) {
+      await writeTalentSiteShellRevision({
+        sb,
+        talentSiteId: currentRow.id,
+        talentProfileId: gate.talentProfileId,
+        title: "Site shell",
+        shellTree,
+        kind: "published",
+        actorProfileId: gate.actorProfileId,
+      });
+    }
+
     return { ok: true as const, publishedAt: now, updatedAt: data.updated_at as string };
   } catch (err) {
     logServerError("talentSiteShell/publishShell", err);
     return { ok: false as const, error: "Unexpected error publishing your shell." };
+  }
+}
+
+/**
+ * REV-1 — restore a saved shell revision's freeform tree back onto the talent
+ * site's DRAFT `shell_tree`. Mirrors `restoreSiteShellRevisionAction` (agency)
+ * and `restoreTalentPageRevisionAction`:
+ *   - reads the revision's `builderTree` snapshot (ONLY shell-tree revisions —
+ *     full-site `TalentSiteSnapshot` rows are skipped via the marker guard so a
+ *     restore can never paint slot composition into the freeform shell),
+ *   - re-asserts admin prop-locks (C1 chokepoint) against the current draft so
+ *     restoring an old/pre-lock revision can't drop a lock,
+ *   - writes the restored tree to the DRAFT `shell_tree` (the operator reviews
+ *     the restored draft, then presses Publish), and
+ *   - mints a fresh `kind='draft'` revision so the audit trail is complete
+ *     (`talent_site_revisions.kind` has no `rollback` value).
+ *
+ * AUTH: owner + Max via `gateOwner`. `talent_sites` / `talent_site_revisions`
+ * RLS independently allows only the owner, so a forged id can't escape the
+ * caller's own row. The revision lookup is scoped to the owner's site.
+ */
+export async function restoreTalentSiteShellRevisionAction(
+  input: Parameters<NonNullable<TalentSiteShellAdapterActions["restoreRevision"]>>[0],
+): ReturnType<NonNullable<TalentSiteShellAdapterActions["restoreRevision"]>> {
+  try {
+    const gate = await gateOwner(input.talentProfileId);
+    if (!gate.ok) return { ok: false as const, error: gate.error };
+    const sb = await getCachedServerSupabase();
+    if (!sb) return { ok: false as const, error: "Supabase client unavailable." };
+
+    // 1. Resolve the owner's site row (the FK + the live draft to re-lock against).
+    const { data: site } = await sb
+      .from("talent_sites")
+      .select("id, shell_tree")
+      .eq("talent_profile_id", gate.talentProfileId)
+      .maybeSingle();
+    const siteRow = site as { id: string; shell_tree: unknown } | null;
+    if (!siteRow?.id) {
+      return { ok: false as const, error: "Personal site not found." };
+    }
+
+    // 2. Read the revision's snapshot (scoped to the owner's site).
+    const { data: rev, error: revErr } = await sb
+      .from("talent_site_revisions")
+      .select("snapshot")
+      .eq("id", input.revisionId)
+      .eq("talent_site_id", siteRow.id)
+      .eq("talent_profile_id", gate.talentProfileId)
+      .maybeSingle();
+    if (revErr || !rev) {
+      return { ok: false as const, error: revErr?.message ?? "Shell revision not found." };
+    }
+    const snapshot = (rev as { snapshot: unknown }).snapshot;
+    if (!isTalentSiteShellRevisionSnapshot(snapshot)) {
+      return {
+        ok: false as const,
+        error: "That revision isn't a site-shell checkpoint.",
+      };
+    }
+    const restoredTree = parseBuilderTreeFromSnapshot(snapshot) ?? [];
+
+    // 3. Re-assert current locks onto the restored content (C1) against the live
+    //    draft, so restoring a pre-lock/tampered revision can't drop an admin lock.
+    const enforced = enforceLockedPropsOnTree(restoredTree, siteRow.shell_tree);
+
+    // 4. Write the restored tree back to the DRAFT shell_tree.
+    const now = new Date().toISOString();
+    const { data, error } = await sb
+      .from("talent_sites")
+      .update({ shell_tree: enforced, updated_at: now })
+      .eq("talent_profile_id", gate.talentProfileId)
+      .select("updated_at")
+      .single();
+    if (error || !data) {
+      return { ok: false as const, error: error?.message ?? "Could not restore the shell revision." };
+    }
+
+    // 5. Mint a draft revision for the audit trail (best-effort).
+    await writeTalentSiteShellRevision({
+      sb,
+      talentSiteId: siteRow.id,
+      talentProfileId: gate.talentProfileId,
+      title: "Site shell",
+      shellTree: enforced,
+      kind: "draft",
+      actorProfileId: gate.actorProfileId,
+    });
+
+    return { ok: true as const, updatedAt: data.updated_at as string };
+  } catch (err) {
+    logServerError("talentSiteShell/restoreShellRevision", err);
+    return { ok: false as const, error: "Unexpected error restoring your shell revision." };
   }
 }

@@ -22,6 +22,7 @@ import {
   listTenantMediaFolders,
   listTenantMediaLibrary,
   updateTenantMediaAssetAlt,
+  updateTenantMediaAssetTags,
 } from "@/lib/site-admin/media/assets";
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
@@ -112,12 +113,22 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ ok: false, error: "invalid id" }, { status: 400 });
   }
 
-  const item = await updateTenantMediaAssetAlt({
-    supabase: auth.supabase,
-    tenantId: scope.tenantId,
-    assetId,
-    alt: typeof body.alt === "string" ? body.alt : null,
-  });
+  // MEDIA-1 — the central alt + tag manager patches either field. `tags` (an
+  // array) takes precedence when present so the picker can edit them in one PATCH
+  // shape; otherwise we fall back to the alt-text update (back-compat).
+  const item = Array.isArray(body.tags)
+    ? await updateTenantMediaAssetTags({
+        supabase: auth.supabase,
+        tenantId: scope.tenantId,
+        assetId,
+        tags: body.tags.filter((tag): tag is string => typeof tag === "string"),
+      })
+    : await updateTenantMediaAssetAlt({
+        supabase: auth.supabase,
+        tenantId: scope.tenantId,
+        assetId,
+        alt: typeof body.alt === "string" ? body.alt : null,
+      });
   if (!item) {
     return NextResponse.json(
       { ok: false, error: "Asset not found for this workspace." },

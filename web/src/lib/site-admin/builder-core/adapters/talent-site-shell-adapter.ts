@@ -20,6 +20,7 @@ import {
   loadTalentSiteShellRow,
   saveTalentSiteShellRow,
   publishTalentSiteShellRow,
+  restoreTalentSiteShellRevisionAction,
 } from "./talent-site-shell-actions";
 
 export {
@@ -35,6 +36,12 @@ const productionActions: TalentSiteShellAdapterActions = {
   loadShell: loadTalentSiteShellRow,
   saveShell: saveTalentSiteShellRow,
   publishShell: publishTalentSiteShellRow,
+  // REV-1 — restore a saved shell revision's freeform tree onto the draft
+  // (re-asserting admin locks). Binding it makes the adapter expose
+  // `restoreRevision`, closing the talent-site-shell parity gap (the shared
+  // `buildSiteShellBuilderConfig` already sets `canRestoreRevision: true`, so
+  // the RevisionsDrawer becomes functional instead of a silent no-op).
+  restoreRevision: restoreTalentSiteShellRevisionAction,
 };
 
 /**

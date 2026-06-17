@@ -199,6 +199,8 @@ export async function uploadStagingMedia(opts: {
 export type CmsMediaItem = {
   id: string;
   variantKind: string;
+  /** MEDIA-1 — image (default) | video | document. */
+  assetKind?: "image" | "video" | "document" | null;
   storagePath: string;
   publicUrl: string;
   createdAt: string;

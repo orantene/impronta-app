@@ -41,19 +41,10 @@ const SERVER_RESIZE_GUARD_RATIO = 0.8;
 
 type Kind = "image" | "document" | "video";
 
-function resolveKindMeta(kind: Kind): {
-  purpose: string;
-  variantKind: string;
-} {
-  switch (kind) {
-    case "document":
-      return { purpose: "document", variantKind: "document" };
-    case "video":
-      return { purpose: "video", variantKind: "video" };
-    case "image":
-    default:
-      return { purpose: "cms", variantKind: "original" };
-  }
+/** MEDIA-1 preferred media_purpose per kind (falls back to 'cms' if the enum
+ *  hasn't been extended yet by migration 20261102000000). */
+function resolveKindPurpose(kind: Kind): string {
+  return kind === "document" ? "document" : kind === "video" ? "video" : "cms";
 }
 
 export async function POST(req: Request) {
@@ -103,7 +94,7 @@ export async function POST(req: Request) {
   const kindRaw = body.kind;
   const kind: Kind =
     kindRaw === "document" || kindRaw === "video" ? kindRaw : "image";
-  const kindMeta = resolveKindMeta(kind);
+  const kindPurpose = resolveKindPurpose(kind);
 
   const supabase = createServiceRoleClient();
   if (!supabase) {
@@ -231,31 +222,67 @@ export async function POST(req: Request) {
     });
   }
 
-  const { data: inserted, error: insertErr } = await supabase
-    .from("media_assets")
-    .insert([
-      {
-        tenant_id: scope.tenantId,
-        uploaded_by_user_id: auth.user.id,
-        bucket_id: BUCKET,
-        storage_path: storagePath,
-        variant_kind: kindMeta.variantKind,
-        approval_state: "approved",
-        purpose: kindMeta.purpose,
-        sort_order: 0,
-        file_size: storedSize,
-        metadata: {
-          source: "admin-upload-signed",
-          original_mime: originalMime,
-          kind,
-          original_file_name: originalFilename,
-        },
-      },
-    ])
-    .select("id, bucket_id, storage_path, variant_kind, created_at")
-    .single();
+  const { data: storedUrlData } = supabase.storage
+    .from(BUCKET)
+    .getPublicUrl(storagePath);
+  const storedPublicUrl = storedUrlData?.publicUrl ?? null;
+  const storedMime =
+    storedType && storedType !== "application/octet-stream"
+      ? storedType
+      : initialMime;
 
-  if (insertErr || !inserted) {
+  // MEDIA-1 — a non-image library row. `variant_kind` stays the valid image-enum
+  // 'original' (the enum has no video/document labels); `asset_kind` carries the
+  // real kind. Tolerant insert degrades across an unapplied migration: first try
+  // asset_kind + kind-purpose, then asset_kind + 'cms', then neither.
+  const baseRow = {
+    tenant_id: scope.tenantId,
+    uploaded_by_user_id: auth.user.id,
+    created_by: auth.user.id,
+    bucket_id: BUCKET,
+    storage_path: storagePath,
+    public_url: storedPublicUrl,
+    variant_kind: "original",
+    approval_state: "approved",
+    sort_order: 0,
+    file_size: storedSize,
+    file_size_bytes: storedSize,
+    byte_size: storedSize,
+    mime: storedMime,
+    mime_type: storedMime,
+    metadata: {
+      source: "admin-upload-signed",
+      original_mime: originalMime,
+      kind,
+      original_file_name: originalFilename,
+    },
+  } as const;
+
+  const insertVariants: Array<Record<string, unknown>> = [
+    { ...baseRow, asset_kind: kind, purpose: kindPurpose },
+    { ...baseRow, asset_kind: kind, purpose: "cms" },
+    { ...baseRow, purpose: "cms" },
+  ];
+
+  let inserted:
+    | { id: string; bucket_id: string; storage_path: string; created_at: string }
+    | null = null;
+  let insertErr: { message: string } | null = null;
+  for (const candidate of insertVariants) {
+    const res = await supabase
+      .from("media_assets")
+      .insert([candidate])
+      .select("id, bucket_id, storage_path, created_at")
+      .single();
+    if (!res.error && res.data) {
+      inserted = res.data;
+      insertErr = null;
+      break;
+    }
+    insertErr = res.error;
+  }
+
+  if (!inserted) {
     await supabase.storage.from(BUCKET).remove([storagePath]);
     return NextResponse.json(
       {
@@ -274,9 +301,10 @@ export async function POST(req: Request) {
     ok: true,
     item: {
       id: inserted.id,
-      variantKind: inserted.variant_kind,
+      variantKind: "original",
+      assetKind: kind,
       storagePath: inserted.storage_path,
-      publicUrl: urlData?.publicUrl ?? "",
+      publicUrl: storedPublicUrl ?? urlData?.publicUrl ?? "",
       createdAt: inserted.created_at,
       width,
       height,

@@ -6,6 +6,8 @@ import {
   getTenantMediaAsset,
   listBuilderImageMediaAssets,
   listTenantMediaLibrary,
+  normalizeTagInput,
+  updateTenantMediaAssetTags,
 } from "./assets";
 import { MEDIA_IMAGE_MAX_BYTES, validateImageUpload } from "./validation";
 
@@ -14,10 +16,16 @@ type FakeRow = Record<string, unknown>;
 class FakeQuery {
   private filters: Array<(row: FakeRow) => boolean> = [];
   private limitCount: number | null = null;
+  private pendingPatch: FakeRow | null = null;
 
   constructor(private rows: FakeRow[]) {}
 
   select() {
+    return this;
+  }
+
+  update(patch: FakeRow) {
+    this.pendingPatch = patch;
     return this;
   }
 
@@ -46,7 +54,7 @@ class FakeQuery {
   }
 
   maybeSingle() {
-    const rows = this.applyFilters();
+    const rows = this.applyMutation();
     return Promise.resolve({ data: rows[0] ?? null, error: null });
   }
 
@@ -54,10 +62,20 @@ class FakeQuery {
     resolve: (value: { data: FakeRow[]; error: null }) => unknown,
     reject?: (reason: unknown) => unknown,
   ) {
-    return Promise.resolve({ data: this.applyFilters(), error: null }).then(
+    return Promise.resolve({ data: this.applyMutation(), error: null }).then(
       resolve,
       reject,
     );
+  }
+
+  /** Apply the pending UPDATE patch to matched rows (mutating the backing
+   *  store so a follow-up read sees it), then return them. */
+  private applyMutation() {
+    const matched = this.applyFilters();
+    if (this.pendingPatch) {
+      for (const row of matched) Object.assign(row, this.pendingPatch);
+    }
+    return matched;
   }
 
   private applyFilters() {
@@ -109,6 +127,8 @@ function row(overrides: Partial<FakeRow>): FakeRow {
     mime: "image/webp",
     mime_type: "image/webp",
     alt: "Tenant A",
+    asset_kind: "image",
+    tags: [],
     created_at: "2026-06-01T00:00:00.000Z",
     metadata: { source: "test" },
     purpose: "cms",
@@ -133,7 +153,7 @@ describe("site-admin media assets", () => {
     if (!tooLarge.ok) assert.equal(tooLarge.status, 413);
   });
 
-  it("lists only the requested tenant media library rows with album membership", async () => {
+  it("lists the requested tenant rows with album membership; only own tenant", async () => {
     const supabase = fakeSupabase(
       [
         row({
@@ -142,16 +162,10 @@ describe("site-admin media assets", () => {
           owner_talent_profile_id: "talent-a",
           purpose: null,
           alt: "A",
+          tags: ["campaign", "hero"],
         }),
         row({ id: "asset-b", tenant_id: "tenant-b", alt: "B" }),
         row({ id: "asset-deleted", tenant_id: "tenant-a", deleted_at: "x" }),
-        row({
-          id: "asset-video",
-          tenant_id: "tenant-a",
-          storage_path: "tenant/tenant-a/library/clip.mp4",
-          mime: "video/mp4",
-          mime_type: "video/mp4",
-        }),
       ],
       [
         {
@@ -169,7 +183,86 @@ describe("site-admin media assets", () => {
     assert.deepEqual(items.map((item) => item.id), ["asset-a"]);
     assert.equal(items[0]?.tenantId, "tenant-a");
     assert.equal(items[0]?.alt, "A");
+    assert.equal(items[0]?.assetKind, "image");
+    assert.deepEqual(items[0]?.tags, ["campaign", "hero"]);
     assert.deepEqual(items[0]?.folderIds, ["folder-a"]);
+  });
+
+  it("MEDIA-1: surfaces video + document assets (not just images), excludes SVG", async () => {
+    const supabase = fakeSupabase([
+      row({ id: "img", tenant_id: "tenant-a" }),
+      row({
+        id: "vid",
+        tenant_id: "tenant-a",
+        asset_kind: "video",
+        storage_path: "tenant/tenant-a/videos/clip.mp4",
+        mime: "video/mp4",
+        mime_type: "video/mp4",
+      }),
+      row({
+        id: "doc",
+        tenant_id: "tenant-a",
+        asset_kind: "document",
+        storage_path: "tenant/tenant-a/documents/deck.pdf",
+        mime: "application/pdf",
+        mime_type: "application/pdf",
+      }),
+      // SVG stays excluded for XSS — kind resolves to null and is dropped.
+      row({
+        id: "svg",
+        tenant_id: "tenant-a",
+        asset_kind: null,
+        storage_path: "tenant/tenant-a/library/logo.svg",
+        mime: "image/svg+xml",
+        mime_type: "image/svg+xml",
+      }),
+    ]);
+
+    const items = await listTenantMediaLibrary(supabase, "tenant-a");
+    const byId = new Map(items.map((item) => [item.id, item]));
+
+    assert.deepEqual(items.map((item) => item.id).sort(), ["doc", "img", "vid"]);
+    assert.equal(byId.get("vid")?.assetKind, "video");
+    assert.equal(byId.get("doc")?.assetKind, "document");
+    assert.equal(byId.get("img")?.assetKind, "image");
+  });
+
+  it("MEDIA-1: infers kind from MIME when asset_kind is absent (pre-migration row)", async () => {
+    const supabase = fakeSupabase([
+      // Legacy row with no asset_kind column written yet — falls back to MIME.
+      row({
+        id: "legacy-vid",
+        tenant_id: "tenant-a",
+        asset_kind: undefined,
+        storage_path: "tenant/tenant-a/videos/old.mov",
+        mime: "video/quicktime",
+        mime_type: "video/quicktime",
+      }),
+    ]);
+
+    const items = await listTenantMediaLibrary(supabase, "tenant-a");
+    assert.equal(items.length, 1);
+    assert.equal(items[0]?.assetKind, "video");
+  });
+
+  it("MEDIA-1: listBuilderImageMediaAssets stays image-only (drops video/doc)", async () => {
+    const supabase = fakeSupabase([
+      row({ id: "img", tenant_id: "tenant-a" }),
+      row({
+        id: "vid",
+        tenant_id: "tenant-a",
+        asset_kind: "video",
+        storage_path: "tenant/tenant-a/videos/clip.mp4",
+        mime: "video/mp4",
+        mime_type: "video/mp4",
+      }),
+    ]);
+
+    const assets = await listBuilderImageMediaAssets(supabase, "tenant-a", [
+      "img",
+      "vid",
+    ]);
+    assert.deepEqual(assets.map((asset) => asset.id), ["img"]);
   });
 
   it("does not select another tenant asset by id", async () => {
@@ -196,5 +289,40 @@ describe("site-admin media assets", () => {
 
     assert.deepEqual(assets.map((asset) => asset.id), ["asset-a"]);
     assert.equal(assets[0]?.publicUrl.includes("tenant-a/library/a.webp"), true);
+  });
+
+  it("MEDIA-1: normalizeTagInput trims, lowercases, dedupes, drops empties, caps", () => {
+    assert.deepEqual(
+      normalizeTagInput([" Campaign ", "campaign", "HERO", "", "  "]),
+      ["campaign", "hero"],
+    );
+    const many = Array.from({ length: 40 }, (_, i) => `tag-${i}`);
+    assert.equal(normalizeTagInput(many).length, 24);
+  });
+
+  it("MEDIA-1: updateTenantMediaAssetTags persists normalized tags for own tenant", async () => {
+    const supabase = fakeSupabase([
+      row({ id: "asset-a", tenant_id: "tenant-a", tags: ["old"] }),
+      row({ id: "asset-b", tenant_id: "tenant-b", tags: [] }),
+    ]);
+
+    const updated = await updateTenantMediaAssetTags({
+      supabase,
+      tenantId: "tenant-a",
+      assetId: "asset-a",
+      tags: [" Studio ", "studio", "EDITORIAL"],
+    });
+
+    assert.ok(updated);
+    assert.deepEqual(updated?.tags, ["studio", "editorial"]);
+
+    // Cross-tenant write is scoped out — no row matched, returns null.
+    const crossTenant = await updateTenantMediaAssetTags({
+      supabase,
+      tenantId: "tenant-a",
+      assetId: "asset-b",
+      tags: ["x"],
+    });
+    assert.equal(crossTenant, null);
   });
 });

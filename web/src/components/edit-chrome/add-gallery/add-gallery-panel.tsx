@@ -2,7 +2,9 @@
 
 /**
  * AddGalleryPanel — builder Add Gallery (Elements / Sections / Connected).
- * All inserts route through builderTree only via performAddGalleryInsert.
+ * CANVAS-1: inserts land adjacent to the current selection via
+ * resolveGalleryInsertHint; scroll-into-view is inherited from the
+ * selection-layer effect that fires on selectedBuilderNodeId change.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -32,20 +34,19 @@ import {
 
 import { useEditContext } from "../edit-context";
 import { useBuilderTree } from "../builder-tree-bridge";
+import { useSelectedBuilderNodeId } from "../selection-bridge";
 import { DockFloatingPanel } from "../dock-floating-panel";
 import { CHROME } from "../kit";
 import { AddGalleryCardInfo } from "./add-gallery-card-info";
 import { AddGalleryIcon } from "./add-gallery-icons";
 import { AddGallerySectionPreview } from "./add-gallery-section-previews";
+import { resolveGalleryInsertHint } from "./gallery-insert-hint";
 
 const PANEL_WIDTH = 592;
 const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
 
-/** Code-default tab order + labels — the synchronous seed shown while the
- *  admin-editable structure loads (and the fallback if the fetch fails). On open
- *  the panel fetches `listCatalogStructure()` and re-resolves tabs + categories
- *  so a super-admin's renames/reorders/hides (Catalog Studio, WS-B) reflect in
- *  the live "+" gallery. With no structure this is the code default verbatim. */
+/** Synchronous seed (code-default tabs) — shown immediately; overwritten by
+ *  listCatalogStructure() on open so admin renames/reorders are reflected. */
 const CODE_TAB_DEFS_SEED: ReadonlyArray<{ id: AddGalleryTab; label: string }> =
   resolveTabs();
 
@@ -493,18 +494,17 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     selectBuilderNode,
     gallerySurface,
   } = useEditContext();
-  // WS2 — tree read from the micro-store (builder-tree-bridge) instead of the
-  // context value, so an edit no longer re-renders this panel via the value memo.
+  // WS2 — read tree from micro-store so edits don't re-render this panel.
   const builderTree = useBuilderTree();
+  // CANVAS-1 — read selection from micro-store for insert-at-selection hint.
+  const selectedBuilderNodeId = useSelectedBuilderNodeId();
 
   const [tab, setTab] = useState<AddGalleryTab>("layout");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
 
-  // P1 — the merged catalog (code items ∪ gated published DB templates) for this
-  // surface. Seeded synchronously with the code-only set so the panel paints
-  // instantly, then refreshed from `fetchSurfaceGalleryItems` on open.
+  // P1 — merged catalog seeded synchronously from code; refreshed on open.
   const codeSeed = useMemo(
     () =>
       codeGalleryItemsForPolicy({
@@ -515,8 +515,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   );
   const [mergedItems, setMergedItems] =
     useState<ReadonlyArray<AddGalleryItem>>(codeSeed);
-  // Admin-editable catalog structure (tab/category renames, order, hides).
-  // Empty until the open-effect fetch resolves ⇒ code-default taxonomy.
+  // Admin-editable catalog structure; empty until open-effect fetch resolves.
   const [structure, setStructure] = useState<CatalogStructureMap>({});
   const fetchSeqRef = useRef(0);
 
@@ -614,19 +613,21 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       if (pending || !isAddGalleryItemAvailable(item)) return;
       setPending(true);
       try {
+        // CANVAS-1 — insert adjacent to the current selection; null hint falls
+        // back to end-of-tree. resolveGalleryInsertHint guards stale selections.
+        const hint = selectedBuilderNodeId !== null
+          ? resolveGalleryInsertHint(builderTree, selectedBuilderNodeId)
+          : null;
         const result = await performAddGalleryInsert(
           item,
-          { parentId: null, index: builderTree.length },
-          {
-            insertBuilderNode,
-            insertBuilderSectionEmbed,
-            insertBuilderComponent,
-          },
+          hint ?? { parentId: null, index: builderTree.length },
+          { insertBuilderNode, insertBuilderSectionEmbed, insertBuilderComponent },
         );
         if (!result.ok && result.error) {
           reportMutationError(result.error);
           return;
         }
+        // selectBuilderNode triggers the selection-layer scroll-into-view effect.
         if (result.nodeId) selectBuilderNode(result.nodeId);
         onClose();
       } finally {
@@ -635,7 +636,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     },
     [
       pending,
-      builderTree.length,
+      builderTree,
+      selectedBuilderNodeId,
       insertBuilderNode,
       insertBuilderSectionEmbed,
       insertBuilderComponent,
@@ -699,7 +701,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
             <path d="M5 9l4 4-4 4" />
             <path d="M9 5v14" />
           </svg>
-          Drag between blocks on the canvas, or click to append at the bottom.
+          Drag to a specific position, or click to insert after the selected block.
         </div>
       }
     >

@@ -64,7 +64,28 @@ import { RevisionCard } from "./revisions-card";
 // Named-version labels are persisted client-side (this drawer + RevisionCard);
 // the key lives here, not in the "use server" revisions-actions module (which
 // can only export async functions).
-const REVISION_LABELS_STORAGE_KEY = "builder_revision_labels_v1";
+//
+// REV-1 — the labels are SCOPED per (surfaceKind + page identity). A single
+// global key bled labels across surfaces in a shared browser: a label saved
+// against revision `r1` of the storefront homepage would also surface on
+// revision `r1` of a talent-site shell, because revision ids are unique per
+// table but the label map was global. Scoping by surface + page id keeps each
+// surface's named versions isolated. The `_v1` suffix is retained so legacy
+// global labels degrade silently (a fresh, empty per-surface map) rather than
+// throwing.
+const REVISION_LABELS_KEY_PREFIX = "builder_revision_labels_v1";
+
+/** Build the per-surface label storage key. Homepage has no pageId, so it falls
+ *  back to its slug/locale; freeform surfaces key off (surfaceKind + pageId). */
+function revisionLabelsStorageKey(
+  surfaceKind: string,
+  pageId: string | null | undefined,
+  pageSlug: string | null | undefined,
+  locale: string,
+): string {
+  const scope = pageId || pageSlug || `home:${locale}`;
+  return `${REVISION_LABELS_KEY_PREFIX}:${surfaceKind}:${scope}`;
+}
 
 // ── icons ────────────────────────────────────────────────────────────────
 
@@ -139,7 +160,17 @@ export function RevisionsDrawer(): ReactElement | null {
     pageVersion,
     pageMetadata,
     restoreRevision,
+    surfaceKind,
   } = useEditContext();
+
+  // REV-1 — per-surface label key so named versions don't bleed across surfaces
+  // sharing one browser (e.g. storefront homepage vs talent-site shell).
+  const labelsStorageKey = revisionLabelsStorageKey(
+    surfaceKind,
+    pageId,
+    pageSlug,
+    locale,
+  );
 
   // Non-homepage when both pageSlug and pageId are set.
   const isNonHomepage = Boolean(pageSlug) && Boolean(pageId);
@@ -155,15 +186,28 @@ export function RevisionsDrawer(): ReactElement | null {
   // First selection for diff-mode (waiting for the second pick).
   const [diffAnchor, setDiffAnchor] = useState<RevisionListRow | null>(null);
   // #19 — Named versions: label map persisted to localStorage. Key is revisionId.
+  // REV-1 — the localStorage SLOT is scoped per surface (`labelsStorageKey`).
   const [labelMap, setLabelMap] = useState<Record<string, string>>(() => {
     if (typeof window === "undefined") return {};
     try {
-      const raw = window.localStorage.getItem(REVISION_LABELS_STORAGE_KEY);
+      const raw = window.localStorage.getItem(labelsStorageKey);
       return raw ? (JSON.parse(raw) as Record<string, string>) : {};
     } catch {
       return {};
     }
   });
+
+  // REV-1 — reload the label map whenever the scoped key changes (the same
+  // drawer instance can be re-targeted at a different surface/page mid-session).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(labelsStorageKey);
+      setLabelMap(raw ? (JSON.parse(raw) as Record<string, string>) : {});
+    } catch {
+      setLabelMap({});
+    }
+  }, [labelsStorageKey]);
   // #19 — Search/filter input (matches against version label, kind, title).
   const [nameFilter, setNameFilter] = useState("");
 
@@ -177,30 +221,32 @@ export function RevisionsDrawer(): ReactElement | null {
     }
   }, [revisionsOpen]);
 
-  // #19 — Persist label map on every change.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        REVISION_LABELS_STORAGE_KEY,
-        JSON.stringify(labelMap),
-      );
-    } catch {
-      // quota / private-browsing — skip silently
-    }
-  }, [labelMap]);
-
-  const setLabel = useCallback((revId: string, label: string) => {
-    setLabelMap((prev) => {
-      const next = { ...prev };
-      if (label.trim() === "") {
-        delete next[revId];
-      } else {
-        next[revId] = label.trim();
-      }
-      return next;
-    });
-  }, []);
+  // #19 / REV-1 — write the label map THROUGH to the per-surface localStorage
+  // key inside the setter (not via a `[labelMap, labelsStorageKey]` effect). A
+  // persist effect keyed on `labelsStorageKey` would race the reload effect on a
+  // surface switch and write the STALE map to the NEW key; writing through the
+  // setter persists only deliberate edits against the key in force at edit time.
+  const setLabel = useCallback(
+    (revId: string, label: string) => {
+      setLabelMap((prev) => {
+        const next = { ...prev };
+        if (label.trim() === "") {
+          delete next[revId];
+        } else {
+          next[revId] = label.trim();
+        }
+        if (typeof window !== "undefined") {
+          try {
+            window.localStorage.setItem(labelsStorageKey, JSON.stringify(next));
+          } catch {
+            // quota / private-browsing — skip silently
+          }
+        }
+        return next;
+      });
+    },
+    [labelsStorageKey],
+  );
 
   // Re-fetch on every open so a freshly-written draft revision shows up.
   useEffect(() => {
