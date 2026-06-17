@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -213,6 +214,10 @@ export async function loadWorkspaceRosterForTenant(
  * client page (Today / Inquiries / Bookings / Discover) just to power a
  * drawer the user might never open caused the Today page to hang for
  * 17 minutes on first load. This loader fixes that.
+ *
+ * Wrapped in React `cache()` so if a shared layout and a child page both
+ * call this with the same tenantId in one RSC render tree, the DB query
+ * runs only once. Pure per-request read with no side effects.
  */
 export type RosterLiteItem = {
   id: string;
@@ -221,7 +226,7 @@ export type RosterLiteItem = {
   city?: string;
 };
 
-export async function loadWorkspaceRosterLite(
+export const loadWorkspaceRosterLite = cache(async function loadWorkspaceRosterLite(
   tenantId: string,
 ): Promise<RosterLiteItem[]> {
   try {
@@ -313,7 +318,7 @@ export async function loadWorkspaceRosterLite(
     logServerError("workspace.loadRosterLite", err);
     return [];
   }
-}
+});
 
 /**
  * Enriched roster for the canonical workspace roster page.

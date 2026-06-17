@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -53,8 +54,12 @@ export type WorkspaceInquiryRow = {
  * page is a live queue view, not a full archive.
  *
  * Returns [] on error or empty queue. Never falls back to mock data.
+ *
+ * Wrapped in React `cache()` so repeated calls with the same tenantId within
+ * one RSC render (e.g. layout → triage page) share one DB round-trip.
+ * Pure per-request read; safe to cache for the request lifetime.
  */
-export async function loadWorkspaceInquiries(
+export const loadWorkspaceInquiries = cache(async function loadWorkspaceInquiries(
   tenantId: string,
 ): Promise<WorkspaceInquiryRow[]> {
   try {
@@ -84,4 +89,4 @@ export async function loadWorkspaceInquiries(
     logServerError("workspace.loadInquiries", err);
     return [];
   }
-}
+});
