@@ -22,6 +22,7 @@ import {
 } from "../actions";
 import { ConfirmSubmitButton } from "../confirm-submit-button";
 import { FieldGroupsReorderPanel } from "../groups/field-groups-reorder-panel";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 // ---------------------------------------------------------------------------
 // Data
@@ -171,7 +172,7 @@ async function loadGroupList(): Promise<GroupListRow[] | null> {
           mapped_talent_types: uniqueTypes,
           fields: groupFields
             .map((f) => ({ field_key: f.field_key, label: f.label_i18n?.en ?? "" }))
-            .sort((a, b) => a.label.localeCompare(b.label)),
+            .sort(byLabel),
         };
       })
       .sort(

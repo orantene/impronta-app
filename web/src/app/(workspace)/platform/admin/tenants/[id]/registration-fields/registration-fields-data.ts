@@ -26,6 +26,7 @@ import {
   CACHE_TAG_FIELD_CATALOG,
   fieldCatalogTagForTenant,
 } from "@/lib/field-engine/cache-tags";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -310,5 +311,5 @@ async function loadTenantRegistrationFieldsUncached(
 }
 
 function byOrder(a: RegistrationField, b: RegistrationField): number {
-  return a.display_order - b.display_order || a.label.localeCompare(b.label);
+  return a.display_order - b.display_order || byLabel(a, b);
 }

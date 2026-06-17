@@ -13,6 +13,7 @@ import {
   type DirectoryCardData,
 } from "./card-data";
 import type { DirectoryV1 } from "./schema";
+import { byName } from "@/lib/field-engine/sort-comparators";
 
 // Re-export so existing server callers (`DirectoryCard.tsx`, etc.)
 // keep importing the shape from this module. Clients should import
@@ -164,7 +165,7 @@ export async function loadDirectorySectionTalents(
   // Sort. newest/recommended/curated keep source order (no created field
   // on the projection); az + availability are derivable.
   if (props.defaultSort === "az") {
-    items.sort((a, b) => a.name.localeCompare(b.name));
+    items.sort(byName);
   } else if (props.defaultSort === "availability") {
     items.sort(
       (a, b) =>

@@ -8,6 +8,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
 import { CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
 import { CACHE_TAG_FIELD_CATALOG } from "@/lib/field-engine/cache-tags";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -824,7 +825,7 @@ async function loadPlatformTalentTypeDetailUncached(
         section: f.section,
         deprecated_at: f.deprecated_at,
       }))
-      .sort((a, b) => a.label.localeCompare(b.label) || a.field_key.localeCompare(b.field_key));
+      .sort((a, b) => byLabel(a, b) || a.field_key.localeCompare(b.field_key));
 
     // Analytics
     const talentProfileIds = new Set(

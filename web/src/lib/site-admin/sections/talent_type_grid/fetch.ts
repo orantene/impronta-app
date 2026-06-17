@@ -2,6 +2,7 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import { logServerError } from "@/lib/server/safe-error";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 /**
  * Dynamic-mode category derivation.
@@ -148,7 +149,7 @@ export async function fetchTenantTalentCategories(params: {
         label: v.label,
         count: v.talents.size,
       }))
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+      .sort((a, b) => b.count - a.count || byLabel(a, b))
       .slice(0, maxItems);
   } catch (error) {
     logServerError("talent_type_grid/fetchTenantTalentCategories", error);

@@ -19,6 +19,7 @@ import { NextResponse } from "next/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 export const dynamic = "force-dynamic";
 
@@ -92,7 +93,7 @@ export async function GET() {
 
   const categories: FacetCountWithLabel[] = Array.from(categoryCounts.entries())
     .map(([value, { label, count }]) => ({ value, label, count }))
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+    .sort((a, b) => b.count - a.count || byLabel(a, b));
 
   return NextResponse.json({ countries, categories });
 }

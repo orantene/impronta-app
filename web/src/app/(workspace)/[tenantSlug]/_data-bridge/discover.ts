@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { deterministicSeedPhoto } from "@/lib/discover/seed-photo";
 import { loadTalentCardThumbs } from "./talent-card-thumbs";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 /**
  * _data-bridge/discover.ts — cross-tenant Discover catalog reads.
@@ -401,7 +402,7 @@ export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
       .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
     categories: Array.from(categoryCounts.entries())
       .map(([value, { label, count }]) => ({ value, label, count }))
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+      .sort((a, b) => b.count - a.count || byLabel(a, b)),
     cities: Array.from(cityAgg.values())
       .map(({ city, countryKey, count }) => ({
         city,
@@ -610,7 +611,7 @@ export async function loadDiscoverFacets(): Promise<DiscoverFacets> {
       .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
     categories: Array.from(categoryCounts.entries())
       .map(([value, { label, count }]) => ({ value, label, count }))
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+      .sort((a, b) => b.count - a.count || byLabel(a, b)),
   };
 }
 

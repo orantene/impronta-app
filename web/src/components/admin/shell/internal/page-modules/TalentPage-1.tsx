@@ -13,6 +13,7 @@ import { FabWithQuickCreate } from "./InboxPage";
 import { FilterChip, RosterGrid, RosterMoreMenu, SortButton, ViewToggle } from "./TalentPage-2";
 import { RosterBulkActionBar, RosterEmptyState, RosterList } from "./TalentPage-3";
 import { Grid, PageHeader } from "./pages-shared";
+import { byName } from "@/lib/field-engine/sort-comparators";
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -96,7 +97,7 @@ export function TalentPage() {
     })
     .sort((a, b) => {
       let r = 0;
-      if (sort === "name") r = a.name.localeCompare(b.name);
+      if (sort === "name") r = byName(a, b);
       else if (sort === "completeness") r = (a.completeness ?? 0) - (b.completeness ?? 0);
       else if (sort === "newest") {
         const ta = a.createdAt ? Date.parse(a.createdAt) : 0;

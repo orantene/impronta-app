@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { commitDirectoryListingUrl } from "@/lib/directory/directory-url-navigation";
 import { humanizeEnumLabel } from "@/lib/directory/humanize-enum-label";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 function pillLabel(label: string): string {
   const t = label.trim();
@@ -70,7 +71,7 @@ export function DirectoryTalentTypeBar({
       const ca = a.count ?? 0;
       const cb = b.count ?? 0;
       if (cb !== ca) return cb - ca;
-      return a.label.localeCompare(b.label);
+      return byLabel(a, b);
     });
   }, [options]);
 

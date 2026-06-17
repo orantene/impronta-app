@@ -12,6 +12,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 import type { PlatformUserMembership } from "./platform-data";
+import { byName } from "@/lib/field-engine/sort-comparators";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -264,7 +265,7 @@ export async function loadPlatformPeopleFederated(): Promise<PlatformUserRow[]> 
     );
     ms.sort((a, b) => {
       const cmp = (roleRank[a.role] ?? 9) - (roleRank[b.role] ?? 9);
-      return cmp !== 0 ? cmp : a.name.localeCompare(b.name);
+      return cmp !== 0 ? cmp : byName(a, b);
     });
     const claimedTalent = talentByUserId[r.id] ?? null;
     return {
