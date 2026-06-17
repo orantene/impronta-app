@@ -23,6 +23,13 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { contactFormSchemaV1 } from "@/lib/site-admin/sections/contact_form/schema";
+
+/**
+ * FORMS-1 — hard cap for file-size metadata enforcement.
+ * No raw binary upload (Supabase free tier); we only record file name/size.
+ */
+const FILE_MAX_SIZE_MB_HARD_CAP = 10;
 
 export const runtime = "nodejs";
 
@@ -102,7 +109,7 @@ export async function POST(req: Request) {
   // and be active.
   const { data: section } = await admin
     .from("cms_sections")
-    .select("id, tenant_id, name, section_type_key, archived_at")
+    .select("id, tenant_id, name, section_type_key, archived_at, props_jsonb")
     .eq("id", sectionId)
     .maybeSingle();
   if (!section || section.archived_at) {
@@ -119,6 +126,121 @@ export async function POST(req: Request) {
     typeof honeypotValue === "string" && honeypotValue.trim().length > 0;
   if (tripped) {
     delete payload[honeypotField];
+  }
+
+  // ── FORMS-1 — server-side field-type validation ──────────────────────────
+  // Parse the section's saved props to discover field schema (type, required,
+  // bounds). This lets us enforce consent + number coercion + file metadata
+  // SERVER-SIDE — client-only required attributes are bypassable by bots.
+  // Falls back gracefully (no 500) when props are absent or not a contact_form.
+  if (!tripped && section.section_type_key === "contact_form") {
+    const parsedProps = contactFormSchemaV1.safeParse(
+      section.props_jsonb ?? {},
+    );
+    if (parsedProps.success) {
+      for (const field of parsedProps.data.fields) {
+        const rawValue = payload[field.name];
+
+        // consent — always required (server-enforced regardless of `required` flag).
+        if (field.type === "consent") {
+          const val = typeof rawValue === "string" ? rawValue.toLowerCase() : "";
+          if (val !== "on" && val !== "true" && val !== "1" && val !== "yes") {
+            return NextResponse.json(
+              { ok: false, error: "Consent is required." },
+              { status: 400 },
+            );
+          }
+          // Normalise to a boolean-like string in the stored payload.
+          payload[field.name] = "true";
+          continue;
+        }
+
+        // checkbox — if required, must be checked.
+        if (field.type === "checkbox" && field.required) {
+          const val = typeof rawValue === "string" ? rawValue.toLowerCase() : "";
+          if (val !== "on" && val !== "true" && val !== "1" && val !== "yes") {
+            return NextResponse.json(
+              { ok: false, error: `Field "${field.label}" is required.` },
+              { status: 400 },
+            );
+          }
+          payload[field.name] = "true";
+          continue;
+        }
+
+        // number — coerce string to number and apply min/max bounds.
+        if (field.type === "number") {
+          const raw = typeof rawValue === "string" ? rawValue : String(rawValue ?? "");
+          const coerced = Number(raw);
+          if (!raw || Number.isNaN(coerced)) {
+            if (field.required) {
+              return NextResponse.json(
+                { ok: false, error: `Field "${field.label}" must be a number.` },
+                { status: 400 },
+              );
+            }
+            // Optional number with no value — leave absent.
+            delete payload[field.name];
+            continue;
+          }
+          if (typeof field.numberMin === "number" && coerced < field.numberMin) {
+            return NextResponse.json(
+              {
+                ok: false,
+                error: `Field "${field.label}" must be at least ${field.numberMin}.`,
+              },
+              { status: 400 },
+            );
+          }
+          if (typeof field.numberMax === "number" && coerced > field.numberMax) {
+            return NextResponse.json(
+              {
+                ok: false,
+                error: `Field "${field.label}" must be at most ${field.numberMax}.`,
+              },
+              { status: 400 },
+            );
+          }
+          payload[field.name] = coerced;
+          continue;
+        }
+
+        // file — FormData sends a File object; we captured `v.name` for string
+        // fields already (see FormData parse above). For file inputs the payload
+        // already holds the filename string (from the `else payload[k] = ... v.name`
+        // branch). Enforce the hard-cap metadata check.
+        if (field.type === "file") {
+          const maxMb = Math.min(
+            typeof field.fileMaxSizeMb === "number" ? field.fileMaxSizeMb : 5,
+            FILE_MAX_SIZE_MB_HARD_CAP,
+          );
+          // The client sends size as a separate hidden field
+          // `__tulala_file_size_<name>` (injected by the inline script in
+          // Component.tsx) — only present if the client cooperates, so this is
+          // a best-effort server guard on top of the client size guard.
+          const sizeKey = `__tulala_file_size_${field.name}`;
+          const sizeRaw = payload[sizeKey];
+          delete payload[sizeKey]; // never store internal keys in payload_jsonb
+          if (typeof sizeRaw === "string") {
+            const sizeBytes = Number(sizeRaw);
+            if (!Number.isNaN(sizeBytes) && sizeBytes > maxMb * 1024 * 1024) {
+              return NextResponse.json(
+                {
+                  ok: false,
+                  error: `File for "${field.label}" exceeds the ${maxMb} MB limit.`,
+                },
+                { status: 400 },
+              );
+            }
+          }
+          // We do NOT accept raw binary data — only the filename string (already
+          // captured from FormData's `v.name`). No Supabase storage write.
+          continue;
+        }
+      }
+    }
+    // If the schema parse fails (malformed props), we degrade gracefully —
+    // continue with the existing spam-protection-only path; don't 500.
   }
 
   // Phase 8 — captcha validation. Caller can include `h-captcha-response`

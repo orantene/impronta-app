@@ -860,3 +860,124 @@ test("site footer schema accepts brand label/tagline nodePresentation", () => {
   });
   assert.equal(result.success, true);
 });
+
+// ── FORMS-1 — rich field types + consent ────────────────────────────────────
+
+test("FORMS-1: contact form schema accepts all new rich field types", () => {
+  const result = contactFormSchemaV1.safeParse({
+    action: "internal",
+    fields: [
+      { name: "start_date", label: "Start date", type: "date", required: true },
+      { name: "guest_count", label: "Guest count", type: "number", required: false, numberMin: 1, numberMax: 5000 },
+      { name: "brief_file", label: "Creative brief", type: "file", required: false, fileAccept: ".pdf,image/*", fileMaxSizeMb: 8 },
+      { name: "newsletter", label: "Subscribe to updates", type: "checkbox", required: false },
+      { name: "gdpr", label: "GDPR consent", type: "consent", required: true, consentText: "I agree to the privacy policy." },
+    ],
+  });
+  assert.equal(result.success, true, JSON.stringify(result));
+});
+
+test("FORMS-1: contact form schema accepts consent field with consentText", () => {
+  const result = contactFormSchemaV1.safeParse({
+    action: "internal",
+    fields: [
+      { name: "name", label: "Name", type: "text", required: true },
+      { name: "terms", label: "Terms", type: "consent", consentText: "I accept the terms of service and privacy policy." },
+    ],
+  });
+  assert.equal(result.success, true, JSON.stringify(result));
+  if (result.success) {
+    const consentField = result.data.fields.find((f) => f.name === "terms");
+    assert.equal(consentField?.type, "consent");
+    assert.equal(consentField?.consentText, "I accept the terms of service and privacy policy.");
+  }
+});
+
+test("FORMS-1: contact form schema accepts number bounds", () => {
+  const result = contactFormSchemaV1.safeParse({
+    action: "internal",
+    fields: [
+      { name: "budget", label: "Budget", type: "number", required: true, numberMin: 500, numberMax: 100000 },
+    ],
+  });
+  assert.equal(result.success, true, JSON.stringify(result));
+  if (result.success) {
+    const f = result.data.fields[0];
+    assert.equal(f?.type, "number");
+    assert.equal(f?.numberMin, 500);
+    assert.equal(f?.numberMax, 100000);
+  }
+});
+
+test("FORMS-1: contact form schema accepts file bounds (accept + maxSizeMb)", () => {
+  const result = contactFormSchemaV1.safeParse({
+    action: "internal",
+    fields: [
+      { name: "portfolio", label: "Portfolio", type: "file", fileAccept: ".pdf,.doc,.docx,image/*", fileMaxSizeMb: 5 },
+    ],
+  });
+  assert.equal(result.success, true, JSON.stringify(result));
+  if (result.success) {
+    const f = result.data.fields[0];
+    assert.equal(f?.type, "file");
+    assert.equal(f?.fileAccept, ".pdf,.doc,.docx,image/*");
+    assert.equal(f?.fileMaxSizeMb, 5);
+  }
+});
+
+test("FORMS-1: contact form schema — fileMaxSizeMb hard-cap enforced at schema level (max 10)", () => {
+  const result = contactFormSchemaV1.safeParse({
+    action: "internal",
+    fields: [
+      { name: "video", label: "Video", type: "file", fileMaxSizeMb: 999 },
+    ],
+  });
+  // Should fail: 999 > 10 (schema max)
+  assert.equal(result.success, false);
+});
+
+test("FORMS-1: legacy text-only contact form still validates unchanged (backward compat)", () => {
+  const result = contactFormSchemaV1.safeParse({
+    action: "/api/cms/forms/submit",
+    fields: [
+      { name: "name", label: "Name", type: "text", required: true },
+      { name: "email", label: "Email", type: "email", required: true },
+      { name: "message", label: "Message", type: "textarea" },
+    ],
+  });
+  assert.equal(result.success, true, JSON.stringify(result));
+});
+
+test("FORMS-1: legacy form with select field still validates unchanged (backward compat)", () => {
+  const result = contactFormSchemaV1.safeParse({
+    action: "internal",
+    fields: [
+      { name: "service", label: "Service", type: "select", options: "Photography\nVideo\nBoth", required: true },
+      { name: "phone", label: "Phone", type: "tel" },
+    ],
+  });
+  assert.equal(result.success, true, JSON.stringify(result));
+});
+
+test("FORMS-1: contact form schema rejects unknown field types", () => {
+  const result = contactFormSchemaV1.safeParse({
+    action: "internal",
+    fields: [
+      { name: "foo", label: "Foo", type: "color" }, // not in enum
+    ],
+  });
+  assert.equal(result.success, false);
+});
+
+test("FORMS-1: contact form schema accepts date field", () => {
+  const result = contactFormSchemaV1.safeParse({
+    action: "internal",
+    fields: [
+      { name: "event_date", label: "Event date", type: "date", required: true },
+    ],
+  });
+  assert.equal(result.success, true, JSON.stringify(result));
+  if (result.success) {
+    assert.equal(result.data.fields[0]?.type, "date");
+  }
+});
