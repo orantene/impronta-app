@@ -35,11 +35,16 @@ import {
   uploadMaxSiteLogoAction,
   removeMaxSiteLogoAction,
   publishMaxSiteAction,
+  applyMaxSiteTemplateAction,
 } from "@/lib/talent-site/server/site-management-actions";
 import type {
   MaxSiteManagerState,
   MaxSiteManagerPage,
 } from "@/lib/talent-site/server/site-management-types";
+import {
+  listMaxSiteTemplateSummaries,
+  type MaxSiteTemplateSummary,
+} from "@/lib/talent-site/max-site-templates/registry";
 import { TalentSiteDomainPanel } from "@/components/talent/site/TalentSiteDomainPanel";
 
 type Props = { locale?: "en" | "es" };
@@ -187,6 +192,9 @@ function ManagerBody({ state, onReload }: { state: MaxSiteManagerState; onReload
           <p style={{ margin: "10px 0 0", fontSize: 12, color: COLORS.criticalDeep }}>{actionError}</p>
         ) : null}
       </Card>
+
+      {/* Starter template gallery */}
+      <TemplateGallery pending={pending} run={run} />
 
       {/* Site address (slug) */}
       <SlugEditor state={state} onSaved={onReload} />
@@ -443,6 +451,174 @@ function PagesPanel({
         )}
       </div>
     </Card>
+  );
+}
+
+// ── Starter template gallery ─────────────────────────────────────────────────
+
+/**
+ * "Choose a starter template" gallery. Each card previews a named freeform
+ * starter (label + emphasis + description). Applying REPLACES the current DRAFT
+ * shell + draft home page with the chosen template — pre-filled with the talent's
+ * own data — and is confirmed first. It does NOT publish (a clear note says to
+ * publish to go live).
+ */
+function TemplateGallery({
+  pending,
+  run,
+}: {
+  pending: boolean;
+  run: (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
+}) {
+  const templates = listMaxSiteTemplateSummaries();
+  const [applyingKey, setApplyingKey] = useState<string | null>(null);
+
+  function apply(t: MaxSiteTemplateSummary) {
+    if (
+      !window.confirm(
+        `Apply the "${t.label}" starter? This replaces your current draft home page and site shell with this layout, pre-filled with your details. Your published site is not changed until you publish.`,
+      )
+    ) {
+      return;
+    }
+    setApplyingKey(t.key);
+    run(() => applyMaxSiteTemplateAction({ templateKey: t.key }));
+  }
+
+  return (
+    <Card>
+      <div style={sectionLabel}>Choose a starter template</div>
+      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5, maxWidth: 560 }}>
+        Pick a layout to start from. We&rsquo;ll fill it with your name, photo, bio and services. This
+        replaces your current <strong>draft</strong> home page and shell — publish when you&rsquo;re ready to go live.
+      </p>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+          gap: 10,
+        }}
+      >
+        {templates.map((t) => (
+          <div
+            key={t.key}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              padding: "12px 13px",
+              background: COLORS.surfaceAlt,
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 12,
+            }}
+          >
+            <TemplateThumb templateKey={t.key} />
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{t.label}</span>
+              {t.key === "default" ? <Pill tone="indigo">Default</Pill> : null}
+            </div>
+            <span style={{ fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 600, letterSpacing: 0.2 }}>
+              {t.emphasis}
+            </span>
+            <p style={{ margin: "0 0 8px", fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+              {t.description}
+            </p>
+            <button
+              type="button"
+              onClick={() => apply(t)}
+              disabled={pending}
+              style={{ ...miniBtn, alignSelf: "flex-start", marginTop: "auto" }}
+            >
+              {pending && applyingKey === t.key ? "Applying…" : "Apply"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * A tiny CSS-only wireframe thumbnail hinting at each template's layout (split /
+ * centered / cover / gallery-first). Purely decorative — no images to load.
+ */
+function TemplateThumb({ templateKey }: { templateKey: string }) {
+  const bar = (w: string, h = 6, bg = COLORS.border) =>
+    ({ width: w, height: h, borderRadius: 3, background: bg }) as React.CSSProperties;
+  const tile = (bg = COLORS.border) =>
+    ({ flex: 1, borderRadius: 3, background: bg }) as React.CSSProperties;
+
+  let inner: React.ReactNode;
+  if (templateKey === "minimal") {
+    inner = (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: 8 }}>
+        <div style={bar("60%", 8)} />
+        <div style={bar("40%")} />
+        <div style={{ display: "flex", gap: 4, width: "100%", marginTop: 4 }}>
+          <div style={tile()} />
+          <div style={tile()} />
+        </div>
+      </div>
+    );
+  } else if (templateKey === "bold") {
+    inner = (
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 4, padding: 8, height: "100%", background: "linear-gradient(180deg, #3a3a3a, #111)" }}>
+        <div style={bar("55%", 8, "#f4d58d")} />
+        <div style={bar("35%", 5, "rgba(255,255,255,0.55)")} />
+      </div>
+    );
+  } else if (templateKey === "portfolio") {
+    inner = (
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: 8 }}>
+        <div style={bar("45%", 7)} />
+        <div style={{ display: "flex", gap: 4, height: 22 }}>
+          <div style={tile()} />
+          <div style={tile()} />
+          <div style={tile()} />
+        </div>
+      </div>
+    );
+  } else if (templateKey === "editorial") {
+    inner = (
+      <div style={{ display: "flex", gap: 6, padding: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 0 38%" }}>
+          <div style={bar("100%", 7)} />
+          <div style={bar("80%")} />
+          <div style={bar("60%")} />
+        </div>
+        <div style={{ ...tile(), borderRadius: 4 }} />
+      </div>
+    );
+  } else {
+    // default — split hero
+    inner = (
+      <div style={{ display: "flex", gap: 6, padding: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+          <div style={bar("90%", 7)} />
+          <div style={bar("70%")} />
+          <div style={{ display: "flex", gap: 3 }}>
+            <div style={bar("24%", 5)} />
+            <div style={bar("24%", 5)} />
+          </div>
+        </div>
+        <div style={{ ...tile(), borderRadius: 4 }} />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      aria-hidden
+      style={{
+        height: 64,
+        borderRadius: 8,
+        border: `1px solid ${COLORS.borderSoft}`,
+        background: "#fff",
+        overflow: "hidden",
+      }}
+    >
+      {inner}
+    </div>
   );
 }
 
