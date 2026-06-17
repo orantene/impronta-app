@@ -137,6 +137,17 @@ export function assertTalentCanSaveComposition(planKey: string): boolean {
   return assertTalentCanUseCustomBuilder(planKey);
 }
 
+/**
+ * Max-only — connect / verify / manage a custom domain for the personal Max
+ * site. Mirrors the agency "manage custom domains" gate. The DB RLS on
+ * `talent_site_domains` re-enforces the same Max requirement, so this is the
+ * outer (UX-facing) half of a defense-in-depth pair.
+ */
+export function assertTalentCanConnectCustomDomain(planKey: string): boolean {
+  if (siteExpansionBlocked(planKey)) return false;
+  return talentPlanGrantsAccessCapability(planKey, "talent.page.connect_custom_domain");
+}
+
 export function assertTemplateAllowedForPlan(
   planKey: string,
   templateKey: TalentSiteTemplateKey,

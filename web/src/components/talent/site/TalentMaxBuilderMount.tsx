@@ -30,6 +30,8 @@ import { createBoundTalentPageAdapter } from "@/lib/site-admin/builder-core/adap
 import { CHROME } from "@/components/edit-chrome/kit/tokens";
 import { BuilderMediaScopeProvider } from "@/components/edit-chrome/builder-media-scope";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
+import { TalentBuilderPageSwitcher } from "./TalentBuilderPageSwitcher";
 
 export interface TalentMaxBuilderMountProps {
   /**
@@ -56,6 +58,12 @@ export interface TalentMaxBuilderMountProps {
   onExit?: () => void;
   /** Server-assembled in-editor canvas render data (data sources + islands). */
   canvasRenderData?: InEditorCanvasRenderData | null;
+  /**
+   * The site's pages — when provided, the exit bar renders the multi-page
+   * switcher (switch page / add page / jump to shell or manager). Omitted on the
+   * legacy single-page entry, which keeps the plain display-name chip.
+   */
+  sitePages?: MaxSiteManagerPage[];
 }
 
 export function TalentMaxBuilderMount({
@@ -68,6 +76,7 @@ export function TalentMaxBuilderMount({
   locale,
   onExit,
   canvasRenderData = null,
+  sitePages,
 }: TalentMaxBuilderMountProps) {
   // Create a per-mount adapter with talentProfileId in closure.
   // Config rebuilds on talentProfileId or tier change.
@@ -117,31 +126,35 @@ export function TalentMaxBuilderMount({
           >
             ← Exit editor
           </button>
-          {talentDisplayName && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 7,
-                padding: "3px 10px",
-                borderRadius: 999,
-                background: CHROME.greenBg,
-                color: CHROME.green,
-                fontSize: 11.5,
-                fontWeight: 600,
-              }}
-            >
+          {sitePages ? (
+            <TalentBuilderPageSwitcher pages={sitePages} currentSlug={pageSlug} />
+          ) : (
+            talentDisplayName && (
               <span
-                aria-hidden
                 style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: CHROME.green,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  background: CHROME.greenBg,
+                  color: CHROME.green,
+                  fontSize: 11.5,
+                  fontWeight: 600,
                 }}
-              />
-              {talentDisplayName}
-            </span>
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: CHROME.green,
+                  }}
+                />
+                {talentDisplayName}
+              </span>
+            )
           )}
         </div>
       )}

@@ -15,8 +15,10 @@ import Link from "next/link";
 import { useCallback } from "react";
 
 import { TalentMaxBuilderMount } from "./TalentMaxBuilderMount";
+import { TalentSiteShellBuilderMount } from "./TalentSiteShellBuilderMount";
 import { CHROME } from "@/components/edit-chrome/kit/tokens";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 
 type Props = {
   talentProfileId: string;
@@ -30,6 +32,10 @@ type Props = {
   locale?: string;
   /** Server-assembled in-editor canvas render data (data sources + islands). */
   canvasRenderData?: InEditorCanvasRenderData | null;
+  /** When true, edit the SITE SHELL (header/logo/footer) instead of a page. */
+  shellMode?: boolean;
+  /** The site's pages — powers the in-editor page switcher. */
+  sitePages?: MaxSiteManagerPage[];
 };
 
 const MAX_PLAN_KEY = "talent_portfolio";
@@ -43,12 +49,14 @@ export function TalentPageBuilderScreen({
   talentDisplayName,
   locale,
   canvasRenderData = null,
+  shellMode = false,
+  sitePages,
 }: Props) {
   const router = useRouter();
 
   const handleExit = useCallback(() => {
     // Back to the talent "My site" dashboard surface.
-    router.push("/talent/public-page");
+    router.push("/talent/site");
   }, [router]);
 
   const isMax = talentPlanKey === MAX_PLAN_KEY || talentTier === "max";
@@ -172,16 +180,28 @@ export function TalentPageBuilderScreen({
       // gap / behind the chrome. Was the legacy dark #0E0E11.
       style={{ minHeight: "100vh", background: CHROME.canvasWorkspace }}
     >
-      <TalentMaxBuilderMount
-        talentProfileId={talentProfileId}
-        pageSlug={pageSlug}
-        tenantId={tenantId}
-        talentTier={talentPlanKey}
-        talentDisplayName={talentDisplayName}
-        locale={locale}
-        onExit={handleExit}
-        canvasRenderData={canvasRenderData}
-      />
+      {shellMode ? (
+        <TalentSiteShellBuilderMount
+          talentProfileId={talentProfileId}
+          tenantId={tenantId}
+          talentDisplayName={talentDisplayName}
+          locale={locale}
+          onExit={handleExit}
+          sitePages={sitePages}
+        />
+      ) : (
+        <TalentMaxBuilderMount
+          talentProfileId={talentProfileId}
+          pageSlug={pageSlug}
+          tenantId={tenantId}
+          talentTier={talentPlanKey}
+          talentDisplayName={talentDisplayName}
+          locale={locale}
+          onExit={handleExit}
+          canvasRenderData={canvasRenderData}
+          sitePages={sitePages}
+        />
+      )}
     </div>
   );
 }

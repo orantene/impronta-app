@@ -1,18 +1,21 @@
 /**
- * Talent freeform Page Builder — Max-tier-gated editor entry.
+ * Talent freeform Page Builder — Max-tier-gated editor entry (multi-page).
  *
  * Route: `/talent/page-builder` (app host). Resolves the signed-in talent's own
  * `talent_profiles.id`, plan key / tier, and managing agency `tenantId`
- * server-side, then mounts the ONE Page Builder Core (`TalentMaxBuilderMount`)
- * which persists to `talent_pages.blocks` via the talent-page adapter.
+ * server-side, then mounts the ONE Page Builder Core which persists to
+ * `talent_pages.blocks` (a page) or `talent_sites.shell_tree` (the shell).
+ *
+ * Query params (multi-page):
+ *   - `?page=<slug>`  — edit that page's blocks (default = the home page).
+ *   - `?shell=1`      — edit the SITE SHELL (header/logo/footer) instead.
  *
  * Gating (§E): ONLY talents on the Max tier (`talent_plan_key='talent_portfolio'`)
- * may reach the editor. A non-Max talent gets an upsell notice (not a 404 — they
- * should learn the feature exists + how to unlock it). An anonymous / non-talent
- * user is redirected to login by the talent layout's session guard.
+ * reach the editor. A non-Max talent gets an upsell (not a 404). An anonymous /
+ * non-talent user is redirected to login by the talent layout's session guard.
  *
- * The talent layout (`(workspace)/talent/layout.tsx`) renders this route bare
- * (no dashboard shell) so the editor owns the full viewport.
+ * The talent layout renders this route bare (no dashboard shell) so the editor
+ * owns the full viewport.
  */
 
 import { redirect } from "next/navigation";
@@ -26,34 +29,63 @@ import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { readTalentDesignSlice } from "@/lib/site-admin/edit-mode/talent-design-store";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
+import { provisionTalentMaxSite } from "@/lib/talent-site/server/provision-max-site";
+import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 import { TalentPageBuilderScreen } from "@/components/talent/site/TalentPageBuilderScreen";
 
 export const dynamic = "force-dynamic";
 
-/** The talent_pages slug this editor manages. One freeform page per talent for now. */
-const TALENT_PAGE_SLUG = "home";
+const HOME_FALLBACK_SLUG = "home";
 
-export default async function TalentPageBuilderRoute() {
+const PAGE_COLUMNS =
+  "id, slug, title, nav_label, status, is_home, sort_order, published_at, updated_at";
+
+function mapPage(p: Record<string, unknown>): MaxSiteManagerPage {
+  return {
+    id: p.id as string,
+    slug: p.slug as string,
+    title: p.title as string,
+    navLabel: (p.nav_label as string | null) ?? null,
+    status: p.status as string,
+    isHome: Boolean(p.is_home),
+    sortOrder: (p.sort_order as number) ?? 0,
+    publishedAt: (p.published_at as string | null) ?? null,
+    updatedAt: p.updated_at as string,
+  };
+}
+
+export default async function TalentPageBuilderRoute({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await getCachedActorSession();
-  // The talent layout already redirects unauthenticated users; this is a
-  // defensive backstop so the page never renders without a user.
   if (!session.supabase || !session.user) {
     redirect("/login?next=/talent/page-builder");
   }
 
   const profile = await loadTalentSelfProfileByUser(session.user.id);
-  // No talent profile for this user → send them home rather than 500.
   if (!profile) {
     redirect("/talent/today");
   }
 
+  const sp = (await searchParams) ?? {};
+  const shellMode = sp.shell === "1" || sp.shell === "true";
+  const requestedPage = typeof sp.page === "string" ? sp.page : null;
+
   const locale = await getRequestLocale();
 
+  const isMax = profile.talentPlanKey === "talent_portfolio" || profile.talentTier === "max";
+
+  // Provision the Max site (idempotent) so the page-set + shell exist before we
+  // load them. Non-Max talents skip this — the screen renders the upsell.
+  if (isMax) {
+    await provisionTalentMaxSite(profile.id, session.user.id);
+  }
+
   // Resolve the managing agency tenant for builder scope + the in-editor
-  // section-embed preview. Prefer the active agency context (the scope the
-  // dashboard uses); fall back to the profile's owning agency
-  // (`created_by_agency_id`) so the editor's section-embed preview matches the
-  // PUBLISHED renderer, which scopes embeds to that same tenant.
+  // section-embed preview (prefer the active agency context; fall back to the
+  // profile's owning agency).
   const activeAgency = await getActiveTalentAgencyContext(profile.id);
   let tenantId = activeAgency?.tenantId ?? null;
   if (!tenantId) {
@@ -70,15 +102,32 @@ export default async function TalentPageBuilderRoute() {
     }
   }
 
-  // Prime the in-editor canvas: assemble data sources + section_embed islands +
-  // component-style defaults for the talent's CURRENT draft blocks, scoped to
-  // the talent preview subject. The editor's adapter loads/republishes the
-  // canonical draft client-side (which repaints the canvas via the bridge); this
-  // server-built render data makes the FIRST paint correct (data-bound +
-  // section_embed nodes) instead of empty. Best-effort — on any failure the
-  // canvas mounts against empty inputs and still paints live inserts.
+  // Load the site's pages (for the switcher + to resolve the active page slug).
+  let sitePages: MaxSiteManagerPage[] = [];
+  if (isMax) {
+    const admin = createServiceRoleClient();
+    if (admin) {
+      const { data } = await admin
+        .from("talent_pages")
+        .select(PAGE_COLUMNS)
+        .eq("talent_profile_id", profile.id)
+        .order("sort_order", { ascending: true });
+      sitePages = ((data ?? []) as Array<Record<string, unknown>>).map(mapPage);
+    }
+  }
+
+  // Resolve the page slug being edited: explicit `?page=`, else the home page,
+  // else the first page, else the legacy "home" slug.
+  const homePage = sitePages.find((p) => p.isHome) ?? sitePages[0] ?? null;
+  const activeSlug =
+    requestedPage && sitePages.some((p) => p.slug === requestedPage)
+      ? requestedPage
+      : homePage?.slug ?? HOME_FALLBACK_SLUG;
+
+  // Prime the in-editor canvas for the active PAGE (not the shell — the shell
+  // surface paints from its own load). Best-effort.
   let canvasRenderData = null;
-  if (tenantId) {
+  if (isMax && !shellMode && tenantId) {
     try {
       const admin = createServiceRoleClient();
       let draftTree: BuilderNodeTree = [];
@@ -89,27 +138,18 @@ export default async function TalentPageBuilderRoute() {
           .from("talent_pages")
           .select("blocks, theme")
           .eq("talent_profile_id", profile.id)
-          .eq("slug", TALENT_PAGE_SLUG)
+          .eq("slug", activeSlug)
           .maybeSingle();
         const row = pageRow as { blocks: BuilderNodeTree | null; theme: unknown } | null;
         draftTree = (row?.blocks ?? []) as BuilderNodeTree;
-        // First paint uses the talent's PUBLISHED theme (component-style defaults
-        // + design tokens) so the canvas reflects the talent's theme, not the host
-        // tenant's. The Theme drawer previews the DRAFT live on top of this.
         const slice = readTalentDesignSlice(row?.theme);
-        // A talent with NO theme of their own inherits the PLATFORM DEFAULT
-        // (Modern 2026) — NOT the host tenant's (e.g. Impronta's black/gold)
-        // component styles, which would render white-on-white buttons on the
-        // new light canvas. Operator overrides (a non-empty slice) win.
         const platformDefault = await loadPlatformDefaultTheme("talent");
         talentComponentStyleDefaults =
           Object.keys(slice.componentStyles).length > 0
             ? slice.componentStyles
             : platformDefault.componentStyles;
         talentDesignTokens =
-          Object.keys(slice.tokens).length > 0
-            ? slice.tokens
-            : platformDefault.tokens;
+          Object.keys(slice.tokens).length > 0 ? slice.tokens : platformDefault.tokens;
       }
       canvasRenderData = await buildInEditorCanvasRenderData({
         tree: draftTree,
@@ -127,13 +167,15 @@ export default async function TalentPageBuilderRoute() {
   return (
     <TalentPageBuilderScreen
       talentProfileId={profile.id}
-      pageSlug={TALENT_PAGE_SLUG}
+      pageSlug={activeSlug}
       tenantId={tenantId ?? ""}
       talentPlanKey={profile.talentPlanKey}
       talentTier={profile.talentTier}
       talentDisplayName={profile.displayName}
       locale={locale}
       canvasRenderData={canvasRenderData}
+      shellMode={shellMode}
+      sitePages={sitePages}
     />
   );
 }

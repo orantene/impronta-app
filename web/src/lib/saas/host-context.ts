@@ -49,6 +49,16 @@ export type HostContext =
        */
       tenantSlug: string;
     }
+  // A custom domain pointed at a talent's published Max site. Resolved via the
+  // `talent_site_domain_lookup` RPC only AFTER `agency_domains` misses, so an
+  // agency host always wins. Carries the talent_profile_id; the root render
+  // (`app/page.tsx`) calls `renderTalentMaxSite({ talentProfileId })`.
+  | {
+      kind: "talent_site";
+      tenantId: null;
+      hostname: string;
+      talentProfileId: string;
+    }
   | { kind: "not_found"; tenantId: null; hostname: string };
 
 type CacheEntry = { value: HostContext; expiresAt: number };
@@ -175,11 +185,20 @@ export async function resolveTenantContext(
 
   let value: HostContext;
   if (error || !data) {
-    // `next dev` + Playwright use `localhost` / `127.0.0.1` (see
-    // `20260922100000_agency_domains_localhost_app_dev.sql`). Until that row
-    // exists on a linked DB, treat loopback as `app` in development only so
-    // `proxy.ts` path-based tenant dispatch (`/impronta`, …) can run.
-    if (
+    // The host is not a registered `agency_domains` host. Before failing to
+    // `not_found`, check whether it is a talent's ACTIVE custom domain. This is
+    // strictly a second resolver — an agency host always resolves above first,
+    // so a talent domain can never shadow an agency host. Degrade-safe: any RPC
+    // error / empty result / malformed row falls through to the existing
+    // not_found (or dev-localhost) behavior. NEVER mis-serves another tenant.
+    const talentSite = await resolveTalentSiteContext(supabase, hostname);
+    if (talentSite) {
+      value = talentSite;
+    } else if (
+      // `next dev` + Playwright use `localhost` / `127.0.0.1` (see
+      // `20260922100000_agency_domains_localhost_app_dev.sql`). Until that row
+      // exists on a linked DB, treat loopback as `app` in development only so
+      // `proxy.ts` path-based tenant dispatch (`/impronta`, …) can run.
       process.env.NODE_ENV === "development" &&
       (hostname === "localhost" || hostname === "127.0.0.1")
     ) {
@@ -251,6 +270,48 @@ export async function resolveTenantContext(
 
   cacheSet(hostname, value);
   return value;
+}
+
+export type TalentSiteEdgeClient = {
+  rpc: (
+    fn: "talent_site_domain_lookup",
+    args: { p_host: string },
+  ) => PromiseLike<{
+    data:
+      | Array<{ talent_profile_id?: string | null }>
+      | { talent_profile_id?: string | null }
+      | null;
+    error: unknown;
+  }>;
+};
+
+/**
+ * Resolve a hostname to a talent custom-domain context via the
+ * `talent_site_domain_lookup` RPC (SECURITY DEFINER). The RPC returns a row
+ * ONLY when the domain is `active`, the talent is not hidden, and the site is
+ * published — so a non-active row, a hidden talent, or an unpublished site all
+ * yield null here and the caller falls through to `not_found`.
+ *
+ * Hardened: the RPC call is wrapped so any throw / error / shape surprise
+ * returns null. A talent domain is NEVER allowed to mis-serve — a null result
+ * is indistinguishable from "host not registered" downstream.
+ */
+export async function resolveTalentSiteContext(
+  supabase: TalentSiteEdgeClient,
+  hostname: string,
+): Promise<Extract<HostContext, { kind: "talent_site" }> | null> {
+  try {
+    const { data, error } = await supabase.rpc("talent_site_domain_lookup", {
+      p_host: hostname,
+    });
+    if (error) return null;
+    const row = Array.isArray(data) ? data[0] : data;
+    const talentProfileId = row?.talent_profile_id;
+    if (!talentProfileId || typeof talentProfileId !== "string") return null;
+    return { kind: "talent_site", tenantId: null, hostname, talentProfileId };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -336,3 +397,11 @@ export const HOST_NAME_HEADER = "x-impronta-host-name";
  * from agency_domains.tenant_slug (denormalized, backfilled from agencies.slug).
  */
 export const HOST_TENANT_SLUG_HEADER = "x-impronta-tenant-slug";
+/**
+ * Talent custom-domain context — carries the resolved talent_profile_id for a
+ * `kind: "talent_site"` host so the root render can call
+ * `renderTalentMaxSite({ talentProfileId })` without re-resolving the host.
+ * Set ONLY for talent_site hosts; stripped on every other context so a client
+ * can never spoof a talent profile id.
+ */
+export const HOST_TALENT_PROFILE_HEADER = "x-impronta-talent-profile";
