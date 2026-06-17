@@ -44,6 +44,9 @@ import {
   type ManagedPage,
 } from "./site-page-management-core";
 import { buildStarterHomePageTree } from "../default-max-site-trees";
+import { isMaxSiteTemplateKey } from "../max-site-templates/registry";
+import type { MaxSiteTemplateKey } from "../max-site-templates/types";
+import { buildAppliedTemplateTrees } from "./apply-template-core";
 import type {
   MaxSiteManagerPage,
   MaxSiteManagerState,
@@ -707,4 +710,87 @@ export async function publishMaxSiteAction(): Promise<
   if (!count) return { ok: false, code: "site_not_found", error: "Site not found." };
 
   return { ok: true, data: { publishedAt: now } };
+}
+
+// ── Apply a starter template ─────────────────────────────────────────────────
+
+/**
+ * APPLY a starter template to the DRAFT site: set `shell_tree` + the home page's
+ * `blocks` from the chosen template key, hydrated with the talent's real profile
+ * data (built + validated in `buildAppliedTemplateTrees`). REPLACES the current
+ * draft shell + draft home; the talent then edits + publishes. Does NOT publish
+ * (never touches `shell_published` / `*_published_at` / page `status`) and never
+ * touches the `/t/<code>` discovery profile. Owner+Max-gated; RLS-backed;
+ * idempotent (re-applying just rewrites the same draft).
+ */
+export async function applyMaxSiteTemplateAction(input: {
+  templateKey: string;
+}): Promise<MaxSiteActionResult<{ templateKey: MaxSiteTemplateKey }>> {
+  const g = await gate();
+  if (!g.ok) return g;
+
+  if (!isMaxSiteTemplateKey(input.templateKey)) {
+    return { ok: false, code: "invalid_input", error: "Unknown template." };
+  }
+  const templateKey = input.templateKey;
+
+  // Ensure the site + home page exist (idempotent) before we overwrite the draft.
+  const provisioned = await provisionTalentMaxSite(g.talentProfileId, g.userId);
+  if (!provisioned.ok) {
+    return { ok: false, code: "server_error", error: provisioned.error };
+  }
+
+  // Build + hydrate + validate both trees off the request path's heavy lifting.
+  const built = await buildAppliedTemplateTrees(
+    g.talentProfileId,
+    g.displayName,
+    templateKey,
+  );
+  if (!built.ok) {
+    return { ok: false, code: "server_error", error: "Could not build that template." };
+  }
+
+  const sb = await getCachedServerSupabase();
+  if (!sb) return { ok: false, code: "server_error", error: "Not configured." };
+
+  const now = new Date().toISOString();
+
+  // 1. Replace the DRAFT shell (shell_tree only — shell_published is untouched).
+  const { error: shellErr, count: shellCount } = await sb
+    .from("talent_sites")
+    .update(
+      {
+        shell_tree: built.shellTree,
+        draft_updated_at: now,
+        updated_at: now,
+        updated_by: g.userId,
+      },
+      { count: "exact" },
+    )
+    .eq("talent_profile_id", g.talentProfileId);
+  if (shellErr) {
+    logServerError("maxSiteManager.applyTemplate.shell", shellErr);
+    return { ok: false, code: "server_error", error: "Could not apply the template shell." };
+  }
+  if (!shellCount) return { ok: false, code: "site_not_found", error: "Site not found." };
+
+  // 2. Replace the DRAFT home page blocks. Target the is_home row; the page
+  //    stays draft (status untouched) so the talent reviews + publishes.
+  const { error: homeErr, count: homeCount } = await sb
+    .from("talent_pages")
+    .update(
+      { blocks: built.homeTree, updated_at: now },
+      { count: "exact" },
+    )
+    .eq("talent_profile_id", g.talentProfileId)
+    .eq("is_home", true);
+  if (homeErr) {
+    logServerError("maxSiteManager.applyTemplate.home", homeErr);
+    return { ok: false, code: "server_error", error: "Could not apply the template home page." };
+  }
+  if (!homeCount) {
+    return { ok: false, code: "page_not_found", error: "Home page not found." };
+  }
+
+  return { ok: true, data: { templateKey } };
 }
