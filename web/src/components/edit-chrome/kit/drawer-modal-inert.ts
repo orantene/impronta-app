@@ -52,19 +52,34 @@ function collectBehindChrome(): HTMLElement[] {
   );
 }
 
+function isInert(node: HTMLElement): boolean {
+  // `inert` is a reflected IDL property in modern browsers; fall back to the
+  // attribute so we read correctly even where the property isn't implemented
+  // (and so a node inerted by other code via the attribute is respected).
+  return node.inert === true || node.hasAttribute("inert");
+}
+
+function setInert(node: HTMLElement, on: boolean): void {
+  // Set BOTH the IDL property (real browsers) and the attribute (CSS `[inert]`
+  // selectors + environments where the property isn't reflected).
+  node.inert = on;
+  if (on) node.setAttribute("inert", "");
+  else node.removeAttribute("inert");
+}
+
 function applyInert(): void {
   for (const node of collectBehindChrome()) {
     // Never re-inert (and never later un-inert) a node that was already inert
     // for some other reason — only own nodes we ourselves flip.
-    if (node.inert) continue;
-    node.inert = true;
+    if (isInert(node)) continue;
+    setInert(node, true);
     ownedNodes.add(node);
   }
 }
 
 function releaseInert(): void {
   for (const node of ownedNodes) {
-    node.inert = false;
+    setInert(node, false);
   }
   ownedNodes.clear();
 }
