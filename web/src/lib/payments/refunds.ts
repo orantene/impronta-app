@@ -127,8 +127,13 @@ async function markBookingRefunded(sb: SupabaseClient, bookingId: string): Promi
  *
  * `refundAmountCents` is THIS refund's own slice (not the cumulative charge
  * total) so additive partials each record only what they refunded.
+ *
+ * Exported (not just module-private) so the event-based dedup contract can be
+ * unit-tested against a recording-fake Supabase without a live DB — the handler
+ * entry points (`handleBookingRefund`) resolve their own service-role client and
+ * are not injectable. See `refunds.test.ts`.
  */
-async function recordPartialRefund(
+export async function recordPartialRefund(
   sb: SupabaseClient,
   transactionId: string,
   refundAmountCents: number,
