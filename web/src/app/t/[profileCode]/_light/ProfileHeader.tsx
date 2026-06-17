@@ -7,6 +7,7 @@
  */
 
 import Image from "next/image";
+import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { DisciplineChips } from "./DisciplineChips";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
@@ -32,6 +33,11 @@ type ProfileHeaderProps = {
   /** Slot: ProfileHubsIndicator — "Also represented on" (passed from page) */
   hubsIndicator: React.ReactNode;
   isFeatured: boolean;
+  /**
+   * Max site URL. Non-null ONLY when the talent is on the Max plan AND has a
+   * published site. When set, renders the "Max" VIP badge + "Visit my site" CTA.
+   */
+  maxSiteUrl?: string | null;
 };
 
 function experienceLine(skill: ResolvedSkill): string | null {
@@ -68,6 +74,7 @@ export function ProfileHeader({
   discoveryCta,
   hubsIndicator,
   isFeatured,
+  maxSiteUrl,
 }: ProfileHeaderProps) {
   const expLine = primarySkill ? experienceLine(primarySkill) : null;
   const initials =
@@ -162,6 +169,38 @@ export function ProfileHeader({
 
             {/* Discipline chips */}
             <DisciplineChips primaryType={primaryType} allTypes={allTalentTypes} />
+
+            {/* Max VIP badge + "Visit my site" CTA — only when Max + published */}
+            {maxSiteUrl ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {/* "Max" VIP pill */}
+                <span
+                  className="plt-mono inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.18em]"
+                  style={{
+                    borderColor: "var(--plt-forest)",
+                    background:
+                      "color-mix(in srgb, var(--plt-forest) 8%, transparent)",
+                    color: "var(--plt-forest)",
+                  }}
+                >
+                  ✦ Max
+                </span>
+                {/* "Visit my site" link */}
+                <Link
+                  href={maxSiteUrl}
+                  className="plt-mono inline-flex items-center gap-1 text-[0.75rem] font-medium underline-offset-2 hover:underline"
+                  style={{ color: "var(--plt-forest)" }}
+                  target={maxSiteUrl.startsWith("http") ? "_blank" : undefined}
+                  rel={
+                    maxSiteUrl.startsWith("http")
+                      ? "noopener noreferrer"
+                      : undefined
+                  }
+                >
+                  Visit my site →
+                </Link>
+              </div>
+            ) : null}
 
             {/* Experience line */}
             {expLine ? (

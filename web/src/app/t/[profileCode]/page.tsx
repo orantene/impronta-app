@@ -101,6 +101,7 @@ import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
+import { loadTalentMaxSiteLink } from "@/lib/talent-site/server/load-max-site-link";
 import { TALENT_SITE_TEMPLATES } from "@/lib/talent-site/templates/registry";
 import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
 import {
@@ -1835,12 +1836,14 @@ export default async function PublicTalentProfilePage({
     hostCtx.tenantId,
   );
   // ── New data: talent skills + availability ─────────────────────────────────
-  const [resolvedSkills, publicAvailability] = pub
+  const [resolvedSkills, publicAvailability, maxSiteLink] = pub
     ? await Promise.all([
         fetchPublicTalentSkills(pub, profile.id),
         fetchPublicAvailability(pub, profile.id),
+        loadTalentMaxSiteLink(profile.id),
       ])
-    : [[] as ResolvedSkill[], { nextAvailableDate: null, availableDaysInNext30: null, availabilityDots14d: null }];
+    : [[] as ResolvedSkill[], { nextAvailableDate: null, availableDaysInNext30: null, availabilityDots14d: null }, null];
+  const maxSiteUrl = maxSiteLink?.url ?? null;
 
   // All talent type labels (primary first for DisciplineChips)
   const allTalentTypes: string[] = [];
@@ -2006,6 +2009,7 @@ export default async function PublicTalentProfilePage({
         languages={languages}
         locale={locale}
         talentPlanKey={profile.talent_plan_key ?? "talent_basic"}
+        maxSiteUrl={maxSiteUrl}
         galleryItems={galleryItems}
         watermarkPreset={watermarkPreset}
         watermarkLogoUrl={watermarkLogoUrl}

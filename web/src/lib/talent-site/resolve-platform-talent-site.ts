@@ -10,6 +10,7 @@ import { loadPlatformDefaultTemplatePointers } from "@/lib/platform/default-temp
 import {
   loadDefaultTalentFreeformContext,
 } from "@/lib/talent-site/server/default-talent-context";
+import { loadTalentMaxSiteLink } from "@/lib/talent-site/server/load-max-site-link";
 
 export type PlatformTalentSiteResolveResult =
   | {
@@ -91,10 +92,12 @@ async function resolveDefaultProfile(
   }
   const ctx = await loadDefaultTalentFreeformContext(talentProfileId);
   if (!ctx) return { kind: "fallback" };
+  const maxSiteLink = await loadTalentMaxSiteLink(talentProfileId);
   const snapshot = await buildDefaultTalentFreeformSnapshot({
     profile: ctx.profile,
     media: ctx.media,
     freeformEnabled,
+    maxSiteUrl: maxSiteLink?.url ?? "",
   });
   if (!snapshot) return { kind: "fallback" };
   return {

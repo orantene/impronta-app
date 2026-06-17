@@ -35,6 +35,7 @@ const TOKENS: TalentProfileTokens = {
     "https://cdn.example/2.jpg",
     "https://cdn.example/3.jpg",
   ],
+  maxSiteUrl: "",
 };
 
 /** Collect EVERY string value reachable in a value (deep — objects + arrays). */
@@ -394,4 +395,70 @@ test("FIX 3 — stripSectionEmbeds drops section_embed nodes (and detects them)"
   const texts: string[] = [];
   for (const node of stripped) collectText(node, texts);
   assert.match(texts.join("\n"), /Keep me/);
+});
+
+// ── Max VIP badge + "Visit my site" CTA ──────────────────────────────────────
+
+/** Find all button nodes (deep) in a tree. */
+function findButtons(node: unknown, out: BuilderNode[]): void {
+  if (!node || typeof node !== "object") return;
+  const n = node as BuilderNode;
+  if (n.kind === "button") out.push(n);
+  if ("children" in n && Array.isArray(n.children)) {
+    for (const c of n.children) findButtons(c, out);
+  }
+}
+
+test("MAX BADGE — badge container present and 'Visit my site' link set when maxSiteUrl supplied", () => {
+  const withMax: TalentProfileTokens = {
+    ...TOKENS,
+    maxSiteUrl: "https://max.example.com",
+  };
+  const hydrated = hydrateTalentTree(buildDefaultTalentProfileTree(), withMax);
+
+  // The "Visit my site" button must survive (non-empty href → not pruned).
+  const buttons: BuilderNode[] = [];
+  for (const node of hydrated) findButtons(node, buttons);
+  const siteBtn = buttons.find((b) =>
+    ((b.props as { href?: string }).href ?? "").includes("max.example.com"),
+  );
+  assert.ok(siteBtn, "Expected a 'Visit my site' button with the maxSiteUrl href");
+  assert.equal(
+    (siteBtn!.props as { href?: string }).href,
+    "https://max.example.com",
+  );
+
+  // The max badge pill text must appear somewhere in the tree.
+  const texts: string[] = [];
+  for (const node of hydrated) collectText(node, texts);
+  assert.ok(
+    texts.some((t) => /max/i.test(t)),
+    "Expected a 'Max' label text in the hydrated tree",
+  );
+});
+
+test("MAX BADGE — badge container pruned when maxSiteUrl is empty (non-Max / unpublished)", () => {
+  const noMax: TalentProfileTokens = { ...TOKENS, maxSiteUrl: "" };
+  const hydrated = hydrateTalentTree(buildDefaultTalentProfileTree(), noMax);
+
+  // No button with an empty href for the site link should survive.
+  const buttons: BuilderNode[] = [];
+  for (const node of hydrated) findButtons(node, buttons);
+  const ghostLink = buttons.find((b) => {
+    const href = (b.props as { href?: string }).href ?? "";
+    return href === "";
+  });
+  assert.equal(
+    ghostLink,
+    undefined,
+    "No button with an empty href should survive when maxSiteUrl is empty",
+  );
+
+  // The 'Visit my site' label must not appear anywhere.
+  const texts: string[] = [];
+  for (const node of hydrated) collectText(node, texts);
+  assert.ok(
+    !texts.some((t) => /visit my site/i.test(t)),
+    "The 'Visit my site' CTA label must be pruned when maxSiteUrl is empty",
+  );
 });

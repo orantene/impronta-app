@@ -67,6 +67,12 @@ export interface TalentProfileTokens {
   service3: string;
   /** Up to six gallery image URLs (absolute); empty strings when fewer. */
   gallery: string[];
+  /**
+   * The talent's published Max site URL. Non-empty ONLY when the talent is on
+   * the Max plan AND has a published site. Empty string "" when absent — the
+   * Max badge / CTA nodes are pruned by `pruneEmptyMaxBadge` when this is "".
+   */
+  maxSiteUrl: string;
 }
 
 const FIELD_TOKEN_RE = /\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
@@ -142,6 +148,7 @@ export function hydrateTalentTree(
     gallery3: talent.gallery[3] ?? "",
     gallery4: talent.gallery[4] ?? "",
     gallery5: talent.gallery[5] ?? "",
+    maxSiteUrl: talent.maxSiteUrl,
   };
 
   const visit = (node: BuilderNode): BuilderNode => {
@@ -161,7 +168,7 @@ export function hydrateTalentTree(
     } as BuilderNode;
   };
 
-  return pruneEmptyServiceCards(tree.map(visit));
+  return pruneEmptyMaxBadge(pruneEmptyServiceCards(tree.map(visit)));
 }
 
 /**
@@ -200,6 +207,42 @@ function pruneEmptyServiceCards(tree: BuilderNode[]): BuilderNode[] {
   const prune = (nodes: BuilderNode[]): BuilderNode[] =>
     nodes
       .filter((n) => !(n.kind === "card" && cardIsEmpty(n)))
+      .map((n) =>
+        "children" in n && Array.isArray(n.children)
+          ? ({ ...n, children: prune(n.children) } as BuilderNode)
+          : n,
+      );
+
+  return prune(tree);
+}
+
+/**
+ * Drop the Max badge container (id `default-talent-max-badge`) when the
+ * `{{maxSiteUrl}}` token resolved to an empty string. This keeps the hero
+ * clean for non-Max talents and talents who haven't published their site yet —
+ * the same empty-prune gate the discipline chips rely on, applied to a single
+ * named container rather than a generic card shape.
+ */
+function pruneEmptyMaxBadge(tree: BuilderNode[]): BuilderNode[] {
+  const MAX_BADGE_ID = "default-talent-max-badge";
+
+  const prune = (nodes: BuilderNode[]): BuilderNode[] =>
+    nodes
+      .filter((n) => {
+        if (n.id !== MAX_BADGE_ID) return true;
+        // Drop the container when the link button inside has an empty href.
+        const hasLink = (node: BuilderNode): boolean => {
+          if (node.kind === "button") {
+            const href = (node.props as { href?: unknown }).href;
+            return typeof href === "string" && href.trim() !== "";
+          }
+          if ("children" in node && Array.isArray(node.children)) {
+            return node.children.some(hasLink);
+          }
+          return false;
+        };
+        return hasLink(n);
+      })
       .map((n) =>
         "children" in n && Array.isArray(n.children)
           ? ({ ...n, children: prune(n.children) } as BuilderNode)
@@ -401,6 +444,64 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
                 disciplineChip("secondary-1", "{{secondaryType1}}"),
                 disciplineChip("secondary-2", "{{secondaryType2}}"),
                 disciplineChip("secondary-3", "{{secondaryType3}}"),
+              ],
+            },
+            // ── MAX BADGE + "Visit my site" CTA ───────────────────────────────
+            // Container id `default-talent-max-badge` is the prune anchor: when
+            // `{{maxSiteUrl}}` resolves to "" the whole container is dropped by
+            // `pruneEmptyMaxBadge` — so non-Max / unpublished talents see nothing.
+            {
+              id: id("max-badge"),
+              kind: "container",
+              props: {
+                layout: "row",
+                gap: "s",
+                align: "center",
+                style: { flexWrap: "wrap", marginTop: "s" },
+              },
+              children: [
+                // "Max" VIP pill — premium visual identity
+                {
+                  id: id("max-badge-pill"),
+                  kind: "card",
+                  props: {
+                    variant: "outline",
+                    style: {
+                      radius: "pill",
+                      paddingX: "s",
+                      paddingY: "s",
+                      backgroundColor:
+                        "color-mix(in srgb, var(--plt-forest) 8%, transparent)",
+                      borderColor: "var(--plt-forest)",
+                    },
+                  },
+                  children: [
+                    {
+                      id: id("max-badge-pill-label"),
+                      kind: "paragraph",
+                      props: {
+                        text: "✦ Max",
+                        style: {
+                          size: "sm",
+                          tone: "muted",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.12em",
+                          textColor: "var(--plt-forest)",
+                        },
+                      },
+                    },
+                  ],
+                },
+                // "Visit my site" CTA linking to the Max site
+                {
+                  id: id("max-badge-site-link"),
+                  kind: "button",
+                  props: {
+                    label: "Visit my site →",
+                    href: "{{maxSiteUrl}}",
+                    tone: "secondary",
+                  },
+                },
               ],
             },
             {
