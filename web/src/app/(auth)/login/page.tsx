@@ -30,9 +30,9 @@ async function loadInviterAgencyName(nextPath: string | undefined): Promise<stri
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; next?: string; email?: string }>;
+  searchParams: Promise<{ error?: string; next?: string; email?: string; reason?: string }>;
 }) {
-  const { error, next, email } = await searchParams;
+  const { error, next, email, reason } = await searchParams;
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
   const nextPath = normalizeOptionalNextPath(next);
@@ -80,6 +80,20 @@ export default async function LoginPage({
             "0 24px 60px -28px rgba(15,23,20,0.32), 0 2px 6px -2px rgba(15,23,20,0.06)",
         }}
       >
+        {!error && reason === "session_expired" ? (
+          <p
+            role="status"
+            className="mb-4 rounded-xl px-3 py-2 text-center text-[0.8125rem]"
+            style={{
+              background: "rgba(15, 23, 20, 0.05)",
+              color: "var(--plt-ink-soft)",
+              border: "1px solid var(--plt-hairline-strong)",
+            }}
+          >
+            {t("public.auth.login.sessionExpired")}
+          </p>
+        ) : null}
+
         {error ? (
           <p
             role="alert"
