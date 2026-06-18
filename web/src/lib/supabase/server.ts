@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
+import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
 
@@ -29,6 +30,12 @@ export async function createClient(): Promise<SupabaseClient | null> {
   }
 
   return createServerClient(url, key, {
+    // Flag-gated refresh-token coordination — see middleware.ts and
+    // lib/supabase/auth-coordination.ts. OFF (default) → no-op spread, client
+    // built exactly as before. ON → shares the process-wide refresh mutex with
+    // the proxy client so concurrent RSC/server-action reads of a near-expiry
+    // session rotate the refresh token at most once per process.
+    ...authCoordinationOptions(),
     cookies: {
       getAll() {
         return cookieStore.getAll();
