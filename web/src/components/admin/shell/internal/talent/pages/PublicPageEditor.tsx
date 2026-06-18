@@ -1,6 +1,5 @@
 "use client";
 
-import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { TalentSiteAppearancesPanel } from "@/components/talent/site/TalentSiteAppearancesPanel";
 import { TalentSiteDashboardPanel } from "@/components/talent/site/TalentSiteDashboardPanel";
 import { TalentMaxSiteManager } from "@/components/talent/site/TalentMaxSiteManager";
@@ -54,20 +53,11 @@ export function PublicPageEditor({ locale = "en" }: Props) {
 
 function SectionLabel({ eyebrow, hint }: { eyebrow: string; hint: string }) {
   return (
-    <div style={{ margin: "20px 0 10px", fontFamily: FONTS.body }}>
-      <div
-        style={{
-          fontFamily: FONTS.display,
-          fontSize: 13,
-          fontWeight: 700,
-          letterSpacing: 0.3,
-          textTransform: "uppercase",
-          color: COLORS.ink,
-        }}
-      >
+    <div className="mt-5 mb-2.5">
+      <div className="text-[13px] font-bold uppercase tracking-wide text-[color:var(--ink,#0B0B0D)]">
         {eyebrow}
       </div>
-      <p style={{ margin: "4px 0 0", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5, maxWidth: 640 }}>
+      <p className="mt-1 max-w-[640px] text-[12.5px] leading-normal text-[color:var(--ink-muted,rgba(11,11,13,0.72))]">
         {hint}
       </p>
     </div>
