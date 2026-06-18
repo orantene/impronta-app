@@ -48,6 +48,85 @@ test("a no-match brief still returns a full, non-empty plan (default order)", ()
   assert.equal(typeof plan.chosenId, "string");
 });
 
+// ── Brief → fitting design: the deterministic path alone matches common talent
+//    briefs WITHOUT a model. Each pair asserts a real-world brief lands on (or
+//    near) a sensible design — and crucially NEVER on the SaaS console, the
+//    live-QA miss ("wedding photographer" → SaaS billing layout). ───────────
+
+// Briefs that must resolve to exactly one design (high-signal cue overlap).
+const BRIEF_EXPECTATIONS: ReadonlyArray<[string, string]> = [
+  // The live-QA miss: photography / wedding briefs must NOT land on saas.
+  ["wedding photographer", "editorial"],
+  ["a wedding photography portfolio", "editorial"],
+  ["I'm a portrait and headshot photographer", "editorial"],
+  ["my fashion lookbook and editorial shoots", "editorial"],
+  // Food.
+  ["a chef's tasting menu", "restaurant"],
+  ["our new restaurant and wine bar", "restaurant"],
+  // Live music / performance.
+  ["DJ live set", "festival"],
+  ["I'm a musician releasing an album", "festival"],
+  ["a singer announcing a tour", "festival"],
+  ["music festival lineup and tickets", "festival"],
+  // Personal brand / creator.
+  ["a fitness coach personal brand", "coach"],
+  ["a social media influencer and content creator", "coach"],
+  // Commerce.
+  ["an online store selling fine-art prints", "store"],
+  // Genuine product briefs still reach saas (enrichment didn't break the obvious).
+  ["a software product landing page with pricing", "saas"],
+  ["our tech startup app", "saas"],
+  // Agency roster.
+  ["our talent agency roster and bookings", "impronta"],
+  // Conference.
+  ["a developer conference with speakers and a schedule", "conference"],
+];
+
+for (const [brief, expected] of BRIEF_EXPECTATIONS) {
+  test(`planner: ${JSON.stringify(brief)} → ${expected}`, () => {
+    // platform surface = full preset set, so every design is a candidate.
+    const plan = planPresetsFromBrief(brief, "platform");
+    assert.equal(
+      plan.chosenId,
+      expected,
+      `expected "${brief}" → ${expected} but got ${plan.chosenId} ` +
+        `(top: ${plan.ordered.slice(0, 3).map((e) => `${e.id}:${e.score}`).join(", ")})`,
+    );
+    assert.equal(plan.matched, true, `"${brief}" should be a real match`);
+  });
+}
+
+test("no creative talent brief is ever miscategorised as the SaaS console", () => {
+  // The whole class of live-QA bug: a creative/portfolio/performance brief must
+  // not fall through to saas. saas is reserved for explicit product/app briefs.
+  const creativeBriefs = [
+    "wedding photographer",
+    "portrait photography portfolio",
+    "I shoot fashion editorials",
+    "a DJ and music producer",
+    "a singer-songwriter",
+    "my painting and illustration portfolio",
+    "a private chef",
+  ];
+  for (const brief of creativeBriefs) {
+    const plan = planPresetsFromBrief(brief, "platform");
+    assert.notEqual(
+      plan.chosenId,
+      "saas",
+      `"${brief}" wrongly matched the SaaS console`,
+    );
+  }
+});
+
+test("an ambiguous / no-match brief defaults to a flattering portfolio, not saas", () => {
+  // Reserve the SaaS console for product briefs; a blank-slate creative falls
+  // back to editorial (the most common greenfield intent), never the billing page.
+  const plan = planPresetsFromBrief("zzz qqq nonsense words", "platform");
+  assert.equal(plan.matched, false);
+  assert.notEqual(plan.chosenId, "saas");
+  assert.equal(plan.chosenId, "editorial");
+});
+
 // ── Surface filtering: respects the talent/workspace audience split ───────
 
 test("talent surface never offers a workspace-only preset", () => {
