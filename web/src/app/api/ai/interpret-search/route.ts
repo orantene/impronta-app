@@ -12,6 +12,7 @@ import { getPublicSettings } from "@/lib/public-settings";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { logServerError } from "@/lib/server/safe-error";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { getPublicHostContext } from "@/lib/saas/scope";
 
 const MAX_QUERY_LEN = 800;
 
@@ -30,6 +31,9 @@ export async function POST(request: Request) {
   if (!supabase) {
     return NextResponse.json({ error: "service_unavailable" }, { status: 503 });
   }
+
+  const hostContext = await getPublicHostContext();
+  const tenantId = hostContext.kind === "agency" ? hostContext.tenantId : null;
 
   let body: unknown;
   try {
@@ -109,6 +113,7 @@ export async function POST(request: Request) {
     );
 
     insertAiSearchLog({
+      tenantId,
       rawQuery: q,
       normalizedSummary: mapped.normalizedSummary,
       taxonomyTermIds: mapped.taxonomyTermIds,
