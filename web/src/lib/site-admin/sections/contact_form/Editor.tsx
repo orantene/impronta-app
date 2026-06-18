@@ -6,6 +6,7 @@
 
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { ZodSchemaForm } from "../shared/ZodSchemaForm";
+import { InquiryTargetTalentField } from "./InquiryTargetTalentField";
 import { contactFormSchemaV1 } from "./schema";
 import type { SectionEditorProps } from "../types";
 import type { ContactFormV1 } from "./schema";
@@ -44,8 +45,20 @@ export function ContactFormEditor({
         value={value}
         onChange={(next) => onChange({ ...value, ...(next as Partial<ContactFormV1>) })}
         tenantId={tenantId}
-        sectionTypeKey="contact_form" excludeKeys={["presentation"]}
+        sectionTypeKey="contact_form"
+        // `inquiryTargetTalentId` is rendered by the friendly roster picker
+        // below (only when routingMode === "inquiry"), never as a raw UUID
+        // text input. `routingMode` itself stays the generic enum chip row.
+        excludeKeys={["presentation", "inquiryTargetTalentId"]}
       />
+      {value.routingMode === "inquiry" ? (
+        <InquiryTargetTalentField
+          value={value.inquiryTargetTalentId}
+          onChange={(next) =>
+            onChange({ ...value, inquiryTargetTalentId: next })
+          }
+        />
+      ) : null}
       <PresentationPanel
         value={value.presentation}
         onChange={(next) => onChange({ ...value, presentation: next })}

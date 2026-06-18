@@ -160,6 +160,7 @@ export function RevisionsDrawer(): ReactElement | null {
     pageVersion,
     pageMetadata,
     restoreRevision,
+    loadSurfaceRevisions,
     surfaceKind,
   } = useEditContext();
 
@@ -258,11 +259,20 @@ export function RevisionsDrawer(): ReactElement | null {
     setRevisions(null);
     setPublishedVersion(null);
 
-    // T4.5: Branch on page type. Non-homepage uses pageId + current
-    // pageVersion so the drawer loads revisions for the correct page
-    // without a locale-based homepage lookup.
-    const fetchPromise =
-      isNonHomepage && pageId && pageVersion !== null
+    // REV-1b — prefer the surface's OWN owner-gated list read when the active
+    // adapter supplies one. The talent-site shell mounts with no `pageSlug`, so
+    // without this it would fall through to `loadHomepageRevisionsAction`
+    // (staff-gated) and a talent's own shell revisions would be denied. When
+    // the adapter exposes `loadRevisions`, `loadSurfaceRevisions` is non-null
+    // and routes the LIST read through the same owner gate REV-1 used for
+    // restore. No surfaceKind fork — the routing lives in the adapter/config.
+    //
+    // T4.5: otherwise branch on page type. Non-homepage uses pageId + current
+    // pageVersion so the drawer loads revisions for the correct page without a
+    // locale-based homepage lookup; the homepage path is unchanged.
+    const fetchPromise = loadSurfaceRevisions
+      ? loadSurfaceRevisions()
+      : isNonHomepage && pageId && pageVersion !== null
         ? loadPageRevisionsAction({ pageId, pageVersion })
         : loadHomepageRevisionsAction({ locale });
 
@@ -281,7 +291,7 @@ export function RevisionsDrawer(): ReactElement | null {
     });
 
     return () => { cancelled = true; };
-  }, [isNonHomepage, pageId, pageVersion, revisionsOpen, locale]);
+  }, [isNonHomepage, pageId, pageVersion, revisionsOpen, locale, loadSurfaceRevisions]);
 
   async function handleRestore(rev: RevisionListRow): Promise<void> {
     // Double-click race guard: block any second restore while one is in
