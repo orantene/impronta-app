@@ -528,7 +528,7 @@ function TemplateGallery({
     () =>
       listMaxSiteTemplateSummaries().map((t) =>
         toUnifiedTemplateDef(
-          { key: t.key, label: t.label, description: t.description, emphasis: t.emphasis },
+          { key: t.key, label: t.label, description: t.description, emphasis: t.emphasis, thumbnailUrl: t.thumbnailUrl },
           "max-site",
         ),
       ),
