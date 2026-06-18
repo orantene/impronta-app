@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
@@ -87,6 +89,47 @@ test("registry exposes the 5 starter templates in order, default first", () => {
     assert.ok(def.label.length > 0, `${key} needs a label`);
     assert.ok(def.description.length > 0, `${key} needs a description`);
     assert.ok(def.emphasis.length > 0, `${key} needs an emphasis`);
+  }
+});
+
+// ── T1.3 — thumbnailUrl hydration ─────────────────────────────────────────────
+
+test("all 5 max-site templates have a non-empty thumbnailUrl", () => {
+  for (const key of KEYS) {
+    const def = MAX_SITE_TEMPLATES[key];
+    assert.ok(
+      def.thumbnailUrl && def.thumbnailUrl.length > 0,
+      `${key} must have a non-empty thumbnailUrl`,
+    );
+  }
+});
+
+test("all 5 max-site template thumbnailUrls point at existing files under /public", () => {
+  // process.cwd() is the web/ directory when running `tsx --test` from web/.
+  // Fallback: if cwd is the worktree root (has a `web/` child), append `web/`.
+  const cwd = process.cwd();
+  const webRoot = existsSync(join(cwd, "public")) ? cwd : join(cwd, "web");
+  const publicRoot = join(webRoot, "public");
+  for (const key of KEYS) {
+    const def = MAX_SITE_TEMPLATES[key];
+    assert.ok(def.thumbnailUrl, `${key} thumbnailUrl must be set before checking existence`);
+    const fullPath = join(publicRoot, def.thumbnailUrl as string);
+    assert.ok(
+      existsSync(fullPath),
+      `${key} thumbnailUrl "${def.thumbnailUrl}" not found at ${fullPath}`,
+    );
+  }
+});
+
+test("listMaxSiteTemplateSummaries exposes thumbnailUrl on every summary", () => {
+  const summaries = listMaxSiteTemplateSummaries();
+  for (const s of summaries) {
+    assert.ok(
+      s.thumbnailUrl && s.thumbnailUrl.length > 0,
+      `summary for ${s.key} must expose a non-empty thumbnailUrl`,
+    );
+    // Must match the def directly.
+    assert.equal(s.thumbnailUrl, MAX_SITE_TEMPLATES[s.key].thumbnailUrl);
   }
 });
 

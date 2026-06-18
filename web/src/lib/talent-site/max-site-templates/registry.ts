@@ -59,6 +59,7 @@ const DEFAULT_TEMPLATE: MaxSiteTemplateDef = {
   description:
     "Our premium all-rounder: a split hero with your photo, discipline chips, about, services and a gallery.",
   emphasis: "Split hero · masonry gallery",
+  thumbnailUrl: "/marketing/photos/talent-services-hero.jpg",
   buildShellTree: (ctx, makeId = defaultIdFactory) =>
     buildDefaultShellTree(
       { displayName: ctx.displayName, logoUrl: ctx.logoUrl, homeHref: ctx.homeHref },
@@ -80,6 +81,7 @@ const EDITORIAL_TEMPLATE: MaxSiteTemplateDef = {
   description:
     "Magazine-style: an image-led split hero, a centered intro, and a staggered gallery. Warm and refined.",
   emphasis: "Image-led 40-60 hero · centered chrome",
+  thumbnailUrl: "/marketing/photos/independent-singer-booking.jpg",
   buildShellTree: (ctx, makeId = defaultIdFactory) =>
     buildShell(makeId, {
       displayName: ctx.displayName,
@@ -108,6 +110,7 @@ const MINIMAL_TEMPLATE: MaxSiteTemplateDef = {
   description:
     "Type-forward and clean: a centered name-first hero (no photo), a compact services grid, and a simple gallery.",
   emphasis: "Centered type hero · no headshot",
+  thumbnailUrl: "/marketing/photos/service-pros-lifestyle.jpg",
   buildShellTree: (ctx, makeId = defaultIdFactory) =>
     buildShell(makeId, {
       displayName: ctx.displayName,
@@ -136,6 +139,7 @@ const PORTFOLIO_TEMPLATE: MaxSiteTemplateDef = {
   description:
     "Work leads: a copy-weighted hero, then a prominent 3-column gallery up top, with services and contact below.",
   emphasis: "Gallery-first · 60-40 hero",
+  thumbnailUrl: "/marketing/photos/mk-models-runway.jpg",
   buildShellTree: (ctx, makeId = defaultIdFactory) =>
     buildShell(makeId, {
       displayName: ctx.displayName,
@@ -163,6 +167,7 @@ const BOLD_TEMPLATE: MaxSiteTemplateDef = {
   description:
     "Dramatic: a full-bleed cover hero with your photo behind the title, a dark header, then about, services and gallery.",
   emphasis: "Full-bleed cover hero · dark chrome",
+  thumbnailUrl: "/marketing/photos/mk-hero-perform.jpg",
   buildShellTree: (ctx, makeId = defaultIdFactory) =>
     buildShell(makeId, {
       displayName: ctx.displayName,
@@ -205,12 +210,23 @@ export interface MaxSiteTemplateSummary {
   label: string;
   description: string;
   emphasis: string;
+  /**
+   * Root-relative URL for a template thumbnail image (mirrors MaxSiteTemplateDef).
+   * Absent = the CSS-wireframe fallback renders in the picker.
+   */
+  thumbnailUrl?: string;
 }
 
 export function listMaxSiteTemplateSummaries(): MaxSiteTemplateSummary[] {
   return MAX_SITE_TEMPLATE_ORDER.map((key) => {
     const def = MAX_SITE_TEMPLATES[key];
-    return { key: def.key, label: def.label, description: def.description, emphasis: def.emphasis };
+    return {
+      key: def.key,
+      label: def.label,
+      description: def.description,
+      emphasis: def.emphasis,
+      thumbnailUrl: def.thumbnailUrl,
+    };
   });
 }
 
