@@ -42,6 +42,13 @@ import {
 } from "@/lib/inquiry/inquiry-engine-coordinator";
 import { convertToBooking } from "@/lib/inquiry/inquiry-engine-booking";
 import { updateInquiryDetails, type InquiryDetailsPatch } from "@/lib/inquiry/inquiry-engine-details";
+import type {
+  EditableInquiryJobFields,
+  EditableBookingJobFields,
+  EditJobEventTypeOption,
+  EditJobFieldData,
+  BookingJobFieldsPatch,
+} from "./edit-job-fields.types";
 import {
   loadActiveBookingTransaction,
   markPaid,
@@ -874,60 +881,11 @@ export async function rescheduleInquiry(
 // appointed inquiry coordinator) — the same gate convertInquiryToBookingAction
 // uses.
 
-export type EditableInquiryJobFields = {
-  version: number;
-  status: string;
-  isFrozen: boolean;
-  contactName: string | null;
-  contactEmail: string | null;
-  contactPhone: string | null;
-  company: string | null;
-  eventTypeId: string | null;
-  quantity: number | null;
-  message: string | null;
-  eventDate: string | null;
-  eventTimezone: string | null;
-  deadlineAt: string | null;
-  eventLocation: string | null;
-  wardrobeNotes: string | null;
-  equipmentNotes: string | null;
-  transportNotes: string | null;
-  lodgingNotes: string | null;
-  mealsNotes: string | null;
-  accessNotes: string | null;
-};
-
-export type EditableBookingJobFields = {
-  bookingId: string;
-  title: string;
-  contactName: string | null;
-  contactEmail: string | null;
-  contactPhone: string | null;
-  eventDate: string | null;
-  timezone: string | null;
-  deadlineAt: string | null;
-  venueName: string | null;
-  venueAddress: string | null;
-  venueLocationText: string | null;
-  notes: string | null;
-  internalNotes: string | null;
-  paymentNotes: string | null;
-  wardrobeNotes: string | null;
-  equipmentNotes: string | null;
-  transportNotes: string | null;
-  lodgingNotes: string | null;
-  mealsNotes: string | null;
-  accessNotes: string | null;
-};
-
-export type EditJobEventTypeOption = { id: string; label: string };
-
-export type EditJobFieldData = {
-  inquiry: EditableInquiryJobFields;
-  /** Present only when the inquiry has converted to a booking. */
-  booking: EditableBookingJobFields | null;
-  eventTypes: EditJobEventTypeOption[];
-};
+// EditJob field types (EditableInquiryJobFields, EditableBookingJobFields,
+// EditJobEventTypeOption, EditJobFieldData, BookingJobFieldsPatch) live in
+// ./edit-job-fields.types and are imported above. They must NOT be declared in
+// this "use server" file: a client importer (EditJobSheet) would otherwise
+// trigger a module-eval ReferenceError that poisons the Messages chunk.
 
 /**
  * Load every editable field the "Edit job" sheet renders: the inquiry request
@@ -1086,27 +1044,7 @@ export async function updateInquiryJobFields(
   }
 }
 
-export type BookingJobFieldsPatch = {
-  title?: string | null;
-  contact_name?: string | null;
-  contact_email?: string | null;
-  contact_phone?: string | null;
-  event_date?: string | null;
-  timezone?: string | null;
-  deadline_at?: string | null;
-  venue_name?: string | null;
-  venue_address?: string | null;
-  venue_location_text?: string | null;
-  notes?: string | null;
-  internal_notes?: string | null;
-  payment_notes?: string | null;
-  wardrobe_notes?: string | null;
-  equipment_notes?: string | null;
-  transport_notes?: string | null;
-  lodging_notes?: string | null;
-  meals_notes?: string | null;
-  access_notes?: string | null;
-};
+// BookingJobFieldsPatch lives in ./edit-job-fields.types (imported above).
 
 const BOOKING_TEXT_FIELDS = new Set<keyof BookingJobFieldsPatch>([
   "contact_name", "contact_email", "contact_phone",

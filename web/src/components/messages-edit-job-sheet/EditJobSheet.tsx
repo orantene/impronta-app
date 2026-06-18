@@ -25,12 +25,14 @@ import {
   loadEditableJobFields,
   updateInquiryJobFields,
   updateBookingJobFields,
-  type EditJobFieldData,
-  type EditableInquiryJobFields,
-  type EditableBookingJobFields,
-  type EditJobEventTypeOption,
-  type BookingJobFieldsPatch,
 } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import type {
+  EditJobFieldData,
+  EditableInquiryJobFields,
+  EditableBookingJobFields,
+  EditJobEventTypeOption,
+  BookingJobFieldsPatch,
+} from "@/app/(workspace)/[tenantSlug]/admin/edit-job-fields.types";
 import type { InquiryDetailsPatch } from "@/lib/inquiry/inquiry-engine-details";
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 
