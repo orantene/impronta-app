@@ -24,6 +24,8 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { userHasCapability } from "@/lib/access";
 import { loadWorkspaceInquiries } from "../../_data-bridge/inquiries-workspace";
+import { loadNewInquiryIntakeData } from "@/lib/inquiry/new-inquiry-intake-data";
+import { AdminNewInquirySheet } from "@/components/admin/admin-new-inquiry-sheet";
 
 export const dynamic = "force-dynamic";
 
@@ -93,7 +95,10 @@ export default async function AdminTriagePage({ params }: { params: PageParams }
   const canView = await userHasCapability("agency.workspace.view", scope.tenantId);
   if (!canView) notFound();
 
-  const inquiries = await loadWorkspaceInquiries(scope.tenantId);
+  const [inquiries, intake] = await Promise.all([
+    loadWorkspaceInquiries(scope.tenantId),
+    loadNewInquiryIntakeData(scope.tenantId),
+  ]);
 
   // Unassigned bucket — open inquiries with NO coordinator of record. These
   // come straight from the full open set (already terminal-excluded by
@@ -134,18 +139,29 @@ export default async function AdminTriagePage({ params }: { params: PageParams }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: FONT }}>
-      <header>
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
-          Triage
+      <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
+            Triage
+          </div>
+          <h1 style={{ margin: "4px 0 0", fontSize: 24, fontWeight: 600, color: C.ink, letterSpacing: -0.2, fontFamily: FONT_DISPLAY }}>
+            {totalNeedingTeam === 0 ? "Inbox zero" : `${totalNeedingTeam} ${totalNeedingTeam === 1 ? "inquiry" : "inquiries"} need your team`}
+          </h1>
+          <p style={{ margin: "6px 0 0", fontSize: 13, color: C.inkMuted, lineHeight: 1.5, maxWidth: 620 }}>
+            Open inquiries where the next action belongs to admin or coordinator,
+            plus any with no coordinator assigned. Anything waiting on client or
+            talent has been filtered out.
+          </p>
         </div>
-        <h1 style={{ margin: "4px 0 0", fontSize: 24, fontWeight: 600, color: C.ink, letterSpacing: -0.2, fontFamily: FONT_DISPLAY }}>
-          {totalNeedingTeam === 0 ? "Inbox zero" : `${totalNeedingTeam} ${totalNeedingTeam === 1 ? "inquiry" : "inquiries"} need your team`}
-        </h1>
-        <p style={{ margin: "6px 0 0", fontSize: 13, color: C.inkMuted, lineHeight: 1.5, maxWidth: 620 }}>
-          Open inquiries where the next action belongs to admin or coordinator,
-          plus any with no coordinator assigned. Anything waiting on client or
-          talent has been filtered out.
-        </p>
+        {/* Staff-facing intake. The talent picker inside is enriched with
+            exclusivity + availability signals (see loadNewInquiryIntakeData). */}
+        <div style={{ flexShrink: 0 }}>
+          <AdminNewInquirySheet
+            accounts={intake.accounts}
+            contacts={intake.contacts}
+            talents={intake.talents}
+          />
+        </div>
       </header>
 
       {totalNeedingTeam === 0 ? (
