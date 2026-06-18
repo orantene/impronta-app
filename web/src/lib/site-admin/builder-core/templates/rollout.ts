@@ -64,6 +64,25 @@ export function deterministicBucket(tenantId: string, rowId: string): number {
 }
 
 /**
+ * Deterministic position ∈ [0, 1) for a (seed, salt) pair — the SAME frozen
+ * FNV-1a hash as {@link deterministicBucket}, just at full 2^32 resolution
+ * instead of folded to 100 integer buckets. Used by the A/B engine's weighted
+ * multi-arm split, where coarse 100-buckets would quantize a weight like 33.3%.
+ *
+ * Crucially CONSISTENT with `deterministicBucket`: since both derive from the
+ * same `fnv1a32(`${a}:${b}`)`, `deterministicPosition(s, salt) < 0.5` iff
+ * `deterministicBucket(s, salt) < 50` is NOT guaranteed (the fold loses low
+ * bits), so the A/B engine pins its 2-arm-even path on `deterministicBucket`
+ * (unchanged) and only uses this finer position for the WEIGHTED / N>2 path.
+ * FROZEN algorithm — see fnv1a32.
+ */
+export function deterministicPosition(seed: string, salt: string): number {
+  // Divide by 2^32 so the result is in [0, 1). The hash is already an unsigned
+  // 32-bit int, so the max value (2^32 - 1) maps to just under 1.
+  return fnv1a32(`${seed}:${salt}`) / 0x100000000;
+}
+
+/**
  * Whether the given tenant may see this template under its staged-rollout rule.
  * PURE. See the module header for the frozen decision order.
  */
