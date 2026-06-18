@@ -17,17 +17,21 @@ import { Fragment, useEffect, useState } from "react";
 import type {
   AddGalleryNativeVariant,
   CatalogAdminItem,
-  CatalogSurfaceCell,
 } from "@/lib/site-admin/add-gallery";
 import {
   listBuilderLabAudit,
   type BuilderLabAuditEntry,
 } from "@/lib/site-admin/builder-core/templates/builder-lab-audit";
-// Import the value (`deriveSurfaceMatrix`) directly from its module, NOT the
+// Import the 4-surface helpers/constants directly from their module, NOT the
 // add-gallery barrel — the barrel transitively pulls a `.css` side-effect import
-// that the tsx test runner can't parse (it compiles CSS as JS). The types above
-// are erased at compile, so the barrel path is safe for them.
-import { deriveSurfaceMatrix } from "@/lib/site-admin/add-gallery/registry-db-merge";
+// that the tsx test runner can't parse (it compiles CSS as JS). The erased types
+// are barrel-safe but we keep them co-located here.
+import {
+  CATALOG_SURFACE_KEYS,
+  CATALOG_SURFACE_LABEL,
+  surfaceKeyToTarget,
+  type CatalogSurfaceKey,
+} from "@/lib/site-admin/add-gallery/registry-db-merge";
 import { AddGalleryIcon } from "@/components/edit-chrome/add-gallery/add-gallery-icons";
 import { governanceChips } from "./catalog-governance";
 import {
@@ -80,6 +84,15 @@ export function targetAllows(
 ): boolean {
   if (targetContext === "both") return true;
   return targetContext === surface;
+}
+
+/** X4 — does the row's target_context allow the given precise surface? Reduces
+ *  the 4 surfaces to their coarse target then defers to {@link targetAllows}. */
+function surfaceKeyAllowed(
+  targetContext: CatalogAdminItem["targetContext"],
+  surfaceKey: CatalogSurfaceKey,
+): boolean {
+  return targetAllows(targetContext, surfaceKeyToTarget(surfaceKey));
 }
 
 const STATUS_ORDER: ReadonlyArray<LabStatus> = [
@@ -179,7 +192,8 @@ export interface CatalogRowTableProps {
   setEditDataSourceDefaultsError: (v: string | null) => void;
   // actions
   onRowClick: (item: CatalogAdminItem) => void;
-  onToggleSurface: (item: CatalogAdminItem, surface: "talent" | "workspace") => void;
+  /** X4 — toggle ONE of the four real surfaces (each has its own overlay column). */
+  onToggleSurface: (item: CatalogAdminItem, surface: CatalogSurfaceKey) => void;
   /** Dispatch a lifecycle transition for the row (the parent maps it to the
    *  availability overlay for code rows / the registry actions for templates). */
   onSetStatus: (item: CatalogAdminItem, next: LabStatus) => void;
@@ -240,23 +254,20 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                 <Th>Component</Th>
                 <Th>Category</Th>
                 <Th>Source</Th>
-                <Th
-                  center
-                  help="TALENT-MAX governs the talent profile page's + gallery."
-                >
-                  Talent-Max
+                {/* X4 — a TRUE 4-surface matrix: each real builder surface has
+                    its OWN independent enable toggle. The talent shell no longer
+                    rides the Workspace toggle (the lossy 3-on-1 collapse is gone). */}
+                <Th center help="The talent's freeform profile page builder gallery (talent_profile_enabled).">
+                  Talent profile
                 </Th>
-                <Th
-                  center
-                  help="WORKSPACE governs both workspace pages AND the talent Max-site shell's + gallery."
-                >
-                  Workspace
+                <Th center help="The talent Max-SITE header/footer shell gallery — now its OWN toggle (talent_shell_enabled), no longer chained to Workspace.">
+                  Talent shell
                 </Th>
-                <Th
-                  center
-                  help="The 4 real builder surfaces this row resolves to. Today only 2 toggles govern them: talent shell is silently driven by the Workspace toggle (surfaceTarget:'workspace' in config.ts), not Talent-Max. Read-only — expand to see the truth."
-                >
-                  Surfaces
+                <Th center help="The agency storefront freeform page gallery (workspace_page_enabled).">
+                  Workspace page
+                </Th>
+                <Th center help="The agency site header/footer shell gallery (workspace_shell_enabled).">
+                  Workspace shell
                 </Th>
                 <Th right>Manage</Th>
               </tr>
@@ -363,23 +374,20 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                           <span style={{ marginLeft: 6, color: T.inkDim, fontSize: 10.5 }}>{r.targetContext}</span>
                         ) : null}
                       </td>
-                      <ToggleCell
-                        on={r.talentVisible}
-                        disabled={busy || !targetAllows(r.targetContext, "talent")}
-                        locked={!targetAllows(r.targetContext, "talent")}
-                        onClick={() => onToggleSurface(r, "talent")}
-                        label={r.effectiveLabel}
-                        surface="Talent-Max"
-                      />
-                      <ToggleCell
-                        on={r.workspaceVisible}
-                        disabled={busy || !targetAllows(r.targetContext, "workspace")}
-                        locked={!targetAllows(r.targetContext, "workspace")}
-                        onClick={() => onToggleSurface(r, "workspace")}
-                        label={r.effectiveLabel}
-                        surface="Workspace"
-                      />
-                      <SurfacesCell item={r} />
+                      {CATALOG_SURFACE_KEYS.map((sk) => {
+                        const allowed = surfaceKeyAllowed(r.targetContext, sk);
+                        return (
+                          <ToggleCell
+                            key={sk}
+                            on={r.surfaceVisible[sk]}
+                            disabled={busy || !allowed}
+                            locked={!allowed}
+                            onClick={() => onToggleSurface(r, sk)}
+                            label={r.effectiveLabel}
+                            surface={CATALOG_SURFACE_LABEL[sk]}
+                          />
+                        );
+                      })}
                       <td style={{ padding: "9px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
                         {editing ? (
                           <span style={{ display: "inline-flex", gap: 6 }}>
@@ -461,7 +469,7 @@ function EditAccordionRow({
 }: CatalogRowTableProps & { item: CatalogAdminItem }) {
   return (
     <tr style={{ background: T.cardSoft }}>
-      <td colSpan={7} style={{ padding: "12px 16px" }}>
+      <td colSpan={8} style={{ padding: "12px 16px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Display group — cosmetic overrides */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -695,7 +703,7 @@ function RowHistoryRow({
 
   return (
     <tr>
-      <td colSpan={7} style={{ padding: "10px 16px", background: T.cardSoft }}>
+      <td colSpan={8} style={{ padding: "10px 16px", background: T.cardSoft }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
           <SectionLabel>History</SectionLabel>
           <LinkBtn label="Close" onClick={onClose} />
@@ -854,107 +862,4 @@ function ToggleCell({
   );
 }
 
-/**
- * SurfacesCell (X1) — a READ-ONLY projection of the row's effective visibility
- * onto the FOUR real builder surfaces, derived purely from the existing 2-toggle
- * overlay state via {@link deriveSurfaceMatrix}. It adds no write path — that is
- * X4. Its purpose is to make the lossy reality visible: the talent Max-site
- * SHELL is governed by the *Workspace* toggle (not Talent-Max), so three of the
- * four surfaces collapse onto `workspace_enabled`.
- *
- * Collapsed: four compact dots (green = visible, dim = hidden) the admin can
- * read at a glance. Click expands an inline 4-row legend naming each surface,
- * its state, and which toggle governs it — exposing the "Talent shell ⇐
- * Workspace" surprise explicitly.
- */
-function SurfacesCell({ item }: { item: CatalogAdminItem }) {
-  const [open, setOpen] = useState(false);
-  const cells = deriveSurfaceMatrix(item);
-  const summary = cells
-    .map((c) => `${c.label}: ${c.visible ? "visible" : "hidden"}`)
-    .join(" · ");
-  return (
-    <td style={{ padding: "9px 16px", textAlign: "center", verticalAlign: "top" }}>
-      <button
-        type="button"
-        data-testid={`lab-catalog-surfaces-${item.id}`}
-        aria-expanded={open}
-        aria-label={`4-surface visibility for ${item.effectiveLabel}: ${summary}. Click to ${open ? "collapse" : "expand"}.`}
-        title={summary}
-        onClick={() => setOpen((v) => !v)}
-        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
-        style={{
-          cursor: "pointer",
-          border: `1px solid ${T.border}`,
-          background: "transparent",
-          borderRadius: 999,
-          padding: "3px 9px",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 5,
-        }}
-      >
-        {cells.map((c) => (
-          <SurfaceDot key={c.key} cell={c} />
-        ))}
-      </button>
-      {open ? (
-        <div
-          style={{
-            marginTop: 8,
-            display: "flex",
-            flexDirection: "column",
-            gap: 5,
-            textAlign: "left",
-            minWidth: 188,
-          }}
-        >
-          {cells.map((c) => (
-            <div
-              key={c.key}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 7,
-                fontSize: 11,
-                color: T.inkMuted,
-              }}
-            >
-              <SurfaceDot cell={c} />
-              <span style={{ color: T.ink, fontWeight: 600 }}>{c.label}</span>
-              <span style={{ color: c.visible ? T.yes : T.inkDim }}>
-                {c.visible ? "visible" : "hidden"}
-              </span>
-              <span style={{ color: T.inkDim, fontSize: 10 }}>
-                ({c.governedBy === "talent_enabled" ? "Talent-Max" : "Workspace"})
-              </span>
-            </div>
-          ))}
-          <span style={{ fontSize: 10, color: T.inkDim, lineHeight: 1.5, maxWidth: 220 }}>
-            Read-only. Talent shell follows the <strong>Workspace</strong> toggle,
-            not Talent-Max — hiding from Workspace also hides it from the talent&apos;s
-            own Max-site header/footer.
-          </span>
-        </div>
-      ) : null}
-    </td>
-  );
-}
-
-function SurfaceDot({ cell }: { cell: CatalogSurfaceCell }) {
-  return (
-    <span
-      aria-hidden
-      title={`${cell.label}: ${cell.visible ? "visible" : "hidden"}`}
-      style={{
-        width: 8,
-        height: 8,
-        borderRadius: 999,
-        flexShrink: 0,
-        background: cell.visible ? T.yes : "transparent",
-        border: `1px solid ${cell.visible ? T.yes : T.no}`,
-      }}
-    />
-  );
-}
 

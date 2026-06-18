@@ -2062,6 +2062,10 @@ export function EditProvider({
         ? "workspace"
         : null);
   const gallerySurfaceTier = resolvedSurfaceConfig.surfaceTalentTier ?? null;
+  // X4 — the precise 4-surface key for per-surface overlay subtraction. Sourced
+  // from the surface config; null on homepage / platform_lab (availability-only).
+  const gallerySurfaceKey: GallerySurfaceDescriptor["surfaceKey"] =
+    resolvedSurfaceConfig.galleryPolicy.surfaceKey ?? null;
   const gallerySurface = useMemo<GallerySurfaceDescriptor>(
     () => ({
       allowedTabs: galleryTabsKey
@@ -2069,6 +2073,7 @@ export function EditProvider({
         : [],
       allowDbTemplates: galleryAllowDbTemplates,
       surfaceTarget: gallerySurfaceTarget,
+      surfaceKey: gallerySurfaceKey,
       plan: normalizedWorkspacePlan || null,
       talentTier: gallerySurfaceTier,
       // Builder Studio — live tenant id for staged-rollout bucketing (WS-D).
@@ -2078,6 +2083,7 @@ export function EditProvider({
       galleryTabsKey,
       galleryAllowDbTemplates,
       gallerySurfaceTarget,
+      gallerySurfaceKey,
       normalizedWorkspacePlan,
       gallerySurfaceTier,
       tenantId,

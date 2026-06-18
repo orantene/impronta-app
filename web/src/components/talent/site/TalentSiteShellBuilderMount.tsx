@@ -52,7 +52,15 @@ export function TalentSiteShellBuilderMount({
   sitePages,
 }: TalentSiteShellBuilderMountProps) {
   const surfaceConfig = useMemo(
-    () => buildSiteShellBuilderConfig(createBoundTalentSiteShellAdapter(talentProfileId)),
+    () =>
+      buildSiteShellBuilderConfig(
+        createBoundTalentSiteShellAdapter(talentProfileId),
+        // X4 — this mount IS the talent Max-site shell, so declare a talent tier:
+        // it makes `buildSiteShellBuilderConfig` resolve the precise overlay
+        // surface to `talent_shell` (its OWN catalog toggle), no longer riding the
+        // workspace toggle. The Max site is Portfolio-tier by construction.
+        { talentTier: "talent_portfolio" },
+      ),
     [talentProfileId],
   );
 

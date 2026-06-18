@@ -24,6 +24,12 @@ import {
   type CatalogOverlayRow,
 } from "@/lib/site-admin/add-gallery";
 import {
+  CATALOG_SURFACE_KEYS,
+  surfaceEnabledForRow,
+  surfaceKeyToTarget,
+  type CatalogSurfaceKey,
+} from "@/lib/site-admin/add-gallery/registry-db-merge";
+import {
   CODE_TAB_DEFS,
   resolveTabLabel,
   type CatalogStructureMap,
@@ -70,6 +76,20 @@ import {
 // (was duplicated with add-gallery-panel.tsx's TAB_DEFS). WS-B threads loaded
 // structure for admin tab rename/reorder; code defaults verbatim otherwise.
 const ALL_TABS: ReadonlyArray<AddGalleryTab> = CODE_TAB_DEFS.map((t) => t.id);
+
+// X4 — the overlay-input column written when toggling each of the four surfaces.
+const SURFACE_ENABLED_COLUMN: Record<
+  CatalogSurfaceKey,
+  | "talent_profile_enabled"
+  | "talent_shell_enabled"
+  | "workspace_page_enabled"
+  | "workspace_shell_enabled"
+> = {
+  talent_profile: "talent_profile_enabled",
+  talent_shell: "talent_shell_enabled",
+  workspace_page: "workspace_page_enabled",
+  workspace_shell: "workspace_shell_enabled",
+};
 const TAB_LABEL = Object.fromEntries(
   CODE_TAB_DEFS.map((t) => [t.id, t.label]),
 ) as Record<AddGalleryTab, string>;
@@ -279,16 +299,27 @@ export function ComponentCatalog({
     [reload],
   );
 
+  // X4 — toggle ONE of the four real surfaces. Each surface has its OWN overlay
+  // column (`talent_profile_enabled` … `workspace_shell_enabled`); we also
+  // dual-write the legacy `talent_enabled` / `workspace_enabled` pair (as the AND
+  // of the two surfaces sharing that target) so a rollback to pre-X4 code still
+  // reads sane visibility. The talent shell is now independent of the workspace
+  // toggle — the lossy 3-on-1 collapse is gone.
   const toggleSurface = useCallback(
-    (item: CatalogAdminItem, surface: "talent" | "workspace") => {
-      const enabledNow =
-        surface === "talent"
-          ? item.overlay?.talent_enabled ?? true
-          : item.overlay?.workspace_enabled ?? true;
-      const field = surface === "talent" ? "talent_enabled" : "workspace_enabled";
-      const next = !enabledNow;
-      // W11 — optimistic flip so the cell updates instantly; mutate() reloads
-      // and reconciles against server truth (reverting on error).
+    (item: CatalogAdminItem, surfaceKey: CatalogSurfaceKey) => {
+      const ov = item.overlay;
+      const currentFour: Record<CatalogSurfaceKey, boolean> = {
+        talent_profile: surfaceEnabledForRow(ov, "talent_profile"),
+        talent_shell: surfaceEnabledForRow(ov, "talent_shell"),
+        workspace_page: surfaceEnabledForRow(ov, "workspace_page"),
+        workspace_shell: surfaceEnabledForRow(ov, "workspace_shell"),
+      };
+      const nextFour = { ...currentFour, [surfaceKey]: !currentFour[surfaceKey] };
+      // Legacy mirror: a target is "enabled" iff BOTH its surfaces are.
+      const legacyTalent = nextFour.talent_profile && nextFour.talent_shell;
+      const legacyWorkspace = nextFour.workspace_page && nextFour.workspace_shell;
+      // W11 — optimistic flip so the cell updates instantly; mutate() reloads and
+      // reconciles against server truth (reverting on error).
       setItems((prev) =>
         prev
           ? prev.map((r) => {
@@ -296,35 +327,51 @@ export function ComponentCatalog({
               const overlay: CatalogOverlayRow = {
                 item_ref: r.id,
                 source: r.source as "code" | "template",
-                talent_enabled: r.overlay?.talent_enabled ?? true,
-                workspace_enabled: r.overlay?.workspace_enabled ?? true,
+                talent_enabled: legacyTalent,
+                workspace_enabled: legacyWorkspace,
+                talent_profile_enabled: nextFour.talent_profile,
+                talent_shell_enabled: nextFour.talent_shell,
+                workspace_page_enabled: nextFour.workspace_page,
+                workspace_shell_enabled: nextFour.workspace_shell,
                 label_override: r.overlay?.label_override ?? null,
                 icon_override: r.overlay?.icon_override ?? null,
                 category_override: r.overlay?.category_override ?? null,
                 required_plan_override: r.overlay?.required_plan_override ?? null,
                 availability_override: r.overlay?.availability_override ?? null,
-                [field]: next,
               };
+              const hidden = overlay.availability_override === "hidden";
+              const surfaceVisible = CATALOG_SURFACE_KEYS.reduce(
+                (acc, key) => {
+                  acc[key] =
+                    targetAllows(r.targetContext, surfaceKeyToTarget(key)) &&
+                    nextFour[key] &&
+                    !hidden;
+                  return acc;
+                },
+                {} as Record<CatalogSurfaceKey, boolean>,
+              );
               return {
                 ...r,
                 overlay,
+                surfaceVisible,
                 talentVisible:
-                  surface === "talent"
-                    ? targetAllows(r.targetContext, "talent") && next
-                    : r.talentVisible,
+                  targetAllows(r.targetContext, "talent") && legacyTalent && !hidden,
                 workspaceVisible:
-                  surface === "workspace"
-                    ? targetAllows(r.targetContext, "workspace") && next
-                    : r.workspaceVisible,
+                  targetAllows(r.targetContext, "workspace") &&
+                  legacyWorkspace &&
+                  !hidden,
               };
             })
           : prev,
       );
+      const column = SURFACE_ENABLED_COLUMN[surfaceKey];
       void mutate(item.id, () =>
         setComponentOverlay({
           item_ref: item.id,
           source: item.source,
-          [field]: next,
+          [column]: nextFour[surfaceKey],
+          talent_enabled: legacyTalent,
+          workspace_enabled: legacyWorkspace,
         }),
       );
     },

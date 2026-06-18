@@ -65,8 +65,22 @@ function morePlanRestrictive(
 export interface CatalogOverlayRow {
   item_ref: string;
   source: "code" | "template";
+  /** LEGACY 2-toggle axis (kept for dual-write + back-compat). The day X4 lands
+   *  these still drive any code path that hasn't been threaded a `surfaceKey`
+   *  (e.g. a null-surface homepage/Lab merge, which never subtracts per-surface).
+   *  The new per-surface quad below SUPERSEDES these where a `surfaceKey` is
+   *  supplied. */
   talent_enabled: boolean;
   workspace_enabled: boolean;
+  /** X4 — the four INDEPENDENT real-surface toggles. Optional so older overlay
+   *  fixtures / the live DB during the migration window still typecheck; absence
+   *  ⇒ fall back to the legacy pair (talent_* ⇐ talent_enabled, workspace_* ⇐
+   *  workspace_enabled — see {@link surfaceEnabledForRow}). The DB supplies all
+   *  four after the 20261106000300 migration backfills them losslessly. */
+  talent_profile_enabled?: boolean;
+  talent_shell_enabled?: boolean;
+  workspace_page_enabled?: boolean;
+  workspace_shell_enabled?: boolean;
   label_override: string | null;
   icon_override: string | null;
   category_override: string | null;
@@ -90,8 +104,17 @@ export type CatalogOverlayMap = Record<string, CatalogOverlayRow>;
 export interface SetCatalogOverlayInput {
   item_ref: string;
   source: "code" | "template";
+  /** LEGACY 2-toggle axis — writers dual-write these alongside the X4 quad so a
+   *  rollback to pre-X4 code keeps reading correct visibility. */
   talent_enabled?: boolean;
   workspace_enabled?: boolean;
+  /** X4 — the four INDEPENDENT real-surface toggles. A toggle from the 4-column
+   *  Lab matrix sets exactly one of these; the writer mirrors the corresponding
+   *  legacy column (AND of the two talent / two workspace surfaces) for safety. */
+  talent_profile_enabled?: boolean;
+  talent_shell_enabled?: boolean;
+  workspace_page_enabled?: boolean;
+  workspace_shell_enabled?: boolean;
   label_override?: string | null;
   icon_override?: string | null;
   category_override?: string | null;
@@ -144,6 +167,14 @@ export interface CatalogAdminItem {
   overlay: CatalogOverlayRow | null;
   talentVisible: boolean;
   workspaceVisible: boolean;
+  /**
+   * X4 — effective visibility on EACH of the four real surfaces, computed from
+   * target_context ∩ the per-surface overlay toggle (honoring the new columns,
+   * losslessly falling back to the legacy pair). This is the REAL matrix the
+   * 4-column Lab table renders; `talentVisible`/`workspaceVisible` are retained
+   * for the legacy 2-toggle controls + back-compat callers.
+   */
+  surfaceVisible: Record<CatalogSurfaceKey, boolean>;
   effectiveLabel: string;
   effectiveCategory: string;
 }
@@ -205,6 +236,20 @@ export function buildCatalogAdminView(
       templateTargetAllowed(targetContext, "workspace") &&
       (ov ? ov.workspace_enabled : true) &&
       !hidden;
+    // X4 — the REAL 4-surface visibility: target_context (coarse) ∩ the precise
+    // per-surface overlay toggle ∩ not availability-hidden. Each surface keys off
+    // its own independent column now (lossless legacy fallback baked into
+    // surfaceEnabledForRow), so the talent shell is no longer chained to workspace.
+    const surfaceVisible = CATALOG_SURFACE_KEYS.reduce(
+      (acc, key) => {
+        acc[key] =
+          templateTargetAllowed(targetContext, surfaceKeyToTarget(key)) &&
+          surfaceEnabledForRow(ov, key) &&
+          !hidden;
+        return acc;
+      },
+      {} as Record<CatalogSurfaceKey, boolean>,
+    );
     // LIVE-MATCHING placement (F4): base → overlay → structure, structure wins.
     // Mirrors the live finalize() order (applyCatalogOverlay then
     // applyStructureToItems). `item.tab`/`item.category` here are the genuine
@@ -229,6 +274,7 @@ export function buildCatalogAdminView(
       overlay: ov,
       talentVisible,
       workspaceVisible,
+      surfaceVisible,
       effectiveLabel: ov?.label_override ?? item.label,
       effectiveCategory,
     };
@@ -237,25 +283,53 @@ export function buildCatalogAdminView(
 
 // ── 4-surface matrix projection (X1, read-only) ──────────────────────────────
 
-/** The four real builder surfaces the catalog governs. */
-export type CatalogSurfaceKey =
-  | "talent_profile"
-  | "talent_shell"
-  | "workspace_page"
-  | "workspace_shell";
+// The four-surface vocabulary + the PURE 2→4 lossless-migration helpers live in
+// `surface-keys.ts` (split out to keep this file under the 800-line cap). They are
+// RE-EXPORTED here so existing direct imports (`from "./registry-db-merge"`) — and
+// the test discipline of never importing through the .css-laden barrel — keep
+// working unchanged.
+export {
+  CATALOG_SURFACE_KEYS,
+  CATALOG_SURFACE_LABEL,
+  SURFACE_COLUMN,
+  legacyToFourSurface,
+  surfaceEnabledForRow,
+  surfaceKeyToTarget,
+  type CatalogSurfaceKey,
+} from "./surface-keys";
+import {
+  CATALOG_SURFACE_KEYS,
+  CATALOG_SURFACE_LABEL,
+  SURFACE_COLUMN,
+  surfaceEnabledForRow,
+  surfaceKeyToTarget,
+  type CatalogSurfaceKey,
+} from "./surface-keys";
 
 /** One cell of the derived 4-surface matrix. */
 export interface CatalogSurfaceCell {
   key: CatalogSurfaceKey;
   /** Human label for the cell. */
   label: string;
-  /** Effective visibility on this surface, derived PURELY from existing overlay
-   *  state — no new column. */
+  /** Effective visibility on this surface. */
   visible: boolean;
-  /** Which underlying toggle governs this cell — exposes the lossy reality that
-   *  two surfaces (talent shell, workspace page/shell) are all driven by the one
-   *  `workspace_enabled` toggle. */
-  governedBy: "talent_enabled" | "workspace_enabled";
+  /**
+   * Which underlying toggle governs this cell.
+   *
+   *   • X4 (real) — when the view carries an independent `surfaceVisible` map,
+   *     each surface is governed by its OWN per-surface column
+   *     (`talent_profile_enabled` … `workspace_shell_enabled`).
+   *   • Legacy (back-compat) — when only the 2-toggle
+   *     `talentVisible`/`workspaceVisible` projection is supplied, the cell still
+   *     reports the lossy `talent_enabled`/`workspace_enabled` it rides.
+   */
+  governedBy:
+    | "talent_enabled"
+    | "workspace_enabled"
+    | "talent_profile_enabled"
+    | "talent_shell_enabled"
+    | "workspace_page_enabled"
+    | "workspace_shell_enabled";
 }
 
 /**
@@ -288,8 +362,24 @@ export interface CatalogSurfaceCell {
  * projection of that view.
  */
 export function deriveSurfaceMatrix(
-  view: Pick<CatalogAdminItem, "talentVisible" | "workspaceVisible">,
+  view: Pick<CatalogAdminItem, "talentVisible" | "workspaceVisible"> &
+    Partial<Pick<CatalogAdminItem, "surfaceVisible">>,
 ): CatalogSurfaceCell[] {
+  // X4 — when the view carries the REAL per-surface visibility map, each surface
+  // reports its OWN independent toggle. The talent shell is now governed by
+  // `talent_shell_enabled`, NOT the workspace toggle: the lossy 3-on-1 collapse
+  // is gone. Callers that only pass the legacy 2-toggle projection (e.g. the X1
+  // read-only test) fall through to the back-compat branch below, which keeps
+  // documenting the OLD lossy reality so that path's tests stay meaningful.
+  if (view.surfaceVisible) {
+    const sv = view.surfaceVisible;
+    return CATALOG_SURFACE_KEYS.map((key) => ({
+      key,
+      label: CATALOG_SURFACE_LABEL[key],
+      visible: sv[key],
+      governedBy: SURFACE_COLUMN[key] as CatalogSurfaceCell["governedBy"],
+    }));
+  }
   return [
     {
       key: "talent_profile",
@@ -325,8 +415,13 @@ export function deriveSurfaceMatrix(
  *   - `required_plan_override` → a TIGHTEN-only extra plan gate (never loosens;
  *     drops the item when the surface plan can't meet the override).
  *   - label / icon / category overrides are applied to the survivors.
- * The surface is taken from `ctx.surfaceTarget`; "both"/"platform"/null surfaces
- * (e.g. the homepage / Lab) are not subtracted per-surface, only by availability.
+ * X4 — when `ctx.surfaceKey` is set (one of the FOUR real surfaces) the
+ * per-surface subtraction keys off that surface's INDEPENDENT toggle (via
+ * {@link surfaceEnabledForRow}, which falls back losslessly to the legacy pair
+ * for rows predating the migration). When `surfaceKey` is absent the legacy
+ * coarse `ctx.surfaceTarget` 2-toggle subtraction applies, exactly as before.
+ * "both"/"platform"/null surfaces (e.g. the homepage / Lab) are not subtracted
+ * per-surface, only by availability.
  */
 export function applyCatalogOverlay(
   items: ReadonlyArray<AddGalleryItem>,
@@ -334,6 +429,7 @@ export function applyCatalogOverlay(
   ctx: GalleryMergeContext,
 ): AddGalleryItem[] {
   const surface = ctx.surfaceTarget;
+  const surfaceKey = ctx.surfaceKey ?? null;
   const out: AddGalleryItem[] = [];
   for (const item of items) {
     const ov = overlays[item.id];
@@ -342,8 +438,14 @@ export function applyCatalogOverlay(
       continue;
     }
     if (ov.availability_override === "hidden") continue;
-    if (surface === "talent" && !ov.talent_enabled) continue;
-    if (surface === "workspace" && !ov.workspace_enabled) continue;
+    // X4 precise 4-surface subtraction takes precedence when a surfaceKey is
+    // supplied; otherwise the legacy coarse target axis governs (back-compat).
+    if (surfaceKey) {
+      if (!surfaceEnabledForRow(ov, surfaceKey)) continue;
+    } else {
+      if (surface === "talent" && !ov.talent_enabled) continue;
+      if (surface === "workspace" && !ov.workspace_enabled) continue;
+    }
     if (
       ov.required_plan_override &&
       ctx.plan &&
@@ -500,6 +602,17 @@ export interface GalleryMergeContext {
   galleryPolicy: BuilderGalleryPolicy;
   /** Surface subject target for target_context gating (§E). */
   surfaceTarget?: BuilderTemplateTarget | null;
+  /**
+   * X4 — the PRECISE builder surface for per-surface overlay subtraction. This
+   * is ORTHOGONAL to `surfaceTarget`: `surfaceTarget` is the coarse audience
+   * (talent|workspace) used for target_context gating; `surfaceKey` is the exact
+   * one of FOUR real surfaces whose overlay toggle decides lifecycle
+   * (enabled/disabled). When set, `applyCatalogOverlay` subtracts using the
+   * matching per-surface column; when absent it falls back to the legacy
+   * `surfaceTarget`-driven 2-toggle subtraction (back-compat — null-surface
+   * homepage/Lab merges never carry a surfaceKey and stay availability-only).
+   */
+  surfaceKey?: CatalogSurfaceKey | null;
   /** Surface plan for required_plan gating (§E). */
   plan?: PlanKey | null;
   /** Surface talent tier for required_talent_tier gating (§E). */

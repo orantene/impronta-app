@@ -120,6 +120,9 @@ export function buildParityDescriptor(input: {
     allowedTabs: shape.allowedTabs,
     allowDbTemplates: shape.allowDbTemplates,
     surfaceTarget: shape.surfaceTarget,
+    // X4 — the parity surface key IS the precise 4-surface overlay key, so the
+    // probe now exercises the same per-surface subtraction the live merge does.
+    surfaceKey: shape.key,
     plan: input.plan,
     talentTier: shape.usesTalentTier ? input.tier : null,
     tenantId: input.tenantId,

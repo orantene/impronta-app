@@ -51,6 +51,8 @@ export async function fetchSurfaceGalleryItems(
         allowDbTemplates: descriptor.allowDbTemplates,
       },
       surfaceTarget: (descriptor.surfaceTarget ?? null) as BuilderTemplateTarget | null,
+      // X4 — the precise 4-surface key drives per-surface overlay subtraction.
+      surfaceKey: descriptor.surfaceKey ?? null,
       plan: coercePlan(descriptor.plan),
       talentTier: descriptor.talentTier,
       tenantId: descriptor.tenantId,

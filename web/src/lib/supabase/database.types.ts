@@ -2793,9 +2793,13 @@ export type Database = {
           required_plan_override: string | null
           source: string
           talent_enabled: boolean
+          talent_profile_enabled: boolean
+          talent_shell_enabled: boolean
           updated_at: string
           updated_by: string | null
           workspace_enabled: boolean
+          workspace_page_enabled: boolean
+          workspace_shell_enabled: boolean
         }
         Insert: {
           availability_override?: string | null
@@ -2810,9 +2814,13 @@ export type Database = {
           required_plan_override?: string | null
           source: string
           talent_enabled?: boolean
+          talent_profile_enabled?: boolean
+          talent_shell_enabled?: boolean
           updated_at?: string
           updated_by?: string | null
           workspace_enabled?: boolean
+          workspace_page_enabled?: boolean
+          workspace_shell_enabled?: boolean
         }
         Update: {
           availability_override?: string | null
@@ -2827,9 +2835,13 @@ export type Database = {
           required_plan_override?: string | null
           source?: string
           talent_enabled?: boolean
+          talent_profile_enabled?: boolean
+          talent_shell_enabled?: boolean
           updated_at?: string
           updated_by?: string | null
           workspace_enabled?: boolean
+          workspace_page_enabled?: boolean
+          workspace_shell_enabled?: boolean
         }
         Relationships: [
           {

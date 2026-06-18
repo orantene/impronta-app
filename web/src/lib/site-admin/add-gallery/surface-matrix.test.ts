@@ -126,27 +126,50 @@ test("governedBy exposes the lossy 3-on-1 toggle collapse", () => {
   assert.equal(workspaceGoverned.length, 3, "3 of 4 surfaces ride one toggle");
 });
 
-test("composes over buildCatalogAdminView state (overlay → matrix)", () => {
+test("X4: composes over buildCatalogAdminView state (overlay → real 4-surface matrix)", () => {
+  // X4 — `buildCatalogAdminView` now emits a per-surface `surfaceVisible` map, so
+  // `deriveSurfaceMatrix(view)` reports the REAL independent toggles. A legacy
+  // overlay with only `workspace_enabled:false` (no explicit per-surface columns)
+  // falls back losslessly: talent_* ⇐ talent_enabled (true), workspace_* ⇐
+  // workspace_enabled (false). The talent SHELL is NO LONGER chained to workspace.
   const overlays: CatalogOverlayMap = {
     "el-button": overlay({ workspace_enabled: false }),
   };
   const [view] = buildCatalogAdminView([item()], overlays);
   const v = visByKey(deriveSurfaceMatrix(view));
-  // workspace_enabled=false on a "both"-target row: profile stays, the other
-  // three (all workspace_enabled-governed) drop.
   assert.equal(v.talent_profile, true);
-  assert.equal(v.talent_shell, false);
+  assert.equal(v.talent_shell, true, "X4: talent shell follows the TALENT value now");
   assert.equal(v.workspace_page, false);
   assert.equal(v.workspace_shell, false);
 });
 
-test("target_context flows through: a talent-only row is hidden on all workspace-governed surfaces", () => {
-  const [view] = buildCatalogAdminView([item({ targetContext: "talent" })], {});
+test("X4: independent per-surface columns drive the matrix exactly", () => {
+  // An overlay carrying explicit X4 columns must be honored verbatim — each
+  // surface independent, no 2-toggle fallback.
+  const overlays: CatalogOverlayMap = {
+    "el-button": overlay({
+      talent_profile_enabled: true,
+      talent_shell_enabled: false,
+      workspace_page_enabled: true,
+      workspace_shell_enabled: false,
+    }),
+  };
+  const [view] = buildCatalogAdminView([item()], overlays);
   const v = visByKey(deriveSurfaceMatrix(view));
-  // talent-targeted → workspaceVisible is false (target gate), so talent shell +
-  // both workspace surfaces are hidden; only the talent profile shows.
   assert.equal(v.talent_profile, true);
   assert.equal(v.talent_shell, false);
+  assert.equal(v.workspace_page, true);
+  assert.equal(v.workspace_shell, false);
+});
+
+test("X4: a talent-only row shows on BOTH talent surfaces, hidden on workspace ones", () => {
+  const [view] = buildCatalogAdminView([item({ targetContext: "talent" })], {});
+  const v = visByKey(deriveSurfaceMatrix(view));
+  // talent-targeted → both TALENT surfaces show (profile + shell); the workspace
+  // surfaces stay hidden by the target gate. Pre-X4 the talent shell was wrongly
+  // dark here because it rode the workspace toggle — this is the bug X4 fixes.
+  assert.equal(v.talent_profile, true);
+  assert.equal(v.talent_shell, true, "X4: talent shell is a TALENT surface now");
   assert.equal(v.workspace_page, false);
   assert.equal(v.workspace_shell, false);
 });
