@@ -1,4 +1,14 @@
 {
+  "src/components/builder-lab/template-manager.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/builder-core/templates/registry-actions.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "scripts/apply-user-prefs-migration.cjs": {
     "@typescript-eslint/no-require-imports": {
       "count": 2
