@@ -485,6 +485,13 @@ export interface EditContextValue {
    */
   patchSelectedBuilderNodesStyle: (
     stylePatchJson: string,
+    /**
+     * INS-2 — optional responsive bucket. `"tablet"`/`"mobile"` writes the patch
+     * into `style.responsive[bucket]` for every selected node; omitted/`null`
+     * patches the base (desktop) style. Per-node INS-1 locks are honored either
+     * way (the merge strips locked keys per node).
+     */
+    bucket?: "tablet" | "mobile" | null,
   ) => Promise<{ ok: boolean; error?: string }>;
   copySelectedBuilderNodes: () => { ok: boolean; error?: string; count?: number };
   cutSelectedBuilderNodes: () => Promise<{ ok: boolean; error?: string; count?: number }>;
@@ -7004,7 +7011,7 @@ export function EditProvider({
   const patchSelectedBuilderNodesStyle = useCallback<
     EditContextValue["patchSelectedBuilderNodesStyle"]
   >(
-    async (stylePatchJson) => {
+    async (stylePatchJson, bucket = null) => {
       let patch: Record<string, unknown>;
       try {
         const parsed = JSON.parse(stylePatchJson) as unknown;
@@ -7025,7 +7032,9 @@ export function EditProvider({
         nodeId: nodeIds[0],
         run: (tree) => ({
           ok: true,
-          tree: mergeStylePatchIntoTree(tree, nodeIds, patch),
+          // INS-2 — per-node INS-1 lock guard + optional responsive bucket live
+          // inside mergeStylePatchIntoTree, so a locked prop is never bulk-overwritten.
+          tree: mergeStylePatchIntoTree(tree, nodeIds, patch, bucket),
         }),
       });
       if (!patched.ok) return { ok: false, error: patched.error };

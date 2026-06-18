@@ -92,6 +92,27 @@ export const PRODUCT_ANALYTICS_EVENTS = {
    * admin-data.ts .eq('tenant_id') filters return real rows instead of 0.
    */
   view_site_page: "view_site_page",
+
+  // ---------------------------------------------------------------------------
+  // ABTEST-1 — minimal A/B testing on CTA / form sections (shared variant engine)
+  // Fired by the inline experiment runtime the shared renderer injects when a
+  // CTA / form node carries a live 2-arm experiment. Both events reuse this same
+  // /api/analytics/events seam (NO parallel table) and carry tenant_id top-level
+  // so per-tenant experiment reporting matches real rows.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Fired once per visitor per experiment node when its bucketed variant first
+   * renders into view. Payload: { experiment_id, variant, node_kind, tenant_id?, surface? }
+   */
+  experiment_view: "experiment_view",
+
+  /**
+   * Fired when the visitor completes the node's conversion for the served
+   * variant — a CTA click (button / cta_group) or a form submit (form).
+   * Payload: { experiment_id, variant, node_kind, tenant_id?, surface? }
+   */
+  experiment_convert: "experiment_convert",
 } as const;
 
 export type ProductAnalyticsEventName =

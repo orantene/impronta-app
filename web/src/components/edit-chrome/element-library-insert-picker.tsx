@@ -94,6 +94,35 @@ export function getActiveBuilderNodePaletteDrag(): BuilderNodePaletteDragPayload
   return activePaletteDrag;
 }
 
+/**
+ * CANVAS-6 — pointer-drag bridge between the gallery card (which arms the
+ * palette payload via Pointer Events) and the canvas drop receiver
+ * (selection-layer), which lives in a different React tree. HTML5 drag had the
+ * browser fire `dragenter`/`dragover`/`drop` on the window for free; Pointer
+ * Events don't, so the card publishes pointer-drag lifecycle phases here and the
+ * canvas subscribes. Single in-flight drag at a time → a singleton listener set
+ * is sufficient (mirrors `activePaletteDrag`).
+ */
+export type PalettePointerDragPhase =
+  | { type: "move"; clientX: number; clientY: number }
+  | { type: "drop"; clientX: number; clientY: number }
+  | { type: "cancel" };
+
+type PalettePointerDragListener = (phase: PalettePointerDragPhase) => void;
+
+const palettePointerDragListeners = new Set<PalettePointerDragListener>();
+
+export function subscribePalettePointerDrag(
+  listener: PalettePointerDragListener,
+): () => void {
+  palettePointerDragListeners.add(listener);
+  return () => palettePointerDragListeners.delete(listener);
+}
+
+export function emitPalettePointerDrag(phase: PalettePointerDragPhase): void {
+  for (const listener of palettePointerDragListeners) listener(phase);
+}
+
 export function ElementLibraryInsertPicker({
   allowedKinds,
   onPick,

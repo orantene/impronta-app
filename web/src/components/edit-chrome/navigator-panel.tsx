@@ -42,7 +42,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type DragEvent,
   type MouseEventHandler,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -65,6 +64,7 @@ import {
 } from "./kit";
 import { DockFloatingPanel } from "./dock-floating-panel";
 import { useFloatingDrag } from "./floating-panel";
+import { usePointerDrag } from "./use-pointer-drag";
 import { useCommandDockCoupling } from "./use-command-dock-coupling";
 import {
   computeNavigatorDisclosure,
@@ -548,7 +548,6 @@ export function NavigatorPanel() {
   }, [navigatorOpen, canEditSiteShell, isSiteShellSurface]);
   /** Flat-index of the current drop-line target (insert *before* this row). null → no drop visible. */
   const [dropAt, setDropAt] = useState<number | null>(null);
-  const dropEdgeRef = useRef<"top" | "bottom">("top");
 
   const flat = useMemo<FlatRow[]>(() => {
     const out: FlatRow[] = [];
@@ -950,29 +949,6 @@ export function NavigatorPanel() {
     [flat, builderTree, selectNavigatorSectionRow, focusSectionForEdit, selectBuilderNode],
   );
 
-  const onDragStart = useCallback(
-    (e: DragEvent<HTMLDivElement>, sectionId: string) => {
-      setDraggingId(sectionId);
-      // QA-6 fix — promote the dragged row to selection so the inspector,
-      // canvas chip, and navigator all agree on the active section. The
-      // chip's startDrag (selection-layer.tsx) already does this; the
-      // navigator's drag handler used to leave selection bound to whatever
-      // the operator clicked last, so dragging Hero while Site header was
-      // selected left the inspector stuck on Site header even as Hero
-      // visually became the active drag source.
-      focusSectionForEdit(sectionId);
-      e.dataTransfer.effectAllowed = "move";
-      // We ignore dataTransfer payload — id is in component state — but
-      // setting *something* keeps Firefox from cancelling the drag.
-      e.dataTransfer.setData("text/plain", sectionId);
-    },
-    [focusSectionForEdit],
-  );
-
-  const onDragEnd = useCallback(() => {
-    setDraggingId(null);
-    setDropAt(null);
-  }, []);
   const allowedChildKindsForParent = useCallback(
     (parentKind: BuilderNodeKind): ReadonlyArray<BuilderNodeKind> => {
       const policy = BUILDER_NODE_REGISTRY[parentKind].children;
@@ -1098,103 +1074,164 @@ export function NavigatorPanel() {
     },
     [removeBuilderNode, reportMutationError],
   );
-  const onChildDragEnd = useCallback(() => {
-    setDraggingChildNode(null);
-    setChildDropTarget(null);
-  }, []);
-  const onChildDragStart = useCallback(
+  // CANVAS-6 — panel-scoped metadata for every child row, so the pointer-drag
+  // handler can resolve a `childDropTarget` from a hovered `[data-navigator-
+  // child-node]` element (Pointer Events don't carry the per-row render closure
+  // the old onDragOver did). Keyed by child node id.
+  const childRowMeta = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        kind: BuilderNodeKind;
+        parentId: string;
+        siblingIndex: number;
+        siblingCount: number;
+      }
+    >();
+    for (const fr of flat) {
+      for (const child of fr.childNodes) {
+        const siblingIds = fr.childNodes
+          .filter((node) => node.parentId === child.parentId)
+          .map((node) => node.id);
+        map.set(child.id, {
+          kind: child.kind,
+          parentId: child.parentId,
+          siblingIndex: siblingIds.indexOf(child.id),
+          siblingCount: siblingIds.length,
+        });
+      }
+    }
+    return map;
+  }, [flat]);
+
+  // Resolve a parent container's kind (a section node id → "section", else the
+  // parent child node's kind) so child-kind legality can be checked off a
+  // hovered row, mirroring the per-row `parentKindFor` closure.
+  const parentKindOf = useCallback(
+    (parentId: string): BuilderNodeKind | null => {
+      for (const fr of flat) {
+        if (fr.builderNodeId === parentId) return "section";
+        const node = fr.childNodes.find((n) => n.id === parentId);
+        if (node) return node.kind;
+      }
+      return null;
+    },
+    [flat],
+  );
+
+  // Resolve a pointer-drag move/drop over the child rows to a childDropTarget,
+  // reusing the SAME upper/lower-half + accept-in-parent rules the old per-row
+  // onDragOver computed. Returns null when the hover isn't a legal drop.
+  const resolveChildPointerDrop = useCallback(
     (
-      e: DragEvent<HTMLDivElement>,
-      input: {
+      source: {
         nodeId: string;
         kind: BuilderNodeKind;
         parentId: string;
         sourceIndex: number;
       },
-    ) => {
-      e.stopPropagation();
-      setDraggingChildNode(input);
-      setChildDropTarget(null);
-      selectBuilderNode(input.nodeId);
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", input.nodeId);
+      targetEl: HTMLElement | null,
+      onUpperHalf: boolean | null,
+    ): { parentId: string; index: number; siblingCount: number } | null => {
+      if (!targetEl) return null;
+      // Tail drop: hover over the child-list container (below the last row).
+      const listEl = targetEl.closest<HTMLElement>("[data-navigator-child-list]");
+      const childEl = targetEl.closest<HTMLElement>("[data-navigator-child-node]");
+      if (childEl) {
+        const targetId = childEl.getAttribute("data-builder-node-id");
+        if (!targetId || onUpperHalf == null) return null;
+        const meta = childRowMeta.get(targetId);
+        if (!meta || meta.siblingIndex < 0) return null;
+        const parentKind = parentKindOf(meta.parentId);
+        if (
+          !parentKind ||
+          !allowedChildKindsForParent(parentKind).includes(source.kind)
+        ) {
+          return null;
+        }
+        const index = onUpperHalf ? meta.siblingIndex : meta.siblingIndex + 1;
+        return { parentId: meta.parentId, index, siblingCount: meta.siblingCount };
+      }
+      if (listEl) {
+        // Empty space in the list → append after the dragged node's siblings.
+        const listSectionId = listEl.getAttribute("data-section-id");
+        const fr = listSectionId
+          ? flat.find((r) => r.ref.sectionId === listSectionId)
+          : undefined;
+        if (!fr) return null;
+        const siblingCount = fr.childNodes.filter(
+          (node) => node.parentId === source.parentId,
+        ).length;
+        if (siblingCount <= 0) return null;
+        return { parentId: source.parentId, index: siblingCount, siblingCount };
+      }
+      return null;
     },
-    [selectBuilderNode],
+    [childRowMeta, parentKindOf, allowedChildKindsForParent, flat],
   );
-  const onChildDrop = useCallback(
-    async (e: DragEvent<HTMLDivElement>) => {
-      if (!draggingChildNode || !childDropTarget) return;
-      e.preventDefault();
-      e.stopPropagation();
 
-      const sourceIndex = draggingChildNode.sourceIndex;
-      const sourceParentId = draggingChildNode.parentId;
-      const targetParentId = childDropTarget.parentId;
-      const dropIndex = childDropTarget.index;
-      const sameParent = sourceParentId === targetParentId;
+  // CANVAS-6 — child-node reorder via the shared pointer-drag hook. Drives the
+  // SAME draggingChildNode/childDropTarget indicator + moveBuilderNodeToParentIndex.
+  const { getHandleProps: getChildDragProps } = usePointerDrag<{
+    nodeId: string;
+    kind: BuilderNodeKind;
+    parentId: string;
+    sourceIndex: number;
+  }>({
+    rowSelector: "[data-navigator-child-node]",
+    onDragStart: (source) => {
+      setDraggingChildNode(source);
+      setChildDropTarget(null);
+      selectBuilderNode(source.nodeId);
+    },
+    onDragMove: ({ source, targetEl, onUpperHalf }) => {
+      setChildDropTarget(
+        resolveChildPointerDrop(source, targetEl, onUpperHalf),
+      );
+    },
+    onDrop: ({ source, targetEl, onUpperHalf }) => {
+      const target = resolveChildPointerDrop(source, targetEl, onUpperHalf);
+      if (!target) return;
+      const sameParent = source.parentId === target.parentId;
       const resolved = siblingDropGapToMoveIndex({
-        dropGapIndex: dropIndex,
-        sourceSiblingIndex: sourceIndex,
+        dropGapIndex: target.index,
+        sourceSiblingIndex: source.sourceIndex,
         sameParent,
       });
-      if (resolved.kind === "noop") {
-        onChildDragEnd();
-        return;
-      }
-
-      const nodeId = draggingChildNode.nodeId;
-      onChildDragEnd();
-      const moved = await moveBuilderNodeToParentIndex(
-        nodeId,
-        targetParentId,
-        resolved.targetSiblingIndex,
-      );
-      if (!moved.ok && moved.error) {
-        reportMutationError(moved.error);
-      }
+      if (resolved.kind === "noop") return;
+      void (async () => {
+        const moved = await moveBuilderNodeToParentIndex(
+          source.nodeId,
+          target.parentId,
+          resolved.targetSiblingIndex,
+        );
+        if (!moved.ok && moved.error) {
+          reportMutationError(moved.error);
+        }
+      })();
     },
-    [
-      childDropTarget,
-      draggingChildNode,
-      moveBuilderNodeToParentIndex,
-      onChildDragEnd,
-      reportMutationError,
-    ],
-  );
-
-  const onRowDragOver = useCallback(
-    (e: DragEvent<HTMLDivElement>, targetFlatIndex: number) => {
-      if (!draggingId) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      const rect = e.currentTarget.getBoundingClientRect();
-      const onUpperHalf = e.clientY - rect.top < rect.height / 2;
-      dropEdgeRef.current = onUpperHalf ? "top" : "bottom";
-      setDropAt(onUpperHalf ? targetFlatIndex : targetFlatIndex + 1);
+    onDragEnd: () => {
+      setDraggingChildNode(null);
+      setChildDropTarget(null);
     },
-    [draggingId],
-  );
-
-  const onDrop = useCallback(
-    async (e: DragEvent<HTMLDivElement>) => {
-      if (!draggingId || dropAt == null) return;
-      e.preventDefault();
-      const moved = flat.find((r) => r.ref.sectionId === draggingId);
-      if (!moved) {
-        onDragEnd();
-        return;
-      }
+  });
+  // CANVAS-6 — commit a resolved section drop. Extracted from the old HTML5
+  // onDrop so the pointer-drag path can pass the freshly-resolved drop index
+  // explicitly (React batches setDropAt, so reading it back off state inside the
+  // pointerup handler would be stale). The drop math is unchanged.
+  const commitSectionDrop = useCallback(
+    async (draggedSectionId: string, dropAtIndex: number | null) => {
+      if (dropAtIndex == null) return;
+      const moved = flat.find((r) => r.ref.sectionId === draggedSectionId);
+      if (!moved) return;
       const targetIndexAfterRemoval =
-        dropAt > moved.flatIndex ? dropAt - 1 : dropAt;
+        dropAtIndex > moved.flatIndex ? dropAtIndex - 1 : dropAtIndex;
       const target = resolveSectionDropTarget(
         flat,
         moved.ref.sectionId,
         targetIndexAfterRemoval,
       );
-      if (!target) {
-        onDragEnd();
-        return;
-      }
+      if (!target) return;
 
       const compatibility = checkSlotTypeCompatibility({
         slotDefs,
@@ -1202,28 +1239,69 @@ export function NavigatorPanel() {
         sectionTypeKey: moved.ref.sectionTypeKey,
       });
       if (!compatibility.ok) {
-        onDragEnd();
         reportMutationError(compatibility.message);
         return;
       }
 
-      onDragEnd();
       await moveSectionTo(
         moved.ref.sectionId,
         target.targetSlotKey,
         target.targetSlotIndex,
       );
     },
-    [
-      draggingId,
-      dropAt,
-      flat,
-      slotDefs,
-      moveSectionTo,
-      onDragEnd,
-      reportMutationError,
-    ],
+    [flat, slotDefs, moveSectionTo, reportMutationError],
   );
+
+  // CANVAS-6 — section reorder via the shared pointer-drag hook (touch parity).
+  // Replaces the per-row HTML5 onDragStart/onDragOver + container onDrop. The
+  // hook drives the SAME draggingId/dropAt indicator + commitSectionDrop commit.
+  const { getHandleProps: getSectionDragProps } = usePointerDrag<{
+    sectionId: string;
+    flatIndex: number;
+  }>({
+    rowSelector: "[data-navigator-section-row]",
+    onDragStart: (source) => {
+      setDraggingId(source.sectionId);
+      setDropAt(null);
+      focusSectionForEdit(source.sectionId);
+    },
+    onDragMove: ({ targetEl, onUpperHalf }) => {
+      if (!targetEl || onUpperHalf == null) {
+        setDropAt(null);
+        return;
+      }
+      const targetSectionId = targetEl.getAttribute("data-section-id");
+      if (!targetSectionId) {
+        setDropAt(null);
+        return;
+      }
+      const targetRow = flat.find((r) => r.ref.sectionId === targetSectionId);
+      if (!targetRow) {
+        setDropAt(null);
+        return;
+      }
+      setDropAt(onUpperHalf ? targetRow.flatIndex : targetRow.flatIndex + 1);
+    },
+    onDrop: ({ source, targetEl, onUpperHalf }) => {
+      // Recompute the drop index from the final pointer position so the commit
+      // never reads a stale batched setDropAt.
+      let dropAtIndex: number | null = null;
+      if (targetEl && onUpperHalf != null) {
+        const targetSectionId = targetEl.getAttribute("data-section-id");
+        const targetRow = targetSectionId
+          ? flat.find((r) => r.ref.sectionId === targetSectionId)
+          : undefined;
+        if (targetRow) {
+          dropAtIndex = onUpperHalf ? targetRow.flatIndex : targetRow.flatIndex + 1;
+        }
+      }
+      void commitSectionDrop(source.sectionId, dropAtIndex);
+    },
+    onDragEnd: () => {
+      setDraggingId(null);
+      setDropAt(null);
+    },
+  });
 
   // Canvas-first model (2026-06 redesign): the Page Structure panel is closed
   // by default and launched from the slim CommandDock. When closed it renders
@@ -1518,16 +1596,6 @@ export function NavigatorPanel() {
       zIndex={80}
       headerExtra={navigatorPerfBadge}
       afterHandle={navigatorResizeHandle}
-      onDragLeave={(e) => {
-        const target = e.relatedTarget as Node | null;
-        if (!target || !e.currentTarget.contains(target)) {
-          setDropAt(null);
-        }
-      }}
-      onDrop={(e) => void onDrop(e as React.DragEvent<HTMLDivElement>)}
-      onDragOver={(e) => {
-        if (draggingId) e.preventDefault();
-      }}
       tabs={navigatorTabs}
       footer={navigatorFooter}
     >
@@ -2215,8 +2283,10 @@ export function NavigatorPanel() {
               <div key={row.ref.sectionId} style={{ position: "relative" }}>
                 {showDropLineAbove && <DropLine />}
                 <div
-                  draggable={sectionDragEnabled}
-                  onDragStart={(e) => {
+                  onPointerDown={(e) => {
+                    // CANVAS-6 — only start a section drag from the grip handle,
+                    // never from the actions / reorder / secondary-action zones
+                    // (parity with the old HTML5 onDragStart guard).
                     const target = e.target;
                     if (
                       !sectionDragEnabled ||
@@ -2226,13 +2296,13 @@ export function NavigatorPanel() {
                           target.closest("[data-navigator-section-reorder-controls]") ||
                           target.closest("[data-navigator-row-secondary-actions]")))
                     ) {
-                      e.preventDefault();
                       return;
                     }
-                    onDragStart(e, row.ref.sectionId);
+                    getSectionDragProps({
+                      sectionId: row.ref.sectionId,
+                      flatIndex: row.flatIndex,
+                    }).onPointerDown(e);
                   }}
-                  onDragEnd={onDragEnd}
-                  onDragOver={(e) => onRowDragOver(e, row.flatIndex)}
                   onClick={(e) =>
                     handleRowSelect(
                       row.ref.sectionId,
@@ -2363,6 +2433,8 @@ export function NavigatorPanel() {
                       alignItems: "center",
                       justifyContent: "center",
                       cursor: sectionDragEnabled ? "grab" : "default",
+                      // CANVAS-6 — keep touch scroll from swallowing a grip drag.
+                      touchAction: sectionDragEnabled ? "none" : undefined,
                     }}
                   >
                     <GripDots
@@ -2654,22 +2726,6 @@ export function NavigatorPanel() {
                   <div
                     data-navigator-child-list=""
                     data-section-id={row.ref.sectionId}
-                    onDragOver={(e) => {
-                      if (searchQuery || !draggingChildNode) return;
-                      const siblingCount = row.childNodes.filter(
-                        (node) => node.parentId === draggingChildNode.parentId,
-                      ).length;
-                      if (siblingCount <= 0) return;
-                      e.preventDefault();
-                      e.stopPropagation();
-                      e.dataTransfer.dropEffect = "move";
-                      setChildDropTarget({
-                        parentId: draggingChildNode.parentId,
-                        index: siblingCount,
-                        siblingCount,
-                      });
-                    }}
-                    onDrop={(e) => void onChildDrop(e)}
                     style={{
                       marginLeft: 30,
                       display: "flex",
@@ -2708,23 +2764,6 @@ export function NavigatorPanel() {
                       const siblingIndex = siblingIds.indexOf(child.id);
                       const siblingCount = siblingIds.length;
                       const childDragEnabled = !searchQuery;
-                      const parentKindFor = (
-                        parentId: string,
-                      ): BuilderNodeKind | null => {
-                        if (parentId === row.builderNodeId) return "section";
-                        return (
-                          row.childNodes.find((node) => node.id === parentId)
-                            ?.kind ?? null
-                        );
-                      };
-                      const acceptsDraggedChild = (parentId: string) => {
-                        if (!draggingChildNode) return false;
-                        const parentKind = parentKindFor(parentId);
-                        if (!parentKind) return false;
-                        return allowedChildKindsForParent(parentKind).includes(
-                          draggingChildNode.kind,
-                        );
-                      };
                       const canMoveUp = siblingIndex > 0;
                       const canMoveDown =
                         siblingIndex >= 0 && siblingIndex < siblingCount - 1;
@@ -2760,8 +2799,11 @@ export function NavigatorPanel() {
                           <div
                             role="button"
                             tabIndex={0}
-                            draggable={childDragEnabled && siblingCount > 1}
-                            onDragStart={(e) => {
+                            onPointerDown={(e) => {
+                              // CANVAS-6 — start a child drag only from the grip
+                              // handle (not actions/reorder controls), and only
+                              // when reordering is possible. Parity with the old
+                              // HTML5 onDragStart guard.
                               const target = e.target;
                               if (
                                 target instanceof HTMLElement &&
@@ -2769,47 +2811,22 @@ export function NavigatorPanel() {
                                   target.closest("[data-navigator-child-actions]") ||
                                   target.closest("[data-navigator-child-reorder-controls]"))
                               ) {
-                                e.preventDefault();
                                 return;
                               }
-                              if (!childDragEnabled || siblingIndex < 0) {
-                                e.preventDefault();
+                              if (
+                                !childDragEnabled ||
+                                siblingIndex < 0 ||
+                                siblingCount <= 1
+                              ) {
                                 return;
                               }
-                              onChildDragStart(e, {
+                              getChildDragProps({
                                 nodeId: child.id,
                                 kind: child.kind,
                                 parentId: child.parentId,
                                 sourceIndex: siblingIndex,
-                              });
+                              }).onPointerDown(e);
                             }}
-                            onDragEnd={onChildDragEnd}
-                            onDragOver={(e) => {
-                              if (
-                                searchQuery ||
-                                !draggingChildNode ||
-                                siblingIndex < 0
-                              ) {
-                                return;
-                              }
-                              if (!acceptsDraggedChild(child.parentId)) {
-                                setChildDropTarget(null);
-                                return;
-                              }
-                              e.preventDefault();
-                              e.stopPropagation();
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              const onUpperHalf = e.clientY - rect.top < rect.height / 2;
-                              const nextIndex = onUpperHalf
-                                ? siblingIndex
-                                : siblingIndex + 1;
-                              setChildDropTarget({
-                                parentId: child.parentId,
-                                index: nextIndex,
-                                siblingCount,
-                              });
-                            }}
-                            onDrop={(e) => void onChildDrop(e)}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (!childRecentStyle) clearNavigatorRecentAdditions();
@@ -2967,6 +2984,11 @@ export function NavigatorPanel() {
                                   childDragEnabled && siblingCount > 1
                                     ? "grab"
                                     : "default",
+                                // CANVAS-6 — touch drag must not scroll the panel.
+                                touchAction:
+                                  childDragEnabled && siblingCount > 1
+                                    ? "none"
+                                    : undefined,
                                 flexShrink: 0,
                               }}
                             >

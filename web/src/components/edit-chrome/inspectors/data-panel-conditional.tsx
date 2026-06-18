@@ -21,8 +21,11 @@ import {
   BUILDER_VISIBILITY_VARIANT_MAX,
   buildBuilderFieldMapPreview,
   describeBuilderVisibilityCondition,
+  EXPERIMENT_ELIGIBLE_KINDS,
+  EXPERIMENT_VARIANT_LABEL_MAX,
   firstRepeatItemFromRecords,
   getBuilderNodeDataBinding,
+  getNodeExperimentConfig,
   getBuilderNodeVisibilityCondition,
   isCollectionDataSourceKey,
   normalizeBuilderVisibilityCondition,
@@ -32,6 +35,8 @@ import {
   type BuilderVisibilityAuth,
   type BuilderVisibilityCondition,
   type BuilderVisibilityLocale,
+  type ExperimentPropOverride,
+  type NodeExperimentConfig,
 } from "@/lib/site-admin/builder-node";
 import { getCollectionAction } from "@/lib/site-admin/collections/actions";
 import {
@@ -197,6 +202,166 @@ export function VisibilityRulesCard({
             the canvas so you can select them; the live site applies the rule.
           </p>
         </div>
+      </CardBody>
+    </Card>
+  );
+}
+
+// ── ABTEST-1 — minimal A/B experiment authoring (CTA / form nodes) ────────────
+
+/** Which props the "B" variant may override, per eligible node kind. Kept to a
+ *  tiny, meaningful set per kind so the affordance stays minimal. */
+function experimentOverrideFieldsForKind(
+  kind: string,
+): ReadonlyArray<{ key: string; label: string; placeholder: string }> {
+  if (kind === "button") {
+    return [
+      { key: "label", label: "Button text", placeholder: "e.g. Get a quote" },
+      { key: "href", label: "Button link", placeholder: "/contact" },
+    ];
+  }
+  if (kind === "form") {
+    // The form's submit caption lives on a submit field, not a top-level prop;
+    // for v1 we A/B a top-level marketing line many forms carry (layerLabel is
+    // not user-facing). The most robust minimal override is the form `action`
+    // is off-limits — instead expose a free "B headline" stored as a prop the
+    // author can bind. Keep it to ONE field: a CTA-style label override.
+    return [{ key: "label", label: "Variant label", placeholder: "Variant B copy" }];
+  }
+  // cta_group — a single group-level label override.
+  return [{ key: "label", label: "Variant label", placeholder: "Variant B copy" }];
+}
+
+function mintExperimentId(nodeId: string): string {
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `exp-${nodeId.slice(0, 6)}-${rand}`.slice(0, 40);
+}
+
+/**
+ * "A/B test" — an OPTIONAL minimal 2-arm experiment on an eligible CTA / form
+ * node. Variant "a" is the live node (control); the author sets variant "b"'s
+ * prop overrides here. Enabling mints a stable experiment id; the shared
+ * renderer buckets each visitor deterministically and tags the element so the
+ * runtime records `experiment_view` / `experiment_convert`. Persists via the
+ * normal patch path (`patch: { experiment }`); clearing removes it.
+ */
+export function ABTestCard({
+  selectedBuilderNode,
+  onPatchBuilderNodeProps,
+  onMutationError,
+}: SharedProps) {
+  const kind = selectedBuilderNode.kind;
+  if (!EXPERIMENT_ELIGIBLE_KINDS.has(kind)) return null;
+
+  const config = getNodeExperimentConfig(selectedBuilderNode);
+  const active = config != null;
+  const fields = experimentOverrideFieldsForKind(kind);
+  const bOverrides = config?.variants.find((v) => v.key === "b")?.propOverrides ?? {};
+
+  async function commit(next: NodeExperimentConfig | null) {
+    const result = await onPatchBuilderNodeProps(selectedBuilderNode.id, {
+      experiment: next ?? undefined,
+    });
+    if (!result.ok && result.error) onMutationError?.(result.error);
+  }
+
+  function enable() {
+    void commit({
+      experimentId: mintExperimentId(selectedBuilderNode.id),
+      enabled: true,
+      variants: [{ key: "a" }, { key: "b", propOverrides: {} }],
+    });
+  }
+
+  function patchOverride(key: string, raw: string) {
+    if (!config) return;
+    const nextOverrides: Record<string, ExperimentPropOverride> = { ...bOverrides };
+    if (raw.trim()) nextOverrides[key] = raw;
+    else delete nextOverrides[key];
+    void commit({
+      ...config,
+      variants: [
+        { key: "a" },
+        { key: "b", propOverrides: nextOverrides },
+      ],
+    });
+  }
+
+  return (
+    <Card state={active ? "active" : "default"}>
+      <CardHead
+        title="A/B test"
+        sub={
+          active
+            ? "Two variants — visitors split 50/50, conversions tracked"
+            : "Off — one version for everyone"
+        }
+        iconAccent={active ? "green" : "blue"}
+        action={
+          active ? (
+            <button
+              type="button"
+              className={KIT.subtleButton}
+              data-builder-experiment-clear
+              onClick={() => {
+                void commit(null);
+              }}
+            >
+              Clear
+            </button>
+          ) : null
+        }
+      />
+      <CardBody>
+        {active ? (
+          <div className="flex flex-col gap-3" data-builder-experiment-config>
+            <p className="text-[11px] leading-snug text-stone-500">
+              Variant A is the version you see on the canvas. Set variant B
+              below — half your visitors see it. We record an impression and a
+              conversion ({kind === "form" ? "form submit" : "click"}) for each.
+            </p>
+            {fields.map((field) => (
+              <Field flush key={field.key}>
+                <FieldLabel>Variant B · {field.label}</FieldLabel>
+                <input
+                  type="text"
+                  className={KIT.input}
+                  maxLength={EXPERIMENT_VARIANT_LABEL_MAX}
+                  value={
+                    typeof bOverrides[field.key] === "string"
+                      ? (bOverrides[field.key] as string)
+                      : ""
+                  }
+                  placeholder={field.placeholder}
+                  aria-label={`Variant B ${field.label}`}
+                  data-builder-experiment-override={field.key}
+                  onChange={(event) =>
+                    patchOverride(field.key, event.currentTarget.value)
+                  }
+                />
+              </Field>
+            ))}
+            <Helper>
+              Leave a field blank to keep variant A’s value for it. An empty
+              variant B is treated as no experiment.
+            </Helper>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              className={KIT.subtleButton}
+              data-builder-experiment-enable
+              onClick={enable}
+            >
+              Add a B variant
+            </button>
+            <Helper>
+              Test two versions of this {kind === "form" ? "form" : "call to action"} and
+              see which converts better.
+            </Helper>
+          </div>
+        )}
       </CardBody>
     </Card>
   );
