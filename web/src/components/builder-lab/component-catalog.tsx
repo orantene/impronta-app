@@ -36,6 +36,13 @@ import {
 } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
 import { SiteDefaultsEditor } from "./site-defaults-editor";
 import { DefaultSurfacesPanel } from "./default-surfaces-panel";
+import {
+  archiveTemplate,
+  publishTemplate,
+  rejectToDraft,
+  submitTemplateForReview,
+  unpublishTemplate,
+} from "@/lib/site-admin/builder-core/templates/registry-actions";
 import { CatalogStudioView } from "./catalog-studio";
 import { SurfaceSwitcher } from "./surface-switcher";
 import { CatalogRowTable, targetAllows } from "./catalog-row-table";
@@ -213,7 +220,7 @@ export function ComponentCatalog({
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 2400);
+    setTimeout(() => setToast(null), T.toastMs);
   }, []);
 
   const reload = useCallback(async () => {
@@ -385,6 +392,57 @@ export function ComponentCatalog({
     [mutate, flash],
   );
 
+  // ── Status transition (lifecycle control, ZERO migration) ───────────────────
+  // Two orthogonal mechanisms behind ONE dropdown, depending on row source:
+  //  • Code rows have no lifecycle enum — they reuse the existing
+  //    `availability_override` column. Published ⇒ 'available', Archived ⇒
+  //    'hidden' (which `applyCatalogOverlay` already honors globally). Draft /
+  //    In-review aren't selectable for code rows (shown disabled by the row UI).
+  //  • DB-template rows dispatch the existing registry lifecycle actions on their
+  //    raw `dbTemplateId`. Only the legal transition for the current status is
+  //    enabled (the row UI computes which); this makes in_review / archived
+  //    reachable from the row.
+  const setStatus = useCallback(
+    (item: CatalogAdminItem, next: "draft" | "in_review" | "published" | "archived") => {
+      if (item.source === "code") {
+        const availability = next === "archived" ? "hidden" : "available";
+        void mutate(item.id, () =>
+          setComponentOverlay({
+            item_ref: item.id,
+            source: item.source,
+            availability_override: availability,
+          }),
+        ).then(() =>
+          flash(next === "archived" ? "Archived" : "Published ✓"),
+        );
+        return;
+      }
+      // DB template — dispatch the matching lifecycle action on the raw row id.
+      const templateId = item.dbTemplateId ?? item.id;
+      const action =
+        next === "in_review"
+          ? () => submitTemplateForReview(templateId)
+          : next === "published"
+            ? () => publishTemplate(templateId)
+            : next === "archived"
+              ? () => archiveTemplate(templateId)
+              : // → draft: from in_review use rejectToDraft, from published use unpublish.
+                item.status === "in_review"
+                ? () => rejectToDraft(templateId)
+                : () => unpublishTemplate(templateId);
+      void mutate(item.id, action).then(() => {
+        const labels: Record<typeof next, string> = {
+          draft: "Moved to draft",
+          in_review: "Submitted for review",
+          published: "Published ✓",
+          archived: "Archived",
+        };
+        flash(labels[next]);
+      });
+    },
+    [mutate, flash],
+  );
+
   const { presentTabs, rowsByTab } = useMemo(() => {
     const empty = {
       presentTabs: [] as AddGalleryTab[],
@@ -394,8 +452,16 @@ export function ComponentCatalog({
     const q = query.trim().toLowerCase();
     const matches = (r: CatalogAdminItem) => {
       if (filterMode === "customized" && !r.overlay) return false;
-      if (filterMode === "hidden" && r.talentVisible && r.workspaceVisible) {
-        return false;
+      if (filterMode === "hidden") {
+        // "Hidden" surfaces any row not fully visible: at least one surface
+        // toggle off (the original rule), OR the row is availability-archived
+        // (availability_override==='hidden' — drops it from BOTH live galleries).
+        // The archived case is now reachable from the per-row status dropdown, so
+        // it must register here even though both surface toggles may still read
+        // "on" underneath the archive.
+        const archived = r.overlay?.availability_override === "hidden";
+        const fullyVisible = r.talentVisible && r.workspaceVisible;
+        if (!archived && fullyVisible) return false;
       }
       if (q) {
         const hay =
@@ -612,6 +678,7 @@ export function ComponentCatalog({
             editingId === item.id ? setEditingId(null) : startEdit(item)
           }
           onToggleSurface={toggleSurface}
+          onSetStatus={setStatus}
           onSaveEdit={saveEdit}
           onCancelEdit={() => setEditingId(null)}
           onConfirmReset={confirmReset}

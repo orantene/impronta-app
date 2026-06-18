@@ -118,8 +118,15 @@ export interface CatalogAdminItem {
   id: string;
   tab: AddGalleryTab;
   source: "code" | "template";
-  /** Lifecycle status: 'built-in' for code items; the template's status
-   *  (draft|in_review|published|archived) for DB templates. */
+  /** For DB-template rows, the raw `builder_templates` row id (the namespaced
+   *  gallery `id` is `db-template:<dbTemplateId>`). The lifecycle actions
+   *  (publishTemplate / archiveTemplate / …) take this raw id. Undefined for
+   *  code rows. */
+  dbTemplateId?: string;
+  /** Lifecycle status. DB templates: the row's status enum
+   *  (draft|in_review|published|archived). Code items have no lifecycle row, so
+   *  this is DERIVED from `availability_override` — 'archived' when hidden,
+   *  'published' otherwise (the only two states a code row can hold). */
   status: string;
   itemKind: AddGalleryItem["itemKind"];
   availability: AddGalleryItem["availability"];
@@ -158,11 +165,21 @@ export function buildCatalogAdminView(
   return universe.map((item) => {
     const source: "code" | "template" =
       item.insertMethod === "dbTemplate" ? "template" : "code";
-    const status =
-      source === "template" ? statusByRef?.[item.id] ?? "published" : "built-in";
-    const targetContext: BuilderTemplateTarget = item.targetContext ?? "both";
     const ov = overlays[item.id] ?? null;
     const hidden = ov?.availability_override === "hidden";
+    // Lifecycle status. DB templates carry a real status enum
+    // (draft|in_review|published|archived). Code items have NO lifecycle row, so
+    // we DERIVE one from their `availability_override`: hidden → archived,
+    // otherwise published. This replaces the synthetic 'built-in' literal so the
+    // Catalog UI reflects the only two states a code row can actually hold
+    // (Published / Archived), driven by the same overlay the live gallery honors.
+    const status =
+      source === "template"
+        ? statusByRef?.[item.id] ?? "published"
+        : hidden
+          ? "archived"
+          : "published";
+    const targetContext: BuilderTemplateTarget = item.targetContext ?? "both";
     const talentVisible =
       templateTargetAllowed(targetContext, "talent") &&
       (ov ? ov.talent_enabled : true) &&
@@ -175,6 +192,7 @@ export function buildCatalogAdminView(
       id: item.id,
       tab: item.tab,
       source,
+      dbTemplateId: source === "template" ? item.dbTemplateId : undefined,
       status,
       itemKind: item.itemKind,
       availability: item.availability,

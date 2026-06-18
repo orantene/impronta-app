@@ -162,7 +162,7 @@ export function DefaultSurfacesPanel() {
           Loading default surfaces…
         </div>
       ) : loadError ? (
-        <div style={{ color: "#f0a8a8", fontSize: 13, padding: "12px 0" }}>
+        <div style={{ color: T.red, fontSize: 13, padding: "12px 0" }}>
           {loadError}
         </div>
       ) : (
@@ -302,7 +302,7 @@ export function DefaultSurfacesPanel() {
             <div
               style={{
                 fontSize: 12.5,
-                color: status.ok ? T.accent : "#f0a8a8",
+                color: status.ok ? T.accent : T.red,
               }}
             >
               {status.msg}
