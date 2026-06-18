@@ -46,6 +46,11 @@ import {
 } from "./validate-publish";
 import { mintCopySlug, mintCopyTitle } from "./slug-minting";
 import { appendBuilderLabAudit } from "./builder-lab-audit";
+import {
+  isSelfApprove,
+  buildSubmitStamp,
+  buildReviewStamp,
+} from "./approval-guard";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -105,6 +110,10 @@ interface PublishRowCoreInput {
   changelog?: string | null;
   /** When true, also writes builder_tree on the row (rollback path). */
   writeTree?: boolean;
+  /** Extra columns to merge into the row UPDATE (G4: reviewer provenance —
+   *  reviewed_by/reviewed_at/review_note). Merged last; never overrides the
+   *  core published-metadata keys. */
+  extraPatch?: Record<string, unknown>;
 }
 
 /**
@@ -141,6 +150,12 @@ async function publishRowCore(
   const normalizedChangelog = normalizeChangelog(input.changelog);
   if (normalizedChangelog !== undefined) {
     patch.changelog = normalizedChangelog;
+  }
+  // G4: merge reviewer provenance (reviewed_by/reviewed_at/review_note) last so
+  // it lands on the snapshot too. Core published-metadata keys are already set;
+  // extraPatch only carries approval columns, so there is no key collision.
+  if (input.extraPatch) {
+    Object.assign(patch, input.extraPatch);
   }
 
   const { data: updated, error: updateErr } = await sb
@@ -351,9 +366,11 @@ export async function submitTemplateForReview(
 
   try {
     const sb = getAdminClient();
+    // Stamp submit provenance (G4) so a later publish can block self-approval.
+    // A fresh submit also clears any prior review provenance (buildSubmitStamp).
     const { data, error } = await sb
       .from("builder_templates")
-      .update({ status: "in_review" })
+      .update({ status: "in_review", ...buildSubmitStamp(gate.userId) })
       .eq("id", templateId)
       .in("status", ["draft"])
       .select()
@@ -375,9 +392,13 @@ export async function submitTemplateForReview(
  * Reviewer "send back": flips an in_review template back to draft (P4 approval
  * queue). The author can revise and re-submit. No revision snapshot — nothing
  * was published.
+ *
+ * G4: stamps reviewer provenance (reviewed_by/reviewed_at) and captures the
+ * optional rejection `reason` into review_note (normalized via buildReviewStamp).
  */
 export async function rejectToDraft(
   templateId: string,
+  reason?: string | null,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
@@ -386,7 +407,7 @@ export async function rejectToDraft(
     const sb = getAdminClient();
     const { data, error } = await sb
       .from("builder_templates")
-      .update({ status: "draft" })
+      .update({ status: "draft", ...buildReviewStamp(gate.userId, reason) })
       .eq("id", templateId)
       .eq("status", "in_review")
       .select()
@@ -442,6 +463,16 @@ export async function publishTemplate(
 
     const row = current as BuilderTemplateRow;
 
+    // TWO-PERSON APPROVAL GUARD (G4) — block self-approval. Only enforced when
+    // the template is genuinely in_review (a direct draft→publish by its author
+    // is a single-person flow, not a review, so it is intentionally allowed).
+    // A row with no recorded submitter never blocks (isSelfApprove handles null).
+    if (row.status === "in_review" && isSelfApprove(row.submitted_by, gate.userId)) {
+      return fail(
+        "Two-person approval: you submitted this template for review, so a different super admin must publish it.",
+      );
+    }
+
     // VALIDATE + DIFF GATE (WS-D D1) — must run BEFORE the row update so a
     // broken / empty / unbindable template never reaches a tenant's "+"
     // gallery. Read the previous published snapshot's tree for the (advisory)
@@ -478,6 +509,9 @@ export async function publishTemplate(
       createdBy: gate.userId,
       note: changelog,
       changelog,
+      // G4: stamp the approving reviewer + thread the changelog as the review
+      // note so the published snapshot records who approved and why.
+      extraPatch: { ...buildReviewStamp(gate.userId, changelog) },
     });
 
     if (!coreResult.ok) return coreResult;

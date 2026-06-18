@@ -3009,11 +3009,16 @@ export type Database = {
           published_at: string | null
           required_plan: string
           required_talent_tier: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           rollout_percentage: number
           schema_version: number
           slug: string
           source_tenant_id: string | null
           status: Database["public"]["Enums"]["builder_template_status"]
+          submitted_at: string | null
+          submitted_by: string | null
           tags: string[]
           target_context: Database["public"]["Enums"]["builder_template_target"]
           tenant_allowlist: string[]
@@ -3042,11 +3047,16 @@ export type Database = {
           published_at?: string | null
           required_plan?: string
           required_talent_tier?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           rollout_percentage?: number
           schema_version?: number
           slug: string
           source_tenant_id?: string | null
           status?: Database["public"]["Enums"]["builder_template_status"]
+          submitted_at?: string | null
+          submitted_by?: string | null
           tags?: string[]
           target_context?: Database["public"]["Enums"]["builder_template_target"]
           tenant_allowlist?: string[]
@@ -3075,11 +3085,16 @@ export type Database = {
           published_at?: string | null
           required_plan?: string
           required_talent_tier?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           rollout_percentage?: number
           schema_version?: number
           slug?: string
           source_tenant_id?: string | null
           status?: Database["public"]["Enums"]["builder_template_status"]
+          submitted_at?: string | null
+          submitted_by?: string | null
           tags?: string[]
           target_context?: Database["public"]["Enums"]["builder_template_target"]
           tenant_allowlist?: string[]
@@ -3106,10 +3121,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "builder_templates_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "builder_templates_source_tenant_id_fkey"
             columns: ["source_tenant_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "builder_templates_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
