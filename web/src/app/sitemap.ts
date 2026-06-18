@@ -158,10 +158,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     include_in_sitemap: boolean | null;
     updated_at: string | null;
   };
+  // Read via cms_public_pages_for_tenant (sets the app.current_tenant_id GUC so
+  // the cms_pages RLS policy admits the row for the anon sitemap request) — a
+  // direct .from("cms_pages") read returns ZERO rows here, exactly like the page
+  // + post reads below already avoid. Published-only is fine: a live site's
+  // homepage is published, and an unpublished one safely defaults to included.
   const { data: homepageRows } = await supabase
-    .from("cms_pages")
+    .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
     .select("noindex,include_in_sitemap,updated_at")
-    .eq("tenant_id", publicScope.tenantId)
     .eq("is_system_owned", true)
     .eq("system_template_key", "homepage");
   const homepageByLocale = new Map<string, HomepageSeoRow>();
