@@ -183,3 +183,67 @@ test("mergeStylePatchIntoTree never mutates a section node and no-ops on empty i
   assert.equal(mergeStylePatchIntoTree(tree, [], { textColor: "#000" }), tree);
   assert.equal(mergeStylePatchIntoTree(tree, ["a"], {}), tree);
 });
+
+// ── INS-2 ────────────────────────────────────────────────────────────────────
+
+/** Like bulkEditTree but 'a' locks `style.textColor` (INS-1 per-prop lock). */
+function lockedBulkEditTree(): BuilderNodeTree {
+  const tree = bulkEditTree();
+  const section = tree[0];
+  if (section && "children" in section && section.children) {
+    const a = section.children[0] as BuilderNode & {
+      lockedProps?: string[];
+    };
+    a.lockedProps = ["style.textColor"];
+  }
+  return tree;
+}
+
+test("mergeStylePatchIntoTree honors a per-node INS-1 lock in a bulk patch", () => {
+  const tree = lockedBulkEditTree();
+  // 'a' locks style.textColor; 'b' is unlocked. The bulk patch sets textColor.
+  const next = mergeStylePatchIntoTree(tree, ["a", "b"], { textColor: "#fff" });
+  const section = next[0];
+  if (!section || section.kind !== "section") {
+    assert.fail("expected section");
+    return;
+  }
+  const [a, b] = section.children ?? [];
+  // 'a' keeps its locked value — the bulk edit did NOT bypass the lock.
+  assert.deepEqual(styleOf(a), { textColor: "#111", opacity: 0.5 });
+  // 'b' (unlocked) received the new value.
+  assert.deepEqual(styleOf(b), { textColor: "#fff" });
+});
+
+test("mergeStylePatchIntoTree leaves a fully-locked node byte-identical", () => {
+  const tree = lockedBulkEditTree();
+  // Only patch the locked key → 'a' should be untouched (same object identity).
+  const next = mergeStylePatchIntoTree(tree, ["a"], { textColor: "#fff" });
+  // No node changed → the SAME tree reference comes back.
+  assert.equal(next, tree);
+});
+
+test("mergeStylePatchIntoTree writes into a responsive bucket when bucket is set", () => {
+  const tree = bulkEditTree();
+  const next = mergeStylePatchIntoTree(
+    tree,
+    ["a", "b"],
+    { textColor: "#0f0" },
+    "mobile",
+  );
+  const section = next[0];
+  if (!section || section.kind !== "section") {
+    assert.fail("expected section");
+    return;
+  }
+  const [a, b] = section.children ?? [];
+  // Base style is untouched; the override lands under responsive.mobile.
+  assert.deepEqual(styleOf(a), {
+    textColor: "#111",
+    opacity: 0.5,
+    responsive: { mobile: { textColor: "#0f0" } },
+  });
+  assert.deepEqual(styleOf(b), {
+    responsive: { mobile: { textColor: "#0f0" } },
+  });
+});

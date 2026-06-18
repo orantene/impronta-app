@@ -48,7 +48,13 @@ export type MultiSelectionBucket = "tablet" | "mobile" | null;
 export interface MultiSelectionStyleNode {
   id: string;
   kind: string;
-  props?: { style?: BuilderNodeStyle | null } | null;
+  /**
+   * The node's props bag. Typed loosely (`Record<string, unknown>`) so a real
+   * `BuilderNode` union — including a `section` node whose props carry no
+   * `style` — is structurally assignable. `style`, when present, is a
+   * `BuilderNodeStyle`; the resolver reads it defensively.
+   */
+  props?: Record<string, unknown> | null;
   lockedProps?: readonly string[] | null;
 }
 
@@ -78,8 +84,9 @@ function readStyleField(
   field: string,
   bucket: MultiSelectionBucket,
 ): unknown {
-  const style = node.props?.style;
-  if (!style) return undefined;
+  const rawStyle = node.props?.style;
+  if (!rawStyle || typeof rawStyle !== "object") return undefined;
+  const style = rawStyle as BuilderNodeStyle;
   if (bucket == null) {
     return (style as Record<string, unknown>)[field];
   }
