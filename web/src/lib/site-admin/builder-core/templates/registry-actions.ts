@@ -45,6 +45,7 @@ import {
   type TemplateTreeDiff,
 } from "./validate-publish";
 import { mintCopySlug, mintCopyTitle } from "./slug-minting";
+import { appendBuilderLabAudit } from "./builder-lab-audit";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -308,6 +309,12 @@ export async function setTemplateRollout(
 
   try {
     const sb = getAdminClient();
+    // Capture pre-write rollout state for the audit diff.
+    const { data: beforeRow } = await sb
+      .from("builder_templates")
+      .select("rollout_percentage, tenant_allowlist, tenant_denylist")
+      .eq("id", templateId)
+      .maybeSingle();
     const { data, error } = await sb
       .from("builder_templates")
       .update(patch)
@@ -319,6 +326,13 @@ export async function setTemplateRollout(
     if (!data) return fail("Template not found.");
 
     await bumpCatalogVersion(sb);
+    await appendBuilderLabAudit({
+      action: "template.rollout",
+      templateId,
+      actor: gate.userId,
+      before: beforeRow ?? null,
+      after: patch,
+    });
     revalidatePath(TEMPLATE_CACHE_PATH);
     return ok(data as BuilderTemplateRow);
   } catch (err) {
@@ -467,6 +481,16 @@ export async function publishTemplate(
     });
 
     if (!coreResult.ok) return coreResult;
+
+    // Best-effort audit (non-fatal — mirrors the best-effort revision snapshot).
+    await appendBuilderLabAudit({
+      action: "template.publish",
+      templateId,
+      actor: gate.userId,
+      before: { status: row.status, version: row.version },
+      after: { status: coreResult.data.status, version: coreResult.data.version, changelog },
+    });
+
     return ok({ ...coreResult.data, treeDiff });
   } catch (err) {
     logServerError("publishTemplate", err);
@@ -548,6 +572,14 @@ export async function unpublishTemplate(
       return fail("Template not found or not currently published.");
 
     await bumpCatalogVersion(sb);
+    await appendBuilderLabAudit({
+      action: "template.unpublish",
+      templateId,
+      actor: gate.userId,
+      // Guarded by .eq("status","published") above — prior status is published.
+      before: { status: "published" },
+      after: { status: (data as BuilderTemplateRow).status },
+    });
     revalidatePath(TEMPLATE_CACHE_PATH);
     return ok(data as BuilderTemplateRow);
   } catch (err) {
@@ -566,6 +598,13 @@ export async function archiveTemplate(
 
   try {
     const sb = getAdminClient();
+    // Capture the prior status for the audit diff (archive is reachable from any
+    // non-archived status).
+    const { data: beforeRow } = await sb
+      .from("builder_templates")
+      .select("status")
+      .eq("id", templateId)
+      .maybeSingle();
     const { data, error } = await sb
       .from("builder_templates")
       .update({ status: "archived" })
@@ -579,6 +618,13 @@ export async function archiveTemplate(
       return fail("Template not found or already archived.");
 
     await bumpCatalogVersion(sb);
+    await appendBuilderLabAudit({
+      action: "template.archive",
+      templateId,
+      actor: gate.userId,
+      before: beforeRow ? { status: (beforeRow as { status: string }).status } : null,
+      after: { status: (data as BuilderTemplateRow).status },
+    });
     revalidatePath(TEMPLATE_CACHE_PATH);
     return ok(data as BuilderTemplateRow);
   } catch (err) {

@@ -22,6 +22,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
 import { bumpCatalogVersion } from "./catalog-version";
+import { appendBuilderLabAudit } from "./builder-lab-audit";
 import type {
   CatalogOverlayMap,
   CatalogOverlayRow,
@@ -147,11 +148,27 @@ export async function setComponentOverlay(
 
   try {
     const sb = getAdminClient();
-    const { error } = await sb
+    // Capture the pre-write overlay row for the audit before/after diff.
+    const { data: beforeRow } = await sb
       .from("builder_catalog_overlay")
-      .upsert(payload, { onConflict: "item_ref" });
+      .select()
+      .eq("item_ref", input.item_ref)
+      .maybeSingle();
+    const { data: afterRow, error } = await sb
+      .from("builder_catalog_overlay")
+      .upsert(payload, { onConflict: "item_ref" })
+      .select()
+      .maybeSingle();
     if (error) return fail(error.message);
     await bumpCatalogVersion(sb);
+    // Best-effort audit (non-fatal — never blocks the user action).
+    await appendBuilderLabAudit({
+      action: "overlay.set",
+      itemRef: input.item_ref,
+      actor: gate.userId,
+      before: beforeRow ?? null,
+      after: afterRow ?? payload,
+    });
     revalidateCatalog();
     return ok(undefined);
   } catch (err) {
@@ -170,12 +187,26 @@ export async function clearComponentOverlay(
 
   try {
     const sb = getAdminClient();
+    // Capture the row being cleared so the audit retains what was removed.
+    const { data: beforeRow } = await sb
+      .from("builder_catalog_overlay")
+      .select()
+      .eq("item_ref", itemRef)
+      .maybeSingle();
     const { error } = await sb
       .from("builder_catalog_overlay")
       .delete()
       .eq("item_ref", itemRef);
     if (error) return fail(error.message);
     await bumpCatalogVersion(sb);
+    // Best-effort audit (non-fatal). after=null → reverted to code/template default.
+    await appendBuilderLabAudit({
+      action: "overlay.clear",
+      itemRef,
+      actor: gate.userId,
+      before: beforeRow ?? null,
+      after: null,
+    });
     revalidateCatalog();
     return ok(undefined);
   } catch (err) {

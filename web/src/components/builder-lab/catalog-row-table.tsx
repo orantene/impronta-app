@@ -12,13 +12,17 @@
  * accordion groups the governance inputs under a "Governance" subhead.
  */
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 import type {
   AddGalleryNativeVariant,
   CatalogAdminItem,
   CatalogSurfaceCell,
 } from "@/lib/site-admin/add-gallery";
+import {
+  listBuilderLabAudit,
+  type BuilderLabAuditEntry,
+} from "@/lib/site-admin/builder-core/templates/builder-lab-audit";
 // Import the value (`deriveSurfaceMatrix`) directly from its module, NOT the
 // add-gallery barrel — the barrel transitively pulls a `.css` side-effect import
 // that the tsx test runner can't parse (it compiles CSS as JS). The types above
@@ -204,6 +208,9 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
     onCancelReset,
     onPreview,
   } = props;
+
+  // Which row's audit history popover is open (G1 per-row history affordance).
+  const [historyId, setHistoryId] = useState<string | null>(null);
 
   return (
     <>
@@ -395,6 +402,11 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                               onSelect={(next) => onSetStatus(r, next)}
                             />
                             <LinkBtn label="Preview" onClick={() => onPreview(r)} disabled={busy} />
+                            <LinkBtn
+                              label={historyId === r.id ? "Hide history" : "History"}
+                              testId={`lab-catalog-row-history-${r.id}`}
+                              onClick={() => setHistoryId(historyId === r.id ? null : r.id)}
+                            />
                             {r.overlay ? (
                               <LinkBtn label="Reset" onClick={() => onStartReset(r.id)} disabled={busy} />
                             ) : null}
@@ -402,6 +414,13 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                         )}
                       </td>
                     </tr>
+                    {historyId === r.id ? (
+                      <RowHistoryRow
+                        itemRef={r.id}
+                        templateId={r.dbTemplateId}
+                        onClose={() => setHistoryId(null)}
+                      />
+                    ) : null}
                     {editing ? <EditAccordionRow item={r} {...props} /> : null}
                   </Fragment>
                 );
@@ -604,6 +623,110 @@ function EditAccordionRow({
             </span>
           </div>
         </div>
+      </td>
+    </tr>
+  );
+}
+
+// ── Per-row audit history (G1) ────────────────────────────────────────────────
+
+/** "el-button" / "db-template:<uuid>" / template id labelling for a history line. */
+function historyActionLabel(action: string): string {
+  switch (action) {
+    case "overlay.set":
+      return "Set overlay";
+    case "overlay.clear":
+      return "Cleared overlay";
+    case "template.publish":
+      return "Published";
+    case "template.unpublish":
+      return "Unpublished";
+    case "template.archive":
+      return "Archived";
+    case "template.rollout":
+      return "Changed rollout";
+    default:
+      return action;
+  }
+}
+
+/**
+ * Inline accordion row showing the audit history for ONE catalog item. Loads
+ * lazily on open via the super_admin-gated `listBuilderLabAudit`, scoped by both
+ * the overlay `item_ref` (code + template overlay writes) and, for DB templates,
+ * the raw `template_id` (lifecycle writes). Read-only; mirrors the platform-wide
+ * Activity feed but for a single row.
+ */
+function RowHistoryRow({
+  itemRef,
+  templateId,
+  onClose,
+}: {
+  itemRef: string;
+  templateId?: string;
+  onClose: () => void;
+}) {
+  const [entries, setEntries] = useState<BuilderLabAuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    const loaders = [listBuilderLabAudit({ itemRef })];
+    if (templateId) loaders.push(listBuilderLabAudit({ templateId }));
+    void Promise.all(loaders)
+      .then((lists) => {
+        if (!active) return;
+        // Merge + dedupe by id, newest first.
+        const byId = new Map<string, BuilderLabAuditEntry>();
+        for (const list of lists) for (const e of list) byId.set(e.id, e);
+        const merged = [...byId.values()].sort((a, b) =>
+          a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0,
+        );
+        setEntries(merged);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [itemRef, templateId]);
+
+  return (
+    <tr>
+      <td colSpan={7} style={{ padding: "10px 16px", background: T.cardSoft }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <SectionLabel>History</SectionLabel>
+          <LinkBtn label="Close" onClick={onClose} />
+        </div>
+        {loading ? (
+          <div style={{ fontSize: 11.5, color: T.inkMuted }}>Loading history…</div>
+        ) : entries.length === 0 ? (
+          <div style={{ fontSize: 11.5, color: T.inkMuted }}>
+            No governance changes recorded for this item yet.
+          </div>
+        ) : (
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+            {entries.map((e) => (
+              <li
+                key={e.id}
+                data-testid={`lab-row-history-${e.id}`}
+                style={{ display: "flex", gap: 10, alignItems: "baseline", fontSize: 11.5 }}
+              >
+                <span style={{ color: T.ink, fontWeight: 600, minWidth: 110 }}>
+                  {historyActionLabel(e.action)}
+                </span>
+                <span style={{ color: T.inkMuted }}>
+                  {e.actorName ?? (e.actorId ? `${e.actorId.slice(0, 8)}…` : "—")}
+                </span>
+                <span style={{ color: T.inkDim, whiteSpace: "nowrap" }}>
+                  {new Date(e.createdAt).toLocaleString()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </td>
     </tr>
   );

@@ -2901,6 +2901,47 @@ export type Database = {
         }
         Relationships: []
       }
+      builder_lab_audit: {
+        Row: {
+          action: string
+          actor: string | null
+          after: Json | null
+          before: Json | null
+          created_at: string
+          id: string
+          item_ref: string | null
+          template_id: string | null
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          item_ref?: string | null
+          template_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          item_ref?: string | null
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "builder_lab_audit_actor_fkey"
+            columns: ["actor"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       builder_template_revisions: {
         Row: {
           created_at: string

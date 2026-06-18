@@ -48,6 +48,7 @@ import { SurfaceSwitcher } from "./surface-switcher";
 import { CatalogRowTable, targetAllows } from "./catalog-row-table";
 import { PlaygroundView } from "./catalog-playground";
 import { SiteStarterKitView } from "./catalog-starter-kit";
+import { CatalogActivityFeed } from "./catalog-activity-feed";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
   buildCatalogItemPreview,
@@ -77,6 +78,7 @@ const SPECIAL_TABS = [
   "site_defaults",
   "default_surfaces",
   "playground",
+  "activity",
 ] as const;
 type SpecialTab = (typeof SPECIAL_TABS)[number];
 type CatalogView = AddGalleryTab | SpecialTab;
@@ -87,6 +89,7 @@ const VIEW_LABEL: Record<CatalogView, string> = {
   site_defaults: "Site Defaults",
   default_surfaces: "Default surfaces",
   playground: "Playground",
+  activity: "Activity",
 };
 function isSpecialTab(v: CatalogView): v is SpecialTab {
   return (SPECIAL_TABS as readonly string[]).includes(v);
@@ -720,6 +723,8 @@ export function ComponentCatalog({
         <DefaultSurfacesPanel />
       ) : currentView === "playground" ? (
         <PlaygroundView onLaunchEditor={onLaunchEditor} />
+      ) : currentView === "activity" ? (
+        <CatalogActivityFeed />
       ) : (
         <SiteStarterKitView onLaunchEditor={onLaunchEditor} />
       )}
