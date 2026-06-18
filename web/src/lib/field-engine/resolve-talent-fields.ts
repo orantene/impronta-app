@@ -48,6 +48,7 @@ import {
   type LocalizedMap,
 } from "@/lib/i18n/resolve-localized";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 /** ViewerRole accepted by the resolver. Authoritative union lives in
  *  `effective-visibility.ts`; we accept the staff + talent subset here
@@ -972,7 +973,7 @@ export async function resolveTalentFields(
     if (aOrder !== bOrder) return aOrder - bOrder;
     if (a.display_order !== b.display_order)
       return a.display_order - b.display_order;
-    return a.label.localeCompare(b.label);
+    return byLabel(a, b);
   });
 
   // Build the resolved groups list (sorted by display_order).

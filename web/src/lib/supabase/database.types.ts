@@ -10782,17 +10782,26 @@ export type Database = {
       talent_pages: {
         Row: {
           blocks: Json
+          canonical_url: string | null
           created_at: string
           created_by: string | null
           id: string
           is_home: boolean
+          json_ld: Json | null
+          meta_description: string | null
           nav_label: string | null
+          noindex: boolean | null
+          og_description: string | null
+          og_image_url: string | null
+          og_title: string | null
           published_at: string | null
           required_talent_tier: string | null
           scheduled_for: string | null
           slug: string
           sort_order: number
           status: string
+          style_classes: Json | null
+          style_presets: Json | null
           talent_profile_id: string
           theme: Json
           title: string
@@ -10800,17 +10809,26 @@ export type Database = {
         }
         Insert: {
           blocks?: Json
+          canonical_url?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           is_home?: boolean
+          json_ld?: Json | null
+          meta_description?: string | null
           nav_label?: string | null
+          noindex?: boolean | null
+          og_description?: string | null
+          og_image_url?: string | null
+          og_title?: string | null
           published_at?: string | null
           required_talent_tier?: string | null
           scheduled_for?: string | null
           slug: string
           sort_order?: number
           status?: string
+          style_classes?: Json | null
+          style_presets?: Json | null
           talent_profile_id: string
           theme?: Json
           title?: string
@@ -10818,17 +10836,26 @@ export type Database = {
         }
         Update: {
           blocks?: Json
+          canonical_url?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           is_home?: boolean
+          json_ld?: Json | null
+          meta_description?: string | null
           nav_label?: string | null
+          noindex?: boolean | null
+          og_description?: string | null
+          og_image_url?: string | null
+          og_title?: string | null
           published_at?: string | null
           required_talent_tier?: string | null
           scheduled_for?: string | null
           slug?: string
           sort_order?: number
           status?: string
+          style_classes?: Json | null
+          style_presets?: Json | null
           talent_profile_id?: string
           theme?: Json
           title?: string

@@ -25,6 +25,7 @@ import { assertCanEnableTenantParentCategory } from "@/lib/taxonomy/tenant-taxon
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { localizedValue } from "@/lib/i18n/resolve-localized";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 // Keep legacy type import paths working while the field engine owns the shapes.
 // Use direct type re-export; Turbopack emitted runtime references for local re-export.
@@ -445,7 +446,7 @@ export async function getCategoryDetail(input: {
         if (tierRank[a.tier] !== tierRank[b.tier])
           return tierRank[a.tier] - tierRank[b.tier];
         if (a.section !== b.section) return a.section.localeCompare(b.section);
-        return a.label.localeCompare(b.label);
+        return byLabel(a, b);
       }),
     },
   };

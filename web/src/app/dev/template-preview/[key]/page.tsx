@@ -34,8 +34,7 @@ import {
   buildDefaultTalentProfileTree,
   hydrateTalentTree,
 } from "@/lib/talent-site/default-talent-tree";
-import { talentProfileTokens } from "@/lib/talent-site/default-talent-template";
-import type { TalentPortfolioStarterProfile, TalentPortfolioStarterMedia } from "@/lib/talent-site/starter";
+import { demoTemplatePreviewHydration } from "@/lib/talent-site/templates/preview-hydration";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import {
   designTokensToCssVars,
@@ -43,31 +42,6 @@ import {
 } from "@/lib/site-admin/tokens/resolve";
 
 export const dynamic = "force-dynamic";
-
-// ---------------------------------------------------------------------------
-// Fixture data for the default-talent preview
-// ---------------------------------------------------------------------------
-
-const FIXTURE_PROFILE: TalentPortfolioStarterProfile = {
-  displayName: "Maya Reyes",
-  profileCode: "TAL-00000",
-  primaryTypeLabel: "Editorial Model",
-  publicBio:
-    "Editorial and commercial model with 8 years of experience across fashion, beauty, and lifestyle campaigns. Known for strong conceptual range and precise direction-taking.",
-  homeCity: "Mexico City",
-  serviceAreaLabels: [],
-  serviceNames: ["Editorial", "Commercial", "Beauty & Skincare"],
-  headshotUrl: "https://picsum.photos/seed/talent-hero/800/1000",
-};
-
-const FIXTURE_MEDIA: TalentPortfolioStarterMedia[] = [
-  { url: "https://picsum.photos/seed/gal1/800/1000", alt: "Editorial shoot" },
-  { url: "https://picsum.photos/seed/gal2/900/600", alt: "Campaign" },
-  { url: "https://picsum.photos/seed/gal3/700/900", alt: "Beauty editorial" },
-  { url: "https://picsum.photos/seed/gal4/800/800", alt: "Lifestyle" },
-  { url: "https://picsum.photos/seed/gal5/900/700", alt: "Fashion week" },
-  { url: "https://picsum.photos/seed/gal6/750/950", alt: "Studio portrait" },
-];
 
 // ---------------------------------------------------------------------------
 
@@ -104,8 +78,10 @@ export default async function TemplatePreviewPage({
       ? PLATFORM_DEFAULT_STOREFRONT_TREE
       : (() => {
           const base = buildDefaultTalentProfileTree();
-          const toks = talentProfileTokens(FIXTURE_PROFILE, FIXTURE_MEDIA);
-          return hydrateTalentTree(base, toks);
+          // Reuse the SHARED demo persona the public preview route falls back to,
+          // so the dev harness and the public route render the identical fixture.
+          const { tokens } = demoTemplatePreviewHydration();
+          return hydrateTalentTree(base, tokens);
         })();
 
   const label =

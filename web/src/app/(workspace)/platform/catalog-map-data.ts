@@ -17,6 +17,7 @@ import {
   type FieldVisibility,
 } from "@/lib/field-engine/effective-visibility";
 import { CACHE_TAG_FIELD_CATALOG } from "@/lib/field-engine/cache-tags";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 export type CatalogField = {
   id: string;
@@ -293,7 +294,7 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
       .map((g) => {
         const gf = (byGroupId.get(g.id) ?? []).sort((a, b) =>
           a.display_order - b.display_order ||
-          a.label.localeCompare(b.label) ||
+          byLabel(a, b) ||
           a.field_key.localeCompare(b.field_key),
         );
         return {
@@ -311,7 +312,7 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
     ungrouped.sort(
       (a, b) =>
         a.display_order - b.display_order ||
-        a.label.localeCompare(b.label) ||
+        byLabel(a, b) ||
         a.field_key.localeCompare(b.field_key),
     );
     risks.sort((a, b) => a.kind.localeCompare(b.kind));

@@ -24,6 +24,7 @@ import {
   setWorkspaceFieldVisibility,
   useAdminShell
 } from "./drawer-shared";
+import { byLabel, byName } from "@/lib/field-engine/sort-comparators";
 
 // Phase 1d (remediation §4): 2 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -158,7 +159,7 @@ export function FieldCatalogDrawer() {
     const previous = fields;
     const currentBucket = fields
       .filter((f) => bucketKeyFor(f) === groupKey)
-      .sort((a, b) => a.display_order - b.display_order || a.label.localeCompare(b.label));
+      .sort((a, b) => a.display_order - b.display_order || byLabel(a, b));
     const from = currentBucket.findIndex((f) => f.field_definition_id === draggingFieldId);
     const to = currentBucket.findIndex((f) => f.field_definition_id === target.field_definition_id);
     if (from < 0 || to < 0 || from === to) {
@@ -231,7 +232,7 @@ export function FieldCatalogDrawer() {
     const previous = groups;
     const orderedGroups = groups
       .slice()
-      .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+      .sort((a, b) => a.sort_order - b.sort_order || byName(a, b));
     const from = orderedGroups.findIndex((g) => g.id === draggingGroupId);
     const to = orderedGroups.findIndex((g) => g.id === target.id);
     if (from < 0 || to < 0 || from === to) {
@@ -267,7 +268,7 @@ export function FieldCatalogDrawer() {
     b.items.push(f);
   }
   for (const bucket of order) {
-    bucket.items.sort((a, b) => a.display_order - b.display_order || a.label.localeCompare(b.label));
+    bucket.items.sort((a, b) => a.display_order - b.display_order || byLabel(a, b));
   }
   order.sort((a, b) => {
     const ai = a.key === "__general__" ? 1e9 : (a.group?.sort_order ?? 0);
@@ -676,7 +677,7 @@ export function FieldPrivacyDrawer() {
     b.items.push(f);
   }
   for (const bucket of order) {
-    bucket.items.sort((a, b) => a.display_order - b.display_order || a.label.localeCompare(b.label));
+    bucket.items.sort((a, b) => a.display_order - b.display_order || byLabel(a, b));
   }
   order.sort((a, b) => {
     const ai = a.key === "__general__" ? 1e9 : (groups.find(g => g.id === a.key)?.sort_order ?? 0);

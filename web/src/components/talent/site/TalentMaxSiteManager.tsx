@@ -45,6 +45,8 @@ import {
   listMaxSiteTemplateSummaries,
   type MaxSiteTemplateSummary,
 } from "@/lib/talent-site/max-site-templates/registry";
+import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
+import { TalentMaxSiteTemplateThumb } from "@/components/talent/site/TalentMaxSiteTemplateThumb";
 import { TalentSiteDomainPanel } from "@/components/talent/site/TalentSiteDomainPanel";
 import {
   PageAddForm,
@@ -200,7 +202,7 @@ function ManagerBody({ state, onReload }: { state: MaxSiteManagerState; onReload
       </Card>
 
       {/* Starter template gallery */}
-      <TemplateGallery pending={pending} run={run} />
+      <TemplateGallery pending={pending} run={run} talentProfileId={state.talentProfileId} />
 
       {/* Site address (slug) */}
       <SlugEditor state={state} onSaved={onReload} />
@@ -517,9 +519,11 @@ function PagesPanel({
 function TemplateGallery({
   pending,
   run,
+  talentProfileId,
 }: {
   pending: boolean;
   run: (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
+  talentProfileId: string;
 }) {
   const templates = listMaxSiteTemplateSummaries();
   const [applyingKey, setApplyingKey] = useState<string | null>(null);
@@ -563,7 +567,7 @@ function TemplateGallery({
               borderRadius: 12,
             }}
           >
-            <TemplateThumb templateKey={t.key} />
+            <TalentMaxSiteTemplateThumb templateKey={t.key} />
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{t.label}</span>
               {t.key === "default" ? <Pill tone="indigo">Default</Pill> : null}
@@ -574,102 +578,53 @@ function TemplateGallery({
             <p style={{ margin: "0 0 8px", fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
               {t.description}
             </p>
-            <button
-              type="button"
-              onClick={() => apply(t)}
-              disabled={pending}
-              style={{ ...miniBtn, alignSelf: "flex-start", marginTop: "auto" }}
-            >
-              {pending && applyingKey === t.key ? "Applying…" : "Apply"}
-            </button>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: "auto" }}>
+              <button
+                type="button"
+                onClick={() => apply(t)}
+                disabled={pending}
+                style={{ ...miniBtn, alignSelf: "flex-start" }}
+              >
+                {pending && applyingKey === t.key ? "Applying…" : "Apply"}
+              </button>
+              {/* Eye / Preview — opens the SHARED owner-gated hydrated preview
+                  route with this talent's real data (?talent param). */}
+              <a
+                href={getTemplatePreviewUrl(t.key, {
+                  talentProfileId,
+                  family: "max-site",
+                })}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Preview with your details"
+                aria-label={`Preview ${t.label} with your details`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  color: COLORS.inkMuted,
+                  textDecoration: "none",
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+                </svg>
+                Preview
+              </a>
+            </div>
           </div>
         ))}
       </div>
     </Card>
-  );
-}
-
-/**
- * A tiny CSS-only wireframe thumbnail hinting at each template's layout (split /
- * centered / cover / gallery-first). Purely decorative — no images to load.
- */
-function TemplateThumb({ templateKey }: { templateKey: string }) {
-  const bar = (w: string, h = 6, bg = COLORS.border) =>
-    ({ width: w, height: h, borderRadius: 3, background: bg }) as React.CSSProperties;
-  const tile = (bg = COLORS.border) =>
-    ({ flex: 1, borderRadius: 3, background: bg }) as React.CSSProperties;
-
-  let inner: React.ReactNode;
-  if (templateKey === "minimal") {
-    inner = (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: 8 }}>
-        <div style={bar("60%", 8)} />
-        <div style={bar("40%")} />
-        <div style={{ display: "flex", gap: 4, width: "100%", marginTop: 4 }}>
-          <div style={tile()} />
-          <div style={tile()} />
-        </div>
-      </div>
-    );
-  } else if (templateKey === "bold") {
-    inner = (
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 4, padding: 8, height: "100%", background: "linear-gradient(180deg, #3a3a3a, #111)" }}>
-        <div style={bar("55%", 8, "#f4d58d")} />
-        <div style={bar("35%", 5, "rgba(255,255,255,0.55)")} />
-      </div>
-    );
-  } else if (templateKey === "portfolio") {
-    inner = (
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: 8 }}>
-        <div style={bar("45%", 7)} />
-        <div style={{ display: "flex", gap: 4, height: 22 }}>
-          <div style={tile()} />
-          <div style={tile()} />
-          <div style={tile()} />
-        </div>
-      </div>
-    );
-  } else if (templateKey === "editorial") {
-    inner = (
-      <div style={{ display: "flex", gap: 6, padding: 8 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 0 38%" }}>
-          <div style={bar("100%", 7)} />
-          <div style={bar("80%")} />
-          <div style={bar("60%")} />
-        </div>
-        <div style={{ ...tile(), borderRadius: 4 }} />
-      </div>
-    );
-  } else {
-    // default — split hero
-    inner = (
-      <div style={{ display: "flex", gap: 6, padding: 8 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-          <div style={bar("90%", 7)} />
-          <div style={bar("70%")} />
-          <div style={{ display: "flex", gap: 3 }}>
-            <div style={bar("24%", 5)} />
-            <div style={bar("24%", 5)} />
-          </div>
-        </div>
-        <div style={{ ...tile(), borderRadius: 4 }} />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      aria-hidden
-      style={{
-        height: 64,
-        borderRadius: 8,
-        border: `1px solid ${COLORS.borderSoft}`,
-        background: "#fff",
-        overflow: "hidden",
-      }}
-    >
-      {inner}
-    </div>
   );
 }
 

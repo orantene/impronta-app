@@ -15,6 +15,7 @@ import {
   setWorkspaceFieldGroup,
   useAdminShell
 } from "./drawer-shared";
+import { byLabel, byName } from "@/lib/field-engine/sort-comparators";
 
 // Phase 1d (remediation §4): 1 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -145,7 +146,7 @@ export function WorkspaceFieldSettingsDrawer() {
     if (!target || !dragGroupId || dragGroupId === target.id || !canCustomize) return;
     const ordered = groups
       .slice()
-      .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+      .sort((a, b) => a.sort_order - b.sort_order || byName(a, b));
     const from = ordered.findIndex((g) => g.id === dragGroupId);
     const to = ordered.findIndex((g) => g.id === target.id);
     if (from < 0 || to < 0 || from === to) {
@@ -186,7 +187,7 @@ export function WorkspaceFieldSettingsDrawer() {
     if (!dragField || dragField.id === target.field_definition_id || dragField.groupKey !== groupKey || !canCustomize) return;
     const groupFields = fields
       .filter((f) => (f.field_group_id ?? "__general__") === groupKey)
-      .sort((a, b) => a.display_order - b.display_order || a.label.localeCompare(b.label));
+      .sort((a, b) => a.display_order - b.display_order || byLabel(a, b));
     const from = groupFields.findIndex((f) => f.field_definition_id === dragField.id);
     const to = groupFields.findIndex((f) => f.field_definition_id === target.field_definition_id);
     if (from < 0 || to < 0 || from === to) {

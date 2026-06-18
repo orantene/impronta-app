@@ -1,4 +1,5 @@
 import type { TaxonomyFilterOption } from "@/lib/directory/taxonomy-filters";
+import { byName } from "@/lib/field-engine/sort-comparators";
 
 export type RefineSuggestion = {
   id: string;
@@ -100,7 +101,7 @@ export function buildDirectoryRefineSuggestions(options: {
   };
 
   return [...pool]
-    .sort((a, b) => score(b) - score(a) || a.name.localeCompare(b.name))
+    .sort((a, b) => score(b) - score(a) || byName(a, b))
     .slice(0, max)
     .map((o) => ({ id: `tax:${o.id}`, label: o.name }));
 }

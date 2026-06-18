@@ -48,6 +48,14 @@ export interface MaxSitePageRow {
   sortOrder: number;
   blocks: unknown;
   theme: unknown;
+  // SEO-2 — per-page SEO columns (SEO-1 migration; all nullable, degrade-safe).
+  metaDescription: string | null;
+  ogTitle: string | null;
+  ogDescription: string | null;
+  ogImageUrl: string | null;
+  canonicalUrl: string | null;
+  noindex: boolean | null;
+  jsonLd: unknown;
 }
 
 /** A nav entry the visitor sees — one per published page of the site. */

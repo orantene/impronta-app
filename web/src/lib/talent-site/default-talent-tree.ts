@@ -323,9 +323,23 @@ export function selectServiceFocusLabels(
   return discipline ? [discipline] : [];
 }
 
+// `talentProfileTokens` (the pure `{{token}}` projection) lives in the sibling
+// `./token-projection` module (max-lines budget); re-exported so existing import
+// sites (`from "./default-talent-tree"`) keep resolving unchanged.
+export { talentProfileTokens } from "./token-projection";
+
 function id(suffix: string): string {
   return `default-talent-${suffix}`;
 }
+
+/** B5 — storefront-grade section-heading scale (44px, mobile 32px), shared by
+ *  the Services / Gallery / Contact `level: 2` headings (Contact adds align). */
+const SECTION_HEADING_STYLE = {
+  fontSize: "44px",
+  lineHeight: "1.1",
+  letterSpacing: "-0.01em",
+  responsive: { mobile: { fontSize: "32px" } },
+} as const;
 
 /**
  * One pill chip for the hero discipline row. A `card` (outline, pill radius)
@@ -400,8 +414,11 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
                 text: "{{primaryTypeLabel}}",
                 style: {
                   textTransform: "uppercase",
-                  letterSpacing: "0.18em",
-                  size: "sm",
+                  // B5 — storefront-grade eyebrow scale (12px / 0.28em tracking)
+                  // matching the premium default storefront hero eyebrow.
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  letterSpacing: "0.28em",
                   tone: "muted",
                 },
               },
@@ -412,7 +429,21 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
               props: {
                 text: "{{displayName}}",
                 level: 1,
-                style: { size: "xl", textWrap: "balance" },
+                style: {
+                  // B5 — lift the hero name to the storefront-grade display
+                  // scale (72px, tight leading + tracking) instead of the
+                  // `size: "xl"` token, with the same responsive step-down the
+                  // storefront hero uses so it never overflows on small screens.
+                  fontSize: "72px",
+                  lineHeight: "1.03",
+                  fontWeight: 600,
+                  letterSpacing: "-0.01em",
+                  textWrap: "balance",
+                  responsive: {
+                    tablet: { fontSize: "54px" },
+                    mobile: { fontSize: "38px" },
+                  },
+                },
               },
             },
             {
@@ -420,7 +451,14 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
               kind: "paragraph",
               props: {
                 text: "{{tagline}}",
-                style: { size: "lg", tone: "muted", maxWidth: "reading" },
+                style: {
+                  // B5 — storefront-grade lead paragraph (18px / 1.6) for a
+                  // premium, readable intro line under the name.
+                  fontSize: "18px",
+                  lineHeight: "1.6",
+                  tone: "muted",
+                  maxWidth: "reading",
+                },
               },
             },
             // ── DISCIPLINE CHIPS ───────────────────────────────────────────────
@@ -618,7 +656,11 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
         {
           id: id("services-heading"),
           kind: "heading",
-          props: { text: "Services & focus", level: 2, style: { size: "lg" } },
+          props: {
+            text: "Services & focus",
+            level: 2,
+            style: { ...SECTION_HEADING_STYLE },
+          },
         },
         {
           id: id("services-grid"),
@@ -685,7 +727,11 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
         {
           id: id("gallery-heading"),
           kind: "heading",
-          props: { text: "Selected work", level: 2, style: { size: "lg" } },
+          props: {
+            text: "Selected work",
+            level: 2,
+            style: { ...SECTION_HEADING_STYLE },
+          },
         },
         {
           id: id("gallery-grid"),
@@ -727,7 +773,7 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
           props: {
             text: "Let's work together",
             level: 2,
-            style: { size: "lg", align: "center" },
+            style: { ...SECTION_HEADING_STYLE, align: "center" },
           },
         },
         {

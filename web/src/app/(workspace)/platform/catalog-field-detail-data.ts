@@ -20,6 +20,7 @@ import {
   type FieldVisibility,
 } from "@/lib/field-engine/effective-visibility";
 import { CACHE_TAG_FIELD_CATALOG } from "@/lib/field-engine/cache-tags";
+import { byName } from "@/lib/field-engine/sort-comparators";
 
 export type FieldDetailField = {
   id: string;
@@ -586,7 +587,7 @@ async function loadPlatformCatalogFieldDetailUncached(
     // Sort by value_count desc, then name asc for ties.
     const workspaces = [...workspaceMap.values()].sort((a, b) => {
       if (b.value_count !== a.value_count) return b.value_count - a.value_count;
-      return a.name.localeCompare(b.name);
+      return byName(a, b);
     });
 
     // 7. Field summary + visibility via the shared engine

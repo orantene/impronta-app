@@ -20,6 +20,7 @@ import { formatFilterSearchSummary } from "@/lib/directory/directory-ui-copy";
 import type { DirectoryFieldFacetSelection } from "@/lib/directory/types";
 import { serializeDirectoryFieldFacetParams } from "@/lib/directory/search-params";
 import { humanizeEnumLabel } from "@/lib/directory/humanize-enum-label";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 const COLLAPSE_CHIPS = 6;
 const COLLAPSE_RADIO = 8;
@@ -112,7 +113,7 @@ function DirectoryLocationSearchDropdown({
 
   const filtered = useMemo(() => {
     const q = inputValue.trim().toLowerCase();
-    const sorted = [...options].sort((a, b) => a.label.localeCompare(b.label));
+    const sorted = [...options].sort(byLabel);
     if (!q) return sorted.slice(0, LOCATION_DROPDOWN_MAX);
     return sorted.filter((o) => o.label.toLowerCase().includes(q)).slice(0, LOCATION_DROPDOWN_MAX);
   }, [options, inputValue]);

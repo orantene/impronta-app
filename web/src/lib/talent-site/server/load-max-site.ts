@@ -156,7 +156,10 @@ export async function loadMaxSitePages(
   const { data, error } = await admin
     .from("talent_pages")
     .select(
-      "id, slug, title, nav_label, status, is_home, sort_order, blocks, theme",
+      // SEO-2 — widened to carry the SEO-1 per-page SEO columns through the
+      // render path. All SEO fields are nullable so a not-yet-populated page
+      // degrades to undefined SEO and never throws.
+      "id, slug, title, nav_label, status, is_home, sort_order, blocks, theme, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld",
     )
     .eq("talent_profile_id", talentProfileId)
     .order("sort_order", { ascending: true });
@@ -174,6 +177,13 @@ export async function loadMaxSitePages(
     sort_order: number;
     blocks: unknown;
     theme: unknown;
+    meta_description: string | null;
+    og_title: string | null;
+    og_description: string | null;
+    og_image_url: string | null;
+    canonical_url: string | null;
+    noindex: boolean | null;
+    json_ld: unknown;
   };
   return ((data ?? []) as PageDb[]).map((p) => ({
     id: p.id,
@@ -185,5 +195,66 @@ export async function loadMaxSitePages(
     sortOrder: p.sort_order,
     blocks: p.blocks,
     theme: p.theme,
+    metaDescription: p.meta_description ?? null,
+    ogTitle: p.og_title ?? null,
+    ogDescription: p.og_description ?? null,
+    ogImageUrl: p.og_image_url ?? null,
+    canonicalUrl: p.canonical_url ?? null,
+    noindex: p.noindex ?? null,
+    jsonLd: p.json_ld ?? null,
   }));
+}
+
+/**
+ * SEO-2 — the talent's PUBLIC identity for the site's JSON-LD + OG image.
+ *
+ * Reads the display name + name parts + timestamps for a talent_profile_id. Used
+ * by the render path to populate the shared `buildTalentProfileJsonLd` (with the
+ * SITE's own canonical, not the /t/[code] profile) and by the OG-image route.
+ * Service-role, scoped to one id; returns null on any miss so SEO degrades to
+ * the page title / site slug rather than throwing.
+ */
+export interface TalentSiteIdentity {
+  name: string;
+  firstName: string | null;
+  lastName: string | null;
+  profileCode: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export async function loadTalentSiteIdentity(
+  talentProfileId: string,
+): Promise<TalentSiteIdentity | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select(
+      "display_name, first_name, last_name, profile_code, created_at, updated_at",
+    )
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const row = data as {
+    display_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    profile_code: string;
+    created_at: string | null;
+    updated_at: string | null;
+  };
+  const composed = [row.first_name, row.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const name = row.display_name?.trim() || composed || row.profile_code;
+  return {
+    name,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    profileCode: row.profile_code,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }

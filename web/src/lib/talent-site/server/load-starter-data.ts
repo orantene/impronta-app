@@ -199,15 +199,17 @@ export async function loadTalentStarterProfileData(
   };
 }
 
-export async function buildStarterSnapshotForTalent(
+/**
+ * Public, approved, ordered portfolio media for a talent — the same query the
+ * starter snapshot + the template preview both consume so they render the same
+ * gallery. Returns [] on no media / no client. `altName` labels the alt text.
+ */
+export async function loadTalentStarterMedia(
   talentProfileId: string,
-  planKey?: string | null,
-): Promise<TalentSiteSnapshot | null> {
-  const profile = await loadTalentStarterProfileData(talentProfileId);
-  if (!profile) return null;
-
+  altName: string,
+): Promise<TalentPortfolioStarterMedia[]> {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return null;
+  if (!supabase) return [];
   const trusted = createServiceRoleClient() ?? supabase;
 
   const { data: mediaRows } = await trusted
@@ -223,13 +225,23 @@ export async function buildStarterSnapshotForTalent(
     .limit(12);
 
   const BUCKET = "media-public";
-  const media: TalentPortfolioStarterMedia[] = (mediaRows ?? []).map((row) => {
+  return (mediaRows ?? []).map((row) => {
     const r = row as { storage_path: string };
     return {
       url: trusted.storage.from(BUCKET).getPublicUrl(r.storage_path).data.publicUrl,
-      alt: profile.displayName,
+      alt: altName,
     };
   });
+}
+
+export async function buildStarterSnapshotForTalent(
+  talentProfileId: string,
+  planKey?: string | null,
+): Promise<TalentSiteSnapshot | null> {
+  const profile = await loadTalentStarterProfileData(talentProfileId);
+  if (!profile) return null;
+
+  const media = await loadTalentStarterMedia(talentProfileId, profile.displayName);
 
   const templateKey = templateKeyForPlan(planKey ?? "talent_basic");
   return buildTemplateSnapshot(templateKey, { profile, media });

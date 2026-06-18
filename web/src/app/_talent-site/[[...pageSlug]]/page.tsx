@@ -32,10 +32,15 @@ import { headers } from "next/headers";
 import { getRequestLocale } from "@/i18n/request-locale";
 import {
   HOST_CONTEXT_HEADER,
+  HOST_NAME_HEADER,
   HOST_TALENT_PROFILE_HEADER,
 } from "@/lib/saas/host-context";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
+import {
+  maxSiteJsonLdString,
+  maxSiteSeoToMetadata,
+} from "@/lib/talent-site/server/site-metadata";
 import { resolveGatedTalentProfileId } from "@/lib/talent-site/server/talent-site-host-gate";
 
 export const dynamic = "force-dynamic";
@@ -61,12 +66,34 @@ async function resolveTalentProfileId(): Promise<string | null> {
   }
 }
 
+/**
+ * SEO-2 — the apex origin for the canonical, from the proxy-set host name. The
+ * custom domain owns the whole apex, so the canonical is the talent's OWN domain
+ * (NEVER the /t/[code] discovery profile). Returns null if the header is absent
+ * → render falls back to NEXT_PUBLIC_SITE_URL.
+ */
+async function resolveCanonicalOrigin(): Promise<string | undefined> {
+  try {
+    const h = await headers();
+    const host = h.get(HOST_NAME_HEADER)?.trim();
+    if (!host) return undefined;
+    return `https://${host}`;
+  } catch {
+    return undefined;
+  }
+}
+
 function firstSegment(pageSlug: string[] | undefined): string | null {
   if (!pageSlug || pageSlug.length === 0) return null;
   // The proxy only ever rewrites a single page segment here, but guard anyway:
   // a multi-segment path is not a valid talent page → 404.
   if (pageSlug.length > 1) return null;
   return pageSlug[0] ?? null;
+}
+
+/** Origin-relative path of this page on the apex (home → "/"). */
+function apexPath(pageSlug: string | null): string {
+  return pageSlug ? `/${encodeURIComponent(pageSlug)}` : "/";
 }
 
 export async function generateMetadata({
@@ -81,20 +108,22 @@ export async function generateMetadata({
   if (!talentProfileId) return { title: "Not found" };
   const { pageSlug } = await params;
   const { preview } = await searchParams;
-  const locale = await getRequestLocale();
+  const [locale, canonicalOrigin] = await Promise.all([
+    getRequestLocale(),
+    resolveCanonicalOrigin(),
+  ]);
+  const seg = firstSegment(pageSlug);
   const result = await renderTalentMaxSite({
     talentProfileId,
-    pageSlug: firstSegment(pageSlug),
+    pageSlug: seg,
     locale,
     previewDraft: preview === "draft",
+    canonicalOrigin,
+    canonicalPath: apexPath(seg),
   });
   if (result.kind !== "render") return { title: "Not found" };
-  const { seo } = result;
-  return {
-    title: seo.title,
-    ...(seo.description ? { description: seo.description } : {}),
-    ...(seo.noindex ? { robots: { index: false, follow: false } } : {}),
-  };
+  // Apex domain has no EN/ES path split — absolute canonical only, no hreflang.
+  return maxSiteSeoToMetadata(result.seo);
 }
 
 export default async function TalentSiteHostPage({
@@ -110,16 +139,33 @@ export default async function TalentSiteHostPage({
 
   const { pageSlug } = await params;
   const { preview } = await searchParams;
-  const locale = await getRequestLocale();
+  const [locale, canonicalOrigin] = await Promise.all([
+    getRequestLocale(),
+    resolveCanonicalOrigin(),
+  ]);
+  const seg = firstSegment(pageSlug);
 
   const result = await renderTalentMaxSite({
     talentProfileId,
-    pageSlug: firstSegment(pageSlug),
+    pageSlug: seg,
     locale,
     // Custom-domain host: pages resolve at the domain root, no locale/path
     // prefix (the talent owns the whole apex), so publicPathPrefix stays "".
     previewDraft: preview === "draft",
+    canonicalOrigin,
+    canonicalPath: apexPath(seg),
   });
   if (result.kind !== "render") notFound();
-  return result.node;
+  const jsonLd = maxSiteJsonLdString(result.seo);
+  return (
+    <>
+      {jsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLd }}
+        />
+      ) : null}
+      {result.node}
+    </>
+  );
 }

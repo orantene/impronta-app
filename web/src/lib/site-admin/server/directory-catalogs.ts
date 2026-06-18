@@ -67,6 +67,7 @@ import {
 } from "@/lib/directory/directory-sidebar-layout";
 import { DIRECTORY_CARD_CANDIDATE_REGISTRY } from "@/lib/field-engine/directory-field-catalog-registry";
 import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 // Map a legacy directory field key → canonical System B `field_key`. Covers the
 // 17 value-bridge keys (OLD_TO_NEW_KEY) + the self-mapping taxonomy keys + the
@@ -498,7 +499,7 @@ export async function readCardDesignFieldCandidates(): Promise<
         sortOrder: typeof r.sort_order === "number" ? r.sort_order : 0,
       };
     })
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label))
+    .sort((a, b) => a.sortOrder - b.sortOrder || byLabel(a, b))
     .map(({ sortOrder: _sortOrder, ...rest }) => rest);
 
   return { ok: true, data };

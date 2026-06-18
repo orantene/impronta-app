@@ -39,6 +39,9 @@ import {
   type MaxSiteRow,
   type MaxSitePageRow,
 } from "@/lib/talent-site/resolve-max-site-core";
+import { buildTalentProfileJsonLd } from "@/lib/seo/talent-json-ld";
+import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
+
 import {
   loadMaxSiteByProfileId,
   loadMaxSiteBySlug,
@@ -46,6 +49,8 @@ import {
   loadTalentManagingTenantId,
   loadTalentOwnerUserId,
   loadTalentPlanKey,
+  loadTalentSiteIdentity,
+  type TalentSiteIdentity,
 } from "./load-max-site";
 
 /**
@@ -80,6 +85,21 @@ export interface RenderTalentMaxSiteInput {
   publicPathPrefix?: string;
   /** Owner draft preview (`?preview=draft`). Renders draft shell + draft pages. */
   previewDraft?: boolean;
+  /**
+   * SEO-2 — the absolute origin this page is served from, for the canonical URL.
+   * `/t/site/[siteSlug]` routes pass the app origin (NEXT_PUBLIC_SITE_URL); the
+   * custom-domain catch-all passes the apex host (so the canonical points at the
+   * talent's OWN domain, never the discovery profile). Falls back to
+   * NEXT_PUBLIC_SITE_URL when omitted.
+   */
+  canonicalOrigin?: string;
+  /**
+   * SEO-2 — the path (origin-relative, leading slash) this page is served at,
+   * used to build the default canonical when the page has no explicit
+   * `canonical_url`. Routes pass their own path (`/t/site/<slug>[/<page>]`, or
+   * `/[<page>]` for a custom-domain apex).
+   */
+  canonicalPath?: string;
 }
 
 /**
@@ -202,6 +222,9 @@ export async function renderTalentMaxSite(
     // ── Managing tenant — section-embed render context for the page body ─────
     const tenantId = await loadTalentManagingTenantId(talentProfileId);
 
+    // ── Talent identity for the SITE's JSON-LD + OG image (degrade-safe) ──────
+    const identity = await loadTalentSiteIdentity(talentProfileId);
+
     const node = await renderMaxSiteDocument({
       shellTree: hydratedShell,
       logoUrl: site.logoUrl,
@@ -214,16 +237,88 @@ export async function renderTalentMaxSite(
       draftPreview: isOwnerDraftPreview,
     });
 
-    const seo: MaxSiteSeo = {
-      title: page.title?.trim() || site.siteSlug,
+    const seo = buildMaxSiteSeo({
+      site,
+      page,
+      identity,
+      locale: input.locale,
       noindex: isOwnerDraftPreview,
-    };
+      canonicalOrigin: input.canonicalOrigin,
+      canonicalPath: input.canonicalPath,
+    });
 
     return { kind: "render", node, seo };
   } catch {
     // Degrade safe — any unexpected failure becomes a 404, never a throw.
     return NOT_FOUND;
   }
+}
+
+/**
+ * SEO-2 — populate the widened `MaxSiteSeo` from the selected page's SEO-1
+ * columns, the site row, and the talent identity.
+ *
+ * Canonical: prefer the page's explicit `canonical_url`; else build
+ * `canonicalOrigin + canonicalPath` (the talent's OWN site/domain URL — NEVER
+ * the /t/[code] discovery profile). JSON-LD: reuse the SHARED
+ * `buildTalentProfileJsonLd`, passing THIS canonical so the site's structured
+ * data does not conflate with the profile's. If the page stored an explicit
+ * `json_ld` document, that wins (operator override). Every field degrades to
+ * undefined when absent so a not-yet-populated page still renders.
+ */
+function buildMaxSiteSeo(args: {
+  site: MaxSiteRow;
+  page: MaxSitePageRow;
+  identity: TalentSiteIdentity | null;
+  locale: string;
+  noindex: boolean;
+  canonicalOrigin?: string;
+  canonicalPath?: string;
+}): MaxSiteSeo {
+  const { site, page, identity, locale, noindex } = args;
+
+  const title = page.title?.trim() || identity?.name || site.siteSlug || "";
+  const description = page.metaDescription?.trim() || undefined;
+
+  // Canonical — explicit column wins; else origin + path. Never the profile.
+  const origin = (args.canonicalOrigin?.trim() || publicSiteMetadataBase().origin)
+    .replace(/\/$/, "");
+  const path = args.canonicalPath?.trim() || "/";
+  const builtCanonical = `${origin}${path.startsWith("/") ? path : `/${path}`}`;
+  const canonical = page.canonicalUrl?.trim() || builtCanonical;
+
+  // JSON-LD — operator override wins; else the SHARED profile builder, keyed to
+  // the SITE canonical. `name` falls back through identity → title.
+  const name = identity?.name?.trim() || title;
+  const sharedJsonLd =
+    name && canonical
+      ? buildTalentProfileJsonLd({
+          canonicalUrl: canonical,
+          name,
+          givenName: identity?.firstName ?? null,
+          familyName: identity?.lastName ?? null,
+          description: description ?? page.ogDescription?.trim() ?? null,
+          imageUrl: page.ogImageUrl?.trim() ?? site.logoUrl ?? null,
+          inLanguage: locale,
+          createdAt: identity?.createdAt ?? null,
+          updatedAt: identity?.updatedAt ?? null,
+        })
+      : null;
+  const jsonLd =
+    page.jsonLd && typeof page.jsonLd === "object" ? page.jsonLd : sharedJsonLd;
+
+  return {
+    title,
+    ...(description ? { description } : {}),
+    noindex,
+    ...(page.ogTitle?.trim() ? { ogTitle: page.ogTitle.trim() } : {}),
+    ...(page.ogDescription?.trim()
+      ? { ogDescription: page.ogDescription.trim() }
+      : {}),
+    ...(page.ogImageUrl?.trim() ? { ogImageUrl: page.ogImageUrl.trim() } : {}),
+    ...(canonical ? { canonical } : {}),
+    ...(jsonLd ? { jsonLd } : {}),
+  };
 }
 
 /**

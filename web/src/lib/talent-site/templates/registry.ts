@@ -23,6 +23,11 @@ export const TALENT_SITE_TEMPLATES: Record<TalentSiteTemplateKey, TalentSiteTemp
   epk: EPK_TEMPLATE,
 };
 
+/** True when `key` is a known slot-based talent-site template key. */
+export function isTalentSiteTemplateKey(key: unknown): key is TalentSiteTemplateKey {
+  return typeof key === "string" && key in TALENT_SITE_TEMPLATES;
+}
+
 const TIER_RANK: Record<TalentPlanTier, number> = { free: 0, pro: 1, max: 2 };
 
 export function isTemplateAllowedForTier(

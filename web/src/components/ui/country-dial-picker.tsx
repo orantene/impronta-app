@@ -21,6 +21,7 @@ import {
   flagEmojiForIso,
   type CountryDial,
 } from "@/lib/data/country-dial-codes";
+import { byName } from "@/lib/field-engine/sort-comparators";
 
 type Props = {
   /** Current dial code WITH the leading "+", e.g. "+34". */
@@ -94,11 +95,11 @@ function ranked(query: string): CountryDial[] {
     if (aPop === 0) {
       return POPULAR_DIAL_ISOS.indexOf(a.iso) - POPULAR_DIAL_ISOS.indexOf(b.iso);
     }
-    return a.name.localeCompare(b.name);
+    return byName(a, b);
   });
   // For dial-prefix matches, shorter dials come first — so "+12…"
   // narrows in length order, not alphabetical-by-country.
-  dialPrefixMatches.sort((a, b) => a.dial.length - b.dial.length || a.name.localeCompare(b.name));
+  dialPrefixMatches.sort((a, b) => a.dial.length - b.dial.length || byName(a, b));
   return [...exactDialMatches, ...isoMatches, ...dialPrefixMatches, ...nameMatches];
 }
 

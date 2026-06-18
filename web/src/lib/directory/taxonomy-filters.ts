@@ -4,6 +4,7 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
+import { byName } from "@/lib/field-engine/sort-comparators";
 
 export type TaxonomyFilterOption = {
   id: string;
@@ -167,7 +168,7 @@ async function loadTaxonomyTermsUncached(
       const bRow = rowById.get(b.id);
       const aOrder = tenantSettings.get(a.id)?.display_order ?? aRow?.sort_order ?? 100;
       const bOrder = tenantSettings.get(b.id)?.display_order ?? bRow?.sort_order ?? 100;
-      return aOrder - bOrder || a.name.localeCompare(b.name);
+      return aOrder - bOrder || byName(a, b);
     });
 }
 
