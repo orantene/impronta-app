@@ -35,7 +35,8 @@ import { withWeekday } from "./TalentJobShell";
 export type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "handoffs" | "inquiry" | "hold" | "approved" | "booked" | "past" | "archived" | "triage";
 
 export function AdminOperationsShell() {
-  const { effectiveMessagesInquiries, effectiveTenant, tenantSlug } = useAdminShell();
+  const { effectiveMessagesInquiries, effectiveTenant, tenantSlug, bridgeSessionIdentity } = useAdminShell();
+  const currentUserId = bridgeSessionIdentity?.userId ?? null;
   // Context already decides between bridge-populated (use as-is, even when
   // empty) and standalone-dev (RICH_INQUIRIES mock). Re-doing the fallback
   // here with `length > 0 ?` was the bug: real tenants with 0 inquiries
@@ -78,16 +79,14 @@ export function AdminOperationsShell() {
     return "past";
   };
 
-  // talent_coord lens — inquiries where the current user (Marta) is
-  // the coordinator on the lineup. Surfaces the dedicated "I'm
-  // running this" view for talent who manage their own studios.
+  // Coordinating lens — inquiries the CURRENT signed-in user coordinates,
+  // matched by the real coordinator user-id (inquiries.coordinator_id).
   const isCoordOnInquiry = (i: RichInquiry) =>
-    i.coordinator?.name === "Marta Reyes"
-    || i.requirementGroups.some(g => g.talents.some(t => t.name === "Marta Reyes"));
+    !!currentUserId && i.coordinator?.id === currentUserId;
 
   // Pre-compute incoming handoff inquiry-id set so the row filter can
   // do a quick membership check without re-querying the store per row.
-  const handoffIds = new Set(getIncomingHandoffs("Marta Reyes").map(h => h.inquiryId));
+  const handoffIds = new Set(getIncomingHandoffs(bridgeSessionIdentity?.displayName ?? "").map(h => h.inquiryId));
   const filtered = inquiries.filter(i => {
     const bucket = stageBucket(i.stage);
     const isArchived = !!__convFlags[i.id]?.archived;
