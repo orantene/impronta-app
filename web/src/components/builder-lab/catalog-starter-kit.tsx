@@ -1,24 +1,56 @@
 "use client";
 
 /**
- * SiteStarterKitView (Catalog) — the full-page starter designs, extracted from
- * component-catalog.tsx to keep that controller under the max-lines cap. The
- * shared SurfaceSwitcher shows one kit at a time (Agency / Talent), matching
- * Site Defaults; "both"-target designs appear in both. "Use this starter"
- * creates a Playground draft seeded with the chosen design's baked tree
- * (server-side) and opens the editor on it.
+ * SiteStarterKitView (Catalog) — the full-page STARTER manager.
+ *
+ * Was a read-only grid of the hardcoded `PAGE_DESIGN_SUMMARIES`. Now a
+ * DB-backed, manageable TABLE over `builder_templates` rows on the
+ * `page_templates` gallery tab (the same rows the live builders' "+" → Page
+ * Templates tab serves), styled like the component-catalog table.
+ *
+ * Per row the admin can: inline-edit metadata (title / description / category /
+ * tags / target), open it in the page builder, duplicate it, archive (delete)
+ * it, and publish / unpublish it. "Sync built-in starters" imports/refreshes the
+ * hand-authored PAGE_DESIGNS into this table (idempotent).
+ *
+ * The Agency / Talent switcher filters by `target_context` (Agency = workspace
+ * OR both; Talent = talent OR both), matching Site Defaults / Connected.
+ *
+ * All mutations reuse the existing super_admin-gated registry actions; this view
+ * adds no parallel CRUD path.
  */
 
-import { useCallback, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
-import { createPlaygroundDraftFromDesign } from "@/lib/site-admin/builder-core/lab/create-draft-from-design";
 import {
-  PAGE_DESIGN_SUMMARIES,
-  type PageDesignSummary,
-} from "@/lib/site-admin/builder-node/page-designs/summaries";
+  archiveTemplate,
+  duplicateTemplate,
+  publishTemplate,
+  unpublishTemplate,
+  updateTemplateDraft,
+} from "@/lib/site-admin/builder-core/templates/registry-actions";
+import {
+  listStarterTemplatesAction,
+  syncBuiltinStartersAction,
+} from "@/lib/site-admin/builder-core/templates/import-builtin-starters";
+import type {
+  BuilderTemplateRow,
+  BuilderTemplateTarget,
+} from "@/lib/site-admin/builder-core/templates/registry-rows";
 import { SurfaceSwitcher } from "./surface-switcher";
 import type { BuilderLabTarget } from "./builder-lab-stage";
-import { LAB as T, panelStyle, LabButton, LabBadge, EmptyCard } from "./ui";
+import {
+  LAB as T,
+  fieldStyle,
+  panelStyle,
+  LabButton,
+  LabBadge,
+  LabChip,
+  LabToast,
+  LabViewHeader,
+  SectionLabel,
+  EmptyCard,
+} from "./ui";
 
 const STARTER_KIT_GROUPS = [
   {
@@ -33,13 +65,51 @@ const STARTER_KIT_GROUPS = [
   },
 ];
 
-/** A design belongs to a surface group when it targets that surface or "both". */
-function designsForSurface(
+/** A row belongs to a surface group when it targets that surface or "both".
+ *  (Rows can also be target_context="platform" — those match neither and never
+ *  show in the per-surface kits.) */
+function rowTargetsSurface(
+  target: BuilderTemplateTarget,
   surface: "talent" | "workspace",
-): PageDesignSummary[] {
-  return PAGE_DESIGN_SUMMARIES.filter(
-    (d) => d.target === surface || d.target === "both",
-  );
+): boolean {
+  return target === surface || target === "both";
+}
+
+/** builder_templates target_context → the editor's launch target. */
+function targetToLabTarget(t: BuilderTemplateTarget): BuilderLabTarget {
+  return t === "talent" || t === "workspace" ? t : "both";
+}
+
+/** Human label for the Target badge. */
+function targetLabel(t: BuilderTemplateTarget): string {
+  switch (t) {
+    case "talent":
+      return "Talent";
+    case "workspace":
+      return "Agency";
+    case "both":
+      return "Both";
+    default:
+      return "Platform";
+  }
+}
+
+/** Parse the Tags input (comma / newline separated) into a deduped array. */
+function parseTags(raw: string): string[] {
+  const seen = new Set<string>();
+  for (const tok of raw.split(/[,\n]+/)) {
+    const tag = tok.trim();
+    if (tag) seen.add(tag);
+  }
+  return [...seen];
+}
+
+interface EditDraft {
+  title: string;
+  description: string;
+  category: string;
+  tags: string;
+  target: BuilderTemplateTarget;
 }
 
 export function SiteStarterKitView({
@@ -48,32 +118,201 @@ export function SiteStarterKitView({
   onLaunchEditor?: (target: BuilderLabTarget, draftId?: string) => void;
 }) {
   const [surface, setSurface] = useState<"talent" | "workspace">("workspace");
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [rows, setRows] = useState<BuilderTemplateRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [edit, setEdit] = useState<EditDraft | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
+    null,
+  );
+  const [syncing, setSyncing] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
-  const startFromDesign = useCallback(
-    async (design: PageDesignSummary) => {
-      setBusyId(design.id);
-      setError(null);
-      const res = await createPlaygroundDraftFromDesign({
-        designId: design.id,
-        target: surface,
+  const flash = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3200);
+  }, []);
+
+  const reload = useCallback(async () => {
+    const res = await listStarterTemplatesAction();
+    if (res.ok) {
+      setRows(res.data);
+    } else {
+      setError(res.error);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    listStarterTemplatesAction()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok) setRows(res.data);
+        else setError(res.error);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Failed to load starters.");
       });
-      setBusyId(null);
-      if (res.ok) {
-        onLaunchEditor?.(surface, res.draftId);
-      } else {
-        setError(res.error);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Run a per-row mutation with explicit pending state, then reload. */
+  const mutate = useCallback(
+    async (id: string, run: () => Promise<{ ok: boolean; error?: string }>) => {
+      setPendingId(id);
+      setError(null);
+      try {
+        const res = await run();
+        if (!res.ok) setError(res.error ?? "Update failed.");
+        await reload();
+        return res.ok;
+      } catch {
+        setError("Update failed.");
+        return false;
+      } finally {
+        setPendingId(null);
       }
     },
-    [onLaunchEditor, surface],
+    [reload],
   );
 
+  const startEdit = useCallback((row: BuilderTemplateRow) => {
+    setConfirmingDeleteId(null);
+    setEditingId(row.id);
+    setEdit({
+      title: row.title,
+      description: row.description ?? "",
+      category: row.category,
+      tags: row.tags.join(", "),
+      target: row.target_context,
+    });
+  }, []);
+
+  const cancelEdit = useCallback(() => {
+    setEditingId(null);
+    setEdit(null);
+  }, []);
+
+  const saveEdit = useCallback(
+    (row: BuilderTemplateRow) => {
+      if (!edit) return;
+      const title = edit.title.trim();
+      if (!title) {
+        setError("Title can't be empty.");
+        return;
+      }
+      void mutate(row.id, () =>
+        updateTemplateDraft({
+          id: row.id,
+          title,
+          description: edit.description.trim() || null,
+          category: edit.category.trim() || row.category,
+          tags: parseTags(edit.tags),
+          target_context: edit.target,
+        }),
+      ).then((ok) => {
+        if (ok) {
+          cancelEdit();
+          flash("Saved ✓");
+        }
+      });
+    },
+    [edit, mutate, cancelEdit, flash],
+  );
+
+  const togglePublish = useCallback(
+    (row: BuilderTemplateRow) => {
+      const published = row.status === "published";
+      void mutate(row.id, () =>
+        published ? unpublishTemplate(row.id) : publishTemplate(row.id),
+      ).then((ok) => {
+        if (ok) flash(published ? "Unpublished" : "Published ✓");
+      });
+    },
+    [mutate, flash],
+  );
+
+  const duplicate = useCallback(
+    (row: BuilderTemplateRow) => {
+      void mutate(row.id, () => duplicateTemplate(row.id)).then((ok) => {
+        if (ok) flash(`Duplicated "${row.title}"`);
+      });
+    },
+    [mutate, flash],
+  );
+
+  const confirmDelete = useCallback(
+    (row: BuilderTemplateRow) => {
+      setConfirmingDeleteId(null);
+      void mutate(row.id, () => archiveTemplate(row.id)).then((ok) => {
+        if (ok) flash("Deleted");
+      });
+    },
+    [mutate, flash],
+  );
+
+  const runSync = useCallback(async () => {
+    setSyncing(true);
+    setError(null);
+    try {
+      const res = await syncBuiltinStartersAction();
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      const { imported, updated, errors } = res.data;
+      await reload();
+      const parts: string[] = [];
+      if (imported) parts.push(`${imported} imported`);
+      if (updated) parts.push(`${updated} refreshed`);
+      flash(
+        `Built-in starters synced — ${parts.join(", ") || "no changes"}` +
+          (errors.length ? ` · ${errors.length} error(s)` : ""),
+      );
+      if (errors.length) setError(errors.join(" · "));
+    } catch {
+      setError("Sync failed.");
+    } finally {
+      setSyncing(false);
+    }
+  }, [reload, flash]);
+
   const group = STARTER_KIT_GROUPS.find((g) => g.key === surface);
-  const designs = designsForSurface(surface);
+  const visibleRows = useMemo(
+    () =>
+      (rows ?? [])
+        .filter((r) => rowTargetsSurface(r.target_context, surface))
+        .sort(
+          (a, b) =>
+            a.category.localeCompare(b.category) ||
+            a.title.localeCompare(b.title),
+        ),
+    [rows, surface],
+  );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <div
+      data-testid="lab-starter-kit-root"
+      style={{ display: "flex", flexDirection: "column", gap: 14 }}
+    >
+      <LabViewHeader
+        title="Site Starter Kit"
+        blurb="Full-page starters in the page-templates gallery. Edit, tag, publish, or open them in the builder. Sync pulls in the built-in designs."
+        actions={
+          <LabButton
+            variant="secondary"
+            disabled={syncing}
+            onClick={() => void runSync()}
+            ariaLabel="Sync built-in starters"
+          >
+            {syncing ? "Syncing…" : "Sync built-in starters"}
+          </LabButton>
+        }
+      />
+
       <SurfaceSwitcher
         options={STARTER_KIT_GROUPS}
         value={surface}
@@ -83,67 +322,456 @@ export function SiteStarterKitView({
       {group ? (
         <div style={{ fontSize: 12, color: T.inkMuted }}>{group.blurb}</div>
       ) : null}
+
+      {toast ? <LabToast>{toast}</LabToast> : null}
       {error ? <div style={{ fontSize: 12, color: T.red }}>{error}</div> : null}
-      {designs.length === 0 ? (
+
+      {rows === null ? (
+        <div style={{ color: T.inkMuted, fontSize: 13, padding: "10px 0" }}>
+          Loading starters…
+        </div>
+      ) : visibleRows.length === 0 ? (
         <EmptyCard>
-          No starter designs target this surface yet.
+          No starters target this surface yet. Hit{" "}
+          <strong>Sync built-in starters</strong> to import the built-in
+          designs, or create one in the Playground.
         </EmptyCard>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-            gap: 12,
-          }}
-        >
-          {designs.map((d) => (
-            <StarterKitCard
-              key={d.id}
-              design={d}
-              busy={busyId === d.id}
-              onUse={() => void startFromDesign(d)}
-            />
-          ))}
-        </div>
+        <StarterTable
+          rows={visibleRows}
+          pendingId={pendingId}
+          editingId={editingId}
+          edit={edit}
+          setEdit={setEdit}
+          confirmingDeleteId={confirmingDeleteId}
+          onRowClick={(r) =>
+            editingId === r.id ? cancelEdit() : startEdit(r)
+          }
+          onSaveEdit={saveEdit}
+          onCancelEdit={cancelEdit}
+          onOpen={(r) =>
+            onLaunchEditor?.(targetToLabTarget(r.target_context), r.id)
+          }
+          onDuplicate={duplicate}
+          onTogglePublish={togglePublish}
+          onStartDelete={(id) => setConfirmingDeleteId(id)}
+          onCancelDelete={() => setConfirmingDeleteId(null)}
+          onConfirmDelete={confirmDelete}
+        />
       )}
     </div>
   );
 }
 
-function StarterKitCard({
-  design,
-  busy,
-  onUse,
+// ── Table ──────────────────────────────────────────────────────────────────
+
+interface StarterTableProps {
+  rows: BuilderTemplateRow[];
+  pendingId: string | null;
+  editingId: string | null;
+  edit: EditDraft | null;
+  setEdit: (e: EditDraft) => void;
+  confirmingDeleteId: string | null;
+  onRowClick: (row: BuilderTemplateRow) => void;
+  onSaveEdit: (row: BuilderTemplateRow) => void;
+  onCancelEdit: () => void;
+  onOpen: (row: BuilderTemplateRow) => void;
+  onDuplicate: (row: BuilderTemplateRow) => void;
+  onTogglePublish: (row: BuilderTemplateRow) => void;
+  onStartDelete: (id: string) => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: (row: BuilderTemplateRow) => void;
+}
+
+function StarterTable(props: StarterTableProps) {
+  const {
+    rows,
+    pendingId,
+    editingId,
+    confirmingDeleteId,
+    onRowClick,
+    onSaveEdit,
+    onCancelEdit,
+    onOpen,
+    onDuplicate,
+    onTogglePublish,
+    onStartDelete,
+    onCancelDelete,
+    onConfirmDelete,
+  } = props;
+
+  return (
+    <section style={{ ...panelStyle, overflow: "hidden" }}>
+      <table
+        style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}
+      >
+        <thead>
+          <tr style={{ color: T.inkDim }}>
+            <Th>Name</Th>
+            <Th>Category</Th>
+            <Th>Tags</Th>
+            <Th>Target</Th>
+            <Th center>Status</Th>
+            <Th right>Manage</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const busy = pendingId === r.id;
+            const editing = editingId === r.id;
+            const published = r.status === "published";
+            return (
+              <Fragment key={r.id}>
+                <tr
+                  data-testid={`lab-starter-row-${r.id}`}
+                  onClick={(e) => {
+                    if (
+                      (e.target as HTMLElement).closest(
+                        "button, input, a, select, textarea",
+                      )
+                    )
+                      return;
+                    onRowClick(r);
+                  }}
+                  style={{
+                    borderTop: `1px solid ${T.borderSoft}`,
+                    opacity: busy ? 0.55 : 1,
+                    cursor: "pointer",
+                  }}
+                >
+                  <td style={{ padding: "10px 16px" }}>
+                    <div
+                      style={{ color: T.ink, fontWeight: 600, minWidth: 0 }}
+                    >
+                      {r.title || "Untitled"}
+                    </div>
+                    <div
+                      style={{
+                        color: T.inkDim,
+                        fontSize: 10.5,
+                        fontFamily: "ui-monospace, monospace",
+                      }}
+                    >
+                      {r.slug}
+                    </div>
+                  </td>
+                  <td style={{ padding: "10px 16px", color: T.inkMuted }}>
+                    {r.category}
+                  </td>
+                  <td style={{ padding: "10px 16px" }}>
+                    {r.tags.length ? (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          flexWrap: "wrap",
+                          gap: 4,
+                        }}
+                      >
+                        {r.tags.map((tag) => (
+                          <LabChip key={tag} tone="neutral">
+                            {tag}
+                          </LabChip>
+                        ))}
+                      </span>
+                    ) : (
+                      <span style={{ color: T.inkDim }}>—</span>
+                    )}
+                  </td>
+                  <td style={{ padding: "10px 16px" }}>
+                    <LabBadge tone="muted">
+                      {targetLabel(r.target_context)}
+                    </LabBadge>
+                  </td>
+                  <td style={{ padding: "10px 16px", textAlign: "center" }}>
+                    <LabBadge tone={published ? "accent" : "neutral"}>
+                      {published ? "Published" : r.status.replace("_", " ")}
+                    </LabBadge>
+                  </td>
+                  <td
+                    style={{
+                      padding: "10px 16px",
+                      textAlign: "right",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {editing ? (
+                      <span style={{ display: "inline-flex", gap: 10 }}>
+                        <LinkBtn
+                          label="Save"
+                          testId={`lab-starter-save-${r.id}`}
+                          onClick={() => onSaveEdit(r)}
+                          disabled={busy}
+                          primary
+                        />
+                        <LinkBtn
+                          label="Cancel"
+                          onClick={onCancelEdit}
+                          disabled={busy}
+                        />
+                      </span>
+                    ) : confirmingDeleteId === r.id ? (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          gap: 8,
+                          alignItems: "center",
+                        }}
+                      >
+                        <span style={{ fontSize: 11, color: T.inkMuted }}>
+                          Delete this starter?
+                        </span>
+                        <LinkBtn
+                          label="Yes"
+                          onClick={() => onConfirmDelete(r)}
+                          disabled={busy}
+                          danger
+                        />
+                        <LinkBtn
+                          label="No"
+                          onClick={onCancelDelete}
+                          disabled={busy}
+                        />
+                      </span>
+                    ) : (
+                      <span style={{ display: "inline-flex", gap: 10 }}>
+                        <LinkBtn
+                          label="Edit"
+                          onClick={() => onRowClick(r)}
+                          disabled={busy}
+                        />
+                        <LinkBtn
+                          label="Open in builder"
+                          onClick={() => onOpen(r)}
+                          disabled={busy}
+                        />
+                        <LinkBtn
+                          label="Duplicate"
+                          onClick={() => onDuplicate(r)}
+                          disabled={busy}
+                        />
+                        <LinkBtn
+                          label={published ? "Unpublish" : "Publish"}
+                          onClick={() => onTogglePublish(r)}
+                          disabled={busy}
+                          primary={!published}
+                        />
+                        <LinkBtn
+                          label="Delete"
+                          onClick={() => onStartDelete(r.id)}
+                          disabled={busy}
+                          danger
+                        />
+                      </span>
+                    )}
+                  </td>
+                </tr>
+                {editing && props.edit ? (
+                  <EditAccordionRow
+                    row={r}
+                    edit={props.edit}
+                    setEdit={props.setEdit}
+                  />
+                ) : null}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+// ── Inline metadata editor ───────────────────────────────────────────────────
+
+function EditAccordionRow({
+  row,
+  edit,
+  setEdit,
 }: {
-  design: PageDesignSummary;
-  busy?: boolean;
-  onUse: () => void;
+  row: BuilderTemplateRow;
+  edit: EditDraft;
+  setEdit: (e: EditDraft) => void;
 }) {
   return (
-    <div
+    <tr style={{ background: T.cardSoft }}>
+      <td colSpan={6} style={{ padding: "12px 16px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <SectionLabel>Edit starter</SectionLabel>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 12,
+              alignItems: "flex-start",
+            }}
+          >
+            <Field label="Name">
+              <input
+                data-testid={`lab-starter-edit-title-${row.id}`}
+                value={edit.title}
+                onChange={(e) => setEdit({ ...edit, title: e.target.value })}
+                placeholder="Starter name"
+                style={{ ...inputStyle, width: 240 }}
+              />
+            </Field>
+            <Field label="Category">
+              <input
+                value={edit.category}
+                onChange={(e) =>
+                  setEdit({ ...edit, category: e.target.value })
+                }
+                placeholder={row.category}
+                style={{ ...inputStyle, width: 170 }}
+              />
+            </Field>
+            <Field label="Target">
+              <select
+                value={edit.target}
+                onChange={(e) =>
+                  setEdit({
+                    ...edit,
+                    target: e.target.value as BuilderTemplateTarget,
+                  })
+                }
+                style={{ ...inputStyle, width: 150 }}
+              >
+                <option value="workspace">Agency (workspace)</option>
+                <option value="talent">Talent</option>
+                <option value="both">Both</option>
+                <option value="platform">Platform</option>
+              </select>
+            </Field>
+            <Field label="Tags (comma-separated)">
+              <input
+                value={edit.tags}
+                onChange={(e) => setEdit({ ...edit, tags: e.target.value })}
+                placeholder="e.g. agency, editorial"
+                style={{ ...inputStyle, width: 260 }}
+              />
+            </Field>
+          </div>
+          <Field label="Description">
+            <textarea
+              value={edit.description}
+              onChange={(e) =>
+                setEdit({ ...edit, description: e.target.value })
+              }
+              placeholder="One-line description shown on the starter."
+              rows={2}
+              style={{
+                ...inputStyle,
+                width: "100%",
+                maxWidth: 560,
+                minHeight: 52,
+                resize: "vertical",
+              }}
+            />
+          </Field>
+          <span style={{ fontSize: 11, color: T.inkDim, lineHeight: 1.5 }}>
+            Metadata only. Target controls which kit (Agency / Talent) lists the
+            starter and which surface the builders&apos; &quot;+&quot; gallery
+            offers it on. Editing a built-in&apos;s metadata here is overwritten
+            the next time you sync built-in starters.
+          </span>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+// ── Primitives (match catalog-row-table.tsx) ─────────────────────────────────
+
+const inputStyle: React.CSSProperties = { ...fieldStyle, width: 220 };
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span
+        style={{
+          fontSize: 10,
+          color: T.inkMuted,
+          letterSpacing: 0.4,
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function Th({
+  children,
+  center,
+  right,
+}: {
+  children: React.ReactNode;
+  center?: boolean;
+  right?: boolean;
+}) {
+  return (
+    <th
       style={{
-        ...panelStyle,
-        padding: 14,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
+        padding: "9px 16px",
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.8,
+        textTransform: "uppercase",
+        textAlign: center ? "center" : right ? "right" : "left",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <span style={{ fontSize: 13.5, fontWeight: 700, color: T.ink }}>{design.label}</span>
-        <LabBadge tone="muted">{design.archetype}</LabBadge>
-      </div>
-      <p style={{ fontSize: 11.5, color: T.inkMuted, lineHeight: 1.5, margin: 0, flex: 1 }}>
-        {design.description}
-      </p>
-      <LabButton
-        variant="soft"
-        disabled={busy}
-        onClick={onUse}
-        style={{ alignSelf: "flex-start" }}
-      >
-        {busy ? "Creating…" : "Use this starter →"}
-      </LabButton>
-    </div>
+      {children}
+    </th>
+  );
+}
+
+function LinkBtn({
+  label,
+  onClick,
+  disabled,
+  primary,
+  danger,
+  testId,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  primary?: boolean;
+  danger?: boolean;
+  testId?: string;
+}) {
+  const color = disabled
+    ? T.inkDim
+    : danger
+      ? T.red
+      : primary
+        ? T.accent
+        : T.inkMuted;
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+      style={{
+        background: "transparent",
+        border: "none",
+        color,
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: disabled ? "default" : "pointer",
+        padding: 0,
+      }}
+    >
+      {label}
+    </button>
   );
 }
