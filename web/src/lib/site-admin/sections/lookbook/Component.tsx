@@ -34,6 +34,7 @@ function headingSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSPropertie
   if (size === "sm") return "clamp(1.45rem, 3.2vw, 2.2rem)";
   if (size === "lg") return "clamp(2.05rem, 4.6vw, 3.25rem)";
   if (size === "xl") return "clamp(2.35rem, 5.2vw, 3.7rem)";
+  if (size === "display") return "clamp(3.5rem, 6vw, 6rem)";
   return undefined;
 }
 
@@ -41,6 +42,7 @@ function eyebrowSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSPropertie
   if (size === "sm") return "0.82rem";
   if (size === "lg") return "1rem";
   if (size === "xl") return "1.08rem";
+  if (size === "display") return "1.08rem";
   return undefined;
 }
 

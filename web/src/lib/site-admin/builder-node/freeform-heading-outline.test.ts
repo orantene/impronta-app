@@ -5,7 +5,8 @@ import {
   buildHeadingOutlineFromBuilderTree,
   lintBuilderTreeA11y,
 } from "./freeform-heading-outline";
-import type { BuilderNodeTree } from "./types";
+import type { ComponentDefinitions } from "./component-instances";
+import type { BuilderNode, BuilderNodeTree } from "./types";
 
 test("buildHeadingOutlineFromBuilderTree collects section_embed and heading blocks in order", () => {
   const tree: BuilderNodeTree = [
@@ -166,4 +167,131 @@ test("lintBuilderTreeA11y returns no findings for a clean, well-structured tree"
   const report = lintBuilderTreeA11y(tree);
   assert.equal(report.headingIssues.length, 0);
   assert.equal(report.missingAlt.length, 0);
+});
+
+// ── A11Y-3 — living-component instances (resolved-at-render subtrees) ─────────
+
+/**
+ * A master component whose CURRENT subtree has a heading + an image with NO alt.
+ * The instance's STORED snapshot is STALE — it still carries an old alt the
+ * master has since lost, plus the master heading text. So the stored-children
+ * walk lints clean while the LIVE render (current master) is genuinely broken:
+ * exactly the under-report A11Y-3 fixes. A per-instance override also rewrites
+ * the heading text, which the live outline must reflect.
+ */
+function instanceFixture(): {
+  tree: BuilderNodeTree;
+  components: ComponentDefinitions;
+} {
+  // CURRENT master — the image has lost its alt.
+  const master: BuilderNode = {
+    id: "cmp-card",
+    kind: "container",
+    props: { layout: "stack" },
+    children: [
+      { id: "m-heading", kind: "heading", props: { text: "Master heading", level: 2 } },
+      { id: "m-image", kind: "image", props: { src: "https://x/master.jpg" } },
+    ],
+  };
+  const components: ComponentDefinitions = { "cmp-card": master };
+
+  // STORED snapshot the instance was last synced from — image still has alt.
+  const staleSnapshot: BuilderNode[] = [
+    { id: "m-heading", kind: "heading", props: { text: "Master heading", level: 2 } },
+    {
+      id: "m-image",
+      kind: "image",
+      props: { src: "https://x/master.jpg", alt: "Stale alt from an old sync" },
+    },
+  ];
+
+  const tree: BuilderNodeTree = [
+    { id: "page-h1", kind: "heading", props: { text: "Page title", level: 1 } },
+    {
+      id: "inst-1",
+      kind: "container",
+      props: {
+        layout: "stack",
+        instanceOf: "cmp-card",
+        // Override rewrites the heading text (no alt override).
+        instanceOverrides: { "m-heading": { text: "Overridden heading" } },
+      },
+      children: staleSnapshot,
+    },
+  ];
+  return { tree, components };
+}
+
+test("A11Y-3: without components, the instance is walked via its STALE stored children (old alt present → not flagged)", () => {
+  const { tree } = instanceFixture();
+  const report = lintBuilderTreeA11y(tree);
+  // Backward-compat: stale snapshot has alt, so the missing-alt walk is clean
+  // (this is precisely the under-report — the live page IS broken).
+  assert.equal(report.missingAlt.length, 0);
+  // Stored heading text feeds the outline.
+  const outline = buildHeadingOutlineFromBuilderTree(tree);
+  assert.deepEqual(outline.map((n) => n.text), ["Page title", "Master heading"]);
+});
+
+test("A11Y-3: with components, the LIVE-resolved instance image (current master lost its alt) IS flagged", () => {
+  const { tree, components } = instanceFixture();
+  const report = lintBuilderTreeA11y(tree, components);
+  // The resolved instance image reflects the CURRENT master (no alt) → flagged.
+  // Its node id is namespaced by the instance id (`<instanceId>__<masterId>`).
+  assert.equal(report.missingAlt.length, 1);
+  assert.equal(report.missingAlt[0]?.nodeId, "inst-1__m-image");
+  // And the overridden heading text is what lands in the outline, not the master.
+  const outline = buildHeadingOutlineFromBuilderTree(tree, components);
+  assert.deepEqual(outline.map((n) => n.text), ["Page title", "Overridden heading"]);
+});
+
+test("A11Y-3: with components, an override that ADDS alt to a master image lacking one is NOT over-reported", () => {
+  const master: BuilderNode = {
+    id: "cmp-bare",
+    kind: "container",
+    props: { layout: "stack" },
+    children: [
+      // Master image has NO alt — a stored-children walk would flag it.
+      { id: "m-img", kind: "image", props: { src: "https://x/bare.jpg" } },
+    ],
+  };
+  const components: ComponentDefinitions = { "cmp-bare": master };
+  const tree: BuilderNodeTree = [
+    {
+      id: "inst",
+      kind: "container",
+      props: {
+        layout: "stack",
+        instanceOf: "cmp-bare",
+        // The instance supplies the alt the master lacked.
+        instanceOverrides: { "m-img": { imageAlt: "Resolved alt" } },
+      },
+      children: master.children.map((c) => ({ ...c })),
+    },
+  ];
+
+  // Stored-children walk (no components) WOULD flag the bare master image…
+  assert.equal(lintBuilderTreeA11y(tree).missingAlt.length, 1);
+  // …but the resolved instance has the override alt → no finding.
+  assert.equal(lintBuilderTreeA11y(tree, components).missingAlt.length, 0);
+});
+
+test("A11Y-3: a tagged instance with NO available definition falls back to stored children (no crash)", () => {
+  const tree: BuilderNodeTree = [
+    {
+      id: "inst-orphan",
+      kind: "container",
+      props: { layout: "stack", instanceOf: "missing-cmp" },
+      children: [
+        { id: "img-no-alt", kind: "image", props: { src: "https://x/o.jpg" } },
+      ],
+    },
+  ];
+  // Components map provided but the definition is absent → resolveInstanceChildren
+  // returns null → graceful fallback to stored children (which IS flagged).
+  const report = lintBuilderTreeA11y(tree, {
+    other: { id: "other", kind: "spacer", props: { size: "m" } },
+  });
+  assert.equal(report.missingAlt.length, 1);
+  assert.equal(report.missingAlt[0]?.nodeId, "img-no-alt");
 });

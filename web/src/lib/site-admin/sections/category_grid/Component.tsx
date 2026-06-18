@@ -25,6 +25,7 @@ function headingSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSPropertie
   if (size === "sm") return "clamp(1.45rem, 3.2vw, 2.2rem)";
   if (size === "lg") return "clamp(2.05rem, 4.6vw, 3.25rem)";
   if (size === "xl") return "clamp(2.35rem, 5.2vw, 3.7rem)";
+  if (size === "display") return "clamp(3.5rem, 6vw, 6rem)";
   return undefined;
 }
 
@@ -32,6 +33,7 @@ function eyebrowSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSPropertie
   if (size === "sm") return "0.82rem";
   if (size === "lg") return "1rem";
   if (size === "xl") return "1.08rem";
+  if (size === "display") return "1.08rem";
   return undefined;
 }
 
@@ -39,6 +41,7 @@ function paragraphSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSPropert
   if (size === "sm") return "0.94rem";
   if (size === "lg") return "1.1rem";
   if (size === "xl") return "1.2rem";
+  if (size === "display") return "clamp(2rem, 4vw, 4.5rem)";
   return undefined;
 }
 
@@ -53,6 +56,7 @@ function buttonSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties
   if (size === "sm") return { padding: "0.5rem 0.85rem", fontSize: "0.78rem" };
   if (size === "lg") return { padding: "0.72rem 1.08rem", fontSize: "0.9rem" };
   if (size === "xl") return { padding: "0.82rem 1.2rem", fontSize: "0.94rem" };
+  if (size === "display") return { padding: "0.82rem 1.2rem", fontSize: "0.94rem" };
   return {};
 }
 

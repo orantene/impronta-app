@@ -1,6 +1,11 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
 
+import {
+  EXPERIMENT_VISITOR_COOKIE,
+  isValidExperimentVisitorId,
+} from "./experiment-visitor-cookie";
+
 /**
  * experiment-context.ts — ABTEST-1 SSR seed resolver (server-only).
  *
@@ -14,9 +19,12 @@ import { cookies, headers } from "next/headers";
  * Seed precedence (first stable signal wins):
  *   1. An existing Supabase auth cookie (`sb-…-auth-token` / `sb-access-token`)
  *      — stable per signed-in visitor across renders.
- *   2. A hash of `x-forwarded-for` (client IP) + `user-agent` — stable per
+ *   2. The first-party visitor cookie (`impronta_vid`) the proxy mints + sets —
+ *      stable per anonymous visitor across requests, immune to IP drift (mobile
+ *      networks, shared egress IPs). Degrade-safe: absent ⇒ skip to (3).
+ *   3. A hash of `x-forwarded-for` (client IP) + `user-agent` — stable per
  *      anonymous visitor within a request stream, no cookie required.
- *   3. null → control, no tracking.
+ *   4. null → control, no tracking.
  *
  * The seed itself is never sent to analytics; only the assigned variant key is.
  */
@@ -35,6 +43,7 @@ const EMPTY_CONTEXT: ExperimentRenderContext = {
 async function readStableSeed(): Promise<string | null> {
   // 1. Supabase auth cookie (signed-in visitor) — the most stable per-visitor
   //    signal. The cookie NAME varies by project ref, so match by prefix.
+  //    Read once and reuse for the visitor-id lookup below.
   try {
     const cookieStore = await cookies();
     const all = cookieStore.getAll();
@@ -45,10 +54,14 @@ async function readStableSeed(): Promise<string | null> {
           (c.name.endsWith("-auth-token") || c.name.includes("auth-token"))),
     );
     if (auth?.value) return `auth:${auth.value.slice(0, 64)}`;
+    // 2. First-party visitor cookie — stable per anon visitor across requests,
+    //    immune to IP drift. Validated so a forged cookie can't skew the hash.
+    const vid = all.find((c) => c.name === EXPERIMENT_VISITOR_COOKIE)?.value;
+    if (isValidExperimentVisitorId(vid)) return `vid:${vid}`;
   } catch {
     // cookies() outside a request → fall through to the header fallback.
   }
-  // 2. Anonymous fallback: client IP + user-agent. Stable enough to keep a
+  // 3. Anonymous fallback: client IP + user-agent. Stable enough to keep a
   //    visitor in one arm across the renders of their visit, with no cookie.
   try {
     const h = await headers();
