@@ -235,6 +235,89 @@ export function buildCatalogAdminView(
   });
 }
 
+// ── 4-surface matrix projection (X1, read-only) ──────────────────────────────
+
+/** The four real builder surfaces the catalog governs. */
+export type CatalogSurfaceKey =
+  | "talent_profile"
+  | "talent_shell"
+  | "workspace_page"
+  | "workspace_shell";
+
+/** One cell of the derived 4-surface matrix. */
+export interface CatalogSurfaceCell {
+  key: CatalogSurfaceKey;
+  /** Human label for the cell. */
+  label: string;
+  /** Effective visibility on this surface, derived PURELY from existing overlay
+   *  state — no new column. */
+  visible: boolean;
+  /** Which underlying toggle governs this cell — exposes the lossy reality that
+   *  two surfaces (talent shell, workspace page/shell) are all driven by the one
+   *  `workspace_enabled` toggle. */
+  governedBy: "talent_enabled" | "workspace_enabled";
+}
+
+/**
+ * Project a `CatalogAdminItem` onto the FOUR real builder surfaces (X1, PURE,
+ * read-only). This is a *derivation* over the existing 2-toggle overlay state
+ * (`talentVisible` ⇐ `talent_enabled`, `workspaceVisible` ⇐ `workspace_enabled`)
+ * — it adds NO new column and performs NO write. Its sole job is to make the
+ * current LOSSY mapping visible:
+ *
+ *   • talent profile  ⇐ talent_enabled        (`buildTalentPageBuilderConfig`,
+ *                                               adapter target → "talent")
+ *   • talent shell    ⇐ workspace_enabled      (THE SURPRISE — the talent Max
+ *                                               SITE-SHELL is governed by the
+ *                                               Workspace toggle because
+ *                                               `buildSiteShellBuilderConfig`
+ *                                               hardcodes surfaceTarget:'workspace')
+ *   • workspace page  ⇐ workspace_enabled      (`buildCmsPageBuilderConfig`,
+ *                                               surfaceTarget:'workspace')
+ *   • workspace shell ⇐ workspace_enabled      (same site_shell config, workspace)
+ *
+ * So hiding a component "from Workspace" silently also hides it from the talent's
+ * own Max-site header/footer — three of the four surfaces collapse onto one
+ * toggle. X4 later splits this into a true 4-column matrix; this read-only view
+ * de-risks that migration by exposing the truth first.
+ *
+ * Visibility per cell honors the item's `target_context` exactly as
+ * `buildCatalogAdminView` does (talent-targeted rows can't show on workspace
+ * surfaces and vice-versa; "both" shows on all) because we reuse the
+ * already-computed `talentVisible`/`workspaceVisible`, keeping this a pure
+ * projection of that view.
+ */
+export function deriveSurfaceMatrix(
+  view: Pick<CatalogAdminItem, "talentVisible" | "workspaceVisible">,
+): CatalogSurfaceCell[] {
+  return [
+    {
+      key: "talent_profile",
+      label: "Talent profile",
+      visible: view.talentVisible,
+      governedBy: "talent_enabled",
+    },
+    {
+      key: "talent_shell",
+      label: "Talent shell",
+      visible: view.workspaceVisible,
+      governedBy: "workspace_enabled",
+    },
+    {
+      key: "workspace_page",
+      label: "Workspace page",
+      visible: view.workspaceVisible,
+      governedBy: "workspace_enabled",
+    },
+    {
+      key: "workspace_shell",
+      label: "Workspace shell",
+      visible: view.workspaceVisible,
+      governedBy: "workspace_enabled",
+    },
+  ];
+}
+
 /**
  * Apply the admin overlay to an already-merged item list (PURE). Subtract-only:
  *   - `availability_override === "hidden"` → drop everywhere.

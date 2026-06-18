@@ -1218,6 +1218,11 @@
       "count": 1
     }
   },
+  "src/components/builder-lab/catalog-row-table.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/components/builder-lab/catalog-starter-kit.tsx": {
     "max-lines": {
       "count": 1

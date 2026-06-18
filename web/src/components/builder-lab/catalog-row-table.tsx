@@ -12,12 +12,18 @@
  * accordion groups the governance inputs under a "Governance" subhead.
  */
 
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 
 import type {
   AddGalleryNativeVariant,
   CatalogAdminItem,
+  CatalogSurfaceCell,
 } from "@/lib/site-admin/add-gallery";
+// Import the value (`deriveSurfaceMatrix`) directly from its module, NOT the
+// add-gallery barrel — the barrel transitively pulls a `.css` side-effect import
+// that the tsx test runner can't parse (it compiles CSS as JS). The types above
+// are erased at compile, so the barrel path is safe for them.
+import { deriveSurfaceMatrix } from "@/lib/site-admin/add-gallery/registry-db-merge";
 import { AddGalleryIcon } from "@/components/edit-chrome/add-gallery/add-gallery-icons";
 import { governanceChips } from "./catalog-governance";
 import {
@@ -239,6 +245,12 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                 >
                   Workspace
                 </Th>
+                <Th
+                  center
+                  help="The 4 real builder surfaces this row resolves to. Today only 2 toggles govern them: talent shell is silently driven by the Workspace toggle (surfaceTarget:'workspace' in config.ts), not Talent-Max. Read-only — expand to see the truth."
+                >
+                  Surfaces
+                </Th>
                 <Th right>Manage</Th>
               </tr>
             </thead>
@@ -360,6 +372,7 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                         label={r.effectiveLabel}
                         surface="Workspace"
                       />
+                      <SurfacesCell item={r} />
                       <td style={{ padding: "9px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
                         {editing ? (
                           <span style={{ display: "inline-flex", gap: 6 }}>
@@ -429,7 +442,7 @@ function EditAccordionRow({
 }: CatalogRowTableProps & { item: CatalogAdminItem }) {
   return (
     <tr style={{ background: T.cardSoft }}>
-      <td colSpan={6} style={{ padding: "12px 16px" }}>
+      <td colSpan={7} style={{ padding: "12px 16px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Display group — cosmetic overrides */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -715,6 +728,110 @@ function ToggleCell({
         {locked ? "—" : on ? "On" : "Off"}
       </button>
     </td>
+  );
+}
+
+/**
+ * SurfacesCell (X1) — a READ-ONLY projection of the row's effective visibility
+ * onto the FOUR real builder surfaces, derived purely from the existing 2-toggle
+ * overlay state via {@link deriveSurfaceMatrix}. It adds no write path — that is
+ * X4. Its purpose is to make the lossy reality visible: the talent Max-site
+ * SHELL is governed by the *Workspace* toggle (not Talent-Max), so three of the
+ * four surfaces collapse onto `workspace_enabled`.
+ *
+ * Collapsed: four compact dots (green = visible, dim = hidden) the admin can
+ * read at a glance. Click expands an inline 4-row legend naming each surface,
+ * its state, and which toggle governs it — exposing the "Talent shell ⇐
+ * Workspace" surprise explicitly.
+ */
+function SurfacesCell({ item }: { item: CatalogAdminItem }) {
+  const [open, setOpen] = useState(false);
+  const cells = deriveSurfaceMatrix(item);
+  const summary = cells
+    .map((c) => `${c.label}: ${c.visible ? "visible" : "hidden"}`)
+    .join(" · ");
+  return (
+    <td style={{ padding: "9px 16px", textAlign: "center", verticalAlign: "top" }}>
+      <button
+        type="button"
+        data-testid={`lab-catalog-surfaces-${item.id}`}
+        aria-expanded={open}
+        aria-label={`4-surface visibility for ${item.effectiveLabel}: ${summary}. Click to ${open ? "collapse" : "expand"}.`}
+        title={summary}
+        onClick={() => setOpen((v) => !v)}
+        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+        style={{
+          cursor: "pointer",
+          border: `1px solid ${T.border}`,
+          background: "transparent",
+          borderRadius: 999,
+          padding: "3px 9px",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 5,
+        }}
+      >
+        {cells.map((c) => (
+          <SurfaceDot key={c.key} cell={c} />
+        ))}
+      </button>
+      {open ? (
+        <div
+          style={{
+            marginTop: 8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 5,
+            textAlign: "left",
+            minWidth: 188,
+          }}
+        >
+          {cells.map((c) => (
+            <div
+              key={c.key}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                fontSize: 11,
+                color: T.inkMuted,
+              }}
+            >
+              <SurfaceDot cell={c} />
+              <span style={{ color: T.ink, fontWeight: 600 }}>{c.label}</span>
+              <span style={{ color: c.visible ? T.yes : T.inkDim }}>
+                {c.visible ? "visible" : "hidden"}
+              </span>
+              <span style={{ color: T.inkDim, fontSize: 10 }}>
+                ({c.governedBy === "talent_enabled" ? "Talent-Max" : "Workspace"})
+              </span>
+            </div>
+          ))}
+          <span style={{ fontSize: 10, color: T.inkDim, lineHeight: 1.5, maxWidth: 220 }}>
+            Read-only. Talent shell follows the <strong>Workspace</strong> toggle,
+            not Talent-Max — hiding from Workspace also hides it from the talent&apos;s
+            own Max-site header/footer.
+          </span>
+        </div>
+      ) : null}
+    </td>
+  );
+}
+
+function SurfaceDot({ cell }: { cell: CatalogSurfaceCell }) {
+  return (
+    <span
+      aria-hidden
+      title={`${cell.label}: ${cell.visible ? "visible" : "hidden"}`}
+      style={{
+        width: 8,
+        height: 8,
+        borderRadius: 999,
+        flexShrink: 0,
+        background: cell.visible ? T.yes : "transparent",
+        border: `1px solid ${cell.visible ? T.yes : T.no}`,
+      }}
+    />
   );
 }
 
