@@ -43,6 +43,16 @@ export const SURFACE_COLUMN: Record<CatalogSurfaceKey, keyof CatalogOverlayRow> 
 };
 
 /**
+ * X6 — the overlay column for the FIFTH, orthogonal axis: visibility in the
+ * Builder LAB itself. This is NOT one of the four tenant surfaces and NOT the
+ * coarse `target_context` — it is an independent governance toggle that decides
+ * whether a component appears in the super-admin Lab Catalog/gallery, separate
+ * from where it ships on tenant builders. Default `true` ⇒ every component is
+ * Lab-visible (the lossless migration-forward default).
+ */
+export const LAB_COLUMN: keyof CatalogOverlayRow = "lab_enabled";
+
+/**
  * The 2→4 FORWARD migration (PURE) — the lossless mapping the SQL backfill and
  * the live read-path fallback both implement, in ONE place so they can never
  * drift. talent_* ⇐ talent_enabled, workspace_* ⇐ workspace_enabled. Missing
@@ -88,4 +98,23 @@ export function surfaceKeyToTarget(
   return surfaceKey === "talent_profile" || surfaceKey === "talent_shell"
     ? "talent"
     : "workspace";
+}
+
+/**
+ * X6 — is `item` enabled in the BUILDER LAB per an overlay row (PURE)? The Lab
+ * axis is INDEPENDENT of the four tenant surfaces and of `target_context`: a
+ * component can be hidden from every tenant builder yet still authored/previewed
+ * in the Lab, or shipped to tenants yet hidden from the Lab inventory. Honors the
+ * explicit `lab_enabled` column when the row carries it; absence ⇒ `true` (the
+ * table default — there is NO legacy column to fall back to, the migration adds
+ * the column defaulting true so every existing component stays Lab-visible). A
+ * null/undefined row ⇒ enabled (no overlay = code/template default).
+ */
+export function labEnabledForRow(
+  row: CatalogOverlayRow | null | undefined,
+): boolean {
+  if (!row) return true;
+  const explicit = row.lab_enabled;
+  if (typeof explicit === "boolean") return explicit;
+  return true;
 }

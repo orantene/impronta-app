@@ -194,6 +194,9 @@ export interface CatalogRowTableProps {
   onRowClick: (item: CatalogAdminItem) => void;
   /** X4 — toggle ONE of the four real surfaces (each has its own overlay column). */
   onToggleSurface: (item: CatalogAdminItem, surface: CatalogSurfaceKey) => void;
+  /** X6 — toggle the INDEPENDENT Builder-Lab visibility (the 5th, orthogonal
+   *  axis; never gated by target_context, never mirrors a tenant surface). */
+  onToggleLab: (item: CatalogAdminItem) => void;
   /** Dispatch a lifecycle transition for the row (the parent maps it to the
    *  availability overlay for code rows / the registry actions for templates). */
   onSetStatus: (item: CatalogAdminItem, next: LabStatus) => void;
@@ -214,6 +217,7 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
     confirmingResetId,
     onRowClick,
     onToggleSurface,
+    onToggleLab,
     onSetStatus,
     onSaveEdit,
     onCancelEdit,
@@ -268,6 +272,13 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                 </Th>
                 <Th center help="The agency site header/footer shell gallery (workspace_shell_enabled).">
                   Workspace shell
+                </Th>
+                {/* X6 — the FIFTH, INDEPENDENT axis: visibility in the Builder
+                    Lab itself (lab_enabled). Orthogonal to the four tenant
+                    surfaces + to target_context, so it has NO surface lock — a
+                    component can be Lab-only, tenant-only, both, or neither. */}
+                <Th center help="Visibility in the Builder Lab's own gallery (lab_enabled) — independent of the four tenant surfaces and never gated by target_context.">
+                  Builder Lab
                 </Th>
                 <Th right>Manage</Th>
               </tr>
@@ -388,6 +399,17 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                           />
                         );
                       })}
+                      {/* X6 — the Builder-Lab toggle. NEVER locked by
+                          target_context: the Lab authors for every audience, so
+                          the cell is always actionable (only `busy` disables it). */}
+                      <ToggleCell
+                        on={r.labVisible}
+                        disabled={busy}
+                        locked={false}
+                        onClick={() => onToggleLab(r)}
+                        label={r.effectiveLabel}
+                        surface="Builder Lab"
+                      />
                       <td style={{ padding: "9px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
                         {editing ? (
                           <span style={{ display: "inline-flex", gap: 6 }}>
@@ -469,7 +491,7 @@ function EditAccordionRow({
 }: CatalogRowTableProps & { item: CatalogAdminItem }) {
   return (
     <tr style={{ background: T.cardSoft }}>
-      <td colSpan={8} style={{ padding: "12px 16px" }}>
+      <td colSpan={9} style={{ padding: "12px 16px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Display group — cosmetic overrides */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -703,7 +725,7 @@ function RowHistoryRow({
 
   return (
     <tr>
-      <td colSpan={8} style={{ padding: "10px 16px", background: T.cardSoft }}>
+      <td colSpan={9} style={{ padding: "10px 16px", background: T.cardSoft }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
           <SectionLabel>History</SectionLabel>
           <LinkBtn label="Close" onClick={onClose} />

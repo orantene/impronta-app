@@ -27,6 +27,7 @@ import {
   CATALOG_SURFACE_KEYS,
   surfaceEnabledForRow,
   surfaceKeyToTarget,
+  labEnabledForRow,
   type CatalogSurfaceKey,
 } from "@/lib/site-admin/add-gallery/registry-db-merge";
 import {
@@ -372,6 +373,49 @@ export function ComponentCatalog({
           [column]: nextFour[surfaceKey],
           talent_enabled: legacyTalent,
           workspace_enabled: legacyWorkspace,
+        }),
+      );
+    },
+    [mutate],
+  );
+
+  // X6 — toggle the INDEPENDENT Builder-Lab visibility. Orthogonal to the four
+  // tenant surfaces: it has NO legacy mirror and is NOT gated by target_context,
+  // so it writes ONLY `lab_enabled` and never touches a tenant column. Optimistic
+  // flip (like toggleSurface), reconciled by reload().
+  const toggleLab = useCallback(
+    (item: CatalogAdminItem) => {
+      const nextLab = !labEnabledForRow(item.overlay);
+      setItems((prev) =>
+        prev
+          ? prev.map((r) => {
+              if (r.id !== item.id) return r;
+              const overlay: CatalogOverlayRow = {
+                item_ref: r.id,
+                source: r.source as "code" | "template",
+                talent_enabled: r.overlay?.talent_enabled ?? true,
+                workspace_enabled: r.overlay?.workspace_enabled ?? true,
+                talent_profile_enabled: surfaceEnabledForRow(r.overlay, "talent_profile"),
+                talent_shell_enabled: surfaceEnabledForRow(r.overlay, "talent_shell"),
+                workspace_page_enabled: surfaceEnabledForRow(r.overlay, "workspace_page"),
+                workspace_shell_enabled: surfaceEnabledForRow(r.overlay, "workspace_shell"),
+                lab_enabled: nextLab,
+                label_override: r.overlay?.label_override ?? null,
+                icon_override: r.overlay?.icon_override ?? null,
+                category_override: r.overlay?.category_override ?? null,
+                required_plan_override: r.overlay?.required_plan_override ?? null,
+                availability_override: r.overlay?.availability_override ?? null,
+              };
+              const hidden = overlay.availability_override === "hidden";
+              return { ...r, overlay, labVisible: nextLab && !hidden };
+            })
+          : prev,
+      );
+      void mutate(item.id, () =>
+        setComponentOverlay({
+          item_ref: item.id,
+          source: item.source,
+          lab_enabled: nextLab,
         }),
       );
     },
@@ -738,6 +782,7 @@ export function ComponentCatalog({
             editingId === item.id ? setEditingId(null) : startEdit(item)
           }
           onToggleSurface={toggleSurface}
+          onToggleLab={toggleLab}
           onSetStatus={setStatus}
           onSaveEdit={saveEdit}
           onCancelEdit={() => setEditingId(null)}

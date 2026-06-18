@@ -81,6 +81,12 @@ export interface CatalogOverlayRow {
   talent_shell_enabled?: boolean;
   workspace_page_enabled?: boolean;
   workspace_shell_enabled?: boolean;
+  /** X6 — the FIFTH, INDEPENDENT axis: visibility in the Builder LAB itself
+   *  (orthogonal to the four tenant surfaces + to target_context). Optional so
+   *  older fixtures / the live DB during the migration window still typecheck;
+   *  absence ⇒ Lab-visible (the table default, see {@link labEnabledForRow}). The
+   *  DB supplies it after the 20261106000400 migration (DEFAULT true). */
+  lab_enabled?: boolean;
   label_override: string | null;
   icon_override: string | null;
   category_override: string | null;
@@ -115,6 +121,10 @@ export interface SetCatalogOverlayInput {
   talent_shell_enabled?: boolean;
   workspace_page_enabled?: boolean;
   workspace_shell_enabled?: boolean;
+  /** X6 — the independent Builder-Lab visibility toggle. A toggle from the Lab
+   *  matrix's 5th column sets exactly this; orthogonal to the four tenant
+   *  surfaces, so it never mirrors any legacy column. */
+  lab_enabled?: boolean;
   label_override?: string | null;
   icon_override?: string | null;
   category_override?: string | null;
@@ -175,6 +185,14 @@ export interface CatalogAdminItem {
    * for the legacy 2-toggle controls + back-compat callers.
    */
   surfaceVisible: Record<CatalogSurfaceKey, boolean>;
+  /**
+   * X6 — effective visibility in the Builder LAB itself: the independent
+   * `lab_enabled` overlay toggle ∩ not availability-hidden. ORTHOGONAL to the
+   * four tenant surfaces and to `target_context` — a component can be hidden from
+   * every tenant surface yet still Lab-visible (and vice-versa). The 5th matrix
+   * column renders this; it never collapses onto any tenant-surface toggle.
+   */
+  labVisible: boolean;
   effectiveLabel: string;
   effectiveCategory: string;
 }
@@ -250,6 +268,10 @@ export function buildCatalogAdminView(
       },
       {} as Record<CatalogSurfaceKey, boolean>,
     );
+    // X6 — the INDEPENDENT Builder-Lab visibility: the lab_enabled overlay toggle
+    // ∩ not availability-hidden. Deliberately NOT gated by target_context (the Lab
+    // authors for ALL audiences) and NOT chained to any tenant surface.
+    const labVisible = labEnabledForRow(ov) && !hidden;
     // LIVE-MATCHING placement (F4): base → overlay → structure, structure wins.
     // Mirrors the live finalize() order (applyCatalogOverlay then
     // applyStructureToItems). `item.tab`/`item.category` here are the genuine
@@ -275,6 +297,7 @@ export function buildCatalogAdminView(
       talentVisible,
       workspaceVisible,
       surfaceVisible,
+      labVisible,
       effectiveLabel: ov?.label_override ?? item.label,
       effectiveCategory,
     };
@@ -292,9 +315,11 @@ export {
   CATALOG_SURFACE_KEYS,
   CATALOG_SURFACE_LABEL,
   SURFACE_COLUMN,
+  LAB_COLUMN,
   legacyToFourSurface,
   surfaceEnabledForRow,
   surfaceKeyToTarget,
+  labEnabledForRow,
   type CatalogSurfaceKey,
 } from "./surface-keys";
 import {
@@ -303,6 +328,7 @@ import {
   SURFACE_COLUMN,
   surfaceEnabledForRow,
   surfaceKeyToTarget,
+  labEnabledForRow,
   type CatalogSurfaceKey,
 } from "./surface-keys";
 
@@ -446,6 +472,11 @@ export function applyCatalogOverlay(
       if (surface === "talent" && !ov.talent_enabled) continue;
       if (surface === "workspace" && !ov.workspace_enabled) continue;
     }
+    // X6 — the INDEPENDENT Lab axis. Only the Lab merge subtracts on it; tenant
+    // builders never carry `isLab`, so `lab_enabled` can never hide a component
+    // from a tenant surface (and the four tenant toggles can never hide it from
+    // the Lab — the two axes are fully orthogonal).
+    if (ctx.isLab && !labEnabledForRow(ov)) continue;
     if (
       ov.required_plan_override &&
       ctx.plan &&
@@ -613,6 +644,16 @@ export interface GalleryMergeContext {
    * homepage/Lab merges never carry a surfaceKey and stay availability-only).
    */
   surfaceKey?: CatalogSurfaceKey | null;
+  /**
+   * X6 — when true, the merge runs for the BUILDER LAB surface, so the
+   * independent `lab_enabled` overlay toggle subtracts (a `lab_enabled === false`
+   * row is hidden from the Lab gallery). ORTHOGONAL to `surfaceKey`/`surfaceTarget`
+   * (a tenant builder is never `isLab`, the Lab never carries a `surfaceKey`), so
+   * hiding a component from the Lab never touches any tenant surface and vice
+   * versa. Absent/false ⇒ the lab axis is not applied (tenant builders + the
+   * null-surface homepage stay availability-only on this axis).
+   */
+  isLab?: boolean;
   /** Surface plan for required_plan gating (§E). */
   plan?: PlanKey | null;
   /** Surface talent tier for required_talent_tier gating (§E). */

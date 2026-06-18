@@ -136,6 +136,15 @@ export async function setComponentOverlay(
   };
   assign("talent_enabled");
   assign("workspace_enabled");
+  // X4 — the four independent per-surface toggles (dual-written alongside the
+  // legacy pair; see SetCatalogOverlayInput). Required so a single-surface toggle
+  // from the Lab matrix persists its precise column, not just the legacy mirror.
+  assign("talent_profile_enabled");
+  assign("talent_shell_enabled");
+  assign("workspace_page_enabled");
+  assign("workspace_shell_enabled");
+  // X6 — the independent Builder-Lab visibility toggle (orthogonal 5th axis).
+  assign("lab_enabled");
   assign("label_override");
   assign("icon_override");
   assign("category_override");
@@ -276,6 +285,8 @@ export async function setComponentOverlayBatch(
     assign("talent_shell_enabled");
     assign("workspace_page_enabled");
     assign("workspace_shell_enabled");
+    // X6 — the independent Builder-Lab visibility toggle (orthogonal 5th axis).
+    assign("lab_enabled");
     assign("label_override");
     assign("icon_override");
     assign("category_override");

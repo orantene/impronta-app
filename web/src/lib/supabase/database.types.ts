@@ -2788,6 +2788,7 @@ export type Database = {
           default_variant: string | null
           icon_override: string | null
           item_ref: string
+          lab_enabled: boolean
           label_override: string | null
           locked_props: string[]
           required_plan_override: string | null
@@ -2809,6 +2810,7 @@ export type Database = {
           default_variant?: string | null
           icon_override?: string | null
           item_ref: string
+          lab_enabled?: boolean
           label_override?: string | null
           locked_props?: string[]
           required_plan_override?: string | null
@@ -2830,6 +2832,7 @@ export type Database = {
           default_variant?: string | null
           icon_override?: string | null
           item_ref?: string
+          lab_enabled?: boolean
           label_override?: string | null
           locked_props?: string[]
           required_plan_override?: string | null

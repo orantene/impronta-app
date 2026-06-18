@@ -96,6 +96,16 @@ export interface BuilderGalleryPolicy {
     | "talent_shell"
     | "workspace_page"
     | "workspace_shell";
+  /**
+   * X6 — true ONLY for the Builder Lab surface (`platform_lab`). It turns on the
+   * independent `lab_enabled` overlay axis in the merge: a component the Lab
+   * Catalog has hidden (`lab_enabled === false`) is dropped from the Lab's own
+   * gallery. ORTHOGONAL to `surfaceKey`/`surfaceTarget` — tenant surfaces never
+   * set it, so the Lab toggle can never affect a tenant builder (and the four
+   * tenant toggles can never hide a component from the Lab). Omitted ⇒ the lab
+   * axis is inert (every other surface).
+   */
+  isLab?: boolean;
 }
 
 /**
@@ -552,6 +562,12 @@ export function buildPlatformLabBuilderConfig(
       ],
       // The Lab both authors and consumes DB templates.
       allowDbTemplates: true,
+      // X6 — this IS the Builder Lab surface, so the independent `lab_enabled`
+      // overlay axis applies here (and ONLY here): a component the Lab Catalog
+      // has hidden is dropped from the Lab's own gallery, without affecting any
+      // tenant surface. No `surfaceKey` (the Lab carries none — availability +
+      // the lab axis only).
+      isLab: true,
     },
     dataSources: { allowed: PLATFORM_LAB_DATA_SOURCES },
     previewSubjectKind,
