@@ -27,6 +27,10 @@ import {
 } from "@/lib/server/talent-self-guard";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
+import type {
+  RevisionListRow,
+  RevisionsLoadResult,
+} from "@/lib/site-admin/edit-mode/revisions-actions";
 
 import type {
   TalentSiteShellAdapterActions,
@@ -381,5 +385,131 @@ export async function restoreTalentSiteShellRevisionAction(
   } catch (err) {
     logServerError("talentSiteShell/restoreShellRevision", err);
     return { ok: false as const, error: "Unexpected error restoring your shell revision." };
+  }
+}
+
+/**
+ * REV-1b — OWNER-gated revision LIST read for the talent's site shell.
+ *
+ * THE GAP: the shared RevisionsDrawer reads the revision list via
+ * `loadHomepageRevisionsAction` / `loadPageRevisionsAction`, both `requireStaff`-
+ * gated. The talent-site shell editor mounts with NO `pageSlug`, so the drawer
+ * falls through to the staff-gated homepage loader. REV-1 bound `restoreRevision`
+ * for this surface (so a talent can RESTORE), but a talent has no staff
+ * capability, so the staff-gated LIST read is denied — the drawer renders empty
+ * and the talent can't SEE the revisions they're meant to restore.
+ *
+ * This loader closes that gap with a TALENT-OWNED read: same `gateOwner` (owner +
+ * Max + own-id) REV-1 used for restore, the caller's own Supabase client (not
+ * service-role) so owner RLS on `talent_sites` / `talent_site_revisions`
+ * independently backs the read. Only SHELL revisions are surfaced
+ * (`isTalentSiteShellRevisionSnapshot`) so the full-site `TalentSiteSnapshot`
+ * composition rows in the same table are filtered out. The return shape matches
+ * `loadHomepageRevisionsAction` so the drawer consumes it without a surfaceKind
+ * fork. `pageVersion` mirrors the adapter's `updated_at`-epoch CAS stamp.
+ */
+export async function loadTalentSiteShellRevisionsAction(input: {
+  talentProfileId: string;
+}): Promise<RevisionsLoadResult> {
+  try {
+    const gate = await gateOwner(input.talentProfileId);
+    if (!gate.ok) return { ok: false, error: gate.error, code: "UNAUTHORIZED" };
+    const sb = await getCachedServerSupabase();
+    if (!sb) return { ok: false, error: "Supabase client unavailable." };
+
+    // Resolve the owner's site row (the FK to scope the revision read, plus the
+    // updated_at the adapter turns into the CAS pageVersion).
+    const { data: site } = await sb
+      .from("talent_sites")
+      .select("id, updated_at")
+      .eq("talent_profile_id", gate.talentProfileId)
+      .maybeSingle();
+    const siteRow = site as { id: string; updated_at: string } | null;
+    if (!siteRow?.id) {
+      return { ok: false, error: "Personal site not found.", code: "NOT_FOUND" };
+    }
+    const pageVersion = Math.floor(new Date(siteRow.updated_at).getTime() / 1000);
+
+    // Owner-scoped read of the site's revisions, newest-first. Owner RLS
+    // (`talent_site_revisions` owner policies) independently backs this; the
+    // explicit filters keep it scoped to the caller's own site.
+    const { data: rows, error } = await sb
+      .from("talent_site_revisions")
+      .select("id, kind, version, created_at, created_by, snapshot")
+      .eq("talent_site_id", siteRow.id)
+      .eq("talent_profile_id", gate.talentProfileId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) {
+      return { ok: false, error: "Failed to load revisions" };
+    }
+
+    type Raw = {
+      id: string;
+      kind: string;
+      version: number;
+      created_at: string;
+      created_by: string | null;
+      snapshot: unknown;
+    };
+    // Only SHELL revisions — full-site composition rows in this table carry no
+    // freeform `builderTree` and would never restore here, so they must not
+    // appear in the shell's list.
+    const shellRows = ((rows ?? []) as Raw[]).filter((r) =>
+      isTalentSiteShellRevisionSnapshot(r.snapshot),
+    );
+
+    // Bulk-fetch author display names for the non-null actor ids (one query).
+    const actorIds = Array.from(
+      new Set(shellRows.map((r) => r.created_by).filter((v): v is string => !!v)),
+    );
+    const profileMap = new Map<string, { id: string; displayName: string | null }>();
+    if (actorIds.length > 0) {
+      const { data: profiles } = await sb
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", actorIds);
+      for (const p of (profiles ?? []) as Array<{
+        id: string;
+        display_name: string | null;
+      }>) {
+        profileMap.set(p.id, { id: p.id, displayName: p.display_name });
+      }
+    }
+
+    // `talent_site_revisions.kind` is CHECK-constrained to draft/published/
+    // unpublished. The drawer's row enum is draft/published/rollback — map the
+    // shell's `unpublished` (no drawer equivalent) onto `draft` so the badge
+    // renders, mirroring how the restore audit row reuses `draft`.
+    const toRowKind = (k: string): RevisionListRow["kind"] =>
+      k === "published" ? "published" : "draft";
+
+    let publishedVersion: number | null = null;
+    const revisions: RevisionListRow[] = shellRows.map((r) => {
+      const rowKind = toRowKind(r.kind);
+      if (rowKind === "published" && publishedVersion === null) {
+        publishedVersion = r.version;
+      }
+      const snap = (r.snapshot ?? {}) as {
+        builderTree?: unknown[];
+        title?: string;
+      };
+      return {
+        id: r.id,
+        kind: rowKind,
+        version: r.version,
+        createdAt: r.created_at,
+        createdBy: r.created_by
+          ? profileMap.get(r.created_by) ?? { id: r.created_by, displayName: null }
+          : null,
+        sectionCount: Array.isArray(snap.builderTree) ? snap.builderTree.length : 0,
+        titleAtRevision: typeof snap.title === "string" ? snap.title : null,
+      };
+    });
+
+    return { ok: true, revisions, pageVersion, publishedVersion };
+  } catch (err) {
+    logServerError("talentSiteShell/loadShellRevisions", err);
+    return { ok: false, error: "Failed to load revisions" };
   }
 }

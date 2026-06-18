@@ -28,7 +28,10 @@ import type {
   SaveDraftResult,
   PublishResult,
 } from "@/lib/site-admin/edit-mode/composition-actions";
-import type { RevisionRestoreResult } from "@/lib/site-admin/edit-mode/revisions-actions";
+import type {
+  RevisionRestoreResult,
+  RevisionsLoadResult,
+} from "@/lib/site-admin/edit-mode/revisions-actions";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 
 import type {
@@ -112,6 +115,19 @@ export interface TalentSiteShellAdapterActions {
     talentProfileId: string;
     revisionId: string;
   }) => Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }>;
+  /**
+   * REV-1b — OPTIONAL: list the talent's shell revisions (newest-first) via an
+   * OWNER-gated read of `talent_site_revisions`. The RevisionsDrawer's default
+   * list read goes through the STAFF-gated homepage loader; a talent editing
+   * their own shell has no staff capability, so that read is denied and the
+   * drawer renders empty even though `restoreRevision` works. Supplying this
+   * action makes the adapter expose `loadRevisions`, which the drawer prefers
+   * over the staff-gated default. Keys off `talentProfileId`. A shell adapter
+   * built WITHOUT it omits `loadRevisions` (the drawer keeps the default).
+   */
+  loadShellRevisions?: (input: {
+    talentProfileId: string;
+  }) => Promise<RevisionsLoadResult>;
 }
 
 /** Build a freeform composition from the talent shell row. Pure — no I/O. */
@@ -305,6 +321,31 @@ export function createTalentSiteShellAdapter(
                 new Date(result.updatedAt).getTime() / 1000,
               ),
             };
+          },
+        }
+      : {}),
+
+    // REV-1b — OWNER-gated revision LIST read. Only present when the action
+    // surface supplies `loadShellRevisions` (production binds it; a no-list spy
+    // omits it to prove the optional contract). Keys off the captured
+    // `talentProfileId` (falling back to `ctx.pageId`, exactly like load/save).
+    // Closes the drawer's LIST gap: the talent owns the read, instead of
+    // falling through to the staff-gated homepage loader.
+    ...(actions.loadShellRevisions
+      ? {
+          async loadRevisions(
+            ctx: BuilderSurfaceContext,
+          ): Promise<RevisionsLoadResult> {
+            guard("talent_sites");
+            const talentProfileId = captured || ctx.pageId || "";
+            if (!talentProfileId) {
+              return {
+                ok: false,
+                error:
+                  "talent_site_shell loadRevisions: talentProfileId is required.",
+              };
+            }
+            return actions.loadShellRevisions!({ talentProfileId });
           },
         }
       : {}),

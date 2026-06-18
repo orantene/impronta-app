@@ -26,7 +26,10 @@ import type {
   SaveDraftResult,
   PublishResult,
 } from "@/lib/site-admin/edit-mode/composition-actions";
-import type { RevisionRestoreResult } from "@/lib/site-admin/edit-mode/revisions-actions";
+import type {
+  RevisionRestoreResult,
+  RevisionsLoadResult,
+} from "@/lib/site-admin/edit-mode/revisions-actions";
 import type {
   BuilderStyleClassRegistry,
   BuilderStylePresetRegistry,
@@ -128,4 +131,25 @@ export interface BuilderSurfaceAdapter {
     ctx: BuilderSurfaceContext,
     input: BuilderSurfaceRestoreInput,
   ): Promise<RevisionRestoreResult>;
+
+  /**
+   * REV-1b — list this surface's saved revisions (newest-first) through the
+   * surface's OWN, correctly-gated read.
+   *
+   * Optional. The RevisionsDrawer reads the revision LIST directly via the
+   * homepage/cms_page actions by default, both of which are STAFF-gated
+   * (`requireStaff`). That default is wrong for talent-owned surfaces: a Max
+   * talent editing their own site shell mounts the editor with no `pageSlug`,
+   * so the drawer falls back to the staff-gated homepage loader — the talent can
+   * RESTORE their shell (via `restoreRevision`, REV-1) but the LIST read is
+   * denied, so the drawer shows nothing to restore.
+   *
+   * A surface that needs an owner-gated (rather than staff-gated) revision list
+   * supplies this method; when present, the drawer prefers it over the default
+   * homepage/cms_page loaders. The return shape is identical to
+   * `loadHomepageRevisionsAction` / `loadPageRevisionsAction` so the drawer
+   * consumes it without a surfaceKind fork. A surface that omits it keeps the
+   * existing default-loader behaviour.
+   */
+  loadRevisions?(ctx: BuilderSurfaceContext): Promise<RevisionsLoadResult>;
 }
