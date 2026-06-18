@@ -5,6 +5,15 @@ import type { PageDesign } from "./types";
 import { buildTalentDisciplineDecomposedSection } from "../talent-discipline-freeform";
 import { buildFeaturedTalentDecomposedSection, gridOnlyFeaturedTalentConfig } from "../featured-talent-freeform";
 import { styleTokenRef } from "../style-token-bindings";
+// STYLE-3 — the storefront default reads the SHARED storefront-grade type scale
+// (page-designs/type-scale.ts) for its eyebrow + section-heading tiers, the
+// SAME source the platform-default talent profile binds to. Brand deltas (the
+// Fraunces/Cinzel faces, the gold palette, weight + leading) layer on top of the
+// shared size/tracking/responsive so the two surfaces share one scale.
+import {
+  EYEBROW as TYPE_SCALE_EYEBROW,
+  SECTION_HEADING as TYPE_SCALE_SECTION_HEADING,
+} from "./type-scale";
 
 /**
  * IMPRONTA — the flagship tenant homepage, rebuilt freeform.
@@ -111,11 +120,12 @@ const eyebrow = (text: string): BuilderNode => ({
   props: {
     text,
     style: {
+      // STYLE-3 — shared eyebrow tier (12px / uppercase) + the Cinzel/gold
+      // brand deltas (weight 600 + 0.32em tracking) layered on top.
+      ...TYPE_SCALE_EYEBROW,
       fontFamily: CINZEL,
-      fontSize: "12px",
       fontWeight: 600,
       letterSpacing: "0.32em",
-      textTransform: "uppercase",
       textColor: GOLD,
       marginBottomFree: "14px",
     },
@@ -129,15 +139,16 @@ const sectionTitle = (text: string, id: string): BuilderNode => ({
     text,
     level: 2,
     style: {
+      // STYLE-3 — shared section-heading tier (44px + 32px mobile step-down +
+      // -0.01em tracking + balance) bound from the same scale the talent
+      // default reads; the Fraunces face, ink colour, weight 500 + 1.04 leading
+      // are the storefront brand deltas layered on top.
+      ...TYPE_SCALE_SECTION_HEADING,
       fontFamily: FRAUNCES,
-      fontSize: "46px",
       lineHeight: "1.04",
       fontWeight: 500,
-      letterSpacing: "-0.01em",
       textColor: TEXT,
       marginBottomFree: "0px",
-      textWrap: "balance",
-      responsive: { mobile: { fontSize: "32px" } },
     },
   },
 });

@@ -15,6 +15,17 @@
  * seed script can import it directly.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+// STYLE-3 — the talent default profile binds its typography to the SHARED
+// storefront-grade type scale (one source of truth, also consumed by the
+// premium storefront page-designs). TMPL-2's B5 lift hardcoded these px values
+// inline; this routes the same tiers through the shared scale so the default
+// talent profile + the storefront default never silently diverge.
+import {
+  EYEBROW as TYPE_SCALE_EYEBROW,
+  HERO_NAME as TYPE_SCALE_HERO_NAME,
+  LEAD as TYPE_SCALE_LEAD,
+  SECTION_HEADING as TYPE_SCALE_SECTION_HEADING,
+} from "@/lib/site-admin/builder-node/page-designs/type-scale";
 
 /** Reserved `builder_templates.slug` for the platform-default talent profile. */
 export const DEFAULT_TALENT_PROFILE_TEMPLATE_SLUG =
@@ -332,14 +343,11 @@ function id(suffix: string): string {
   return `default-talent-${suffix}`;
 }
 
-/** B5 — storefront-grade section-heading scale (44px, mobile 32px), shared by
- *  the Services / Gallery / Contact `level: 2` headings (Contact adds align). */
-const SECTION_HEADING_STYLE = {
-  fontSize: "44px",
-  lineHeight: "1.1",
-  letterSpacing: "-0.01em",
-  responsive: { mobile: { fontSize: "32px" } },
-} as const;
+/** STYLE-3 — storefront-grade section-heading scale (44px, mobile 32px), shared
+ *  by the Services / Gallery / Contact `level: 2` headings (Contact adds align).
+ *  Bound to the SHARED type scale so the talent default + the storefront default
+ *  read one source — not a copied number (see page-designs/type-scale.ts). */
+const SECTION_HEADING_STYLE = TYPE_SCALE_SECTION_HEADING;
 
 /**
  * One pill chip for the hero discipline row. A `card` (outline, pill radius)
@@ -413,11 +421,10 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
               props: {
                 text: "{{primaryTypeLabel}}",
                 style: {
-                  textTransform: "uppercase",
-                  // B5 — storefront-grade eyebrow scale (12px / 0.28em tracking)
-                  // matching the premium default storefront hero eyebrow.
-                  fontSize: "12px",
-                  fontWeight: 700,
+                  // STYLE-3 — storefront-grade eyebrow scale (shared 12px / 700)
+                  // with the talent hero's own muted tone + 0.28em tracking
+                  // layered on top of the shared tier.
+                  ...TYPE_SCALE_EYEBROW,
                   letterSpacing: "0.28em",
                   tone: "muted",
                 },
@@ -429,21 +436,12 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
               props: {
                 text: "{{displayName}}",
                 level: 1,
-                style: {
-                  // B5 — lift the hero name to the storefront-grade display
-                  // scale (72px, tight leading + tracking) instead of the
-                  // `size: "xl"` token, with the same responsive step-down the
-                  // storefront hero uses so it never overflows on small screens.
-                  fontSize: "72px",
-                  lineHeight: "1.03",
-                  fontWeight: 600,
-                  letterSpacing: "-0.01em",
-                  textWrap: "balance",
-                  responsive: {
-                    tablet: { fontSize: "54px" },
-                    mobile: { fontSize: "38px" },
-                  },
-                },
+                // STYLE-3 — the hero name binds to the SHARED display/hero-name
+                // tier (the STYLE-2 'display' scale: 72px, tight leading +
+                // tracking, with tablet/mobile step-downs) instead of inline px,
+                // so it reads the same storefront-grade scale as the storefront
+                // default hero. One source: page-designs/type-scale.ts.
+                style: { ...TYPE_SCALE_HERO_NAME },
               },
             },
             {
@@ -452,10 +450,10 @@ export function buildDefaultTalentProfileTree(): BuilderNode[] {
               props: {
                 text: "{{tagline}}",
                 style: {
-                  // B5 — storefront-grade lead paragraph (18px / 1.6) for a
-                  // premium, readable intro line under the name.
-                  fontSize: "18px",
-                  lineHeight: "1.6",
+                  // STYLE-3 — storefront-grade lead paragraph bound to the
+                  // SHARED lead tier (18px / 1.6) with the talent hero's muted
+                  // tone + reading max-width layered on top.
+                  ...TYPE_SCALE_LEAD,
                   tone: "muted",
                   maxWidth: "reading",
                 },
