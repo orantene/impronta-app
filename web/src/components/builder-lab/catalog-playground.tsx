@@ -16,8 +16,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { createTemplateDraft } from "@/lib/site-admin/builder-core/templates/registry-actions";
+import {
+  createTemplateDraft,
+  updateTemplateDraft,
+  publishTemplate,
+} from "@/lib/site-admin/builder-core/templates/registry-actions";
 import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import { validateTemplateForPublish } from "@/lib/site-admin/builder-core/templates/validate-publish";
 import type {
   BuilderGalleryTab,
   BuilderTemplateKind,
@@ -27,10 +32,15 @@ import type {
 } from "@/lib/site-admin/builder-core/templates/registry-rows";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
+  planPromoteToStarter,
+  promoteBlockMessage,
+} from "./promote-to-starter";
+import {
   LAB as T,
   panelStyle,
   LabBadge,
   LabButton,
+  LinkBtn,
   PillToggle,
   LabViewHeader,
   EmptyCard,
@@ -407,62 +417,236 @@ export function PlaygroundView({
         </EmptyCard>
       ) : (
         <section style={{ ...panelStyle, overflow: "hidden" }}>
-          {visible.map((d, i) => {
-            const tone = STATUS_TONE[d.status];
-            return (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => onLaunchEditor?.(targetToLabTarget(d.target_context), d.id)}
-                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  width: "100%",
-                  textAlign: "left",
-                  background: "transparent",
-                  border: "none",
-                  borderTop: i === 0 ? "none" : `1px solid ${T.borderSoft}`,
-                  padding: "12px 16px",
-                  cursor: "pointer",
-                  color: T.ink,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = T.cardSoft;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {d.title || "Untitled draft"}
-                  </div>
-                  <div style={{ fontSize: 11, color: T.inkDim, marginTop: 2 }}>
-                    Updated {new Date(d.updated_at).toLocaleDateString()} · v{d.version}
-                  </div>
-                </div>
-                {/* Shell drafts are platform-scoped — flag them distinctly from
-                    per-surface page drafts. */}
-                {isShellKind(d.kind) ? (
-                  <LabBadge tone="accent" style={{ flexShrink: 0 }}>
-                    {d.kind === "shell_header" ? "Shell · Header" : "Shell · Footer"}
-                  </LabBadge>
-                ) : (
-                  <LabBadge tone="muted" style={{ flexShrink: 0 }}>
-                    {d.target_context}
-                  </LabBadge>
-                )}
-                <LabBadge tone="custom" bg={tone.bg} fg={tone.fg} style={{ flexShrink: 0 }}>
-                  {d.status.replace("_", " ")}
-                </LabBadge>
-                <span aria-hidden style={{ color: T.inkDim, fontSize: 14, flexShrink: 0 }}>›</span>
-              </button>
-            );
-          })}
+          {visible.map((d, i) => (
+            <PlaygroundDraftRow
+              key={d.id}
+              draft={d}
+              isFirst={i === 0}
+              onOpen={() =>
+                onLaunchEditor?.(targetToLabTarget(d.target_context), d.id)
+              }
+              onPromoted={reload}
+            />
+          ))}
         </section>
       )}
+    </div>
+  );
+}
+
+// ── Draft row + one-click promote-to-starter (A5) ─────────────────────────────
+
+/** Inline result of a promote attempt — surfaced under the row, never a
+ *  toast-and-vanish (admin-edit-UX bar). */
+type PromoteState =
+  | { kind: "idle" }
+  | { kind: "running" }
+  | { kind: "error"; reasons: string[] }
+  | { kind: "done"; version: number };
+
+/**
+ * One Playground draft row. Clicking the body reopens the draft in the editor;
+ * page-template drafts also expose a one-click "Promote to starter" action that
+ * tags the row `gallery_tab='page_templates'` + a sane `target_context`, runs the
+ * publish validator, and publishes — surfacing any validator reason INLINE.
+ */
+function PlaygroundDraftRow({
+  draft: d,
+  isFirst,
+  onOpen,
+  onPromoted,
+}: {
+  draft: BuilderTemplateRow;
+  isFirst: boolean;
+  onOpen: () => void;
+  onPromoted: () => void | Promise<void>;
+}) {
+  const [promote, setPromote] = useState<PromoteState>({ kind: "idle" });
+
+  const plan = useMemo(() => planPromoteToStarter(d), [d]);
+
+  const runPromote = useCallback(async () => {
+    if (!plan.promotable) {
+      setPromote({
+        kind: "error",
+        reasons: [promoteBlockMessage(plan.blockedReason!)],
+      });
+      return;
+    }
+    setPromote({ kind: "running" });
+
+    // Instant client-side gate: surface the SAME validator's reasons inline
+    // before the round-trip, so a broken draft fails fast and visibly.
+    const preflight = validateTemplateForPublish(d.builder_tree);
+    if (!preflight.ok) {
+      setPromote({ kind: "error", reasons: preflight.reasons });
+      return;
+    }
+
+    // Tag the row so it lands in the page-templates gallery with a sane scope —
+    // only when something actually needs to change (planPromoteToStarter returns
+    // a null patch when the row is already correct).
+    if (plan.patch) {
+      const upd = await updateTemplateDraft({ id: d.id, ...plan.patch });
+      if (!upd.ok) {
+        setPromote({ kind: "error", reasons: [upd.error] });
+        return;
+      }
+    }
+
+    // Publish runs validateTemplateForPublish server-side too; its error string
+    // carries the validator's reasons ("Can't publish: …") — show them inline.
+    const pub = await publishTemplate(d.id);
+    if (!pub.ok) {
+      setPromote({ kind: "error", reasons: [pub.error] });
+      return;
+    }
+
+    setPromote({ kind: "done", version: pub.data.version });
+    await onPromoted();
+  }, [plan, d, onPromoted]);
+
+  const tone = STATUS_TONE[d.status];
+  const running = promote.kind === "running";
+
+  return (
+    <div
+      style={{
+        borderTop: isFirst ? "none" : `1px solid ${T.borderSoft}`,
+        padding: "12px 16px",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flex: 1,
+            minWidth: 0,
+            textAlign: "left",
+            background: "transparent",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            color: T.ink,
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: T.ink,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {d.title || "Untitled draft"}
+            </div>
+            <div style={{ fontSize: 11, color: T.inkDim, marginTop: 2 }}>
+              Updated {new Date(d.updated_at).toLocaleDateString()} · v{d.version}
+            </div>
+          </div>
+        </button>
+
+        {/* Shell drafts are platform-scoped — flag them distinctly from
+            per-surface page drafts. */}
+        {isShellKind(d.kind) ? (
+          <LabBadge tone="accent" style={{ flexShrink: 0 }}>
+            {d.kind === "shell_header" ? "Shell · Header" : "Shell · Footer"}
+          </LabBadge>
+        ) : (
+          <LabBadge tone="muted" style={{ flexShrink: 0 }}>
+            {d.target_context}
+          </LabBadge>
+        )}
+        <LabBadge tone="custom" bg={tone.bg} fg={tone.fg} style={{ flexShrink: 0 }}>
+          {d.status.replace("_", " ")}
+        </LabBadge>
+
+        {/* One-click promote — only for promotable (page-template) drafts. */}
+        {plan.promotable ? (
+          <LinkBtn
+            label={running ? "Promoting…" : "Promote to starter"}
+            onClick={() => void runPromote()}
+            disabled={running}
+            primary
+            testId={`lab-promote-starter-${d.id}`}
+          />
+        ) : null}
+
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label="Open draft"
+          style={{
+            background: "transparent",
+            border: "none",
+            color: T.inkDim,
+            fontSize: 14,
+            flexShrink: 0,
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          ›
+        </button>
+      </div>
+
+      {/* Inline async + validation result — persistent, never toast-and-vanish. */}
+      {promote.kind === "error" ? (
+        <div
+          role="alert"
+          style={{
+            marginTop: 8,
+            fontSize: 11.5,
+            color: T.red,
+            background: T.redBg,
+            border: `1px solid ${T.red}`,
+            borderRadius: 8,
+            padding: "7px 10px",
+            lineHeight: 1.45,
+          }}
+        >
+          <div
+            style={{
+              fontWeight: 700,
+              marginBottom: promote.reasons.length > 1 ? 4 : 0,
+            }}
+          >
+            Couldn’t promote this draft
+          </div>
+          {promote.reasons.length > 1 ? (
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              {promote.reasons.map((r, idx) => (
+                <li key={idx}>{r}</li>
+              ))}
+            </ul>
+          ) : (
+            <span>{promote.reasons[0]}</span>
+          )}
+        </div>
+      ) : promote.kind === "done" ? (
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 11.5,
+            color: T.accent,
+            background: T.accentSoft,
+            border: `1px solid ${T.accent}`,
+            borderRadius: 8,
+            padding: "7px 10px",
+          }}
+        >
+          Published as a starter (v{promote.version}) — now in the “+” → Page
+          Templates gallery.
+        </div>
+      ) : null}
     </div>
   );
 }
