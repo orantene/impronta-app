@@ -284,6 +284,135 @@ export async function resolveTalentByCodesAction(input: {
   }
 }
 
+/**
+ * Resolve display data for an existing list of talent UUIDs — the id-keyed
+ * twin of resolveTalentByCodesAction. Used by the contact_form section's
+ * inquiry-target picker (FORMS-2b): that schema field stores a single talent
+ * UUID (`inquiryTargetTalentId`), not a profile_code, so the inspector needs
+ * to (a) render the currently-targeted talent as a name + thumbnail rather
+ * than a raw UUID and (b) translate the saved id back into a profile_code so
+ * the shared TalentPicker modal (which speaks codes) can be seeded with the
+ * current selection. Shape matches `TalentSearchHit`, so the same row + tile
+ * components render search results and the resolved target identically.
+ *
+ * Tenant-roster scoped exactly like the code resolver: ids that don't belong
+ * to this tenant's roster drop silently (roster may have changed since save).
+ */
+export async function resolveTalentByIdsAction(input: {
+  ids: string[];
+}): Promise<TalentSearchResult | TalentSearchError> {
+  const auth = await requireStaff();
+  if (!auth.ok) {
+    return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
+  }
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return { ok: false, error: "Tenant scope required", code: "TENANT_SCOPE" };
+  }
+
+  const ids = (input.ids ?? []).map((c) => c.trim()).filter(Boolean);
+  if (ids.length === 0) return { ok: true, hits: [], more: false };
+
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    return {
+      ok: false,
+      error: "Server is missing service-role credentials.",
+      code: "CONFIG",
+    };
+  }
+
+  try {
+    const rosterIds = await listAdminRosterTalentIds(admin, scope.tenantId);
+    if (rosterIds.length === 0) return { ok: true, hits: [], more: false };
+
+    // Intersect the requested ids with the tenant roster up-front so an id
+    // from another tenant can never widen the query.
+    const rosterSet = new Set(rosterIds);
+    const scopedIds = ids.filter((id) => rosterSet.has(id));
+    if (scopedIds.length === 0) return { ok: true, hits: [], more: false };
+
+    const { data: rows, error } = await admin
+      .from("talent_profiles")
+      .select("id, profile_code, display_name, service_category_slug, residence_city_id")
+      .in("id", scopedIds)
+      .is("deleted_at", null);
+    if (error) {
+      logServerError("edit-mode/talent-resolve-ids", error);
+      return { ok: false, error: "Resolve failed", code: "QUERY" };
+    }
+
+    const found = ((rows ?? []) as TalentRow[]).reduce<Record<string, TalentRow>>(
+      (acc, row) => {
+        acc[row.id] = row;
+        return acc;
+      },
+      {},
+    );
+
+    // Preserve the caller's id order; drop unresolved ids silently.
+    const orderedRows = scopedIds
+      .map((id) => found[id])
+      .filter((r): r is TalentRow => Boolean(r));
+
+    const thumbnailMap = await hydrateTalentThumbnails(
+      admin,
+      orderedRows.map((r) => r.id),
+    );
+
+    const hits: TalentSearchHit[] = orderedRows.map((row) => ({
+      id: row.id,
+      profileCode: row.profile_code,
+      displayName: row.display_name?.trim() || `Talent ${row.profile_code}`,
+      thumbnailUrl: thumbnailMap[row.id] ?? null,
+      roleLabel: row.service_category_slug
+        ? humanizeSlug(row.service_category_slug)
+        : null,
+      locationLabel: null,
+    }));
+
+    return { ok: true, hits, more: false };
+  } catch (err) {
+    logServerError("edit-mode/talent-resolve-ids/unhandled", err);
+    return { ok: false, error: "Resolve failed", code: "UNHANDLED" };
+  }
+}
+
+/**
+ * Shared card/gallery thumbnail hydration for a set of talent profile ids.
+ * Mirrors the inline hydration in the search + code-resolve actions; the
+ * id-resolver uses it directly. Returns id → public URL for the first
+ * approved card-tier asset found per talent.
+ */
+async function hydrateTalentThumbnails(
+  admin: ReturnType<typeof createServiceRoleClient> & object,
+  ids: string[],
+): Promise<Record<string, string>> {
+  const thumbnailMap: Record<string, string> = {};
+  if (ids.length === 0) return thumbnailMap;
+  const { data: mediaRows } = await admin
+    .from("media_assets")
+    .select("owner_talent_profile_id, storage_path, variant_kind, sort_order")
+    .in("owner_talent_profile_id", ids)
+    .eq("approval_state", "approved")
+    .is("deleted_at", null)
+    .in("variant_kind", ["card", "public_watermarked", "gallery"])
+    .order("variant_kind")
+    .order("sort_order");
+  for (const row of (mediaRows ?? []) as MediaRow[]) {
+    if (thumbnailMap[row.owner_talent_profile_id] || !row.storage_path) {
+      continue;
+    }
+    const { data } = admin.storage
+      .from("media-public")
+      .getPublicUrl(row.storage_path);
+    if (data?.publicUrl) {
+      thumbnailMap[row.owner_talent_profile_id] = data.publicUrl;
+    }
+  }
+  return thumbnailMap;
+}
+
 function humanizeSlug(slug: string): string {
   return slug
     .split("-")
