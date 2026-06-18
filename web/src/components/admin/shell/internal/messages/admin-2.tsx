@@ -19,6 +19,7 @@ import { stageStyle } from "./messages-shared";
 import { isFirstConvWith } from "./shared/inbox-identity-1";
 import { buildInquiryTabs } from "./shared/machinery-1";
 import { ReassignCoordinatorSheet } from "./shared/machinery-4";
+import { EditJobSheet, EditJobButton } from "@/components/messages-edit-job-sheet/EditJobSheet";
 import { getOffer } from "./shared/machinery-10";
 import { LiveLineupPanel } from "./shared/machinery-11";
 import { OfferTab } from "./shared/machinery-12";
@@ -127,6 +128,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
   const [coordinatorSheetOpen, setCoordinatorSheetOpen] = useState(false);
   // Slice P wiring: Status sheet state — opens on header status pill tap.
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
+  const [editJobOpen, setEditJobOpen] = useState(false);
 
   /* Phase A PR 2 — admin re-skin onto the ReservationThread primitive,
    * behind a `?rt=1` search-param flag. Hook is called unconditionally
@@ -256,6 +258,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
         onStatusClick={() => setStatusSheetOpen(true)}
         rightSlot={(
           <div className="flex items-center gap-2">
+            {inquiryIsUuid && <EditJobButton onClick={() => setEditJobOpen(true)} />}
             {inquiryIsUuid && (
               <button
                 type="button"
@@ -580,6 +583,15 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
         onClose={() => setStatusSheetOpen(false)}
         data={deriveAdminStatusSheetData(inquiry, stageBucket, allTalents, offerLabel)}
       />
+      {inquiryIsUuid && (
+        <EditJobSheet
+          open={editJobOpen}
+          inquiryId={inquiry.id}
+          tenantSlug={effectiveTenant.slug}
+          onClose={() => setEditJobOpen(false)}
+          onSaved={() => { toast("Job details saved."); router.refresh(); }}
+        />
+      )}
       {inquiryIsUuid && (
         <ReassignCoordinatorSheet
           open={coordinatorSheetOpen}
