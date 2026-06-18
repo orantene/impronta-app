@@ -1,24 +1,35 @@
 "use client";
 
 /**
- * EmptyCanvasStarter — first-run canvas surface for tenants with no CMS
- * homepage composed.
+ * EmptyCanvasStarter — the shared, surface-parameterized first-run picker shown
+ * on EVERY empty editable builder surface (ONB-1).
  *
  * Implements builder-experience.html surface §18 (Empty canvas — fresh
- * tenant onboarding). Last reconciled: 2026-04-25.
+ * onboarding). Last reconciled: 2026-06-17.
  *
- * Shown only in edit mode on tenants whose homepage has zero sections. The
- * edit-chrome (topbar, inspector dock, overlay portal) still mounts around
- * this card so the operator is in "editing" from first click; they just
- * have nothing to target yet. Without this affordance, clicking Edit on a
- * fresh tenant lands them in an ambiguous state — the chrome looks ready,
- * but there's nothing on the canvas to select.
+ * Shown in edit mode whenever the active surface's builderTree is empty — the
+ * storefront homepage AND inner cms_page, the /t/[code] talent profile, the
+ * /t/site/[slug] talent site (home + inner pages), and the Lab playground.
+ * Previously this card was homepage-only and the other surfaces fell off a
+ * blank-page cliff (an `InEditorEmptyCanvas` stub that just opened the Add
+ * Gallery). The edit-chrome (topbar, inspector dock, overlay portal) mounts
+ * around this card so the operator is in "editing" from first click.
+ *
+ * Surface-parameterized, NOT forked: the ONLY per-surface difference is which
+ * starter set is offered, resolved from the EditContext `surfaceKind` (a config
+ * value) via `starterSurfaceForKind` / `starterSummariesForSurface` — single-
+ * subject talent surfaces see talent + generic designs; agency/workspace
+ * surfaces see workspace + generic designs; the homepage (no explicit surface)
+ * keeps the full set. There is no `surfaceKind === ...` branch in the render or
+ * apply path; a fifth surface inherits the picker by mapping its kind once.
  *
  * Offers two freeform starting points without leaving edit mode:
- *   - one-click full-page designs (`applyPageDesignToHomepage`) that fill the
- *     homepage builderTree, and
- *   - "Start from scratch" which inserts a hero so the operator can build
- *     block by block via the Add Gallery / between-blocks insert paths.
+ *   - one-click full-page designs that fill the active surface's builderTree via
+ *     the shared `applyPageDesignWithUndo` chokepoint (snapshot + Undo toast +
+ *     autosave inherited on every surface; the homepage keeps its authoritative
+ *     server action, every other surface persists through its own adapter), and
+ *   - "Start from scratch" which inserts a hero so the operator can build block
+ *     by block via the Add Gallery / between-blocks insert paths.
  *
  * The legacy composition-slot starter recipes (`applyStarterComposition`)
  * and the section-kit Template gallery were removed when the builder went
@@ -47,6 +58,11 @@ import {
 } from "@/lib/site-admin/builder-node/page-designs/summaries";
 import { pageDesignThumbnail } from "./design-thumbnails";
 import { useMaybeEditContext } from "./edit-context";
+import {
+  type EmptyCanvasStarterSurface,
+  starterSurfaceForKind,
+  starterSummariesForSurface,
+} from "./empty-canvas-starter-surface";
 
 /** A soft archetype-tinted gradient for each full-page design preview card. */
 function archetypeGradient(archetype: PageDesignSummary["archetype"]): string {
@@ -72,11 +88,36 @@ function archetypeGradient(archetype: PageDesignSummary["archetype"]): string {
 
 export function EmptyCanvasStarter({
   locale = "en",
+  surface,
 }: {
   locale?: string;
+  /**
+   * Which audience's starter set to offer. When omitted, it is derived from the
+   * EditContext `surfaceKind` (config-driven, not a render branch). Callers pass
+   * it explicitly only to disambiguate the two `talent_page`-kind surfaces:
+   * `'talent'` for the /t/[code] profile vs `'talent-site'` for the /t/site page.
+   * Left undefined on the legacy homepage mount with no EditContext, the full
+   * design set is shown (historical behavior preserved).
+   */
+  surface?: EmptyCanvasStarterSurface;
 } = {}) {
   const router = useRouter();
   const editCtx = useMaybeEditContext();
+  // Resolve the effective starter surface from the explicit prop or the active
+  // surfaceKind (a config value). `undefined` only when there is no EditContext
+  // AND no prop — the legacy homepage mount, which keeps the full design set.
+  const effectiveSurface: EmptyCanvasStarterSurface | undefined =
+    surface ??
+    (editCtx ? starterSurfaceForKind(editCtx.surfaceKind) : undefined);
+  const starterSummaries = starterSummariesForSurface(
+    PAGE_DESIGN_SUMMARIES,
+    effectiveSurface,
+  );
+  // The homepage seeds + repaints via its own server action + storefront body;
+  // every other surface persists + repaints through the shared EditContext
+  // adapter path. `homepage` (or no EditContext = legacy homepage mount) keeps
+  // the server-action / starter-sync path.
+  const isHomepageSurface = !editCtx || editCtx.surfaceKind === "homepage";
   const [designError, setDesignError] = useState<string | null>(null);
   const [pendingDesignId, setPendingDesignId] = useState<string | null>(null);
   const [designApplyPending, startDesignApply] = useTransition();
@@ -138,21 +179,28 @@ export function EmptyCanvasStarter({
     });
   }, [editCtx, router]);
 
-  // CANVAS-4 — a one-click full-page design fills the homepage builderTree. The
-  // apply routes through the SHARED `applyTemplateWithUndo` helper so the
-  // pre-apply tree is snapshotted onto the undo stack and the shared "Template
-  // applied — Undo?" toast appears (identical to every other surface), replacing
-  // the old bespoke per-card undo affordance. The server action stays the
-  // authoritative write (it sets `seedCuratedDesign` so the Free-plan starter
-  // on-ramp keeps working) and now returns the baked tree for the helper to
-  // adopt as the post-apply tree. After the write we still run the in-place sync
-  // so the server-rendered homepage paints the design without a manual reload.
+  // ONB-1 / CANVAS-4 — a one-click full-page design fills the ACTIVE surface's
+  // builderTree. The apply routes through the SHARED `applyPageDesignWithUndo`
+  // chokepoint on the EditContext, so the pre-apply tree is snapshotted onto the
+  // undo stack and the shared "Template applied — Undo?" toast appears
+  // (identical on every surface). The chokepoint chooses the persist target by
+  // surface capability — NOT a branch here:
+  //   - homepage uses its authoritative server action (`homepageApply` below),
+  //     which sets `seedCuratedDesign` so the Free-plan on-ramp keeps working
+  //     and returns the baked tree to adopt, and
+  //   - every other surface (cms_page / talent_page / talent-site / Lab) bakes
+  //     the design and persists it through its OWN SurfaceAdapter.
+  // After the write we still run the in-place sync so the server-rendered
+  // surface paints the design without a manual reload.
   const handleDesignApply = useCallback(
     (summary: PageDesignSummary) => {
       setDesignError(null);
       setPendingDesignId(summary.id);
       startDesignApply(async () => {
-        const runApply = async () => {
+        // The homepage-only authoritative write, passed to the chokepoint as
+        // `homepageApply`. Kept here (not in edit-context) so the shared
+        // EditContext stays free of a storefront-only server-action import.
+        const runHomepageApply = async () => {
           const fd = new FormData();
           fd.set("designId", summary.id);
           fd.set("locale", locale);
@@ -170,31 +218,47 @@ export function EmptyCanvasStarter({
         };
 
         if (editCtx) {
-          const result = await editCtx.applyTemplateWithUndo({
+          const result = await editCtx.applyPageDesignWithUndo({
+            designId: summary.id,
             label: summary.label,
-            apply: runApply,
+            locale,
+            homepageApply: runHomepageApply,
           });
           if (!result.ok) {
             setDesignError(result.error ?? "Could not apply the design — try again.");
             return;
           }
         } else {
-          // No EditProvider mounted (legacy fallback) — apply without the
-          // shared snapshot/toast and let the page reload paint the design.
-          const result = await runApply();
+          // No EditProvider mounted (legacy homepage fallback) — apply via the
+          // homepage server action without the shared snapshot/toast and let
+          // the page reload paint the design.
+          const result = await runHomepageApply();
           if (!result.ok) {
             setDesignError(result.error);
             return;
           }
         }
-        await requestStarterSync();
+        // The homepage paints its design from the SERVER-rendered storefront
+        // body, so it runs the in-place starter-sync (or reloads) to repaint
+        // without a manual refresh. Non-homepage surfaces already repainted
+        // live via the EditContext canvas bridge (applyPageDesignWithUndo →
+        // setBuilderTree), so a reload would be jarring and is skipped.
+        if (isHomepageSurface) {
+          await requestStarterSync();
+        }
       });
     },
-    [editCtx, locale, requestStarterSync],
+    [editCtx, locale, requestStarterSync, isHomepageSurface],
   );
 
   function handleQuickHeroInsert() {
     setQuickInsertError(null);
+    if (!isHomepageSurface && editCtx) {
+      // Non-homepage: route the first-block insert through the shared Add
+      // Gallery chokepoint (undo + autosave + adapter persistence inherited).
+      editCtx.toggleAddMenu();
+      return;
+    }
     startQuickInsert(async () => {
       const formData = new FormData();
       formData.set("locale", locale);
@@ -242,9 +306,11 @@ export function EmptyCanvasStarter({
           </div>
         ) : null}
 
-        {/* World-class full-page designs — the new 2026 starting point */}
+        {/* World-class full-page designs — the new 2026 starting point. Filtered
+            to the active surface's audience (talent vs workspace) via
+            `starterSummariesForSurface`; the homepage shows the full set. */}
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {PAGE_DESIGN_SUMMARIES.map((summary) => {
+          {starterSummaries.map((summary) => {
             const busy = designApplyPending && pendingDesignId === summary.id;
             // W6-T4(a) — real editorial photo per design (asset-pipeline ready;
             // falls back to the tinted gradient + placeholder bars when no photo
