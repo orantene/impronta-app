@@ -30,6 +30,7 @@ import {
 } from "./actions";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { CreateBookingButton } from "./create-booking-button";
 import { loadInquiryAlternates, loadGroupShortfalls } from "@/lib/inquiry/load-alternates";
 import { loadClientTrustSummary } from "@/lib/client-integrations/client-trust-summary";
 import { ClientTrustBadge } from "@/components/admin/integrations/ClientTrustBadge";
@@ -371,23 +372,23 @@ export default async function WorkspaceWorkDetailPage({
             {t("admin.work.detail.messages")}
           </Link>
           {!booking && (
-            <Link
-              href={`/${tenantSlug}/admin/bookings?fromInquiry=${inquiryId}`}
+            <CreateBookingButton
+              tenantSlug={tenantSlug}
+              inquiryId={inquiryId}
+              label={t("admin.work.detail.createBooking")}
               style={{
                 height: 32,
                 padding: "0 12px",
                 borderRadius: 8,
                 border: `1px solid ${C.accent}`,
-                textDecoration: "none",
+                background: "transparent",
                 color: C.accent,
                 display: "inline-flex",
                 alignItems: "center",
                 fontSize: 12.5,
                 fontWeight: 600,
               }}
-            >
-              {t("admin.work.detail.createBooking")}
-            </Link>
+            />
           )}
           {booking && (
             <Link
