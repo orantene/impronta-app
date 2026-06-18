@@ -155,6 +155,7 @@ import {
 import { publishDirty } from "./dirty-bridge";
 import { publishBuilderTree } from "./builder-tree-bridge";
 import { publishCanUndo, publishCanRedo } from "./history-bridge";
+import { commitActiveInlineEditor } from "./canvas-lexical-bridge";
 import { getEditSessionId } from "./presence-provider";
 import {
   readOsBuilderClipboard,
@@ -5572,24 +5573,30 @@ export function EditProvider({
       ) {
         void queueRouterRefresh();
       }
-      setPast((p) =>
-        capHistory([
-          ...p,
-          {
-            kind: "builderTree",
-            // Store the immutable tree refs directly — no deep clone. Since the
-            // copy-on-write ops refactor, prevTree/nextTree are never mutated in
-            // place (ops only write fresh spine nodes and share off-path
-            // subtrees; persistBuilderTree treats trees as read-only), so the
-            // former defensive clone is pure overhead per commit. Undo/redo
-            // restore these refs verbatim via persistBuilderTree.
-            pre: prevTree,
-            post: nextTree,
-            // W3-T8 — stamp the active selection so undo/redo restores it.
-            selection: captureHistorySelection(),
-          },
-        ]),
-      );
+      const builderTreeEntry: HistoryEntry = {
+        kind: "builderTree",
+        // Store the immutable tree refs directly — no deep clone. Since the
+        // copy-on-write ops refactor, prevTree/nextTree are never mutated in
+        // place (ops only write fresh spine nodes and share off-path
+        // subtrees; persistBuilderTree treats trees as read-only), so the
+        // former defensive clone is pure overhead per commit. Undo/redo
+        // restore these refs verbatim via persistBuilderTree.
+        pre: prevTree,
+        post: nextTree,
+        // W3-T8 — stamp the active selection so undo/redo restores it.
+        selection: captureHistorySelection(),
+      };
+      setPast((p) => capHistory([...p, builderTreeEntry]));
+      // CANVAS-7B — mirror the push into `pastRef` SYNCHRONOUSLY (not only via
+      // the post-render effect). The inline-editor→node-history undo handoff
+      // awaits this commit and then reads `pastRef.current`; without the eager
+      // mirror the just-typed text's entry would not yet be visible (the
+      // `pastRef = past` effect runs only after the next React commit), so the
+      // first ⌘Z after leaving the inline editor would undo the PRIOR node op
+      // and silently drop the typed text. The effect reconciles to the same
+      // value on the next render (idempotent).
+      pastRef.current = capHistory([...pastRef.current, builderTreeEntry]);
+      futureRef.current = [];
       setFuture([]);
       // Coalesce the SERVER persist: remember the latest tree and (re)arm the
       // debounce. Only the final tree of a burst is sent. `dirty` flags the
@@ -7333,6 +7340,14 @@ export function EditProvider({
       historyPendingRef.current = "undo";
       return;
     }
+    // CANVAS-7B — undo focus-routing. If an inline text editor is open (or a
+    // blur-commit is still in flight), commit its pending text to node history
+    // FIRST and await the push. This is the text-loss guarantee: the operator's
+    // last typed text becomes a recorded `builderTree` entry (mirrored eagerly
+    // into `pastRef`) before this undo reads the stack, so the first ⌘Z after
+    // leaving the inline editor undoes that text edit — never the prior node op
+    // with the typed text silently dropped. No-op when no inline editor is open.
+    await commitActiveInlineEditor();
     // WS2 (Step 3) — read the live `past` stack from the ref so `undo` does not
     // list `past` in its deps; dropping that dep keeps `undo` stable across every
     // edit (an edit pushes to `past`, which used to recreate this callback and,
@@ -7425,6 +7440,12 @@ export function EditProvider({
       historyPendingRef.current = "redo";
       return;
     }
+    // CANVAS-7B — mirror undo: flush any open inline text edit to node history
+    // before redo reads the stack. A pending inline commit pushes to `past` and
+    // CLEARS `future` (a new edit branches away from the redo path), so this
+    // must settle before the `futureRef` check below — otherwise redo could
+    // replay onto a stack the just-typed text already invalidated.
+    await commitActiveInlineEditor();
     // WS2 (Step 3) — read the live `future` stack from the ref (mirror of `undo`)
     // so `redo` does not list `future` in its deps and stays stable across edits.
     if (futureRef.current.length === 0) return;

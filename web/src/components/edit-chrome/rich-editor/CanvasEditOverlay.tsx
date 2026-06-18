@@ -52,6 +52,13 @@ interface Props {
   onCommit: (next: string) => void;
   /** Called when the operator hits Escape. */
   onCancel: () => void;
+  /**
+   * CANVAS-7B — the parent stashes the overlay's own `commit()` here so the
+   * undo-handoff can force the same commit (live text → node history) the
+   * blur/outside-click path runs, before a node-level undo fires. Cleared to
+   * `null` on unmount.
+   */
+  commitRef?: { current: (() => void) | null };
 }
 
 const TYPE_STYLE_PROPS = [
@@ -74,6 +81,7 @@ export function CanvasEditOverlay({
   variant,
   onCommit,
   onCancel,
+  commitRef,
 }: Props) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLDivElement | null>(null);
@@ -143,6 +151,17 @@ export function CanvasEditOverlay({
     committedRef.current = true;
     onCancel();
   }, [onCancel]);
+
+  // CANVAS-7B — expose this overlay's own `commit()` to the parent so the
+  // undo-handoff can force a commit (same path as blur / outside-click) before
+  // a node-level undo runs. Cleared on unmount so a stale handle never fires.
+  useEffect(() => {
+    if (!commitRef) return;
+    commitRef.current = commit;
+    return () => {
+      commitRef.current = null;
+    };
+  }, [commitRef, commit]);
 
   function isExternalChromeClick(t: HTMLElement | null): boolean {
     if (!t) return false;
