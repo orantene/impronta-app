@@ -41,6 +41,14 @@ import {
   promoteToPrimary,
 } from "@/lib/inquiry/inquiry-engine-coordinator";
 import { convertToBooking } from "@/lib/inquiry/inquiry-engine-booking";
+import { updateInquiryDetails, type InquiryDetailsPatch } from "@/lib/inquiry/inquiry-engine-details";
+import type {
+  EditableInquiryJobFields,
+  EditableBookingJobFields,
+  EditJobEventTypeOption,
+  EditJobFieldData,
+  BookingJobFieldsPatch,
+} from "./edit-job-fields.types";
 import {
   loadActiveBookingTransaction,
   markPaid,
@@ -858,6 +866,255 @@ export async function rescheduleInquiry(
     logServerError("admin._pipeline-actions.rescheduleInquiry", err);
     return { ok: false, error: "Unexpected error." };
   }
+}
+
+// ─── Edit job — unified inquiry + booking field editor ───────────────────────
+//
+// The admin Messages thread header carries an "Edit job" pencil that opens a
+// Sheet where staff can revise every field the job needs in one place: the
+// original inquiry request fields, plus (once booked) the booking-side fields.
+// These three actions back that sheet:
+//   - loadEditableJobFields  → prefill the form (inquiry + linked booking + event types)
+//   - updateInquiryJobFields → version-locked patch of the inquiry request fields
+//   - updateBookingJobFields → scoped patch of the linked booking's job fields
+// All three gate on requireInquiryManagerAction (staff fast-path or the
+// appointed inquiry coordinator) — the same gate convertInquiryToBookingAction
+// uses.
+
+// EditJob field types (EditableInquiryJobFields, EditableBookingJobFields,
+// EditJobEventTypeOption, EditJobFieldData, BookingJobFieldsPatch) live in
+// ./edit-job-fields.types and are imported above. They must NOT be declared in
+// this "use server" file: a client importer (EditJobSheet) would otherwise
+// trigger a module-eval ReferenceError that poisons the Messages chunk.
+
+/**
+ * Load every editable field the "Edit job" sheet renders: the inquiry request
+ * fields (with the optimistic-lock version), the linked booking's job fields
+ * when one exists, and the global event-type options for the picker.
+ */
+export async function loadEditableJobFields(
+  _tenantSlug: string,
+  inquiryId: string,
+): Promise<PipelineActionResult<EditJobFieldData>> {
+  try {
+    const auth = await requireInquiryManagerAction(inquiryId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    const { data: inq, error: inqErr } = await supabase
+      .from("inquiries")
+      .select(
+        "version, status, is_frozen, contact_name, contact_email, contact_phone, company, event_type_id, quantity, message, event_date, event_timezone, deadline_at, event_location, wardrobe_notes, equipment_notes, transport_notes, lodging_notes, meals_notes, access_notes",
+      )
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (inqErr || !inq) return { ok: false, error: "Inquiry not found in this workspace." };
+
+    const { data: booking } = await supabase
+      .from("agency_bookings")
+      .select(
+        "id, title, contact_name, contact_email, contact_phone, event_date, timezone, deadline_at, venue_name, venue_address, venue_location_text, notes, internal_notes, payment_notes, wardrobe_notes, equipment_notes, transport_notes, lodging_notes, meals_notes, access_notes",
+      )
+      .eq("tenant_id", tenantId)
+      .eq("source_inquiry_id", inquiryId)
+      .maybeSingle();
+
+    // Event types are global taxonomy terms (no tenant column) — kind only.
+    const { data: typeRows } = await supabase
+      .from("taxonomy_terms")
+      .select("id, name_i18n")
+      .eq("kind", "event_type")
+      .is("archived_at", null)
+      .order("sort_order", { ascending: true });
+    const eventTypes: EditJobEventTypeOption[] = ((typeRows ?? []) as Array<{
+      id: string;
+      name_i18n: Record<string, string | null> | null;
+    }>)
+      .map((t) => ({ id: t.id, label: (t.name_i18n?.en ?? "").trim() }))
+      .filter((t) => t.label.length > 0);
+
+    const r = inq as Record<string, unknown>;
+    const str = (k: string): string | null => (r[k] as string | null) ?? null;
+
+    const inquiry: EditableInquiryJobFields = {
+      version: (inq.version as number | null) ?? 1,
+      status: (inq.status as string | null) ?? "",
+      isFrozen: !!inq.is_frozen,
+      contactName: str("contact_name"),
+      contactEmail: str("contact_email"),
+      contactPhone: str("contact_phone"),
+      company: str("company"),
+      eventTypeId: str("event_type_id"),
+      quantity: (inq.quantity as number | null) ?? null,
+      message: str("message"),
+      eventDate: str("event_date"),
+      eventTimezone: str("event_timezone"),
+      deadlineAt: str("deadline_at"),
+      eventLocation: str("event_location"),
+      wardrobeNotes: str("wardrobe_notes"),
+      equipmentNotes: str("equipment_notes"),
+      transportNotes: str("transport_notes"),
+      lodgingNotes: str("lodging_notes"),
+      mealsNotes: str("meals_notes"),
+      accessNotes: str("access_notes"),
+    };
+
+    let bookingFields: EditableBookingJobFields | null = null;
+    if (booking) {
+      const b = booking as Record<string, unknown>;
+      const bstr = (k: string): string | null => (b[k] as string | null) ?? null;
+      bookingFields = {
+        bookingId: booking.id as string,
+        title: (booking.title as string | null) ?? "",
+        contactName: bstr("contact_name"),
+        contactEmail: bstr("contact_email"),
+        contactPhone: bstr("contact_phone"),
+        eventDate: bstr("event_date"),
+        timezone: bstr("timezone"),
+        deadlineAt: bstr("deadline_at"),
+        venueName: bstr("venue_name"),
+        venueAddress: bstr("venue_address"),
+        venueLocationText: bstr("venue_location_text"),
+        notes: bstr("notes"),
+        internalNotes: bstr("internal_notes"),
+        paymentNotes: bstr("payment_notes"),
+        wardrobeNotes: bstr("wardrobe_notes"),
+        equipmentNotes: bstr("equipment_notes"),
+        transportNotes: bstr("transport_notes"),
+        lodgingNotes: bstr("lodging_notes"),
+        mealsNotes: bstr("meals_notes"),
+        accessNotes: bstr("access_notes"),
+      };
+    }
+
+    return { ok: true, data: { inquiry, booking: bookingFields, eventTypes } };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.loadEditableJobFields", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Patch of the inquiry request fields. Delegates to the engine
+ * `updateInquiryDetails` (optimistic version lock + audit + activity event so
+ * the change shows in the inquiry Activity tab). `allowWhenBooked` lets staff
+ * tidy a booked inquiry's request fields from the post-booking clean-up surface
+ * (frozen / archived inquiries stay locked inside the engine).
+ */
+export async function updateInquiryJobFields(
+  _tenantSlug: string,
+  inquiryId: string,
+  expectedVersion: number,
+  patch: InquiryDetailsPatch,
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireInquiryManagerAction(inquiryId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+
+    const result = await updateInquiryDetails(supabase, {
+      inquiryId,
+      tenantId,
+      actorUserId: user.id,
+      expectedVersion,
+      patch,
+      allowWhenBooked: true,
+    });
+
+    if (!result.success) {
+      const err = result as { error?: string; conflict?: boolean; forbidden?: boolean };
+      if (err.conflict) {
+        return { ok: false, error: "This job was updated elsewhere — refresh and retry." };
+      }
+      if (err.forbidden) return { ok: false, error: "Not authorised to edit this job." };
+      const friendly =
+        err.error === "locked" ? "This inquiry is locked and cannot be edited."
+        : err.error === "invalid_event_type" ? "That event type is not recognised."
+        : err.error === "contact_required" ? "Contact name and email are required."
+        : "Could not save the job details.";
+      return { ok: false, error: friendly };
+    }
+
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.updateInquiryJobFields", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+// BookingJobFieldsPatch lives in ./edit-job-fields.types (imported above).
+
+const BOOKING_TEXT_FIELDS = new Set<keyof BookingJobFieldsPatch>([
+  "contact_name", "contact_email", "contact_phone",
+  "venue_name", "venue_address", "venue_location_text",
+  "notes", "internal_notes", "payment_notes",
+  "wardrobe_notes", "equipment_notes", "transport_notes",
+  "lodging_notes", "meals_notes", "access_notes",
+]);
+
+/**
+ * Patch of the linked booking's job fields. `agency_bookings` has no version
+ * column, so this is a safe tenant + id-scoped update (no optimistic lock).
+ * Stamps `updated_by_staff_id` + `updated_at` and writes a booking activity
+ * log row so the change is audited. `title` is NOT NULL — a blank title is
+ * rejected.
+ */
+export async function updateBookingJobFields(
+  _tenantSlug: string,
+  inquiryId: string,
+  patch: BookingJobFieldsPatch,
+): Promise<PipelineActionResult> {
+  const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, userId, tenantId, bookingId }) => {
+    const update: Record<string, unknown> = {};
+    const changedKeys: string[] = [];
+    for (const key of Object.keys(patch) as Array<keyof BookingJobFieldsPatch>) {
+      let next = patch[key] as unknown;
+      if (typeof next === "string") {
+        const trimmed = next.trim();
+        if (key === "title") {
+          if (trimmed.length === 0) throw new Error("Job title is required.");
+          next = trimmed;
+        } else if (key === "event_date") {
+          if (trimmed.length === 0) {
+            next = null;
+          } else if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+            throw new Error("Confirmed date must be YYYY-MM-DD.");
+          } else {
+            next = trimmed;
+          }
+        } else if (BOOKING_TEXT_FIELDS.has(key)) {
+          next = trimmed.length === 0 ? null : trimmed;
+        } else {
+          // timezone / deadline_at — blank clears, otherwise pass through.
+          next = trimmed.length === 0 ? null : trimmed;
+        }
+      }
+      update[key as string] = next;
+      changedKeys.push(key as string);
+    }
+
+    if (changedKeys.length === 0) return;
+
+    update.updated_by_staff_id = userId;
+    update.updated_at = new Date().toISOString();
+
+    const { error } = await supabase
+      .from("agency_bookings")
+      .update(update)
+      .eq("id", bookingId)
+      .eq("tenant_id", tenantId);
+    if (error) throw new Error(error.message);
+
+    await logBookingActivity(supabase, {
+      bookingId,
+      actorUserId: userId,
+      eventType: BOOKING_AUDIT.JOB_FIELDS_UPDATED,
+      payload: { fields: changedKeys },
+    });
+  });
+  return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
 // ─── Inquiry user flags (pin / archive / manually_unread) ────────────────────
