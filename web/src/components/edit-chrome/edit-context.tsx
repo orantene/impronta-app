@@ -302,6 +302,21 @@ export interface BuilderNodePastePreview {
   message: string;
 }
 
+// CANVAS-7 — the four clipboard gestures that earn a transient success toast.
+// Stored on the EditContext so the SHARED clipboard chokepoints (copy/cut/
+// paste/duplicate) raise the same feedback for every entry point — keyboard,
+// the selection-chip "More" menu, and the right-click context menu — with no
+// surface branch. The toast component lives in edit-shell.tsx.
+export type BuilderClipboardAction = "copy" | "cut" | "paste" | "duplicate";
+
+export interface BuilderClipboardActionToast {
+  action: BuilderClipboardAction;
+  /** How many blocks the gesture touched (≥1). Drives "Copied 3 blocks". */
+  count: number;
+  /** Monotonic nonce so a copy→paste burst re-fires the auto-hide timer. */
+  nonce: number;
+}
+
 // Re-exported from ./builder-block-presets (MAINT-1 peel) so existing
 // `import { type BuilderBlockPreset } from "../edit-context"` consumers keep
 // working without churn.
@@ -1305,6 +1320,19 @@ export interface EditContextValue {
    * pushes the snapshot AND raises this same toast.
    */
   notifyTemplateApplied: (label: string) => void;
+
+  // ── CANVAS-7 — transient success toast after a clipboard gesture ──
+  /**
+   * Truthy while the "Copied / Cut / Pasted / Duplicated" toast is on screen.
+   * Raised from the SHARED clipboard chokepoints (copy/cut/paste/duplicate)
+   * regardless of entry point, so the chip "More" menu, the keyboard shortcut,
+   * and the right-click context menu all surface identical feedback on every
+   * surface. Coalesces — a copy→paste burst replaces the toast (one chip) and
+   * re-arms the auto-hide rather than stacking. Auto-clears; never collides with
+   * `mutationError` (a failed gesture never calls notifyClipboardAction).
+   */
+  clipboardActionToast: BuilderClipboardActionToast | null;
+  clearClipboardActionToast: () => void;
 
   // ── transient toast for mutation errors ──
   /** Most recent mutation error that's still on screen; null when clear. */
@@ -3513,6 +3541,36 @@ export function EditProvider({
     const t = setTimeout(() => setTemplateAppliedToast(null), 8000);
     return () => clearTimeout(t);
   }, [templateAppliedToast]);
+
+  // CANVAS-7 — the shared clipboard-success toast. Raised by the copy/cut/
+  // paste/duplicate chokepoints below via `notifyClipboardAction`. The `nonce`
+  // bump makes a copy→paste burst coalesce into ONE chip whose auto-hide timer
+  // re-arms on each gesture (the effect re-runs on the nonce change), so a
+  // rapid sequence never stacks multiple toasts. 3.2s window — long enough to
+  // read, short enough to stay out of the way.
+  const [clipboardActionToast, setClipboardActionToast] =
+    useState<BuilderClipboardActionToast | null>(null);
+  const clipboardActionNonceRef = useRef(0);
+  const clearClipboardActionToast = useCallback(
+    () => setClipboardActionToast(null),
+    [],
+  );
+  const notifyClipboardAction = useCallback(
+    (action: BuilderClipboardAction, count: number) => {
+      clipboardActionNonceRef.current += 1;
+      setClipboardActionToast({
+        action,
+        count: Math.max(1, count),
+        nonce: clipboardActionNonceRef.current,
+      });
+    },
+    [],
+  );
+  useEffect(() => {
+    if (!clipboardActionToast) return;
+    const t = setTimeout(() => setClipboardActionToast(null), 3200);
+    return () => clearTimeout(t);
+  }, [clipboardActionToast]);
 
   // beforeunload guard. When the inspector has un-persisted section edits
   // (`dirty`) or a save is in flight (`saving`), nudge the operator with
@@ -6376,6 +6434,7 @@ export function EditProvider({
         markNavigatorAddition(ownerSectionId, duplicatedNodeId, "block");
       }
       markNodeInserted(duplicatedNodeId);
+      notifyClipboardAction("duplicate", 1);
       return { ok: true, nodeId: duplicatedNodeId };
     },
     [
@@ -6385,6 +6444,7 @@ export function EditProvider({
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
       markNodeInserted,
+      notifyClipboardAction,
     ],
   );
   const copyBuilderNode = useCallback<EditContextValue["copyBuilderNode"]>(
@@ -6413,9 +6473,10 @@ export function EditProvider({
       writeStoredBuilderNodeClipboard(copiedNode);
       writeStoredBuilderNodeMultiClipboard(clipboard);
       void writeOsBuilderClipboard(clipboard);
+      notifyClipboardAction("copy", 1);
       return { ok: true };
     },
-    [],
+    [notifyClipboardAction],
   );
   const getCopiedBuilderNodePastePreview = useCallback<
     EditContextValue["getCopiedBuilderNodePastePreview"]
@@ -6532,6 +6593,7 @@ export function EditProvider({
         markNavigatorAddition(ownerSectionId, pastedNodeId, "block");
       }
       markNodeInserted(pastedNodeId);
+      notifyClipboardAction("paste", 1);
       return { ok: true, nodeId: pastedNodeId };
     },
     [
@@ -6542,6 +6604,7 @@ export function EditProvider({
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
       markNodeInserted,
+      notifyClipboardAction,
     ],
   );
   const pasteCopiedBuilderNode = useCallback<
@@ -6593,6 +6656,7 @@ export function EditProvider({
         markNavigatorAddition(ownerSectionId, pastedNodeId, "block");
       }
       markNodeInserted(pastedNodeId);
+      notifyClipboardAction("paste", 1);
       return { ok: true, nodeId: pastedNodeId };
     },
     [
@@ -6603,6 +6667,7 @@ export function EditProvider({
       setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
       markNodeInserted,
+      notifyClipboardAction,
     ],
   );
   const patchBuilderNodeProps = useCallback<
@@ -6882,12 +6947,14 @@ export function EditProvider({
     });
     if (!duplicated.ok) return { ok: false, error: duplicated.error };
     replaceBuilderNodeSelection(duplicatedIds);
+    notifyClipboardAction("duplicate", duplicatedIds.length);
     return { ok: true, nodeIds: duplicatedIds };
   }, [
     executeBuilderNodeOperation,
     getAllSelectedBuilderNodeIds,
     guardSelectedBuilderNodes,
     replaceBuilderNodeSelection,
+    notifyClipboardAction,
   ]);
 
   const translateSelectedBuilderNodes = useCallback<
@@ -6988,8 +7055,9 @@ export function EditProvider({
       writeStoredBuilderNodeClipboard(null);
     }
     void writeOsBuilderClipboard(serialized);
+    notifyClipboardAction("copy", serialized.nodes.length);
     return { ok: true, count: serialized.nodes.length };
-  }, [getAllSelectedBuilderNodeIds]);
+  }, [getAllSelectedBuilderNodeIds, notifyClipboardAction]);
 
   const cutSelectedBuilderNodes = useCallback<
     EditContextValue["cutSelectedBuilderNodes"]
@@ -6998,8 +7066,16 @@ export function EditProvider({
     if (!copied.ok) return copied;
     const removed = await removeSelectedBuilderNodes();
     if (!removed.ok) return { ok: false, error: removed.error };
+    // copySelectedBuilderNodes already raised a "copy" toast; the coalescing
+    // setter replaces it with the correct "cut" feedback once the remove lands
+    // (only the final toast renders — React batches the two setState calls).
+    notifyClipboardAction("cut", copied.count ?? 1);
     return { ok: true, count: copied.count };
-  }, [copySelectedBuilderNodes, removeSelectedBuilderNodes]);
+  }, [
+    copySelectedBuilderNodes,
+    removeSelectedBuilderNodes,
+    notifyClipboardAction,
+  ]);
 
   const pasteBuilderNodeClipboard = useCallback<
     EditContextValue["pasteBuilderNodeClipboard"]
@@ -7033,6 +7109,7 @@ export function EditProvider({
       });
       if (!pasted.ok) return { ok: false, error: pasted.error };
       replaceBuilderNodeSelection(pastedIds);
+      notifyClipboardAction("paste", pastedIds.length);
       return { ok: true, nodeIds: pastedIds };
     },
     [
@@ -7041,6 +7118,7 @@ export function EditProvider({
       executeBuilderNodeOperation,
       guardSelectedBuilderNodes,
       replaceBuilderNodeSelection,
+      notifyClipboardAction,
     ],
   );
 
@@ -8011,6 +8089,8 @@ export function EditProvider({
       templateAppliedToast,
       clearTemplateAppliedToast,
       notifyTemplateApplied,
+      clipboardActionToast,
+      clearClipboardActionToast,
 
       mutationError,
       clearMutationError,
@@ -8243,6 +8323,8 @@ export function EditProvider({
       templateAppliedToast,
       clearTemplateAppliedToast,
       notifyTemplateApplied,
+      clipboardActionToast,
+      clearClipboardActionToast,
       mutationError,
       clearMutationError,
       reportMutationError,

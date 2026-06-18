@@ -29,6 +29,7 @@ import {
   type EditDevice,
   type PreviewFrameOverride,
 } from "./edit-context";
+import { clipboardActionLabel } from "./builder-clipboard-toast";
 import { useHoveredSectionId } from "./hover-bridge";
 import { useBuilderTree } from "./builder-tree-bridge";
 import { useCanUndo, useCanRedo } from "./history-bridge";
@@ -1194,6 +1195,7 @@ function EditShellInner({
         <ThemePreviewProjector />
         <MutationErrorToast />
         <DraftSavedToast />
+        <ClipboardActionToast />
         <TemplateAppliedToast />
         <PresenceBanner />
         <RemoteCursorsLayer />
@@ -1825,6 +1827,70 @@ function DraftSavedToast() {
         title="Dismiss"
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+// CANVAS-7 — shared clipboard success toast. Raised by the EditContext
+// copy/cut/paste/duplicate chokepoints for EVERY entry point (keyboard, the
+// selection-chip "More" menu, the right-click context menu) on all four
+// surfaces. A transient confirmation — the gesture itself already happened, so
+// there is no action button (failures route to MutationErrorToast, never here).
+// Reuses the DraftSavedToast presentation; the EditContext setter coalesces a
+// copy→paste burst into one chip so toasts never stack.
+function ClipboardActionToast() {
+  const { clipboardActionToast, clearClipboardActionToast } = useEditContext();
+  if (!clipboardActionToast) return null;
+  const label = clipboardActionLabel(
+    clipboardActionToast.action,
+    clipboardActionToast.count,
+  );
+  return (
+    <div
+      data-edit-overlay="clipboard-action-toast"
+      data-clipboard-action={clipboardActionToast.action}
+      role="status"
+      aria-live="polite"
+      className="pointer-events-auto fixed left-1/2 top-[66px] z-[120] flex -translate-x-1/2 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-800 shadow-lg"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="text-stone-500"
+        aria-hidden
+      >
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+      <span className="max-w-[min(360px,calc(100vw-120px))] leading-snug">
+        {label}
+      </span>
+      <button
+        type="button"
+        onClick={clearClipboardActionToast}
+        className="rounded-sm px-1 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
+        aria-label="Dismiss"
+        title="Dismiss"
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
