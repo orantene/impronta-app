@@ -26,6 +26,8 @@ import {
   archiveTemplate,
   duplicateTemplate,
   publishTemplate,
+  rejectToDraft,
+  submitTemplateForReview,
   unpublishTemplate,
   updateTemplateDraft,
 } from "@/lib/site-admin/builder-core/templates/registry-actions";
@@ -48,8 +50,13 @@ import {
   LabChip,
   LabToast,
   LabViewHeader,
+  LinkBtn,
+  LabStatusDropdown,
+  LAB_STATUS_LABEL,
   SectionLabel,
   EmptyCard,
+  type LabStatus,
+  type LabStatusOption,
 } from "./ui";
 
 const STARTER_KIT_GROUPS = [
@@ -94,6 +101,44 @@ function targetLabel(t: BuilderTemplateTarget): string {
   }
 }
 
+const STATUS_ORDER: ReadonlyArray<LabStatus> = [
+  "draft",
+  "in_review",
+  "published",
+  "archived",
+];
+
+/** Legal transitions for a starter (= DB template) row, mirroring the guarded
+ *  registry actions. Disabled options stay visible (so the full ladder always
+ *  reads) but inert, with a why-not tooltip. */
+function statusOptionsFor(current: LabStatus): LabStatusOption[] {
+  const legal: Record<LabStatus, ReadonlyArray<LabStatus>> = {
+    draft: ["in_review", "published", "archived"],
+    in_review: ["draft", "published", "archived"],
+    published: ["draft", "archived"],
+    archived: ["published"],
+  };
+  const allowed = new Set<LabStatus>([current, ...legal[current]]);
+  return STATUS_ORDER.map((value) => ({
+    value,
+    label: LAB_STATUS_LABEL[value],
+    disabled: !allowed.has(value),
+    tooltip: allowed.has(value)
+      ? undefined
+      : `Can't move from ${LAB_STATUS_LABEL[current]} to ${LAB_STATUS_LABEL[value]} directly.`,
+  }));
+}
+
+/** Coerce a starter row's status string to the LabStatus union. */
+function toLabStatus(status: string): LabStatus {
+  return status === "draft" ||
+    status === "in_review" ||
+    status === "published" ||
+    status === "archived"
+    ? status
+    : "draft";
+}
+
 /** Parse the Tags input (comma / newline separated) into a deduped array. */
 function parseTags(raw: string): string[] {
   const seen = new Set<string>();
@@ -131,7 +176,7 @@ export function SiteStarterKitView({
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3200);
+    setTimeout(() => setToast(null), T.toastMs);
   }, []);
 
   const reload = useCallback(async () => {
@@ -223,13 +268,34 @@ export function SiteStarterKitView({
     [edit, mutate, cancelEdit, flash],
   );
 
-  const togglePublish = useCallback(
-    (row: BuilderTemplateRow) => {
-      const published = row.status === "published";
-      void mutate(row.id, () =>
-        published ? unpublishTemplate(row.id) : publishTemplate(row.id),
-      ).then((ok) => {
-        if (ok) flash(published ? "Unpublished" : "Published ✓");
+  // Full lifecycle transition for a starter row. Each starter is a DB template,
+  // so this dispatches the EXISTING super_admin registry actions — no parallel
+  // CRUD path. Only the legal transition for the row's current status is enabled
+  // by the dropdown (see statusOptionsFor), so in_review / archived are now
+  // reachable here (previously the row only toggled published↔draft).
+  const setStatus = useCallback(
+    (row: BuilderTemplateRow, next: LabStatus) => {
+      const action =
+        next === "in_review"
+          ? () => submitTemplateForReview(row.id)
+          : next === "published"
+            ? () => publishTemplate(row.id)
+            : next === "archived"
+              ? () => archiveTemplate(row.id)
+              : // → draft: from in_review use rejectToDraft, else unpublish.
+                row.status === "in_review"
+                ? () => rejectToDraft(row.id)
+                : () => unpublishTemplate(row.id);
+      void mutate(row.id, action).then((ok) => {
+        if (ok) {
+          const labels: Record<LabStatus, string> = {
+            draft: "Moved to draft",
+            in_review: "Submitted for review",
+            published: "Published ✓",
+            archived: "Archived",
+          };
+          flash(labels[next]);
+        }
       });
     },
     [mutate, flash],
@@ -353,7 +419,7 @@ export function SiteStarterKitView({
             onLaunchEditor?.(targetToLabTarget(r.target_context), r.id)
           }
           onDuplicate={duplicate}
-          onTogglePublish={togglePublish}
+          onSetStatus={setStatus}
           onStartDelete={(id) => setConfirmingDeleteId(id)}
           onCancelDelete={() => setConfirmingDeleteId(null)}
           onConfirmDelete={confirmDelete}
@@ -377,7 +443,7 @@ interface StarterTableProps {
   onCancelEdit: () => void;
   onOpen: (row: BuilderTemplateRow) => void;
   onDuplicate: (row: BuilderTemplateRow) => void;
-  onTogglePublish: (row: BuilderTemplateRow) => void;
+  onSetStatus: (row: BuilderTemplateRow, next: LabStatus) => void;
   onStartDelete: (id: string) => void;
   onCancelDelete: () => void;
   onConfirmDelete: (row: BuilderTemplateRow) => void;
@@ -394,7 +460,7 @@ function StarterTable(props: StarterTableProps) {
     onCancelEdit,
     onOpen,
     onDuplicate,
-    onTogglePublish,
+    onSetStatus,
     onStartDelete,
     onCancelDelete,
     onConfirmDelete,
@@ -419,7 +485,6 @@ function StarterTable(props: StarterTableProps) {
           {rows.map((r) => {
             const busy = pendingId === r.id;
             const editing = editingId === r.id;
-            const published = r.status === "published";
             return (
               <Fragment key={r.id}>
                 <tr
@@ -483,9 +548,13 @@ function StarterTable(props: StarterTableProps) {
                     </LabBadge>
                   </td>
                   <td style={{ padding: "10px 16px", textAlign: "center" }}>
-                    <LabBadge tone={published ? "accent" : "neutral"}>
-                      {published ? "Published" : r.status.replace("_", " ")}
-                    </LabBadge>
+                    <LabStatusDropdown
+                      testId={`lab-starter-status-${r.id}`}
+                      status={toLabStatus(r.status)}
+                      options={statusOptionsFor(toLabStatus(r.status))}
+                      busy={busy}
+                      onSelect={(next) => onSetStatus(r, next)}
+                    />
                   </td>
                   <td
                     style={{
@@ -548,12 +617,6 @@ function StarterTable(props: StarterTableProps) {
                           label="Duplicate"
                           onClick={() => onDuplicate(r)}
                           disabled={busy}
-                        />
-                        <LinkBtn
-                          label={published ? "Unpublish" : "Publish"}
-                          onClick={() => onTogglePublish(r)}
-                          disabled={busy}
-                          primary={!published}
                         />
                         <LinkBtn
                           label="Delete"
@@ -732,46 +795,3 @@ function Th({
   );
 }
 
-function LinkBtn({
-  label,
-  onClick,
-  disabled,
-  primary,
-  danger,
-  testId,
-}: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  primary?: boolean;
-  danger?: boolean;
-  testId?: string;
-}) {
-  const color = disabled
-    ? T.inkDim
-    : danger
-      ? T.red
-      : primary
-        ? T.accent
-        : T.inkMuted;
-  return (
-    <button
-      type="button"
-      data-testid={testId}
-      onClick={onClick}
-      disabled={disabled}
-      className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
-      style={{
-        background: "transparent",
-        border: "none",
-        color,
-        fontSize: 12,
-        fontWeight: 600,
-        cursor: disabled ? "default" : "pointer",
-        padding: 0,
-      }}
-    >
-      {label}
-    </button>
-  );
-}

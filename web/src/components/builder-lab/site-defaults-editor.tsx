@@ -175,7 +175,7 @@ export function SiteDefaultsEditor() {
       {loading ? (
         <div style={{ color: T.inkMuted, fontSize: 13, padding: "12px 0" }}>Loading Site Default…</div>
       ) : loadError ? (
-        <div style={{ color: "#f0a8a8", fontSize: 13, padding: "12px 0" }}>{loadError}</div>
+        <div style={{ color: T.red, fontSize: 13, padding: "12px 0" }}>{loadError}</div>
       ) : (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: 16, alignItems: "start" }}>
       {/* ── Controls ── */}
@@ -289,7 +289,7 @@ export function SiteDefaultsEditor() {
             {pending ? "Saving…" : "Save & publish default"}
           </LabButton>
           {status && (
-            <span style={{ fontSize: 12.5, color: status.ok ? T.accent : "#f0a8a8" }}>{status.msg}</span>
+            <span style={{ fontSize: 12.5, color: status.ok ? T.accent : T.red }}>{status.msg}</span>
           )}
         </div>
       </div>

@@ -26,7 +26,12 @@ import {
   panelStyle,
   LabBadge,
   LabChip,
+  LinkBtn,
+  LabStatusDropdown,
+  LAB_STATUS_LABEL,
   SectionLabel,
+  type LabStatus,
+  type LabStatusOption,
 } from "./ui";
 
 // C3 — selectable admin "default variant" values. The native preset variants the
@@ -67,6 +72,72 @@ export function targetAllows(
   return targetContext === surface;
 }
 
+const STATUS_ORDER: ReadonlyArray<LabStatus> = [
+  "draft",
+  "in_review",
+  "published",
+  "archived",
+];
+
+const CODE_DISABLED_TOOLTIP =
+  "Code components ship live — only Published / Archived apply.";
+
+/**
+ * The four-status menu for one row, with `disabled` + `tooltip` set per the row
+ * source's real transition rules. PRESENTATIONAL input to {@link LabStatusDropdown}
+ * — the parent's `onSetStatus` performs the actual transition.
+ *
+ *  • Code rows: Published / Archived only (they map to the availability overlay).
+ *    Draft + In-review are shown disabled (a code component has no draft state).
+ *  • DB-template rows: only the legal next states for `current` are enabled,
+ *    mirroring the guarded registry actions
+ *    (draft→in_review/published/archived, in_review→draft/published/archived,
+ *    published→draft/archived, archived→published).
+ */
+function statusOptionsFor(
+  source: "code" | "template",
+  current: LabStatus,
+): LabStatusOption[] {
+  if (source === "code") {
+    return STATUS_ORDER.map((value) => {
+      const codeApplicable = value === "published" || value === "archived";
+      return {
+        value,
+        label: LAB_STATUS_LABEL[value],
+        disabled: !codeApplicable,
+        tooltip: codeApplicable ? undefined : CODE_DISABLED_TOOLTIP,
+      };
+    });
+  }
+  // DB template — legal forward/back transitions per registry-actions guards.
+  const legal: Record<LabStatus, ReadonlyArray<LabStatus>> = {
+    draft: ["in_review", "published", "archived"],
+    in_review: ["draft", "published", "archived"],
+    published: ["draft", "archived"],
+    archived: ["published"],
+  };
+  const allowed = new Set<LabStatus>([current, ...legal[current]]);
+  return STATUS_ORDER.map((value) => ({
+    value,
+    label: LAB_STATUS_LABEL[value],
+    disabled: !allowed.has(value),
+    tooltip: allowed.has(value)
+      ? undefined
+      : `Can't move from ${LAB_STATUS_LABEL[current]} to ${LAB_STATUS_LABEL[value]} directly.`,
+  }));
+}
+
+/** Coerce the (string) admin-view status to the LabStatus union. Code rows are
+ *  already derived to published/archived; templates carry the real enum. */
+function toLabStatus(status: string): LabStatus {
+  return status === "draft" ||
+    status === "in_review" ||
+    status === "published" ||
+    status === "archived"
+    ? status
+    : "published";
+}
+
 /** Props the parent threads into each row group's table. The edit-form value +
  *  setter pairs are owned by ComponentCatalog so save/cancel/reset stay there. */
 export interface CatalogRowTableProps {
@@ -99,6 +170,9 @@ export interface CatalogRowTableProps {
   // actions
   onRowClick: (item: CatalogAdminItem) => void;
   onToggleSurface: (item: CatalogAdminItem, surface: "talent" | "workspace") => void;
+  /** Dispatch a lifecycle transition for the row (the parent maps it to the
+   *  availability overlay for code rows / the registry actions for templates). */
+  onSetStatus: (item: CatalogAdminItem, next: LabStatus) => void;
   onSaveEdit: (item: CatalogAdminItem) => void;
   onCancelEdit: () => void;
   onConfirmReset: (item: CatalogAdminItem) => void;
@@ -116,6 +190,7 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
     confirmingResetId,
     onRowClick,
     onToggleSurface,
+    onSetStatus,
     onSaveEdit,
     onCancelEdit,
     onConfirmReset,
@@ -152,8 +227,18 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                 <Th>Component</Th>
                 <Th>Category</Th>
                 <Th>Source</Th>
-                <Th center>Talent-Max</Th>
-                <Th center>Workspace</Th>
+                <Th
+                  center
+                  help="TALENT-MAX governs the talent profile page's + gallery."
+                >
+                  Talent-Max
+                </Th>
+                <Th
+                  center
+                  help="WORKSPACE governs both workspace pages AND the talent Max-site shell's + gallery."
+                >
+                  Workspace
+                </Th>
                 <Th right>Manage</Th>
               </tr>
             </thead>
@@ -288,7 +373,14 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                             <LinkBtn label="No" onClick={onCancelReset} disabled={busy} />
                           </span>
                         ) : (
-                          <span style={{ display: "inline-flex", gap: 10 }}>
+                          <span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}>
+                            <LabStatusDropdown
+                              testId={`lab-catalog-row-status-${r.id}`}
+                              status={toLabStatus(r.status)}
+                              options={statusOptionsFor(r.source, toLabStatus(r.status))}
+                              busy={busy}
+                              onSelect={(next) => onSetStatus(r, next)}
+                            />
                             <LinkBtn label="Preview" onClick={() => onPreview(r)} disabled={busy} />
                             {r.overlay ? (
                               <LinkBtn label="Reset" onClick={() => onStartReset(r.id)} disabled={busy} />
@@ -517,9 +609,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Th({ children, center, right }: { children: React.ReactNode; center?: boolean; right?: boolean }) {
+function Th({
+  children,
+  center,
+  right,
+  help,
+}: {
+  children: React.ReactNode;
+  center?: boolean;
+  right?: boolean;
+  /** When set, the header carries a hover note (native title) + a small "?"
+   *  affordance — used on the Talent-Max / Workspace columns to explain the real
+   *  surface mapping the audit documented. */
+  help?: string;
+}) {
   return (
     <th
+      title={help}
       style={{
         padding: "9px 16px",
         fontSize: 10,
@@ -527,9 +633,39 @@ function Th({ children, center, right }: { children: React.ReactNode; center?: b
         letterSpacing: 0.8,
         textTransform: "uppercase",
         textAlign: center ? "center" : right ? "right" : "left",
+        cursor: help ? "help" : undefined,
       }}
     >
-      {children}
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          justifyContent: center ? "center" : right ? "flex-end" : "flex-start",
+        }}
+      >
+        {children}
+        {help ? (
+          <span
+            aria-hidden
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 12,
+              height: 12,
+              borderRadius: 999,
+              border: `1px solid ${T.border}`,
+              fontSize: 8,
+              fontWeight: 700,
+              color: T.inkMuted,
+              lineHeight: 1,
+            }}
+          >
+            ?
+          </span>
+        ) : null}
+      </span>
     </th>
   );
 }
@@ -582,38 +718,3 @@ function ToggleCell({
   );
 }
 
-function LinkBtn({
-  label,
-  onClick,
-  disabled,
-  primary,
-  testId,
-}: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  primary?: boolean;
-  /** QA harness — optional inert data-testid for browser automation. */
-  testId?: string;
-}) {
-  return (
-    <button
-      type="button"
-      data-testid={testId}
-      onClick={onClick}
-      disabled={disabled}
-      className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
-      style={{
-        background: "transparent",
-        border: "none",
-        color: disabled ? T.inkDim : primary ? T.accent : T.inkMuted,
-        fontSize: 12,
-        fontWeight: 600,
-        cursor: disabled ? "default" : "pointer",
-        padding: 0,
-      }}
-    >
-      {label}
-    </button>
-  );
-}
