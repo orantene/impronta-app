@@ -21,7 +21,6 @@ import {
   dbTemplateGalleryItemId,
   type CatalogAdminItem,
 } from "./registry-db-merge";
-import { applyStructureToItems } from "./catalog-structure";
 import { listCatalogStructure } from "./catalog-structure-actions";
 import type { AddGalleryItem } from "./types";
 import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
@@ -43,12 +42,15 @@ export async function loadCatalogAdminView(): Promise<CatalogAdminItem[]> {
     statusByRef[dbTemplateGalleryItemId(row.id)] = row.status;
   }
 
-  // Apply structure (tab/category placement) to the universe BEFORE building the
-  // admin view, so the Lab groups every component under its assigned tab/category
-  // — the same placement the live "+" galleries see. Empty structure ⇒ identity.
-  const universe: AddGalleryItem[] = applyStructureToItems(
-    [...ADD_GALLERY_ITEMS, ...templateItems],
-    structure,
-  );
-  return buildCatalogAdminView(universe, overlays, statusByRef);
+  // Resolve placement (tab/category) the SAME way the live "+" gallery does so
+  // the Lab groups every component under its live-rendered tab/category (F4).
+  // The live read path applies the overlay FIRST, then the structure — so a
+  // structure `item:<id>` placement WINS over an overlay `category_override`.
+  // buildCatalogAdminView owns that precedence internally (base → overlay →
+  // structure); we therefore pass the RAW universe (not pre-structured) plus the
+  // structure map, so `baseCategory` stays the genuine default and the inversion
+  // — overlay winning in the Lab while structure wins live — is gone. Empty
+  // structure ⇒ identity.
+  const universe: AddGalleryItem[] = [...ADD_GALLERY_ITEMS, ...templateItems];
+  return buildCatalogAdminView(universe, overlays, statusByRef, structure);
 }

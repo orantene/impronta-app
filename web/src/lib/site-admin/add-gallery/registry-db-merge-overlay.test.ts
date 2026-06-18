@@ -26,6 +26,11 @@ import {
   type CatalogOverlayRow,
   type GalleryMergeContext,
 } from "./registry-db-merge";
+import {
+  applyStructureToItems,
+  type CatalogStructureMap,
+  type CatalogStructureRow,
+} from "./catalog-structure";
 import type { AddGalleryItem } from "./types";
 
 // ── fixtures ────────────────────────────────────────────────────────────────
@@ -269,16 +274,133 @@ test("buildCatalogAdminView: availability-hidden hides on both surfaces but item
   assert.deepEqual([view[0].talentVisible, view[0].workspaceVisible], [false, false]);
 });
 
-test("buildCatalogAdminView: status from statusByRef for templates, 'built-in' for code", () => {
+test("buildCatalogAdminView: status from statusByRef for templates, derived for code", () => {
   const universe: AddGalleryItem[] = [
     item({ id: "el-x" }),
     item({ id: "db:d", insertMethod: "dbTemplate", targetContext: "both" }),
     item({ id: "db:e", insertMethod: "dbTemplate", targetContext: "both" }),
   ];
   const view = buildCatalogAdminView(universe, {}, { "db:d": "draft" });
-  assert.equal(view.find((v) => v.id === "el-x")!.status, "built-in");
+  // Code items have NO lifecycle row → status is DERIVED from availability:
+  // not-hidden ⇒ 'published' (the synthetic 'built-in' literal was removed).
+  assert.equal(view.find((v) => v.id === "el-x")!.status, "published");
   assert.equal(view.find((v) => v.id === "db:d")!.status, "draft");
   assert.equal(view.find((v) => v.id === "db:e")!.status, "published"); // no entry → default
+});
+
+// ── F4: category/tab precedence — Lab (buildCatalogAdminView) == live gallery ──
+// The live "+" gallery resolves placement as: base → overlay → structure, with
+// the structure `item:<id>` row WINNING (it is the explicit "move this
+// component" control; see listGalleryItems.finalize). The Builder Lab's Catalog
+// Studio MUST resolve the same way, else the Lab shows a DIFFERENT category
+// layout than production. These tests pin the precedence and assert parity with
+// the live finalize ordering (applyCatalogOverlay → applyStructureToItems).
+
+function structRow(
+  over: Partial<CatalogStructureRow> & { ref: string },
+): CatalogStructureRow {
+  return {
+    kind: "item",
+    label_override: null,
+    icon_override: null,
+    parent_tab: null,
+    sort_order: null,
+    created: false,
+    hidden: false,
+    category_override: null,
+    ...over,
+  };
+}
+
+/** The LIVE finalize order: overlay first, then structure (structure wins). */
+function liveResolve(
+  it: AddGalleryItem,
+  overlays: CatalogOverlayMap,
+  structure: CatalogStructureMap,
+  ctx: GalleryMergeContext,
+): { tab: AddGalleryItem["tab"]; category: string } {
+  const [withOverlay] = applyCatalogOverlay([it], overlays, ctx);
+  const [out] = applyStructureToItems([withOverlay], structure);
+  return { tab: out.tab, category: out.category };
+}
+
+test("F4: structure category WINS over overlay category (Lab == live)", () => {
+  const it = item({ id: "el-button", category: "buttons", tab: "elements" });
+  const overlays: CatalogOverlayMap = {
+    "el-button": overlay({ category_override: "actions" }),
+  };
+  const structure: CatalogStructureMap = {
+    "item:el-button": structRow({
+      ref: "item:el-button",
+      category_override: "hero",
+    }),
+  };
+
+  // Live path: overlay sets "actions", structure overrides to "hero" → "hero".
+  const live = liveResolve(it, overlays, structure, {
+    galleryPolicy: POLICY,
+    surfaceTarget: null,
+    plan: null,
+    talentTier: null,
+  });
+  assert.equal(live.category, "hero");
+
+  // Lab path: buildCatalogAdminView with the structure map must match.
+  const [row] = buildCatalogAdminView([it], overlays, {}, structure);
+  assert.equal(
+    row.effectiveCategory,
+    live.category,
+    "Lab effectiveCategory must equal the live-resolved category (structure wins)",
+  );
+  // baseCategory stays the genuine code default (not the structure value), so the
+  // override-input placeholder still shows the real baseline.
+  assert.equal(row.baseCategory, "buttons");
+});
+
+test("F4: overlay category applies when NO structure row (Lab == live)", () => {
+  const it = item({ id: "el-button", category: "buttons" });
+  const overlays: CatalogOverlayMap = {
+    "el-button": overlay({ category_override: "actions" }),
+  };
+  const live = liveResolve(it, overlays, {}, {
+    galleryPolicy: POLICY,
+    surfaceTarget: null,
+    plan: null,
+    talentTier: null,
+  });
+  assert.equal(live.category, "actions");
+
+  const [row] = buildCatalogAdminView([it], overlays, {}, {});
+  assert.equal(row.effectiveCategory, "actions");
+  assert.equal(row.effectiveCategory, live.category);
+});
+
+test("F4: structure tab move is reflected in the Lab row (Lab == live)", () => {
+  const it = item({ id: "el-button", tab: "elements", category: "buttons" });
+  const structure: CatalogStructureMap = {
+    "item:el-button": structRow({
+      ref: "item:el-button",
+      parent_tab: "sections",
+    }),
+  };
+  const live = liveResolve(it, {}, structure, {
+    galleryPolicy: POLICY,
+    surfaceTarget: null,
+    plan: null,
+    talentTier: null,
+  });
+  assert.equal(live.tab, "sections");
+
+  const [row] = buildCatalogAdminView([it], {}, {}, structure);
+  assert.equal(row.tab, "sections");
+  assert.equal(row.tab, live.tab);
+});
+
+test("F4: empty structure ⇒ overlay-only placement (back-compat identity)", () => {
+  const it = item({ id: "el-button", category: "buttons", tab: "elements" });
+  const [row] = buildCatalogAdminView([it], {}, {});
+  assert.equal(row.effectiveCategory, "buttons");
+  assert.equal(row.tab, "elements");
 });
 
 // ── W13: applyCatalogOverlay null-surface / null-plan contract (homepage/Lab) ──

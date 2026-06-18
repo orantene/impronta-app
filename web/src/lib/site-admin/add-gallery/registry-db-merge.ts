@@ -31,7 +31,10 @@ import { templatePlanAllowed } from "@/lib/site-admin/builder-core/templates/reg
 import { templateRolloutAllowed } from "@/lib/site-admin/builder-core/templates/rollout";
 
 import { ADD_GALLERY_ITEMS } from "./registry";
-import { applyStructureToItems, type CatalogStructureMap } from "./catalog-structure";
+import {
+  applyStructureToItems,
+  type CatalogStructureMap,
+} from "./catalog-structure";
 import type { AddGalleryItem, AddGalleryTab } from "./types";
 
 // ── Plan rank (mirrors registry-rows.templatePlanAllowed / data-bindings PLAN_RANK) ──
@@ -150,6 +153,18 @@ export interface CatalogAdminItem {
  * Effective visibility = target_context allows the surface AND the overlay
  * doesn't disable it AND it isn't availability-hidden. Code items target "both".
  *
+ * CATEGORY/TAB PRECEDENCE — must match the LIVE "+" gallery (F4). The live read
+ * path (`listGalleryItems` → finalize) applies the overlay FIRST, then the
+ * catalog structure, so a structure `item:<id>` placement WINS over an overlay
+ * `category_override` ("structure wins on placement" — it is the explicit
+ * 'move this component' control). To keep the Lab == live, this view resolves
+ * placement the SAME way: base → overlay.category_override → structure
+ * (`item:<id>`) tab/category override. The optional `structure` arg is threaded
+ * by `loadCatalogAdminView`; omitted ⇒ overlay-only placement (identity for
+ * existing callers/tests). `baseCategory` is the genuine code/template default
+ * (pre-overlay, pre-structure) so the override-input placeholder shows the real
+ * baseline, and `tab`/`effectiveCategory` are the live-resolved placement.
+ *
  * NOTE: talentVisible/workspaceVisible intentionally IGNORE required_plan and
  * required_talent_tier gating, which the live consumer gallery DOES apply
  * (applyCatalogOverlay / listPublishedTemplates). So a column shown "visible"
@@ -161,11 +176,13 @@ export function buildCatalogAdminView(
   universe: ReadonlyArray<AddGalleryItem>,
   overlays: CatalogOverlayMap,
   statusByRef?: Record<string, string>,
+  structure: CatalogStructureMap = {},
 ): CatalogAdminItem[] {
   return universe.map((item) => {
     const source: "code" | "template" =
       item.insertMethod === "dbTemplate" ? "template" : "code";
     const ov = overlays[item.id] ?? null;
+    const structRow = structure[`item:${item.id}`] ?? null;
     const hidden = ov?.availability_override === "hidden";
     // Lifecycle status. DB templates carry a real status enum
     // (draft|in_review|published|archived). Code items have NO lifecycle row, so
@@ -188,9 +205,17 @@ export function buildCatalogAdminView(
       templateTargetAllowed(targetContext, "workspace") &&
       (ov ? ov.workspace_enabled : true) &&
       !hidden;
+    // LIVE-MATCHING placement (F4): base → overlay → structure, structure wins.
+    // Mirrors the live finalize() order (applyCatalogOverlay then
+    // applyStructureToItems). `item.tab`/`item.category` here are the genuine
+    // base (loadCatalogAdminView passes the raw universe, NOT pre-structured).
+    const effectiveTab: AddGalleryTab =
+      (structRow?.parent_tab as AddGalleryTab | null | undefined) ?? item.tab;
+    const effectiveCategory =
+      structRow?.category_override ?? ov?.category_override ?? item.category;
     return {
       id: item.id,
-      tab: item.tab,
+      tab: effectiveTab,
       source,
       dbTemplateId: source === "template" ? item.dbTemplateId : undefined,
       status,
@@ -205,7 +230,7 @@ export function buildCatalogAdminView(
       talentVisible,
       workspaceVisible,
       effectiveLabel: ov?.label_override ?? item.label,
-      effectiveCategory: ov?.category_override ?? item.category,
+      effectiveCategory,
     };
   });
 }
