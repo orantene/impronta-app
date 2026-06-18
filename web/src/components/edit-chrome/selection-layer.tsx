@@ -3312,6 +3312,16 @@ export function SelectionLayer() {
     },
     [pasteCopiedBuilderNode, reportMutationError],
   );
+  // CANVAS-7 — cut the currently-selected block from the chip "More" menu.
+  // Routes through the shared selection-based cut chokepoint (copy + remove +
+  // the correct "Cut" success toast) rather than re-implementing copy/remove
+  // here, so the chip menu and the ⌘X shortcut share one path on every surface.
+  const commitChildCut = useCallback(async () => {
+    const cut = await cutSelectedBuilderNodes();
+    if (!cut.ok && cut.error) {
+      reportMutationError(cut.error);
+    }
+  }, [cutSelectedBuilderNodes, reportMutationError]);
   useEffect(() => {
     if (drag.phase !== "idle") return;
     function reportResult(result: { ok: boolean; error?: string }) {
@@ -5014,6 +5024,15 @@ export function SelectionLayer() {
                   if (!selectedBuilderNodeId) return;
                   void commitChildCopy(selectedBuilderNodeId);
                 }}
+                onCut={() => {
+                  if (!selectedBuilderNodeId) return;
+                  void commitChildCut();
+                }}
+                onPaste={
+                  copiedBuilderNodeKind && selectedBuilderNodeId
+                    ? () => void commitChildPaste(selectedBuilderNodeId)
+                    : null
+                }
                 onDuplicate={() => {
                   if (!selectedBuilderNodeId) return;
                   void commitChildDuplicate(selectedBuilderNodeId);
@@ -6866,6 +6885,8 @@ function BlockChipToolBar({
   onAddBefore,
   onAddAfter,
   onCopy,
+  onCut,
+  onPaste,
   onDuplicate,
   onRemoveTrigger,
   onRemoveConfirm,
@@ -6887,6 +6908,11 @@ function BlockChipToolBar({
   onAddBefore: (() => void) | null;
   onAddAfter: (() => void) | null;
   onCopy: () => void;
+  // CANVAS-7 — Cut + Paste join Copy/Duplicate in the chip "More" menu so all
+  // four block clipboard gestures are reachable from one consistent surface.
+  // Paste is null when the clipboard is empty (nothing to paste).
+  onCut: () => void;
+  onPaste: (() => void) | null;
   onDuplicate: () => void;
   onRemoveTrigger: () => void;
   onRemoveConfirm: () => void;
@@ -7003,6 +7029,9 @@ function BlockChipToolBar({
         onMoveUp={onMoveUp}
         onMoveDown={onMoveDown}
         onCopy={onCopy}
+        onCut={onCut}
+        onPaste={onPaste}
+        onDuplicate={onDuplicate}
       />
       {/* Hairline divider separating the destructive Delete from the
           non-destructive primary actions. */}
@@ -7045,6 +7074,9 @@ function BlockChipOverflowMenu({
   onMoveUp,
   onMoveDown,
   onCopy,
+  onCut,
+  onPaste,
+  onDuplicate,
 }: {
   btnStyle: React.CSSProperties;
   disabled: boolean;
@@ -7053,6 +7085,11 @@ function BlockChipOverflowMenu({
   onMoveUp: (() => void) | null;
   onMoveDown: (() => void) | null;
   onCopy: () => void;
+  // CANVAS-7 — the full copy/cut/paste/duplicate quartet lives here so every
+  // clipboard gesture is reachable from one menu. Paste is null when empty.
+  onCut: () => void;
+  onPaste: (() => void) | null;
+  onDuplicate: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -7138,6 +7175,18 @@ function BlockChipOverflowMenu({
           </ContextMenuButton>
           <ContextMenuButton disabled={disabled} onClick={() => run(onCopy)}>
             Copy
+          </ContextMenuButton>
+          <ContextMenuButton disabled={disabled} onClick={() => run(onCut)}>
+            Cut
+          </ContextMenuButton>
+          <ContextMenuButton
+            disabled={disabled || !onPaste}
+            onClick={() => onPaste && run(onPaste)}
+          >
+            Paste
+          </ContextMenuButton>
+          <ContextMenuButton disabled={disabled} onClick={() => run(onDuplicate)}>
+            Duplicate
           </ContextMenuButton>
         </div>
       ) : null}
