@@ -10,7 +10,7 @@ import { ProfileShareRow } from "./_light/ProfileShareRow";
 import { ProfileHubsIndicator } from "./_light/ProfileHubsIndicator";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 
-import { ProfileViewAnalytics } from "@/components/analytics/profile-view-analytics";
+import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
 import {
   DiscoveryStateBridge,
   PublicDiscoveryStateProvider,
@@ -2226,7 +2226,17 @@ export default async function PublicTalentProfilePage({
           <PublicFlashHost dismissAria={ui.flash.dismissAria} />
           {/* A11Y-2 — skip link is first focusable element, before all navigation. */}
           <SkipToContent />
-          <ProfileViewAnalytics talentId={profile.id} locale={locale} />
+          {/* ANALYTICS-2 — unified first-party page-view; talent-profile also
+              emits the legacy view_talent_profile event (distinct name) so the
+              inquiry-funnel loaders keep counting. tenantId = the resolved
+              managing tenant (agency host → that tenant; platform → hub). */}
+          <SitePageViewAnalytics
+            surface="talent-profile"
+            tenantId={chatTenantId}
+            talentId={profile.id}
+            pageSlug={profileSourcePage}
+            locale={locale}
+          />
 
           {platformChrome ? (
             // PLATFORM HOST — wrap in the real tulala.digital marketing chrome

@@ -107,10 +107,13 @@ function Tile({ label, value, current, prior, accent, fmtPrior }: { label: strin
 
 export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: WebsiteAnalytics; pages: WebsitePageRow[]; fmtMoney: (n: number) => string }) {
   const [period, setPeriod] = useState<"7d" | "30d">("7d");
-  const [topView, setTopView] = useState<"pages" | "talent">("pages");
+  const [topView, setTopView] = useState<"pages" | "talent" | "referrers">("pages");
   const m: WebsitePeriodMetrics = period === "7d" ? analytics.last7d : analytics.last30d;
   const byPage = period === "7d" ? analytics.byPage7d : analytics.byPage30d;
   const byTalent = period === "7d" ? analytics.byTalent7d : analytics.byTalent30d;
+  // ANALYTICS-2 — top referrers (host) from the real view_site_page payload.
+  const byReferrer = period === "7d" ? analytics.topReferrers7d : analytics.topReferrers30d;
+  const topReferrers = byReferrer.filter(r => r.visits > 0).slice(0, 6);
   const overallConv = m.visits > 0 ? (m.bookings / m.visits) * 100 : 0;
   const v2i = m.visits > 0 ? (m.inquiries / m.visits) * 100 : 0;
   const i2b = m.inquiries > 0 ? (m.bookings / m.inquiries) * 100 : 0;
@@ -119,7 +122,15 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
     .filter(p => p.visits > 0)
     .sort((a, b) => b.visits - a.visits)
     .slice(0, 4)
-    .map(p => ({ ...p, title: pages.find(pg => pg.id === p.pageId)?.title ?? "—" }));
+    // ANALYTICS-2 — title resolves by page id, then by slug (talent-site rows
+    // may key only on slug), then falls back to the raw page key.
+    .map(p => ({
+      ...p,
+      title:
+        pages.find(pg => pg.id === p.pageId)?.title ??
+        pages.find(pg => pg.slug === p.pageId)?.title ??
+        p.pageId,
+    }));
 
   const topTalent = byTalent
     .filter(t => t.visits > 0)
@@ -170,10 +181,11 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", fontFamily: FONTS.body }} className="text-admin-ink-muted">Top performers</div>
             <div style={{ display: "inline-flex", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 999, padding: 3, fontFamily: FONTS.body }} className="bg-admin-surface-alt">
-              {(["pages", "talent"] as const).map(v => {
+              {(["pages", "talent", "referrers"] as const).map(v => {
                 const active = topView === v;
+                const label = v === "pages" ? "Pages" : v === "talent" ? "Talent" : "Referrers";
                 return (
-                  <button key={v} type="button" onClick={() => setTopView(v)} style={{ padding: "5px 14px", fontSize: 11.5, fontWeight: 600, letterSpacing: 0.2, borderRadius: 999, border: "none", cursor: "pointer", background: active ? "#fff" : "transparent", color: active ? COLORS.ink : COLORS.inkMuted, boxShadow: active ? "0 1px 3px rgba(0,0,0,0.06)" : "none", transition: "all 120ms ease" }}>{v === "pages" ? "Pages" : "Talent"}</button>
+                  <button key={v} type="button" onClick={() => setTopView(v)} style={{ padding: "5px 14px", fontSize: 11.5, fontWeight: 600, letterSpacing: 0.2, borderRadius: 999, border: "none", cursor: "pointer", background: active ? "#fff" : "transparent", color: active ? COLORS.ink : COLORS.inkMuted, boxShadow: active ? "0 1px 3px rgba(0,0,0,0.06)" : "none", transition: "all 120ms ease" }}>{label}</button>
                 );
               })}
             </div>
@@ -231,6 +243,41 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* ANALYTICS-2 — top-referrers table. Rendered with Tailwind admin
+              tokens only (no inline style) so the frozen no-new-inline-style
+              ratchet under components/admin/shell stays at its baseline. */}
+          {topView === "referrers" && topReferrers.length > 0 && (
+            <div className="overflow-hidden rounded-[10px] border border-admin-border-soft">
+              <div className="grid grid-cols-[2fr_1fr_1fr] border-b border-admin-border-soft bg-admin-surface-alt px-3.5 py-2 text-admin-10 font-semibold uppercase tracking-[0.5px] text-admin-ink-muted">
+                <div>Referrer</div>
+                <div className="text-right">Visits</div>
+                <div className="text-right">Share</div>
+              </div>
+              {topReferrers.map((r, i) => {
+                const total = topReferrers.reduce((sum, x) => sum + x.visits, 0);
+                const share = total > 0 ? (r.visits / total) * 100 : 0;
+                return (
+                  <div
+                    key={r.referrer}
+                    className={`grid grid-cols-[2fr_1fr_1fr] items-center px-3.5 py-2.5 text-admin-13 text-admin-ink ${i === 0 ? "" : "border-t border-admin-border-soft"}`}
+                  >
+                    <span className="truncate font-semibold">{r.referrer === "direct" ? "Direct / none" : r.referrer}</span>
+                    <span className="text-right tabular-nums">{r.visits.toLocaleString()}</span>
+                    <span className="text-right tabular-nums text-admin-ink-muted">{share.toFixed(1)}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {((topView === "pages" && topPages.length === 0) ||
+            (topView === "talent" && topTalent.length === 0) ||
+            (topView === "referrers" && topReferrers.length === 0)) && (
+            <div className="rounded-[10px] border border-admin-border-soft px-3.5 py-4 text-center text-admin-12 text-admin-ink-muted">
+              No {topView === "pages" ? "page" : topView === "talent" ? "talent" : "referrer"} data for this period yet.
             </div>
           )}
         </div>

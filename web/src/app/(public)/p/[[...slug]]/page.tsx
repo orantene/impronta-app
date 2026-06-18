@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
+import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { PublicHeader } from "@/components/public-header";
 import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
@@ -186,6 +187,17 @@ export default async function CmsPublicPage({
       return (
         <>
           <SkipToContent />
+          {/* ANALYTICS-2 — storefront page-view (freeform CMS page). Only on the
+              published path (drafts render under preview; not counted). */}
+          {freeformPage.status === "published" ? (
+            <SitePageViewAnalytics
+              surface="storefront"
+              tenantId={publicScope.tenantId}
+              pageId={freeformPage.id}
+              pageSlug={slugPath}
+              locale={locale}
+            />
+          ) : null}
           <JsonLdScript script={jsonLdScript} />
           <PublicHeader />
           <main id="main-content" className="w-full flex-1" data-theme-canvas-root="">
@@ -219,6 +231,13 @@ export default async function CmsPublicPage({
     return (
       <>
         <SkipToContent />
+        {/* ANALYTICS-2 — storefront page-view (section-composed CMS page). */}
+        <SitePageViewAnalytics
+          surface="storefront"
+          tenantId={publicScope.tenantId}
+          pageSlug={slugPath}
+          locale={locale}
+        />
         <JsonLdScript script={jsonLdScript} />
         <PublicHeader />
         <main id="main-content" className="w-full flex-1">
@@ -249,6 +268,13 @@ export default async function CmsPublicPage({
   return (
     <>
       <SkipToContent />
+      {/* ANALYTICS-2 — storefront page-view (legacy published CMS page). */}
+      <SitePageViewAnalytics
+        surface="storefront"
+        tenantId={publicScope.tenantId}
+        pageSlug={slugPath}
+        locale={locale}
+      />
       <JsonLdScript script={jsonLdScript} />
       <PublicHeader />
       <main id="main-content" className="w-full flex-1 px-4 py-16 sm:px-6 lg:px-8">

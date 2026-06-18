@@ -1,4 +1,5 @@
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
+import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
@@ -286,6 +287,18 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
         ) : null}
         {/* A11Y-2 — skip link must be first focusable element before any nav. */}
         <SkipToContent />
+        {/* ANALYTICS-2 — first-party page-view for the storefront home (slug "/")
+            so storefront feeds the SAME view_site_page stream + admin loader as
+            talent-profile/talent-site. Suppressed under edit/preview chrome so
+            an operator's own draft views don't pollute the tenant's numbers. */}
+        {!editActive && !previewActive ? (
+          <SitePageViewAnalytics
+            surface="storefront"
+            tenantId={tenantId}
+            pageSlug="/"
+            locale={locale}
+          />
+        ) : null}
         {/* Phase B.2.A mutex — snapshot shell wins when its gates open;
          *  otherwise legacy PublicHeader. Never both. Kept in Phase 5. */}
         {snapshotShellActive && cmsLocale ? (

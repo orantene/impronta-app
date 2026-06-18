@@ -2662,6 +2662,15 @@ export type WebsiteTalentMetrics = {
   topPageId?: string;
 };
 
+/**
+ * ANALYTICS-2 — a top-referrer row for the WebsitePerformance panel, grouped
+ * from `view_site_page` payload `referrer` (host-normalized; "direct" when none).
+ */
+export type WebsiteReferrerMetrics = {
+  referrer: string;
+  visits: number;
+};
+
 export type WebsiteAnalytics = {
   refreshedAt: string;
   last7d: WebsitePeriodMetrics;
@@ -2670,6 +2679,9 @@ export type WebsiteAnalytics = {
   byPage30d: WebsitePageMetrics[];
   byTalent7d: WebsiteTalentMetrics[];
   byTalent30d: WebsiteTalentMetrics[];
+  /** ANALYTICS-2 — top referrers (host) over the trailing window. */
+  topReferrers7d: WebsiteReferrerMetrics[];
+  topReferrers30d: WebsiteReferrerMetrics[];
 };
 
 export type WebsiteState = {

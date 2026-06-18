@@ -24,6 +24,10 @@ import { logServerError } from "@/lib/server/safe-error";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 import { contactFormSchemaV1 } from "@/lib/site-admin/sections/contact_form/schema";
+import { decideFormRouting } from "@/lib/site-admin/sections/contact_form/inquiry-routing";
+import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
+import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
+import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 
 /**
  * FORMS-1 — hard cap for file-size metadata enforcement.
@@ -133,11 +137,13 @@ export async function POST(req: Request) {
   // bounds). This lets us enforce consent + number coercion + file metadata
   // SERVER-SIDE — client-only required attributes are bypassable by bots.
   // Falls back gracefully (no 500) when props are absent or not a contact_form.
-  if (!tripped && section.section_type_key === "contact_form") {
-    const parsedProps = contactFormSchemaV1.safeParse(
-      section.props_jsonb ?? {},
-    );
-    if (parsedProps.success) {
+  // The parsed props are also reused by FORMS-2 inquiry routing below.
+  const parsedProps =
+    section.section_type_key === "contact_form"
+      ? contactFormSchemaV1.safeParse(section.props_jsonb ?? {})
+      : null;
+  if (!tripped && parsedProps?.success) {
+    {
       for (const field of parsedProps.data.fields) {
         const rawValue = payload[field.name];
 
@@ -325,6 +331,67 @@ export async function POST(req: Request) {
     }
   }
 
+  // ── FORMS-2 — form-to-inquiry routing ────────────────────────────────────
+  // When the section is set to routingMode='inquiry', funnel the submission
+  // into the SHARED inquiry engine (createInquiryFromIntent) — the same entry
+  // point the talent profile + guest chat use — instead of recording a generic
+  // inbox row. Runs ONLY after every spam/consent/captcha guard above has
+  // passed (honeypot trips never reach here — `tripped` short-circuits to the
+  // inbox spam-row path below). A submission that can't form a valid intent
+  // FAILS SAFE to the inbox insert (no orphan inquiries). The tenant is taken
+  // strictly from the trusted section.tenant_id — never from payload — so this
+  // public endpoint can't be turned into a cross-tenant inquiry-injection
+  // vector.
+  if (!tripped && parsedProps?.success) {
+    const decision = decideFormRouting(parsedProps.data, payload, {
+      referrerUrl: req.headers.get("referer"),
+    });
+    if (decision.mode === "inquiry") {
+      const inquiryResult = await routeFormSubmissionToInquiry({
+        admin,
+        tenantId: section.tenant_id,
+        originDomain: req.headers.get("host"),
+        decision,
+      });
+      if (inquiryResult.ok) {
+        // A real inquiry was created — do NOT also write a cms_form_submissions
+        // row (the plan requires inquiry mode to REPLACE the inbox insert).
+        return respondSuccess(req);
+      }
+      // Engine rejected with an honest visitor-facing reason (validation /
+      // rate-limit / forbidden). Surface it; do not silently fall through to
+      // the inbox, which would mask the failure from the visitor.
+      if (inquiryResult.reason === "rate_limited") {
+        return NextResponse.json(
+          { ok: false, error: "Too many submissions, slow down." },
+          { status: 429 },
+        );
+      }
+      if (
+        inquiryResult.reason === "forbidden" ||
+        inquiryResult.reason === "target_not_on_roster"
+      ) {
+        return NextResponse.json(
+          { ok: false, error: "This form can't accept submissions right now." },
+          { status: 400 },
+        );
+      }
+      if (inquiryResult.reason === "validation_failed") {
+        return NextResponse.json(
+          { ok: false, error: "Please complete the required fields." },
+          { status: 400 },
+        );
+      }
+      // engine_error / unknown — record to the inbox as a durable fallback so
+      // the visitor's message is never lost, then succeed.
+      logServerError(
+        "cms-forms/submit/inquiry-fallback",
+        new Error(inquiryResult.reason),
+      );
+      // fall through to the inbox insert below.
+    }
+  }
+
   // Project email + name when present (cheap admin-list field).
   const contactEmail =
     typeof payload.email === "string"
@@ -410,15 +477,21 @@ export async function POST(req: Request) {
     }
   }
 
-  // Native HTML form submissions expect a redirect; programmatic
-  // callers expect JSON. Honor `Accept` to pick.
+  return respondSuccess(req);
+}
+
+/**
+ * Success response shared by the inbox path AND the FORMS-2 inquiry path.
+ *
+ * Native HTML form submissions expect a redirect back to the originating page
+ * (with the `__tulala_form=ok` flag the section renderer reads to show its
+ * thanks message); programmatic callers expect JSON. Honor `Accept` to pick.
+ */
+function respondSuccess(req: Request): NextResponse {
   const accept = req.headers.get("accept") ?? "";
   if (accept.includes("application/json")) {
     return NextResponse.json({ ok: true });
   }
-  // Redirect back to the page that submitted — query string carries a
-  // success flag the section's renderer can pick up to show a thanks
-  // message client-side.
   const referer = req.headers.get("referer");
   if (referer) {
     const url = new URL(referer);
@@ -426,4 +499,76 @@ export async function POST(req: Request) {
     return NextResponse.redirect(url.toString(), 303);
   }
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * FORMS-2 — provision the guest client, roster-validate the target talent, and
+ * funnel the built intent through the SHARED inquiry engine. This is the ONLY
+ * inquiry-creation path the form uses — it never INSERTs into public.inquiries
+ * directly (engine spec forbids it).
+ *
+ * SECURITY: `tenantId` is the trusted section.tenant_id (caller-supplied from
+ * the DB row, never the payload). The decision's `targetTalentId` is the only
+ * client-influenced input and is roster-validated against this tenant BEFORE
+ * the engine call, so a crafted form can't file an inquiry naming an off-roster
+ * or cross-tenant talent.
+ */
+async function routeFormSubmissionToInquiry(args: {
+  admin: ReturnType<typeof createServiceRoleClient>;
+  tenantId: string;
+  originDomain: string | null;
+  decision: Extract<
+    ReturnType<typeof decideFormRouting>,
+    { mode: "inquiry" }
+  >;
+}): Promise<
+  | { ok: true; inquiryId: string }
+  | {
+      ok: false;
+      reason:
+        | "validation_failed"
+        | "rate_limited"
+        | "forbidden"
+        | "engine_error"
+        | "target_not_on_roster";
+    }
+> {
+  const { admin, tenantId, originDomain, decision } = args;
+  if (!admin) return { ok: false, reason: "engine_error" };
+
+  // Roster gate — a configured target MUST be on THIS tenant's visible roster.
+  if (decision.targetTalentId) {
+    const roster = await assertAllTalentOnTenantRoster(admin, tenantId, [
+      decision.targetTalentId,
+    ]);
+    if (!roster.ok) {
+      logServerError(
+        "cms-forms/submit/inquiry-roster",
+        new Error(`target not on roster: ${roster.missingIds.join(",")}`),
+      );
+      return { ok: false, reason: "target_not_on_roster" };
+    }
+  }
+
+  // Provision (or match) a guest client by email so the inquiry has a real
+  // client participant + the visitor can claim it later via magic link. An
+  // "unlinked" result (email belongs to a privileged account) keeps
+  // clientUserId null — the inquiry is still created. Email is required for
+  // inquiry mode (decideFormRouting only emits inquiry mode with a contact).
+  const provisioned = await ensureGuestClientByEmail({
+    email: decision.contactEmail,
+    name: decision.contactName,
+    company: "",
+    phone: decision.contactPhone ?? "",
+  });
+
+  const created = await createInquiryFromIntent(admin, decision.intent, {
+    tenant_id: tenantId,
+    actor_user_id: null,
+    client_user_id: provisioned.clientUserId,
+    origin_domain: originDomain,
+  });
+
+  if (!created.ok) return { ok: false, reason: created.reason };
+  return { ok: true, inquiryId: created.inquiryId };
 }

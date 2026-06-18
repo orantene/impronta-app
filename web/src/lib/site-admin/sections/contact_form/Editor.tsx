@@ -33,6 +33,8 @@ export function ContactFormEditor({
     successMessage: initial.successMessage ?? "Thanks — we'll be in touch.",
     variant: initial.variant ?? "card",
     captcha: initial.captcha ?? "none",
+    routingMode: initial.routingMode ?? "internal",
+    inquiryTargetTalentId: initial.inquiryTargetTalentId,
     presentation: initial.presentation,
   };
   return (
