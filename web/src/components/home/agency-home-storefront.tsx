@@ -256,6 +256,14 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
       // touching the published <html>. Harmless (an unused data-attr) when
       // rendered for an anonymous storefront visitor.
       data-theme-canvas-root=""
+      // A11Y-1 — stable marker so `drawer-modal-inert` can mark the homepage
+      // storefront body (this `{children}` canvas, which lives BEHIND the editor
+      // chrome) inert while a modal drawer is open. The non-homepage surfaces
+      // expose `data-in-editor-canvas-region`; the homepage paints into THIS
+      // body instead, so it needs its own marker. Only emitted under the editor
+      // chrome (gated on `editActive`) so an anonymous storefront visitor never
+      // carries an editor-only attribute.
+      data-edit-storefront-canvas={editActive ? "" : undefined}
     >
       {jsonLdScript ? (
         <script

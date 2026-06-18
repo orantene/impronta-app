@@ -26,6 +26,7 @@ function headingSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSPropertie
   if (size === "sm") return "clamp(1.7rem, 3.8vw, 2.85rem)";
   if (size === "lg") return "clamp(2.25rem, 5.6vw, 4.35rem)";
   if (size === "xl") return "clamp(2.6rem, 6.6vw, 5.2rem)";
+  if (size === "display") return "clamp(3.5rem, 6vw, 6rem)";
   return undefined;
 }
 
@@ -33,6 +34,7 @@ function paragraphSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSPropert
   if (size === "sm") return "clamp(0.92rem, 1.15vw, 1.06rem)";
   if (size === "lg") return "clamp(1.08rem, 1.58vw, 1.36rem)";
   if (size === "xl") return "clamp(1.2rem, 1.85vw, 1.56rem)";
+  if (size === "display") return "clamp(2rem, 4vw, 4.5rem)";
   return undefined;
 }
 
@@ -47,6 +49,7 @@ function ctaSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties {
   if (size === "sm") return { padding: "0.66rem 1.2rem", fontSize: "0.84rem" };
   if (size === "lg") return { padding: "0.95rem 1.8rem", fontSize: "1.02rem" };
   if (size === "xl") return { padding: "1.08rem 2.1rem", fontSize: "1.08rem" };
+  if (size === "display") return { padding: "1.08rem 2.1rem", fontSize: "1.08rem" };
   return {};
 }
 
