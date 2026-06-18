@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
 import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
 import { loadAccessProfile } from "@/lib/access-profile";
 import {
@@ -132,6 +133,13 @@ export async function updateSession(
   );
 
   const supabase = createServerClient(url, anon, {
+    // Flag-gated refresh-token coordination. OFF (default) →
+    // `authCoordinationOptions()` is `undefined`, the spread is a no-op, and the
+    // client is built exactly as before. ON → spreads `{ auth: { lock:
+    // processLock } }` so this proxy client shares the process-wide refresh
+    // mutex with the RSC server client and never double-rotates a token that a
+    // concurrent path already consumed. See lib/supabase/auth-coordination.ts.
+    ...authCoordinationOptions(),
     cookies: {
       getAll() {
         return request.cookies.getAll();
