@@ -7,7 +7,10 @@ import { loadIdentityForStaff } from "@/lib/site-admin/server/reads";
 import {
   loadWebsiteAnalytics,
   emptyWebsiteAnalytics,
+  loadWebsiteConversionMetrics,
+  emptyWebsiteConversionMetrics,
   type WebsiteAnalyticsData,
+  type WebsiteConversionMetrics,
 } from "@/lib/analytics/website-analytics";
 import {
   loadWorkspaceDomainSummary,
@@ -62,6 +65,13 @@ export type WebsiteData = {
    * fixture zero; `mergeWebsiteStateFromBridge` projects it into the panel shape.
    */
   analytics: WebsiteAnalyticsData;
+  /**
+   * ANALYTICS-1 — real tenant conversion metrics (inquiries / confirmed
+   * bookings / settled revenue) for the 7d + 30d windows, read from
+   * `inquiries` / `agency_bookings` / `booking_transactions`. Un-zeros the
+   * money tiles in the WebsitePerformance panel.
+   */
+  conversion: WebsiteConversionMetrics;
 };
 
 /**
@@ -90,12 +100,13 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
     seoDescription: null,
     domainSummary: emptyDomainSummary,
     analytics: emptyWebsiteAnalytics(),
+    conversion: emptyWebsiteConversionMetrics(),
   };
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return empty;
 
-    const [pagesRaw, postsRes, redirectsRes, identity, domainSummary, analytics] = await Promise.all([
+    const [pagesRaw, postsRes, redirectsRes, identity, domainSummary, analytics, conversion] = await Promise.all([
       listPagesForStaff(supabase, tenantId).catch(() => []),
       supabase
         .from("cms_posts")
@@ -112,6 +123,7 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
       loadIdentityForStaff(supabase, tenantId).catch(() => null),
       loadWorkspaceDomainSummary(tenantId).catch(() => emptyDomainSummary),
       loadWebsiteAnalytics(tenantId).catch(() => emptyWebsiteAnalytics()),
+      loadWebsiteConversionMetrics(tenantId).catch(() => emptyWebsiteConversionMetrics()),
     ]);
 
     type PostRow = { id: string; slug: string; title: string; status: string; updated_at: string | null };
@@ -145,6 +157,7 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
       seoDescription: identity?.seo_default_description ?? null,
       domainSummary,
       analytics,
+      conversion,
     };
   } catch (err) {
     logServerError("workspace.loadWebsiteData", err);
