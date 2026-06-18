@@ -393,6 +393,11 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                             on={r.surfaceVisible[sk]}
                             disabled={busy || !allowed}
                             locked={!allowed}
+                            lockedTooltip={
+                              !allowed
+                                ? `This component targets "${r.targetContext}"; can't be enabled on ${CATALOG_SURFACE_LABEL[sk]}.`
+                                : undefined
+                            }
                             onClick={() => onToggleSurface(r, sk)}
                             label={r.effectiveLabel}
                             surface={CATALOG_SURFACE_LABEL[sk]}
@@ -840,6 +845,7 @@ function ToggleCell({
   on,
   disabled,
   locked,
+  lockedTooltip,
   onClick,
   label,
   surface,
@@ -847,12 +853,15 @@ function ToggleCell({
   on: boolean;
   disabled: boolean;
   locked: boolean;
+  /** Custom tooltip shown when `locked` is true. Falls back to a generic
+   *  "Not targeted to this surface" message when not provided. */
+  lockedTooltip?: string;
   onClick: () => void;
   label: string;
   surface: string;
 }) {
   const title = locked
-    ? "Not targeted to this surface"
+    ? (lockedTooltip ?? "Not targeted to this surface")
     : on
       ? "Visible — click to hide"
       : "Hidden — click to show";

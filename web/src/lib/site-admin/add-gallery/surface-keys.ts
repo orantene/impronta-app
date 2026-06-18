@@ -118,3 +118,29 @@ export function labEnabledForRow(
   if (typeof explicit === "boolean") return explicit;
   return true;
 }
+
+/**
+ * X3 — tighten-only invariant predicate (PURE). Returns `true` when a given
+ * `surfaceKey` is permitted by `targetContext` — i.e., enabling that surface
+ * for this component would NOT widen the component beyond its declared target.
+ *
+ * Rules:
+ *  • `"both"` or `"platform"` ⇒ all four tenant surfaces are permitted.
+ *  • `"talent"` ⇒ only `talent_profile` and `talent_shell` are permitted.
+ *  • `"workspace"` ⇒ only `workspace_page` and `workspace_shell` are permitted.
+ *
+ * The `lab_enabled` axis is NEVER target-locked — the Lab authors for every
+ * audience, so callers must exclude it from this guard (it is not a
+ * `CatalogSurfaceKey`, so the type already prevents passing it here).
+ *
+ * Import DIRECTLY from `surface-keys.ts`, not the `add-gallery` barrel (the
+ * barrel drags a `.css` side-effect that breaks the tsx test runner).
+ */
+export function surfaceAllowedForTarget(
+  targetContext: "talent" | "workspace" | "both" | "platform",
+  surfaceKey: CatalogSurfaceKey,
+): boolean {
+  if (targetContext === "both" || targetContext === "platform") return true;
+  const requiredTarget = surfaceKeyToTarget(surfaceKey);
+  return requiredTarget === targetContext;
+}

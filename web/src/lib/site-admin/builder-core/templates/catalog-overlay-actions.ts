@@ -23,6 +23,11 @@ import { createClient } from "@/lib/supabase/server";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
 import { bumpCatalogVersion } from "./catalog-version";
 import { appendBuilderLabAudit } from "./builder-lab-audit";
+import {
+  CATALOG_SURFACE_KEYS,
+  surfaceAllowedForTarget,
+  type CatalogSurfaceKey,
+} from "@/lib/site-admin/add-gallery/surface-keys";
 import type {
   CatalogOverlayMap,
   CatalogOverlayRow,
@@ -115,6 +120,29 @@ export async function getCatalogVersion(): Promise<number | null> {
 // ── writes (super_admin) ─────────────────────────────────────────────────────
 
 /**
+ * X3 — look up a template's `target_context` from `builder_templates` given the
+ * gallery `item_ref` (which is `db-template:<uuid>` for DB-backed rows). Returns
+ * `"both"` for code items (they carry no DB row; the coarse default = no restriction).
+ * Returns `null` if the DB row is missing (caller treats as non-fatal — a missing
+ * template row is a data integrity issue unrelated to the overlay write).
+ */
+async function fetchTemplateTargetContext(
+  sb: ReturnType<typeof import("@/lib/supabase/admin").createServiceRoleClient>,
+  itemRef: string,
+  source: "code" | "template",
+): Promise<"talent" | "workspace" | "both" | "platform" | null> {
+  if (source !== "template") return "both"; // code items: no target_context row
+  const uuid = itemRef.startsWith("db-template:") ? itemRef.slice("db-template:".length) : itemRef;
+  const { data } = await (sb as NonNullable<typeof sb>)
+    .from("builder_templates")
+    .select("target_context")
+    .eq("id", uuid)
+    .maybeSingle();
+  if (!data) return null;
+  return (data.target_context as "talent" | "workspace" | "both" | "platform") ?? "both";
+}
+
+/**
  * Upsert an overlay for one gallery item. Only the provided fields are written;
  * a brand-new row takes table defaults (both surfaces enabled, no overrides).
  */
@@ -125,6 +153,39 @@ export async function setComponentOverlay(
   if (!gate.ok) return fail(gate.error);
 
   if (!input.item_ref) return fail("Missing item reference.");
+
+  // X3 — tighten-only invariant guard: reject any attempt to ENABLE a surface
+  // that the component's target_context excludes. lab_enabled is never gated.
+  // We only need to run the DB lookup when at least one surface toggle is being
+  // set to `true`; disable-only writes and non-surface fields always proceed.
+  const surfaceKeyToInputField: Record<CatalogSurfaceKey, keyof SetCatalogOverlayInput> = {
+    talent_profile: "talent_profile_enabled",
+    talent_shell: "talent_shell_enabled",
+    workspace_page: "workspace_page_enabled",
+    workspace_shell: "workspace_shell_enabled",
+  };
+  const enablingKeys = CATALOG_SURFACE_KEYS.filter(
+    (sk) => input[surfaceKeyToInputField[sk]] === true,
+  );
+  if (enablingKeys.length > 0) {
+    try {
+      const sbGuard = getAdminClient();
+      const targetCtx = await fetchTemplateTargetContext(sbGuard, input.item_ref, input.source);
+      if (targetCtx !== null) {
+        const violations = enablingKeys.filter(
+          (sk) => !surfaceAllowedForTarget(targetCtx, sk),
+        );
+        if (violations.length > 0) {
+          return fail(
+            `Tighten-only invariant: component targets "${targetCtx}"; cannot enable surface(s): ${violations.join(", ")}.`,
+          );
+        }
+      }
+    } catch (err) {
+      logServerError("setComponentOverlay.guardLookup", err);
+      // Non-fatal lookup error — proceed; the overlay write itself may still error.
+    }
+  }
 
   const payload: Record<string, unknown> = {
     item_ref: input.item_ref,
