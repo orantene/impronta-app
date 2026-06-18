@@ -38,6 +38,7 @@ import {
   rollbackToRevision,
   setTemplateRollout,
   listPublishedTemplates,
+  getPublishDiff,
 } from "@/lib/site-admin/builder-core/templates/registry-actions";
 import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
 import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
@@ -46,6 +47,7 @@ import {
   RevisionList,
   PublishNotePanel,
 } from "./template-revision-list";
+import type { TemplateTreeDiff } from "@/lib/site-admin/builder-core/templates/validate-publish";
 import { RolloutPanel, rolloutSummary } from "./template-rollout-panel";
 import type {
   BuilderTemplateRow,
@@ -413,6 +415,30 @@ function TemplateRowCard({
   const [showRollout, setShowRollout] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [changelog, setChangelog] = useState("");
+  // G3 — advisory diff verdict fetched when the publish panel opens.
+  const [publishDiff, setPublishDiff] = useState<{
+    treeDiff: TemplateTreeDiff;
+    publishedVersion: number | null;
+  } | null>(null);
+
+  // Fetch the diff when the publish panel opens so the admin sees "no changes
+  // since v(N)" vs "tree changed since v(N)" before confirming.
+  useEffect(() => {
+    if (!publishing) {
+      setPublishDiff(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const res = await getPublishDiff(row.id).catch(() => null);
+      if (cancelled || !res || !res.ok) return;
+      setPublishDiff(res.data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [publishing, row.id]);
+
   const rolloutPct = row.rollout_percentage ?? 100;
   const statusTone =
     row.status === "published"
@@ -510,6 +536,8 @@ function TemplateRowCard({
           ctaLabel={
             row.status === "in_review" ? "Approve + publish" : "Publish to gallery"
           }
+          treeDiff={publishDiff?.treeDiff ?? null}
+          publishedVersion={publishDiff?.publishedVersion ?? null}
           onChange={setChangelog}
           onCancel={() => setPublishing(false)}
           onConfirm={() => {

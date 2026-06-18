@@ -39,7 +39,11 @@ import {
   type SetTemplateRolloutInput,
 } from "./registry-rows";
 import { bumpCatalogVersion } from "./catalog-version";
-import { validateTemplateForPublish } from "./validate-publish";
+import {
+  validateTemplateForPublish,
+  diffTemplateTreeForPublish,
+  type TemplateTreeDiff,
+} from "./validate-publish";
 import { mintCopySlug, mintCopyTitle } from "./slug-minting";
 
 // ── Result type ───────────────────────────────────────────────────────────────
@@ -396,10 +400,16 @@ export async function rejectToDraft(
  * template row's `changelog` convenience field (latest published note). Omitting
  * it leaves the row's changelog untouched; passing blank clears it.
  */
+export type PublishTemplateResult = BuilderTemplateRow & {
+  /** Advisory diff verdict: whether the builder_tree changed vs the previously
+   *  published revision. Returned so the UI can surface "no changes" warnings. */
+  treeDiff: TemplateTreeDiff;
+};
+
 export async function publishTemplate(
   templateId: string,
   changelog?: string | null,
-): Promise<TemplateActionResult<BuilderTemplateRow>> {
+): Promise<TemplateActionResult<PublishTemplateResult>> {
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -440,10 +450,14 @@ export async function publishTemplate(
       return fail("Can't publish: " + validation.reasons.join("; "));
     }
 
+    // Extract the advisory diff verdict before publishing (validation.treeDiff is
+    // now returned rather than void-discarded — G3).
+    const treeDiff = validation.treeDiff;
+
     // Publish the live row's own tree at version+1 (writeTree omitted: the row's
     // builder_tree is unchanged; only published metadata + freshly-computed
     // data_binding_requirements are written — identical to the prior inline path).
-    return await publishRowCore(sb, {
+    const coreResult = await publishRowCore(sb, {
       templateId,
       tree: row.builder_tree,
       fromVersion: row.version,
@@ -451,8 +465,62 @@ export async function publishTemplate(
       note: changelog,
       changelog,
     });
+
+    if (!coreResult.ok) return coreResult;
+    return ok({ ...coreResult.data, treeDiff });
   } catch (err) {
     logServerError("publishTemplate", err);
+    return fail(CLIENT_ERROR.generic);
+  }
+}
+
+// ── getPublishDiff (G3 — advisory, read-only) ─────────────────────────────────
+
+/**
+ * Read-only advisory action: computes the tree diff between the current draft's
+ * builder_tree and the last published revision's snapshot. Used by the publish
+ * UI to show "No changes since v(N)" vs "Tree changed since v(N)" BEFORE the
+ * admin clicks confirm — so they can decide whether the re-publish is intentional.
+ *
+ * Never blocks publish; never writes. super_admin-gated for defence-in-depth.
+ */
+export async function getPublishDiff(
+  templateId: string,
+): Promise<TemplateActionResult<{ treeDiff: TemplateTreeDiff; publishedVersion: number | null }>> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return fail(gate.error);
+
+  try {
+    const sb = getAdminClient();
+
+    const { data: current, error: fetchErr } = await sb
+      .from("builder_templates")
+      .select("builder_tree")
+      .eq("id", templateId)
+      .single();
+
+    if (fetchErr || !current) return fail(fetchErr?.message ?? "Template not found.");
+
+    const { data: lastRev } = await sb
+      .from("builder_template_revisions")
+      .select("snapshot, version")
+      .eq("template_id", templateId)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const previousTree =
+      (lastRev?.snapshot as BuilderTemplateRow | undefined)?.builder_tree ?? null;
+    const publishedVersion = lastRev?.version ?? null;
+
+    const treeDiff = diffTemplateTreeForPublish(
+      (current as { builder_tree: BuilderTemplateRow["builder_tree"] }).builder_tree,
+      previousTree,
+    );
+
+    return ok({ treeDiff, publishedVersion });
+  } catch (err) {
+    logServerError("getPublishDiff", err);
     return fail(CLIENT_ERROR.generic);
   }
 }

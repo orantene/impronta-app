@@ -18,6 +18,7 @@ import {
   listTemplateRevisions,
   type TemplateRevisionSummary,
 } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import type { TemplateTreeDiff } from "@/lib/site-admin/builder-core/templates/validate-publish";
 import { LAB, fieldStyle } from "./ui";
 
 const ghostMini: React.CSSProperties = {
@@ -134,11 +135,18 @@ export function RevisionList({
  * optional — leaving it blank publishes exactly as before (note → null). On
  * confirm the note is threaded to publishTemplate, which stamps it on both the
  * revision snapshot and the template row's `changelog` convenience column.
+ *
+ * `treeDiff` (G3) is advisory — when supplied, shows "No changes since v(N) —
+ * re-publishing only bumps the version" or "Tree changed since v(N)" before
+ * the admin confirms, so they can decide whether the publish is intentional.
+ * `publishedVersion` is the last published version number (for the label).
  */
 export function PublishNotePanel({
   value,
   busy,
   ctaLabel,
+  treeDiff,
+  publishedVersion,
   onChange,
   onCancel,
   onConfirm,
@@ -146,10 +154,37 @@ export function PublishNotePanel({
   value: string;
   busy: boolean;
   ctaLabel: string;
+  /** Advisory diff result from getPublishDiff. Omitting it hides the hint. */
+  treeDiff?: TemplateTreeDiff | null;
+  /** Last published version number — shown in the diff hint label. */
+  publishedVersion?: number | null;
   onChange: (v: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  // Build the diff hint line when the verdict is available (G3).
+  const diffHint: { text: string; tone: string } | null = (() => {
+    if (!treeDiff) return null;
+    const vLabel =
+      treeDiff.hasPrevious && publishedVersion != null
+        ? `v${publishedVersion}`
+        : null;
+    if (!treeDiff.changed) {
+      return {
+        text: vLabel
+          ? `No changes since ${vLabel} — re-publishing only bumps the version.`
+          : "No changes since last publish — re-publishing only bumps the version.",
+        tone: LAB.accent,
+      };
+    }
+    return {
+      text: vLabel
+        ? `Tree changed since ${vLabel}.`
+        : "Tree changed since last publish.",
+      tone: LAB.inkMuted,
+    };
+  })();
+
   return (
     <div
       style={{
@@ -161,6 +196,21 @@ export function PublishNotePanel({
         gap: 8,
       }}
     >
+      {diffHint ? (
+        <div
+          style={{
+            fontSize: 11.5,
+            color: diffHint.tone,
+            background: diffHint.tone === LAB.accent
+              ? "rgba(93,211,160,0.08)"
+              : "rgba(255,255,255,0.04)",
+            borderRadius: 7,
+            padding: "5px 10px",
+          }}
+        >
+          {diffHint.text}
+        </div>
+      ) : null}
       <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <span
           style={{

@@ -37,7 +37,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 // ── Result type ───────────────────────────────────────────────────────────────
 
 export type ValidateTemplateForPublishResult =
-  | { ok: true }
+  | { ok: true; treeDiff: TemplateTreeDiff }
   | { ok: false; reasons: string[] };
 
 export interface ValidateTemplateForPublishOptions {
@@ -185,9 +185,10 @@ export function validateTemplateForPublish(
 
   if (reasons.length > 0) return { ok: false, reasons };
 
-  // 3. Diff vs the last snapshot is advisory only (never blocks). Computed for
-  //    callers that want to surface "no changes" — see diffTemplateTreeForPublish.
-  void diffTemplateTreeForPublish(tree, opts?.previousTree);
+  // 3. Diff vs the last snapshot is advisory only (never blocks). Returned in
+  //    the result so callers can surface "no changes since v(N)" warnings — see
+  //    diffTemplateTreeForPublish. Previously void-discarded; now threaded out.
+  const treeDiff = diffTemplateTreeForPublish(tree, opts?.previousTree);
 
-  return { ok: true };
+  return { ok: true, treeDiff };
 }
