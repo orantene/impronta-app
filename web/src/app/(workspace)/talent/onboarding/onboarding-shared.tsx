@@ -27,20 +27,53 @@ export const C = {
 export const FONT = '"Inter", system-ui, sans-serif';
 export const DISPLAY = 'var(--font-cinzel), ui-serif, Georgia, serif';
 
+// Canonical rate-unit vocabulary — MUST stay in sync with the platform's
+// `RateUnit` type in `components/admin/shell/internal/state/types.ts`
+// (`"day" | "hour" | "set" | "event" | "session" | "month"`) and the
+// full profile-rate editor options in
+// `components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-editors-core.tsx`.
+// "project" was a wizard-only value not in the canonical type; removed.
+// "set", "session", "month" were missing; added. A talent who set their
+// rate unit to "set" in the full editor would have seen it silently
+// revert to "hour" (the first option) if they opened the wizard.
 export const RATE_UNITS = [
   { value: "hour", label: "per hour" },
   { value: "day", label: "per day" },
+  { value: "set", label: "per set" },
   { value: "event", label: "per event" },
-  { value: "project", label: "per project" },
+  { value: "session", label: "per session" },
+  { value: "month", label: "per month" },
 ] as const;
 
+// Canonical currency list — same four currencies as the full rate editor
+// in profile-editors-core.tsx (EUR / USD / GBP / MXN). Order matches the
+// full editor so pickers feel consistent. Values unchanged; no mismatch.
 export const CURRENCIES = ["USD", "EUR", "MXN", "GBP"] as const;
 
+// Canonical language list — MUST stay in sync with `COMMON_LANGUAGES` in
+// `components/admin/shell/internal/language-add-search.tsx`, which is the
+// source-of-truth picker used by the full profile editor. The server action
+// `saveSelfLanguages` stores `language_name` verbatim (e.g. "English"), so
+// the wizard value must match what `COMMON_LANGUAGES` produces. The previous
+// 12-language list was a subset; the 21 missing languages (Hindi, Turkish,
+// Polish, etc.) could not be selected in the wizard even if the full editor
+// had saved them. Expanded to the full 34-language set.
 export const LANGUAGE_OPTIONS = [
   "English", "Spanish", "French", "Italian", "German", "Portuguese",
-  "Dutch", "Russian", "Japanese", "Chinese", "Arabic", "Korean",
+  "Dutch", "Russian", "Japanese", "Chinese", "Arabic", "Hindi",
+  "Korean", "Turkish", "Polish", "Swedish", "Norwegian", "Danish",
+  "Finnish", "Greek", "Catalan", "Basque", "Galician", "Romanian",
+  "Ukrainian", "Czech", "Hungarian", "Thai", "Vietnamese", "Indonesian",
+  "Malay", "Hebrew", "Persian",
 ] as const;
 
+// Canonical language-level vocabulary — MUST stay in sync with the DB
+// `speaking_level` CHECK constraint in migration 20260801120200_talent_languages.sql:
+//   CHECK (speaking_level IN ('basic','conversational','professional','fluent','native'))
+// The full editor's `language-slot-panel.tsx` exposes 4 levels in its picker
+// (basic/conversational/fluent/native) but keeps "professional" in its label
+// map to display existing DB rows. The wizard retains all 5 to let new
+// talent self-describe at the "professional" level, which the DB accepts.
 export const LANGUAGE_LEVELS = [
   { value: "basic", label: "Basic" },
   { value: "conversational", label: "Conversational" },
