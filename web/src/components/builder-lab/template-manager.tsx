@@ -40,7 +40,17 @@ import {
   listPublishedTemplates,
   getPublishDiff,
 } from "@/lib/site-admin/builder-core/templates/registry-actions";
-import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import {
+  listAllTemplates,
+  resolveLabMediaTenantId,
+  resolveTemplateThumbnails,
+} from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import {
+  distinctThumbnailAssetIds,
+  resolveTemplateThumbnailMap,
+  templateThumbnailPatch,
+} from "./thumbnail-helpers";
+import { TemplateThumbnailCell } from "./template-thumbnail-cell";
 import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
 import { galleryTabForTemplateKind } from "@/lib/site-admin/builder-core/templates/apply-shell-template-core";
 import {
@@ -140,6 +150,35 @@ export function TemplateManager() {
   const [toast, setToast] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  // A2 — thumbnail affordance: media scope (hub tenant) + resolved row→url map +
+  // the id of the row whose thumbnail is currently saving.
+  const [mediaTenantId, setMediaTenantId] = useState<string | null>(null);
+  const [thumbUrlByRow, setThumbUrlByRow] = useState<Map<string, string>>(
+    new Map(),
+  );
+  const [thumbBusyId, setThumbBusyId] = useState<string | null>(null);
+
+  const flash = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2600);
+  }, []);
+
+  /** Resolve every row's thumbnail asset id → public URL in one batch. */
+  const refreshThumbnails = useCallback(
+    async (rowsToResolve: BuilderTemplateRow[]) => {
+      const ids = distinctThumbnailAssetIds(rowsToResolve);
+      if (ids.length === 0) {
+        setThumbUrlByRow(new Map());
+        return;
+      }
+      const res = await resolveTemplateThumbnails(ids).catch(() => null);
+      const urlById = new Map<string, string>(
+        res && res.ok ? Object.entries(res.data) : [],
+      );
+      setThumbUrlByRow(resolveTemplateThumbnailMap(rowsToResolve, urlById));
+    },
+    [],
+  );
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -150,25 +189,61 @@ export function TemplateManager() {
     if (res && res.ok) {
       setRows(res.data);
       setLoading(false);
+      void refreshThumbnails(res.data);
       return;
     }
     const pub = await listPublishedTemplates();
     setLoading(false);
     if (pub.ok) {
       setRows(pub.data);
+      void refreshThumbnails(pub.data);
     } else {
       setError(pub.error);
     }
-  }, []);
+  }, [refreshThumbnails]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  const flash = useCallback((msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2600);
+  // Resolve the Lab's media scope (hub tenant) once so the thumbnail picker can
+  // open. A failure leaves the picker disabled (the cell renders a hint).
+  useEffect(() => {
+    let cancelled = false;
+    resolveLabMediaTenantId()
+      .then((res) => {
+        if (!cancelled && res.ok) setMediaTenantId(res.data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  /** Persist a row's thumbnail (assetId=null clears it) with explicit busy
+   *  state, then optimistically update the rendered URL. */
+  const setThumbnail = useCallback(
+    async (rowId: string, assetId: string | null, publicUrl: string | null) => {
+      setThumbBusyId(rowId);
+      setError(null);
+      const res = await updateTemplateDraft(
+        templateThumbnailPatch(rowId, assetId),
+      );
+      setThumbBusyId(null);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setThumbUrlByRow((prev) => {
+        const next = new Map(prev);
+        if (assetId && publicUrl) next.set(rowId, publicUrl);
+        else next.delete(rowId);
+        return next;
+      });
+      flash(assetId ? "Thumbnail set ✓" : "Thumbnail removed ✓");
+    },
+    [flash],
+  );
 
   const statusFiltered =
     statusFilter === "all" ? rows : rows.filter((r) => r.status === statusFilter);
@@ -356,6 +431,12 @@ export function TemplateManager() {
                 key={row.id}
                 row={row}
                 busy={busyId === row.id}
+                mediaTenantId={mediaTenantId}
+                thumbUrl={thumbUrlByRow.get(row.id) ?? null}
+                thumbBusy={thumbBusyId === row.id}
+                onSetThumbnail={(assetId, publicUrl) =>
+                  setThumbnail(row.id, assetId, publicUrl)
+                }
                 onEdit={() => {
                   setEditId(row.id);
                   setCreating(false);
@@ -429,6 +510,10 @@ export function TemplateManager() {
 function TemplateRowCard({
   row,
   busy,
+  mediaTenantId,
+  thumbUrl,
+  thumbBusy,
+  onSetThumbnail,
   onEdit,
   onSubmit,
   onReject,
@@ -442,6 +527,10 @@ function TemplateRowCard({
 }: {
   row: BuilderTemplateRow;
   busy: boolean;
+  mediaTenantId: string | null;
+  thumbUrl: string | null;
+  thumbBusy: boolean;
+  onSetThumbnail: (assetId: string | null, publicUrl: string | null) => void;
   onEdit: () => void;
   onSubmit: () => void;
   onReject: () => void;
@@ -502,6 +591,12 @@ function TemplateRowCard({
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <TemplateThumbnailCell
+          tenantId={mediaTenantId}
+          thumbUrl={thumbUrl}
+          busy={thumbBusy}
+          onPick={onSetThumbnail}
+        />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{row.title}</span>
