@@ -105,6 +105,12 @@ export type TalentSiteDashboardState = {
   canUseTemplateGallery: boolean;
   canUseCustomBuilder: boolean;
   profileCode: string | null;
+  /**
+   * The talent's own profile id — used to build the owner-gated hydrated
+   * template-preview URL (`getTemplatePreviewUrl(key, { talentProfileId })`)
+   * so the slot-template preview shows THIS talent's real name/photo/bio.
+   */
+  talentProfileId: string | null;
   publicSiteUrl: string | null;
   publicProfileUrl: string | null;
   isPubliclyHidden: boolean;

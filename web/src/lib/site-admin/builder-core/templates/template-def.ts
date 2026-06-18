@@ -170,3 +170,98 @@ export function toUnifiedTemplateDef(
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Shared preview-URL builder (TMPL-2)
+// ---------------------------------------------------------------------------
+
+/** Base path for the shared, owner-gated hydrated template-preview route. */
+export const TEMPLATE_PREVIEW_BASE_PATH = "/template-preview";
+
+/**
+ * Which template family a preview key belongs to. The preview route uses this
+ * to choose the correct render path: slot-based snapshots vs Max-site freeform
+ * builder trees. Passed as the `?kind` searchParam so the single route serves
+ * both families without a second endpoint.
+ */
+export type TemplatePreviewFamily = "talent-site" | "max-site";
+
+/**
+ * Map a registry kind to the preview family the route understands. `page-design`
+ * previews are not hydrated with a single talent's data (they target storefront
+ * OR talent and have no per-talent token model), so they fall back to the
+ * Max-site freeform path which renders the tree structurally with demo tokens.
+ */
+export function previewFamilyForRegistry(
+  kind: TemplateRegistryKind,
+): TemplatePreviewFamily {
+  return kind === "talent-site" ? "talent-site" : "max-site";
+}
+
+/**
+ * Build the URL every picker uses to open the SHARED hydrated preview iframe.
+ *
+ * When `talentProfileId` is supplied the route attempts owner-gated hydration:
+ * if the *current session* owns that talent profile, the preview renders the
+ * talent's REAL name / photo / bio; otherwise the route silently falls back to
+ * demo data (never leaks a non-owner's profile). Building the URL is the same on
+ * every surface, so all pickers share one contract and a fifth surface inherits
+ * it for free.
+ *
+ * @param key      template key (slot-template key or Max-site key)
+ * @param family   which template family `key` belongs to (defaults talent-site)
+ */
+export function getTemplatePreviewUrl(
+  key: string,
+  opts: {
+    talentProfileId?: string | null;
+    family?: TemplatePreviewFamily;
+  } = {},
+): string {
+  const family = opts.family ?? "talent-site";
+  const params = new URLSearchParams();
+  params.set("kind", family);
+  const talentProfileId = opts.talentProfileId?.trim();
+  if (talentProfileId) params.set("talent", talentProfileId);
+  return `${TEMPLATE_PREVIEW_BASE_PATH}/${encodeURIComponent(key)}?${params.toString()}`;
+}
+
+// ---------------------------------------------------------------------------
+// Demo fixture (shared between the dev harness and the public preview route)
+// ---------------------------------------------------------------------------
+
+/**
+ * The demo persona the preview route hydrates with when there is no owner-gated
+ * `?talent` (anonymous / non-owner request). Public-safe synthetic data — never
+ * a real talent. Exported so the dev harness and the public route render the
+ * IDENTICAL fallback instead of each hand-rolling its own fixture.
+ */
+export interface TemplatePreviewDemoFixture {
+  displayName: string;
+  profileCode: string;
+  primaryTypeLabel: string;
+  publicBio: string;
+  homeCity: string;
+  serviceNames: string[];
+  headshotUrl: string;
+  galleryUrls: string[];
+}
+
+export const TEMPLATE_PREVIEW_DEMO_FIXTURE: TemplatePreviewDemoFixture = {
+  displayName: "Maya Reyes",
+  profileCode: "TAL-00000",
+  primaryTypeLabel: "Editorial Model",
+  publicBio:
+    "Editorial and commercial model with 8 years of experience across fashion, beauty, and lifestyle campaigns. Known for strong conceptual range and precise direction-taking.",
+  homeCity: "Mexico City",
+  serviceNames: ["Editorial", "Commercial", "Beauty & Skincare"],
+  headshotUrl: "https://picsum.photos/seed/talent-hero/800/1000",
+  galleryUrls: [
+    "https://picsum.photos/seed/gal1/800/1000",
+    "https://picsum.photos/seed/gal2/900/600",
+    "https://picsum.photos/seed/gal3/700/900",
+    "https://picsum.photos/seed/gal4/800/800",
+    "https://picsum.photos/seed/gal5/900/700",
+    "https://picsum.photos/seed/gal6/750/950",
+  ],
+};

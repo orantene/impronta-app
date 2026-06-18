@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { SecondaryButton } from "@/components/admin/shell/internal/primitives";
 import { applyTalentSiteTemplateAction } from "@/lib/talent-site/server/actions";
+import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
 import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
 import { talentSiteCopy, type TalentSiteLocale } from "@/lib/talent-site/talent-site-i18n";
 import type { TalentSiteDashboardState } from "@/lib/talent-site/types";
@@ -101,18 +102,15 @@ export function TalentSiteTemplatePanel({ state, locale = "en", onChanged }: Pro
           }}
         >
           {state.availableTemplates.map((t) => (
-            <button
+            <div
               key={t.key}
-              type="button"
-              disabled={pending}
-              onClick={() => applyTemplate(t.key as TalentSiteTemplateKey)}
               style={{
+                position: "relative",
                 textAlign: "left",
                 padding: 8,
                 borderRadius: 10,
                 border: `1px solid ${t.key === state.templateKey ? COLORS.accent : COLORS.borderSoft}`,
                 background: "#fff",
-                cursor: "pointer",
                 fontFamily: FONTS.body,
               }}
             >
@@ -140,12 +138,68 @@ export function TalentSiteTemplatePanel({ state, locale = "en", onChanged }: Pro
                     objectFit: "cover",
                   }}
                 />
+                {/* Eye-icon — opens the SHARED owner-gated hydrated preview
+                    (`?talent` shows THIS talent's real name/photo/bio). */}
+                <a
+                  href={getTemplatePreviewUrl(t.key, {
+                    talentProfileId: state.talentProfileId,
+                    family: "talent-site",
+                  })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Preview with your details"
+                  aria-label={`Preview ${t.label} with your details`}
+                  style={{
+                    position: "absolute",
+                    top: 6,
+                    right: 6,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 26,
+                    height: 26,
+                    borderRadius: 7,
+                    background: "rgba(17,17,17,0.62)",
+                    color: "#fff",
+                    fontSize: 13,
+                    lineHeight: 1,
+                    textDecoration: "none",
+                  }}
+                >
+                  {/* eye glyph */}
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+                  </svg>
+                </a>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t.label}</div>
-              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4, lineHeight: 1.35 }}>
-                {t.blurb}
-              </div>
-            </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => applyTemplate(t.key as TalentSiteTemplateKey)}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t.label}</div>
+                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4, lineHeight: 1.35 }}>
+                  {t.blurb}
+                </div>
+              </button>
+            </div>
           ))}
         </div>
       ) : null}
