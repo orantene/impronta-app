@@ -64,6 +64,7 @@ import {
   isPartialRollout,
   rolloutChipText,
 } from "./template-rollout-panel";
+import { summarizeLatestRevision } from "./template-revision-summary";
 import type {
   BuilderTemplateRow,
   BuilderTemplateKind,
@@ -625,6 +626,36 @@ function TemplateRowCard({
               {row.description}
             </div>
           ) : null}
+          {/* D4 — inline per-template changelog/revision summary line.
+              Shows "v7, changed 2d ago, copy fix" at all times. Clicking
+              "History ▾" / "History ▴" expands the full RevisionList below. */}
+          <button
+            type="button"
+            onClick={() => setShowRevs((s) => !s)}
+            disabled={busy}
+            title={showRevs ? "Hide revision history" : "Expand revision history"}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              marginTop: 7,
+              background: showRevs ? "rgba(93,211,160,0.08)" : "transparent",
+              border: `1px solid ${showRevs ? "rgba(93,211,160,0.30)" : T.borderSoft}`,
+              borderRadius: 999,
+              padding: "2px 9px",
+              fontSize: 10.5,
+              fontWeight: 600,
+              color: showRevs ? T.accent : T.inkDim,
+              cursor: busy ? "default" : "pointer",
+              fontFamily: "ui-monospace, monospace",
+              letterSpacing: 0.1,
+            }}
+          >
+            {summarizeLatestRevision(row.version, row.updated_at, row.changelog)}
+            <span aria-hidden style={{ fontSize: 8, opacity: 0.7, fontFamily: "inherit" }}>
+              {showRevs ? "▴" : "▾"}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -666,9 +697,6 @@ function TemplateRowCard({
         ) : null}
         <GhostBtn onClick={() => setShowRollout((s) => !s)} disabled={busy}>
           {showRollout ? "Hide rollout" : "Rollout"}
-        </GhostBtn>
-        <GhostBtn onClick={() => setShowRevs((s) => !s)} disabled={busy}>
-          {showRevs ? "Hide revisions" : "Revisions"}
         </GhostBtn>
       </div>
 
