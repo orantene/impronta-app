@@ -775,6 +775,21 @@ export interface EditContextValue {
     >;
   }) => Promise<{ ok: boolean; error?: string }>;
   /**
+   * AI-1 — apply an ALREADY-COMPOSED freeform tree (produced by the shared
+   * text-to-page composer from a one-line brief) to the ACTIVE surface. Persists
+   * the tree through the active SurfaceAdapter and routes the whole apply through
+   * `applyTemplateWithUndo`, so the AI page is snapshotted, undoable via the
+   * shared toast, and autosaved identically on every surface — exactly like a
+   * design/template apply. The component never touches the adapter directly; the
+   * persistence stays a property of the EditProvider (the shared-improvement
+   * invariant). The tree has already been validated server-side by the composer
+   * (`validateBuilderNodeTree`) so this path injects nothing unchecked.
+   */
+  applyComposedTreeWithUndo: (input: {
+    tree: BuilderNodeTree;
+    label: string;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  /**
    * Insert a curated Tulala component (`section_embed` node) — Directory,
    * Featured talent, Booking, or CTA — seeded with that section's default
    * config, at the target. Mirrors the composition-preset insert.
@@ -5984,6 +5999,32 @@ export function EditProvider({
     ],
   );
 
+  // AI-1 — apply an already-composed tree (from the shared text-to-page
+  // composer) through the SAME chokepoint as a design apply. The tree was
+  // validated server-side; here we persist it through the active adapter and
+  // wrap it in applyTemplateWithUndo for snapshot + Undo toast + autosave. No
+  // surfaceKind branch — every surface persists through its own adapter.
+  const applyComposedTreeWithUndo = useCallback<
+    EditContextValue["applyComposedTreeWithUndo"]
+  >(
+    async ({ tree, label }) => {
+      const apply = async (): Promise<
+        { ok: true; tree: BuilderNodeTree } | { ok: false; error?: string }
+      > => {
+        const saved = await persistBuilderTree(tree);
+        if (!saved.ok) {
+          return {
+            ok: false,
+            error: saved.error ?? "Could not apply the page — try again.",
+          };
+        }
+        return { ok: true, tree };
+      };
+      return applyTemplateWithUndo({ label, apply });
+    },
+    [applyTemplateWithUndo, persistBuilderTree],
+  );
+
   const insertBuilderSectionEmbed = useCallback<
     EditContextValue["insertBuilderSectionEmbed"]
   >(
@@ -7955,6 +7996,7 @@ export function EditProvider({
       insertBuilderNodeCompositionPreset,
       applyTemplateWithUndo,
       applyPageDesignWithUndo,
+      applyComposedTreeWithUndo,
       insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,
@@ -8195,6 +8237,7 @@ export function EditProvider({
       insertBuilderNodeCompositionPreset,
       applyTemplateWithUndo,
       applyPageDesignWithUndo,
+      applyComposedTreeWithUndo,
       insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,
