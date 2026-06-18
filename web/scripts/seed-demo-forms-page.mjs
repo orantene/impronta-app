@@ -300,15 +300,21 @@ function buildAbTestFormNode(sectionEmbedId) {
 }
 
 // ---------------------------------------------------------------------------
-// Section wrapper nodes (section > container > children)
+// Section wrapper nodes (outer container > inner container > children)
+//
+// NOTE: the outer wrapper is a `container`, NOT a `section`. In the freeform
+// render path `case "section": return null` — a bare `section` node (a
+// slot-composition construct) renders NOTHING and swallows its children. A
+// `container` renders its subtree, so the wrapped form (+ its experiment)
+// actually appears on the published page.
 // ---------------------------------------------------------------------------
 
 function wrapInSection(children, sectionLabel) {
-  const sectionId = makeNodeId("section");
+  const sectionId = makeNodeId("container");
   const containerId = makeNodeId("container");
   return {
     id: sectionId,
-    kind: "section",
+    kind: "container",
     props: {
       layerLabel: sectionLabel,
       style: {

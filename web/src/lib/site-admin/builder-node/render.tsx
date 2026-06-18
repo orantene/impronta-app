@@ -3795,7 +3795,11 @@ function renderBuilderNodeElement(
                   type="submit"
                   className="site-builder-node site-builder-node--button site-builder-node--button-primary"
                 >
-                  {field.label}
+                  {/* A top-level `submitLabel` prop (which an A/B experiment's
+                      propOverrides can target) wins over the submit field's own
+                      label; falls back to it when unset → byte-stable for trees
+                      that don't set submitLabel. */}
+                  {formProps.submitLabel ?? field.label}
                 </button>
               );
             }
