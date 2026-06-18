@@ -134,13 +134,19 @@ export async function loadWorkspaceOverviewMetrics(
         .eq("tenant_id", tenantId)
         .in("status", ["draft"]),
 
-      // Oldest coordinator-pending inquiry (for urgency signal in TodaysFocusCard)
+      // Oldest coordinator-pending inquiry (for urgency signal in TodaysFocusCard).
+      // Exclude terminal statuses. NB: there is no `cancelled` inquiry_status —
+      // the cancel flow maps to `rejected` (close_reason='client_cancelled'). The
+      // old list carried the literal `cancelled`, which is not a valid enum value,
+      // so PostgREST cast-failed the WHOLE query (Postgres: "invalid input value
+      // for enum inquiry_status: cancelled") on every overview load and this
+      // urgency signal silently returned nothing.
       supabase
         .from("inquiries")
         .select("created_at")
         .eq("tenant_id", tenantId)
         .eq("next_action_by", "coordinator")
-        .not("status", "in", `(rejected,expired,cancelled,booked,converted)`)
+        .not("status", "in", `(rejected,expired,booked,converted,closed,closed_lost,archived)`)
         .order("created_at", { ascending: true })
         .limit(1),
 
