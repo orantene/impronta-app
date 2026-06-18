@@ -45,6 +45,13 @@ import {
   type TemplateTreeDiff,
 } from "./validate-publish";
 import { mintCopySlug, mintCopyTitle } from "./slug-minting";
+import {
+  scanTemplatesForComponentDependents,
+  isEmptyDependencyTarget,
+  type ComponentDependencyTarget,
+  type ComponentDependent,
+  type ScannableTemplate,
+} from "./dependency-scan";
 import { appendBuilderLabAudit } from "./builder-lab-audit";
 import {
   isSelfApprove,
@@ -622,23 +629,124 @@ export async function unpublishTemplate(
   }
 }
 
+// ── scanComponentDependents (G5 — pre-write dependency scan) ───────────────────
+
+/**
+ * Result shape for the G5 dependency scan. `dependents` is the list of PUBLISHED
+ * templates that reference the target component (empty when nothing depends on
+ * it); `blocked` is a convenience flag (`dependents.length > 0`) the UI uses to
+ * decide whether to show the "archive anyway — N templates depend on this"
+ * confirm.
+ */
+export interface ComponentDependentsScan {
+  dependents: ComponentDependent[];
+  blocked: boolean;
+}
+
+/**
+ * Load every PUBLISHED `builder_templates` tree (id/title/slug/builder_tree only)
+ * for the dependency scan. Service-role read so the scan sees the full published
+ * universe regardless of the caller's plan/tier (this is an admin safety check,
+ * not a tenant-facing list).
+ */
+async function loadPublishedScanTemplates(
+  sb: SupabaseClient,
+): Promise<ScannableTemplate[]> {
+  const { data, error } = await sb
+    .from("builder_templates")
+    .select("id, title, slug, builder_tree")
+    .eq("status", "published");
+  if (error || !data) return [];
+  return data as ScannableTemplate[];
+}
+
+/**
+ * G5 pre-write scan: which PUBLISHED templates depend on the given catalog
+ * component? The UI calls this BEFORE archiving / hiding a component (the hide
+ * path itself lives in the X6-owned catalog-overlay writer, so this is a guard
+ * the UI invokes as a pre-check — not a write). Reuses the pure
+ * `scanTemplatesForComponentDependents` visitor (mirrors
+ * computeDataBindingRequirements / collectDanglingBindings).
+ *
+ * super_admin-gated for defence in depth; read-only (never writes).
+ */
+export async function scanComponentDependents(
+  target: ComponentDependencyTarget,
+): Promise<TemplateActionResult<ComponentDependentsScan>> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return fail(gate.error);
+
+  // An empty target can never depend-block; short-circuit without a DB round-trip.
+  if (isEmptyDependencyTarget(target)) {
+    return ok({ dependents: [], blocked: false });
+  }
+
+  try {
+    const sb = getAdminClient();
+    const templates = await loadPublishedScanTemplates(sb);
+    const dependents = scanTemplatesForComponentDependents(templates, target);
+    return ok({ dependents, blocked: dependents.length > 0 });
+  } catch (err) {
+    logServerError("scanComponentDependents", err);
+    return fail(CLIENT_ERROR.generic);
+  }
+}
+
 // ── archiveTemplate ───────────────────────────────────────────────────────────
+
+/**
+ * Archive a template row. G5: when the row carries a curated `section_embed`
+ * identity (its `slug` doubles as a `sectionTypeKey` for curated-section
+ * components), a pre-write scan walks every OTHER published template tree for
+ * dependents. If any are found and the caller did NOT pass
+ * `confirmDependents: true`, the archive is BLOCKED and the dependent list is
+ * returned (in the error string + via a prior `scanComponentDependents` call the
+ * UI makes) so the operator gets an explicit "archive anyway — N templates
+ * depend on this" confirm. An unreferenced archive is unaffected.
+ */
+export interface ArchiveTemplateOptions {
+  /** Skip the G5 dependent-block (operator clicked "archive anyway"). */
+  confirmDependents?: boolean;
+}
 
 export async function archiveTemplate(
   templateId: string,
+  options?: ArchiveTemplateOptions,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
   try {
     const sb = getAdminClient();
-    // Capture the prior status for the audit diff (archive is reachable from any
-    // non-archived status).
+    // Capture the prior status + slug for the audit diff and the G5 dependency
+    // scan (archive is reachable from any non-archived status).
     const { data: beforeRow } = await sb
       .from("builder_templates")
-      .select("status")
+      .select("status, slug")
       .eq("id", templateId)
       .maybeSingle();
+
+    // G5: block when a published template depends on this component, unless the
+    // operator explicitly confirmed. The component identity a host tree can carry
+    // is a curated `section_embed` keyed on the row's slug; we scan every OTHER
+    // published template tree for that key. Self-references are excluded so a
+    // template is never reported as depending on itself.
+    if (!options?.confirmDependents) {
+      const slug = (beforeRow as { slug?: string } | null)?.slug ?? null;
+      if (slug) {
+        const target: ComponentDependencyTarget = { sectionEmbedKeys: [slug] };
+        const all = await loadPublishedScanTemplates(sb);
+        const others = all.filter((t) => t.id !== templateId);
+        const dependents = scanTemplatesForComponentDependents(others, target);
+        if (dependents.length > 0) {
+          const names = dependents.map((d) => d.title).join(", ");
+          return fail(
+            `Archive blocked: ${dependents.length} published template(s) depend on this component (${names}). Confirm "archive anyway" to proceed.`,
+          );
+        }
+      }
+    }
+
     const { data, error } = await sb
       .from("builder_templates")
       .update({ status: "archived" })

@@ -32,10 +32,12 @@ import {
   duplicateTemplate,
   publishTemplate,
   rejectToDraft,
+  scanComponentDependents,
   submitTemplateForReview,
   unpublishTemplate,
   updateTemplateDraft,
 } from "@/lib/site-admin/builder-core/templates/registry-actions";
+import type { ComponentDependent } from "@/lib/site-admin/builder-core/templates/dependency-scan";
 import {
   listStarterTemplatesAction,
   syncBuiltinStartersAction,
@@ -217,6 +219,13 @@ export function SiteStarterKitView({
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
     null,
   );
+  // G5 — dependents found for the starter currently pending delete confirm.
+  // Non-empty → the confirm shows "archive anyway, N templates depend on this"
+  // and lists them; the actual archive then passes confirmDependents: true.
+  const [deleteDependents, setDeleteDependents] = useState<ComponentDependent[]>(
+    [],
+  );
+  const [scanningDeleteId, setScanningDeleteId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   /** "all" = no rollout filter; "partial" = only canaried starters */
@@ -434,14 +443,45 @@ export function SiteStarterKitView({
     [mutate, flash],
   );
 
+  // G5 — opening the delete confirm runs a pre-write dependency scan: walk every
+  // published template tree for ones that embed this starter (keyed on its slug
+  // as a section_embed sectionTypeKey). If any depend on it, the confirm lists
+  // them and requires an explicit "archive anyway"; an unreferenced starter
+  // confirms normally.
+  const startDelete = useCallback(
+    (row: BuilderTemplateRow) => {
+      setConfirmingDeleteId(row.id);
+      setDeleteDependents([]);
+      setScanningDeleteId(row.id);
+      void scanComponentDependents({ sectionEmbedKeys: [row.slug] })
+        .then((res) => {
+          if (res.ok) setDeleteDependents(res.data.dependents);
+        })
+        .finally(() => setScanningDeleteId(null));
+    },
+    [],
+  );
+
+  const cancelDelete = useCallback(() => {
+    setConfirmingDeleteId(null);
+    setDeleteDependents([]);
+    setScanningDeleteId(null);
+  }, []);
+
   const confirmDelete = useCallback(
     (row: BuilderTemplateRow) => {
+      const hadDependents = deleteDependents.length > 0;
       setConfirmingDeleteId(null);
-      void mutate(row.id, () => archiveTemplate(row.id)).then((ok) => {
+      setDeleteDependents([]);
+      // confirmDependents mirrors the on-screen confirm: when the operator
+      // explicitly clicks "archive anyway", the server-side block is bypassed.
+      void mutate(row.id, () =>
+        archiveTemplate(row.id, { confirmDependents: hadDependents }),
+      ).then((ok) => {
         if (ok) flash("Deleted");
       });
     },
-    [mutate, flash],
+    [mutate, flash, deleteDependents],
   );
 
   const runSync = useCallback(async () => {
@@ -599,6 +639,8 @@ export function SiteStarterKitView({
     edit,
     setEdit,
     confirmingDeleteId,
+    deleteDependents,
+    scanningDelete: scanningDeleteId !== null,
     mediaTenantId,
     thumbUrlByRow,
     thumbBusyId,
@@ -611,8 +653,8 @@ export function SiteStarterKitView({
       onLaunchEditor?.(targetToLabTarget(r.target_context), r.id),
     onDuplicate: duplicate,
     onSetStatus: setStatus,
-    onStartDelete: (id: string) => setConfirmingDeleteId(id),
-    onCancelDelete: () => setConfirmingDeleteId(null),
+    onStartDelete: startDelete,
+    onCancelDelete: cancelDelete,
     onConfirmDelete: confirmDelete,
   };
 
@@ -913,6 +955,10 @@ interface StarterTableProps {
   edit: EditDraft | null;
   setEdit: (e: EditDraft) => void;
   confirmingDeleteId: string | null;
+  /** G5 — published templates depending on the starter pending delete confirm. */
+  deleteDependents: ComponentDependent[];
+  /** G5 — true while the pre-delete dependency scan is in flight. */
+  scanningDelete: boolean;
   /** A2 — media scope for the thumbnail picker (hub tenant; null = disabled). */
   mediaTenantId: string | null;
   /** A2 — resolved starter id → thumbnail public URL. */
@@ -931,7 +977,7 @@ interface StarterTableProps {
   onOpen: (row: BuilderTemplateRow) => void;
   onDuplicate: (row: BuilderTemplateRow) => void;
   onSetStatus: (row: BuilderTemplateRow, next: LabStatus) => void;
-  onStartDelete: (id: string) => void;
+  onStartDelete: (row: BuilderTemplateRow) => void;
   onCancelDelete: () => void;
   onConfirmDelete: (row: BuilderTemplateRow) => void;
 }
@@ -942,6 +988,8 @@ function StarterTable(props: StarterTableProps) {
     pendingId,
     editingId,
     confirmingDeleteId,
+    deleteDependents,
+    scanningDelete,
     mediaTenantId,
     thumbUrlByRow,
     thumbBusyId,
@@ -1108,24 +1156,65 @@ function StarterTable(props: StarterTableProps) {
                       <span
                         style={{
                           display: "inline-flex",
-                          gap: 8,
-                          alignItems: "center",
+                          flexDirection: "column",
+                          gap: 6,
+                          alignItems: "flex-end",
+                          textAlign: "right",
                         }}
                       >
-                        <span style={{ fontSize: 11, color: T.inkMuted }}>
-                          Delete this starter?
+                        {scanningDelete ? (
+                          <span
+                            style={{ fontSize: 11, color: T.inkMuted }}
+                          >
+                            Checking dependents…
+                          </span>
+                        ) : deleteDependents.length > 0 ? (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              color: T.inkMuted,
+                              maxWidth: 320,
+                              whiteSpace: "normal",
+                            }}
+                          >
+                            {deleteDependents.length} published template
+                            {deleteDependents.length === 1 ? "" : "s"} depend on
+                            this component:{" "}
+                            <strong style={{ color: T.ink }}>
+                              {deleteDependents.map((d) => d.title).join(", ")}
+                            </strong>
+                            . Archive anyway?
+                          </span>
+                        ) : (
+                          <span
+                            style={{ fontSize: 11, color: T.inkMuted }}
+                          >
+                            Delete this starter?
+                          </span>
+                        )}
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            gap: 8,
+                            alignItems: "center",
+                          }}
+                        >
+                          <LinkBtn
+                            label={
+                              deleteDependents.length > 0
+                                ? "Archive anyway"
+                                : "Yes"
+                            }
+                            onClick={() => onConfirmDelete(r)}
+                            disabled={busy || scanningDelete}
+                            danger
+                          />
+                          <LinkBtn
+                            label="No"
+                            onClick={onCancelDelete}
+                            disabled={busy}
+                          />
                         </span>
-                        <LinkBtn
-                          label="Yes"
-                          onClick={() => onConfirmDelete(r)}
-                          disabled={busy}
-                          danger
-                        />
-                        <LinkBtn
-                          label="No"
-                          onClick={onCancelDelete}
-                          disabled={busy}
-                        />
                       </span>
                     ) : (
                       <span style={{ display: "inline-flex", gap: 10 }}>
@@ -1152,7 +1241,7 @@ function StarterTable(props: StarterTableProps) {
                         />
                         <LinkBtn
                           label="Delete"
-                          onClick={() => onStartDelete(r.id)}
+                          onClick={() => onStartDelete(r)}
                           disabled={busy}
                           danger
                         />
