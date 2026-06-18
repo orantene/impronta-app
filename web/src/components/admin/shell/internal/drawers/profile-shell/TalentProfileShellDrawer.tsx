@@ -2452,11 +2452,9 @@ export function TalentProfileShellDrawer() {
                 display: "inline-flex", alignItems: "center", gap: 6,
                 padding: "7px 14px", borderRadius: 999, border: "none",
                 background:
-                  saveStatus === "error" ? "rgba(200,40,40,0.10)"
-                  : COLORS.fill,
-                color:
                   saveStatus === "error" ? "#C82828"
-                  : "#fff",
+                  : COLORS.fill,
+                color: "#fff",
                 fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700,
                 letterSpacing: 0.2,
                 cursor: saveStatus === "saving" ? "wait" : "pointer",
@@ -2473,7 +2471,7 @@ export function TalentProfileShellDrawer() {
                 }} />
               )}
               {saveStatus === "saving" ? (mode === "create" ? copy.t("Creating…") : copy.t("Saving…"))
-                : saveStatus === "error" ? `⚠ ${(saveError ?? (copy.isSpanish ? "No se pudo guardar" : "Couldn't save")).slice(0, 40)}`
+                : saveStatus === "error" ? `⚠ ${copy.isSpanish ? "Reintentar" : "Retry"}`
                 : mode === "create" ? copy.t("Create profile")
                 : copy.t("Save")}
               <style>{`@keyframes tulala-spin { to { transform: rotate(360deg); } }`}</style>
@@ -2557,6 +2555,32 @@ export function TalentProfileShellDrawer() {
             }
           />
         </div>
+
+        {/* Save-failure reason — pinned full-width in the sticky header so the
+            WHOLE reason is always visible (the in-body banner can scroll out of
+            view). Clearly a MESSAGE (role=alert) with its own Retry action, so
+            it never reads as, or competes with, the Save button. */}
+        {saveStatus === "error" && saveError && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 border-b border-admin-red/20 bg-admin-red/10 px-[18px] py-2.5 text-admin-13 font-medium leading-snug text-admin-red"
+          >
+            <span aria-hidden className="shrink-0 text-[13px] leading-tight">⚠</span>
+            <span className="min-w-0 flex-1">
+              <strong className="font-bold">
+                {copy.isSpanish ? "No se pudo guardar. " : "Couldn’t save. "}
+              </strong>
+              {saveError}
+            </span>
+            <button
+              type="button"
+              onClick={() => { void saveAll(); }}
+              className="shrink-0 rounded-lg border border-admin-red/40 bg-white px-2.5 py-0.5 text-admin-11h font-bold text-admin-red"
+            >
+              {copy.isSpanish ? "Reintentar" : "Retry"}
+            </button>
+          </div>
+        )}
 
         {/* Invite-claim banner */}
         {isInvited && (
