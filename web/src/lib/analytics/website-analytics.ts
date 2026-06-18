@@ -62,6 +62,185 @@ function windowStartIso(days: number): string {
   return start.toISOString();
 }
 
+// ── ANALYTICS-1 — conversion metrics ────────────────────────────────────────
+//
+// The WebsitePerformance panel previously zeroed inquiries / bookings /
+// revenue (only page-view "visits" were wired). These derive from three
+// tenant-scoped tables, each bounded by the SAME trailing windows the
+// page-view loader uses so the free-tier scans stay small:
+//
+//   - inquiries:  table `inquiries`  (NOT `inquiry_records`, which does not
+//     exist) — count rows scoped to the tenant + `created_at` in window,
+//     excluding non-inquiry statuses (`draft`, `rejected`, `expired`,
+//     `closed_lost`) so drafts and dead leads don't inflate the tile.
+//   - bookings:   table `agency_bookings` — count `status IN
+//     ('confirmed','completed')` scoped to the tenant. There is no
+//     `confirmed_at` column, so the window is applied on `created_at`.
+//   - revenue:    table `booking_transactions` — SUM of settled
+//     `gross_amount_cents` (`status IN ('paid','payout_pending','payout_sent')`,
+//     i.e. money captured and not refunded/failed/cancelled), scoped via
+//     `source_tenant_id` and windowed on `paid_at` (the settlement timestamp).
+//     Returned in MAJOR currency units (cents / 100) to match the panel's
+//     dollar-denominated `revenue` field.
+//
+// All counts/sums are best-effort: any error yields zeros so the panel renders.
+
+/** Inquiry statuses excluded from the "real inquiries" count (drafts + dead leads). */
+const NON_COUNTABLE_INQUIRY_STATUSES = [
+  "draft",
+  "rejected",
+  "expired",
+  "closed_lost",
+] as const;
+
+/** agency_bookings statuses that count as a realised booking. */
+const CONFIRMED_BOOKING_STATUSES = ["confirmed", "completed"] as const;
+
+/** booking_transactions statuses that count as settled revenue (captured, not reversed). */
+const SETTLED_TRANSACTION_STATUSES = ["paid", "payout_pending", "payout_sent"] as const;
+
+/** Cap each conversion scan so a busy tenant can't blow the free-tier egress budget. */
+const CONVERSION_SCAN_LIMIT = 5000;
+
+export type ConversionBucket = {
+  inquiries: number;
+  bookings: number;
+  /** Settled revenue in MAJOR currency units (dollars), summed across currencies. */
+  revenue: number;
+};
+
+export type WebsiteConversionMetrics = {
+  last7d: ConversionBucket;
+  last30d: ConversionBucket;
+};
+
+const EMPTY_CONVERSION_BUCKET: ConversionBucket = {
+  inquiries: 0,
+  bookings: 0,
+  revenue: 0,
+};
+
+export function emptyWebsiteConversionMetrics(): WebsiteConversionMetrics {
+  return {
+    last7d: { ...EMPTY_CONVERSION_BUCKET },
+    last30d: { ...EMPTY_CONVERSION_BUCKET },
+  };
+}
+
+export type ConversionRawRow = { created_at: string };
+export type RevenueRawRow = { paid_at: string | null; gross_amount_cents: number | null };
+
+/** Split a window's in-memory rows into the 7d subset by a timestamp accessor. */
+function countWithin(rows: readonly ConversionRawRow[], sinceIso: string): number {
+  return rows.reduce((n, r) => (r.created_at >= sinceIso ? n + 1 : n), 0);
+}
+
+function sumRevenueWithin(rows: readonly RevenueRawRow[], sinceIso: string): number {
+  const cents = rows.reduce((sum, r) => {
+    if (!r.paid_at || r.paid_at < sinceIso) return sum;
+    return sum + (typeof r.gross_amount_cents === "number" ? r.gross_amount_cents : 0);
+  }, 0);
+  return Math.round(cents) / 100;
+}
+
+/** Minimal supabase surface the conversion loader needs (so it is injectable in tests). */
+type ConversionQueryClient = Pick<
+  ReturnType<typeof createServiceRoleClient> & object,
+  "from"
+>;
+
+/**
+ * Group a single 30d row set into the {last7d,last30d} conversion shape, given
+ * the window boundaries and per-table row arrays. Pure — the testable core that
+ * proves the 7d-subset derivation + revenue summation independent of the DB.
+ */
+export function groupConversionMetrics(input: {
+  start7Iso: string;
+  start30Iso: string;
+  inquiries30: readonly ConversionRawRow[];
+  bookings30: readonly ConversionRawRow[];
+  revenue30: readonly RevenueRawRow[];
+}): WebsiteConversionMetrics {
+  return {
+    last7d: {
+      inquiries: countWithin(input.inquiries30, input.start7Iso),
+      bookings: countWithin(input.bookings30, input.start7Iso),
+      revenue: sumRevenueWithin(input.revenue30, input.start7Iso),
+    },
+    last30d: {
+      inquiries: input.inquiries30.length,
+      bookings: input.bookings30.length,
+      revenue: sumRevenueWithin(input.revenue30, input.start30Iso),
+    },
+  };
+}
+
+/**
+ * Load tenant conversion metrics (inquiries / bookings / settled revenue) for
+ * the trailing 7d + 30d windows. Reads the 30d window once per table and
+ * derives the 7d bucket in-memory (3 queries total, both windows) to minimise
+ * free-tier load. Returns zeros on any error. The supabase client is injectable
+ * for tests; production passes the service-role client.
+ */
+export async function loadWebsiteConversionMetrics(
+  tenantId: string,
+  client?: ConversionQueryClient | null,
+): Promise<WebsiteConversionMetrics> {
+  if (!tenantId) return emptyWebsiteConversionMetrics();
+
+  const supabase = client ?? createServiceRoleClient();
+  if (!supabase) return emptyWebsiteConversionMetrics();
+
+  const start30Iso = windowStartIso(30);
+  const start7Iso = windowStartIso(7);
+
+  try {
+    const [inquiriesRes, bookingsRes, revenueRes] = await Promise.all([
+      supabase
+        .from("inquiries")
+        .select("created_at")
+        .eq("tenant_id", tenantId)
+        .not("status", "in", `(${NON_COUNTABLE_INQUIRY_STATUSES.join(",")})`)
+        .gte("created_at", start30Iso)
+        .order("created_at", { ascending: false })
+        .limit(CONVERSION_SCAN_LIMIT)
+        .returns<ConversionRawRow[]>(),
+      supabase
+        .from("agency_bookings")
+        .select("created_at")
+        .eq("tenant_id", tenantId)
+        .in("status", [...CONFIRMED_BOOKING_STATUSES])
+        .gte("created_at", start30Iso)
+        .order("created_at", { ascending: false })
+        .limit(CONVERSION_SCAN_LIMIT)
+        .returns<ConversionRawRow[]>(),
+      supabase
+        .from("booking_transactions")
+        .select("paid_at, gross_amount_cents")
+        .eq("source_tenant_id", tenantId)
+        .in("status", [...SETTLED_TRANSACTION_STATUSES])
+        .gte("paid_at", start30Iso)
+        .order("paid_at", { ascending: false })
+        .limit(CONVERSION_SCAN_LIMIT)
+        .returns<RevenueRawRow[]>(),
+    ]);
+
+    const inquiries30 = inquiriesRes.error ? [] : inquiriesRes.data ?? [];
+    const bookings30 = bookingsRes.error ? [] : bookingsRes.data ?? [];
+    const revenue30 = revenueRes.error ? [] : revenueRes.data ?? [];
+
+    return groupConversionMetrics({
+      start7Iso,
+      start30Iso,
+      inquiries30,
+      bookings30,
+      revenue30,
+    });
+  } catch {
+    return emptyWebsiteConversionMetrics();
+  }
+}
+
 type RawRow = {
   created_at: string;
   path: string | null;

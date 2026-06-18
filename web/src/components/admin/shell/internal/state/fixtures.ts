@@ -4874,13 +4874,14 @@ export function mergeWebsiteStateFromBridge(live: WebsiteData, tenantSlug: strin
 
   // ANALYTICS-2 — project the REAL first-party page-view analytics
   // (`view_site_page` grouped by page_slug / referrer) into the panel shape.
-  // Visits come from the live loader; inquiries/bookings/revenue stay 0 here
-  // (those derive from other tables, out of the page-view loader's scope) so the
-  // panel's visit + top-pages + top-referrers render real numbers while the
-  // money columns show zero rather than fixture lies. Prior == 0 (no historical
-  // baseline yet) → the Tile deltas read "flat", which is honest.
+  // Visits come from the page-view loader; inquiries/bookings/revenue come from
+  // the ANALYTICS-1 conversion loader (`inquiries` / `agency_bookings` /
+  // `booking_transactions`). Prior == 0 (no historical baseline yet) → the Tile
+  // deltas read "flat", which is honest.
   const live7d = live.analytics.last7d;
   const live30d = live.analytics.last30d;
+  const conv7d = live.conversion.last7d;
+  const conv30d = live.conversion.last30d;
 
   // Map page slug → real 7d visits so each page card shows live hits.
   const visitsBySlug7d = new Map<string, number>(
@@ -4911,18 +4912,23 @@ export function mergeWebsiteStateFromBridge(live: WebsiteData, tenantSlug: strin
       bookings: 0,
     }));
 
-  const metrics = (visits: number): WebsitePeriodMetrics => ({
+  const metrics = (
+    visits: number,
+    conv: { inquiries: number; bookings: number; revenue: number },
+  ): WebsitePeriodMetrics => ({
     visits,
-    inquiries: 0,
-    bookings: 0,
-    revenue: 0,
+    inquiries: conv.inquiries,
+    bookings: conv.bookings,
+    revenue: conv.revenue,
+    // No historical baseline is loaded yet, so prior stays 0 → deltas read
+    // "flat" rather than inventing a comparison the data can't support.
     prior: { visits: 0, inquiries: 0, bookings: 0, revenue: 0 },
   });
 
   const analyticsLive: WebsiteAnalytics = {
     refreshedAt:    live.analytics.refreshedAt,
-    last7d:         metrics(live7d.visits),
-    last30d:        metrics(live30d.visits),
+    last7d:         metrics(live7d.visits, conv7d),
+    last30d:        metrics(live30d.visits, conv30d),
     byPage7d:       toByPage(live7d.topPages),
     byPage30d:      toByPage(live30d.topPages),
     byTalent7d:     [],
