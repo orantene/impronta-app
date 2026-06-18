@@ -22,7 +22,10 @@ import {
   buildBuilderFieldMapPreview,
   describeBuilderVisibilityCondition,
   EXPERIMENT_ELIGIBLE_KINDS,
+  EXPERIMENT_MAX_ARMS,
   EXPERIMENT_VARIANT_LABEL_MAX,
+  experimentArmShares,
+  experimentVariantKeyAt,
   firstRepeatItemFromRecords,
   getBuilderNodeDataBinding,
   getNodeExperimentConfig,
@@ -36,6 +39,7 @@ import {
   type BuilderVisibilityCondition,
   type BuilderVisibilityLocale,
   type ExperimentPropOverride,
+  type ExperimentVariant,
   type NodeExperimentConfig,
 } from "@/lib/site-admin/builder-node";
 import { getCollectionAction } from "@/lib/site-admin/collections/actions";
@@ -43,7 +47,6 @@ import {
   collectionIdFromSourceKey,
   collectionItemsToRecords,
 } from "@/lib/site-admin/collections/types";
-import { useEditContext } from "../edit-context";
 import { useBuilderTree } from "../builder-tree-bridge";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented } from "../kit";
 import { KIT } from "./kit/tokens";
@@ -237,13 +240,28 @@ function mintExperimentId(nodeId: string): string {
   return `exp-${nodeId.slice(0, 6)}-${rand}`.slice(0, 40);
 }
 
+/** Author-facing letter for an arm index: 0→"A", 1→"B", … (uppercased key). */
+function armLetter(index: number): string {
+  return experimentVariantKeyAt(index).toUpperCase();
+}
+
+/** Format an arm's split share (0..1) as a rounded whole percent. */
+function formatSharePercent(share: number): string {
+  return `${Math.round(share * 100)}%`;
+}
+
 /**
- * "A/B test" — an OPTIONAL minimal 2-arm experiment on an eligible CTA / form
- * node. Variant "a" is the live node (control); the author sets variant "b"'s
- * prop overrides here. Enabling mints a stable experiment id; the shared
- * renderer buckets each visitor deterministically and tags the element so the
- * runtime records `experiment_view` / `experiment_convert`. Persists via the
- * normal patch path (`patch: { experiment }`); clearing removes it.
+ * "A/B test" — an OPTIONAL experiment on an eligible CTA / form node, supporting
+ * a control ("A") plus up to {@link EXPERIMENT_MAX_ARMS}-1 challengers (B, C, …)
+ * with optional per-arm weights (split shares). Variant A is the live node
+ * (control); the author sets each challenger's prop overrides + weight here.
+ * Enabling mints a stable experiment id; the shared renderer buckets each
+ * visitor deterministically (weighted) and tags the element so the runtime
+ * records `experiment_view` / `experiment_convert`. Persists via the normal
+ * patch path (`patch: { experiment }`); clearing removes it.
+ *
+ * Weights are RELATIVE — leaving every weight blank/equal is an even split (and
+ * normalizes to no weights at all, byte-stable with the original 2-arm engine).
  */
 export function ABTestCard({
   selectedBuilderNode,
@@ -256,7 +274,14 @@ export function ABTestCard({
   const config = getNodeExperimentConfig(selectedBuilderNode);
   const active = config != null;
   const fields = experimentOverrideFieldsForKind(kind);
-  const bOverrides = config?.variants.find((v) => v.key === "b")?.propOverrides ?? {};
+  const variants = config?.variants ?? [];
+  const challengers = variants.slice(1); // arms B, C, … (control is index 0).
+  const canAddArm = variants.length < EXPERIMENT_MAX_ARMS;
+  // Show weight inputs once there is more than one challenger OR any arm already
+  // carries an explicit weight — keeps the simple 2-arm case uncluttered.
+  const showWeights =
+    challengers.length > 1 || variants.some((v) => v.weight !== undefined);
+  const shares = variants.length > 0 ? experimentArmShares(variants) : [];
 
   async function commit(next: NodeExperimentConfig | null) {
     const result = await onPatchBuilderNodeProps(selectedBuilderNode.id, {
@@ -273,18 +298,58 @@ export function ABTestCard({
     });
   }
 
-  function patchOverride(key: string, raw: string) {
+  /** Re-emit the config with a fresh variants array (re-keyed on normalize). */
+  function commitVariants(nextVariants: ExperimentVariant[]) {
     if (!config) return;
-    const nextOverrides: Record<string, ExperimentPropOverride> = { ...bOverrides };
-    if (raw.trim()) nextOverrides[key] = raw;
-    else delete nextOverrides[key];
-    void commit({
-      ...config,
-      variants: [
-        { key: "a" },
-        { key: "b", propOverrides: nextOverrides },
-      ],
-    });
+    void commit({ ...config, variants: nextVariants });
+  }
+
+  /** Patch one prop override on challenger arm `armIndex` (0 = arm B). */
+  function patchOverride(armIndex: number, key: string, raw: string) {
+    if (!config) return;
+    const next = variants.map((v) => ({ ...v }));
+    const target = next[armIndex + 1]; // +1 → skip the control.
+    if (!target) return;
+    const overrides: Record<string, ExperimentPropOverride> = {
+      ...(target.propOverrides ?? {}),
+    };
+    if (raw.trim()) overrides[key] = raw;
+    else delete overrides[key];
+    target.propOverrides = overrides;
+    commitVariants(next);
+  }
+
+  /** Patch a weight on any arm (`armIndex` is the absolute arm index). */
+  function patchWeight(armIndex: number, raw: string) {
+    if (!config) return;
+    const next = variants.map((v) => ({ ...v }));
+    const target = next[armIndex];
+    if (!target) return;
+    const parsed = Number.parseFloat(raw);
+    if (raw.trim() && Number.isFinite(parsed) && parsed > 0) {
+      target.weight = parsed;
+    } else {
+      delete target.weight;
+    }
+    commitVariants(next);
+  }
+
+  function addArm() {
+    if (!config || !canAddArm) return;
+    const next = [
+      ...variants.map((v) => ({ ...v })),
+      { key: experimentVariantKeyAt(variants.length), propOverrides: {} },
+    ];
+    commitVariants(next);
+  }
+
+  /** Remove challenger arm `armIndex` (0 = arm B). The control is never removed. */
+  function removeArm(armIndex: number) {
+    if (!config) return;
+    const next = variants
+      .map((v) => ({ ...v }))
+      .filter((_, i) => i !== armIndex + 1);
+    commitVariants(next);
   }
 
   return (
@@ -293,7 +358,9 @@ export function ABTestCard({
         title="A/B test"
         sub={
           active
-            ? "Two variants — visitors split 50/50, conversions tracked"
+            ? variants.length > 2
+              ? `${variants.length} variants — visitors split, conversions tracked`
+              : "Two variants — visitors split, conversions tracked"
             : "Off — one version for everyone"
         }
         iconAccent={active ? "green" : "blue"}
@@ -316,34 +383,134 @@ export function ABTestCard({
         {active ? (
           <div className="flex flex-col gap-3" data-builder-experiment-config>
             <p className="text-[11px] leading-snug text-stone-500">
-              Variant A is the version you see on the canvas. Set variant B
-              below — half your visitors see it. We record an impression and a
-              conversion ({kind === "form" ? "form submit" : "click"}) for each.
+              Variant A is the version you see on the canvas. Add one or more
+              challengers below — visitors split between them. We record an
+              impression and a conversion (
+              {kind === "form" ? "form submit" : "click"}) for each.
             </p>
-            {fields.map((field) => (
-              <Field flush key={field.key}>
-                <FieldLabel>Variant B · {field.label}</FieldLabel>
-                <input
-                  type="text"
-                  className={KIT.input}
-                  maxLength={EXPERIMENT_VARIANT_LABEL_MAX}
-                  value={
-                    typeof bOverrides[field.key] === "string"
-                      ? (bOverrides[field.key] as string)
-                      : ""
-                  }
-                  placeholder={field.placeholder}
-                  aria-label={`Variant B ${field.label}`}
-                  data-builder-experiment-override={field.key}
-                  onChange={(event) =>
-                    patchOverride(field.key, event.currentTarget.value)
-                  }
-                />
-              </Field>
-            ))}
+
+            {/* Control row — shows its computed share + an optional weight. */}
+            <div
+              className="rounded-lg border border-stone-200 bg-[#faf9f6] px-3 py-2"
+              data-builder-experiment-arm="a"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[12px] font-semibold text-stone-700">
+                  Variant A · Control
+                </span>
+                <span className="text-[11px] text-stone-500">
+                  {shares[0] != null ? formatSharePercent(shares[0]) : ""}
+                </span>
+              </div>
+              {showWeights ? (
+                <div className="mt-2">
+                  <Field flush>
+                    <FieldLabel>Weight</FieldLabel>
+                    <input
+                      type="number"
+                      min={0}
+                      step="any"
+                      className={KIT.input}
+                      value={variants[0]?.weight ?? ""}
+                      placeholder="even"
+                      aria-label="Variant A weight"
+                      data-builder-experiment-weight="a"
+                      onChange={(event) => patchWeight(0, event.currentTarget.value)}
+                    />
+                  </Field>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Challenger arms — B, C, … each with its overrides + weight. */}
+            {challengers.map((arm, armIndex) => {
+              const overrides = arm.propOverrides ?? {};
+              const letter = armLetter(armIndex + 1);
+              return (
+                <div
+                  key={arm.key}
+                  className="rounded-lg border border-stone-200 bg-white px-3 py-2"
+                  data-builder-experiment-arm={arm.key}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[12px] font-semibold text-stone-700">
+                      Variant {letter}
+                      {shares[armIndex + 1] != null
+                        ? ` · ${formatSharePercent(shares[armIndex + 1])}`
+                        : ""}
+                    </span>
+                    <button
+                      type="button"
+                      className={KIT.subtleButton}
+                      data-builder-experiment-remove-arm={arm.key}
+                      aria-label={`Remove variant ${letter}`}
+                      onClick={() => removeArm(armIndex)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="mt-2 flex flex-col gap-3">
+                    {fields.map((field) => (
+                      <Field flush key={field.key}>
+                        <FieldLabel>{field.label}</FieldLabel>
+                        <input
+                          type="text"
+                          className={KIT.input}
+                          maxLength={EXPERIMENT_VARIANT_LABEL_MAX}
+                          value={
+                            typeof overrides[field.key] === "string"
+                              ? (overrides[field.key] as string)
+                              : ""
+                          }
+                          placeholder={field.placeholder}
+                          aria-label={`Variant ${letter} ${field.label}`}
+                          data-builder-experiment-override={`${arm.key}:${field.key}`}
+                          onChange={(event) =>
+                            patchOverride(armIndex, field.key, event.currentTarget.value)
+                          }
+                        />
+                      </Field>
+                    ))}
+                    {showWeights ? (
+                      <Field flush>
+                        <FieldLabel>Weight</FieldLabel>
+                        <input
+                          type="number"
+                          min={0}
+                          step="any"
+                          className={KIT.input}
+                          value={arm.weight ?? ""}
+                          placeholder="even"
+                          aria-label={`Variant ${letter} weight`}
+                          data-builder-experiment-weight={arm.key}
+                          onChange={(event) =>
+                            patchWeight(armIndex + 1, event.currentTarget.value)
+                          }
+                        />
+                      </Field>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+
+            {canAddArm ? (
+              <button
+                type="button"
+                className={KIT.ghostButton}
+                data-builder-experiment-add-arm
+                onClick={addArm}
+              >
+                Add a variant
+              </button>
+            ) : (
+              <Helper>Maximum of {EXPERIMENT_MAX_ARMS} variants.</Helper>
+            )}
+
             <Helper>
-              Leave a field blank to keep variant A’s value for it. An empty
-              variant B is treated as no experiment.
+              Leave a field blank to keep variant A’s value for it. A challenger
+              with no overrides is dropped. Weights are relative — leave them
+              blank for an even split.
             </Helper>
           </div>
         ) : (
@@ -357,8 +524,9 @@ export function ABTestCard({
               Add a B variant
             </button>
             <Helper>
-              Test two versions of this {kind === "form" ? "form" : "call to action"} and
-              see which converts better.
+              Test two or more versions of this{" "}
+              {kind === "form" ? "form" : "call to action"} and see which
+              converts better.
             </Helper>
           </div>
         )}

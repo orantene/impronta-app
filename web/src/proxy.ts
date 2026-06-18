@@ -54,6 +54,7 @@ import {
   previewCookieNameFor,
 } from "@/lib/site-admin/preview/cookie";
 import { readPreviewFromQueryParam } from "@/lib/site-admin/preview/middleware";
+import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/experiment-visitor-cookie";
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
 
 function clientIp(request: NextRequest): string {
@@ -765,10 +766,12 @@ export async function proxy(request: NextRequest) {
     });
 
     syncLocaleCookieForPath(res, originalPathname, effectiveLangSettings, request);
+    ensureExperimentVisitorCookie(request, res);
     return res;
   }
 
   syncLocaleCookieForPath(sessionRes, originalPathname, effectiveLangSettings, request);
+  ensureExperimentVisitorCookie(request, sessionRes);
   return sessionRes;
 }
 
