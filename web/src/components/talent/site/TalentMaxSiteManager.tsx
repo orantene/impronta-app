@@ -20,7 +20,7 @@
  */
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
@@ -41,11 +41,9 @@ import type {
   MaxSiteManagerState,
   MaxSiteManagerPage,
 } from "@/lib/talent-site/server/site-management-types";
-import {
-  listMaxSiteTemplateSummaries,
-  type MaxSiteTemplateSummary,
-} from "@/lib/talent-site/max-site-templates/registry";
-import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
+import { listMaxSiteTemplateSummaries } from "@/lib/talent-site/max-site-templates/registry";
+import { toUnifiedTemplateDef } from "@/lib/site-admin/builder-core/templates/template-def";
+import { TemplatePickerPanel } from "@/components/edit-chrome/template-picker-panel";
 import { TalentMaxSiteTemplateThumb } from "@/components/talent/site/TalentMaxSiteTemplateThumb";
 import { TalentSiteDomainPanel } from "@/components/talent/site/TalentSiteDomainPanel";
 import {
@@ -202,7 +200,7 @@ function ManagerBody({ state, onReload }: { state: MaxSiteManagerState; onReload
       </Card>
 
       {/* Starter template gallery */}
-      <TemplateGallery pending={pending} run={run} talentProfileId={state.talentProfileId} />
+      <TemplateGallery talentProfileId={state.talentProfileId} onReload={onReload} />
 
       {/* Site address (slug) */}
       <SlugEditor state={state} onSaved={onReload} />
@@ -517,113 +515,50 @@ function PagesPanel({
  * publish to go live).
  */
 function TemplateGallery({
-  pending,
-  run,
   talentProfileId,
+  onReload,
 }: {
-  pending: boolean;
-  run: (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
   talentProfileId: string;
+  onReload: () => Promise<void>;
 }) {
-  const templates = listMaxSiteTemplateSummaries();
-  const [applyingKey, setApplyingKey] = useState<string | null>(null);
+  // Convert the Max-site registry summaries into the SHARED UnifiedTemplateDef
+  // shape (ONB-3) so the shared TemplatePickerPanel renders identical card
+  // anatomy here as on the discovery-profile picker.
+  const templates = useMemo(
+    () =>
+      listMaxSiteTemplateSummaries().map((t) =>
+        toUnifiedTemplateDef(
+          { key: t.key, label: t.label, description: t.description, emphasis: t.emphasis },
+          "max-site",
+        ),
+      ),
+    [],
+  );
 
-  function apply(t: MaxSiteTemplateSummary) {
-    if (
-      !window.confirm(
-        `Apply the "${t.label}" starter? This replaces your current draft home page and site shell with this layout, pre-filled with your details. Your published site is not changed until you publish.`,
-      )
-    ) {
-      return;
-    }
-    setApplyingKey(t.key);
-    run(() => applyMaxSiteTemplateAction({ templateKey: t.key }));
+  async function apply(key: string): Promise<{ ok: boolean; error?: string | null }> {
+    const res = await applyMaxSiteTemplateAction({ templateKey: key });
+    if (!res.ok) return { ok: false, error: res.error };
+    await onReload();
+    return { ok: true };
   }
 
   return (
     <Card>
-      <div style={sectionLabel}>Choose a starter template</div>
-      <p style={{ margin: "4px 0 12px", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5, maxWidth: 560 }}>
-        Pick a layout to start from. We&rsquo;ll fill it with your name, photo, bio and services. This
-        replaces your current <strong>draft</strong> home page and shell — publish when you&rsquo;re ready to go live.
-      </p>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-          gap: 10,
-        }}
-      >
-        {templates.map((t) => (
-          <div
-            key={t.key}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-              padding: "12px 13px",
-              background: COLORS.surfaceAlt,
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 12,
-            }}
-          >
-            <TalentMaxSiteTemplateThumb templateKey={t.key} />
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{t.label}</span>
-              {t.key === "default" ? <Pill tone="indigo">Default</Pill> : null}
-            </div>
-            <span style={{ fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 600, letterSpacing: 0.2 }}>
-              {t.emphasis}
-            </span>
-            <p style={{ margin: "0 0 8px", fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
-              {t.description}
-            </p>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: "auto" }}>
-              <button
-                type="button"
-                onClick={() => apply(t)}
-                disabled={pending}
-                style={{ ...miniBtn, alignSelf: "flex-start" }}
-              >
-                {pending && applyingKey === t.key ? "Applying…" : "Apply"}
-              </button>
-              {/* Eye / Preview — opens the SHARED owner-gated hydrated preview
-                  route with this talent's real data (?talent param). */}
-              <a
-                href={getTemplatePreviewUrl(t.key, {
-                  talentProfileId,
-                  family: "max-site",
-                })}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Preview with your details"
-                aria-label={`Preview ${t.label} with your details`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  color: COLORS.inkMuted,
-                  textDecoration: "none",
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
-                </svg>
-                Preview
-              </a>
-            </div>
-          </div>
-        ))}
-      </div>
+      <TemplatePickerPanel
+        mode="site"
+        heading="Choose a starter template"
+        description={
+          <>
+            Pick a layout to start from. We&rsquo;ll fill it with your name, photo, bio and
+            services. This replaces your current <strong>draft</strong> home page and shell —
+            publish when you&rsquo;re ready to go live.
+          </>
+        }
+        templates={templates}
+        talentProfileId={talentProfileId}
+        onApply={apply}
+        renderFallbackThumb={(key) => <TalentMaxSiteTemplateThumb templateKey={key} />}
+      />
     </Card>
   );
 }

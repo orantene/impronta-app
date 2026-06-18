@@ -14,6 +14,7 @@
 
 import type { PageDesignSummary } from "@/lib/site-admin/builder-node/page-designs/summaries";
 import type { BuilderSurfaceKind } from "@/lib/site-admin/builder-core/surface-kind";
+import type { TextToPageSurface } from "@/lib/site-admin/builder-core/ai/preset-plan";
 
 /**
  * The audience a starter surface serves. Maps onto the design `target`
@@ -86,4 +87,26 @@ export function starterSummariesForSurface(
   if (!surface) return summaries;
   const allowed = new Set(targetsForStarterSurface(surface));
   return summaries.filter((s) => allowed.has(s.target));
+}
+
+/**
+ * AI-1 — map the resolved EmptyCanvasStarter surface to the text-to-page
+ * composer's surface vocabulary, so the "Compose with AI" affordance offers the
+ * SAME preset audience the manual picker does. Kept here (the single place the
+ * starter surface is reasoned about) so the AI path inherits the audience split
+ * with no surfaceKind branch in the component. `undefined` = the homepage/full
+ * set → `workspace` (the homepage is an agency surface).
+ */
+export function textToPageSurfaceForStarterSurface(
+  surface: EmptyCanvasStarterSurface | undefined,
+): TextToPageSurface {
+  switch (surface) {
+    case "talent":
+      return "talent";
+    case "talent-site":
+      return "talent-site";
+    case "workspace":
+    default:
+      return "workspace";
+  }
 }

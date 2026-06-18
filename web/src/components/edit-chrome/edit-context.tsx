@@ -155,6 +155,7 @@ import {
 import { publishDirty } from "./dirty-bridge";
 import { publishBuilderTree } from "./builder-tree-bridge";
 import { publishCanUndo, publishCanRedo } from "./history-bridge";
+import { commitActiveInlineEditor } from "./canvas-lexical-bridge";
 import { getEditSessionId } from "./presence-provider";
 import {
   readOsBuilderClipboard,
@@ -773,6 +774,21 @@ export interface EditContextValue {
     homepageApply?: () => Promise<
       { ok: true; tree: BuilderNodeTree } | { ok: false; error?: string }
     >;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * AI-1 — apply an ALREADY-COMPOSED freeform tree (produced by the shared
+   * text-to-page composer from a one-line brief) to the ACTIVE surface. Persists
+   * the tree through the active SurfaceAdapter and routes the whole apply through
+   * `applyTemplateWithUndo`, so the AI page is snapshotted, undoable via the
+   * shared toast, and autosaved identically on every surface — exactly like a
+   * design/template apply. The component never touches the adapter directly; the
+   * persistence stays a property of the EditProvider (the shared-improvement
+   * invariant). The tree has already been validated server-side by the composer
+   * (`validateBuilderNodeTree`) so this path injects nothing unchecked.
+   */
+  applyComposedTreeWithUndo: (input: {
+    tree: BuilderNodeTree;
+    label: string;
   }) => Promise<{ ok: boolean; error?: string }>;
   /**
    * Insert a curated Tulala component (`section_embed` node) — Directory,
@@ -5557,24 +5573,30 @@ export function EditProvider({
       ) {
         void queueRouterRefresh();
       }
-      setPast((p) =>
-        capHistory([
-          ...p,
-          {
-            kind: "builderTree",
-            // Store the immutable tree refs directly — no deep clone. Since the
-            // copy-on-write ops refactor, prevTree/nextTree are never mutated in
-            // place (ops only write fresh spine nodes and share off-path
-            // subtrees; persistBuilderTree treats trees as read-only), so the
-            // former defensive clone is pure overhead per commit. Undo/redo
-            // restore these refs verbatim via persistBuilderTree.
-            pre: prevTree,
-            post: nextTree,
-            // W3-T8 — stamp the active selection so undo/redo restores it.
-            selection: captureHistorySelection(),
-          },
-        ]),
-      );
+      const builderTreeEntry: HistoryEntry = {
+        kind: "builderTree",
+        // Store the immutable tree refs directly — no deep clone. Since the
+        // copy-on-write ops refactor, prevTree/nextTree are never mutated in
+        // place (ops only write fresh spine nodes and share off-path
+        // subtrees; persistBuilderTree treats trees as read-only), so the
+        // former defensive clone is pure overhead per commit. Undo/redo
+        // restore these refs verbatim via persistBuilderTree.
+        pre: prevTree,
+        post: nextTree,
+        // W3-T8 — stamp the active selection so undo/redo restores it.
+        selection: captureHistorySelection(),
+      };
+      setPast((p) => capHistory([...p, builderTreeEntry]));
+      // CANVAS-7B — mirror the push into `pastRef` SYNCHRONOUSLY (not only via
+      // the post-render effect). The inline-editor→node-history undo handoff
+      // awaits this commit and then reads `pastRef.current`; without the eager
+      // mirror the just-typed text's entry would not yet be visible (the
+      // `pastRef = past` effect runs only after the next React commit), so the
+      // first ⌘Z after leaving the inline editor would undo the PRIOR node op
+      // and silently drop the typed text. The effect reconciles to the same
+      // value on the next render (idempotent).
+      pastRef.current = capHistory([...pastRef.current, builderTreeEntry]);
+      futureRef.current = [];
       setFuture([]);
       // Coalesce the SERVER persist: remember the latest tree and (re)arm the
       // debounce. Only the final tree of a burst is sent. `dirty` flags the
@@ -5982,6 +6004,32 @@ export function EditProvider({
       applyTemplateWithUndo,
       persistBuilderTree,
     ],
+  );
+
+  // AI-1 — apply an already-composed tree (from the shared text-to-page
+  // composer) through the SAME chokepoint as a design apply. The tree was
+  // validated server-side; here we persist it through the active adapter and
+  // wrap it in applyTemplateWithUndo for snapshot + Undo toast + autosave. No
+  // surfaceKind branch — every surface persists through its own adapter.
+  const applyComposedTreeWithUndo = useCallback<
+    EditContextValue["applyComposedTreeWithUndo"]
+  >(
+    async ({ tree, label }) => {
+      const apply = async (): Promise<
+        { ok: true; tree: BuilderNodeTree } | { ok: false; error?: string }
+      > => {
+        const saved = await persistBuilderTree(tree);
+        if (!saved.ok) {
+          return {
+            ok: false,
+            error: saved.error ?? "Could not apply the page — try again.",
+          };
+        }
+        return { ok: true, tree };
+      };
+      return applyTemplateWithUndo({ label, apply });
+    },
+    [applyTemplateWithUndo, persistBuilderTree],
   );
 
   const insertBuilderSectionEmbed = useCallback<
@@ -7292,6 +7340,14 @@ export function EditProvider({
       historyPendingRef.current = "undo";
       return;
     }
+    // CANVAS-7B — undo focus-routing. If an inline text editor is open (or a
+    // blur-commit is still in flight), commit its pending text to node history
+    // FIRST and await the push. This is the text-loss guarantee: the operator's
+    // last typed text becomes a recorded `builderTree` entry (mirrored eagerly
+    // into `pastRef`) before this undo reads the stack, so the first ⌘Z after
+    // leaving the inline editor undoes that text edit — never the prior node op
+    // with the typed text silently dropped. No-op when no inline editor is open.
+    await commitActiveInlineEditor();
     // WS2 (Step 3) — read the live `past` stack from the ref so `undo` does not
     // list `past` in its deps; dropping that dep keeps `undo` stable across every
     // edit (an edit pushes to `past`, which used to recreate this callback and,
@@ -7384,6 +7440,12 @@ export function EditProvider({
       historyPendingRef.current = "redo";
       return;
     }
+    // CANVAS-7B — mirror undo: flush any open inline text edit to node history
+    // before redo reads the stack. A pending inline commit pushes to `past` and
+    // CLEARS `future` (a new edit branches away from the redo path), so this
+    // must settle before the `futureRef` check below — otherwise redo could
+    // replay onto a stack the just-typed text already invalidated.
+    await commitActiveInlineEditor();
     // WS2 (Step 3) — read the live `future` stack from the ref (mirror of `undo`)
     // so `redo` does not list `future` in its deps and stays stable across edits.
     if (futureRef.current.length === 0) return;
@@ -7955,6 +8017,7 @@ export function EditProvider({
       insertBuilderNodeCompositionPreset,
       applyTemplateWithUndo,
       applyPageDesignWithUndo,
+      applyComposedTreeWithUndo,
       insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,
@@ -8195,6 +8258,7 @@ export function EditProvider({
       insertBuilderNodeCompositionPreset,
       applyTemplateWithUndo,
       applyPageDesignWithUndo,
+      applyComposedTreeWithUndo,
       insertBuilderSectionEmbed,
       insertBuilderComponent,
       insertLinkedComponent,

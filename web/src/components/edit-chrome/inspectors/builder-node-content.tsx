@@ -490,6 +490,16 @@ export function BuilderNodeContentInspector({
             />
           </div>
           <VariantPicker node={node} commitPatch={(p) => void commitPatch(p)} />
+          <div style={{ padding: "4px 0" }}>
+            <Toggle
+              on={node.props.priority ?? false}
+              onChange={(next) => {
+                void commitPatch({ priority: next || undefined });
+              }}
+              label="Load priority (LCP)"
+              helper="Mark this as the page's hero image. Loads eagerly with high fetch priority — use on at most one above-the-fold image."
+            />
+          </div>
         </BuilderNodeSection>
       </BuilderNodeFlatPanel>
     );

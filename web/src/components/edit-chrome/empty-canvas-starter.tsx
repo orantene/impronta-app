@@ -62,7 +62,10 @@ import {
   type EmptyCanvasStarterSurface,
   starterSurfaceForKind,
   starterSummariesForSurface,
+  textToPageSurfaceForStarterSurface,
 } from "./empty-canvas-starter-surface";
+import { AIBriefInput } from "./ai-brief-input";
+import { composePageFromBriefAction } from "@/lib/site-admin/builder-core/ai/text-to-page-action";
 
 /** A soft archetype-tinted gradient for each full-page design preview card. */
 function archetypeGradient(archetype: PageDesignSummary["archetype"]): string {
@@ -128,6 +131,11 @@ export function EmptyCanvasStarter({
   // manual close) — the card unmounts once they hover a section gap and add a block.
   const [scratchMomentum, setScratchMomentum] = useState(false);
   const scratchMomentumTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // AI-1 — the surface context the text-to-page composer uses to pick the right
+  // preset audience. Derived from the SAME resolved starter surface (no extra
+  // surfaceKind read), so the AI path inherits the talent/workspace split.
+  const textToPageSurface = textToPageSurfaceForStarterSurface(effectiveSurface);
+  const [aiPending, setAiPending] = useState(false);
 
   // Cleanup the scratch-momentum auto-dismiss timer on unmount.
   useEffect(() => {
@@ -249,6 +257,52 @@ export function EmptyCanvasStarter({
       });
     },
     [editCtx, locale, requestStarterSync, isHomepageSurface],
+  );
+
+  // AI-1 — compose a page from a one-line brief and apply it through the SAME
+  // shared `applyTemplateWithUndo` chokepoint as a template/design apply, so the
+  // AI result is snapshotted, undoable via the shared toast, and autosaved
+  // identically on every surface. The composer returns a validated, governed
+  // BuilderNode tree (presets only, never arbitrary nodes); here we only persist
+  // + adopt it. Routed through the active SurfaceAdapter's tree-replace path the
+  // chokepoint owns — no homepage-only fork, no raw setBuilderTree.
+  const handleAiCompose = useCallback(
+    async (brief: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!editCtx) {
+        return {
+          ok: false,
+          error: "AI compose needs an active editor — reload and try again.",
+        };
+      }
+      setAiPending(true);
+      try {
+        const composed = await composePageFromBriefAction({
+          brief,
+          surface: textToPageSurface,
+          locale,
+        });
+        if (!composed.ok) {
+          return {
+            ok: false,
+            error: composed.error ?? "Could not compose a page — try again.",
+          };
+        }
+        const result = await editCtx.applyComposedTreeWithUndo({
+          tree: composed.builderTree,
+          label: composed.label,
+        });
+        if (!result.ok) {
+          return {
+            ok: false,
+            error: result.error ?? "Could not apply the page — try again.",
+          };
+        }
+        return { ok: true };
+      } finally {
+        setAiPending(false);
+      }
+    },
+    [editCtx, textToPageSurface, locale],
   );
 
   function handleQuickHeroInsert() {
@@ -389,6 +443,19 @@ export function EmptyCanvasStarter({
           <div className="mx-auto mt-3 max-w-md rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-700">
             {designError}
           </div>
+        ) : null}
+
+        {/* AI-1 — text-to-page: describe the page and the shared composer
+            assembles it from the SAME designed presets, applied through the
+            shared undo chokepoint. Requires an active EditContext (every modern
+            mount has one); the legacy no-EditContext homepage fallback omits it
+            since it has no client tree-replace path. */}
+        {editCtx ? (
+          <AIBriefInput
+            onCompose={handleAiCompose}
+            pending={aiPending}
+            disabled={designApplyPending || quickInsertPending}
+          />
         ) : null}
 
         {/* Scratch / blank-canvas path — coaching callout (#20a) */}

@@ -43,6 +43,7 @@ import { MediaPickerDialog } from "./media-picker-dialog";
 import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path";
 import { CanvasEditOverlay } from "./rich-editor";
 import { flushCanvasTextStylePatches } from "./canvas-lexical-bridge";
+import { useInlineEditorCommitHandoff } from "./use-inline-editor-commit-handoff";
 import {
   findBuilderNodeById,
   resolveBuilderNodeTextValue,
@@ -415,18 +416,19 @@ export function InlineEditor() {
     };
   }, [selectBuilderNode]);
 
-  // QA 2026-05-13 — wrapped in useCallback so child surfaces that
-  // memoize `onCommit` / `onCancel` props don't capture a stale
-  // closure between double-click and blur. Deps include `activeEdit`
-  // since the body reads it; both commit fns are stable across
-  // renders (they're not re-created on each parent render).
+  // QA 2026-05-13 — wrapped in useCallback so child surfaces that memoize
+  // `onCommit` / `onCancel` props don't capture a stale closure between
+  // double-click and blur. Deps include `activeEdit` since the body reads it;
+  // both commit fns are stable across renders.
   const endActiveEdit = useCallback(
-    (commit: boolean, next?: string) => {
+    async (commit: boolean, next?: string): Promise<void> => {
       if (!activeEdit) return;
       void flushCanvasTextStylePatches();
       if (commit && next !== undefined) {
         if (activeEdit.builderNode) {
-          void commitBuilderNodeText(
+          // CANVAS-7B — AWAIT the node-history commit so the undo-handoff can
+          // guarantee the typed text is in `past` before a node-level undo.
+          await commitBuilderNodeText(
             activeEdit.builderNode,
             activeEdit.original,
             next,
@@ -439,6 +441,11 @@ export function InlineEditor() {
     },
     [activeEdit, commitBuilderNodeText, commitText],
   );
+
+  const { runCommit, overlayCommitRef } = useInlineEditorCommitHandoff({
+    isEditing: activeEdit !== null, // CANVAS-7B inline→node-history commit handoff
+    endActiveEdit,
+  });
 
   // Undo/redo while inline edit is open — remount the overlay from stored copy.
   // WS5 — for a secondary-locale edit the stored copy is the overlay entry, so
@@ -719,8 +726,9 @@ export function InlineEditor() {
           resyncKey={activeEdit.resyncKey}
           variant={activeEdit.variant}
           tenantId={tenantId ?? undefined}
-          onCommit={(next) => endActiveEdit(true, next)}
-          onCancel={() => endActiveEdit(false)}
+          commitRef={overlayCommitRef}
+          onCommit={(next) => runCommit(next)}
+          onCancel={() => void endActiveEdit(false)}
         />
       ) : null}
 

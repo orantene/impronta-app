@@ -21,6 +21,28 @@ const overlayStyleListeners = new Set<(patch: Record<string, unknown>) => void>(
 type StylePatchFlusher = () => void | Promise<void>;
 let stylePatchFlusher: StylePatchFlusher | null = null;
 
+/**
+ * CANVAS-7B — inline-editor → node-history commit handoff.
+ *
+ * When an inline canvas text editor is open, ⌘Z/⌘⇧Z are owned by Lexical's own
+ * text history (edit-shell's keyboard handler defers via
+ * `isEditableKeyboardTarget`). The hazard is the SEAM right after the operator
+ * leaves the editor: the overlay commits its text asynchronously
+ * (`patchBuilderNodeProps` → `setPast`), and the `pastRef` mirror the undo
+ * machine reads only updates on the NEXT React commit. A ⌘Z fired in that gap
+ * would undo the PRIOR node operation and silently strip the freshly-typed
+ * text from the timeline.
+ *
+ * This registry lets the open InlineEditor expose ONE synchronous-to-call
+ * "commit any pending inline text into node history, then resolve" handle. The
+ * EditContext undo/redo run it (and AWAIT it) before reading the history stack,
+ * so the just-typed text is ALWAYS a recorded node-history entry before a
+ * node-level undo can fire. One handle = one open overlay; deregistered on
+ * unmount. A no-op when nothing is open.
+ */
+type InlineEditorCommitHandle = () => void | Promise<void>;
+let inlineEditorCommitHandle: InlineEditorCommitHandle | null = null;
+
 export function registerCanvasTextStylePatchFlusher(
   flusher: StylePatchFlusher | null,
 ): void {
@@ -30,6 +52,34 @@ export function registerCanvasTextStylePatchFlusher(
 /** Flush toolbar style tweaks that were deferred during inline canvas edit. */
 export function flushCanvasTextStylePatches(): void {
   void stylePatchFlusher?.();
+}
+
+/**
+ * CANVAS-7B — register the open InlineEditor's commit-to-history handle (or
+ * `null` to clear it on unmount). At most one is registered at a time.
+ */
+export function registerInlineEditorCommit(
+  handle: InlineEditorCommitHandle | null,
+): void {
+  inlineEditorCommitHandle = handle;
+}
+
+/** True while an inline text edit can still be committed to node history. */
+export function hasPendingInlineEditorCommit(): boolean {
+  return inlineEditorCommitHandle !== null;
+}
+
+/**
+ * CANVAS-7B — commit any open inline text edit into the node-history timeline
+ * and resolve once that commit (and its `setPast` push) has been applied. The
+ * undo/redo machine awaits this BEFORE reading the history stack so the
+ * operator's last typed text is never dropped on the first ⌘Z after leaving the
+ * inline editor. No-op (resolves immediately) when no inline editor is open.
+ */
+export async function commitActiveInlineEditor(): Promise<void> {
+  const handle = inlineEditorCommitHandle;
+  if (!handle) return;
+  await handle();
 }
 
 export function isCanvasInlineTextEditActive(): boolean {
