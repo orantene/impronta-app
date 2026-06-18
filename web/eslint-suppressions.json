@@ -1,4 +1,14 @@
 {
+  "src/components/builder-lab/component-catalog.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/add-gallery/registry-db-merge.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/components/builder-lab/template-manager.tsx": {
     "max-lines": {
       "count": 1
