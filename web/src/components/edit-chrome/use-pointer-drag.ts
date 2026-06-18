@@ -170,8 +170,13 @@ interface ActiveGesture<TSource> {
 export function usePointerDrag<TSource>(
   options: UsePointerDragOptions<TSource>,
 ): UsePointerDragResult<TSource> {
+  // Keep the latest options/callbacks in a ref so the window listeners + handle
+  // props stay stable (bound once) yet always call the current callbacks. The
+  // ref is written in an effect, never during render (react-hooks/refs).
   const optionsRef = useRef(options);
-  optionsRef.current = options;
+  useEffect(() => {
+    optionsRef.current = options;
+  });
 
   const gestureRef = useRef<ActiveGesture<TSource> | null>(null);
   const [isDragging, setIsDragging] = useState(false);

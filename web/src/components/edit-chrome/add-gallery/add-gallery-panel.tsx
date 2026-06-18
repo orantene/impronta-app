@@ -20,7 +20,12 @@ import {
 import { fetchSurfaceGalleryItems } from "@/lib/site-admin/add-gallery/gallery-fetch-action";
 import { listCatalogStructure } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
 import { performAddGalleryInsert } from "@/lib/site-admin/add-gallery/perform-insert";
-import { armAddGalleryDrag, clearAddGalleryDrag } from "@/lib/site-admin/add-gallery/drag";
+import {
+  armAddGalleryPointerDrag,
+  clearAddGalleryDrag,
+} from "@/lib/site-admin/add-gallery/drag";
+import { usePointerDrag } from "../use-pointer-drag";
+import { emitPalettePointerDrag } from "../element-library-insert-picker";
 import {
   resolveTabs,
   resolveCategoriesForTab,
@@ -154,6 +159,48 @@ function CategoryRail({
   );
 }
 
+/**
+ * CANVAS-6 — start a gallery card drag-to-canvas via the shared pointer-drag
+ * hook (touch parity). Arming sets the SAME active palette payload the
+ * selection-layer canvas drop bridge reads, so a card drag works identically
+ * from mouse or touch. The card only arms/clears here; the canvas computes the
+ * drop + commits the insert on pointerup. Returns the row-handle props (or null
+ * when the card isn't draggable) to spread onto the card button.
+ */
+function useGalleryCardPointerDrag(
+  item: AddGalleryItem,
+  enabled: boolean,
+) {
+  const droppedRef = useRef(false);
+  const { getHandleProps } = usePointerDrag<AddGalleryItem>({
+    // Cards don't reorder among themselves — the canvas is the drop target, so
+    // the hook's local row lookup is unused. The canvas drop is driven by the
+    // palette pointer-drag channel (emitPalettePointerDrag) below.
+    rowSelector: "[data-add-gallery-item]",
+    onDragStart: (dragItem) => {
+      droppedRef.current = false;
+      armAddGalleryPointerDrag(dragItem);
+    },
+    onDragMove: ({ clientX, clientY }) => {
+      emitPalettePointerDrag({ type: "move", clientX, clientY });
+    },
+    onDrop: ({ clientX, clientY }) => {
+      droppedRef.current = true;
+      emitPalettePointerDrag({ type: "drop", clientX, clientY });
+    },
+    onDragEnd: () => {
+      // The canvas commits on the "drop" phase and clears the payload; only
+      // emit a cancel (and clear) when the gesture ended WITHOUT a drop.
+      if (!droppedRef.current) {
+        emitPalettePointerDrag({ type: "cancel" });
+        clearAddGalleryDrag();
+      }
+    },
+  });
+  if (!enabled) return null;
+  return getHandleProps(item);
+}
+
 function ElementCard({
   item,
   onInsert,
@@ -165,22 +212,20 @@ function ElementCard({
 }) {
   const { comingSoon, advanced, draggable, shortDescription, infoTooltip } =
     useGalleryCardState(item);
+  const dragProps = useGalleryCardPointerDrag(item, draggable && !pending);
 
   return (
     <button
       type="button"
       disabled={pending || comingSoon}
-      draggable={draggable && !pending}
-      onDragStart={(event) => {
-        if (!armAddGalleryDrag(event, item)) event.preventDefault();
-      }}
-      onDragEnd={() => clearAddGalleryDrag()}
+      onPointerDown={dragProps?.onPointerDown}
       onClick={() => onInsert(item)}
       className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[12px] border text-center transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 disabled:cursor-not-allowed"
       style={{
         borderColor: CHROME.line,
         background: CHROME.surface,
         minHeight: 108,
+        ...(dragProps?.style ?? null),
       }}
       onMouseEnter={(e) => {
         if (comingSoon) return;
@@ -225,22 +270,20 @@ function SectionCard({
 }) {
   const { comingSoon, advanced, connected, draggable, shortDescription, infoTooltip } =
     useGalleryCardState(item);
+  const dragProps = useGalleryCardPointerDrag(item, draggable && !pending);
 
   return (
     <button
       type="button"
       disabled={pending || comingSoon}
-      draggable={draggable && !pending}
-      onDragStart={(event) => {
-        if (!armAddGalleryDrag(event, item)) event.preventDefault();
-      }}
-      onDragEnd={() => clearAddGalleryDrag()}
+      onPointerDown={dragProps?.onPointerDown}
       onClick={() => onInsert(item)}
       className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[12px] border text-left transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 disabled:cursor-not-allowed"
       style={{
         borderColor: CHROME.line,
         background: CHROME.surface,
         minHeight: 156,
+        ...(dragProps?.style ?? null),
       }}
       onMouseEnter={(e) => {
         if (comingSoon) return;
@@ -300,22 +343,20 @@ function ConnectedCard({
 }) {
   const { comingSoon, advanced, draggable, shortDescription, infoTooltip } =
     useGalleryCardState(item);
+  const dragProps = useGalleryCardPointerDrag(item, draggable && !pending);
 
   return (
     <button
       type="button"
       disabled={pending || comingSoon}
-      draggable={draggable && !pending}
-      onDragStart={(event) => {
-        if (!armAddGalleryDrag(event, item)) event.preventDefault();
-      }}
-      onDragEnd={() => clearAddGalleryDrag()}
+      onPointerDown={dragProps?.onPointerDown}
       onClick={() => onInsert(item)}
       className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[12px] border text-left transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 disabled:cursor-not-allowed"
       style={{
         borderColor: CHROME.line,
         background: CHROME.surface,
         minHeight: 112,
+        ...(dragProps?.style ?? null),
       }}
       onMouseEnter={(e) => {
         if (comingSoon) return;

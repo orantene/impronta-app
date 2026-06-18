@@ -115,9 +115,11 @@ import {
   BUILDER_NODE_PALETTE_DRAG_MIME,
   ElementLibraryInsertPicker,
   getActiveBuilderNodePaletteDrag,
+  subscribePalettePointerDrag,
   type BuilderNodePaletteDragPayload,
 } from "./element-library-insert-picker";
 import {
+  clearAddGalleryDrag,
   galleryItemDragNodeKind,
   galleryItemInsertsAtPageRoot,
 } from "@/lib/site-admin/add-gallery/drag";
@@ -1978,6 +1980,104 @@ export function SelectionLayer() {
       window.removeEventListener("keydown", onKey);
     };
   }, [canvasNodeDrag, computeCanvasNodeDrop]);
+
+  // ── CANVAS-6: pointer-drag bridge for gallery-card drag-to-canvas ──────────
+  //
+  // HTML5 drag fired window `dragenter`/`dragover`/`drop` for free; touch
+  // doesn't. The gallery card arms the SAME palette payload + publishes pointer
+  // lifecycle phases on the palette-pointer-drag channel; here we mirror the
+  // palette branch of the window-DnD effect above — preview the drop indicator
+  // on `move`, commit the insert on `drop` — so a card drag works on touch.
+  // Only the palette (insert) phase is needed; existing-block moves keep their
+  // own chip path.
+  useEffect(() => {
+    const overChrome = (x: number, y: number): boolean => {
+      const el = document.elementFromPoint(x, y);
+      return Boolean(
+        el instanceof Element &&
+          (el.closest("[data-edit-topbar]") ||
+            el.closest("[data-edit-drawer]") ||
+            el.closest("[data-edit-overlay]")),
+      );
+    };
+    const paletteKind = (
+      payload: BuilderNodePaletteDragPayload,
+    ): BuilderNodeKind =>
+      payload.kind === "gallery_item"
+        ? paletteKindForGalleryItem(payload.itemId)
+        : payload.kind === "section_embed"
+          ? "section_embed"
+          : payload.elementKind;
+
+    return subscribePalettePointerDrag((phase) => {
+      if (phase.type === "cancel") {
+        setCanvasNodeDrag({ phase: "idle" });
+        return;
+      }
+      const payload = getActiveBuilderNodePaletteDrag();
+      if (!payload) {
+        setCanvasNodeDrag({ phase: "idle" });
+        return;
+      }
+      const draggedKind = paletteKind(payload);
+      const galleryItemId =
+        payload.kind === "gallery_item" ? payload.itemId : null;
+      const drop = overChrome(phase.clientX, phase.clientY)
+        ? null
+        : computeCanvasNodeDrop(
+            phase.clientX,
+            phase.clientY,
+            draggedKind,
+            null,
+            galleryItemId,
+          );
+
+      if (phase.type === "move") {
+        setCanvasNodeDrag({
+          phase: "palette",
+          payload,
+          draggedKind,
+          drop,
+          label: paletteDragLabel(payload),
+          cursorX: phase.clientX,
+          cursorY: phase.clientY,
+        });
+        return;
+      }
+
+      // phase.type === "drop"
+      setCanvasNodeDrag({ phase: "idle" });
+      clearAddGalleryDrag();
+      if (!drop || !drop.allowed) return;
+      const deps = canvasDropDepsRef.current;
+      if (payload.kind === "gallery_item") {
+        void performAddGalleryInsertById(
+          payload.itemId,
+          { parentId: drop.parentNodeId, index: drop.index },
+          deps,
+        ).then((result) => {
+          if (!result.ok && result.error) deps.reportMutationError(result.error);
+          else if (result.ok && result.nodeId) deps.selectBuilderNode(result.nodeId);
+        });
+      } else if (payload.kind === "section_embed") {
+        void deps
+          .insertBuilderSectionEmbed(
+            drop.parentNodeId,
+            payload.sectionTypeKey,
+            drop.index,
+          )
+          .then((result) => {
+            if (!result.ok && result.error) deps.reportMutationError(result.error);
+          });
+      } else {
+        void deps
+          .insertBuilderNode(drop.parentNodeId, payload.elementKind, drop.index)
+          .then((result) => {
+            if (!result.ok && result.error) deps.reportMutationError(result.error);
+          });
+      }
+    });
+  }, [computeCanvasNodeDrop]);
 
   // ── P3-PERF: maintain the cached drop-candidate index for the active drag ───
   //
