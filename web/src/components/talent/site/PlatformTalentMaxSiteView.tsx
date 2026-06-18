@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { SkipToContent } from "@/components/accessibility/skip-to-content";
+import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
 import { PublicHeader } from "@/components/public-header";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
 import { TalentSiteRenderer } from "./TalentSiteRenderer";
@@ -32,6 +34,19 @@ export function PlatformTalentMaxSiteView({
 }: Props) {
   return (
     <div data-talent-personal-site-shell="">
+      {/* A11Y-2 — skip link is the first focusable element on the platform-host
+          talent profile (this branch renders instead of LightProfileLayout on
+          app/marketing hosts; the agency-host LightProfileLayout already has it). */}
+      <SkipToContent />
+      {/* ANALYTICS-2 — first-party page-view on the platform-host talent profile. */}
+      {freeformContext ? (
+        <SitePageViewAnalytics
+          surface="talent-profile"
+          tenantId={freeformContext.tenantId}
+          talentId={freeformContext.talentProfileId}
+          locale={locale}
+        />
+      ) : null}
       <PublicHeader />
       {draftPreview ? (
         <div
@@ -47,7 +62,7 @@ export function PlatformTalentMaxSiteView({
           Draft preview — visitors see the published version until you publish again.
         </div>
       ) : null}
-      <main>
+      <main id="main-content">
         <TalentSiteRenderer
           snapshot={snapshot}
           locale={locale}
