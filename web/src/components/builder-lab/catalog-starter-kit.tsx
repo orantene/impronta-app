@@ -35,6 +35,16 @@ import {
   listStarterTemplatesAction,
   syncBuiltinStartersAction,
 } from "@/lib/site-admin/builder-core/templates/import-builtin-starters";
+import {
+  resolveLabMediaTenantId,
+  resolveTemplateThumbnails,
+} from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import {
+  distinctThumbnailAssetIds,
+  resolveTemplateThumbnailMap,
+  templateThumbnailPatch,
+} from "./thumbnail-helpers";
+import { TemplateThumbnailCell } from "./template-thumbnail-cell";
 import type {
   BuilderTemplateRow,
   BuilderTemplateTarget,
@@ -199,28 +209,55 @@ export function SiteStarterKitView({
   const [toast, setToast] = useState<string | null>(null);
   /** "all" = no rollout filter; "partial" = only canaried starters */
   const [rolloutFilter, setRolloutFilter] = useState<"all" | "partial">("all");
+  // A2 — thumbnail affordance: media scope (hub tenant) + resolved row→url map +
+  // the id of the starter whose thumbnail is currently saving.
+  const [mediaTenantId, setMediaTenantId] = useState<string | null>(null);
+  const [thumbUrlByRow, setThumbUrlByRow] = useState<Map<string, string>>(
+    new Map(),
+  );
+  const [thumbBusyId, setThumbBusyId] = useState<string | null>(null);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), T.toastMs);
   }, []);
 
+  /** Resolve every starter's thumbnail asset id → public URL in one batch. */
+  const refreshThumbnails = useCallback(
+    async (rowsToResolve: BuilderTemplateRow[]) => {
+      const ids = distinctThumbnailAssetIds(rowsToResolve);
+      if (ids.length === 0) {
+        setThumbUrlByRow(new Map());
+        return;
+      }
+      const res = await resolveTemplateThumbnails(ids).catch(() => null);
+      const urlById = new Map<string, string>(
+        res && res.ok ? Object.entries(res.data) : [],
+      );
+      setThumbUrlByRow(resolveTemplateThumbnailMap(rowsToResolve, urlById));
+    },
+    [],
+  );
+
   const reload = useCallback(async () => {
     const res = await listStarterTemplatesAction();
     if (res.ok) {
       setRows(res.data);
+      void refreshThumbnails(res.data);
     } else {
       setError(res.error);
     }
-  }, []);
+  }, [refreshThumbnails]);
 
   useEffect(() => {
     let cancelled = false;
     listStarterTemplatesAction()
       .then((res) => {
         if (cancelled) return;
-        if (res.ok) setRows(res.data);
-        else setError(res.error);
+        if (res.ok) {
+          setRows(res.data);
+          void refreshThumbnails(res.data);
+        } else setError(res.error);
       })
       .catch(() => {
         if (!cancelled) setError("Failed to load starters.");
@@ -228,7 +265,46 @@ export function SiteStarterKitView({
     return () => {
       cancelled = true;
     };
+  }, [refreshThumbnails]);
+
+  // Resolve the Lab's media scope (hub tenant) once so the thumbnail picker can
+  // open. A failure leaves the picker disabled (the cell renders a hint).
+  useEffect(() => {
+    let cancelled = false;
+    resolveLabMediaTenantId()
+      .then((res) => {
+        if (!cancelled && res.ok) setMediaTenantId(res.data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  /** Persist a starter's thumbnail (assetId=null clears it) with explicit busy
+   *  state, then optimistically update the rendered URL. */
+  const setThumbnail = useCallback(
+    async (rowId: string, assetId: string | null, publicUrl: string | null) => {
+      setThumbBusyId(rowId);
+      setError(null);
+      const res = await updateTemplateDraft(
+        templateThumbnailPatch(rowId, assetId),
+      );
+      setThumbBusyId(null);
+      if (!res.ok) {
+        setError(res.error ?? "Failed to save thumbnail.");
+        return;
+      }
+      setThumbUrlByRow((prev) => {
+        const next = new Map(prev);
+        if (assetId && publicUrl) next.set(rowId, publicUrl);
+        else next.delete(rowId);
+        return next;
+      });
+      flash(assetId ? "Thumbnail set ✓" : "Thumbnail removed ✓");
+    },
+    [flash],
+  );
 
   /** Run a per-row mutation with explicit pending state, then reload. */
   const mutate = useCallback(
@@ -513,6 +589,10 @@ export function SiteStarterKitView({
           edit={edit}
           setEdit={setEdit}
           confirmingDeleteId={confirmingDeleteId}
+          mediaTenantId={mediaTenantId}
+          thumbUrlByRow={thumbUrlByRow}
+          thumbBusyId={thumbBusyId}
+          onSetThumbnail={setThumbnail}
           onRowClick={(r) =>
             editingId === r.id ? cancelEdit() : startEdit(r)
           }
@@ -540,6 +620,10 @@ export function SiteStarterKitView({
           edit={edit}
           setEdit={setEdit}
           confirmingDeleteId={confirmingDeleteId}
+          mediaTenantId={mediaTenantId}
+          thumbUrlByRow={thumbUrlByRow}
+          thumbBusyId={thumbBusyId}
+          onSetThumbnail={setThumbnail}
           onRowClick={(r) => (editingId === r.id ? cancelEdit() : startEdit(r))}
           onSaveEdit={saveEdit}
           onCancelEdit={cancelEdit}
@@ -609,6 +693,18 @@ interface StarterTableProps {
   edit: EditDraft | null;
   setEdit: (e: EditDraft) => void;
   confirmingDeleteId: string | null;
+  /** A2 — media scope for the thumbnail picker (hub tenant; null = disabled). */
+  mediaTenantId: string | null;
+  /** A2 — resolved starter id → thumbnail public URL. */
+  thumbUrlByRow: Map<string, string>;
+  /** A2 — id of the starter whose thumbnail is currently saving. */
+  thumbBusyId: string | null;
+  /** A2 — persist a starter's thumbnail (assetId=null clears it). */
+  onSetThumbnail: (
+    rowId: string,
+    assetId: string | null,
+    publicUrl: string | null,
+  ) => void;
   onRowClick: (row: BuilderTemplateRow) => void;
   onSaveEdit: (row: BuilderTemplateRow) => void;
   onCancelEdit: () => void;
@@ -626,6 +722,10 @@ function StarterTable(props: StarterTableProps) {
     pendingId,
     editingId,
     confirmingDeleteId,
+    mediaTenantId,
+    thumbUrlByRow,
+    thumbBusyId,
+    onSetThumbnail,
     onRowClick,
     onSaveEdit,
     onCancelEdit,
@@ -644,6 +744,7 @@ function StarterTable(props: StarterTableProps) {
       >
         <thead>
           <tr style={{ color: T.inkDim }}>
+            <Th>Thumb</Th>
             <Th>Name</Th>
             <Th>Category</Th>
             <Th>Tags</Th>
@@ -676,6 +777,17 @@ function StarterTable(props: StarterTableProps) {
                     cursor: "pointer",
                   }}
                 >
+                  <td style={{ padding: "10px 16px", verticalAlign: "top" }}>
+                    <TemplateThumbnailCell
+                      tenantId={mediaTenantId}
+                      thumbUrl={thumbUrlByRow.get(r.id) ?? null}
+                      busy={thumbBusyId === r.id}
+                      size="sm"
+                      onPick={(assetId, publicUrl) =>
+                        onSetThumbnail(r.id, assetId, publicUrl)
+                      }
+                    />
+                  </td>
                   <td style={{ padding: "10px 16px" }}>
                     <div
                       style={{ color: T.ink, fontWeight: 600, minWidth: 0 }}
@@ -857,7 +969,7 @@ function EditAccordionRow({
 }) {
   return (
     <tr style={{ background: T.cardSoft }}>
-      <td colSpan={7} style={{ padding: "12px 16px" }}>
+      <td colSpan={8} style={{ padding: "12px 16px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <SectionLabel>Edit starter</SectionLabel>
           <div

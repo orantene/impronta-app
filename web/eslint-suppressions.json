@@ -4,6 +4,11 @@
       "count": 1
     }
   },
+  "src/components/builder-lab/catalog-starter-kit.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/lib/site-admin/builder-core/templates/registry-actions.ts": {
     "max-lines": {
       "count": 1
