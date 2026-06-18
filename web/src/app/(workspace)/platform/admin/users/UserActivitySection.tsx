@@ -6,7 +6,6 @@
  */
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { HQ, HQ_F, HQ_FD, SectionLabel } from "../tenants/hq-kit";
 import { getPlatformUserActivity } from "./actions";
 import type { UserActivitySnapshot } from "./actions";
@@ -126,14 +125,11 @@ export function ActivitySection({ user }: { user: PlatformUserRow }) {
                     >
                       {snapshot.inquiryCount}
                     </span>
-                    {snapshot.inquiryCount > 0 && (
-                      <Link
-                        href={`/platform/admin/inquiries?client_id=${user.id}`}
-                        style={{ color: HQ.blue, fontSize: 12, textDecoration: "none", fontWeight: 500 }}
-                      >
-                        → View
-                      </Link>
-                    )}
+                    {/* The recent inquiries are listed inline below (see
+                        "Recent inquiries (last 5)"). A "→ View" link used to sit
+                        here pointing at /platform/admin/inquiries?client_id=<id>,
+                        but that route does not exist (the param had no reader and
+                        the page 404'd), so it was a dead CTA — removed. */}
                   </div>
                 </div>
                 <div>
