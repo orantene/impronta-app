@@ -1,4 +1,9 @@
 {
+  "src/components/builder-lab/catalog-playground.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/components/builder-lab/component-catalog.tsx": {
     "max-lines": {
       "count": 1
