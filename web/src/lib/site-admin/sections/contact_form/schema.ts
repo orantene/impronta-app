@@ -103,10 +103,11 @@ export const contactFormSchemaV1 = z.object({
    *     profile uses — creating a real public.inquiries row in the
    *     workspace pipeline instead of an inbox row.
    *
-   * BACKWARD COMPAT: defaults to "internal"; any existing saved section
-   * with no routingMode validates + behaves exactly as before.
+   * BACKWARD COMPAT: optional; an absent routingMode is treated as
+   * "internal" everywhere (the submit route only diverges on the explicit
+   * "inquiry" value), so any existing saved section behaves exactly as before.
    */
-  routingMode: z.enum(["internal", "inquiry"]).default("internal"),
+  routingMode: z.enum(["internal", "inquiry"]).optional(),
   /**
    * FORMS-2 — target talent for inquiry routing. Only used when
    * `routingMode === "inquiry"`. The submitted inquiry is attributed to
