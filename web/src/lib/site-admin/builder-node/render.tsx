@@ -3072,7 +3072,12 @@ function renderBuilderNode(
   // with data-experiment/-variant so the runtime can fire view + convert. A
   // null resolution (no experiment / no seed / ineligible kind) is a pure
   // pass-through → byte-identical for every node without a live experiment.
-  const resolved = resolveNodeExperiment(styled, options.experimentSeed);
+  // Only resolve an experiment on a public render (a seed present). Without a
+  // seed — the editor canvas, tests, lighter contexts — no experiment is applied
+  // or tagged, so output is byte-identical to a node with no experiment.
+  const resolved = options.experimentSeed
+    ? resolveNodeExperiment(styled, options.experimentSeed)
+    : null;
   const node = resolved ? applyExperimentOverrides(styled, resolved) : styled;
   // Tag the node's OWN element with the experiment data-attrs BEFORE the
   // custom-CSS Fragment wrapper, so they land on the element carrying
