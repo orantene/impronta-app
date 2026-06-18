@@ -16,6 +16,11 @@
  * The Agency / Talent switcher filters by `target_context` (Agency = workspace
  * OR both; Talent = talent OR both), matching Site Defaults / Connected.
  *
+ * A7 additions: collapsible category sections with per-category counts + a
+ * category/tag filter bar (reuse PillToggle pattern) + a quick category rename
+ * affordance per section header (calls renameTemplateCategory server action so
+ * ALL starters in the category are re-tagged at once).
+ *
  * All mutations reuse the existing super_admin-gated registry actions; this view
  * adds no parallel CRUD path.
  */
@@ -39,6 +44,7 @@ import {
   resolveLabMediaTenantId,
   resolveTemplateThumbnails,
 } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import { renameTemplateCategory } from "@/lib/site-admin/builder-core/templates/taxonomy-actions";
 import {
   distinctThumbnailAssetIds,
   resolveTemplateThumbnailMap,
@@ -57,6 +63,11 @@ import {
 import { SurfaceSwitcher } from "./surface-switcher";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
+  groupByCategory,
+  categoryFilterOptions,
+  applyStarterCategoryFilter,
+} from "./catalog-starter-kit-grouping";
+import {
   LAB as T,
   fieldStyle,
   panelStyle,
@@ -70,6 +81,7 @@ import {
   LAB_STATUS_LABEL,
   SectionLabel,
   EmptyCard,
+  PillToggle,
   type LabStatus,
   type LabStatusOption,
 } from "./ui";
@@ -216,6 +228,16 @@ export function SiteStarterKitView({
     new Map(),
   );
   const [thumbBusyId, setThumbBusyId] = useState<string | null>(null);
+  // A7 — category filter: "all" or a specific category string
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  // A7 — which category section is currently collapsed (set of category names)
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
+    new Set(),
+  );
+  // A7 — quick-rename: the category being renamed and the draft value
+  const [renamingCategory, setRenamingCategory] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameBusy, setRenameBusy] = useState(false);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -448,6 +470,74 @@ export function SiteStarterKitView({
     }
   }, [reload, flash]);
 
+  // ── A7 quick-rename handlers ───────────────────────────────────────────────
+
+  const startCategoryRename = useCallback((category: string) => {
+    setRenamingCategory(category);
+    setRenameValue(category);
+  }, []);
+
+  const cancelCategoryRename = useCallback(() => {
+    setRenamingCategory(null);
+    setRenameValue("");
+  }, []);
+
+  const saveCategoryRename = useCallback(
+    async (fromCategory: string) => {
+      const toCategory = renameValue.trim();
+      if (!toCategory) {
+        setError("Category name can't be empty.");
+        return;
+      }
+      if (toCategory === fromCategory) {
+        cancelCategoryRename();
+        return;
+      }
+      setRenameBusy(true);
+      setError(null);
+      try {
+        const res = await renameTemplateCategory(fromCategory, toCategory);
+        if (!res.ok) {
+          setError(res.error ?? "Rename failed.");
+          return;
+        }
+        flash(
+          `Category renamed to "${toCategory}" (${res.data.updatedCount} starter${res.data.updatedCount === 1 ? "" : "s"} updated)`,
+        );
+        // If the active category filter was the old name, update it
+        if (categoryFilter === fromCategory) setCategoryFilter(toCategory);
+        // Collapse state key may have changed; update if needed
+        setCollapsedCategories((prev) => {
+          if (!prev.has(fromCategory)) return prev;
+          const next = new Set(prev);
+          next.delete(fromCategory);
+          next.add(toCategory);
+          return next;
+        });
+        await reload();
+        cancelCategoryRename();
+      } catch {
+        setError("Rename failed.");
+      } finally {
+        setRenameBusy(false);
+      }
+    },
+    [renameValue, categoryFilter, reload, flash, cancelCategoryRename],
+  );
+
+  // ── A7 category collapse toggle ────────────────────────────────────────────
+
+  const toggleCollapse = useCallback((category: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  }, []);
+
+  // ── Derived row lists ──────────────────────────────────────────────────────
+
   const group = STARTER_KIT_GROUPS.find((g) => g.key === surface);
   const surfaceRows = useMemo(
     () =>
@@ -460,18 +550,35 @@ export function SiteStarterKitView({
         ),
     [rows, surface],
   );
-  const visibleRows = useMemo(
+  const rolloutFiltered = useMemo(
     () =>
       rolloutFilter === "partial"
         ? surfaceRows.filter(isPartialRollout)
         : surfaceRows,
     [surfaceRows, rolloutFilter],
   );
+  const visibleRows = useMemo(
+    () => applyStarterCategoryFilter(rolloutFiltered, categoryFilter),
+    [rolloutFiltered, categoryFilter],
+  );
   /** Count of canaried starters in the current surface group — drives the
    *  "Partial rollout (N)" filter chip visibility. */
   const partialRolloutCount = useMemo(
     () => surfaceRows.filter(isPartialRollout).length,
     [surfaceRows],
+  );
+
+  // A7 — category filter options built from the rollout-filtered rows (so the
+  // counts reflect the same universe the rollout toggle shows).
+  const catFilterOpts = useMemo(
+    () => categoryFilterOptions(rolloutFiltered),
+    [rolloutFiltered],
+  );
+
+  // A7 — group the visible rows into category buckets for section rendering.
+  const categoryGroups = useMemo(
+    () => groupByCategory(visibleRows),
+    [visibleRows],
   );
 
   /** Starters with target_context="platform" are invisible to the Agency/Talent
@@ -484,6 +591,30 @@ export function SiteStarterKitView({
       ),
     [rows],
   );
+
+  // Shared prop bag for StarterTable instances
+  const tableProps = {
+    pendingId,
+    editingId,
+    edit,
+    setEdit,
+    confirmingDeleteId,
+    mediaTenantId,
+    thumbUrlByRow,
+    thumbBusyId,
+    onSetThumbnail: setThumbnail,
+    onRowClick: (r: BuilderTemplateRow) =>
+      editingId === r.id ? cancelEdit() : startEdit(r),
+    onSaveEdit: saveEdit,
+    onCancelEdit: cancelEdit,
+    onOpen: (r: BuilderTemplateRow) =>
+      onLaunchEditor?.(targetToLabTarget(r.target_context), r.id),
+    onDuplicate: duplicate,
+    onSetStatus: setStatus,
+    onStartDelete: (id: string) => setConfirmingDeleteId(id),
+    onCancelDelete: () => setConfirmingDeleteId(null),
+    onConfirmDelete: confirmDelete,
+  };
 
   return (
     <div
@@ -505,6 +636,7 @@ export function SiteStarterKitView({
         }
       />
 
+      {/* Surface switcher + rollout filter */}
       <div
         style={{
           display: "flex",
@@ -518,9 +650,9 @@ export function SiteStarterKitView({
           value={surface}
           onChange={(s) => {
             setSurface(s);
-            // Reset rollout filter when switching surface so the count
-            // reflects the new surface's rows.
+            // Reset filters when switching surface
             setRolloutFilter("all");
+            setCategoryFilter("all");
           }}
           ariaLabel="Starter kit surface"
         />
@@ -555,8 +687,25 @@ export function SiteStarterKitView({
           </button>
         ) : null}
       </div>
+
       {group ? (
         <div style={{ fontSize: 12, color: T.inkMuted }}>{group.blurb}</div>
+      ) : null}
+
+      {/* A7 — Category filter bar (only shown when there's more than one category) */}
+      {catFilterOpts.length > 2 ? (
+        <div
+          data-testid="lab-starter-category-filter"
+          style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}
+        >
+          <PillToggle
+            options={catFilterOpts}
+            value={categoryFilter}
+            onChange={(k) => setCategoryFilter(k)}
+            ariaLabel="Filter starters by category"
+            size="sm"
+          />
+        </div>
       ) : null}
 
       {toast ? <LabToast>{toast}</LabToast> : null}
@@ -573,6 +722,12 @@ export function SiteStarterKitView({
               No partially-rolled-out starters on this surface. Toggle off
               the filter to see all starters.
             </>
+          ) : categoryFilter !== "all" ? (
+            <>
+              No starters in the &ldquo;{categoryFilter}&rdquo; category on
+              this surface. Choose a different category or hit{" "}
+              <strong>All</strong> to see everything.
+            </>
           ) : (
             <>
               No starters target this surface yet. Hit{" "}
@@ -582,60 +737,125 @@ export function SiteStarterKitView({
           )}
         </EmptyCard>
       ) : (
-        <StarterTable
-          rows={visibleRows}
-          pendingId={pendingId}
-          editingId={editingId}
-          edit={edit}
-          setEdit={setEdit}
-          confirmingDeleteId={confirmingDeleteId}
-          mediaTenantId={mediaTenantId}
-          thumbUrlByRow={thumbUrlByRow}
-          thumbBusyId={thumbBusyId}
-          onSetThumbnail={setThumbnail}
-          onRowClick={(r) =>
-            editingId === r.id ? cancelEdit() : startEdit(r)
-          }
-          onSaveEdit={saveEdit}
-          onCancelEdit={cancelEdit}
-          onOpen={(r) =>
-            onLaunchEditor?.(targetToLabTarget(r.target_context), r.id)
-          }
-          onDuplicate={duplicate}
-          onSetStatus={setStatus}
-          onStartDelete={(id) => setConfirmingDeleteId(id)}
-          onCancelDelete={() => setConfirmingDeleteId(null)}
-          onConfirmDelete={confirmDelete}
-        />
+        // A7 — render one collapsible section per category bucket
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {categoryGroups.map(({ category, rows: catRows }) => {
+            const collapsed = collapsedCategories.has(category);
+            const isRenaming = renamingCategory === category;
+            return (
+              <div key={category} data-testid={`lab-starter-category-${category}`}>
+                {/* Category section header */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: collapsed ? 0 : 6,
+                    padding: "4px 0",
+                  }}
+                >
+                  {/* Collapse toggle */}
+                  <button
+                    type="button"
+                    aria-expanded={!collapsed}
+                    aria-label={
+                      collapsed
+                        ? `Expand ${category} category`
+                        : `Collapse ${category} category`
+                    }
+                    onClick={() => toggleCollapse(category)}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: T.inkDim,
+                      cursor: "pointer",
+                      fontSize: 11,
+                      padding: "2px 4px",
+                      lineHeight: 1,
+                      borderRadius: 4,
+                    }}
+                  >
+                    {collapsed ? "▶" : "▼"}
+                  </button>
+
+                  {/* Category name / rename input */}
+                  {isRenaming ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <input
+                        data-testid={`lab-starter-category-rename-input-${category}`}
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void saveCategoryRename(category);
+                          if (e.key === "Escape") cancelCategoryRename();
+                        }}
+                        autoFocus
+                        style={{
+                          ...fieldStyle,
+                          fontSize: 11.5,
+                          padding: "3px 8px",
+                          width: 180,
+                        }}
+                        disabled={renameBusy}
+                      />
+                      <LinkBtn
+                        label={renameBusy ? "Saving…" : "Save"}
+                        testId={`lab-starter-category-rename-save-${category}`}
+                        onClick={() => void saveCategoryRename(category)}
+                        disabled={renameBusy}
+                        primary
+                      />
+                      <LinkBtn
+                        label="Cancel"
+                        onClick={cancelCategoryRename}
+                        disabled={renameBusy}
+                      />
+                    </span>
+                  ) : (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                      <SectionLabel>{category}</SectionLabel>
+                      <LabChip tone="neutral">
+                        {catRows.length}
+                      </LabChip>
+                      {/* Quick-rename button */}
+                      <button
+                        type="button"
+                        data-testid={`lab-starter-category-rename-btn-${category}`}
+                        title={`Rename "${category}" category across all starters`}
+                        onClick={() => startCategoryRename(category)}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: T.inkDim,
+                          cursor: "pointer",
+                          fontSize: 10,
+                          fontWeight: 600,
+                          padding: "1px 5px",
+                          borderRadius: 4,
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        Rename
+                      </button>
+                    </span>
+                  )}
+                </div>
+
+                {/* Category rows table (hidden when collapsed) */}
+                {collapsed ? null : (
+                  <StarterTable rows={catRows} {...tableProps} />
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* Recovery section — starters with target_context="platform" are hidden
           from both the Agency and Talent kit filters. Show them here so the
           admin can re-target them to agency / talent / both. */}
       {platformRows.length > 0 ? (
-        <PlatformStarterRecovery
-          rows={platformRows}
-          pendingId={pendingId}
-          editingId={editingId}
-          edit={edit}
-          setEdit={setEdit}
-          confirmingDeleteId={confirmingDeleteId}
-          mediaTenantId={mediaTenantId}
-          thumbUrlByRow={thumbUrlByRow}
-          thumbBusyId={thumbBusyId}
-          onSetThumbnail={setThumbnail}
-          onRowClick={(r) => (editingId === r.id ? cancelEdit() : startEdit(r))}
-          onSaveEdit={saveEdit}
-          onCancelEdit={cancelEdit}
-          onOpen={(r) =>
-            onLaunchEditor?.(targetToLabTarget(r.target_context), r.id)
-          }
-          onDuplicate={duplicate}
-          onSetStatus={setStatus}
-          onStartDelete={(id) => setConfirmingDeleteId(id)}
-          onCancelDelete={() => setConfirmingDeleteId(null)}
-          onConfirmDelete={confirmDelete}
-        />
+        <PlatformStarterRecovery rows={platformRows} {...tableProps} />
       ) : null}
     </div>
   );
@@ -1110,4 +1330,3 @@ function Th({
     </th>
   );
 }
-
