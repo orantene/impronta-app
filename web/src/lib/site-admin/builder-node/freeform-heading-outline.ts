@@ -30,6 +30,11 @@ import {
   type HeadingNode,
 } from "@/lib/site-admin/a11y/heading-hierarchy";
 
+import {
+  resolveInstanceChildren,
+  type ComponentDefinitions,
+} from "./component-instances";
+
 import type { BuilderNode, BuilderNodeTree } from "./types";
 
 /** A11y finding for one image node missing alt text. */
@@ -47,13 +52,40 @@ export interface BuilderTreeA11yReport {
   missingAlt: MissingAltFinding[];
 }
 
-/** Walk every node in the tree (incl. children of any container-like kind). */
-function visitTree(tree: BuilderNodeTree, visit: (node: BuilderNode) => void) {
+/**
+ * Walk every node in the tree (incl. children of any container-like kind).
+ *
+ * A11Y-3 — living-component INSTANCES: an instance root (`props.instanceOf`)
+ * stores a snapshot of its master children, but the LIVE render path resolves
+ * the master subtree fresh and layers per-instance overrides on top
+ * (`resolveInstanceChildren` → swapped `imageSrc`/`imageAlt`, overridden heading
+ * `text`, …). Walking only the STORED children therefore lints stale content —
+ * it misses an override that swapped an image to one with no alt, and over-reports
+ * a master image whose instance override supplied the alt.
+ *
+ * When component definitions are supplied we descend the RESOLVED instance
+ * children instead — the exact idiom `render.tsx`/`renderer-css-scope.ts` use.
+ * When they aren't (the default — the navigator may not have the library loaded),
+ * we fall back to the stored children, so the lint can never crash on a
+ * missing/unloaded component (same graceful-fallback contract as the renderer).
+ */
+function visitTree(
+  tree: BuilderNodeTree,
+  visit: (node: BuilderNode) => void,
+  components?: ComponentDefinitions,
+) {
   const walk = (node: BuilderNode) => {
     visit(node);
-    // Living-component / card / container subtrees carry their resolved
-    // children inline, so the plain children-walk already covers instance
-    // roots — no separate instance resolution needed for the lint.
+    // Living-component instance — prefer the resolved master subtree (with
+    // overrides applied) when its definition is available; else fall through to
+    // the stored children below (graceful fallback, matching the renderer).
+    if (components && node.kind === "container" && node.props.instanceOf) {
+      const resolved = resolveInstanceChildren(node, components);
+      if (resolved) {
+        for (const child of resolved) walk(child);
+        return;
+      }
+    }
     if ("children" in node && Array.isArray(node.children)) {
       for (const child of node.children) walk(child);
     }
@@ -70,6 +102,7 @@ function visitTree(tree: BuilderNodeTree, visit: (node: BuilderNode) => void) {
  */
 export function buildHeadingOutlineFromBuilderTree(
   tree: BuilderNodeTree,
+  components?: ComponentDefinitions,
 ): HeadingNode[] {
   const out: HeadingNode[] = [];
 
@@ -93,13 +126,16 @@ export function buildHeadingOutlineFromBuilderTree(
         });
       }
     }
-  });
+  }, components);
 
   return out;
 }
 
 /** Collect image nodes whose alt text is empty/absent. */
-function collectMissingAlt(tree: BuilderNodeTree): MissingAltFinding[] {
+function collectMissingAlt(
+  tree: BuilderNodeTree,
+  components?: ComponentDefinitions,
+): MissingAltFinding[] {
   const out: MissingAltFinding[] = [];
   visitTree(tree, (node) => {
     if (node.kind !== "image") return;
@@ -117,7 +153,7 @@ function collectMissingAlt(tree: BuilderNodeTree): MissingAltFinding[] {
       label: node.props.layerLabel?.trim() || "Image",
       severity: "warn",
     });
-  });
+  }, components);
   return out;
 }
 
@@ -125,13 +161,19 @@ function collectMissingAlt(tree: BuilderNodeTree): MissingAltFinding[] {
  * Lint a freeform builder tree for heading-outline + missing-alt issues.
  * Pure: takes the tree, returns structured findings. Advisory only — the
  * caller surfaces these as non-blocking badges and never gates save on them.
+ *
+ * A11Y-3 — pass `components` (the saved component-definition library) to lint the
+ * LIVE-resolved children of living-component instances (overrides applied) rather
+ * than their stored master snapshot. Omitting it preserves the prior behaviour
+ * exactly (instances are walked via their stored children).
  */
 export function lintBuilderTreeA11y(
   tree: BuilderNodeTree,
+  components?: ComponentDefinitions,
 ): BuilderTreeA11yReport {
-  const outline = buildHeadingOutlineFromBuilderTree(tree);
+  const outline = buildHeadingOutlineFromBuilderTree(tree, components);
   return {
     headingIssues: lintHeadingOutline(outline),
-    missingAlt: collectMissingAlt(tree),
+    missingAlt: collectMissingAlt(tree, components),
   };
 }

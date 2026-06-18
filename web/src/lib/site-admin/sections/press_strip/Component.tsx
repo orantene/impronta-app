@@ -98,6 +98,7 @@ function eyebrowSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSPropertie
   if (size === "sm") return "0.82rem";
   if (size === "lg") return "1rem";
   if (size === "xl") return "1.08rem";
+  if (size === "display") return "1.08rem";
   return undefined;
 }
 

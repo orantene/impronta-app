@@ -22,6 +22,7 @@ function headingSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSPropertie
   if (size === "sm") return "clamp(1.65rem, 3.6vw, 2.5rem)";
   if (size === "lg") return "clamp(2.5rem, 5.2vw, 3.9rem)";
   if (size === "xl") return "clamp(2.9rem, 6vw, 4.4rem)";
+  if (size === "display") return "clamp(3.5rem, 6vw, 6rem)";
   return undefined;
 }
 
@@ -29,6 +30,7 @@ function metaSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSProperties["
   if (size === "sm") return "0.75rem";
   if (size === "lg") return "0.95rem";
   if (size === "xl") return "1rem";
+  if (size === "display") return "1rem";
   return undefined;
 }
 
@@ -36,6 +38,7 @@ function paragraphSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSPropert
   if (size === "sm") return "0.9rem";
   if (size === "lg") return "1.05rem";
   if (size === "xl") return "1.12rem";
+  if (size === "display") return "clamp(2rem, 4vw, 4.5rem)";
   return undefined;
 }
 

@@ -124,6 +124,7 @@ function headingSize(size?: "sm" | "md" | "lg" | "xl" | "display"): CSSPropertie
   if (size === "sm") return "0.95rem";
   if (size === "lg") return "1.2rem";
   if (size === "xl") return "1.35rem";
+  if (size === "display") return "clamp(3.5rem, 6vw, 6rem)";
   return undefined;
 }
 
@@ -131,6 +132,7 @@ function ctaSize(size?: "sm" | "md" | "lg" | "xl" | "display"): Pick<CSSProperti
   if (size === "sm") return { padding: "0.5rem 0.85rem", fontSize: "0.84rem" };
   if (size === "lg") return { padding: "0.72rem 1.2rem", fontSize: "1rem" };
   if (size === "xl") return { padding: "0.8rem 1.35rem", fontSize: "1.03rem" };
+  if (size === "display") return { padding: "0.8rem 1.35rem", fontSize: "1.03rem" };
   return {};
 }
 

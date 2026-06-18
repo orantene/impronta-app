@@ -38,6 +38,11 @@ const BEHIND_DRAWER_SELECTOR = [
   "[data-inspector-command-rail]",
   // Non-homepage in-editor canvas (cms_page / talent_page / platform_lab).
   "[data-in-editor-canvas-region]",
+  // Homepage storefront body — the `{children}` canvas the homepage paints into
+  // (it has no `data-in-editor-canvas-region`; A11Y-1 added this editor-only
+  // marker on `agency-home-storefront`) so the storefront page behind a modal
+  // drawer also drops out of the tab order / pointer flow.
+  "[data-edit-storefront-canvas]",
   // Tablet / mobile device-preview iframe host.
   "[data-edit-iframe-host]",
 ].join(", ");
