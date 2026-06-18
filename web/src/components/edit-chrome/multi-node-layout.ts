@@ -1,4 +1,8 @@
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node";
+import {
+  filterBulkStylePatchForNode,
+  type MultiSelectionBucket,
+} from "@/lib/site-admin/builder-node/multi-selection-style";
 
 export type MultiNodeAlignMode =
   | "left"
@@ -161,9 +165,25 @@ export function addTranslateDeltaToTree(
   return changed ? nextTree : tree;
 }
 
+/** Apply a (already lock-filtered) style patch onto a style object in place. */
+function applyStylePatchKeys(
+  style: Record<string, unknown>,
+  patch: Readonly<Record<string, unknown>>,
+): void {
+  for (const key of Object.keys(patch)) {
+    const value = patch[key];
+    if (value === undefined) {
+      delete style[key];
+    } else {
+      style[key] = value;
+    }
+  }
+}
+
 /**
- * Job #28 (bulk edit) — merge one top-level `style` patch into EVERY node in
- * `nodeIds`, returning a new tree (immutable, like {@link addTranslateDeltaToTree}).
+ * Job #28 (bulk edit) / INS-2 (Mixed-state inspector) — merge one `style` patch
+ * into EVERY node in `nodeIds`, returning a new tree (immutable, like
+ * {@link addTranslateDeltaToTree}).
  *
  * Twin of the translate helper so multi-select "edit shared style for all at
  * once" rides the SAME atomic `patch` op + undo path as align/distribute, with
@@ -175,38 +195,64 @@ export function addTranslateDeltaToTree(
  * Section nodes + nodes not in the set are left byte-identical; an empty
  * resulting `style` object is dropped from props entirely (no `style: {}`
  * residue), exactly as the translate helper does.
+ *
+ * INS-2 additions (kept back-compat for the base-bucket / no-lock case):
+ *   - `bucket` (`"tablet"`/`"mobile"`) writes into `style.responsive[bucket]`
+ *     instead of the top-level style, so the Mixed inspector can bulk-edit a
+ *     responsive override. `null` (default) is the existing base behavior.
+ *   - PER-NODE LOCK GUARD — each node's own INS-1 `lockedProps` are stripped
+ *     from the patch via `filterBulkStylePatchForNode` BEFORE it is applied, so
+ *     a bulk edit can never bypass a prop locked on one of the selected nodes.
+ *     A node that locks every patched key is left byte-identical.
  */
 export function mergeStylePatchIntoTree(
   tree: BuilderNodeTree,
   nodeIds: ReadonlyArray<string>,
   patch: Readonly<Record<string, unknown>>,
+  bucket: MultiSelectionBucket = null,
 ): BuilderNodeTree {
   const idSet = new Set(nodeIds);
-  const patchKeys = Object.keys(patch);
-  if (idSet.size === 0 || patchKeys.length === 0) return tree;
+  if (idSet.size === 0 || Object.keys(patch).length === 0) return tree;
   let changed = false;
   const visit = (node: BuilderNode): BuilderNode => {
     let nextNode = node;
     if (idSet.has(node.id) && node.kind !== "section") {
-      const props = { ...(node.props as Record<string, unknown>) };
-      const style = {
-        ...((props.style as Record<string, unknown> | undefined) ?? {}),
-      };
-      for (const key of patchKeys) {
-        const value = patch[key];
-        if (value === undefined) {
-          delete style[key];
+      // INS-1 lock guard — drop any patched key this node locks before writing.
+      const nodePatch = filterBulkStylePatchForNode(patch, node, bucket);
+      if (Object.keys(nodePatch).length > 0) {
+        const props = { ...(node.props as Record<string, unknown>) };
+        const style = {
+          ...((props.style as Record<string, unknown> | undefined) ?? {}),
+        };
+        if (bucket == null) {
+          applyStylePatchKeys(style, nodePatch);
         } else {
-          style[key] = value;
+          const responsive = {
+            ...((style.responsive as Record<string, unknown> | undefined) ?? {}),
+          };
+          const tier = {
+            ...((responsive[bucket] as Record<string, unknown> | undefined) ?? {}),
+          };
+          applyStylePatchKeys(tier, nodePatch);
+          if (Object.keys(tier).length > 0) {
+            responsive[bucket] = tier;
+          } else {
+            delete responsive[bucket];
+          }
+          if (Object.keys(responsive).length > 0) {
+            style.responsive = responsive;
+          } else {
+            delete style.responsive;
+          }
         }
+        if (Object.keys(style).length > 0) {
+          props.style = style;
+        } else {
+          delete props.style;
+        }
+        nextNode = { ...node, props } as BuilderNode;
+        changed = true;
       }
-      if (Object.keys(style).length > 0) {
-        props.style = style;
-      } else {
-        delete props.style;
-      }
-      nextNode = { ...node, props } as BuilderNode;
-      changed = true;
     }
     if ("children" in nextNode && Array.isArray(nextNode.children)) {
       const nextChildren = nextNode.children.map(visit);

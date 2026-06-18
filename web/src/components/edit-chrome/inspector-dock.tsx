@@ -48,6 +48,7 @@ import { useBuilderTree } from "./builder-tree-bridge";
 import {
   useSelectedSectionId,
   useSelectedBuilderNodeId,
+  useAdditionalSelectedBuilderNodeIds,
 } from "./selection-bridge";
 import { useInspectorRailCoupling } from "./use-inspector-rail-coupling";
 import { useDirty } from "./dirty-bridge";
@@ -60,6 +61,7 @@ import { SiteHeaderInspector } from "./inspectors/site-header/SiteHeaderInspecto
 import { isLegacySiteHeaderSelection } from "@/lib/site-admin/site-header/selection-id";
 import { LayoutPanel } from "./inspectors/layout-panel";
 import { StylePanel } from "./inspectors/style-panel";
+import { MultiSelectionStylePanel } from "./inspectors/multi-selection-style-panel";
 import { DataPanel } from "./inspectors/data-panel";
 import { MotionPanel } from "./inspectors/motion-panel";
 import { NodeMotionPanel } from "./inspectors/node-motion-panel";
@@ -266,6 +268,7 @@ export function InspectorDock() {
     recordFieldEdit,
     syncBuilderNodeChildrenForSection,
     patchBuilderNodeProps,
+    patchSelectedBuilderNodesStyle,
     reportMutationError,
     slots,
     canEditSiteShell,
@@ -285,6 +288,9 @@ export function InspectorDock() {
   // selected section + drives the inspector tabs), which is exactly correct.
   const selectedSectionId = useSelectedSectionId();
   const selectedBuilderNodeId = useSelectedBuilderNodeId();
+  // INS-2 — the secondary multi-select set (shift-click). When non-empty the
+  // Style tab swaps to the Mixed-aware MultiSelectionStylePanel.
+  const additionalSelectedBuilderNodeIds = useAdditionalSelectedBuilderNodeIds();
   // W2-T4 — `dirty` VALUE from the dirty-bridge (setter stays on context).
   const dirty = useDirty();
 
@@ -308,6 +314,27 @@ export function InspectorDock() {
   const selectionTreeMismatch = Boolean(
     selectedBuilderNodeId && selectedBuilderNode == null,
   );
+
+  // INS-2 — the full multi-selection (primary + shift-click set), as live node
+  // objects pulled from the tree. >1 ⇒ the Style tab renders the Mixed panel.
+  const multiSelectedNodes = useMemo(() => {
+    const ids: string[] = [];
+    if (selectedBuilderNodeId) ids.push(selectedBuilderNodeId);
+    for (const id of additionalSelectedBuilderNodeIds) {
+      if (id !== selectedBuilderNodeId) ids.push(id);
+    }
+    if (ids.length < 2) return [];
+    const seen = new Set<string>();
+    const nodes: BuilderNode[] = [];
+    for (const id of ids) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const node = findBuilderNodeById(builderTree, id);
+      if (node) nodes.push(node);
+    }
+    return nodes.length >= 2 ? nodes : [];
+  }, [selectedBuilderNodeId, additionalSelectedBuilderNodeIds, builderTree]);
+  const isMultiNodeSelection = multiSelectedNodes.length >= 2;
   const currentLoadedSection =
     loadedSection?.id === selectedSectionId ? loadedSection : null;
   const currentDraftProps = currentLoadedSection ? draftProps : null;
@@ -740,6 +767,18 @@ export function InspectorDock() {
   const isBaseViewport = isBaseBreakpoint(viewportDevice);
   const baseViewportLabel = breakpointLabelForDevice(baseBreakpointId());
   const viewportDeviceLabel = breakpointLabelForDevice(viewportDevice);
+
+  // INS-2 — the responsive bucket the Mixed panel bulk-edits: base viewport →
+  // null (top-level style), the two built-in override tiers → their bucket. Any
+  // other tier (custom / wide / compact) falls back to base so a bulk edit never
+  // writes into an unknown responsive key.
+  const multiSelectionBucket: "tablet" | "mobile" | null = isBaseViewport
+    ? null
+    : viewportDevice === "tablet"
+      ? "tablet"
+      : viewportDevice === "mobile"
+        ? "mobile"
+        : null;
 
   // The rail emits a registry-driven tier id (string); the canvas device state
   // (EditDevice) is the same registry tier set, so we narrow at this one seam.
@@ -1352,12 +1391,33 @@ export function InspectorDock() {
               />
             ) : null}
             {tab === "style" ? (
-              <StylePanel
-                sectionTypeKey={currentLoadedSection?.sectionTypeKey ?? "custom"}
-                draftProps={currentDraftProps ?? {}}
-                selectedBuilderNodeId={selectedBuilderNodeId}
-                onPatch={handleStylePatch}
-              />
+              isMultiNodeSelection ? (
+                // INS-2 — Mixed-aware bulk styling for a multi-node selection.
+                // Fans every edit out to all selected nodes through the shared
+                // chokepoint (per-node INS-1 locks honored there).
+                <MultiSelectionStylePanel
+                  nodes={multiSelectedNodes}
+                  bucket={multiSelectionBucket}
+                  disabled={saving}
+                  onBulkStylePatch={(stylePatchJson, bucket) => {
+                    void patchSelectedBuilderNodesStyle(
+                      stylePatchJson,
+                      bucket,
+                    ).then((result) => {
+                      if (!result.ok && result.error) {
+                        reportMutationError(result.error);
+                      }
+                    });
+                  }}
+                />
+              ) : (
+                <StylePanel
+                  sectionTypeKey={currentLoadedSection?.sectionTypeKey ?? "custom"}
+                  draftProps={currentDraftProps ?? {}}
+                  selectedBuilderNodeId={selectedBuilderNodeId}
+                  onPatch={handleStylePatch}
+                />
+              )
             ) : null}
             {tab === "data" ? (
               <DataPanel
