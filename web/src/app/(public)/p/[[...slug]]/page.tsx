@@ -15,6 +15,7 @@ import { getPublicTenantScope, getPublicPathPrefix } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
 import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
+import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
@@ -184,6 +185,12 @@ export default async function CmsPublicPage({
       const componentStyleDefaults = await loadPublicComponentStyleDefaults(
         publicScope.tenantId,
       );
+      // ABTEST-1 — stable per-visitor seed + tenant/surface tags for any A/B
+      // CTA/form nodes on this storefront page.
+      const experimentContext = await resolveExperimentRenderContext({
+        tenantId: publicScope.tenantId,
+        surface: "adminWorkspace",
+      });
       return (
         <>
           <SkipToContent />
@@ -205,6 +212,7 @@ export default async function CmsPublicPage({
               publicPathPrefix,
               mode: "freeform",
               componentStyleDefaults,
+              ...experimentContext,
               renderSectionEmbed: makeSectionEmbedRenderer({
                 tenantId: publicScope.tenantId,
                 locale,

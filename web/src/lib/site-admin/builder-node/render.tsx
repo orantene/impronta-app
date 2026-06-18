@@ -1015,6 +1015,12 @@ const BUILDER_NODE_REVEAL_SCRIPT = `(function(){
  */
 const BUILDER_NODE_EXPERIMENT_SCRIPT = `(function(){
   try{
+    // Idempotency guard — the root-tree renderer emits one renderBuilderNodes
+    // call per block, so this runtime can appear more than once on a page. Only
+    // the FIRST instance binds; it already queries every [data-experiment] on
+    // the page, so a second run would only double-count.
+    if(window.__bnExperimentRuntime)return;
+    window.__bnExperimentRuntime=1;
     var s=document.currentScript||document.querySelector('[data-builder-node-experiment-runtime]');
     var tenant=s&&s.getAttribute('data-tenant-id')||'';
     var surface=s&&s.getAttribute('data-surface')||'';

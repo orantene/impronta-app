@@ -10,6 +10,7 @@ import {
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
 import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
@@ -53,6 +54,8 @@ export async function TalentSiteFreeformRenderer({
     tenantId: string | null;
     talentProfileId: string;
     publicPathPrefix?: string;
+    /** ABTEST-1 reporting tag for the surface this tree renders on. */
+    experimentSurface?: string;
   };
 }): Promise<ReactNode> {
   if (!hasRenderableBuilderNodes(tree, { mode: "freeform" })) {
@@ -81,15 +84,22 @@ export async function TalentSiteFreeformRenderer({
   // service-role reads). Empty objects are the no-op default. The platform-
   // default theme provides componentStyleDefaults + tokens (light Modern 2026)
   // so the page renders at parity with the published talent freeform page.
-  const [dataSources, components, platformDefault] = await Promise.all([
-    tenantId
-      ? loadBuilderNodeDataSources(tree, tenantId, locale)
-      : Promise.resolve({}),
-    tenantId && treeHasInstances(tree)
-      ? loadBuilderComponentsForTenant(tenantId)
-      : Promise.resolve({}),
-    loadPlatformDefaultTheme("talent"),
-  ]);
+  const [dataSources, components, platformDefault, experimentContext] =
+    await Promise.all([
+      tenantId
+        ? loadBuilderNodeDataSources(tree, tenantId, locale)
+        : Promise.resolve({}),
+      tenantId && treeHasInstances(tree)
+        ? loadBuilderComponentsForTenant(tenantId)
+        : Promise.resolve({}),
+      loadPlatformDefaultTheme("talent"),
+      // ABTEST-1 — stable per-visitor seed for any A/B CTA/form nodes on this
+      // talent surface (profile or personal site).
+      resolveExperimentRenderContext({
+        tenantId,
+        surface: context?.experimentSurface ?? "talentSite",
+      }),
+    ]);
 
   // Project the platform-default tokens as CSS vars + data-attrs on a
   // `data-theme-canvas-root` wrapper so every bound node's `var(--token-x,
@@ -132,6 +142,7 @@ export async function TalentSiteFreeformRenderer({
         dataSources,
         components,
         componentStyleDefaults: platformDefault.componentStyles,
+        ...experimentContext,
         renderSectionEmbed,
       })}
     </div>

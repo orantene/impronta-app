@@ -16,6 +16,7 @@ import {
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
 import {
   coerceTheme,
   type PublishedTalentPageRenderData,
@@ -369,15 +370,19 @@ async function renderMaxSiteDocument(args: {
   // Data sources + live components for the PAGE body (tenant-scoped). The SHELL
   // tree is the talent's own header/footer (logo/nav/copyright) — simple nodes
   // with no tenant-scoped bindings — so it renders without a data-source load.
-  const [dataSources, components, platformDefault] = await Promise.all([
-    tenantId
-      ? loadBuilderNodeDataSources(blocks, tenantId, locale)
-      : Promise.resolve({}),
-    tenantId && treeHasInstances(blocks)
-      ? loadBuilderComponentsForTenant(tenantId)
-      : Promise.resolve({}),
-    loadPlatformDefaultTheme("talent"),
-  ]);
+  const [dataSources, components, platformDefault, experimentContext] =
+    await Promise.all([
+      tenantId
+        ? loadBuilderNodeDataSources(blocks, tenantId, locale)
+        : Promise.resolve({}),
+      tenantId && treeHasInstances(blocks)
+        ? loadBuilderComponentsForTenant(tenantId)
+        : Promise.resolve({}),
+      loadPlatformDefaultTheme("talent"),
+      // ABTEST-1 — stable per-visitor seed for any A/B CTA/form nodes on the
+      // talent's personal Max site.
+      resolveExperimentRenderContext({ tenantId, surface: "talentSite" }),
+    ]);
 
   // Unthemed talent → the PLATFORM DEFAULT (Modern light), so the page renders
   // at parity with the editor and never inherits a host tenant's dark bg.
@@ -475,6 +480,7 @@ async function renderMaxSiteDocument(args: {
           dataSources,
           components,
           componentStyleDefaults,
+          ...experimentContext,
           renderSectionEmbed,
         })}
       </main>

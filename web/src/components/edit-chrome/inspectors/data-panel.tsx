@@ -29,6 +29,7 @@ import { collectionSourceKey } from "@/lib/site-admin/collections/types";
 import { useEditContext } from "../edit-context";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import {
+  ABTestCard,
   FieldMapPreview,
   VisibilityRulesCard,
 } from "./data-panel-conditional";
@@ -209,6 +210,11 @@ function DataPanelInner({
           <LockedFieldsBanner paths={lockedDataPaths} noun="data settings" />
         ) : null}
         <UnsupportedDataNodeCard kind={selectedBuilderNode.kind} />
+        <ABTestCard
+          selectedBuilderNode={selectedBuilderNode}
+          onPatchBuilderNodeProps={onPatchBuilderNodeProps}
+          onMutationError={onMutationError}
+        />
         <VisibilityRulesCard
           selectedBuilderNode={selectedBuilderNode}
           onPatchBuilderNodeProps={onPatchBuilderNodeProps}
@@ -484,6 +490,11 @@ function DataPanelInner({
           </div>
       </InspectorSection>
 
+      <ABTestCard
+        selectedBuilderNode={selectedBuilderNode}
+        onPatchBuilderNodeProps={onPatchBuilderNodeProps}
+        onMutationError={onMutationError}
+      />
       <VisibilityRulesCard
         selectedBuilderNode={selectedBuilderNode}
         onPatchBuilderNodeProps={onPatchBuilderNodeProps}
@@ -580,6 +591,12 @@ function FieldBindingsPanel({
       </Card>
 
       <FieldMapPreview selectedBuilderNode={selectedBuilderNode} />
+
+      <ABTestCard
+        selectedBuilderNode={selectedBuilderNode}
+        onPatchBuilderNodeProps={onPatchBuilderNodeProps}
+        onMutationError={onMutationError}
+      />
 
       <VisibilityRulesCard
         selectedBuilderNode={selectedBuilderNode}
