@@ -73,13 +73,19 @@ const STARTER_KIT_GROUPS = [
 ];
 
 /** A row belongs to a surface group when it targets that surface or "both".
- *  (Rows can also be target_context="platform" — those match neither and never
- *  show in the per-surface kits.) */
+ *  Rows with target_context="platform" match neither surface and are shown in a
+ *  dedicated recovery section so they are always reachable. */
 function rowTargetsSurface(
   target: BuilderTemplateTarget,
   surface: "talent" | "workspace",
 ): boolean {
   return target === surface || target === "both";
+}
+
+/** Returns rows whose target_context is "platform" — these are unreachable via
+ *  the normal Agency / Talent surface filters and need a recovery section. */
+function platformTargetRows(rows: BuilderTemplateRow[]): BuilderTemplateRow[] {
+  return rows.filter((r) => r.target_context === "platform");
 }
 
 /** builder_templates target_context → the editor's launch target. */
@@ -359,6 +365,17 @@ export function SiteStarterKitView({
     [rows, surface],
   );
 
+  /** Starters with target_context="platform" are invisible to the Agency/Talent
+   *  filters. Expose them here so they can be re-targeted. */
+  const platformRows = useMemo(
+    () =>
+      platformTargetRows(rows ?? []).sort(
+        (a, b) =>
+          a.category.localeCompare(b.category) || a.title.localeCompare(b.title),
+      ),
+    [rows],
+  );
+
   return (
     <div
       data-testid="lab-starter-kit-root"
@@ -425,6 +442,74 @@ export function SiteStarterKitView({
           onConfirmDelete={confirmDelete}
         />
       )}
+
+      {/* Recovery section — starters with target_context="platform" are hidden
+          from both the Agency and Talent kit filters. Show them here so the
+          admin can re-target them to agency / talent / both. */}
+      {platformRows.length > 0 ? (
+        <PlatformStarterRecovery
+          rows={platformRows}
+          pendingId={pendingId}
+          editingId={editingId}
+          edit={edit}
+          setEdit={setEdit}
+          confirmingDeleteId={confirmingDeleteId}
+          onRowClick={(r) => (editingId === r.id ? cancelEdit() : startEdit(r))}
+          onSaveEdit={saveEdit}
+          onCancelEdit={cancelEdit}
+          onOpen={(r) =>
+            onLaunchEditor?.(targetToLabTarget(r.target_context), r.id)
+          }
+          onDuplicate={duplicate}
+          onSetStatus={setStatus}
+          onStartDelete={(id) => setConfirmingDeleteId(id)}
+          onCancelDelete={() => setConfirmingDeleteId(null)}
+          onConfirmDelete={confirmDelete}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// ── Platform-target recovery section ──────────────────────────────────────
+
+/** Renders starters whose target_context="platform" in a clearly-labeled
+ *  warning section below the normal surface kits. Each row is fully editable
+ *  so the admin can re-target it to agency / talent / both and make it
+ *  reachable again. The "platform" option is intentionally absent from the
+ *  Target select so new dead-ends cannot be created. */
+function PlatformStarterRecovery(props: StarterTableProps) {
+  return (
+    <div data-testid="lab-starter-platform-recovery">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 6,
+        }}
+      >
+        <SectionLabel>Platform-targeted starters (unreachable)</SectionLabel>
+      </div>
+      <div
+        style={{
+          fontSize: 12,
+          color: T.red,
+          background: `${T.red}12`,
+          border: `1px solid ${T.red}30`,
+          borderRadius: 6,
+          padding: "8px 12px",
+          marginBottom: 8,
+          lineHeight: 1.55,
+        }}
+        role="alert"
+      >
+        These starters have <strong>target = Platform</strong> and are hidden
+        from both the Agency and Talent kits. Re-target each one to{" "}
+        <strong>Agency</strong>, <strong>Talent</strong>, or{" "}
+        <strong>Both</strong> using the Edit form to make it reachable.
+      </div>
+      <StarterTable {...props} />
     </div>
   );
 }
@@ -689,7 +774,7 @@ function EditAccordionRow({
             </Field>
             <Field label="Target">
               <select
-                value={edit.target}
+                value={edit.target === "platform" ? "both" : edit.target}
                 onChange={(e) =>
                   setEdit({
                     ...edit,
@@ -701,7 +786,9 @@ function EditAccordionRow({
                 <option value="workspace">Agency (workspace)</option>
                 <option value="talent">Talent</option>
                 <option value="both">Both</option>
-                <option value="platform">Platform</option>
+                {/* "platform" is intentionally omitted — starters are
+                    agency/talent/both only. Existing platform rows are shown
+                    in the recovery section below the kit tables. */}
               </select>
             </Field>
             <Field label="Tags (comma-separated)">
@@ -731,10 +818,12 @@ function EditAccordionRow({
             />
           </Field>
           <span style={{ fontSize: 11, color: T.inkDim, lineHeight: 1.5 }}>
-            Metadata only. Target controls which kit (Agency / Talent) lists the
-            starter and which surface the builders&apos; &quot;+&quot; gallery
-            offers it on. Editing a built-in&apos;s metadata here is overwritten
-            the next time you sync built-in starters.
+            Metadata only. Target controls which kit (Agency / Talent / Both)
+            lists the starter and which surface the builders&apos; &quot;+&quot;
+            gallery offers it on. &quot;Platform&quot; is not a valid starter
+            target — use Both if the starter suits all surfaces. Editing a
+            built-in&apos;s metadata here is overwritten the next time you sync
+            built-in starters.
           </span>
         </div>
       </td>
