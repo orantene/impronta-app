@@ -2,6 +2,7 @@ import { BUILDER_NODE_REGISTRY } from "./registry";
 import { builderNodeKindAllowedAtRoot } from "./drop-policy";
 import { normalizeBuilderVisibilityCondition } from "./visibility";
 import { normalizeNodeI18nOverlay } from "./i18n-overlay";
+import { normalizeNodeExperimentConfig } from "./experiment";
 import type { BuilderNode, BuilderNodeTree } from "./types";
 
 /**
@@ -46,6 +47,15 @@ const BASE_NODE_FIELD_CARRIERS: ReadonlyArray<{
   {
     key: "i18n",
     normalize: (value) => normalizeNodeI18nOverlay(value),
+  },
+  // ABTEST-1 — minimal A/B experiment config on an eligible CTA / form node.
+  // SOURCE OF TRUTH = props.experiment (where patchBuilderNodeProps writes);
+  // mirrored onto node.experiment so the shared renderer reads it directly.
+  // Normalizes to undefined (carried on NEITHER) when there is no usable 2-arm
+  // experiment — a node with no experiment is byte-identical to today.
+  {
+    key: "experiment",
+    normalize: (value) => normalizeNodeExperimentConfig(value) ?? undefined,
   },
 ];
 

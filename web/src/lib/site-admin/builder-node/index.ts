@@ -2,6 +2,7 @@ export * from "./types";
 export * from "./create";
 export * from "./data-bindings";
 export * from "./visibility";
+export * from "./experiment";
 export * from "./field-map";
 export * from "./registry";
 export * from "./validate";

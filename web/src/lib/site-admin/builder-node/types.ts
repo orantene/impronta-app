@@ -47,6 +47,16 @@ export interface BuilderNodeBase {
    * directly. Absent → today's single-language behavior. See i18n-overlay.ts.
    */
   i18n?: Record<string, Record<string, string>>;
+  /**
+   * ABTEST-1 — OPTIONAL minimal A/B experiment carried on an eligible CTA / form
+   * node ({@link EXPERIMENT_ELIGIBLE_KINDS}: button / cta_group / form). Exactly
+   * two variants ("a" control, "b"); the shared renderer deterministically
+   * buckets the visitor and applies the served variant's `propOverrides`. Absent
+   * → the node renders byte-identically (control). SOURCE OF TRUTH = `props.experiment`
+   * (patch landing zone); mirrored here by validate's base-field allow-list so
+   * the renderer reads `node.experiment` directly. See experiment.ts.
+   */
+  experiment?: import("./experiment").NodeExperimentConfig;
 }
 
 export interface BuilderNodeStyleValue {
