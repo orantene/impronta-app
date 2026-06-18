@@ -25,6 +25,7 @@ import {
   type BuilderTemplateRow,
   type BuilderTemplateRevisionRow,
 } from "./registry-rows";
+import { getTemplatePreviewUrl } from "./template-def";
 
 // ── 1. computeDataBindingRequirements ─────────────────────────────────────────
 
@@ -473,5 +474,25 @@ describe("authorization gate — isPlatformAdmin guard", () => {
       true,
       "SQL RLS for builder_templates enforces is_super_admin() on INSERT/UPDATE/DELETE. See migration 20260611034138_builder_templates.sql.",
     );
+  });
+});
+
+// ── 5. db-template preview URL (Default-surfaces pointer preview) ─────────────
+
+describe("getTemplatePreviewUrl — db-template family", () => {
+  it("targets the shared /template-preview route with the persisted id as key", () => {
+    const url = getTemplatePreviewUrl("ptr-template-uuid", {
+      family: "db-template",
+    });
+    // Same route base as every other family — no second endpoint / render fork.
+    assert.ok(url.startsWith("/template-preview/ptr-template-uuid?"));
+    assert.ok(url.includes("kind=db-template"));
+    // No owner-gating talent param when previewing a platform-default pointer.
+    assert.ok(!url.includes("talent="));
+  });
+
+  it("url-encodes the persisted id segment", () => {
+    const url = getTemplatePreviewUrl("a/b id", { family: "db-template" });
+    assert.ok(url.startsWith("/template-preview/a%2Fb%20id?"));
   });
 });
