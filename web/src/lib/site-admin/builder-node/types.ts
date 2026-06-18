@@ -948,6 +948,13 @@ export interface BuilderFormNode extends BuilderNodeBase {
     sectionId?: string | null;
     layerLabel?: string;
     fields: BuilderFormField[];
+    /**
+     * Optional override for the submit button's label. When set, it wins over
+     * the submit field's own `label` — so a top-level prop (which an A/B
+     * experiment's `propOverrides` can target) drives the CTA text. Falls back
+     * to the submit field label when unset, so existing trees are unchanged.
+     */
+    submitLabel?: string;
     /** Honeypot field name (a hidden input bots fill — submissions with it set are flagged spam). */
     honeypotName?: string;
     style?: BuilderNodeStyle;
