@@ -61,6 +61,15 @@ export async function syncTalentTypeTaxonomyFromShellSlugs(
     currentTalentTypes.push({ termId: term.id, slug: term.slug });
   }
 
+  // Talent types already on the profile are preserved as-is on every save. A
+  // workspace that later disables a type (or imports a talent already holding
+  // one it doesn't offer) must NOT be blocked from saving the rest of the
+  // profile — the whole batch (identity, bio, home base, dynamic fields)
+  // otherwise fails on one stale secondary type. Tenant availability is only
+  // enforced for NEWLY-added types, mirroring the Services picker (which hides
+  // disabled types) and removeTalentTaxonomyBySlug (which never enforces).
+  const currentSlugs = new Set(currentTalentTypes.map((c) => c.slug));
+
   for (const { termId, slug } of currentTalentTypes) {
     if (!desired.has(slug)) {
       const rm = await removeTaxonomyTermFromProfile(supabase, {
@@ -76,6 +85,7 @@ export async function syncTalentTypeTaxonomyFromShellSlugs(
       tenantId,
       slugOrId: primary,
       relationshipType: "primary_role",
+      enforceTenantAvailability: !currentSlugs.has(primary),
     });
     if (!resolved.ok) return { ok: false, error: resolved.error };
     const id = resolved.termId;
@@ -92,6 +102,7 @@ export async function syncTalentTypeTaxonomyFromShellSlugs(
       tenantId,
       slugOrId: slug,
       relationshipType: "secondary_role",
+      enforceTenantAvailability: !currentSlugs.has(slug),
     });
     if (!resolved.ok) return { ok: false, error: resolved.error };
     const asg = await assignTaxonomyTermToProfile(supabase, {
