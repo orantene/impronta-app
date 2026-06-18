@@ -154,10 +154,24 @@ export default async function CmsPublicPage({
   // wrapped in the public shell. Slot-composed pages (homepage, system, legacy)
   // have is_freeform=false and fall through to the snapshot branch below.
   if (publicScope && slugPath) {
-    const { data: freeformPage, error: freeformErr } = await supabase
-      .from("cms_pages")
-      .select("id, title, blocks, is_freeform, status")
-      .eq("tenant_id", publicScope.tenantId)
+    // Public visitors see PUBLISHED freeform pages only. Drafts render ONLY when
+    // a signed preview JWT is present (isPreviewActiveForTenant) — gated exactly
+    // like the slot/homepage paths (loadPageForRender / loadHomepageForRender).
+    // The non-HttpOnly edit cookie is NOT trusted to unlock drafts; enterEditModeAction
+    // sets both the JWT and the cookie, so staff editing + preview links still see
+    // drafts. On a query error, fall through to the slot/legacy branches.
+    const previewActive = await isPreviewActiveForTenant(publicScope.tenantId);
+    const freeformCols = "id, title, blocks, is_freeform, status";
+    // The PUBLISHED read goes through cms_public_pages_for_tenant — the same
+    // SECURITY-INVOKER RPC the metadata read uses. It runs
+    // `set_config('app.current_tenant_id', …)` so the cms_pages RLS policy
+    // (`cms_pages_select_tenant_published`) admits the row for an anonymous
+    // visitor. A direct `.from("cms_pages")` read returns NOTHING for the public
+    // SSR client because that client never sets the tenant GUC — so published
+    // freeform storefront pages silently failed to render before this.
+    const publishedRead = await supabase
+      .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
+      .select(freeformCols)
       .eq("locale", locale)
       .eq("slug", slugPath)
       .eq("is_freeform", true)
@@ -168,13 +182,25 @@ export default async function CmsPublicPage({
       .eq("is_system_owned", false)
       .maybeSingle()
       .returns<{ id: string; title: string; blocks: BuilderNode[]; is_freeform: boolean; status: string }>();
-    // Public visitors see PUBLISHED freeform pages only. Drafts render ONLY when
-    // a signed preview JWT is present (isPreviewActiveForTenant) — gated exactly
-    // like the slot/homepage paths (loadPageForRender / loadHomepageForRender).
-    // The non-HttpOnly edit cookie is NOT trusted to unlock drafts; enterEditModeAction
-    // sets both the JWT and the cookie, so staff editing + preview links still see
-    // drafts. On a query error, fall through to the slot/legacy branches.
-    const previewActive = await isPreviewActiveForTenant(publicScope.tenantId);
+    let freeformPage = publishedRead.data;
+    let freeformErr = publishedRead.error;
+    // Draft preview (staff): the published-only RPC won't surface a draft, so
+    // read the row directly — RLS admits it for staff via is_staff_of_tenant
+    // (no tenant GUC needed). Only attempted when a preview JWT is active.
+    if (!freeformErr && !freeformPage && previewActive) {
+      const draftRead = await supabase
+        .from("cms_pages")
+        .select(freeformCols)
+        .eq("tenant_id", publicScope.tenantId)
+        .eq("locale", locale)
+        .eq("slug", slugPath)
+        .eq("is_freeform", true)
+        .eq("is_system_owned", false)
+        .maybeSingle()
+        .returns<{ id: string; title: string; blocks: BuilderNode[]; is_freeform: boolean; status: string }>();
+      freeformPage = draftRead.data;
+      freeformErr = draftRead.error;
+    }
     if (
       !freeformErr &&
       freeformPage?.is_freeform &&

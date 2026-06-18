@@ -204,7 +204,9 @@ function buildContactFormSectionProps(inquiryTargetTalentId) {
       background: "canvas",
       paddingTop: "editorial",
       paddingBottom: "editorial",
-      containerWidth: "boxed",
+      // contactFormSchemaV1 presentation.containerWidth enum:
+      // narrow | standard | wide | editorial | full-bleed
+      containerWidth: "standard",
       align: "center",
     },
   };
