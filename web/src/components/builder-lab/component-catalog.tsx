@@ -49,6 +49,9 @@ import { CatalogRowTable, targetAllows } from "./catalog-row-table";
 import { PlaygroundView } from "./catalog-playground";
 import { SiteStarterKitView } from "./catalog-starter-kit";
 import { CatalogActivityFeed } from "./catalog-activity-feed";
+import { TemplateManager } from "./template-manager";
+import { ParityProbePanel } from "./parity-probe-panel";
+import { TaxonomyManagerPanel } from "./taxonomy-manager-panel";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
   buildCatalogItemPreview,
@@ -79,6 +82,9 @@ const SPECIAL_TABS = [
   "default_surfaces",
   "playground",
   "activity",
+  "templates",
+  "parity",
+  "taxonomy",
 ] as const;
 type SpecialTab = (typeof SPECIAL_TABS)[number];
 type CatalogView = AddGalleryTab | SpecialTab;
@@ -90,6 +96,9 @@ const VIEW_LABEL: Record<CatalogView, string> = {
   default_surfaces: "Default surfaces",
   playground: "Playground",
   activity: "Activity",
+  templates: "Templates",
+  parity: "Parity",
+  taxonomy: "Taxonomy",
 };
 function isSpecialTab(v: CatalogView): v is SpecialTab {
   return (SPECIAL_TABS as readonly string[]).includes(v);
@@ -725,6 +734,12 @@ export function ComponentCatalog({
         <PlaygroundView onLaunchEditor={onLaunchEditor} />
       ) : currentView === "activity" ? (
         <CatalogActivityFeed />
+      ) : currentView === "templates" ? (
+        <TemplateManager />
+      ) : currentView === "parity" ? (
+        <ParityProbePanel />
+      ) : currentView === "taxonomy" ? (
+        <TaxonomyManagerPanel />
       ) : (
         <SiteStarterKitView onLaunchEditor={onLaunchEditor} />
       )}
