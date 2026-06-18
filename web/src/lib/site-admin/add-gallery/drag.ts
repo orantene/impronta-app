@@ -53,6 +53,23 @@ export function clearAddGalleryDrag(): void {
   setActiveBuilderNodePaletteDrag(null);
 }
 
+/**
+ * CANVAS-6 — pointer-drag arming (touch parity). The HTML5 `armAddGalleryDrag`
+ * needs a `DragEvent.dataTransfer`, which Pointer Events don't carry. This sets
+ * the SAME active palette payload the canvas drop bridge reads, so a card drag
+ * works identically whether it started from a mouse HTML5 drag or a touch
+ * pointer drag. Returns the payload (drives the drag-ghost label) or null when
+ * the item isn't draggable.
+ */
+export function armAddGalleryPointerDrag(
+  item: AddGalleryItem,
+): BuilderNodePaletteDragPayload | null {
+  const payload = galleryItemDragPayload(item);
+  if (!payload) return null;
+  setActiveBuilderNodePaletteDrag(payload);
+  return payload;
+}
+
 /** Node kind used for canvas drop-policy when dragging a gallery item. */
 export function galleryItemDragNodeKind(itemId: string): BuilderNodeKind {
   const item = getAddGalleryItemById(itemId);

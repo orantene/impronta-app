@@ -21,7 +21,6 @@ import {
   useMemo,
   useState,
   type ComponentType,
-  type DragEvent,
   type MouseEventHandler,
   type ReactNode,
 } from "react";
@@ -43,6 +42,7 @@ import {
   type BuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
 import { resolveFreeformLayerDrop } from "@/lib/site-admin/builder-node/freeform-layers-drop";
+import { usePointerDrag } from "./use-pointer-drag";
 import {
   resolveLayerDisplayName,
   resolveResponsiveOverrides,
@@ -505,67 +505,44 @@ export function FreeformLayersTree({
     [pending, removeBuilderNode],
   );
 
-  // CANVAS-5 — drag-reorder + reparent wiring. Mirrors the navigator child-row
-  // HTML5 drag (onChildDragStart/onChildDragOver/onChildDrop) and routes through
-  // the SAME moveBuilderNodeToParentIndex chokepoint — no parallel move path.
-  const endDrag = useCallback(() => {
-    setDraggingNode(null);
-    setDropTarget(null);
-  }, []);
+  // CANVAS-5 / CANVAS-6 — drag-reorder + reparent wiring. Mirrors the navigator
+  // child-row drag and routes through the SAME moveBuilderNodeToParentIndex
+  // chokepoint — no parallel move path. CANVAS-6 swaps the HTML5 Drag API for the
+  // shared usePointerDrag hook (Pointer Events) so the reorder works on touch too;
+  // the resolveFreeformLayerDrop drop math below is unchanged.
+  const rowById = useMemo(() => {
+    const map = new Map<string, LayerRow>();
+    for (const row of searchFilteredRows) map.set(row.id, row);
+    return map;
+  }, [searchFilteredRows]);
 
-  const handleDragStart = useCallback(
-    (event: DragEvent<HTMLDivElement>, row: LayerRow) => {
-      // Locked rows are frozen — never draggable (parity with hidden actions).
-      if (row.locked || pending) {
-        event.preventDefault();
-        return;
-      }
-      // Never initiate a row drag from an interactive control (action buttons,
-      // disclosure chevron) — a drag there is an accidental grab, not a reorder.
-      const target = event.target;
+  // Resolve a hovered row element to a drop result, reusing the pure
+  // resolveFreeformLayerDrop exactly as the old onDragOver/onDrop did. Returns
+  // both the drop result and the `before` flag that drives the indicator.
+  const resolvePointerDrop = useCallback(
+    (
+      source: { id: string; kind: BuilderNodeKind; parentId: string | null; index: number },
+      targetEl: HTMLElement | null,
+      onUpperHalf: boolean | null,
+    ): { result: ReturnType<typeof resolveFreeformLayerDrop>; targetRowId: string; before: boolean } | null => {
+      if (!targetEl || onUpperHalf == null) return null;
+      const targetRowId = targetEl.getAttribute("data-builder-node-id");
+      if (!targetRowId) return null;
+      // Don't drop onto the dragged row or its own descendants (cycle guard).
       if (
-        target instanceof HTMLElement &&
-        target.closest("button")
+        targetRowId === source.id ||
+        descendantsByNode.get(source.id)?.has(targetRowId)
       ) {
-        event.preventDefault();
-        return;
+        return null;
       }
-      event.stopPropagation();
-      setDraggingNode({
-        id: row.id,
-        kind: row.kind,
-        parentId: row.parentId,
-        index: row.index,
-      });
-      setDropTarget(null);
-      selectBuilderNode(row.id);
-      event.dataTransfer.effectAllowed = "move";
-      // Payload is ignored (id lives in state) but Firefox needs a setData call
-      // for the drag to initiate at all — mirrors the navigator.
-      event.dataTransfer.setData("text/plain", row.id);
-    },
-    [pending, selectBuilderNode],
-  );
-
-  const handleRowDragOver = useCallback(
-    (event: DragEvent<HTMLDivElement>, row: LayerRow) => {
-      if (!draggingNode) return;
-      // Don't show an indicator on the dragged row or its own descendants.
-      if (
-        row.id === draggingNode.id ||
-        descendantsByNode.get(draggingNode.id)?.has(row.id)
-      ) {
-        setDropTarget(null);
-        return;
-      }
-      const rect = event.currentTarget.getBoundingClientRect();
-      const onUpperHalf = event.clientY - rect.top < rect.height / 2;
+      const row = rowById.get(targetRowId);
+      if (!row) return null;
       const result = resolveFreeformLayerDrop({
-        sourceId: draggingNode.id,
-        sourceKind: draggingNode.kind,
-        sourceParentId: draggingNode.parentId,
-        sourceIndex: draggingNode.index,
-        descendantIds: descendantsByNode.get(draggingNode.id) ?? new Set(),
+        sourceId: source.id,
+        sourceKind: source.kind,
+        sourceParentId: source.parentId,
+        sourceIndex: source.index,
+        descendantIds: descendantsByNode.get(source.id) ?? new Set(),
         targetRow: {
           id: row.id,
           kind: row.kind,
@@ -576,66 +553,58 @@ export function FreeformLayersTree({
         },
         onUpperHalf,
       });
-      // Only paint the indicator when the drop would actually move the node.
-      if (result.kind !== "move") {
-        setDropTarget(null);
-        return;
-      }
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
-      setDropTarget({ targetRowId: row.id, before: onUpperHalf });
+      return { result, targetRowId, before: onUpperHalf };
     },
-    [draggingNode, descendantsByNode],
+    [descendantsByNode, rowById],
   );
 
-  const handleDrop = useCallback(
-    async (event: DragEvent<HTMLDivElement>, row: LayerRow) => {
-      if (!draggingNode) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const rect = event.currentTarget.getBoundingClientRect();
-      const onUpperHalf = event.clientY - rect.top < rect.height / 2;
-      const result = resolveFreeformLayerDrop({
-        sourceId: draggingNode.id,
-        sourceKind: draggingNode.kind,
-        sourceParentId: draggingNode.parentId,
-        sourceIndex: draggingNode.index,
-        descendantIds: descendantsByNode.get(draggingNode.id) ?? new Set(),
-        targetRow: {
-          id: row.id,
-          kind: row.kind,
-          parentId: row.parentId,
-          parentKind: row.parentKind,
-          parentLocked: row.parentLocked,
-          index: row.index,
-        },
-        onUpperHalf,
-      });
-      const nodeId = draggingNode.id;
-      endDrag();
-      if (result.kind !== "move") return;
-      setPending(true);
-      try {
-        const moved = await moveBuilderNodeToParentIndex(
-          nodeId,
-          result.targetParentId,
-          result.targetIndex,
-        );
-        if (!moved.ok && moved.error) {
-          reportMutationError(moved.error);
+  const { getHandleProps: getRowDragProps } =
+    usePointerDrag<{
+      id: string;
+      kind: BuilderNodeKind;
+      parentId: string | null;
+      index: number;
+    }>({
+      rowSelector: "[data-builder-node-id]",
+      onDragStart: (source) => {
+        setDraggingNode(source);
+        setDropTarget(null);
+        selectBuilderNode(source.id);
+      },
+      onDragMove: ({ source, targetEl, onUpperHalf }) => {
+        const resolved = resolvePointerDrop(source, targetEl, onUpperHalf);
+        // Only paint the indicator when the drop would actually move the node.
+        if (!resolved || resolved.result.kind !== "move") {
+          setDropTarget(null);
+          return;
         }
-      } finally {
-        setPending(false);
-      }
-    },
-    [
-      draggingNode,
-      descendantsByNode,
-      endDrag,
-      moveBuilderNodeToParentIndex,
-      reportMutationError,
-    ],
-  );
+        setDropTarget({ targetRowId: resolved.targetRowId, before: resolved.before });
+      },
+      onDrop: ({ source, targetEl, onUpperHalf }) => {
+        const resolved = resolvePointerDrop(source, targetEl, onUpperHalf);
+        if (!resolved || resolved.result.kind !== "move") return;
+        const { targetParentId, targetIndex } = resolved.result;
+        setPending(true);
+        void (async () => {
+          try {
+            const moved = await moveBuilderNodeToParentIndex(
+              source.id,
+              targetParentId,
+              targetIndex,
+            );
+            if (!moved.ok && moved.error) {
+              reportMutationError(moved.error);
+            }
+          } finally {
+            setPending(false);
+          }
+        })();
+      },
+      onDragEnd: () => {
+        setDraggingNode(null);
+        setDropTarget(null);
+      },
+    });
 
   /** P3-LOCK — toggle locked state for a node via the normal patch path. */
   const handleToggleLock = useCallback(
@@ -773,6 +742,15 @@ export function FreeformLayersTree({
             : 96;
         // CANVAS-5 — drag affordances. Locked rows stay non-draggable (frozen).
         const draggable = !row.locked && !pending;
+        // CANVAS-6 — pointer-drag handle props (onPointerDown + touchAction:none).
+        const dragProps = draggable
+          ? getRowDragProps({
+              id: row.id,
+              kind: row.kind,
+              parentId: row.parentId,
+              index: row.index,
+            })
+          : null;
         const isDragging = draggingNode?.id === row.id;
         const showDropBefore =
           dropTarget?.targetRowId === row.id && dropTarget.before;
@@ -791,11 +769,18 @@ export function FreeformLayersTree({
             data-builder-node-kind={row.kind}
             data-selected={selected ? "true" : "false"}
             data-locked={row.locked ? "true" : undefined}
-            draggable={draggable}
-            onDragStart={(e) => handleDragStart(e, row)}
-            onDragOver={(e) => handleRowDragOver(e, row)}
-            onDragEnd={endDrag}
-            onDrop={(e) => void handleDrop(e, row)}
+            onPointerDown={(e) => {
+              // Never initiate a row drag from an interactive control (action
+              // buttons, disclosure chevron) — a press there is a click, not a
+              // reorder grab. Parity with the old HTML5 onDragStart guard.
+              if (
+                e.target instanceof HTMLElement &&
+                e.target.closest("button")
+              ) {
+                return;
+              }
+              dragProps?.onPointerDown(e);
+            }}
             onClick={() => handleRowSelect(row.id)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
