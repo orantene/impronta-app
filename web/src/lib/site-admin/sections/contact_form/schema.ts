@@ -93,6 +93,31 @@ export const contactFormSchemaV1 = z.object({
    *   - turnstile: NEXT_PUBLIC_TURNSTILE_SITE_KEY + TURNSTILE_SECRET
    */
   captcha: z.enum(["none", "hcaptcha", "turnstile"]).default("none"),
+  /**
+   * FORMS-2 — routing mode for the submit endpoint.
+   *
+   *   - "internal" (default): the submission is recorded as a generic
+   *     cms_form_submissions row (the existing inbox behavior).
+   *   - "inquiry": the submission is funneled into the SHARED inquiry
+   *     engine (createInquiryFromIntent) — the same front door the talent
+   *     profile uses — creating a real public.inquiries row in the
+   *     workspace pipeline instead of an inbox row.
+   *
+   * BACKWARD COMPAT: defaults to "internal"; any existing saved section
+   * with no routingMode validates + behaves exactly as before.
+   */
+  routingMode: z.enum(["internal", "inquiry"]).default("internal"),
+  /**
+   * FORMS-2 — target talent for inquiry routing. Only used when
+   * `routingMode === "inquiry"`. The submitted inquiry is attributed to
+   * this talent (the form becomes a booking front door for them, e.g. a
+   * Max talent-site contact form). Optional: an inquiry-mode form with no
+   * target creates a talent-less "message the agency" inquiry. The submit
+   * route ALWAYS resolves the tenant from the trusted section.tenant_id —
+   * never from client payload — so this is the only client-influenced
+   * routing input and it is roster-validated server-side before use.
+   */
+  inquiryTargetTalentId: z.string().uuid().optional(),
   /** Phase 4 — BuilderNode child-style overrides for heading + submit button. */
   nodePresentation: z
     .object({
