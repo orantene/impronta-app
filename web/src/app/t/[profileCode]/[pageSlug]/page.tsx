@@ -48,6 +48,8 @@ import {
 } from "@/lib/site-admin/tokens/resolve";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
 import { PublicHeader } from "@/components/public-header";
+import { SkipToContent } from "@/components/accessibility/skip-to-content";
+import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
 
 // A published talent page must reflect the talent's latest publish — mirror the
 // profile route's caching contract so newly-published edits are never stale.
@@ -171,6 +173,21 @@ export default async function PublicTalentFreeformPage({
         minHeight: "100vh",
       }}
     >
+      {/* A11Y / parity — skip link is the FIRST focusable element, before the
+          header and all navigation (matches the storefront /p/ + profile +
+          talent-site render branches). */}
+      <SkipToContent />
+      {/* ANALYTICS-2 — first-party page-view for a published talent freeform
+          sub-page. surface=talent-profile so it shares the talent's analytics
+          lane; tenantId = the managing agency tenant (may be empty for an
+          unmanaged talent), talentId/pageSlug identify the page. */}
+      <SitePageViewAnalytics
+        surface="talent-profile"
+        tenantId={tenantId || null}
+        talentId={talentProfileId}
+        pageSlug={pageSlug}
+        locale={locale}
+      />
       <PublicHeader />
       {/* Renderer styles + fonts emitted once at the page level; the root-tree
           helper sets includeRendererStyles/includeFontLinks=false per block.
@@ -185,6 +202,7 @@ export default async function PublicTalentFreeformPage({
           picker tokens are set. */}
       {hasTalentTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}
       <main
+        id="main-content"
         data-talent-freeform-page-main=""
         data-theme-canvas-root=""
         {...talentDataAttrs}

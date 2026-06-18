@@ -1425,10 +1425,17 @@ export default async function PublicTalentProfilePage({
       >
         <DirectoryInquiryModalProvider>
           <FavoritesDrawerProvider>
+            {/* Parity — even the degenerate config-error branch carries the
+                skip-link + #main-content landmark so every render branch of
+                this surface is uniform (locked by render-branch-parity test). */}
+            <SkipToContent />
             <PublicHeader />
-            <div className="mx-auto max-w-lg flex-1 px-4 py-20 text-center text-m text-muted-foreground">
+            <main
+              id="main-content"
+              className="mx-auto max-w-lg flex-1 px-4 py-20 text-center text-m text-muted-foreground"
+            >
               {t("public.forms.inquiry.supabaseNotConfigured")}
-            </div>
+            </main>
             <DirectoryInquirySheet ui={ui} locale={locale} />
             <FavoritesDrawer
               signupHref="/login"
