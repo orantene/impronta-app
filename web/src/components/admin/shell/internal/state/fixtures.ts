@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────
 import { useEffect, useState } from "react";
 import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
-import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HqRole, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformPage, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteAnalytics, WebsiteDomain, WebsitePageRow, WebsitePeriodMetrics, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
+import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HqRole, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformPage, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteAnalytics, WebsiteDomain, WebsitePageMetrics, WebsitePageRow, WebsitePeriodMetrics, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
 import type { DrawerId } from "./drawer-ids";
 
 export const SURFACES: Surface[] = ["workspace", "talent", "client", "platform"];
@@ -4760,6 +4760,18 @@ export const WEBSITE_STATE: WebsiteState = {
       { talentId: "t5", talentName: "Amelia Dorsey", visits:  672, inquiries:  8, bookings:  3, revenue: 13200, topPageId: "p2" },
       { talentId: "t2", talentName: "Kai Lin",       visits:  548, inquiries:  6, bookings:  2, revenue:  8400, topPageId: "p3" },
     ],
+    topReferrers7d: [
+      { referrer: "direct",        visits: 2840 },
+      { referrer: "google.com",    visits: 1180 },
+      { referrer: "instagram.com", visits:  410 },
+      { referrer: "t.co",          visits:  180 },
+    ],
+    topReferrers30d: [
+      { referrer: "direct",        visits: 11200 },
+      { referrer: "google.com",    visits:  4980 },
+      { referrer: "instagram.com", visits:  1840 },
+      { referrer: "t.co",          visits:   720 },
+    ],
   },
 };
 
@@ -4860,30 +4872,73 @@ export function mergeWebsiteStateFromBridge(live: WebsiteData, tenantSlug: strin
     canonicalDomain: host,
   };
 
-  // Zero analytics — real analytics loader is Phase C. The Performance panel
-  // renders cleanly with zeros (no top-performer rows shown when visits === 0).
-  const zeroMetrics: WebsitePeriodMetrics = {
-    visits: 0, inquiries: 0, bookings: 0, revenue: 0,
-    prior: { visits: 0, inquiries: 0, bookings: 0, revenue: 0 },
+  // ANALYTICS-2 — project the REAL first-party page-view analytics
+  // (`view_site_page` grouped by page_slug / referrer) into the panel shape.
+  // Visits come from the live loader; inquiries/bookings/revenue stay 0 here
+  // (those derive from other tables, out of the page-view loader's scope) so the
+  // panel's visit + top-pages + top-referrers render real numbers while the
+  // money columns show zero rather than fixture lies. Prior == 0 (no historical
+  // baseline yet) → the Tile deltas read "flat", which is honest.
+  const live7d = live.analytics.last7d;
+  const live30d = live.analytics.last30d;
+
+  // Map page slug → real 7d visits so each page card shows live hits.
+  const visitsBySlug7d = new Map<string, number>(
+    live7d.topPages.map((p) => [p.pageSlug, p.visits]),
+  );
+  const slugOf = (raw: string): string => {
+    const s = (raw ?? "").trim();
+    return s === "" ? "/" : s.startsWith("/") ? s : `/${s}`;
   };
-  const analyticsZero: WebsiteAnalytics = {
-    refreshedAt:  new Date().toISOString(),
-    last7d:       zeroMetrics,
-    last30d:      zeroMetrics,
-    byPage7d:     [],
-    byPage30d:    [],
-    byTalent7d:   [],
-    byTalent30d:  [],
+  const pagesWithHits: WebsitePageRow[] = pages.map((p) => ({
+    ...p,
+    hits7d: visitsBySlug7d.get(slugOf(p.slug)) ?? 0,
+  }));
+
+  // Build a slug → cms_pages id map so top-page rows (which may carry only a
+  // slug, e.g. talent-site pages) resolve to a panel title when the slug
+  // matches a known page; else the page card title falls back to "—".
+  const pageIdBySlug = new Map<string, string>(
+    pages.map((p) => [slugOf(p.slug), p.id]),
+  );
+  const toByPage = (
+    topPages: { pageSlug: string; pageId: string | null; visits: number }[],
+  ): WebsitePageMetrics[] =>
+    topPages.map((tp) => ({
+      pageId: tp.pageId ?? pageIdBySlug.get(slugOf(tp.pageSlug)) ?? tp.pageSlug,
+      visits: tp.visits,
+      inquiries: 0,
+      bookings: 0,
+    }));
+
+  const metrics = (visits: number): WebsitePeriodMetrics => ({
+    visits,
+    inquiries: 0,
+    bookings: 0,
+    revenue: 0,
+    prior: { visits: 0, inquiries: 0, bookings: 0, revenue: 0 },
+  });
+
+  const analyticsLive: WebsiteAnalytics = {
+    refreshedAt:    live.analytics.refreshedAt,
+    last7d:         metrics(live7d.visits),
+    last30d:        metrics(live30d.visits),
+    byPage7d:       toByPage(live7d.topPages),
+    byPage30d:      toByPage(live30d.topPages),
+    byTalent7d:     [],
+    byTalent30d:    [],
+    topReferrers7d:  live7d.topReferrers,
+    topReferrers30d: live30d.topReferrers,
   };
 
   return {
     ...WEBSITE_STATE,
-    pages,
+    pages:        pagesWithHits,
     posts,
     redirects,
     domain:       domainPatch,
     seo:          seoPatch,
-    analytics:    analyticsZero,
+    analytics:    analyticsLive,
     // Disable fixture announcement — real announcement management is Phase C.
     announcement: { enabled: false, text: "", audience: "all", tone: "info" },
     // Scope tracking domain to the real workspace.
