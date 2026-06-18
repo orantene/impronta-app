@@ -75,13 +75,16 @@ export function HeaderPublishCoach({ missing, onJump }: {
         onClick={() => setOpen(v => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
+        onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "rgba(91,107,160,0.20)"; }}
+        onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = COLORS.indigoSoft; }}
         style={{
-          display: "inline-flex", alignItems: "center", gap: 6,
-          padding: "5px 10px", borderRadius: 999,
-          border: `1px solid rgba(91,107,160,0.25)`,
-          background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+          display: "inline-flex", alignItems: "center", gap: 7,
+          padding: "6px 8px 6px 11px", borderRadius: 999,
+          border: `1px solid rgba(91,107,160,0.40)`,
+          background: open ? "rgba(91,107,160,0.20)" : COLORS.indigoSoft, color: COLORS.indigoDeep,
           fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600,
           cursor: "pointer", whiteSpace: "nowrap",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.55)",
         }}
       >
         {/* A checklist icon, not a bare dot — the old 6px circle was the same
@@ -96,7 +99,18 @@ export function HeaderPublishCoach({ missing, onJump }: {
           <path d="M13 18h8" />
         </svg>
         {copy.addToPublish(missing.length)}
-        <span aria-hidden style={{ fontSize: 9, opacity: 0.7 }}>{open ? "▴" : "▾"}</span>
+        {/* Split-control divider + a real chevron that rotates when open. The
+            old 9px ▾ at 70% opacity was invisible, so the pill read as a static
+            badge — users couldn't tell it opens a menu. The divider + caret make
+            the dropdown affordance unmistakable. */}
+        <span aria-hidden className="ml-0.5 h-3.5 w-px bg-current opacity-30" />
+        <svg
+          width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+          className={"transition-transform duration-150 " + (open ? "rotate-180" : "")}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
       </button>
       {open && (
         <div role="menu" style={{
