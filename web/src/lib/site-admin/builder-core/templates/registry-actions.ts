@@ -40,6 +40,7 @@ import {
 } from "./registry-rows";
 import { bumpCatalogVersion } from "./catalog-version";
 import { validateTemplateForPublish } from "./validate-publish";
+import { mintCopySlug, mintCopyTitle } from "./slug-minting";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -94,22 +95,10 @@ interface PublishRowCoreInput {
   createdBy: string;
   /** Optional revision note. */
   note?: string | null;
-  /**
-   * Optional author changelog (WS-D D4). When provided, written to the template
-   * row's `changelog` column as the latest-changelog convenience field. Omitting
-   * it (undefined) leaves the existing value untouched; passing an empty/blank
-   * string clears it to null.
-   */
+  /** Latest-changelog convenience field (WS-D D4). Omitting leaves existing
+   *  value untouched; blank clears to null. */
   changelog?: string | null;
-  /**
-   * When true, the row's builder_tree is overwritten with `tree` (rollback —
-   * the live tree must become the restored revision's tree). When false (the
-   * normal publish path), builder_tree is left as-is and only the published
-   * metadata + freshly-computed data_binding_requirements are written. The
-   * normal-publish behaviour is byte-identical to the pre-extraction inline
-   * block — the caller passes the live row's own tree, so even the computed
-   * data_binding_requirements match.
-   */
+  /** When true, also writes builder_tree on the row (rollback path). */
   writeTree?: boolean;
 }
 
@@ -552,8 +541,28 @@ export async function duplicateTemplate(
       return fail(fetchErr?.message ?? "Source template not found.");
 
     const src = source as BuilderTemplateRow;
-    const newSlug = (overrides?.slug ?? `${src.slug}-copy`).trim();
-    const newTitle = (overrides?.title ?? `${src.title} (Copy)`).trim();
+
+    // Collision-safe slug & title: when overrides are not fully supplied, query
+    // existing rows for this kind and mint the first free -copy/-copy-N /
+    // (Copy)/(Copy N) slot (F1 fix — duplicating twice previously caused a
+    // unique-violation 500).
+    let newSlug: string;
+    let newTitle: string;
+    if (overrides?.slug && overrides?.title) {
+      newSlug = overrides.slug.trim();
+      newTitle = overrides.title.trim();
+    } else {
+      const { data: existing, error: listErr } = await sb
+        .from("builder_templates")
+        .select("slug, title")
+        .eq("kind", src.kind);
+      if (listErr) return fail(listErr.message);
+      const rows = (existing ?? []) as Array<{ slug: string; title: string }>;
+      const existingSlugs = new Set(rows.map((r) => r.slug));
+      const existingTitles = new Set(rows.map((r) => r.title));
+      newSlug = overrides?.slug?.trim() ?? mintCopySlug(src.slug, existingSlugs);
+      newTitle = overrides?.title?.trim() ?? mintCopyTitle(src.title, existingTitles);
+    }
 
     const { data: dup, error: insErr } = await sb
       .from("builder_templates")
