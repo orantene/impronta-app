@@ -37,6 +37,30 @@ export function rolloutSummary(row: BuilderTemplateRow): string {
   return parts.join(" · ");
 }
 
+/** True when a template has any non-default rollout setting
+ *  (percentage < 100, or a non-empty allow/deny list). Used for the
+ *  "partially rolled out" filter in Template Manager + Starter Kit. */
+export function isPartialRollout(row: BuilderTemplateRow): boolean {
+  const pct = row.rollout_percentage ?? 100;
+  const allow = row.tenant_allowlist?.length ?? 0;
+  const deny = row.tenant_denylist?.length ?? 0;
+  return pct < 100 || allow > 0 || deny > 0;
+}
+
+/** Chip label for the at-rest rollout state shown per-row.
+ *  Returns null when fully rolled out (100% / 0 allow / 0 deny) so the
+ *  chip is omitted entirely — a quiet row means "everyone gets this". */
+export function rolloutChipText(row: BuilderTemplateRow): string | null {
+  if (!isPartialRollout(row)) return null;
+  const pct = row.rollout_percentage ?? 100;
+  const allow = row.tenant_allowlist?.length ?? 0;
+  const deny = row.tenant_denylist?.length ?? 0;
+  const parts: string[] = [`${pct}%`];
+  if (allow > 0) parts.push(`allow ${allow}`);
+  if (deny > 0) parts.push(`deny ${deny}`);
+  return `Rollout: ${parts.join(" · ")}`;
+}
+
 function splitIds(s: string): string[] {
   return s
     .split(/[\s,]+/)

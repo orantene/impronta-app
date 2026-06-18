@@ -48,7 +48,12 @@ import {
   PublishNotePanel,
 } from "./template-revision-list";
 import type { TemplateTreeDiff } from "@/lib/site-admin/builder-core/templates/validate-publish";
-import { RolloutPanel, rolloutSummary } from "./template-rollout-panel";
+import {
+  RolloutPanel,
+  rolloutSummary,
+  isPartialRollout,
+  rolloutChipText,
+} from "./template-rollout-panel";
 import type {
   BuilderTemplateRow,
   BuilderTemplateKind,
@@ -128,6 +133,8 @@ export function TemplateManager() {
   const [rows, setRows] = useState<BuilderTemplateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<BuilderTemplateStatus | "all">("all");
+  /** "all" = no rollout filter; "partial" = only canaried templates */
+  const [rolloutFilter, setRolloutFilter] = useState<"all" | "partial">("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -163,9 +170,14 @@ export function TemplateManager() {
     setTimeout(() => setToast(null), 2600);
   }, []);
 
-  const filtered =
+  const statusFiltered =
     statusFilter === "all" ? rows : rows.filter((r) => r.status === statusFilter);
+  const filtered =
+    rolloutFilter === "partial"
+      ? statusFiltered.filter(isPartialRollout)
+      : statusFiltered;
   const pendingCount = rows.filter((r) => r.status === "in_review").length;
+  const partialRolloutCount = rows.filter(isPartialRollout).length;
 
   // ── lifecycle handlers ─────────────────────────────────────────────────────
 
@@ -218,6 +230,36 @@ export function TemplateManager() {
             );
           })}
         </div>
+        {/* Rollout filter — only visible when at least one template is canaried */}
+        {partialRolloutCount > 0 ? (
+          <button
+            type="button"
+            onClick={() =>
+              setRolloutFilter((f) => (f === "partial" ? "all" : "partial"))
+            }
+            style={{
+              background:
+                rolloutFilter === "partial"
+                  ? "rgba(155,168,183,0.20)"
+                  : "transparent",
+              color: rolloutFilter === "partial" ? "#B6C2CF" : T.inkMuted,
+              border: `1px solid ${
+                rolloutFilter === "partial"
+                  ? "rgba(155,168,183,0.40)"
+                  : "rgba(255,255,255,0.10)"
+              }`,
+              fontSize: 11.5,
+              fontWeight: 600,
+              padding: "5px 12px",
+              borderRadius: 999,
+              cursor: "pointer",
+            }}
+          >
+            {rolloutFilter === "partial"
+              ? "Partial rollout ×"
+              : `Partial rollout (${partialRolloutCount})`}
+          </button>
+        ) : null}
         <span style={{ flex: 1 }} />
         <button
           type="button"
@@ -439,7 +481,7 @@ function TemplateRowCard({
     };
   }, [publishing, row.id]);
 
-  const rolloutPct = row.rollout_percentage ?? 100;
+  const chipText = rolloutChipText(row);
   const statusTone =
     row.status === "published"
       ? T.accent
@@ -467,9 +509,15 @@ function TemplateRowCard({
             <Pill>{row.kind.replace("_", " ")}</Pill>
             <Pill>{row.target_context}</Pill>
             <Pill>{row.required_plan}</Pill>
-            <Pill tone={rolloutPct < 100 ? T.amber : undefined}>
-              {rolloutSummary(row)}
-            </Pill>
+            {/* Rollout chip: amber when canaried, dim quiet "100%" when fully
+                rolled out. The tooltip always shows the full rolloutSummary. */}
+            {chipText !== null ? (
+              <Pill tone={T.amber} title={rolloutSummary(row)}>
+                {chipText}
+              </Pill>
+            ) : (
+              <Pill title="Fully rolled out to all tenants">100%</Pill>
+            )}
           </div>
           <div style={{ fontSize: 11.5, color: T.inkMuted, marginTop: 4, fontFamily: "ui-monospace, monospace" }}>
             {row.slug} · v{row.version} · {row.gallery_tab}
@@ -694,9 +742,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Pill({ children, tone }: { children: React.ReactNode; tone?: string }) {
+function Pill({
+  children,
+  tone,
+  title,
+}: {
+  children: React.ReactNode;
+  tone?: string;
+  title?: string;
+}) {
   return (
     <span
+      title={title}
       style={{
         fontSize: 9.5,
         fontWeight: 600,

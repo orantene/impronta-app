@@ -40,6 +40,10 @@ import type {
   BuilderTemplateTarget,
 } from "@/lib/site-admin/builder-core/templates/registry-rows";
 import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
+import {
+  isPartialRollout,
+  rolloutChipText,
+} from "./template-rollout-panel";
 import { SurfaceSwitcher } from "./surface-switcher";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
@@ -193,6 +197,8 @@ export function SiteStarterKitView({
   );
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  /** "all" = no rollout filter; "partial" = only canaried starters */
+  const [rolloutFilter, setRolloutFilter] = useState<"all" | "partial">("all");
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -367,7 +373,7 @@ export function SiteStarterKitView({
   }, [reload, flash]);
 
   const group = STARTER_KIT_GROUPS.find((g) => g.key === surface);
-  const visibleRows = useMemo(
+  const surfaceRows = useMemo(
     () =>
       (rows ?? [])
         .filter((r) => rowTargetsSurface(r.target_context, surface))
@@ -377,6 +383,19 @@ export function SiteStarterKitView({
             a.title.localeCompare(b.title),
         ),
     [rows, surface],
+  );
+  const visibleRows = useMemo(
+    () =>
+      rolloutFilter === "partial"
+        ? surfaceRows.filter(isPartialRollout)
+        : surfaceRows,
+    [surfaceRows, rolloutFilter],
+  );
+  /** Count of canaried starters in the current surface group — drives the
+   *  "Partial rollout (N)" filter chip visibility. */
+  const partialRolloutCount = useMemo(
+    () => surfaceRows.filter(isPartialRollout).length,
+    [surfaceRows],
   );
 
   /** Starters with target_context="platform" are invisible to the Agency/Talent
@@ -410,12 +429,56 @@ export function SiteStarterKitView({
         }
       />
 
-      <SurfaceSwitcher
-        options={STARTER_KIT_GROUPS}
-        value={surface}
-        onChange={setSurface}
-        ariaLabel="Starter kit surface"
-      />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        <SurfaceSwitcher
+          options={STARTER_KIT_GROUPS}
+          value={surface}
+          onChange={(s) => {
+            setSurface(s);
+            // Reset rollout filter when switching surface so the count
+            // reflects the new surface's rows.
+            setRolloutFilter("all");
+          }}
+          ariaLabel="Starter kit surface"
+        />
+        {/* Partial-rollout filter — only shown when this surface has canaried starters */}
+        {partialRolloutCount > 0 ? (
+          <button
+            type="button"
+            onClick={() =>
+              setRolloutFilter((f) => (f === "partial" ? "all" : "partial"))
+            }
+            style={{
+              background:
+                rolloutFilter === "partial"
+                  ? "rgba(155,168,183,0.20)"
+                  : "transparent",
+              color: rolloutFilter === "partial" ? "#B6C2CF" : T.inkMuted,
+              border: `1px solid ${
+                rolloutFilter === "partial"
+                  ? "rgba(155,168,183,0.40)"
+                  : T.borderSoft
+              }`,
+              fontSize: 11.5,
+              fontWeight: 600,
+              padding: "5px 12px",
+              borderRadius: 999,
+              cursor: "pointer",
+            }}
+          >
+            {rolloutFilter === "partial"
+              ? "Partial rollout ×"
+              : `Partial rollout (${partialRolloutCount})`}
+          </button>
+        ) : null}
+      </div>
       {group ? (
         <div style={{ fontSize: 12, color: T.inkMuted }}>{group.blurb}</div>
       ) : null}
@@ -429,9 +492,18 @@ export function SiteStarterKitView({
         </div>
       ) : visibleRows.length === 0 ? (
         <EmptyCard>
-          No starters target this surface yet. Hit{" "}
-          <strong>Sync built-in starters</strong> to import the built-in
-          designs, or create one in the Playground.
+          {rolloutFilter === "partial" ? (
+            <>
+              No partially-rolled-out starters on this surface. Toggle off
+              the filter to see all starters.
+            </>
+          ) : (
+            <>
+              No starters target this surface yet. Hit{" "}
+              <strong>Sync built-in starters</strong> to import the built-in
+              designs, or create one in the Playground.
+            </>
+          )}
         </EmptyCard>
       ) : (
         <StarterTable
@@ -577,6 +649,7 @@ function StarterTable(props: StarterTableProps) {
             <Th>Tags</Th>
             <Th>Target</Th>
             <Th center>Status</Th>
+            <Th>Rollout</Th>
             <Th right>Manage</Th>
           </tr>
         </thead>
@@ -654,6 +727,28 @@ function StarterTable(props: StarterTableProps) {
                       busy={busy}
                       onSelect={(next) => onSetStatus(r, next)}
                     />
+                  </td>
+                  {/* Rollout chip — shown when the starter has non-default
+                      rollout settings; empty cell when fully rolled out. */}
+                  <td style={{ padding: "10px 16px", whiteSpace: "nowrap" }}>
+                    {(() => {
+                      const chip = rolloutChipText(r);
+                      return chip !== null ? (
+                        <LabChip
+                          tone="lock"
+                          title={`Canary rollout active: ${chip}`}
+                        >
+                          {chip}
+                        </LabChip>
+                      ) : (
+                        <span
+                          style={{ fontSize: 10, color: T.inkDim }}
+                          title="Fully rolled out to all tenants"
+                        >
+                          100%
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td
                     style={{
@@ -762,7 +857,7 @@ function EditAccordionRow({
 }) {
   return (
     <tr style={{ background: T.cardSoft }}>
-      <td colSpan={6} style={{ padding: "12px 16px" }}>
+      <td colSpan={7} style={{ padding: "12px 16px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <SectionLabel>Edit starter</SectionLabel>
           <div
