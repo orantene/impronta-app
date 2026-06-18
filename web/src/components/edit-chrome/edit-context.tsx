@@ -73,6 +73,7 @@ import {
   restorePageRevisionAction,
   fetchNewestDraftRevisionIdAction,
 } from "@/lib/site-admin/edit-mode/revisions-actions";
+import type { RevisionsLoadResult } from "@/lib/site-admin/edit-mode/revisions-actions";
 import type {
   DispatchResult,
   EditorMutation,
@@ -1138,6 +1139,23 @@ export interface EditContextValue {
   restoreRevision: (
     revisionId: string,
   ) => Promise<{ ok: boolean; error?: string }>;
+
+  /**
+   * REV-1b — the active surface's OWNER-gated revision LIST read, or `null`
+   * when the surface has no surface-specific loader (homepage / cms_page, which
+   * the RevisionsDrawer reads via the staff-gated default actions directly).
+   *
+   * The talent-site shell mounts with no `pageSlug`, so the drawer's default
+   * list read would fall through to the staff-gated homepage loader — denied for
+   * a talent. When the surface adapter supplies `loadRevisions`, this routes the
+   * drawer through that owner-gated read instead, so the talent can SEE (not just
+   * restore, per REV-1) their shell's revision history. The shape matches
+   * `loadHomepageRevisionsAction`, so the drawer consumes it without a
+   * surfaceKind fork.
+   */
+  loadSurfaceRevisions:
+    | (() => Promise<RevisionsLoadResult>)
+    | null;
 
   /** Request the inspector to switch tabs (e.g. floating toolbar Edit/Design). */
   inspectorTabRequest: {
@@ -7746,6 +7764,20 @@ export function EditProvider({
     [pageVersion, pageSlug, pageId, locale, surfaceAdapter, refreshComposition, queueRouterRefresh, reportMutationError],
   );
 
+  // REV-1b — surface the active adapter's OWNER-gated revision LIST read, or
+  // null when the surface has none. The RevisionsDrawer prefers this over its
+  // staff-gated homepage/cms_page default loaders. Like `restoreRevision`, this
+  // routes through the surface adapter (no surfaceKind fork in the drawer): only
+  // the talent-site shell currently binds `loadRevisions`, closing the gap where
+  // the staff-gated homepage list read denies a talent its own shell revisions.
+  const loadSurfaceRevisions = useMemo<
+    EditContextValue["loadSurfaceRevisions"]
+  >(() => {
+    const load = surfaceAdapter.loadRevisions;
+    if (!load) return null;
+    return () => load({ locale, pageSlug, pageId });
+  }, [surfaceAdapter, locale, pageSlug, pageId]);
+
   // Sprint 5 — public setSectionVisibility now routes through the
   // canonical dispatch(). The optimistic + revert + storefront-refresh
   // logic lives in dispatch's section.setVisibility branch. Call
@@ -8095,6 +8127,7 @@ export function EditProvider({
       openRevisions,
       closeRevisions,
       restoreRevision,
+      loadSurfaceRevisions,
 
       themeOpen,
       openTheme,
@@ -8338,6 +8371,7 @@ export function EditProvider({
       openRevisions,
       closeRevisions,
       restoreRevision,
+      loadSurfaceRevisions,
       themeOpen,
       openTheme,
       closeTheme,

@@ -21,6 +21,7 @@ import {
   saveTalentSiteShellRow,
   publishTalentSiteShellRow,
   restoreTalentSiteShellRevisionAction,
+  loadTalentSiteShellRevisionsAction,
 } from "./talent-site-shell-actions";
 
 export {
@@ -42,6 +43,12 @@ const productionActions: TalentSiteShellAdapterActions = {
   // `buildSiteShellBuilderConfig` already sets `canRestoreRevision: true`, so
   // the RevisionsDrawer becomes functional instead of a silent no-op).
   restoreRevision: restoreTalentSiteShellRevisionAction,
+  // REV-1b — OWNER-gated revision LIST read. Binding it makes the adapter expose
+  // `loadRevisions`, which the RevisionsDrawer prefers over its staff-gated
+  // homepage/cms_page default. Without this, the talent-site shell editor (no
+  // pageSlug) falls through to the staff-gated homepage loader and the drawer
+  // renders empty — a talent could RESTORE (REV-1) but never SEE the list.
+  loadShellRevisions: loadTalentSiteShellRevisionsAction,
 };
 
 /**

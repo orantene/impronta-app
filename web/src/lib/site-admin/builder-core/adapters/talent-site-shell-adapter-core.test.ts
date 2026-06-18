@@ -185,3 +185,78 @@ test("a missing shell row returns an error, never an auto-created blank shell", 
   const res = await adapter.load(CTX);
   assert.equal(res.ok, false);
 });
+
+// ── REV-1b — owner-gated revision LIST read ───────────────────────────────────
+
+test("[REV-1b] adapter exposes loadRevisions ONLY when the action supplies loadShellRevisions", () => {
+  // Omitted by default — matches the optional-capability contract (homepage /
+  // cms_page surfaces have no surface-specific list read; the drawer's
+  // staff-gated default covers them).
+  const without = createTalentSiteShellAdapter(makeActions(), { talentProfileId: TALENT_ID });
+  assert.equal(
+    without.loadRevisions,
+    undefined,
+    "a shell adapter whose action set lacks loadShellRevisions must omit loadRevisions",
+  );
+
+  // Present once the action surface binds it.
+  const withList: TalentSiteShellAdapterActions = {
+    ...makeActions(),
+    async loadShellRevisions() {
+      return { ok: true, revisions: [], pageVersion: 1, publishedVersion: null };
+    },
+  };
+  const adapter = createTalentSiteShellAdapter(withList, { talentProfileId: TALENT_ID });
+  assert.equal(typeof adapter.loadRevisions, "function");
+});
+
+test("[REV-1b] loadRevisions routes through the bound action, scoped to the captured talentProfileId", async () => {
+  const seenIds: string[] = [];
+  const actions: TalentSiteShellAdapterActions = {
+    ...makeActions(),
+    async loadShellRevisions(input) {
+      seenIds.push(input.talentProfileId);
+      return {
+        ok: true,
+        revisions: [
+          {
+            id: "rev-1",
+            kind: "draft",
+            version: 2,
+            createdAt: "2026-06-17T00:00:00Z",
+            createdBy: null,
+            sectionCount: 3,
+            titleAtRevision: "Site shell",
+          },
+        ],
+        pageVersion: 42,
+        publishedVersion: null,
+      };
+    },
+  };
+  const adapter = createTalentSiteShellAdapter(actions, { talentProfileId: TALENT_ID });
+  assert.equal(typeof adapter.loadRevisions, "function");
+  const res = await adapter.loadRevisions!(CTX);
+  // The owner-gated read result passes through unchanged (drawer-shaped).
+  assert.equal(res.ok, true);
+  if (res.ok) {
+    assert.equal(res.pageVersion, 42);
+    assert.equal(res.revisions.length, 1);
+    assert.equal(res.revisions[0]!.id, "rev-1");
+  }
+  // Scoped to the captured talent id — never an unscoped / staff-gated read.
+  assert.deepEqual(seenIds, [TALENT_ID]);
+});
+
+test("[REV-1b] loadRevisions errors (never silently lists) when no talentProfileId is resolvable", async () => {
+  const actions: TalentSiteShellAdapterActions = {
+    ...makeActions(),
+    async loadShellRevisions() {
+      return { ok: true, revisions: [], pageVersion: 1, publishedVersion: null };
+    },
+  };
+  // No captured id AND no ctx.pageId → the adapter must refuse rather than read.
+  const adapter = createTalentSiteShellAdapter(actions, { talentProfileId: "" });
+  const res = await adapter.loadRevisions!({ locale: LOCALE as never, pageSlug: null, pageId: null });
+  assert.equal(res.ok, false);
+});
