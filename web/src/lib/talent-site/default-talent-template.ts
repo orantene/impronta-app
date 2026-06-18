@@ -12,6 +12,7 @@ import {
   buildDefaultTalentProfileTree,
   hydrateTalentTree,
   stripSectionEmbeds,
+  talentProfileTokens,
 } from "./default-talent-tree";
 
 /**
@@ -110,9 +111,10 @@ async function loadPublishedTalentTemplateById(
 
 // `talentProfileTokens` moved to the pure `./default-talent-tree` module (so the
 // shared template-preview hydration + its unit test can import it without the
-// server-only shim). Re-exported below for backward compatibility with existing
-// server-side callers (apply-template-core, provision-max-site).
-export { talentProfileTokens } from "./default-talent-tree";
+// server-only shim). Re-exported here for backward compatibility with existing
+// server-side callers that import it from this module (apply-template-core,
+// provision-max-site, the dev harness).
+export { talentProfileTokens };
 
 /**
  * Build a FREEFORM `TalentSiteSnapshot` for a talent from the (Lab-authored or
