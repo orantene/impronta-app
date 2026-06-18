@@ -223,7 +223,7 @@ test("commit-on-blur lands BEFORE undo reads the stack (no race)", async () => {
   const m = new UndoMachineHarness();
   m.commitBuilderTreeMutation({ text: "before" });
 
-  let order: string[] = [];
+  const order: string[] = [];
   registerInlineEditorCommit(async () => {
     order.push("inline-commit");
     m.commitBuilderTreeMutation({ text: "typed" });
@@ -251,6 +251,10 @@ const editContextSource = readFileSync(
 );
 const inlineEditorSource = readFileSync(
   join(THIS_DIR, "inline-editor.tsx"),
+  "utf-8",
+);
+const commitHandoffSource = readFileSync(
+  join(THIS_DIR, "use-inline-editor-commit-handoff.ts"),
   "utf-8",
 );
 const bridgeSource = readFileSync(
@@ -295,23 +299,28 @@ test("undo wiring: commitBuilderTreeMutation mirrors the push into pastRef eager
 });
 
 test("inline wiring: the overlay registers a commit handle that the undo awaits", () => {
+  // The handoff hook is mounted by the InlineEditor and owns the bridge handle.
   assert.ok(
-    inlineEditorSource.includes("registerInlineEditorCommit"),
-    "inline-editor registers its commit handle on the bridge",
+    inlineEditorSource.includes("useInlineEditorCommitHandoff"),
+    "inline-editor mounts the commit-handoff hook",
+  );
+  assert.ok(
+    commitHandoffSource.includes("registerInlineEditorCommit"),
+    "the hook registers its commit handle on the bridge",
   );
   // The handle forces the overlay's own commit (same path as a blur), then
   // awaits the in-flight commit promise.
   assert.ok(
-    inlineEditorSource.includes("overlayCommitRef.current?.()"),
+    commitHandoffSource.includes("overlayCommitRef.current?.()"),
     "the handle forces the overlay's own commit() (no parallel commit path)",
   );
   assert.ok(
-    inlineEditorSource.includes("pendingCommitRef"),
+    commitHandoffSource.includes("pendingCommitRef"),
     "the handle awaits the in-flight commit promise before resolving",
   );
   // Deregistration on close so a stale handle never fires.
   assert.ok(
-    /registerInlineEditorCommit\(null\)/.test(inlineEditorSource),
+    /registerInlineEditorCommit\(null\)/.test(commitHandoffSource),
     "the handle is deregistered when no inline editor is open",
   );
 });

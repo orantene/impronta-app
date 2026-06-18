@@ -42,10 +42,8 @@ import { useSelectedSectionId } from "./selection-bridge";
 import { MediaPickerDialog } from "./media-picker-dialog";
 import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path";
 import { CanvasEditOverlay } from "./rich-editor";
-import {
-  flushCanvasTextStylePatches,
-  registerInlineEditorCommit,
-} from "./canvas-lexical-bridge";
+import { flushCanvasTextStylePatches } from "./canvas-lexical-bridge";
+import { useInlineEditorCommitHandoff } from "./use-inline-editor-commit-handoff";
 import {
   findBuilderNodeById,
   resolveBuilderNodeTextValue,
@@ -132,12 +130,6 @@ export function InlineEditor() {
   // Phase C.1 — active canvas-edit overlay. The overlay (RichEditor +
   // floating toolbar) is rendered when this is non-null.
   const [activeEdit, setActiveEdit] = useState<ActiveTextEdit | null>(null);
-  // CANVAS-7B — the open overlay stashes its own `commit()` here; the
-  // undo-handoff calls it to force a text→node-history commit before a
-  // node-level undo runs. `pendingCommitRef` holds the in-flight commit promise
-  // so the handoff can AWAIT the `setPast` push before reading the history.
-  const overlayCommitRef = useRef<(() => void) | null>(null);
-  const pendingCommitRef = useRef<Promise<void> | null>(null);
   const builderTreeRef = useRef(builderTree);
   useEffect(() => {
     builderTreeRef.current = builderTree;
@@ -424,20 +416,18 @@ export function InlineEditor() {
     };
   }, [selectBuilderNode]);
 
-  // QA 2026-05-13 — wrapped in useCallback so child surfaces that
-  // memoize `onCommit` / `onCancel` props don't capture a stale
-  // closure between double-click and blur. Deps include `activeEdit`
-  // since the body reads it; both commit fns are stable across
-  // renders (they're not re-created on each parent render).
+  // QA 2026-05-13 — wrapped in useCallback so child surfaces that memoize
+  // `onCommit` / `onCancel` props don't capture a stale closure between
+  // double-click and blur. Deps include `activeEdit` since the body reads it;
+  // both commit fns are stable across renders.
   const endActiveEdit = useCallback(
     async (commit: boolean, next?: string): Promise<void> => {
       if (!activeEdit) return;
       void flushCanvasTextStylePatches();
       if (commit && next !== undefined) {
         if (activeEdit.builderNode) {
-          // CANVAS-7B — AWAIT the node-history commit so the caller (the
-          // undo-handoff) can guarantee the typed text is recorded in `past`
-          // before a node-level undo reads the stack.
+          // CANVAS-7B — AWAIT the node-history commit so the undo-handoff can
+          // guarantee the typed text is in `past` before a node-level undo.
           await commitBuilderNodeText(
             activeEdit.builderNode,
             activeEdit.original,
@@ -452,45 +442,10 @@ export function InlineEditor() {
     [activeEdit, commitBuilderNodeText, commitText],
   );
 
-  // CANVAS-7B — wrap the overlay's onCommit so the in-flight commit promise is
-  // tracked in a ref. The blur/Enter/outside-click path and the undo-handoff
-  // both route through this one function, so there is never a parallel commit.
-  const runCommit = useCallback(
-    (next: string) => {
-      const p = endActiveEdit(true, next);
-      pendingCommitRef.current = p;
-      void p.finally(() => {
-        if (pendingCommitRef.current === p) pendingCommitRef.current = null;
-      });
-    },
-    [endActiveEdit],
-  );
-
-  // CANVAS-7B — register the synchronous-to-call commit handle for the active
-  // overlay. The EditContext undo/redo await this (via the bridge) BEFORE
-  // reading the history stack: it forces the open overlay's own `commit()`
-  // (identical to a blur) and resolves once the resulting node-history push has
-  // settled, so the operator's last typed text is always a recorded entry and
-  // the first ⌘Z after leaving the editor is a clean node-level undo that never
-  // drops it. Deregistered when no overlay is open.
-  useEffect(() => {
-    if (!activeEdit) {
-      registerInlineEditorCommit(null);
-      return;
-    }
-    registerInlineEditorCommit(async () => {
-      // Force the same commit the blur path runs (idempotent — the overlay's
-      // committedRef guards against a double-commit). This synchronously fires
-      // onCommit → runCommit, populating pendingCommitRef.
-      overlayCommitRef.current?.();
-      // Await the commit chain so `setPast` has been applied before the caller
-      // reads the undo stack. If a commit was already in flight (e.g. a blur
-      // landed first), await that instead.
-      const pending = pendingCommitRef.current;
-      if (pending) await pending;
-    });
-    return () => registerInlineEditorCommit(null);
-  }, [activeEdit]);
+  const { runCommit, overlayCommitRef } = useInlineEditorCommitHandoff({
+    isEditing: activeEdit !== null, // CANVAS-7B inline→node-history commit handoff
+    endActiveEdit,
+  });
 
   // Undo/redo while inline edit is open — remount the overlay from stored copy.
   // WS5 — for a secondary-locale edit the stored copy is the overlay entry, so
