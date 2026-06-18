@@ -139,16 +139,22 @@ export async function retryFailedEmails(
 }
 
 /**
- * Mark `queued` rows older than QUEUED_REAP_AGE_HOURS as terminal `skipped`.
+ * Mark `queued` rows older than QUEUED_REAP_AGE_HOURS as terminal `suppressed`.
  * These are digest rows the sweep could never resolve (no recipient/category
  * match) — left alone they'd advertise as pending forever. Returns the count
  * reaped. A read/update failure is logged and degrades to 0 (never throws).
+ *
+ * NB: the DB status is `suppressed`, NOT `skipped` — notification_dispatch_log
+ * has a CHECK constraint limiting status to queued|sent|failed|suppressed, so
+ * writing `skipped` cast-failed the update on EVERY run, the reaper degraded to
+ * 0, and the stale rows it was meant to clear stayed `queued` forever. The
+ * `reaped: ...` error_message keeps this distinguishable from policy suppression.
  */
 async function reapStaleQueued(admin: SupabaseClient, now: Date): Promise<number> {
   const cutoff = new Date(now.getTime() - QUEUED_REAP_AGE_HOURS * 3_600_000).toISOString();
   const { data, error } = await admin
     .from("notification_dispatch_log")
-    .update({ status: "skipped", error_message: "reaped: queued past digest window" })
+    .update({ status: "suppressed", error_message: "reaped: queued past digest window" })
     .eq("status", "queued")
     .lt("created_at", cutoff)
     .select("id");
