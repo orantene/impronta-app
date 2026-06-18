@@ -5,6 +5,11 @@ import { logServerError } from "@/lib/server/safe-error";
 import { listPagesForStaff } from "@/lib/site-admin/server/pages-reads";
 import { loadIdentityForStaff } from "@/lib/site-admin/server/reads";
 import {
+  loadWebsiteAnalytics,
+  emptyWebsiteAnalytics,
+  type WebsiteAnalyticsData,
+} from "@/lib/analytics/website-analytics";
+import {
   loadWorkspaceDomainSummary,
   type WorkspaceDomainSummary,
 } from "./workspace-config";
@@ -51,6 +56,12 @@ export type WebsiteData = {
   seoTitle: string | null;
   seoDescription: string | null;
   domainSummary: WorkspaceDomainSummary;
+  /**
+   * ANALYTICS-2 — real first-party page-view analytics for this tenant
+   * (view_site_page rows grouped by page_slug / referrer). Replaces the Phase-C
+   * fixture zero; `mergeWebsiteStateFromBridge` projects it into the panel shape.
+   */
+  analytics: WebsiteAnalyticsData;
 };
 
 /**
@@ -78,12 +89,13 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
     seoTitle: null,
     seoDescription: null,
     domainSummary: emptyDomainSummary,
+    analytics: emptyWebsiteAnalytics(),
   };
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return empty;
 
-    const [pagesRaw, postsRes, redirectsRes, identity, domainSummary] = await Promise.all([
+    const [pagesRaw, postsRes, redirectsRes, identity, domainSummary, analytics] = await Promise.all([
       listPagesForStaff(supabase, tenantId).catch(() => []),
       supabase
         .from("cms_posts")
@@ -99,6 +111,7 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
         .limit(50),
       loadIdentityForStaff(supabase, tenantId).catch(() => null),
       loadWorkspaceDomainSummary(tenantId).catch(() => emptyDomainSummary),
+      loadWebsiteAnalytics(tenantId).catch(() => emptyWebsiteAnalytics()),
     ]);
 
     type PostRow = { id: string; slug: string; title: string; status: string; updated_at: string | null };
@@ -131,6 +144,7 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
       seoTitle: identity?.seo_default_title ?? null,
       seoDescription: identity?.seo_default_description ?? null,
       domainSummary,
+      analytics,
     };
   } catch (err) {
     logServerError("workspace.loadWebsiteData", err);

@@ -3,6 +3,7 @@ import "server-only";
 import type { ReactNode } from "react";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
+import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
 
 import {
   BuilderNodeFontLinks,
@@ -413,6 +414,18 @@ async function renderMaxSiteDocument(args: {
     >
       {/* A11Y-2 — first focusable element on every talent Max site surface. */}
       <SkipToContent />
+      {/* ANALYTICS-2 — first-party page-view for the talent Max site, feeding the
+          SAME view_site_page stream + admin loader as storefront/talent-profile.
+          Suppressed in the owner draft preview so previews aren't counted. */}
+      {!draftPreview && tenantId ? (
+        <SitePageViewAnalytics
+          surface="talent-site"
+          tenantId={tenantId}
+          pageId={page.id}
+          pageSlug={page.slug}
+          locale={locale}
+        />
+      ) : null}
       {/* REND-2 — public render: ONE shared renderer sheet for shell + body,
           scoped to the kinds present across BOTH trees (mirrors the FontLinks
           nodes union below). Live-resolved instance kinds are included; any

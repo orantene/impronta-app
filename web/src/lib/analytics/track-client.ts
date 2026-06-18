@@ -5,11 +5,22 @@ import type { ProductAnalyticsEventName, ProductAnalyticsPayload } from "./produ
 function postInternal(name: ProductAnalyticsEventName, payload: ProductAnalyticsPayload) {
   if (typeof window === "undefined") return;
   const path = window.location?.pathname ?? null;
+  // Promote `tenant_id` and `referrer` out of the payload into top-level body
+  // fields the events route understands: `tenant_id` is written to the
+  // analytics_events.tenant_id COLUMN (so per-tenant queries match), and
+  // `referrer` is merged back into payload server-side for the top-referrers
+  // grouping. Both stay best-effort/advisory (unauthenticated route).
+  const tenantId =
+    typeof payload.tenant_id === "string" && payload.tenant_id ? payload.tenant_id : undefined;
+  const referrer =
+    typeof payload.referrer === "string" && payload.referrer ? payload.referrer : undefined;
   const body = JSON.stringify({
     name,
     payload,
     path,
     locale: typeof document !== "undefined" ? document.documentElement.lang || undefined : undefined,
+    ...(tenantId ? { tenant_id: tenantId } : {}),
+    ...(referrer ? { referrer } : {}),
   });
   void fetch("/api/analytics/events", {
     method: "POST",
