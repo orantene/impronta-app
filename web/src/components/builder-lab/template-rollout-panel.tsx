@@ -508,13 +508,23 @@ export function RolloutPanel({
   const [totalCount, setTotalCount] = useState<number>(0);
   const [resolving, setResolving] = useState(true);
 
+  // Stable snapshot of the IDs from the row on mount. We intentionally only
+  // re-resolve when the row identity (id) changes, not on every re-render —
+  // the caller replaces the row prop to re-trigger. Snapshot here so the
+  // closure captures the initial values and the exhaustive-deps array is exact.
+  const rowId = row.id;
+  // Join the lists to a stable string key so the effect only fires when the
+  // actual allow/deny content changes (not on every array reference change).
+  const allowKey = (row.tenant_allowlist ?? []).join(",");
+  const denyKey = (row.tenant_denylist ?? []).join(",");
+
   // On mount: resolve the existing IDs in the row to tenant objects + fetch count.
   useEffect(() => {
     let cancelled = false;
     setResolving(true);
 
-    const existingAllow = row.tenant_allowlist ?? [];
-    const existingDeny = row.tenant_denylist ?? [];
+    const existingAllow = allowKey ? allowKey.split(",") : [];
+    const existingDeny = denyKey ? denyKey.split(",") : [];
     const allIds = [...new Set([...existingAllow, ...existingDeny])];
 
     async function load() {
@@ -564,8 +574,7 @@ export function RolloutPanel({
 
     void load();
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [row.id]);
+  }, [rowId, allowKey, denyKey]);
 
   const handleAddAllow = useCallback((tenant: TenantHit) => {
     setAllowTenants((prev) => {
