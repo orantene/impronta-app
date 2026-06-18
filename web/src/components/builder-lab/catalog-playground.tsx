@@ -28,9 +28,9 @@ import type {
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
   LAB as T,
-  RADII,
   panelStyle,
   LabBadge,
+  LabButton,
   PillToggle,
   LabViewHeader,
   EmptyCard,
@@ -310,34 +310,19 @@ export function PlaygroundView({
         blurb="Your workbench — full-page drafts. Start one, author against real data, then publish it into the page-templates gallery."
         actions={
           <div style={{ position: "relative" }}>
-            <button
-              type="button"
-              data-testid="lab-playground-new"
+            <LabButton
+              variant="primary"
+              testId="lab-playground-new"
               onClick={() => setMenuOpen((v) => !v)}
               disabled={creating}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 7,
-                padding: "8px 16px",
-                borderRadius: RADII.control,
-                border: "none",
-                background: T.accent,
-                color: T.accentInk,
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: creating ? "default" : "pointer",
-                opacity: creating ? 0.6 : 1,
-              }}
+              ariaHasPopup
+              ariaExpanded={menuOpen}
             >
               {creating ? "Creating…" : "+ New"}
               <span aria-hidden style={{ fontSize: 9, opacity: 0.75 }}>
                 {menuOpen ? "▲" : "▼"}
               </span>
-            </button>
+            </LabButton>
 
             {menuOpen ? (
               <div

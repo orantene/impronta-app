@@ -40,6 +40,7 @@ import {
   listPublishedTemplates,
 } from "@/lib/site-admin/builder-core/templates/registry-actions";
 import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
 import { galleryTabForTemplateKind } from "@/lib/site-admin/builder-core/templates/apply-shell-template-core";
 import {
   RevisionList,
@@ -460,6 +461,19 @@ function TemplateRowCard({
 
       <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
         <GhostBtn onClick={onEdit} disabled={busy}>Edit</GhostBtn>
+        <GhostBtn
+          onClick={() => {
+            if (typeof window === "undefined") return;
+            window.open(
+              getTemplatePreviewUrl(row.id, { family: "db-template" }),
+              "_blank",
+              "noopener,noreferrer",
+            );
+          }}
+          disabled={busy}
+        >
+          Open preview
+        </GhostBtn>
         {row.status === "draft" ? (
           <GhostBtn onClick={onSubmit} disabled={busy}>Submit for review</GhostBtn>
         ) : null}

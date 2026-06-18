@@ -39,7 +39,7 @@ import {
 } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
 import { loadCatalogAdminView } from "@/lib/site-admin/add-gallery/catalog-admin-view-action";
 
-import { LAB as T, RADII, fieldStyle, LabChip, LabToast } from "./ui";
+import { LAB as T, RADII, fieldStyle, LabButton, LabChip, LabToast } from "./ui";
 import {
   slugifyCategory,
   readDrag,
@@ -701,26 +701,22 @@ function AddCategoryRow({
 
   if (!open) {
     return (
-      <button
-        type="button"
+      <LabButton
+        variant="secondary"
         onClick={() => setOpen(true)}
         disabled={disabled}
-        className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
         style={{
           alignSelf: "flex-start",
-          background: "transparent",
           border: `1px dashed ${T.border}`,
           color: T.inkMuted,
           fontSize: 11.5,
-          fontWeight: 600,
           padding: "5px 11px",
           borderRadius: 7,
-          cursor: disabled ? "default" : "pointer",
           marginTop: 2,
         }}
       >
         + Add category
-      </button>
+      </LabButton>
     );
   }
 
@@ -743,43 +739,24 @@ function AddCategoryRow({
         aria-label={`New category in ${parentTab}`}
         style={{ ...fieldStyle, width: 200, outline: "none" }}
       />
-      <button
-        type="button"
+      <LabButton
+        variant="primary"
         onClick={submit}
         disabled={disabled || !name.trim()}
-        className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
-        style={{
-          background: T.accent,
-          color: T.accentInk,
-          border: "none",
-          fontSize: 11.5,
-          fontWeight: 700,
-          padding: "6px 12px",
-          borderRadius: 7,
-          cursor: disabled || !name.trim() ? "default" : "pointer",
-          opacity: disabled || !name.trim() ? 0.55 : 1,
-        }}
+        style={{ fontSize: 11.5, padding: "6px 12px", borderRadius: 7 }}
       >
         Add
-      </button>
-      <button
-        type="button"
+      </LabButton>
+      <LabButton
+        variant="ghost"
         onClick={() => {
           setName("");
           setOpen(false);
         }}
-        className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
-        style={{
-          background: "transparent",
-          border: "none",
-          color: T.inkMuted,
-          fontSize: 11.5,
-          fontWeight: 600,
-          cursor: "pointer",
-        }}
+        style={{ fontSize: 11.5 }}
       >
         Cancel
-      </button>
+      </LabButton>
     </div>
   );
 }

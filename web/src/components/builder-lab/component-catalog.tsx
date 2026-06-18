@@ -51,6 +51,7 @@ import { SiteStarterKitView } from "./catalog-starter-kit";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
   buildCatalogItemPreview,
+  buildTemplateItemPreview,
   type CatalogItemPreview,
 } from "./component-preview-stage";
 import {
@@ -684,18 +685,23 @@ export function ComponentCatalog({
           onConfirmReset={confirmReset}
           onStartReset={(id) => setConfirmingResetId(id)}
           onCancelReset={() => setConfirmingResetId(null)}
-          onPreview={(r) =>
+          onPreview={(r) => {
+            const meta = {
+              id: r.id,
+              label: r.effectiveLabel,
+              category: humanize(r.effectiveCategory),
+              talentVisible: r.talentVisible,
+              workspaceVisible: r.workspaceVisible,
+            };
+            if (r.source === "template") {
+              // Persisted templates need a server round-trip to load builder_tree.
+              void buildTemplateItemPreview(meta).then((p) => onPreviewComponent?.(p));
+              return;
+            }
             onPreviewComponent?.(
-              buildCatalogItemPreview({
-                id: r.id,
-                source: r.source,
-                label: r.effectiveLabel,
-                category: humanize(r.effectiveCategory),
-                talentVisible: r.talentVisible,
-                workspaceVisible: r.workspaceVisible,
-              }),
-            )
-          }
+              buildCatalogItemPreview({ ...meta, source: r.source }),
+            );
+          }}
         />
       )}
 

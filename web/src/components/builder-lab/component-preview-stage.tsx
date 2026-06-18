@@ -16,6 +16,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { getTemplateById } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
 import { buildPlatformLabBuilderConfig } from "@/lib/site-admin/builder-core/config";
 import {
@@ -72,14 +73,16 @@ export function buildCatalogItemPreview(row: {
   };
 
   // DB templates aren't in the code registry — their tree lives in builder_tree
-  // (a server round-trip). Out of scope for the client-side fast path; show a note.
+  // (a server round-trip). The async `buildTemplateItemPreview` path resolves
+  // them via `getTemplateById`; this synchronous fast-path only covers code rows,
+  // so a template row reaching here is a programming error — surface a note.
   if (row.source === "template") {
     return {
       ...base,
       tree: [],
       codeJson: "",
       available: false,
-      note: "Published-template preview is coming soon — open it from Playground for now.",
+      note: "Resolving template preview…",
     };
   }
 
@@ -124,6 +127,56 @@ export function buildCatalogItemPreview(row: {
     }
   } catch {
     return { ...base, tree: [], codeJson: "", available: false, note: "Couldn't resolve this component's definition." };
+  }
+}
+
+/**
+ * Resolve a persisted-template catalog row → a previewable seed tree by loading
+ * its authored `builder_tree` via the super_admin-gated `getTemplateById`. The
+ * result feeds the SAME ephemeral platform-lab adapter the code-component path
+ * uses — no second render fork. Returns an `available:false` preview (with a
+ * reason) when the row can't be loaded.
+ */
+export async function buildTemplateItemPreview(row: {
+  id: string;
+  label: string;
+  category?: string;
+  talentVisible?: boolean;
+  workspaceVisible?: boolean;
+}): Promise<CatalogItemPreview> {
+  const base = {
+    id: row.id,
+    label: row.label,
+    source: "template" as const,
+    category: row.category,
+    talentVisible: row.talentVisible,
+    workspaceVisible: row.workspaceVisible,
+  };
+
+  try {
+    const loaded = await getTemplateById(row.id);
+    if (!loaded.ok) {
+      return { ...base, tree: [], codeJson: "", available: false, note: loaded.error };
+    }
+    const tree = Array.isArray(loaded.data.builder_tree) ? loaded.data.builder_tree : [];
+    if (tree.length === 0) {
+      return {
+        ...base,
+        tree: [],
+        codeJson: "",
+        available: false,
+        note: "This template has no authored content yet.",
+      };
+    }
+    return {
+      ...base,
+      label: loaded.data.title || row.label,
+      tree,
+      codeJson: JSON.stringify(tree, null, 2),
+      available: true,
+    };
+  } catch {
+    return { ...base, tree: [], codeJson: "", available: false, note: "Couldn't load this template." };
   }
 }
 

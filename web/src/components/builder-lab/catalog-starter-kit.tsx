@@ -39,6 +39,7 @@ import type {
   BuilderTemplateRow,
   BuilderTemplateTarget,
 } from "@/lib/site-admin/builder-core/templates/registry-rows";
+import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
 import { SurfaceSwitcher } from "./surface-switcher";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
@@ -91,6 +92,19 @@ function platformTargetRows(rows: BuilderTemplateRow[]): BuilderTemplateRow[] {
 /** builder_templates target_context → the editor's launch target. */
 function targetToLabTarget(t: BuilderTemplateTarget): BuilderLabTarget {
   return t === "talent" || t === "workspace" ? t : "both";
+}
+
+/** Open the SHARED hydrated `/template-preview` route for a persisted starter in
+ *  a new tab. The `db-template` family keys on the row id and renders its
+ *  authored `builder_tree` through the freeform renderer — no second render
+ *  path. */
+function openStarterPreview(row: BuilderTemplateRow): void {
+  if (typeof window === "undefined") return;
+  window.open(
+    getTemplatePreviewUrl(row.id, { family: "db-template" }),
+    "_blank",
+    "noopener,noreferrer",
+  );
 }
 
 /** Human label for the Target badge. */
@@ -691,6 +705,12 @@ function StarterTable(props: StarterTableProps) {
                         <LinkBtn
                           label="Edit"
                           onClick={() => onRowClick(r)}
+                          disabled={busy}
+                        />
+                        <LinkBtn
+                          label="Open preview"
+                          testId={`lab-starter-preview-${r.id}`}
+                          onClick={() => openStarterPreview(r)}
                           disabled={busy}
                         />
                         <LinkBtn

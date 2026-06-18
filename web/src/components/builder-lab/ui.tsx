@@ -101,6 +101,9 @@ export function LabButton({
   ariaLabel,
   title,
   type = "button",
+  testId,
+  ariaHasPopup,
+  ariaExpanded,
 }: {
   variant?: LabButtonVariant;
   active?: boolean;
@@ -111,6 +114,11 @@ export function LabButton({
   ariaLabel?: string;
   title?: string;
   type?: "button" | "submit";
+  /** Inert data-testid for QA. */
+  testId?: string;
+  /** Pass-through for menu-trigger buttons (e.g. Playground "+ New"). */
+  ariaHasPopup?: boolean;
+  ariaExpanded?: boolean;
 }) {
   const base = BUTTON_VARIANT[variant];
   const ghost = variant === "ghost";
@@ -121,6 +129,9 @@ export function LabButton({
       disabled={disabled}
       aria-label={ariaLabel}
       title={title}
+      data-testid={testId}
+      aria-haspopup={ariaHasPopup ? "menu" : undefined}
+      aria-expanded={ariaHasPopup ? ariaExpanded : undefined}
       className={`rounded ${FOCUS_RING}`}
       style={{
         display: "inline-flex",

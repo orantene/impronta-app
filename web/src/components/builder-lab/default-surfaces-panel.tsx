@@ -30,7 +30,7 @@ import {
 import type { PlatformTemplateSurface } from "@/lib/platform/default-templates";
 import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
 import { SurfaceSwitcher } from "./surface-switcher";
-import { LAB as T, RADII, fieldStyle, LabButton, SectionLabel } from "./ui";
+import { LAB as T, RADII, fieldStyle, LabViewHeader, SectionLabel } from "./ui";
 
 // Which DEFAULT surface the operator is managing. "storefront" = the agency
 // homepage default (every unconfigured agency homepage); "talent" = the fallback
@@ -158,6 +158,11 @@ export function DefaultSurfacesPanel() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <LabViewHeader
+        title="Default surfaces"
+        blurb="The load-bearing platform defaults: the storefront every unconfigured agency homepage renders, and the fallback talent profile. Point each at a published page template or reset to the built-in."
+      />
+
       {/* Surface toggle — Default Storefront vs Default Talent Profile */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <SurfaceSwitcher

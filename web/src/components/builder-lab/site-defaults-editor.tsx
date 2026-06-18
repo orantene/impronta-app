@@ -25,7 +25,7 @@ import { resolvePlatformDefaultThemeActionSet } from "@/components/edit-chrome/t
 import { listThemePresets } from "@/lib/site-admin/presets/theme-presets";
 import { SurfaceSwitcher } from "./surface-switcher";
 import { ComponentStylesEditor } from "./component-styles-editor";
-import { LAB as T, RADII, fieldStyle, LabButton, SectionLabel } from "./ui";
+import { LAB as T, RADII, fieldStyle, LabButton, LabViewHeader, SectionLabel } from "./ui";
 import type { PlatformThemeSurface } from "@/lib/platform/default-theme";
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
 
@@ -159,6 +159,11 @@ export function SiteDefaultsEditor() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <LabViewHeader
+        title="Site Defaults"
+        blurb="The platform default theme every new agency and talent page inherits. Apply a preset or edit the key tokens, then Save & publish so new sites pick it up."
+      />
+
       {/* Surface toggle — Agency (shared) vs Talent (override) */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <SurfaceSwitcher
