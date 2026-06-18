@@ -1,12 +1,15 @@
 "use client";
 
-import Image from "next/image";
-import { useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { SecondaryButton } from "@/components/admin/shell/internal/primitives";
+import {
+  TemplatePickerPanel,
+  type TemplatePickerApplyResult,
+} from "@/components/edit-chrome/template-picker-panel";
 import { applyTalentSiteTemplateAction } from "@/lib/talent-site/server/actions";
-import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
+import { toUnifiedTemplateDef } from "@/lib/site-admin/builder-core/templates/template-def";
 import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
 import { talentSiteCopy, type TalentSiteLocale } from "@/lib/talent-site/talent-site-i18n";
 import type { TalentSiteDashboardState } from "@/lib/talent-site/types";
@@ -17,29 +20,42 @@ type Props = {
   onChanged: () => void | Promise<void>;
 };
 
+/**
+ * Discovery-profile slot-template picker (mode='profile').
+ *
+ * Renders the SHARED `TemplatePickerPanel` (ONB-3) — the same picker chrome,
+ * card anatomy, and owner-gated preview contract used by the Max multi-page-site
+ * gallery. The only per-surface code left here is the plan-gating wrapper (the
+ * free-tier locked state + upsell copy) and the slot-template apply backend
+ * (`applyTalentSiteTemplateAction`, which needs the optimistic `expectedVersion`).
+ */
 export function TalentSiteTemplatePanel({ state, locale = "en", onChanged }: Props) {
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
 
   const current = state.availableTemplates.find((t) => t.key === state.templateKey);
   const lockedFree = state.tier === "free";
 
-  function applyTemplate(templateKey: TalentSiteTemplateKey) {
-    if (!state.site) return;
-    startTransition(async () => {
-      setError(null);
-      const result = await applyTalentSiteTemplateAction({
-        templateKey,
-        expectedVersion: state.site!.version,
-      });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setOpen(false);
-      await onChanged();
+  const unifiedTemplates = useMemo(
+    () =>
+      state.availableTemplates.map((t) =>
+        toUnifiedTemplateDef(
+          { key: t.key, label: t.label, blurb: t.blurb, thumbnailUrl: t.thumbnailUrl },
+          "talent-site",
+        ),
+      ),
+    [state.availableTemplates],
+  );
+
+  async function applyTemplate(templateKey: string): Promise<TemplatePickerApplyResult> {
+    if (!state.site) return { ok: false, error: "No site to update." };
+    const result = await applyTalentSiteTemplateAction({
+      templateKey: templateKey as TalentSiteTemplateKey,
+      expectedVersion: state.site.version,
     });
+    if (!result.ok) return { ok: false, error: result.error };
+    setOpen(false);
+    await onChanged();
+    return { ok: true };
   }
 
   return (
@@ -68,7 +84,7 @@ export function TalentSiteTemplatePanel({ state, locale = "en", onChanged }: Pro
           ) : null}
         </div>
         {state.canUseTemplateGallery && !lockedFree ? (
-          <SecondaryButton onClick={() => setOpen(true)} disabled={pending}>
+          <SecondaryButton onClick={() => setOpen(true)} disabled={open}>
             {talentSiteCopy(locale, "templateChange")}
           </SecondaryButton>
         ) : null}
@@ -88,119 +104,15 @@ export function TalentSiteTemplatePanel({ state, locale = "en", onChanged }: Pro
         </p>
       ) : null}
 
-      {error ? (
-        <p style={{ marginTop: 10, fontSize: 12, color: COLORS.criticalDeep }}>{error}</p>
-      ) : null}
-
       {open ? (
-        <div
-          style={{
-            marginTop: 14,
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-            gap: 10,
-          }}
-        >
-          {state.availableTemplates.map((t) => (
-            <div
-              key={t.key}
-              style={{
-                position: "relative",
-                textAlign: "left",
-                padding: 8,
-                borderRadius: 10,
-                border: `1px solid ${t.key === state.templateKey ? COLORS.accent : COLORS.borderSoft}`,
-                background: "#fff",
-                fontFamily: FONTS.body,
-              }}
-            >
-              <div
-                style={{
-                  position: "relative",
-                  overflow: "hidden",
-                  borderRadius: 8,
-                  border: `1px solid ${COLORS.borderSoft}`,
-                  background: COLORS.surfaceAlt,
-                  aspectRatio: "8 / 5",
-                  marginBottom: 9,
-                }}
-              >
-                <Image
-                  src={t.thumbnailUrl}
-                  alt=""
-                  width={1200}
-                  height={750}
-                  sizes="(max-width: 720px) 80vw, 220px"
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                  }}
-                />
-                {/* Eye-icon — opens the SHARED owner-gated hydrated preview
-                    (`?talent` shows THIS talent's real name/photo/bio). */}
-                <a
-                  href={getTemplatePreviewUrl(t.key, {
-                    talentProfileId: state.talentProfileId,
-                    family: "talent-site",
-                  })}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="Preview with your details"
-                  aria-label={`Preview ${t.label} with your details`}
-                  style={{
-                    position: "absolute",
-                    top: 6,
-                    right: 6,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 26,
-                    height: 26,
-                    borderRadius: 7,
-                    background: "rgba(17,17,17,0.62)",
-                    color: "#fff",
-                    fontSize: 13,
-                    lineHeight: 1,
-                    textDecoration: "none",
-                  }}
-                >
-                  {/* eye glyph */}
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path
-                      d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
-                  </svg>
-                </a>
-              </div>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => applyTemplate(t.key as TalentSiteTemplateKey)}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  cursor: "pointer",
-                  fontFamily: FONTS.body,
-                }}
-              >
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t.label}</div>
-                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4, lineHeight: 1.35 }}>
-                  {t.blurb}
-                </div>
-              </button>
-            </div>
-          ))}
+        <div style={{ marginTop: 14 }}>
+          <TemplatePickerPanel
+            mode="profile"
+            templates={unifiedTemplates}
+            currentKey={state.templateKey}
+            talentProfileId={state.talentProfileId}
+            onApply={applyTemplate}
+          />
         </div>
       ) : null}
     </div>
