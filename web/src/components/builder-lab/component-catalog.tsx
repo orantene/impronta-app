@@ -15,7 +15,7 @@
  * round-trip the live galleries see.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   ADD_GALLERY_CATEGORIES,
@@ -68,10 +68,25 @@ import {
 import {
   LAB as T,
   fieldStyle,
+  LabButton,
   PillToggle,
   LabToast,
   EmptyCard,
 } from "./ui";
+import {
+  type FilterPreset,
+  type FilterState,
+  BUILT_IN_PRESETS,
+  labelToKey,
+  loadActivePresetKey,
+  loadCustomPresets,
+  mergePresets,
+  presetToState,
+  saveActivePresetKey,
+  saveCustomPresets,
+  snapshotToPreset,
+  stateMatchesPreset,
+} from "./catalog-filter-presets";
 
 // Single source — derived from the Builder Studio catalog-structure resolver
 // (was duplicated with add-gallery-panel.tsx's TAB_DEFS). WS-B threads loaded
@@ -248,9 +263,85 @@ export function ComponentCatalog({
   // hydration (data-hydrated="true" on the catalog root) before clicking tabs,
   // fixing the clicks-before-React-attaches race. Inert; no behavior change.
   const [hydrated, setHydrated] = useState(false);
+
+  // ── O7: persisted filter presets ──────────────────────────────────────────
+  // Presets are loaded from localStorage on mount (SSR-safe: only in effects).
+  // The strip shows built-ins + custom presets; active preset is highlighted.
+  const [customPresets, setCustomPresets] = useState<FilterPreset[]>([]);
+  const allPresets = useMemo(() => mergePresets(customPresets), [customPresets]);
+  // Whether the inline "Save as preset" input is open.
+  const [savingPreset, setSavingPreset] = useState(false);
+  const [presetDraftLabel, setPresetDraftLabel] = useState("");
+  const presetInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     setHydrated(true);
+    // Restore custom presets and the active preset on mount.
+    const stored = loadCustomPresets();
+    setCustomPresets(stored);
+    const activeKey = loadActivePresetKey();
+    if (activeKey) {
+      const allWithBuiltins = mergePresets(stored);
+      const found = allWithBuiltins.find((p) => p.key === activeKey);
+      if (found) {
+        const state = presetToState(found);
+        if (state.tab !== null) setActiveTab(state.tab as typeof activeTab);
+        setFilterMode(state.mode);
+        setConnectedSurface(state.surface);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Current filter state snapshot (for save + active-highlight). */
+  const currentFilterState = useCallback((): FilterState => ({
+    tab: activeTab,
+    mode: filterMode,
+    surface: connectedSurface,
+  }), [activeTab, filterMode, connectedSurface]);
+
+  /** Apply a preset — restores all three filter dimensions and persists the key. */
+  const applyPreset = useCallback((preset: FilterPreset) => {
+    const state = presetToState(preset);
+    if (state.tab !== null) setActiveTab(state.tab as typeof activeTab);
+    else setActiveTab(defaultView ?? null);
+    setFilterMode(state.mode);
+    setConnectedSurface(state.surface);
+    saveActivePresetKey(preset.key);
+  }, [defaultView]);
+
+  /** Save current filter as a new custom preset. */
+  const commitSavePreset = useCallback(() => {
+    const label = presetDraftLabel.trim();
+    if (!label) return;
+    const existingKeys = allPresets.map((p) => p.key);
+    const key = labelToKey(label, existingKeys);
+    const preset = snapshotToPreset(key, label, currentFilterState());
+    const next = [...customPresets, preset];
+    setCustomPresets(next);
+    saveCustomPresets(next);
+    saveActivePresetKey(key);
+    setSavingPreset(false);
+    setPresetDraftLabel("");
+    flash(`Preset "${label}" saved`);
+  }, [presetDraftLabel, allPresets, customPresets, currentFilterState, flash]);
+
+  /** Delete a custom preset by key. Built-ins cannot be deleted. */
+  const deletePreset = useCallback((key: string) => {
+    const next = customPresets.filter((p) => p.key !== key);
+    setCustomPresets(next);
+    saveCustomPresets(next);
+    // If the active key was deleted, clear the persisted active key.
+    const activeKey = loadActivePresetKey();
+    if (activeKey === key) saveActivePresetKey(null);
+  }, [customPresets]);
+
+  // Focus the preset label input when the save form opens.
+  useEffect(() => {
+    if (savingPreset) {
+      presetInputRef.current?.focus();
+    }
+  }, [savingPreset]);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -707,6 +798,143 @@ export function ComponentCatalog({
 
       {toast ? <LabToast>{toast}</LabToast> : null}
 
+      {/* O7 — Filter preset strip */}
+      <div
+        role="group"
+        aria-label="Filter presets"
+        style={{
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+          flexWrap: "wrap",
+          minHeight: 28,
+        }}
+      >
+        {allPresets.map((preset) => {
+          const active = stateMatchesPreset(currentFilterState(), preset);
+          const isCustom = !BUILT_IN_PRESETS.some((b) => b.key === preset.key);
+          return (
+            <span
+              key={preset.key}
+              style={{ display: "inline-flex", alignItems: "center", gap: 0 }}
+            >
+              <button
+                type="button"
+                aria-pressed={active}
+                title={`Apply preset: ${preset.label}`}
+                onClick={() => applyPreset(preset)}
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: active ? 700 : 500,
+                  padding: "3px 10px",
+                  borderRadius: isCustom ? "999px 0 0 999px" : 999,
+                  border: `1px solid ${active ? T.accent : T.border}`,
+                  borderRight: isCustom ? "none" : undefined,
+                  background: active ? T.accentBg : T.cardSoft,
+                  color: active ? T.accent : T.inkMuted,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {preset.label}
+              </button>
+              {isCustom ? (
+                <button
+                  type="button"
+                  aria-label={`Delete preset "${preset.label}"`}
+                  title={`Delete preset "${preset.label}"`}
+                  onClick={() => deletePreset(preset.key)}
+                  style={{
+                    fontSize: 11,
+                    padding: "3px 7px",
+                    borderRadius: "0 999px 999px 0",
+                    border: `1px solid ${active ? T.accent : T.border}`,
+                    borderLeft: "none",
+                    background: active ? T.accentBg : T.cardSoft,
+                    color: active ? T.accent : T.inkDim,
+                    cursor: "pointer",
+                    lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              ) : null}
+            </span>
+          );
+        })}
+
+        {/* Save-as-preset action / inline form */}
+        {savingPreset ? (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <input
+              ref={presetInputRef}
+              type="text"
+              value={presetDraftLabel}
+              onChange={(e) => setPresetDraftLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitSavePreset();
+                if (e.key === "Escape") {
+                  setSavingPreset(false);
+                  setPresetDraftLabel("");
+                }
+              }}
+              placeholder="Preset name…"
+              aria-label="New preset name"
+              style={{
+                ...fieldStyle,
+                fontSize: 11.5,
+                padding: "3px 9px",
+                width: 150,
+                outline: "none",
+              }}
+            />
+            <LabButton
+              variant="soft"
+              style={{ fontSize: 11.5, padding: "3px 10px" }}
+              onClick={commitSavePreset}
+              disabled={!presetDraftLabel.trim()}
+            >
+              Save
+            </LabButton>
+            <button
+              type="button"
+              onClick={() => {
+                setSavingPreset(false);
+                setPresetDraftLabel("");
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: T.inkDim,
+                fontSize: 11.5,
+                cursor: "pointer",
+                padding: "3px 4px",
+              }}
+            >
+              Cancel
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            title="Save current filter as a preset"
+            onClick={() => setSavingPreset(true)}
+            style={{
+              fontSize: 11.5,
+              padding: "3px 10px",
+              borderRadius: 999,
+              border: `1px dashed ${T.border}`,
+              background: "transparent",
+              color: T.inkDim,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            + Save view
+          </button>
+        )}
+      </div>
+
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         <input
           type="search"
@@ -720,7 +948,10 @@ export function ComponentCatalog({
           size="sm"
           ariaLabel="Filter components"
           value={filterMode}
-          onChange={setFilterMode}
+          onChange={(v) => {
+            setFilterMode(v);
+            saveActivePresetKey(null);
+          }}
           options={[
             { key: "all", label: "All" },
             { key: "hidden", label: "Hidden" },
