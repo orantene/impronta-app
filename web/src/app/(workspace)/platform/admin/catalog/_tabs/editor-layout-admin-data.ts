@@ -22,6 +22,7 @@ import {
 // (live-category-fields-editor.tsx) so this admin tab and the editor's field
 // routing never drift. See src/lib/profile-editor/section-field-mapping.ts.
 import { SECTION_FIELD_SECTIONS } from "@/lib/profile-editor/section-field-mapping";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 export type EditorSectionField = {
   id: string;
@@ -215,7 +216,7 @@ function buildFieldBuckets(fields: CatalogField[]): FieldBuckets {
     bucket.sort(
       (a, b) =>
         a.display_order - b.display_order ||
-        a.label.localeCompare(b.label) ||
+        byLabel(a, b) ||
         a.field_key.localeCompare(b.field_key),
     );
   }
@@ -230,7 +231,7 @@ function buildFieldBuckets(fields: CatalogField[]): FieldBuckets {
       fields: sectionFields.sort(
         (a, b) =>
           a.display_order - b.display_order ||
-          a.label.localeCompare(b.label) ||
+          byLabel(a, b) ||
           a.field_key.localeCompare(b.field_key),
       ),
     }));

@@ -8,6 +8,7 @@ import { FabWithQuickCreate } from "./InboxPage";
 import { StatusBadge } from "./PitchesPage-1";
 import { selectStyle } from "./WorkspaceTopbar";
 import { Grid, PageHeader } from "./pages-shared";
+import { byName } from "@/lib/field-engine/sort-comparators";
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -36,7 +37,7 @@ export function ClientsPage() {
       );
     })
     .sort((a, b) => {
-      if (sort === "name") return a.name.localeCompare(b.name);
+      if (sort === "name") return byName(a, b);
       if (sort === "bookings") return b.bookingsYTD - a.bookingsYTD;
       if (sort === "status") return a.status.localeCompare(b.status);
       return 0;

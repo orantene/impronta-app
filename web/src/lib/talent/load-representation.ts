@@ -9,6 +9,7 @@ import {
   type RepresentationEntry,
   type RosterStatus,
 } from "@/lib/talent/representation";
+import { byName } from "@/lib/field-engine/sort-comparators";
 import {
   agencyRosterProfileUrl,
   platformSelfProfileUrl,
@@ -59,7 +60,7 @@ function sortEntries(entries: RepresentationEntry[]): RepresentationEntry[] {
     if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
     if (a.kind === "hub" && b.kind !== "hub") return -1;
     if (b.kind === "hub" && a.kind !== "hub") return 1;
-    return a.name.localeCompare(b.name);
+    return byName(a, b);
   });
 }
 

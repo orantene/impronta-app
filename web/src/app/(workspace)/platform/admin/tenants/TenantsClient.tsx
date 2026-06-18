@@ -17,6 +17,7 @@ import { TenantDrawer } from "./TenantDrawer";
 import { PLAN_TIER_RANK } from "@/lib/platform/plan-override";
 import type { PlatformTenantListRow } from "../../tenant-management-data";
 import { actionCreateTenant } from "./actions-control";
+import { byName } from "@/lib/field-engine/sort-comparators";
 
 // ─── Create workspace modal ───────────────────────────────────────────────────
 
@@ -280,7 +281,7 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
       let cmp = 0;
       switch (sortKey) {
         case "name":
-          cmp = a.name.localeCompare(b.name);
+          cmp = byName(a, b);
           break;
         case "plan":
           cmp = PLAN_TIER_RANK[a.plan] - PLAN_TIER_RANK[b.plan];

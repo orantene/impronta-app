@@ -20,6 +20,7 @@ import type { ServiceMenuItem } from "@/lib/talent/services-menu-types";
 import { LightSectionLabel } from "./section-label";
 import { ServiceMenuList } from "./ServiceMenuList";
 import { ServiceMenuFilter } from "./ServiceMenuFilter";
+import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 type ServiceMenuBlockProps = {
   items: ServiceMenuItem[];
@@ -47,7 +48,7 @@ export function ServiceMenuBlock({ items, locale, heading, disciplineLabels }: S
   }
   const present = [...presentIds]
     .map((id) => ({ id, label: disciplineLabels![id] }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .sort(byLabel);
 
   return (
     <section aria-labelledby="service-menu-heading" data-profile-section="service-menu">
