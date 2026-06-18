@@ -1,5 +1,5 @@
-import type { CSSProperties, ReactNode } from "react";
-import { Fragment, memo } from "react";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
+import { Fragment, cloneElement, isValidElement, memo } from "react";
 
 import { nodeScopedCss } from "@/lib/site-admin/sections/shared/scoped-custom-css";
 
@@ -52,6 +52,11 @@ import {
   evaluateBuilderNodeVisibility,
   type BuilderVisibilityContext,
 } from "./visibility";
+import {
+  experimentConversionTrigger,
+  resolveNodeExperiment,
+  type ResolvedNodeExperiment,
+} from "./experiment";
 import { resolveLocalized } from "@/lib/i18n/resolve-localized";
 import { isLocalizableProp } from "@/lib/i18n/builder-i18n-props";
 import type {
@@ -151,6 +156,20 @@ export interface BuilderNodeRenderOptions {
   //     outline — the editor-only "needs translation" cue. Never reaches the
   //     published site.
   contentLocale?: BuilderNodeContentLocaleOptions;
+  // ABTEST-1 — minimal A/B variant engine. When `experimentSeed` is a stable
+  // per-visitor string (a cookie value the SSR caller supplies), an eligible
+  // CTA / form node carrying a live 2-arm `experiment` is bucketed
+  // deterministically into a variant, its `propOverrides` are merged, and the
+  // rendered element is tagged `data-experiment`/`data-variant` so the injected
+  // runtime fires impression + conversion through /api/analytics/events.
+  // Absent seed → control ("a") always renders, no tracking (e.g. the editor
+  // canvas / tests), so output is byte-identical for trees with no experiment.
+  experimentSeed?: string | null;
+  // tenant + surface tags merged into the experiment analytics payload so
+  // per-tenant reporting matches (tenant_id is promoted to the column by
+  // track-client). Optional/advisory — absent → unscoped payload.
+  experimentTenantId?: string | null;
+  experimentSurface?: string | null;
 }
 
 export interface BuilderNodeContentLocaleOptions {
@@ -171,10 +190,20 @@ export interface BuilderNodeContentLocaleOptions {
 type NormalizedBuilderNodeRenderOptions = Required<
   Omit<
     BuilderNodeRenderOptions,
-    "renderSectionEmbed" | "styleClasses" | "visibilityContext" | "contentLocale"
+    | "renderSectionEmbed"
+    | "styleClasses"
+    | "visibilityContext"
+    | "contentLocale"
+    | "experimentSeed"
+    | "experimentTenantId"
+    | "experimentSurface"
   >
 > & {
   renderSectionEmbed: BuilderSectionEmbedRenderer | null;
+  // ABTEST-1 — undefined/null seed → control always renders, no tracking.
+  experimentSeed: string | null | undefined;
+  experimentTenantId: string | null | undefined;
+  experimentSurface: string | null | undefined;
   // Always present after normalize (defaults to {} so the per-node resolver can
   // index it unconditionally). An empty registry → every node resolves to its
   // own style by identity (byte-identical).
@@ -968,6 +997,61 @@ const BUILDER_NODE_REVEAL_SCRIPT = `(function(){
     var f=document.querySelectorAll('[data-bn-reveal]');
     for(var n=0;n<f.length;n++)f[n].setAttribute('data-bn-revealed','');
   }
+})();`;
+
+/**
+ * ABTEST-1 — inline experiment runtime. Injected ONCE (gated on a live
+ * experiment node) by the published render path. It:
+ *   1. finds every `[data-experiment]` element,
+ *   2. fires ONE `experiment_view` impression per experiment id (de-duped),
+ *   3. binds the conversion: a click for `data-experiment-trigger="click"`
+ *      (button / cta_group) or a submit for `="submit"` (form), firing
+ *      `experiment_convert` once per experiment id.
+ * Both POST to the SAME `/api/analytics/events` seam with tenant_id top-level
+ * (promoted to the analytics_events column server-side) and the surface tag —
+ * no parallel event table. Reads tenant/surface off its own script tag's
+ * data-* attrs. Pure vanilla JS, keepalive fetch, fully wrapped in try/catch so
+ * a tracking failure never breaks the page.
+ */
+const BUILDER_NODE_EXPERIMENT_SCRIPT = `(function(){
+  try{
+    var s=document.currentScript||document.querySelector('[data-builder-node-experiment-runtime]');
+    var tenant=s&&s.getAttribute('data-tenant-id')||'';
+    var surface=s&&s.getAttribute('data-surface')||'';
+    var els=document.querySelectorAll('[data-experiment][data-variant]');
+    if(!els.length)return;
+    var sent={};
+    function send(name,exp,variant,kind){
+      try{
+        var payload={experiment_id:exp,variant:variant,node_kind:kind};
+        if(surface)payload.surface=surface;
+        if(tenant)payload.tenant_id=tenant;
+        var body={name:name,payload:payload,path:(location&&location.pathname)||null};
+        if(tenant)body.tenant_id=tenant;
+        fetch('/api/analytics/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),keepalive:true}).catch(function(){});
+        if(window.gtag)window.gtag('event',name,payload);
+      }catch(e){}
+    }
+    for(var i=0;i<els.length;i++){
+      var el=els[i];
+      var exp=el.getAttribute('data-experiment');
+      var variant=el.getAttribute('data-variant');
+      var trig=el.getAttribute('data-experiment-trigger');
+      var kind=el.getAttribute('data-experiment-kind')||'';
+      if(!exp||!variant)continue;
+      var viewKey='v:'+exp;
+      if(!sent[viewKey]){sent[viewKey]=1;send('experiment_view',exp,variant,kind);}
+      (function(el,exp,variant,trig,kind){
+        var evt=trig==='submit'?'submit':'click';
+        el.addEventListener(evt,function(){
+          var convKey='c:'+exp;
+          if(sent[convKey])return;
+          sent[convKey]=1;
+          send('experiment_convert',exp,variant,kind);
+        },{capture:true});
+      })(el,exp,variant,trig,kind);
+    }
+  }catch(err){}
 })();`;
 
 function builderNodeStyleVars(
@@ -2923,6 +3007,48 @@ function withNodeCustomCss(node: BuilderNode, element: ReactNode): ReactNode {
   );
 }
 
+/**
+ * ABTEST-1 — return a SHALLOW clone of the node with the served variant's
+ * `propOverrides` merged over its `props`. Only top-level scalar props are
+ * touched; unknown keys are harmless (the node's renderer ignores them). The
+ * input node is never mutated, so the stored tree is untouched.
+ */
+function applyExperimentOverrides(
+  node: BuilderNode,
+  resolved: ResolvedNodeExperiment,
+): BuilderNode {
+  const keys = Object.keys(resolved.propOverrides);
+  if (keys.length === 0 || !("props" in node)) return node;
+  const nextProps = { ...(node.props as Record<string, unknown>) };
+  for (const key of keys) {
+    nextProps[key] = resolved.propOverrides[key];
+  }
+  return { ...node, props: nextProps } as BuilderNode;
+}
+
+/**
+ * ABTEST-1 — clone the node's rendered element to add `data-experiment`,
+ * `data-variant`, and `data-experiment-trigger` (click | submit) so the inline
+ * experiment runtime can fire the impression once and the conversion on the
+ * right DOM event. The attrs land on the node's OWN element (it already carries
+ * `data-builder-node-id`), so the runtime binds at the right boundary. Falls
+ * back to the element unchanged if it isn't a clonable element (defensive).
+ */
+function withExperimentAttrs(
+  node: BuilderNode,
+  element: ReactNode,
+  resolved: ResolvedNodeExperiment,
+): ReactNode {
+  const trigger = experimentConversionTrigger(node.kind);
+  if (!trigger || !isValidElement(element)) return element;
+  return cloneElement(element as ReactElement, {
+    "data-experiment": resolved.experimentId,
+    "data-variant": resolved.variantKey,
+    "data-experiment-trigger": trigger,
+    "data-experiment-kind": node.kind,
+  } as Record<string, string>);
+}
+
 function renderBuilderNode(
   rawNode: BuilderNode,
   options: NormalizedBuilderNodeRenderOptions,
@@ -2934,8 +3060,20 @@ function renderBuilderNode(
   // sentinel on a node field lets the default show). Both are identity-returns
   // when there's nothing to merge → byte-stable for trees with no defaults.
   const classed = applyStyleClass(rawNode, options.styleClasses);
-  const node = applyComponentStyleDefaults(classed, options.componentStyleDefaults);
-  return withNodeCustomCss(node, renderBuilderNodeElement(node, options));
+  const styled = applyComponentStyleDefaults(classed, options.componentStyleDefaults);
+  // ABTEST-1 — single choke point: resolve the served variant for an eligible
+  // CTA / form node, merge its prop overrides, then tag the rendered element
+  // with data-experiment/-variant so the runtime can fire view + convert. A
+  // null resolution (no experiment / no seed / ineligible kind) is a pure
+  // pass-through → byte-identical for every node without a live experiment.
+  const resolved = resolveNodeExperiment(styled, options.experimentSeed);
+  const node = resolved ? applyExperimentOverrides(styled, resolved) : styled;
+  // Tag the node's OWN element with the experiment data-attrs BEFORE the
+  // custom-CSS Fragment wrapper, so they land on the element carrying
+  // data-builder-node-id (a Fragment can't hold data-* the runtime queries).
+  const element = renderBuilderNodeElement(node, options);
+  const tagged = resolved ? withExperimentAttrs(node, element, resolved) : element;
+  return withNodeCustomCss(node, tagged);
 }
 
 function renderBuilderNodeElement(
@@ -3982,6 +4120,9 @@ export function renderBuilderNodes(
     animateLayout: options.animateLayout ?? false,
     componentStyleDefaults: options.componentStyleDefaults ?? {},
     contentLocale: options.contentLocale,
+    experimentSeed: options.experimentSeed,
+    experimentTenantId: options.experimentTenantId,
+    experimentSurface: options.experimentSurface,
     repeatItem: null,
     repeatDepth: 0,
   };
@@ -4028,6 +4169,18 @@ export function renderBuilderNodes(
     normalizedOptions.includeRendererStyles && hasRevealOnViewNode(nodes) ? (
       <BuilderNodeRevealRuntime key="site-builder-node-reveal" />
     ) : null,
+    // ABTEST-1 — experiment view/convert runtime. Injected ONLY when a visitor
+    // seed is present (public render, not the editor canvas / tests) AND some
+    // eligible CTA / form node carries a live 2-arm experiment, so pages with no
+    // experiment stay byte-identical (no extra script).
+    normalizedOptions.experimentSeed &&
+    hasLiveExperimentNode(nodes, normalizedOptions.experimentSeed) ? (
+      <BuilderNodeExperimentRuntime
+        key="site-builder-node-experiment"
+        tenantId={normalizedOptions.experimentTenantId ?? null}
+        surface={normalizedOptions.experimentSurface ?? null}
+      />
+    ) : null,
   ].filter(Boolean);
   if (headNodes.length === 0) return renderedNodes;
   // `renderedNodes` is an array on the byte-stable (non-animate) path and a
@@ -4072,6 +4225,46 @@ export function BuilderNodeRevealRuntime(): ReactNode {
     <script
       data-builder-node-reveal-runtime=""
       dangerouslySetInnerHTML={{ __html: BUILDER_NODE_REVEAL_SCRIPT }}
+    />
+  );
+}
+
+/**
+ * ABTEST-1 — true when any node in the tree is a LIVE experiment under the given
+ * seed: an eligible CTA / form kind whose `experiment` resolves to a served
+ * variant. Mirrors the per-node resolution gate exactly (so the runtime is only
+ * injected when at least one `[data-experiment]` element is actually emitted).
+ * Walks children too, since an experiment node can be nested.
+ */
+function hasLiveExperimentNode(
+  nodes: ReadonlyArray<BuilderNode>,
+  seed: string | null | undefined,
+): boolean {
+  const visit = (node: BuilderNode): boolean => {
+    if (resolveNodeExperiment(node, seed)) return true;
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) {
+        if (visit(child)) return true;
+      }
+    }
+    return false;
+  };
+  return nodes.some(visit);
+}
+
+export function BuilderNodeExperimentRuntime({
+  tenantId,
+  surface,
+}: {
+  tenantId: string | null;
+  surface: string | null;
+}): ReactNode {
+  return (
+    <script
+      data-builder-node-experiment-runtime=""
+      {...(tenantId ? { "data-tenant-id": tenantId } : {})}
+      {...(surface ? { "data-surface": surface } : {})}
+      dangerouslySetInnerHTML={{ __html: BUILDER_NODE_EXPERIMENT_SCRIPT }}
     />
   );
 }
