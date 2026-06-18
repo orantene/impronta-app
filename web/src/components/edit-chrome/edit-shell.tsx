@@ -2255,10 +2255,13 @@ function mutationCodeSuggestion(code: string): string | null {
  *     a real visitor on that device sees.
  *
  * Layout: when device != desktop, we hide the parent's storefront DOM
- * via a CSS rule (`body > *:not([data-edit-chrome])` is set to
- * `visibility: hidden`) and render an iframe-host overlay anchored to
- * the editor chrome's content area (between navigator on the left and
- * inspector dock on the right when those are open). The iframe loads
+ * via a CSS rule (`body > *:not([data-edit-chrome]):not([data-edit-iframe-host]):not(:has([data-edit-chrome]))`
+ * plus a direct `[data-in-editor-canvas-region]` hide are set to
+ * `visibility: hidden` — see the inline comment at the rule for why the
+ * `:has` guard is required on non-homepage surfaces) and render an
+ * iframe-host overlay anchored to the editor chrome's content area
+ * (between navigator on the left and inspector dock on the right when
+ * those are open). The iframe loads
  * the same URL with `?iframe=1` appended; EditChrome's iframe-mode
  * branch (see `iframe-child.tsx`) renders the storefront DOM with its
  * own minimal SelectionLayer + postMessage bridge.
@@ -2530,10 +2533,35 @@ function DeviceFrameSurface({
     <>
       {/* The body-clip style only applies when a non-desktop device is
           active — on desktop the operator wants to see the real
-          storefront, not have it hidden behind the warm-kept iframes. */}
+          storefront, not have it hidden behind the warm-kept iframes.
+
+          The rule hides the desktop canvas that sits BEHIND the device-preview
+          iframe so only the iframe + chrome show. On the storefront homepage the
+          editor is mounted at body level: `[data-edit-chrome]` and
+          `[data-edit-iframe-host]` are direct <body> children, so the two
+          `:not(...)` clauses protect them while every other body child (the
+          storefront DOM) is hidden.
+
+          But non-homepage surfaces (Builder Lab, workspace/talent pages) mount
+          the editor DEEP inside their own page tree — the Lab stage is a
+          `position:fixed` popup nested under the platform-admin layout, NOT a
+          body-direct child. There the only body-direct child is the admin app
+          root, which carries NEITHER marker, so the bare `body > *` rule hid the
+          ENTIRE editor (chrome + canvas → white screen) the moment Mobile/Tablet
+          was picked. Excluding any body child that *contains* the chrome
+          (`:not(:has([data-edit-chrome]))`) keeps the editor visible in those
+          surfaces; on the storefront it's a no-op (the chrome IS the body child,
+          and no other body child contains it). The desktop in-editor canvas for
+          those surfaces is hidden directly by marker instead — the iframe-host's
+          opaque overlay already covers the viewport, this just stops edge-bleed
+          and the phantom scroll height the off-screen desktop canvas would add. */}
       {!isDesktop ? (
         <style>{`
-          body > *:not([data-edit-chrome]):not([data-edit-iframe-host]) {
+          body > *:not([data-edit-chrome]):not([data-edit-iframe-host]):not(:has([data-edit-chrome])) {
+            visibility: hidden !important;
+            pointer-events: none !important;
+          }
+          [data-in-editor-canvas-region] {
             visibility: hidden !important;
             pointer-events: none !important;
           }

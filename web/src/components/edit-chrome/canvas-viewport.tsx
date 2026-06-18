@@ -326,9 +326,20 @@ export function CanvasViewportProvider({
  */
 export function CanvasZoomStyle({ zoom }: { zoom: number }) {
   if (zoom === 1) return null; // No transform at 100% — avoids any side effects.
+  // `:not(:has([data-edit-chrome]))` — same nested-mount guard as edit-shell's
+  // device body-clip. On the storefront the chrome is a body-direct child so
+  // this is a no-op; on non-homepage surfaces (Lab / workspace / talent pages)
+  // the editor is mounted deep inside the page tree, so without this guard a
+  // zoom!=1 would scale the ENTIRE platform-admin app (the body-direct child
+  // that contains the chrome) instead of just the canvas. The in-editor canvas
+  // region is scaled directly by marker so the canvas still zooms there.
   return (
     <style>{`
-      body > *:not([data-edit-chrome]):not([data-edit-iframe-host]) {
+      body > *:not([data-edit-chrome]):not([data-edit-iframe-host]):not(:has([data-edit-chrome])) {
+        transform: scale(${zoom}) !important;
+        transform-origin: top center !important;
+      }
+      [data-in-editor-canvas-region] {
         transform: scale(${zoom}) !important;
         transform-origin: top center !important;
       }
