@@ -3063,10 +3063,13 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           rollout_percentage: number
+          rollout_ramp_at: string | null
+          rollout_ramp_to: number | null
           schema_version: number
           slug: string
           source_tenant_id: string | null
           status: Database["public"]["Enums"]["builder_template_status"]
+          status_expire_at: string | null
           submitted_at: string | null
           submitted_by: string | null
           tags: string[]
@@ -3101,10 +3104,13 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           rollout_percentage?: number
+          rollout_ramp_at?: string | null
+          rollout_ramp_to?: number | null
           schema_version?: number
           slug: string
           source_tenant_id?: string | null
           status?: Database["public"]["Enums"]["builder_template_status"]
+          status_expire_at?: string | null
           submitted_at?: string | null
           submitted_by?: string | null
           tags?: string[]
@@ -3139,10 +3145,13 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           rollout_percentage?: number
+          rollout_ramp_at?: string | null
+          rollout_ramp_to?: number | null
           schema_version?: number
           slug?: string
           source_tenant_id?: string | null
           status?: Database["public"]["Enums"]["builder_template_status"]
+          status_expire_at?: string | null
           submitted_at?: string | null
           submitted_by?: string | null
           tags?: string[]
