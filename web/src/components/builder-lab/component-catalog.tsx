@@ -76,6 +76,8 @@ import { CatalogActivityFeed } from "./catalog-activity-feed";
 import { TemplateManager } from "./template-manager";
 import { ParityProbePanel } from "./parity-probe-panel";
 import { TaxonomyManagerPanel } from "./taxonomy-manager-panel";
+import { CatalogAllIndexTable } from "./catalog-all-index-table";
+import type { AllIndexRow } from "./catalog-all-index";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
   buildCatalogItemPreview,
@@ -128,8 +130,12 @@ const TAB_LABEL = Object.fromEntries(
   CODE_TAB_DEFS.map((t) => [t.id, t.label]),
 ) as Record<AddGalleryTab, string>;
 
-// Special (non-gallery) Catalog views shown after the component categories.
+// Special (non-gallery) Catalog views. "all" (O10 — the unified superset index)
+// is special too but rendered FIRST in the tab strip (before the gallery
+// categories); the rest sit after the component categories. The set membership
+// here only marks them non-gallery — ORDER is decided by `viewTabs` below.
 const SPECIAL_TABS = [
+  "all",
   "catalog_studio",
   "site_starter_kit",
   "site_defaults",
@@ -142,8 +148,12 @@ const SPECIAL_TABS = [
 ] as const;
 type SpecialTab = (typeof SPECIAL_TABS)[number];
 type CatalogView = AddGalleryTab | SpecialTab;
+// SPECIAL_TABS that render AFTER the gallery categories (i.e. everything except
+// the leading "all" superset index, which is pinned first).
+const TRAILING_SPECIAL_TABS = SPECIAL_TABS.filter((t) => t !== "all");
 const VIEW_LABEL: Record<CatalogView, string> = {
   ...TAB_LABEL,
+  all: "All",
   catalog_studio: "Catalog Studio",
   site_starter_kit: "Site Starter Kit",
   site_defaults: "Site Defaults",
@@ -789,9 +799,15 @@ export function ComponentCatalog({
   }
 
   // Gallery component categories (drop the empty page_templates tab — its
-  // full-page role moves to the Site Starter Kit view), then the special views.
+  // full-page role moves to the Site Starter Kit view). Tab order: the "all"
+  // superset index FIRST (O10), then the gallery categories, then the remaining
+  // special views.
   const categoryTabs = presentTabs.filter((t) => t !== "page_templates");
-  const viewTabs: CatalogView[] = [...categoryTabs, ...SPECIAL_TABS];
+  const viewTabs: CatalogView[] = [
+    "all",
+    ...categoryTabs,
+    ...TRAILING_SPECIAL_TABS,
+  ];
   const currentView: CatalogView =
     activeTab && viewTabs.includes(activeTab)
       ? activeTab
@@ -925,6 +941,20 @@ export function ComponentCatalog({
       const row = items.find((r) => r.id === rowId);
       if (row) startEdit(row);
     }
+  };
+
+  // O10 — jump from an All-index row to its owning Catalog view. Code/template
+  // rows that ARE gallery items (have a real `tab`) jump to that gallery view
+  // with the row pre-expanded; draft/template-only rows route to the Templates
+  // manager. Mirrors handlePaletteJump's expand-on-arrival behavior.
+  const handleAllIndexJump = (row: AllIndexRow) => {
+    if (row.tab) {
+      setActiveTab(row.tab as CatalogView);
+      const gridRow = items.find((r) => r.id === row.id);
+      if (gridRow) startEdit(gridRow);
+      return;
+    }
+    setActiveTab("templates");
   };
 
   return (
@@ -1297,6 +1327,12 @@ export function ComponentCatalog({
         re-iconed, or plan-gated here; changing their internal structure is a code change.
       </p>
         </>
+      ) : currentView === "all" ? (
+        <CatalogAllIndexTable
+          items={items}
+          templates={allTemplates}
+          onJump={handleAllIndexJump}
+        />
       ) : currentView === "catalog_studio" ? (
         <CatalogStudioView />
       ) : currentView === "site_defaults" ? (
