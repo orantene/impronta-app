@@ -158,19 +158,36 @@ export function resolveCategoriesForTab(
 
 /**
  * Rewrite each item's `tab` + `category` per any `item:<id>` structure row
- * (the genuinely new capability: moving a component to a different tab). Pure;
- * empty structure ⇒ items unchanged. Run beside `applyCatalogOverlay` (WS-B).
+ * (moving a component to a different tab/category) AND subtract any item that
+ * lands in a hidden tab or hidden category. Pure; empty structure ⇒ items
+ * unchanged. Run beside `applyCatalogOverlay` (WS-B).
  */
 export function applyStructureToItems(
   items: ReadonlyArray<AddGalleryItem>,
   structure: CatalogStructureMap = {},
 ): AddGalleryItem[] {
-  return items.map((item) => {
+  const out: AddGalleryItem[] = [];
+  for (const item of items) {
     const row = structure[`item:${item.id}`];
-    if (!row) return item;
-    const nextTab = (row.parent_tab as AddGalleryTab | null) ?? item.tab;
-    const nextCategory = row.category_override ?? item.category;
-    if (nextTab === item.tab && nextCategory === item.category) return item;
-    return { ...item, tab: nextTab, category: nextCategory };
-  });
+    const nextTab = (row?.parent_tab as AddGalleryTab | null) ?? item.tab;
+    const nextCategory = row?.category_override ?? item.category;
+    // STRUCTURE HIDE — hiding a tab or a category in Catalog Studio means
+    // "tenants shouldn't see this", so the components INSIDE it must drop from
+    // the live gallery, not merely lose their grouping. Without this subtraction
+    // the panel's present-category fallback re-adds a hidden category as an
+    // "extra" and its items stay addable (the bug: a hidden category only got
+    // demoted to the end of the list). `resolveTabs`/`resolveCategoriesForTab`
+    // already drop the hidden tab/category from the taxonomy; this aligns the
+    // ITEM set with them. Item-level moves win: a component routed into a
+    // non-hidden category via `item:<id>` is judged by its NEW location, so an
+    // admin can rescue a single component out of an otherwise-hidden category.
+    if (tabRow(structure, nextTab)?.hidden) continue;
+    if (catRow(structure, nextCategory)?.hidden) continue;
+    if (nextTab === item.tab && nextCategory === item.category) {
+      out.push(item);
+      continue;
+    }
+    out.push({ ...item, tab: nextTab, category: nextCategory });
+  }
+  return out;
 }
