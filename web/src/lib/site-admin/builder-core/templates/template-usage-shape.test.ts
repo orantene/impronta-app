@@ -7,8 +7,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   aggregateTemplateUsage,
+  aggregateUsageTotalsRows,
   formatTemplateAdoption,
   type BuilderTemplateUsageRow,
+  type BuilderTemplateUsageTotalsRow,
 } from "./template-usage-shape";
 
 describe("aggregateTemplateUsage", () => {
@@ -44,6 +46,40 @@ describe("aggregateTemplateUsage", () => {
       { template_id: "", tenant_id: "a" },
     ] as unknown as BuilderTemplateUsageRow[];
     assert.equal(aggregateTemplateUsage(rows).size, 0);
+  });
+});
+
+describe("aggregateUsageTotalsRows (P3 — builder_template_usage_totals RPC fold)", () => {
+  it("maps pre-aggregated RPC rows → the totals map", () => {
+    const rows: BuilderTemplateUsageTotalsRow[] = [
+      { template_id: "t1", applied_count: 3, tenant_count: 2 },
+      { template_id: "t2", applied_count: 1, tenant_count: 1 },
+    ];
+    const totals = aggregateUsageTotalsRows(rows);
+    assert.deepEqual(totals.get("t1"), { appliedCount: 3, tenantCount: 2 });
+    assert.deepEqual(totals.get("t2"), { appliedCount: 1, tenantCount: 1 });
+  });
+
+  it("coerces bigint-as-string counts from PostgREST", () => {
+    const rows: BuilderTemplateUsageTotalsRow[] = [
+      { template_id: "t1", applied_count: "42", tenant_count: "7" },
+    ];
+    const totals = aggregateUsageTotalsRows(rows);
+    assert.deepEqual(totals.get("t1"), { appliedCount: 42, tenantCount: 7 });
+  });
+
+  it("folds a non-numeric count to 0 and skips a missing template_id", () => {
+    const rows = [
+      { template_id: "t1", applied_count: "x", tenant_count: 2 },
+      { template_id: "", applied_count: 5, tenant_count: 5 },
+    ] as unknown as BuilderTemplateUsageTotalsRow[];
+    const totals = aggregateUsageTotalsRows(rows);
+    assert.deepEqual(totals.get("t1"), { appliedCount: 0, tenantCount: 2 });
+    assert.equal(totals.size, 1); // empty-id row skipped
+  });
+
+  it("returns an empty map for no rows", () => {
+    assert.equal(aggregateUsageTotalsRows([]).size, 0);
   });
 });
 
