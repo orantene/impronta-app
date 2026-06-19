@@ -212,6 +212,13 @@ export function buildHomepageBuilderConfig(
       // DB "Page Templates" tab lands with WS2/WS4; off on the frozen homepage
       // surface until then so behaviour is unchanged.
       allowDbTemplates: false,
+      // X4 — the agency homepage IS a workspace page, so the Lab's Workspace
+      // Page column must govern it exactly like the freeform `cms_page` surface
+      // (surfaceKey + surfaceTarget mirror `buildCmsPageBuilderConfig`).
+      // Without these the per-surface toggle had nothing to key on and the
+      // gallery silently ignored Lab deactivation on the most prominent page.
+      surfaceKey: "workspace_page",
+      surfaceTarget: "workspace",
     },
     dataSources: { allowed: HOMEPAGE_DATA_SOURCES },
     previewSubjectKind: null,
