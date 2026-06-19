@@ -12,7 +12,7 @@
  * accordion groups the governance inputs under a "Governance" subhead.
  */
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   AddGalleryNativeVariant,
@@ -51,6 +51,16 @@ import {
   deriveAvailabilityBatchInputs,
   deriveResetRefs,
 } from "./catalog-bulk-selection";
+// O8 — the PURE roving-tabindex + key→action logic the keyboard handler drives.
+// Lives in its own leaf (no React/DOM) so the off-by-one movement math + the
+// key map are unit-testable; the table owns the focused-row id + the listener.
+import {
+  keyToRowAction,
+  actionNeedsFocusedRow,
+  nextRowId,
+  prevRowId,
+  shouldIgnoreKeyForTarget,
+} from "./catalog-row-keymap";
 import { AddGalleryIcon } from "@/components/edit-chrome/add-gallery/add-gallery-icons";
 import { governanceChips } from "./catalog-governance";
 import {
@@ -312,6 +322,16 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
 
+  // O8 — roving-tabindex keyboard focus. The focused row id is LOCAL to the
+  // table; the container's keydown handler moves it (j/k) and fires the existing
+  // row handlers (e=edit/onRowClick, p=preview, t/w=toggle the two primary
+  // surfaces). `/` focuses the catalog search field; Esc clears focus + collapses
+  // any open editor. Mirrors the Lab's window-keydown pattern but scoped to the
+  // table container so the chords only fire while the catalog table has focus.
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+
   // All visible row ids across every group (the selection spans grouped tables).
   const visibleIds = useMemo(
     () => groups.flatMap((g) => g.rows.map((r) => r.id)),
@@ -335,6 +355,118 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
   }, [visibleIds]);
 
   const headerAllSelected = allVisibleSelected(selected, visibleIds);
+
+  // O8 — if the focused row scrolled out of the (filtered) view, drop the focus
+  // so j/k re-enter cleanly at the top/bottom instead of pointing at a ghost row.
+  useEffect(() => {
+    setFocusedId((prev) =>
+      prev !== null && !visibleIds.includes(prev) ? null : prev,
+    );
+  }, [visibleIds]);
+
+  // O8 — the roving-tabindex keydown handler, mounted on the table container and
+  // torn down on unmount. We DON'T hijack keys while an input/textarea/select is
+  // focused (the operator is typing) — except "/", which always jumps to the
+  // catalog search field. The pure keymap (catalog-row-keymap) owns the off-by-
+  // one movement + key→action mapping; this effect just dispatches the action
+  // against the already-threaded row handlers.
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    const onKey = (e: KeyboardEvent) => {
+      // Let chords with modifiers (Cmd/Ctrl-K palette, browser shortcuts) pass.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const key = e.key.toLowerCase();
+      const targetTag =
+        (e.target as HTMLElement | null)?.tagName?.toLowerCase() ?? "";
+      if (shouldIgnoreKeyForTarget(key, targetTag)) return;
+      const action = keyToRowAction(key);
+      if (!action) return;
+
+      // The focused row (if any) the row-scoped actions operate on.
+      const current = allRows.find((r) => r.id === focusedId) ?? null;
+      if (actionNeedsFocusedRow(action) && !current) {
+        // e/p/t/w with nothing focused: enter the table at the top instead of
+        // silently doing nothing, so the keyboard path is always reachable.
+        if (visibleIds.length > 0) {
+          e.preventDefault();
+          setFocusedId(visibleIds[0]);
+        }
+        return;
+      }
+
+      switch (action.type) {
+        case "focus-next":
+          e.preventDefault();
+          setFocusedId((prev) => nextRowId(prev, visibleIds));
+          break;
+        case "focus-prev":
+          e.preventDefault();
+          setFocusedId((prev) => prevRowId(prev, visibleIds));
+          break;
+        case "edit":
+          if (current) {
+            e.preventDefault();
+            onRowClick(current);
+          }
+          break;
+        case "preview":
+          if (current) {
+            e.preventDefault();
+            onPreview(current);
+          }
+          break;
+        case "toggle-surface":
+          if (current) {
+            e.preventDefault();
+            onToggleSurface(current, action.surface);
+          }
+          break;
+        case "focus-search": {
+          e.preventDefault();
+          const search = document.querySelector<HTMLInputElement>(
+            'input[type="search"][aria-label="Search components"]',
+          );
+          search?.focus();
+          search?.select();
+          break;
+        }
+        case "collapse":
+          e.preventDefault();
+          setFocusedId(null);
+          if (focusedId) {
+            const editing = multiEdit
+              ? multiEdit.isExpanded(focusedId)
+              : editingId === focusedId;
+            if (editing) {
+              if (multiEdit) multiEdit.closeRow(focusedId);
+              else onCancelEdit();
+            }
+          }
+          break;
+      }
+    };
+    node.addEventListener("keydown", onKey);
+    return () => node.removeEventListener("keydown", onKey);
+  }, [
+    allRows,
+    visibleIds,
+    focusedId,
+    onRowClick,
+    onPreview,
+    onToggleSurface,
+    onCancelEdit,
+    editingId,
+    multiEdit,
+  ]);
+
+  // O8 — scroll the focused row into view as j/k move down/up a long list.
+  useEffect(() => {
+    if (!focusedId) return;
+    rowRefs.current
+      .get(focusedId)
+      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [focusedId]);
 
   /** Run a batch op, optimistically dim the table, then reload + clear on success. */
   async function runBulk(
@@ -373,7 +505,20 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
     void runBulk(() => clearComponentOverlayBatch(deriveResetRefs(chosen())));
 
   return (
-    <>
+    <div
+      ref={containerRef}
+      tabIndex={0}
+      role="grid"
+      data-testid="lab-catalog-row-grid"
+      aria-label="Catalog components — keyboard: j/k move, t/w toggle surfaces, e edit, p preview, slash search, Esc collapse"
+      onFocus={() => {
+        // First Tab into the grid auto-focuses the top row so j/k have an anchor.
+        if (focusedId === null && visibleIds.length > 0) {
+          setFocusedId(visibleIds[0]);
+        }
+      }}
+      style={{ outline: "none", display: "flex", flexDirection: "column", gap: 16 }}
+    >
       {selected.size > 0 ? (
         <BulkActionBar
           count={selected.size}
@@ -483,6 +628,13 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                   <Fragment key={r.id}>
                     <tr
                       data-testid={`lab-catalog-row-${r.id}`}
+                      ref={(el) => {
+                        // O8 — track each row's element so j/k can scroll the
+                        // focused row into view. Clean up on unmount/remove.
+                        if (el) rowRefs.current.set(r.id, el);
+                        else rowRefs.current.delete(r.id);
+                      }}
+                      aria-selected={focusedId === r.id}
                       onClick={(e) => {
                         // Click anywhere on the row (except an interactive control)
                         // to toggle its override accordion.
@@ -492,15 +644,27 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                           )
                         )
                           return;
+                        // O8 — a mouse click also moves keyboard focus here so
+                        // j/k continue from the row the operator just touched.
+                        setFocusedId(r.id);
                         onRowClick(r);
                       }}
                       style={{
                         borderTop: `1px solid ${T.borderSoft}`,
                         opacity: busy || (bulkBusy && selected.has(r.id)) ? 0.55 : 1,
                         cursor: "pointer",
-                        background: selected.has(r.id)
-                          ? "rgba(93,211,160,0.06)"
-                          : undefined,
+                        // O8 — roving-focus ring: an inset accent outline marks the
+                        // keyboard-focused row without shifting layout.
+                        boxShadow:
+                          focusedId === r.id
+                            ? `inset 3px 0 0 ${T.accent}`
+                            : undefined,
+                        background:
+                          focusedId === r.id
+                            ? "rgba(93,211,160,0.09)"
+                            : selected.has(r.id)
+                              ? "rgba(93,211,160,0.06)"
+                              : undefined,
                       }}
                     >
                       <td style={{ padding: "9px 0 9px 16px", textAlign: "center" }}>
@@ -690,7 +854,7 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
           </table>
         </section>
       ))}
-    </>
+    </div>
   );
 }
 
