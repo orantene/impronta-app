@@ -95,6 +95,7 @@ import {
   LAB as T,
   fieldStyle,
   LabButton,
+  LabChip,
   PillToggle,
   LabToast,
   EmptyCard,
@@ -120,6 +121,23 @@ import {
   stateMatchesPreset,
 } from "./catalog-filter-presets";
 import { LabCommandPalette, isPaletteChord } from "./command-palette";
+import {
+  type CatalogGroup,
+  type CatalogView,
+  SPECIAL_TABS,
+  VIEW_LABEL,
+  firstViewOfGroup,
+  groupOfView,
+  isSpecialTab,
+  orderedViewsForGroup,
+} from "./catalog-nav";
+import {
+  loadLastViewPerGroup,
+  parseViewParam,
+  resolveInitialView,
+  saveLastViewForGroup,
+} from "./catalog-nav-state";
+import { CatalogNav } from "./catalog-nav-bar";
 
 // Single source — derived from the Builder Studio catalog-structure resolver
 // (was duplicated with add-gallery-panel.tsx's TAB_DEFS). WS-B threads loaded
@@ -139,47 +157,9 @@ const SURFACE_ENABLED_COLUMN: Record<
   workspace_page: "workspace_page_enabled",
   workspace_shell: "workspace_shell_enabled",
 };
-const TAB_LABEL = Object.fromEntries(
-  CODE_TAB_DEFS.map((t) => [t.id, t.label]),
-) as Record<AddGalleryTab, string>;
-
-// Special (non-gallery) Catalog views. "all" (O10 — the unified superset index)
-// is special too but rendered FIRST in the tab strip (before the gallery
-// categories); the rest sit after the component categories. The set membership
-// here only marks them non-gallery — ORDER is decided by `viewTabs` below.
-const SPECIAL_TABS = [
-  "all",
-  "catalog_studio",
-  "site_starter_kit",
-  "site_defaults",
-  "default_surfaces",
-  "playground",
-  "activity",
-  "templates",
-  "parity",
-  "taxonomy",
-] as const;
-type SpecialTab = (typeof SPECIAL_TABS)[number];
-type CatalogView = AddGalleryTab | SpecialTab;
-// SPECIAL_TABS that render AFTER the gallery categories (i.e. everything except
-// the leading "all" superset index, which is pinned first).
-const TRAILING_SPECIAL_TABS = SPECIAL_TABS.filter((t) => t !== "all");
-const VIEW_LABEL: Record<CatalogView, string> = {
-  ...TAB_LABEL,
-  all: "All",
-  catalog_studio: "Catalog Studio",
-  site_starter_kit: "Site Starter Kit",
-  site_defaults: "Site Defaults",
-  default_surfaces: "Default surfaces",
-  playground: "Playground",
-  activity: "Activity",
-  templates: "Templates",
-  parity: "Parity",
-  taxonomy: "Taxonomy",
-};
-function isSpecialTab(v: CatalogView): v is SpecialTab {
-  return (SPECIAL_TABS as readonly string[]).includes(v);
-}
+// SPECIAL_TABS / CatalogView / VIEW_LABEL / isSpecialTab / TRAILING_SPECIAL_TABS
+// were lifted into catalog-nav.ts (P1) so the pure view-taxonomy is one source,
+// re-imported here.
 
 const CATEGORY_LABEL = new Map(
   ADD_GALLERY_CATEGORIES.map((c) => [c.id, c.label] as const),
@@ -359,6 +339,28 @@ export function ComponentCatalog({
     setTimeout(() => setToast(null), T.toastMs);
   }, []);
 
+  /** P1 — the single entry point for changing the active Catalog view. Beyond
+   *  `setActiveTab` it (a) remembers the view as the group's last-used (so
+   *  re-entering a group restores it) and (b) mirrors the view into the URL as
+   *  `?view=<view>` via history.replaceState — making every view deep-linkable
+   *  and refresh-stable WITHOUT pulling in next/navigation (no router, no
+   *  useSearchParams, no Suspense). Every former `setActiveTab(x)` view-change
+   *  caller routes through here. Defined above the mount effect so that effect
+   *  can seed the initial view through the same path. */
+  const selectView = useCallback((view: CatalogView) => {
+    setActiveTab(view);
+    saveLastViewForGroup(groupOfView(view), view);
+    if (typeof window !== "undefined") {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("view", view);
+        window.history.replaceState(window.history.state, "", url);
+      } catch {
+        /* malformed URL — non-fatal, the in-memory activeTab still updates */
+      }
+    }
+  }, []);
+
   // ── O7: persisted filter presets ──────────────────────────────────────────
   // Presets are loaded from localStorage on mount (SSR-safe: only in effects).
   // The strip shows built-ins + custom presets; active preset is highlighted.
@@ -377,18 +379,38 @@ export function ComponentCatalog({
     // State setters from useState are stable refs — safe to omit from deps.
     const stored = loadCustomPresets();
     setCustomPresets(stored);
+    // P1 — resolve the INITIAL view with precedence URL > preset > defaultView >
+    // firstStructureView. A present `?view=` (deep link / refresh) beats the
+    // persisted preset. The preset still restores the filter mode/surface
+    // regardless of which view wins.
+    let presetTab: string | null = null;
     const activeKey = loadActivePresetKey();
     if (activeKey) {
       const allWithBuiltins = mergePresets(stored);
       const found = allWithBuiltins.find((p) => p.key === activeKey);
       if (found) {
         const restored = presetToState(found);
-        if (restored.tab !== null) setActiveTab(restored.tab as CatalogView);
+        presetTab = restored.tab;
         setFilterMode(restored.mode);
         setConnectedSurface(restored.surface);
       }
     }
-  }, []); // mount-only: localStorage read; setters are stable and safe to omit
+    const urlView =
+      typeof window !== "undefined"
+        ? parseViewParam(new URLSearchParams(window.location.search).get("view"))
+        : null;
+    // Only seed the view if SOMETHING resolves it — leaving activeTab null keeps
+    // the default first-gallery-tab fallback `currentView` already provides.
+    if (urlView || presetTab || defaultView) {
+      const resolved = resolveInitialView({
+        urlView,
+        presetTab,
+        defaultView,
+        firstStructureView: "all",
+      });
+      selectView(resolved);
+    }
+  }, [defaultView, selectView]); // mount-only intent; deps are stable refs
 
   /** Current filter state snapshot (for save + active-highlight). */
   const currentFilterState = useCallback((): FilterState => ({
@@ -400,12 +422,13 @@ export function ComponentCatalog({
   /** Apply a preset — restores all three filter dimensions and persists the key. */
   const applyPreset = useCallback((preset: FilterPreset) => {
     const state = presetToState(preset);
-    if (state.tab !== null) setActiveTab(state.tab as CatalogView);
-    else setActiveTab(defaultView ?? null);
+    if (state.tab !== null) selectView(state.tab as CatalogView);
+    else if (defaultView) selectView(defaultView);
+    else setActiveTab(null);
     setFilterMode(state.mode);
     setConnectedSurface(state.surface);
     saveActivePresetKey(preset.key);
-  }, [defaultView]);
+  }, [defaultView, selectView]);
 
   /** Save current filter as a new custom preset. */
   const commitSavePreset = useCallback(() => {
@@ -973,19 +996,25 @@ export function ComponentCatalog({
   }
 
   // Gallery component categories (drop the empty page_templates tab — its
-  // full-page role moves to the Site Starter Kit view). Tab order: the "all"
-  // superset index FIRST (O10), then the gallery categories, then the remaining
-  // special views.
+  // full-page role moves to the Site Starter Kit view).
   const categoryTabs = presentTabs.filter((t) => t !== "page_templates");
-  const viewTabs: CatalogView[] = [
-    "all",
+  // P1 — the full navigable view universe: every special view ∪ the present
+  // gallery tabs. `currentView` is validated against THIS (not just the active
+  // group's tier-2 list) so a deep link / restore to any view — including an
+  // Admin-group view like `?view=health` — resolves before the group is derived.
+  const allNavigableViews: ReadonlyArray<CatalogView> = [
+    ...SPECIAL_TABS,
     ...categoryTabs,
-    ...TRAILING_SPECIAL_TABS,
   ];
   const currentView: CatalogView =
-    activeTab && viewTabs.includes(activeTab)
+    activeTab && allNavigableViews.includes(activeTab)
       ? activeTab
       : categoryTabs[0] ?? "site_starter_kit";
+  // Two-tier nav: derive the active group from the resolved view, then the
+  // group's ordered tier-2 views (structure filters its gallery tabs by the
+  // present-set; design/admin are static).
+  const activeGroup: CatalogGroup = groupOfView(currentView);
+  const groupViews = orderedViewsForGroup(activeGroup, categoryTabs);
   const galleryView = !isSpecialTab(currentView);
   const currentRows = galleryView
     ? rowsByTab.get(currentView as AddGalleryTab) ?? []
@@ -1106,10 +1135,11 @@ export function ComponentCatalog({
   /** Jump to a catalog view from a palette result. For a gallery tab the target
    *  row is also pre-expanded (O9 expand set); special views (Playground /
    *  Templates) just activate — they own their own row state. The chosen view
-   *  may not be in `viewTabs` if it's a gallery tab currently empty under the
-   *  active filter, but setActiveTab is tolerant (currentView falls back). */
+   *  may not be in the active group's tier-2 list if it's a gallery tab
+   *  currently empty under the active filter, but selectView is tolerant
+   *  (currentView falls back, and the group is re-derived from the new view). */
   const handlePaletteJump = (tab: string, rowId: string) => {
-    setActiveTab(tab as CatalogView);
+    selectView(tab as CatalogView);
     if (!isSpecialTab(tab as CatalogView)) {
       // Gallery component — open its override editor (seed the form).
       const row = items.find((r) => r.id === rowId);
@@ -1123,12 +1153,12 @@ export function ComponentCatalog({
   // manager. Mirrors handlePaletteJump's expand-on-arrival behavior.
   const handleAllIndexJump = (row: AllIndexRow) => {
     if (row.tab) {
-      setActiveTab(row.tab as CatalogView);
+      selectView(row.tab as CatalogView);
       const gridRow = items.find((r) => r.id === row.id);
       if (gridRow) startEdit(gridRow);
       return;
     }
-    setActiveTab("templates");
+    selectView("templates");
   };
 
   // D8 — jump from a Catalog-health issue to the offending row. A flagged row
@@ -1141,11 +1171,18 @@ export function ComponentCatalog({
       ? items.find((r) => r.id === issue.rowId)
       : undefined;
     if (gridRow) {
-      setActiveTab(gridRow.tab as CatalogView);
+      selectView(gridRow.tab as CatalogView);
       startEdit(gridRow);
       return;
     }
-    setActiveTab("templates");
+    // P1 — an orphaned-category issue with no concrete row is a taxonomy
+    // problem; route it to the Taxonomy manager (Admin group) rather than the
+    // Templates manager. Everything else still routes to Templates.
+    if (issue.bucket === "orphaned_category") {
+      selectView("taxonomy");
+      return;
+    }
+    selectView("templates");
   };
 
   return (
@@ -1168,68 +1205,32 @@ export function ComponentCatalog({
         onJump={handlePaletteJump}
       />
 
-      {/* D8 — Catalog-health triage strip. Sits ABOVE the views so orphaned
-          categories, unsatisfiable bindings, dead weight, and asymmetric
-          surfaces are the first thing a super-admin sees. Clicking an offending
-          row jumps to it (reusing the gallery/manager jump). */}
-      <CatalogHealthPanel report={healthReport} onJumpToIssue={handleHealthJump} />
-
-      {viewTabs.length > 0 ? (
-        <div
-          role="tablist"
-          aria-label="Catalog views"
-          style={{ display: "flex", gap: 2, flexWrap: "wrap", borderBottom: `1px solid ${T.borderSoft}` }}
-        >
-          {viewTabs.map((view) => {
-            const gallery = !isSpecialTab(view);
-            const count = gallery ? rowsByTab.get(view as AddGalleryTab)?.length ?? 0 : null;
-            const active = view === currentView;
-            return (
-              <button
-                key={view}
-                type="button"
-                role="tab"
-                data-testid={`lab-tab-${view}`}
-                aria-selected={active}
-                onClick={() => setActiveTab(view)}
-                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  borderBottom: `2px solid ${active ? T.accent : "transparent"}`,
-                  color: active ? T.ink : T.inkMuted,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: "8px 13px",
-                  marginBottom: -1,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                }}
-              >
-                {viewLabel(view)}
-                {count !== null ? (
-                  <span
-                    style={{
-                      fontSize: 10.5,
-                      fontWeight: 700,
-                      color: active ? T.accent : T.inkDim,
-                      background: active ? "rgba(93,211,160,0.14)" : T.cardSoft,
-                      borderRadius: 999,
-                      padding: "1px 7px",
-                      minWidth: 18,
-                      textAlign: "center",
-                    }}
-                  >
-                    {count}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
+      {/* P1 — two-tier grouped nav (tier-1 Structure/Design/Admin pills, tier-2
+          the active group's views). The D8 Catalog-health strip is no longer
+          always-on; it's now the Admin-group "Health" view (rendered below),
+          surfaced from Structure via the lab-health-chip when there are issues. */}
+      <CatalogNav
+        group={activeGroup}
+        views={groupViews}
+        currentView={currentView}
+        countFor={(view) =>
+          isSpecialTab(view)
+            ? null
+            : rowsByTab.get(view as AddGalleryTab)?.length ?? 0
+        }
+        labelFor={viewLabel}
+        onSelectGroup={(g) => {
+          // Re-enter a group on its last-used view (if still valid + in-group),
+          // else the group's first view.
+          const last = loadLastViewPerGroup()[g];
+          const target =
+            last && groupOfView(last) === g
+              ? last
+              : firstViewOfGroup(g, categoryTabs);
+          selectView(target);
+        }}
+        onSelectView={selectView}
+      />
 
       {galleryView ? (
         <>
@@ -1469,6 +1470,29 @@ export function ComponentCatalog({
               Collapse all
             </LabButton>
           </span>
+          {/* P1 — health-issue chip on the Structure/gallery surface header.
+              Replaces the always-on health strip: when there are issues, it
+              jumps to the (Admin-group) Health view. Hidden when all-clear. */}
+          {healthReport.totalIssues > 0 ? (
+            <button
+              type="button"
+              data-testid="lab-health-chip"
+              onClick={() => selectView("health")}
+              title="Open the Catalog-health view"
+              style={{
+                marginLeft: "auto",
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+              }}
+            >
+              <LabChip tone="accent">
+                {healthReport.totalIssues} issue
+                {healthReport.totalIssues === 1 ? "" : "s"}
+              </LabChip>
+            </button>
+          ) : null}
         </div>
         <CatalogRowTable
           groups={rowGroups}
@@ -1548,6 +1572,9 @@ export function ComponentCatalog({
         <ParityProbePanel />
       ) : currentView === "taxonomy" ? (
         <TaxonomyManagerPanel />
+      ) : currentView === "health" ? (
+        // P1 — the promoted D8 Catalog-health view (was an always-on strip).
+        <CatalogHealthPanel report={healthReport} onJumpToIssue={handleHealthJump} />
       ) : (
         <SiteStarterKitView onLaunchEditor={onLaunchEditor} />
       )}
