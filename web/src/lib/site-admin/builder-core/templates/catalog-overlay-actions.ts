@@ -38,16 +38,16 @@ import {
   pickRevertPlanFromAudit,
   snapshotToOverlayInput,
 } from "./overlay-revert-shape";
-import {
-  CATALOG_SURFACE_KEYS,
-  surfaceAllowedForTarget,
-  type CatalogSurfaceKey,
-} from "@/lib/site-admin/add-gallery/surface-keys";
 import type {
   CatalogOverlayMap,
   CatalogOverlayRow,
   SetCatalogOverlayInput,
 } from "@/lib/site-admin/add-gallery/registry-db-merge";
+import {
+  enablingSurfaceKeys,
+  buildOverlayPayload,
+  checkSurfaceGuard,
+} from "./catalog-overlay-payload";
 
 export type OverlayActionResult<T = void> =
   | { ok: true; data: T }
@@ -222,27 +222,6 @@ async function fetchTemplateTargetContext(
   return (data.target_context as "talent" | "workspace" | "both" | "platform") ?? "both";
 }
 
-/** Maps each catalog surface key to its overlay-input boolean field. */
-const SURFACE_KEY_TO_INPUT_FIELD: Record<
-  CatalogSurfaceKey,
-  keyof SetCatalogOverlayInput
-> = {
-  talent_profile: "talent_profile_enabled",
-  talent_shell: "talent_shell_enabled",
-  workspace_page: "workspace_page_enabled",
-  workspace_shell: "workspace_shell_enabled",
-};
-
-/** The surface keys an overlay input is ENABLING (setting to `true`). Drives the
- *  X3 tighten-only guard on BOTH the single-row and the batch write paths. */
-function enablingSurfaceKeys(
-  input: SetCatalogOverlayInput,
-): CatalogSurfaceKey[] {
-  return CATALOG_SURFACE_KEYS.filter(
-    (sk) => input[SURFACE_KEY_TO_INPUT_FIELD[sk]] === true,
-  );
-}
-
 /**
  * Upsert an overlay for one gallery item. Only the provided fields are written;
  * a brand-new row takes table defaults (both surfaces enabled, no overrides).
@@ -259,20 +238,13 @@ export async function setComponentOverlay(
   // that the component's target_context excludes. lab_enabled is never gated.
   // We only need to run the DB lookup when at least one surface toggle is being
   // set to `true`; disable-only writes and non-surface fields always proceed.
-  const enablingKeys = enablingSurfaceKeys(input);
-  if (enablingKeys.length > 0) {
+  if (enablingSurfaceKeys(input).length > 0) {
     try {
       const sbGuard = getAdminClient();
       const targetCtx = await fetchTemplateTargetContext(sbGuard, input.item_ref, input.source);
       if (targetCtx !== null) {
-        const violations = enablingKeys.filter(
-          (sk) => !surfaceAllowedForTarget(targetCtx, sk),
-        );
-        if (violations.length > 0) {
-          return fail(
-            `Tighten-only invariant: component targets "${targetCtx}"; cannot enable surface(s): ${violations.join(", ")}.`,
-          );
-        }
+        const violation = checkSurfaceGuard(input, targetCtx);
+        if (violation) return fail(violation);
       }
     } catch (err) {
       logServerError("setComponentOverlay.guardLookup", err);
@@ -280,34 +252,7 @@ export async function setComponentOverlay(
     }
   }
 
-  const payload: Record<string, unknown> = {
-    item_ref: input.item_ref,
-    source: input.source,
-    updated_by: gate.userId,
-  };
-  const assign = <K extends keyof SetCatalogOverlayInput>(key: K) => {
-    if (input[key] !== undefined) payload[key] = input[key];
-  };
-  assign("talent_enabled");
-  assign("workspace_enabled");
-  // X4 — the four independent per-surface toggles (dual-written alongside the
-  // legacy pair; see SetCatalogOverlayInput). Required so a single-surface toggle
-  // from the Lab matrix persists its precise column, not just the legacy mirror.
-  assign("talent_profile_enabled");
-  assign("talent_shell_enabled");
-  assign("workspace_page_enabled");
-  assign("workspace_shell_enabled");
-  // X6 — the independent Builder-Lab visibility toggle (orthogonal 5th axis).
-  assign("lab_enabled");
-  assign("label_override");
-  assign("icon_override");
-  assign("category_override");
-  assign("required_plan_override");
-  assign("availability_override");
-  assign("default_variant");
-  assign("default_props");
-  assign("data_source_defaults");
-  assign("locked_props");
+  const payload = buildOverlayPayload(input, gate.userId);
 
   try {
     const sb = getAdminClient();
@@ -319,7 +264,7 @@ export async function setComponentOverlay(
       .maybeSingle();
     const { data: afterRow, error } = await sb
       .from("builder_catalog_overlay")
-      .upsert(payload, { onConflict: "item_ref" })
+      .upsert(payload as never, { onConflict: "item_ref" })
       .select()
       .maybeSingle();
     if (error) return fail(error.message);
@@ -475,8 +420,7 @@ export async function setComponentOverlayBatch(
   // a surface its target_context excludes is rejected as a per-item failure and
   // never written — so the bulk path can't silently bypass the integrity guard.
   for (const [, input] of seen) {
-    const enablingKeys = enablingSurfaceKeys(input);
-    if (enablingKeys.length > 0) {
+    if (enablingSurfaceKeys(input).length > 0) {
       try {
         const targetCtx = await fetchTemplateTargetContext(
           sb,
@@ -484,15 +428,9 @@ export async function setComponentOverlayBatch(
           input.source,
         );
         if (targetCtx !== null) {
-          const violations = enablingKeys.filter(
-            (sk) => !surfaceAllowedForTarget(targetCtx, sk),
-          );
-          if (violations.length > 0) {
-            results.push({
-              ok: false,
-              error: `Tighten-only invariant: component targets "${targetCtx}"; cannot enable surface(s): ${violations.join(", ")}.`,
-              item_ref: input.item_ref,
-            });
+          const violation = checkSurfaceGuard(input, targetCtx);
+          if (violation) {
+            results.push({ ok: false, error: violation, item_ref: input.item_ref });
             continue;
           }
         }
@@ -502,34 +440,7 @@ export async function setComponentOverlayBatch(
       }
     }
 
-    const payload: Record<string, unknown> = {
-      item_ref: input.item_ref,
-      source: input.source,
-      updated_by: gate.userId,
-    };
-    const assign = <K extends keyof SetCatalogOverlayInput>(key: K) => {
-      if (input[key] !== undefined) payload[key] = input[key];
-    };
-    assign("talent_enabled");
-    assign("workspace_enabled");
-    // X4 — the four independent per-surface toggles (dual-written alongside the
-    // legacy pair; see SetCatalogOverlayInput).
-    assign("talent_profile_enabled");
-    assign("talent_shell_enabled");
-    assign("workspace_page_enabled");
-    assign("workspace_shell_enabled");
-    // X6 — the independent Builder-Lab visibility toggle (orthogonal 5th axis).
-    assign("lab_enabled");
-    assign("label_override");
-    assign("icon_override");
-    assign("category_override");
-    assign("required_plan_override");
-    assign("availability_override");
-    assign("default_variant");
-    assign("default_props");
-    assign("data_source_defaults");
-    assign("locked_props");
-    payloads.push(payload);
+    payloads.push(buildOverlayPayload(input, gate.userId));
     writtenRefs.push(input.item_ref);
   }
 
@@ -550,7 +461,7 @@ export async function setComponentOverlayBatch(
 
     const { data: afterRows, error } = await sb
       .from("builder_catalog_overlay")
-      .upsert(payloads, { onConflict: "item_ref" })
+      .upsert(payloads as never, { onConflict: "item_ref" })
       .select();
     if (error) return fail(error.message);
     const afterByRef = new Map(

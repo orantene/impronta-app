@@ -3,25 +3,31 @@
 /**
  * component-usage-action.ts — D1 read-only component-TYPE usage tally.
  *
- * Walks every tenant tree-bearing column to count, per `BuilderNode.kind`, how
- * many tenant trees reference each component type. Powers the Builder Lab
+ * Counts, per `BuilderNode.kind`, how many tenant trees reference each component
+ * type — across every tenant tree-bearing column. Powers the Builder Lab
  * Catalog's "Used N" column.
  *
- * Sources (one batched read each — never N queries):
- *   - `cms_pages.blocks`
- *   - `cms_sections.props_jsonb`
- *   - `cms_builder_components.subtree_jsonb`
- *   - `talent_sites` (`draft_snapshot`, `published_snapshot`, `shell_tree`,
- *     `shell_published`)
+ * P3 SCALE FIX: the per-type counting is done SERVER-SIDE by two SECURITY DEFINER
+ * RPCs (one migration, 20261106000900) instead of selecting four whole tables
+ * into Node and walking them in JS. The old path (a) truncated at PostgREST's
+ * 1000-row `max_rows` and (b) streamed every tree column's full JSON over the
+ * wire on Lab open. The RPCs aggregate in Postgres, so the counts are EXACT at
+ * any scale and the read is a tiny `(kind, n)` / `(embed_key, n)` result set:
+ *
+ *   - `count_builder_component_usage()`             → (kind, n)
+ *   - `count_builder_component_section_embed_keys()` → (embed_key, n)
+ *
+ * Both walk the same four sources the JS walker did (cms_pages.blocks /
+ * cms_sections.props_jsonb / cms_builder_components.subtree_jsonb / talent_sites
+ * draft+published+shell columns) via recursive-descent jsonpath.
  *
  * GATE mirrors catalog-overlay-actions.ts: requireSuperAdmin() server-side; the
- * batched reads go through the service-role client (the gate IS the auth
- * boundary) so the tally spans EVERY tenant — this is a platform-wide inventory,
- * not a per-tenant view. Read-only: no writes, no revalidate.
+ * RPCs run through the service-role client (the gate IS the auth boundary) and
+ * are themselves SECURITY DEFINER + service_role-only, so the tally spans EVERY
+ * tenant — a platform-wide inventory, not a per-tenant view. Read-only.
  *
- * The per-request `cache()` wrapper dedupes the four-table scan within a single
- * `loadCatalogAdminView` render (the action is called once; the cache guards
- * against an accidental second call in the same request).
+ * The per-request `cache()` wrapper dedupes the RPC pair within a single render
+ * (e.g. loadCatalogUsageCounts ∪ loadHideImpact in the same request).
  */
 
 import { cache } from "react";
@@ -31,8 +37,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   emptyUsageTally,
-  mergeUsageTallies,
-  tallyTreeJson,
+  tallyFromRpcRows,
   type ComponentUsageTally,
 } from "./component-usage-scan";
 
@@ -40,15 +45,6 @@ async function requireSuperAdmin(): Promise<boolean> {
   const session = await getCachedActorSession();
   if (!session.user) return false;
   return isPlatformAdmin(session.profile);
-}
-
-/** Tally one column across an array of rows, reading the JSON at `key`. */
-function tallyColumn<Row>(
-  rows: ReadonlyArray<Row>,
-  key: keyof Row,
-): ComponentUsageTally {
-  const perRow = rows.map((row) => tallyTreeJson(row[key] as unknown));
-  return mergeUsageTallies(...perRow);
 }
 
 /**
@@ -64,35 +60,18 @@ const loadComponentUsageTallyCached = cache(
     if (!admin) return emptyUsageTally();
 
     try {
-      // Four batched reads — one round-trip per source column (not per row).
-      const [pages, sections, components, sites] = await Promise.all([
-        admin.from("cms_pages").select("blocks"),
-        admin.from("cms_sections").select("props_jsonb"),
-        admin.from("cms_builder_components").select("subtree_jsonb"),
-        admin
-          .from("talent_sites")
-          .select("draft_snapshot, published_snapshot, shell_tree, shell_published"),
+      // Two server-side aggregates — no row streaming, no 1000-row truncation.
+      const [byKind, byEmbed] = await Promise.all([
+        admin.rpc("count_builder_component_usage"),
+        admin.rpc("count_builder_component_section_embed_keys"),
       ]);
 
-      const tallies: ComponentUsageTally[] = [];
-      if (pages.data) tallies.push(tallyColumn(pages.data, "blocks"));
-      if (sections.data) tallies.push(tallyColumn(sections.data, "props_jsonb"));
-      if (components.data) {
-        tallies.push(tallyColumn(components.data, "subtree_jsonb"));
-      }
-      if (sites.data) {
-        // talent_sites carries FOUR tree columns; tally each then merge.
-        for (const key of [
-          "draft_snapshot",
-          "published_snapshot",
-          "shell_tree",
-          "shell_published",
-        ] as const) {
-          tallies.push(tallyColumn(sites.data, key));
-        }
+      if (byKind.error) logServerError("loadComponentUsageTally/byKind", byKind.error);
+      if (byEmbed.error) {
+        logServerError("loadComponentUsageTally/byEmbed", byEmbed.error);
       }
 
-      return mergeUsageTallies(...tallies);
+      return tallyFromRpcRows(byKind.data, byEmbed.data);
     } catch (err) {
       logServerError("loadComponentUsageTally", err);
       return emptyUsageTally();

@@ -27,6 +27,7 @@ import type { AddGalleryItem } from "./types";
 import {
   tallyTreeJson,
   mergeUsageTallies,
+  tallyFromRpcRows,
   usageCountForItem,
   emptyUsageTally,
 } from "./component-usage-scan";
@@ -121,6 +122,73 @@ describe("component-usage-scan: mergeUsageTallies", () => {
     const before = JSON.stringify(a);
     mergeUsageTallies(a, a);
     assert.equal(JSON.stringify(a), before); // unchanged
+  });
+});
+
+describe("component-usage-scan: tallyFromRpcRows (P3 SECURITY-DEFINER RPC fold)", () => {
+  it("folds (kind,n) and (embed_key,n) rows into a tally", () => {
+    const t = tallyFromRpcRows(
+      [
+        { kind: "heading", n: 4 },
+        { kind: "button", n: 2 },
+        { kind: "section_embed", n: 3 },
+      ],
+      [
+        { embed_key: "hero", n: 2 },
+        { embed_key: "about", n: 1 },
+      ],
+    );
+    assert.equal(t.byKind.heading, 4);
+    assert.equal(t.byKind.button, 2);
+    assert.equal(t.byKind.section_embed, 3);
+    assert.equal(t.bySectionEmbedKey.hero, 2);
+    assert.equal(t.bySectionEmbedKey.about, 1);
+  });
+
+  it("coerces bigint-as-string counts from PostgREST", () => {
+    const t = tallyFromRpcRows(
+      [{ kind: "heading", n: "12" }],
+      [{ embed_key: "hero", n: "7" }],
+    );
+    assert.equal(t.byKind.heading, 12);
+    assert.equal(t.bySectionEmbedKey.hero, 7);
+  });
+
+  it("sums repeated keys and folds a non-numeric count to 0", () => {
+    const t = tallyFromRpcRows(
+      [
+        { kind: "heading", n: 1 },
+        { kind: "heading", n: "2" },
+        { kind: "button", n: "not-a-number" },
+      ],
+      [],
+    );
+    assert.equal(t.byKind.heading, 3); // 1 + 2
+    assert.equal(t.byKind.button, 0); // NaN coerced to 0
+  });
+
+  it("skips rows with an empty kind / embed_key", () => {
+    const t = tallyFromRpcRows(
+      [{ kind: "", n: 5 }],
+      [{ embed_key: "", n: 9 }],
+    );
+    assert.deepEqual(t, emptyUsageTally());
+  });
+
+  it("returns an empty tally for null / undefined / empty inputs", () => {
+    assert.deepEqual(tallyFromRpcRows(null, null), emptyUsageTally());
+    assert.deepEqual(tallyFromRpcRows(undefined, undefined), emptyUsageTally());
+    assert.deepEqual(tallyFromRpcRows([], []), emptyUsageTally());
+  });
+
+  it("resolves via usageCountForItem the same as a walked tally", () => {
+    const t = tallyFromRpcRows(
+      [{ kind: "heading", n: "2" }],
+      [{ embed_key: "hero", n: 1 }],
+    );
+    assert.equal(usageCountForItem({ nativeKind: "heading" } as AddGalleryItem, t), 2);
+    assert.equal(usageCountForItem({ sectionEmbedKey: "hero" } as AddGalleryItem, t), 1);
+    assert.equal(usageCountForItem({ nativeKind: "carousel" } as AddGalleryItem, t), 0);
   });
 });
 

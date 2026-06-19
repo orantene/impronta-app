@@ -59,6 +59,47 @@ export function aggregateTemplateUsage(
 }
 
 /**
+ * One row from the `builder_template_usage_totals()` SECURITY-DEFINER RPC
+ * (P3 — server-side `count(*) … group by template_id`). PostgREST returns
+ * `bigint` aggregates as either a number or a numeric STRING, so the counts are
+ * typed `number | string` and coerced by {@link aggregateUsageTotalsRows}.
+ */
+export interface BuilderTemplateUsageTotalsRow {
+  template_id: string;
+  applied_count: number | string;
+  tenant_count: number | string;
+}
+
+/** Coerce a PostgREST bigint (number or numeric string) to a finite number; a
+ *  non-numeric / NaN value folds to 0. */
+function coerceCount(n: number | string): number {
+  const num = typeof n === "string" ? Number(n) : n;
+  return Number.isFinite(num) ? num : 0;
+}
+
+/**
+ * Map the pre-aggregated `builder_template_usage_totals()` RPC rows → the same
+ * `template_id → {appliedCount, tenantCount}` map shape `aggregateTemplateUsage`
+ * produces (PURE — no DB, no I/O). The RPC already did the `count(*)` /
+ * `count(distinct tenant_id)` group-by server-side, so this just renames columns
+ * and coerces the bigint-as-string counts. Rows with a missing `template_id` are
+ * skipped; empty input → empty map.
+ */
+export function aggregateUsageTotalsRows(
+  rows: ReadonlyArray<BuilderTemplateUsageTotalsRow>,
+): Map<string, TemplateUsageTotals> {
+  const totals = new Map<string, TemplateUsageTotals>();
+  for (const row of rows) {
+    if (!row.template_id) continue;
+    totals.set(row.template_id, {
+      appliedCount: coerceCount(row.applied_count),
+      tenantCount: coerceCount(row.tenant_count),
+    });
+  }
+  return totals;
+}
+
+/**
  * Render the per-card adoption line. Returns null when the template has never
  * been applied (the card then shows nothing rather than "applied 0 times").
  */
