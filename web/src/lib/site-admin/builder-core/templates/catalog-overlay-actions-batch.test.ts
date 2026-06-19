@@ -1,12 +1,14 @@
 /**
  * catalog-overlay-actions-batch.test.ts — unit tests for the O1 batch-overlay
- * payload shaping and deduplication logic.
+ * payload shaping, deduplication, and guard logic.
  *
- * These tests exercise PURE behaviour (deduplication contract, per-item result
- * shape, empty-input handling) without hitting Supabase or the auth gate.  The
- * server-action wrappers (`setComponentOverlayBatch` / `clearComponentOverlayBatch`)
- * are tested via the same helpers that drive the single-item actions; DB +
- * auth-gate coverage lives in integration tests.
+ * Previously this file re-implemented buildBatchPayloads as a LOCAL MIRROR that
+ * had drifted: it omitted the X4 per-surface toggles (talent_profile_enabled,
+ * talent_shell_enabled, workspace_page_enabled, workspace_shell_enabled) and
+ * the X6 lab_enabled toggle, and had no guard coverage.
+ *
+ * This revision imports the REAL helpers from catalog-overlay-payload.ts so any
+ * change to the real implementation is immediately caught by the tests here.
  *
  * Test runner: node:test + node:assert/strict (tsx --test).
  * Run:  node_modules/.bin/tsx --test src/lib/site-admin/builder-core/templates/catalog-overlay-actions-batch.test.ts
@@ -16,58 +18,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import type { SetCatalogOverlayInput } from "@/lib/site-admin/add-gallery/registry-db-merge";
-
-// ── helpers (mirrors the payload-building logic inside the action) ──────────
-
-/**
- * Mirrors the deduplication + payload-building step of `setComponentOverlayBatch`
- * so we can unit-test the pure logic without touching the server gate or Supabase.
- */
-function buildBatchPayloads(
-  inputs: SetCatalogOverlayInput[],
-  userId = "user-123",
-): { payloads: Record<string, unknown>[]; errors: string[] } {
-  const errors: string[] = [];
-
-  // Deduplicate — last writer wins.
-  const seen = new Map<string, SetCatalogOverlayInput>();
-  for (const input of inputs) {
-    if (input.item_ref) seen.set(input.item_ref, input);
-  }
-
-  // Collect validation errors for entries missing item_ref.
-  for (const input of inputs) {
-    if (!input.item_ref) errors.push("Missing item reference.");
-  }
-
-  const payloads: Record<string, unknown>[] = [];
-  for (const [, input] of seen) {
-    const payload: Record<string, unknown> = {
-      item_ref: input.item_ref,
-      source: input.source,
-      updated_by: userId,
-    };
-    const assign = <K extends keyof SetCatalogOverlayInput>(key: K) => {
-      if (input[key] !== undefined) payload[key] = input[key];
-    };
-    assign("talent_enabled");
-    assign("workspace_enabled");
-    assign("label_override");
-    assign("icon_override");
-    assign("category_override");
-    assign("required_plan_override");
-    assign("availability_override");
-    assign("default_variant");
-    assign("default_props");
-    assign("data_source_defaults");
-    assign("locked_props");
-    payloads.push(payload);
-  }
-  return { payloads, errors };
-}
+import {
+  buildOverlayPayload,
+  buildBatchPayloads,
+  checkSurfaceGuard,
+  enablingSurfaceKeys,
+} from "./catalog-overlay-payload";
 
 /**
  * Mirrors the deduplication step of `clearComponentOverlayBatch`.
+ * (This is purely local dedup logic — not extracted to the helper — because
+ * `clearComponentOverlayBatch` takes `string[]`, not `SetCatalogOverlayInput[]`.)
  */
 function buildClearBatchRefs(
   refs: string[],
@@ -177,6 +138,142 @@ test("batch set: null overrides ARE included (explicit clear)", () => {
   // null is defined — it must be forwarded so the upsert clears the column.
   assert.equal(p.label_override, null);
   assert.equal(p.availability_override, null);
+});
+
+// ── X4 per-surface toggles (the drift that motivated this refactor) ──────────
+
+test("payload includes X4 per-surface toggles when provided", () => {
+  const input: SetCatalogOverlayInput = {
+    item_ref: "el-btn",
+    source: "code",
+    talent_profile_enabled: true,
+    talent_shell_enabled: false,
+    workspace_page_enabled: true,
+    workspace_shell_enabled: false,
+    lab_enabled: false,
+  };
+  const p = buildOverlayPayload(input, "u-test");
+  // All four X4 toggles must appear with the correct value.
+  assert.equal(p.talent_profile_enabled, true, "talent_profile_enabled present");
+  assert.equal(p.talent_shell_enabled, false, "talent_shell_enabled present");
+  assert.equal(p.workspace_page_enabled, true, "workspace_page_enabled present");
+  assert.equal(p.workspace_shell_enabled, false, "workspace_shell_enabled present");
+  // X6 — lab axis.
+  assert.equal(p.lab_enabled, false, "lab_enabled present");
+});
+
+test("payload includes X6 lab_enabled when provided", () => {
+  const input: SetCatalogOverlayInput = {
+    item_ref: "el-btn",
+    source: "code",
+    lab_enabled: false,
+  };
+  const p = buildOverlayPayload(input, "u-test");
+  assert.equal(p.lab_enabled, false, "lab_enabled is false (not undefined)");
+});
+
+test("X4 toggles absent from payload when not provided (no accidental overwrite)", () => {
+  const input: SetCatalogOverlayInput = {
+    item_ref: "el-btn",
+    source: "code",
+    // No X4 / X6 fields — must not appear in payload.
+  };
+  const p = buildOverlayPayload(input, "u-test");
+  assert.equal(p.talent_profile_enabled, undefined, "talent_profile_enabled absent");
+  assert.equal(p.talent_shell_enabled, undefined, "talent_shell_enabled absent");
+  assert.equal(p.workspace_page_enabled, undefined, "workspace_page_enabled absent");
+  assert.equal(p.workspace_shell_enabled, undefined, "workspace_shell_enabled absent");
+  assert.equal(p.lab_enabled, undefined, "lab_enabled absent");
+});
+
+// ── X3 tighten-only guard ────────────────────────────────────────────────────
+
+test("guard rejects enabling a talent surface on a workspace-targeted template", () => {
+  const violation = checkSurfaceGuard(
+    { item_ref: "db-template:x", source: "template", talent_profile_enabled: true },
+    "workspace",
+  );
+  assert.ok(violation !== null, "violation must be a non-null string");
+  assert.ok(typeof violation === "string" && violation.length > 0, "violation is a non-empty string");
+  assert.ok(violation.includes("workspace"), "violation message mentions the target context");
+  assert.ok(violation.includes("talent_profile"), "violation message mentions the offending surface");
+});
+
+test("guard rejects enabling a workspace surface on a talent-targeted template", () => {
+  const violation = checkSurfaceGuard(
+    { item_ref: "db-template:x", source: "template", workspace_page_enabled: true },
+    "talent",
+  );
+  assert.ok(violation !== null, "violation must be a non-null string");
+  assert.ok(violation!.includes("workspace_page"), "violation mentions workspace_page");
+});
+
+test("guard passes enabling a workspace surface on a workspace-targeted template", () => {
+  const result = checkSurfaceGuard(
+    { item_ref: "db-template:x", source: "template", workspace_page_enabled: true },
+    "workspace",
+  );
+  assert.equal(result, null, "workspace surface on workspace target → null (ok)");
+});
+
+test("guard passes enabling a talent surface on a talent-targeted template", () => {
+  const result = checkSurfaceGuard(
+    { item_ref: "db-template:x", source: "template", talent_profile_enabled: true },
+    "talent",
+  );
+  assert.equal(result, null, "talent surface on talent target → null (ok)");
+});
+
+test("guard passes for 'both' target context regardless of surface", () => {
+  const result = checkSurfaceGuard(
+    {
+      item_ref: "db-template:x",
+      source: "template",
+      talent_profile_enabled: true,
+      workspace_page_enabled: true,
+    },
+    "both",
+  );
+  assert.equal(result, null, "both target → null (all surfaces ok)");
+});
+
+test("guard passes for 'platform' target context", () => {
+  const result = checkSurfaceGuard(
+    { item_ref: "db-template:x", source: "template", workspace_shell_enabled: true },
+    "platform",
+  );
+  assert.equal(result, null, "platform target → null (all surfaces ok)");
+});
+
+test("guard passes when no surfaces are being enabled (disable-only write)", () => {
+  // Disabling surfaces always passes regardless of target_context.
+  const result = checkSurfaceGuard(
+    {
+      item_ref: "db-template:x",
+      source: "template",
+      talent_profile_enabled: false,
+      workspace_page_enabled: false,
+    },
+    "workspace",
+  );
+  assert.equal(result, null, "disable-only write → null (ok)");
+});
+
+test("enablingSurfaceKeys: only keys being set to true are returned", () => {
+  const input: SetCatalogOverlayInput = {
+    item_ref: "el-btn",
+    source: "code",
+    talent_profile_enabled: true,       // enabling
+    talent_shell_enabled: false,        // NOT enabling (false)
+    workspace_page_enabled: true,       // enabling
+    // workspace_shell_enabled: not set  // NOT enabling (absent)
+  };
+  const keys = enablingSurfaceKeys(input);
+  assert.ok(keys.includes("talent_profile"), "talent_profile is enabling");
+  assert.ok(keys.includes("workspace_page"), "workspace_page is enabling");
+  assert.ok(!keys.includes("talent_shell"), "talent_shell is NOT enabling");
+  assert.ok(!keys.includes("workspace_shell"), "workspace_shell is NOT enabling");
+  assert.equal(keys.length, 2, "exactly 2 enabling keys");
 });
 
 // ── clearComponentOverlayBatch deduplication ─────────────────────────────────
