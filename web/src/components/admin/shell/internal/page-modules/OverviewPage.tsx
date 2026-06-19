@@ -19,7 +19,6 @@ export function OverviewPage() {
     openUpgrade,
     completeTask,
     toast,
-    setPage,
     overviewMetrics,
     effectiveMessagesInquiries,
     effectiveRoster,
@@ -314,48 +313,6 @@ export function OverviewPage() {
             onClick={() => openDrawer("conversion-funnel")}
           />
         </Grid>
-      </div>
-
-      {/* Pointers to the new Operations + Production pages */}
-      <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <button
-          type="button"
-          onClick={() => setPage("operations")}
-          style={{
-            display: "flex", alignItems: "center", gap: 14,
-            padding: "16px 18px", textAlign: "left", cursor: "pointer",
-            background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md,
-            fontFamily: FONTS.body, transition: TRANSITION.sm,
-          }}
-        >
-          <div style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="rounded-admin-md bg-admin-indigo-soft">
-            <Icon name="bolt" size={18} color={COLORS.indigo} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-admin-ink text-sm font-bold">Operations</div>
-            <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">Analytics, queues, automations, comms.</div>
-          </div>
-          <Icon name="arrow-right" size={14} color={COLORS.inkMuted} />
-        </button>
-        <button
-          type="button"
-          onClick={() => setPage("production")}
-          style={{
-            display: "flex", alignItems: "center", gap: 14,
-            padding: "16px 18px", textAlign: "left", cursor: "pointer",
-            background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md,
-            fontFamily: FONTS.body, transition: TRANSITION.sm,
-          }}
-        >
-          <div style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="rounded-admin-md bg-admin-accent-soft">
-            <Icon name="team" size={18} color={COLORS.accent} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-admin-ink text-sm font-bold">Production</div>
-            <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">Casting, crew, on-set, rights & safety.</div>
-          </div>
-          <Icon name="arrow-right" size={14} color={COLORS.inkMuted} />
-        </button>
       </div>
 
       {/* Locked strip — what's available higher up */}
