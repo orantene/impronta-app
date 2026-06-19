@@ -38,6 +38,8 @@ import {
 import { listCatalogStructure } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
 import { loadCatalogAdminView } from "@/lib/site-admin/add-gallery/catalog-admin-view-action";
 import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import { getTemplateUsageTotals } from "@/lib/site-admin/builder-core/templates/template-usage-actions";
+import type { TemplateUsageTotals } from "@/lib/site-admin/builder-core/templates/template-usage-shape";
 import type { BuilderTemplateRow } from "@/lib/site-admin/builder-core/templates/registry-rows";
 import {
   clearComponentOverlay,
@@ -78,6 +80,11 @@ import { ParityProbePanel } from "./parity-probe-panel";
 import { TaxonomyManagerPanel } from "./taxonomy-manager-panel";
 import { CatalogAllIndexTable } from "./catalog-all-index-table";
 import type { AllIndexRow } from "./catalog-all-index";
+import { CatalogHealthPanel } from "./catalog-health-panel";
+import {
+  analyzeCatalogHealth,
+  type CatalogHealthIssue,
+} from "./catalog-health";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
   buildCatalogItemPreview,
@@ -339,6 +346,13 @@ export function ComponentCatalog({
   // drafts) the palette indexes alongside the gallery `items`.
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [allTemplates, setAllTemplates] = useState<BuilderTemplateRow[]>([]);
+  // D8 — D7 per-template adoption totals (template_id → {appliedCount,…}). Feeds
+  // the Catalog-health dead-weight bucket. A failed/empty read just means the
+  // dead-weight bucket treats every published template as un-adopted (still a
+  // useful triage list) — non-fatal, like the palette index above.
+  const [templateUsage, setTemplateUsage] = useState<
+    Record<string, TemplateUsageTotals>
+  >({});
 
   const flash = useCallback((msg: string) => {
     setToast({ message: msg, undo: null });
@@ -455,6 +469,14 @@ export function ComponentCatalog({
       })
       .catch(() => {
         /* palette degrades to components-only */
+      });
+    // D8 — adoption totals for the Catalog-health dead-weight bucket. Non-fatal.
+    getTemplateUsageTotals()
+      .then((res) => {
+        if (!cancelled && res.ok) setTemplateUsage(res.data);
+      })
+      .catch(() => {
+        /* dead-weight bucket treats all published templates as un-adopted */
       });
     return () => {
       cancelled = true;
@@ -925,6 +947,20 @@ export function ComponentCatalog({
     return { presentTabs: present, rowsByTab: byTab };
   }, [items, query, filterMode]);
 
+  // D8 — Catalog-health triage report. PURE derivation over the FULL ungated
+  // rows (not the filtered `rowsByTab` view) + every template + D7 adoption
+  // totals. Recomputed only when one of those inputs changes. Null `items`
+  // (pre-load) ⇒ an empty report (the panel renders its all-clear line).
+  const healthReport = useMemo(
+    () =>
+      analyzeCatalogHealth({
+        rows: items ?? [],
+        templates: allTemplates,
+        templateUsage,
+      }),
+    [items, allTemplates, templateUsage],
+  );
+
   if (error && !items) {
     return <div style={{ color: T.red, fontSize: 13 }}>{error}</div>;
   }
@@ -1095,6 +1131,23 @@ export function ComponentCatalog({
     setActiveTab("templates");
   };
 
+  // D8 — jump from a Catalog-health issue to the offending row. A flagged row
+  // that IS a live gallery item (its catalog id is in `items`) jumps to its tab
+  // with the override editor pre-opened — mirroring handleAllIndexJump. Anything
+  // else (a draft/non-gallery template) routes to the Templates manager. Reuses
+  // the existing jump machinery; adds no new navigation surface.
+  const handleHealthJump = (issue: CatalogHealthIssue) => {
+    const gridRow = issue.rowId
+      ? items.find((r) => r.id === issue.rowId)
+      : undefined;
+    if (gridRow) {
+      setActiveTab(gridRow.tab as CatalogView);
+      startEdit(gridRow);
+      return;
+    }
+    setActiveTab("templates");
+  };
+
   return (
     <div
       data-testid="lab-catalog-root"
@@ -1114,6 +1167,12 @@ export function ComponentCatalog({
         playgroundTab="playground"
         onJump={handlePaletteJump}
       />
+
+      {/* D8 — Catalog-health triage strip. Sits ABOVE the views so orphaned
+          categories, unsatisfiable bindings, dead weight, and asymmetric
+          surfaces are the first thing a super-admin sees. Clicking an offending
+          row jumps to it (reusing the gallery/manager jump). */}
+      <CatalogHealthPanel report={healthReport} onJumpToIssue={handleHealthJump} />
 
       {viewTabs.length > 0 ? (
         <div
