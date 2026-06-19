@@ -3005,6 +3005,41 @@ export type Database = {
           },
         ]
       }
+      builder_template_usage: {
+        Row: {
+          id: string
+          inserted_at: string
+          page_ref: string | null
+          surface: string | null
+          template_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          id?: string
+          inserted_at?: string
+          page_ref?: string | null
+          surface?: string | null
+          template_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          id?: string
+          inserted_at?: string
+          page_ref?: string | null
+          surface?: string | null
+          template_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "builder_template_usage_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "builder_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       builder_templates: {
         Row: {
           builder_tree: Json

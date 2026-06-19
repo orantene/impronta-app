@@ -46,6 +46,11 @@ import {
   resolveTemplateThumbnails,
 } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
 import {
+  getTemplateUsageTotals,
+  type TemplateUsageTotals,
+} from "@/lib/site-admin/builder-core/templates/template-usage-actions";
+import { formatTemplateAdoption } from "@/lib/site-admin/builder-core/templates/template-usage-shape";
+import {
   distinctThumbnailAssetIds,
   resolveTemplateThumbnailMap,
   templateThumbnailPatch,
@@ -158,6 +163,11 @@ export function TemplateManager() {
     new Map(),
   );
   const [thumbBusyId, setThumbBusyId] = useState<string | null>(null);
+  // D7 — per-template adoption tally (templateId → {appliedCount, tenantCount})
+  // from `builder_template_usage`, rendered as "applied N times across M tenants".
+  const [usageByTemplate, setUsageByTemplate] = useState<
+    Record<string, TemplateUsageTotals>
+  >({});
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -206,6 +216,20 @@ export function TemplateManager() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // D7 — load the adoption tally once. A failure leaves the map empty (cards
+  // then show no adoption line rather than a wrong/zero count).
+  useEffect(() => {
+    let cancelled = false;
+    getTemplateUsageTotals()
+      .then((res) => {
+        if (!cancelled && res.ok) setUsageByTemplate(res.data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Resolve the Lab's media scope (hub tenant) once so the thumbnail picker can
   // open. A failure leaves the picker disabled (the cell renders a hint).
@@ -432,6 +456,7 @@ export function TemplateManager() {
                 key={row.id}
                 row={row}
                 busy={busyId === row.id}
+                adoption={formatTemplateAdoption(usageByTemplate[row.id])}
                 mediaTenantId={mediaTenantId}
                 thumbUrl={thumbUrlByRow.get(row.id) ?? null}
                 thumbBusy={thumbBusyId === row.id}
@@ -511,6 +536,7 @@ export function TemplateManager() {
 function TemplateRowCard({
   row,
   busy,
+  adoption,
   mediaTenantId,
   thumbUrl,
   thumbBusy,
@@ -528,6 +554,7 @@ function TemplateRowCard({
 }: {
   row: BuilderTemplateRow;
   busy: boolean;
+  adoption: string | null;
   mediaTenantId: string | null;
   thumbUrl: string | null;
   thumbBusy: boolean;
@@ -656,6 +683,25 @@ function TemplateRowCard({
               {showRevs ? "▴" : "▾"}
             </span>
           </button>
+          {/* D7 — adoption stat: "applied N times across M tenants". Hidden when
+              the template has never been applied (formatTemplateAdoption → null). */}
+          {adoption ? (
+            <div
+              style={{
+                fontSize: 11,
+                color: T.inkMuted,
+                marginTop: 6,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <span aria-hidden style={{ fontSize: 9, opacity: 0.7 }}>
+                ◆
+              </span>
+              {adoption}
+            </div>
+          ) : null}
         </div>
       </div>
 

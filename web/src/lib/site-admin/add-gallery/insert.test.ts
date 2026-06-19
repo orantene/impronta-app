@@ -201,6 +201,28 @@ test("resolveAddGalleryInsertAction returns a dbTemplate freeform node", () => {
   }
 });
 
+test("D7 — dbTemplate insert stamps __sourceTemplateId provenance on the root node", () => {
+  const action = resolveAddGalleryInsertAction(dbTemplateItem);
+  assert.equal(action.type, "dbTemplate");
+  if (action.type === "dbTemplate") {
+    assert.equal(
+      (action.node.props as Record<string, unknown>).__sourceTemplateId,
+      "abc",
+    );
+  }
+});
+
+test("D7 — native node inserts carry NO __sourceTemplateId (no template provenance)", () => {
+  const action = resolveAddGalleryInsertAction(baseItem);
+  assert.equal(action.type, "nativeNode");
+  if (action.type === "nativeNode") {
+    assert.equal(
+      (action.node.props as Record<string, unknown>).__sourceTemplateId,
+      undefined,
+    );
+  }
+});
+
 test("dbTemplate with an empty tree yields an editable empty container (never throws)", () => {
   const empty: AddGalleryItem = { ...dbTemplateItem, dbTemplateTree: [] };
   const node = createDbTemplateNodeForGalleryItem(empty);
