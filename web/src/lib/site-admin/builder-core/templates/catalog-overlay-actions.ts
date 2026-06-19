@@ -13,15 +13,24 @@
  * GATE mirrors registry-actions.ts: requireSuperAdmin() server-side; writes go
  * through the service-role client (the gate IS the auth boundary), reads through
  * the authenticated cookie client so the authenticated-read RLS applies.
+ *
+ * G2 — platform_audit_log parity: every overlay write emits a
+ * platform_audit_log row (via scheduleAuditEvent / record_phase5_audit) in
+ * ADDITION to the existing G1 builder_lab_audit append. Both fire on each
+ * write; a failed platform audit emit is best-effort/non-fatal and never
+ * blocks the overlay write.
  */
 
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
+import { scheduleAuditEvent } from "@/lib/site-admin/audit";
+import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import { bumpCatalogVersion } from "./catalog-version";
 import { appendBuilderLabAudit, listBuilderLabAudit } from "./builder-lab-audit";
 import type { BuilderLabAuditEntry } from "./builder-lab-audit-shape";
@@ -75,6 +84,71 @@ function revalidateCatalog() {
   revalidatePath("/platform/admin");
   revalidatePath("/t", "layout"); // talent pages are top-level (src/app/t)
   revalidatePath("/(public)/p", "layout"); // workspace pages live under the (public) route group
+}
+
+// ── G2 — overlay diff summary (platform_audit_log) ─────────────────────────
+//
+// Builds a ≤240-char human-readable diff for the platform_audit_log
+// `diff_summary` field. Surface toggles and override fields are surfaced when
+// they change; stable unchanged fields are omitted so the summary stays terse.
+// This mirrors the branding `diffSummary` helper: list what changed, fall back
+// to "touched (no field change)" when the snapshot diff is empty.
+
+const SURFACE_TOGGLE_KEYS = [
+  "talent_enabled",
+  "workspace_enabled",
+  "talent_profile_enabled",
+  "talent_shell_enabled",
+  "workspace_page_enabled",
+  "workspace_shell_enabled",
+  "lab_enabled",
+] as const;
+
+const OVERRIDE_KEYS = [
+  "label_override",
+  "icon_override",
+  "category_override",
+  "required_plan_override",
+  "availability_override",
+  "default_variant",
+] as const;
+
+type AnyRow = Record<string, unknown> | null;
+
+function buildOverlayDiffSummary(
+  action: "overlay.set" | "overlay.clear",
+  itemRef: string,
+  before: AnyRow,
+  after: AnyRow,
+): string {
+  const ref = itemRef.length > 40 ? `${itemRef.slice(0, 37)}…` : itemRef;
+  if (action === "overlay.clear") {
+    return `overlay cleared for ${ref}`;
+  }
+  // Collect changed surface toggles.
+  const surfaceChanges: string[] = [];
+  for (const key of SURFACE_TOGGLE_KEYS) {
+    const bv = before?.[key];
+    const av = after?.[key];
+    if (av !== undefined && bv !== av) {
+      surfaceChanges.push(`${key}=${String(av)}`);
+    }
+  }
+  // Collect changed override keys.
+  const overrideChanges: string[] = [];
+  for (const key of OVERRIDE_KEYS) {
+    const bv = before?.[key];
+    const av = after?.[key];
+    if (av !== undefined && JSON.stringify(bv) !== JSON.stringify(av)) {
+      overrideChanges.push(key);
+    }
+  }
+  const parts: string[] = [];
+  if (surfaceChanges.length) parts.push(`surfaces: ${surfaceChanges.join(", ")}`);
+  if (overrideChanges.length) parts.push(`overrides: ${overrideChanges.join(", ")}`);
+  const detail = parts.length ? parts.join("; ") : "no field change";
+  const summary = `overlay.set ${ref} — ${detail}`;
+  return summary.length <= 240 ? summary : `${summary.slice(0, 239)}…`;
 }
 
 // ── reads ──────────────────────────────────────────────────────────────────
@@ -237,7 +311,7 @@ export async function setComponentOverlay(
       .maybeSingle();
     if (error) return fail(error.message);
     await bumpCatalogVersion(sb);
-    // Best-effort audit (non-fatal — never blocks the user action).
+    // G1 — best-effort Lab-local audit (non-fatal — never blocks the user action).
     await appendBuilderLabAudit({
       action: "overlay.set",
       itemRef: input.item_ref,
@@ -245,6 +319,28 @@ export async function setComponentOverlay(
       before: beforeRow ?? null,
       after: afterRow ?? payload,
     });
+    // G2 — platform_audit_log parity: emit via the authenticated cookie client so
+    // auth.uid() resolves correctly inside record_phase5_audit (SECURITY DEFINER).
+    // Best-effort/non-fatal: a failed emit must never block the overlay write.
+    const cookieClient = await createClient();
+    if (cookieClient) {
+      scheduleAuditEvent(cookieClient, {
+        tenantId: DEFAULT_AI_TENANT_ID,
+        actorProfileId: gate.userId,
+        action: "agency.site_admin.builder.catalog.overlay.set",
+        entityType: "builder_catalog_overlay",
+        entityId: input.item_ref,
+        diffSummary: buildOverlayDiffSummary(
+          "overlay.set",
+          input.item_ref,
+          beforeRow as AnyRow,
+          (afterRow ?? payload) as AnyRow,
+        ),
+        beforeSnapshot: beforeRow ?? null,
+        afterSnapshot: afterRow ?? payload,
+        correlationId: randomUUID(),
+      });
+    }
     revalidateCatalog();
     return ok(undefined);
   } catch (err) {
@@ -275,7 +371,7 @@ export async function clearComponentOverlay(
       .eq("item_ref", itemRef);
     if (error) return fail(error.message);
     await bumpCatalogVersion(sb);
-    // Best-effort audit (non-fatal). after=null → reverted to code/template default.
+    // G1 — best-effort Lab-local audit (non-fatal). after=null → reverted to code/template default.
     await appendBuilderLabAudit({
       action: "overlay.clear",
       itemRef,
@@ -283,6 +379,28 @@ export async function clearComponentOverlay(
       before: beforeRow ?? null,
       after: null,
     });
+    // G2 — platform_audit_log parity: emit via the authenticated cookie client so
+    // auth.uid() resolves correctly inside record_phase5_audit (SECURITY DEFINER).
+    // Best-effort/non-fatal: a failed emit must never block the overlay write.
+    const cookieClient = await createClient();
+    if (cookieClient) {
+      scheduleAuditEvent(cookieClient, {
+        tenantId: DEFAULT_AI_TENANT_ID,
+        actorProfileId: gate.userId,
+        action: "agency.site_admin.builder.catalog.overlay.clear",
+        entityType: "builder_catalog_overlay",
+        entityId: itemRef,
+        diffSummary: buildOverlayDiffSummary(
+          "overlay.clear",
+          itemRef,
+          beforeRow as AnyRow,
+          null,
+        ),
+        beforeSnapshot: beforeRow ?? null,
+        afterSnapshot: null,
+        correlationId: randomUUID(),
+      });
+    }
     revalidateCatalog();
     return ok(undefined);
   } catch (err) {
