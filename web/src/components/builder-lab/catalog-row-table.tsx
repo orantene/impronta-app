@@ -12,7 +12,7 @@
  * accordion groups the governance inputs under a "Governance" subhead.
  */
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   AddGalleryNativeVariant,
@@ -76,6 +76,11 @@ import {
   type LabStatus,
   type LabStatusOption,
 } from "./ui";
+// D2 — pure count + filter-predicate helpers for the Hidden/Archived chips.
+import {
+  deriveSuppressedChipState,
+  type SuppressedFilter,
+} from "./catalog-suppressed-chips";
 
 // C3 — selectable admin "default variant" values. The native preset variants the
 // insert composer (applyNativeVariant) recognizes, sans "default" (= no variant).
@@ -313,6 +318,10 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
   // Which row's audit history popover is open (G1 per-row history affordance).
   const [historyId, setHistoryId] = useState<string | null>(null);
 
+  // D2 — which suppressed-item chip filter is active (null = no filter).
+  const [suppressedFilter, setSuppressedFilter] =
+    useState<SuppressedFilter>(null);
+
   // O2 — bulk selection. The selected ids are LOCAL to the table (the parent
   // owns no selection state); the sticky action bar fires the O1 batch server
   // actions directly and reloads the catalog through the existing `onReverted`
@@ -332,12 +341,43 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
 
-  // All visible row ids across every group (the selection spans grouped tables).
-  const visibleIds = useMemo(
-    () => groups.flatMap((g) => g.rows.map((r) => r.id)),
-    [groups],
-  );
+  // All rows across every group — used for counts + keyboard look-ups.
   const allRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
+
+  // D2 — derive the Hidden/Archived counts (over the full allRows list, so the
+  // numbers are stable regardless of the active chip) and the filterRows fn that
+  // narrows each group when a chip is active.
+  const { hiddenCount, archivedCount, filterRows } = useMemo(
+    () => deriveSuppressedChipState(allRows, suppressedFilter),
+    [allRows, suppressedFilter],
+  );
+
+  // D2 — toggle a suppressed chip: clicking the active chip turns it off.
+  const toggleSuppressedFilter = useCallback(
+    (kind: "hidden" | "archived") => {
+      setSuppressedFilter((prev) => (prev === kind ? null : kind));
+    },
+    [],
+  );
+
+  // D2 — apply the chip filter to each group's rows without re-sorting.
+  const filteredGroups = useMemo(
+    () =>
+      suppressedFilter === null
+        ? groups
+        : groups
+            .map((g) => ({ ...g, rows: filterRows([...g.rows]) }))
+            .filter((g) => g.rows.length > 0),
+    [groups, suppressedFilter, filterRows],
+  );
+
+  // The visible row ids span ALL rendered groups (after chip filter).  The
+  // selection + roving-focus effects key off this so j/k and Select-All only
+  // cover rows actually rendered on screen.
+  const visibleIds = useMemo(
+    () => filteredGroups.flatMap((g) => g.rows.map((r) => r.id)),
+    [filteredGroups],
+  );
 
   // Drop any selected id that scrolled out of the current (filtered) view so the
   // "N selected" count + batch inputs never reference a row no longer rendered.
@@ -532,7 +572,114 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
           onReset={bulkReset}
         />
       ) : null}
-      {groups.map((group) => (
+
+      {/* D2 — Hidden / Archived count chips. Clicking a chip filters the
+          visible rows to only the suppressed subset; clicking it again
+          clears the filter. Counts are derived from the full allRows list
+          (stable regardless of which chip is active). Only shown when there
+          is at least one suppressed item to flag. */}
+      {(hiddenCount > 0 || archivedCount > 0) ? (
+        <div
+          data-testid="lab-catalog-suppressed-chip-row"
+          style={{
+            display: "flex",
+            gap: 6,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <span style={{ fontSize: 11, color: T.inkDim, marginRight: 2 }}>
+            Suppressed:
+          </span>
+          {hiddenCount > 0 ? (
+            <button
+              type="button"
+              data-testid="lab-catalog-chip-hidden"
+              aria-pressed={suppressedFilter === "hidden"}
+              title="Filter to components hidden on at least one surface"
+              onClick={() => toggleSuppressedFilter("hidden")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "3px 9px",
+                borderRadius: 999,
+                border: `1px solid ${suppressedFilter === "hidden" ? "rgba(93,211,160,0.45)" : T.border}`,
+                background:
+                  suppressedFilter === "hidden"
+                    ? "rgba(93,211,160,0.14)"
+                    : T.cardSoft,
+                color:
+                  suppressedFilter === "hidden" ? T.yes : T.inkMuted,
+                cursor: "pointer",
+              }}
+            >
+              Hidden
+              <LabChip
+                tone={suppressedFilter === "hidden" ? "accent" : "neutral"}
+                style={{ fontSize: 10, padding: "1px 5px" }}
+              >
+                {hiddenCount}
+              </LabChip>
+            </button>
+          ) : null}
+          {archivedCount > 0 ? (
+            <button
+              type="button"
+              data-testid="lab-catalog-chip-archived"
+              aria-pressed={suppressedFilter === "archived"}
+              title="Filter to archived components"
+              onClick={() => toggleSuppressedFilter("archived")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "3px 9px",
+                borderRadius: 999,
+                border: `1px solid ${suppressedFilter === "archived" ? "rgba(93,211,160,0.45)" : T.border}`,
+                background:
+                  suppressedFilter === "archived"
+                    ? "rgba(93,211,160,0.14)"
+                    : T.cardSoft,
+                color:
+                  suppressedFilter === "archived" ? T.yes : T.inkMuted,
+                cursor: "pointer",
+              }}
+            >
+              Archived
+              <LabChip
+                tone={suppressedFilter === "archived" ? "accent" : "neutral"}
+                style={{ fontSize: 10, padding: "1px 5px" }}
+              >
+                {archivedCount}
+              </LabChip>
+            </button>
+          ) : null}
+          {suppressedFilter !== null ? (
+            <button
+              type="button"
+              data-testid="lab-catalog-chip-clear"
+              onClick={() => setSuppressedFilter(null)}
+              style={{
+                fontSize: 11,
+                color: T.inkDim,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "3px 4px",
+              }}
+            >
+              Clear filter
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {filteredGroups.map((group) => (
         <section key={group.key} style={{ ...panelStyle, overflow: "hidden" }}>
           <div
             style={{
