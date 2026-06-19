@@ -25,10 +25,11 @@
  * adds no parallel CRUD path.
  */
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   archiveTemplate,
+  createTemplateDraft,
   duplicateTemplate,
   publishTemplate,
   rejectToDraft,
@@ -48,6 +49,11 @@ import {
   resolveTemplateThumbnails,
 } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
 import { triggerTemplateDownload } from "./template-export";
+import {
+  parsePortableTemplate,
+  buildImportDraftInput,
+} from "./template-import";
+import { mintCopySlug } from "@/lib/site-admin/builder-core/templates/slug-minting";
 import { renameTemplateCategory } from "@/lib/site-admin/builder-core/templates/taxonomy-actions";
 import {
   distinctThumbnailAssetIds,
@@ -252,6 +258,10 @@ export function SiteStarterKitView({
   const [renamingCategory, setRenamingCategory] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [renameBusy, setRenameBusy] = useState(false);
+  // A4 — import: busy flag (true while the server action is in flight);
+  // a hidden <input type="file"> ref used to trigger the file picker.
+  const [importing, setImporting] = useState(false);
+  const importFileRef = useRef<HTMLInputElement | null>(null);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -515,6 +525,79 @@ export function SiteStarterKitView({
     }
   }, [reload, flash]);
 
+  // ── A4 import handler ──────────────────────────────────────────────────────
+
+  /**
+   * Parse and validate a JSON file from the browser file picker, then create a
+   * DRAFT via `createTemplateDraft` with a collision-safe slug. Inline error
+   * messages follow the admin-edit-UX bar (explicit, persistent, no silent
+   * failure). The file picker is wired to a hidden <input type="file"> so this
+   * button looks like the rest of the header actions.
+   */
+  const handleImportFile = useCallback(
+    async (file: File) => {
+      setImporting(true);
+      setError(null);
+      try {
+        // ── 1. Read the file as text
+        let text: string;
+        try {
+          text = await file.text();
+        } catch {
+          setError("Import failed: could not read the file.");
+          return;
+        }
+
+        // ── 2. JSON parse
+        let raw: unknown;
+        try {
+          raw = JSON.parse(text);
+        } catch {
+          setError("Import failed: file is not valid JSON.");
+          return;
+        }
+
+        // ── 3. Zod-validate against PortableTemplate schema
+        const parsed = parsePortableTemplate(raw);
+        if (!parsed.ok) {
+          setError(`Import rejected: ${parsed.error}`);
+          return;
+        }
+
+        // ── 4. Fetch existing slugs for this kind so we can mint a collision-safe one
+        const existing = await listStarterTemplatesAction();
+        const existingSlugsForKind = new Set(
+          (existing.ok ? existing.data : [])
+            .filter((r) => r.kind === parsed.data.kind)
+            .map((r) => r.slug),
+        );
+
+        // ── 5. Mint a collision-safe slug (F1 helper — same as duplicate)
+        const safeSlug = existingSlugsForKind.has(parsed.data.slug)
+          ? mintCopySlug(parsed.data.slug, existingSlugsForKind)
+          : parsed.data.slug;
+
+        // ── 6. Build the CreateTemplateDraftInput and persist
+        const draftInput = buildImportDraftInput(parsed.data, safeSlug);
+        const res = await createTemplateDraft(draftInput);
+        if (!res.ok) {
+          setError(`Import failed: ${res.error}`);
+          return;
+        }
+
+        await reload();
+        flash(`Imported "${parsed.data.title}" as draft (slug: ${safeSlug})`);
+      } catch {
+        setError("Import failed: unexpected error.");
+      } finally {
+        setImporting(false);
+        // Reset the file input so the same file can be re-imported after a fix.
+        if (importFileRef.current) importFileRef.current.value = "";
+      }
+    },
+    [reload, flash],
+  );
+
   // ── A7 quick-rename handlers ───────────────────────────────────────────────
 
   const startCategoryRename = useCallback((category: string) => {
@@ -696,18 +779,41 @@ export function SiteStarterKitView({
       data-testid="lab-starter-kit-root"
       style={{ display: "flex", flexDirection: "column", gap: 14 }}
     >
+      {/* A4 — hidden file input wired to the Import button */}
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".json,application/json"
+        aria-hidden="true"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleImportFile(file);
+        }}
+      />
+
       <LabViewHeader
         title="Site Starter Kit"
         blurb="Full-page starters in the page-templates gallery. Edit, tag, publish, or open them in the builder. Sync pulls in the built-in designs."
         actions={
-          <LabButton
-            variant="secondary"
-            disabled={syncing}
-            onClick={() => void runSync()}
-            ariaLabel="Sync built-in starters"
-          >
-            {syncing ? "Syncing…" : "Sync built-in starters"}
-          </LabButton>
+          <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+            <LabButton
+              variant="secondary"
+              disabled={importing}
+              onClick={() => importFileRef.current?.click()}
+              ariaLabel="Import template from JSON file"
+            >
+              {importing ? "Importing…" : "Import"}
+            </LabButton>
+            <LabButton
+              variant="secondary"
+              disabled={syncing}
+              onClick={() => void runSync()}
+              ariaLabel="Sync built-in starters"
+            >
+              {syncing ? "Syncing…" : "Sync built-in starters"}
+            </LabButton>
+          </span>
         }
       />
 
