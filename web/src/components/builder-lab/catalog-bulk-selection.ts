@@ -155,3 +155,97 @@ export function deriveResetRefs(
 ): string[] {
   return rows.map((r) => r.id);
 }
+
+// ── P2: batch-outcome summary + usage aggregate (PURE) ───────────────────────
+
+/**
+ * The structural shape of one entry in the `BatchItemResult[]` the O1 batch
+ * server actions return on `ok:true`. Declared here (not imported from the
+ * `"use server"` `catalog-overlay-actions` module) so this leaf stays free of the
+ * server bundle and loadable by the tsx test runner — a re-export of a type from
+ * a `"use server"` file has poisoned a client chunk before (see MEMORY).
+ */
+export interface BatchOutcomeItem {
+  item_ref: string;
+  ok: boolean;
+  error?: string;
+}
+
+/** The reconciled summary of a bulk batch run, ready for the action-bar status. */
+export interface BatchOutcomeSummary {
+  /** Rows the server reported written ok. */
+  applied: number;
+  /**
+   * Rows that never reached the server because the client-side derivation
+   * subtracted them (a surface the row's `target_context` can't widen onto).
+   */
+  skipped: number;
+  /** Rows the server attempted but reported a per-item failure. */
+  failed: number;
+  /** A human one-liner, e.g. "8 applied · 2 skipped · 1 failed". */
+  message: string;
+}
+
+/**
+ * Reconcile the per-item `BatchOutcomeItem[]` against the selection so the bulk
+ * bar can honestly report "N applied, K skipped/failed" instead of silently
+ * clearing everything.
+ *
+ * - `attempted` is how many inputs the derivation actually produced (the batch
+ *   that reached the server). `totalSelected − attempted` = client-skipped rows
+ *   (forbidden surface targets the derivation dropped — subtract-only).
+ * - Within `results`, `ok:false` entries are per-item failures.
+ */
+export function summarizeBatchResults(
+  results: ReadonlyArray<BatchOutcomeItem>,
+  attempted: number,
+  totalSelected: number,
+): BatchOutcomeSummary {
+  const applied = results.filter((r) => r.ok).length;
+  const failed = results.filter((r) => !r.ok).length;
+  // Rows the derivation dropped before the server saw them, never negative.
+  const skipped = Math.max(0, totalSelected - attempted);
+  const parts = [`${applied} applied`];
+  if (skipped > 0) parts.push(`${skipped} skipped`);
+  if (failed > 0) parts.push(`${failed} failed`);
+  return { applied, skipped, failed, message: parts.join(" · ") };
+}
+
+/**
+ * The set of item_refs that should STAY selected after a partial batch — the
+ * per-item failures (so the operator can retry just them). Client-skipped rows
+ * are handled by the caller against the original selection; this only covers the
+ * rows that reached the server and failed.
+ */
+export function failedRefs(
+  results: ReadonlyArray<BatchOutcomeItem>,
+): Set<string> {
+  return new Set(results.filter((r) => !r.ok).map((r) => r.item_ref));
+}
+
+/** The aggregate live-page usage across selected rows, for the bulk-hide confirm. */
+export interface BulkUsageAggregate {
+  /** Total selected rows. */
+  total: number;
+  /** Rows with a known usageCount > 0 (used on at least one live page). */
+  used: number;
+  /** Rows whose usageCount is undefined (usage not yet scanned / unknown). */
+  unknown: number;
+}
+
+/**
+ * Aggregate the selected rows' `usageCount` for the bulk Hide confirm. Counts a
+ * row as "used" when its `usageCount` is a number > 0; `undefined` (usage not
+ * scanned) is tallied separately as "unknown" rather than assumed safe.
+ */
+export function summarizeUsageForRows(
+  rows: ReadonlyArray<CatalogAdminItem>,
+): BulkUsageAggregate {
+  let used = 0;
+  let unknown = 0;
+  for (const r of rows) {
+    if (typeof r.usageCount !== "number") unknown += 1;
+    else if (r.usageCount > 0) used += 1;
+  }
+  return { total: rows.length, used, unknown };
+}
