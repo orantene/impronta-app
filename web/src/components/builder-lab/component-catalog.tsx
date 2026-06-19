@@ -91,7 +91,13 @@ import {
   PillToggle,
   LabToast,
   EmptyCard,
+  type LabToastAction,
 } from "./ui";
+import {
+  buildUndoDescriptor,
+  type UndoMutationKind,
+  type UndoRevert,
+} from "./catalog-undo";
 import {
   type FilterPreset,
   type FilterState,
@@ -317,8 +323,13 @@ export function ComponentCatalog({
   // (Agency first, matching Site Defaults).
   const [connectedSurface, setConnectedSurface] =
     useState<ConnectedDataGroup>("agency");
-  // W11 — transient success toast.
-  const [toast, setToast] = useState<string | null>(null);
+  // W11 — transient success toast. O5 — the toast can now carry an optional
+  // "Undo" action (built from the pre-mutation overlay snapshot); a plain
+  // `flash()` leaves `undo` null so the toast renders action-free as before.
+  const [toast, setToast] = useState<{
+    message: string;
+    undo: LabToastAction | null;
+  } | null>(null);
   // QA harness — flips to true after mount so browser automation can wait for
   // hydration (data-hydrated="true" on the catalog root) before clicking tabs,
   // fixing the clicks-before-React-attaches race. Inert; no behavior change.
@@ -330,7 +341,7 @@ export function ComponentCatalog({
   const [allTemplates, setAllTemplates] = useState<BuilderTemplateRow[]>([]);
 
   const flash = useCallback((msg: string) => {
-    setToast(msg);
+    setToast({ message: msg, undo: null });
     setTimeout(() => setToast(null), T.toastMs);
   }, []);
 
@@ -482,6 +493,63 @@ export function ComponentCatalog({
     [reload],
   );
 
+  // O5 — run an undo revert (re-apply the captured `before`, or clear when the
+  // row had no overlay). Routes through the SAME mutate() round-trip a normal
+  // edit takes, so the live galleries reconcile identically. Dismisses the toast
+  // immediately so a second click can't double-fire the revert.
+  const runRevert = useCallback(
+    (itemRef: string, revert: UndoRevert) => {
+      setToast(null);
+      void mutate(itemRef, () =>
+        revert.mode === "apply"
+          ? setComponentOverlay(revert.input)
+          : clearComponentOverlay(revert.itemRef),
+      ).then(() => flash("Change undone ✓"));
+    },
+    [mutate, flash],
+  );
+
+  // O5 — emit a success toast that carries an Undo action built from the
+  // pre-mutation snapshot. `undoable: false` descriptors (e.g. DB-template status
+  // changes, which move the lifecycle, not the overlay) fall back to a plain
+  // toast with no action.
+  const flashWithUndo = useCallback(
+    (args: {
+      kind: UndoMutationKind;
+      itemRef: string;
+      source: "code" | "template";
+      before: CatalogOverlayRow | null;
+      itemLabel: string;
+      message: string;
+    }) => {
+      const desc = buildUndoDescriptor(
+        {
+          kind: args.kind,
+          itemRef: args.itemRef,
+          source: args.source,
+          before: args.before,
+          itemLabel: args.itemLabel,
+        },
+        args.message,
+      );
+      if (!desc.undoable || !desc.revert) {
+        flash(desc.message);
+        return;
+      }
+      const revert = desc.revert;
+      setToast({
+        message: desc.message,
+        undo: {
+          label: desc.undoLabel,
+          testId: `lab-catalog-undo-${args.itemRef}`,
+          onClick: () => runRevert(args.itemRef, revert),
+        },
+      });
+      setTimeout(() => setToast(null), T.toastMs);
+    },
+    [flash, runRevert],
+  );
+
   // X4 — toggle ONE of the four real surfaces. Each surface has its OWN overlay
   // column (`talent_profile_enabled` … `workspace_shell_enabled`); we also
   // dual-write the legacy `talent_enabled` / `workspace_enabled` pair (as the AND
@@ -548,6 +616,13 @@ export function ComponentCatalog({
           : prev,
       );
       const column = SURFACE_ENABLED_COLUMN[surfaceKey];
+      // O5 — snapshot the pre-toggle overlay so the toast's Undo can re-apply it
+      // (an accidental surface flip is one click away from recovery).
+      const before = item.overlay;
+      const surfaceLabel = surfaceKey
+        .split("_")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
       void mutate(item.id, () =>
         setComponentOverlay({
           item_ref: item.id,
@@ -556,9 +631,18 @@ export function ComponentCatalog({
           talent_enabled: legacyTalent,
           workspace_enabled: legacyWorkspace,
         }),
+      ).then(() =>
+        flashWithUndo({
+          kind: "toggle",
+          itemRef: item.id,
+          source: item.source,
+          before,
+          itemLabel: item.effectiveLabel,
+          message: `${nextFour[surfaceKey] ? "Enabled" : "Disabled"} on ${surfaceLabel}`,
+        }),
       );
     },
-    [mutate],
+    [mutate, flashWithUndo],
   );
 
   // X6 — toggle the INDEPENDENT Builder-Lab visibility. Orthogonal to the four
@@ -593,15 +677,25 @@ export function ComponentCatalog({
             })
           : prev,
       );
+      const before = item.overlay;
       void mutate(item.id, () =>
         setComponentOverlay({
           item_ref: item.id,
           source: item.source,
           lab_enabled: nextLab,
         }),
+      ).then(() =>
+        flashWithUndo({
+          kind: "toggle",
+          itemRef: item.id,
+          source: item.source,
+          before,
+          itemLabel: item.effectiveLabel,
+          message: `${nextLab ? "Shown" : "Hidden"} in Builder Lab`,
+        }),
       );
     },
-    [mutate],
+    [mutate, flashWithUndo],
   );
 
   /** Open ONE row's editor (added to the expanded set) + seed its form. */
@@ -658,6 +752,7 @@ export function ComponentCatalog({
         defaultPropsError: null,
         dataSourceDefaultsError: null,
       });
+      const before = item.overlay;
       void mutate(item.id, () =>
         setComponentOverlay({
           item_ref: item.id,
@@ -674,20 +769,53 @@ export function ComponentCatalog({
         }),
       ).then(() => {
         closeEdit(item.id);
-        flash("Saved ✓");
+        flashWithUndo({
+          kind: "save",
+          itemRef: item.id,
+          source: item.source,
+          before,
+          itemLabel: item.effectiveLabel,
+          message: "Saved ✓",
+        });
       });
     },
-    [mutate, editForms, patchEditForm, closeEdit, flash],
+    [mutate, editForms, patchEditForm, closeEdit, flashWithUndo],
   );
 
-  const confirmReset = useCallback(
+  // O5 — reset is now OPTIMISTIC (no inline "Reset to default?" confirm step):
+  // clicking Reset clears the overlay immediately and surfaces an Undo toast that
+  // re-applies the captured `before`. `resetWithUndo` is the single entry point;
+  // `confirmReset` is kept as a thin wrapper so the row table's (still-wired but
+  // now-dormant) confirm path stays type-compatible.
+  const resetWithUndo = useCallback(
     (item: CatalogAdminItem) => {
       setConfirmingResetId(null);
+      const before = item.overlay;
       void mutate(item.id, () => clearComponentOverlay(item.id)).then(() =>
-        flash("Reset ✓"),
+        flashWithUndo({
+          kind: "reset",
+          itemRef: item.id,
+          source: item.source,
+          before,
+          itemLabel: item.effectiveLabel,
+          message: "Reset to default ✓",
+        }),
       );
     },
-    [mutate, flash],
+    [mutate, flashWithUndo],
+  );
+
+  const confirmReset = resetWithUndo;
+
+  // O5 — the row "Reset" link calls onStartReset(id). It now applies the reset
+  // optimistically (with Undo) instead of opening the inline confirm row. Looks
+  // the row up by id (the link only carries the id).
+  const startResetOptimistic = useCallback(
+    (id: string) => {
+      const item = items?.find((r) => r.id === id);
+      if (item) resetWithUndo(item);
+    },
+    [items, resetWithUndo],
   );
 
   // ── Status transition (lifecycle control, ZERO migration) ───────────────────
@@ -704,6 +832,9 @@ export function ComponentCatalog({
     (item: CatalogAdminItem, next: "draft" | "in_review" | "published" | "archived") => {
       if (item.source === "code") {
         const availability = next === "archived" ? "hidden" : "available";
+        // O5 — code-row status rides the overlay (availability_override), so the
+        // captured `before` re-applies on Undo.
+        const before = item.overlay;
         void mutate(item.id, () =>
           setComponentOverlay({
             item_ref: item.id,
@@ -711,7 +842,14 @@ export function ComponentCatalog({
             availability_override: availability,
           }),
         ).then(() =>
-          flash(next === "archived" ? "Archived" : "Published ✓"),
+          flashWithUndo({
+            kind: "status",
+            itemRef: item.id,
+            source: item.source,
+            before,
+            itemLabel: item.effectiveLabel,
+            message: next === "archived" ? "Archived" : "Published ✓",
+          }),
         );
         return;
       }
@@ -738,7 +876,7 @@ export function ComponentCatalog({
         flash(labels[next]);
       });
     },
-    [mutate, flash],
+    [mutate, flash, flashWithUndo],
   );
 
   const { presentTabs, rowsByTab } = useMemo(() => {
@@ -1040,7 +1178,9 @@ export function ComponentCatalog({
         <div style={{ color: T.red, fontSize: 12 }}>{error}</div>
       ) : null}
 
-      {toast ? <LabToast>{toast}</LabToast> : null}
+      {toast ? (
+        <LabToast action={toast.undo ?? undefined}>{toast.message}</LabToast>
+      ) : null}
 
       {/* O7 — Filter preset strip */}
       <div
@@ -1296,7 +1436,7 @@ export function ComponentCatalog({
           // fallback should the adapter ever be absent.
           onCancelEdit={onCollapseAllVisible}
           onConfirmReset={confirmReset}
-          onStartReset={(id) => setConfirmingResetId(id)}
+          onStartReset={startResetOptimistic}
           onCancelReset={() => setConfirmingResetId(null)}
           onReverted={reload}
           onPreview={(r) => {

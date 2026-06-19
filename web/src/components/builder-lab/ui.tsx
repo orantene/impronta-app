@@ -385,13 +385,33 @@ export function LabChip({
 }
 
 // ── Toast (transient success / status banner) ─────────────────────────────────
+/** Optional inline action rendered at the toast's trailing edge (e.g. "Undo").
+ *  Additive — toasts without an `action` render exactly as before. */
+export interface LabToastAction {
+  label: string;
+  onClick: () => void;
+  /** Inert data-testid for QA. */
+  testId?: string;
+}
+
 /** The one canonical success/status toast — was hand-rolled identically in the
- *  Catalog + Catalog Studio. `role="status"` for SR announcement. */
-export function LabToast({ children }: { children: ReactNode }) {
+ *  Catalog + Catalog Studio. `role="status"` for SR announcement. Pass an
+ *  optional `action` to surface an inline button (the O5 "Undo" affordance);
+ *  existing callers omit it and render unchanged. */
+export function LabToast({
+  children,
+  action,
+}: {
+  children: ReactNode;
+  action?: LabToastAction;
+}) {
   return (
     <div
       role="status"
       style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 12,
         fontSize: 12,
         color: LAB.accent,
         background: "rgba(93,211,160,0.10)",
@@ -400,7 +420,28 @@ export function LabToast({ children }: { children: ReactNode }) {
         alignSelf: "flex-start",
       }}
     >
-      {children}
+      <span>{children}</span>
+      {action ? (
+        <button
+          type="button"
+          data-testid={action.testId}
+          onClick={action.onClick}
+          className={`rounded ${FOCUS_RING}`}
+          style={{
+            background: "transparent",
+            border: `1px solid ${LAB.accent}`,
+            borderRadius: RADII.control,
+            color: LAB.accent,
+            fontSize: 11.5,
+            fontWeight: 700,
+            padding: "2px 9px",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {action.label}
+        </button>
+      ) : null}
     </div>
   );
 }
