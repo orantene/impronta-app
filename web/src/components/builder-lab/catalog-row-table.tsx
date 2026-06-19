@@ -457,6 +457,15 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                 <Th center help="Visibility in the Builder Lab's own gallery (lab_enabled) — independent of the four tenant surfaces and never gated by target_context.">
                   Builder Lab
                 </Th>
+                {/* D1 — how many tenant trees reference this component TYPE
+                    (node.kind), tallied across every tenant tree column
+                    (cms_pages.blocks / cms_sections.props_jsonb /
+                    cms_builder_components.subtree_jsonb / talent_sites
+                    snapshots + shell). "—" for items with no single countable
+                    type (a DB page/section template is inlined as a subtree). */}
+                <Th center help="How many tenant pages use this component type, tallied across every tenant tree (pages, saved sections, reusable components, talent Max-sites + shells).">
+                  Used
+                </Th>
                 <Th right>Manage</Th>
               </tr>
             </thead>
@@ -611,6 +620,7 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                         label={r.effectiveLabel}
                         surface="Builder Lab"
                       />
+                      <UsageCell count={r.usageCount} label={r.effectiveLabel} />
                       <td style={{ padding: "9px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
                         {editing ? (
                           <span style={{ display: "inline-flex", gap: 6 }}>
@@ -878,7 +888,7 @@ function EditAccordionRow({
 }: CatalogRowTableProps & { item: CatalogAdminItem }) {
   return (
     <tr style={{ background: T.cardSoft }}>
-      <td colSpan={10} style={{ padding: "12px 16px" }}>
+      <td colSpan={11} style={{ padding: "12px 16px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Display group — cosmetic overrides */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1142,7 +1152,7 @@ function RowHistoryRow({
 
   return (
     <tr>
-      <td colSpan={10} style={{ padding: "10px 16px", background: T.cardSoft }}>
+      <td colSpan={11} style={{ padding: "10px 16px", background: T.cardSoft }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
           <SectionLabel>History</SectionLabel>
           <LinkBtn label="Close" onClick={onClose} />
@@ -1277,6 +1287,55 @@ function Th({
         ) : null}
       </span>
     </th>
+  );
+}
+
+/**
+ * D1 — the "Used N" cell. Shows how many tenant pages reference this component
+ * TYPE (node.kind), aggregated across every tenant tree. `undefined` ⇒ the item
+ * has no single countable type (a DB page/section template is inlined as a whole
+ * subtree, not one kind) → render a muted "—". A real count (incl. 0) renders as
+ * a pill, dim when 0 (unused) so high-usage types stand out at a glance.
+ */
+function UsageCell({
+  count,
+  label,
+}: {
+  count: number | undefined;
+  label: string;
+}) {
+  if (count === undefined) {
+    return (
+      <td
+        style={{ padding: "9px 16px", textAlign: "center", color: T.inkDim }}
+        title="Not a single countable component type (templates are inlined as a subtree)."
+      >
+        —
+      </td>
+    );
+  }
+  const used = count > 0;
+  return (
+    <td style={{ padding: "9px 16px", textAlign: "center" }}>
+      <span
+        title={`${label} is used on ${count} tenant page${count === 1 ? "" : "s"}.`}
+        aria-label={`Used on ${count} tenant page${count === 1 ? "" : "s"}`}
+        style={{
+          display: "inline-block",
+          minWidth: 36,
+          padding: "3px 9px",
+          borderRadius: 999,
+          border: `1px solid ${used ? "rgba(93,211,160,0.45)" : T.border}`,
+          background: used ? "rgba(93,211,160,0.12)" : "transparent",
+          color: used ? T.yes : T.inkDim,
+          fontSize: 11.5,
+          fontWeight: 700,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {count}
+      </span>
+    </td>
   );
 }
 

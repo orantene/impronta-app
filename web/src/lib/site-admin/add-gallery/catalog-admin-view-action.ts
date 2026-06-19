@@ -22,15 +22,17 @@ import {
   type CatalogAdminItem,
 } from "./registry-db-merge";
 import { listCatalogStructure } from "./catalog-structure-actions";
+import { loadComponentUsageTally } from "./component-usage-action";
 import type { AddGalleryItem } from "./types";
 import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
 import { listCatalogOverlays } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
 
 export async function loadCatalogAdminView(): Promise<CatalogAdminItem[]> {
-  const [templatesRes, overlays, structure] = await Promise.all([
+  const [templatesRes, overlays, structure, usageTally] = await Promise.all([
     listAllTemplates(), // super_admin-gated; ALL statuses
     listCatalogOverlays(),
     listCatalogStructure(),
+    loadComponentUsageTally(), // D1 — per-TYPE usage across tenant trees
   ]);
 
   const rows = templatesRes.ok ? templatesRes.data : [];
@@ -52,5 +54,11 @@ export async function loadCatalogAdminView(): Promise<CatalogAdminItem[]> {
   // — overlay winning in the Lab while structure wins live — is gone. Empty
   // structure ⇒ identity.
   const universe: AddGalleryItem[] = [...ADD_GALLERY_ITEMS, ...templateItems];
-  return buildCatalogAdminView(universe, overlays, statusByRef, structure);
+  return buildCatalogAdminView(
+    universe,
+    overlays,
+    statusByRef,
+    structure,
+    usageTally,
+  );
 }

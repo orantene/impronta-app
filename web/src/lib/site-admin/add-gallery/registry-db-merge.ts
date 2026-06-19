@@ -35,6 +35,10 @@ import {
   applyStructureToItems,
   type CatalogStructureMap,
 } from "./catalog-structure";
+import {
+  usageCountForItem,
+  type ComponentUsageTally,
+} from "./component-usage-scan";
 import type { AddGalleryItem, AddGalleryTab } from "./types";
 
 // ── Plan rank (mirrors registry-rows.templatePlanAllowed / data-bindings PLAN_RANK) ──
@@ -195,6 +199,18 @@ export interface CatalogAdminItem {
   labVisible: boolean;
   effectiveLabel: string;
   effectiveCategory: string;
+  /**
+   * D1 — how many tenant trees reference this component's TYPE, aggregated
+   * across every tenant tree-bearing column (cms_pages.blocks /
+   * cms_sections.props_jsonb / cms_builder_components.subtree_jsonb /
+   * talent_sites snapshots + shell). Resolved by `applyUsageCounts` from the
+   * platform-wide `ComponentUsageTally` (native items key on `nativeKind`,
+   * curated section embeds on `sectionEmbedKey`). `undefined` ⇒ the item has no
+   * single countable TYPE (a DB page/section template is inlined as a whole
+   * subtree, not one node kind) → the UI renders "—"; a NUMBER (incl. 0) ⇒ a
+   * real type, used on N tenant pages.
+   */
+  usageCount?: number;
 }
 
 /**
@@ -226,6 +242,11 @@ export function buildCatalogAdminView(
   overlays: CatalogOverlayMap,
   statusByRef?: Record<string, string>,
   structure: CatalogStructureMap = {},
+  // D1 — the platform-wide component-TYPE usage tally. When supplied, each row's
+  // `usageCount` is resolved from it (native items key on `nativeKind`, curated
+  // section embeds on `sectionEmbedKey`). Omitted ⇒ `usageCount` stays undefined
+  // (identity for existing callers/tests) and the UI renders "—".
+  usageTally?: ComponentUsageTally,
 ): CatalogAdminItem[] {
   return universe.map((item) => {
     const source: "code" | "template" =
@@ -300,6 +321,9 @@ export function buildCatalogAdminView(
       labVisible,
       effectiveLabel: ov?.label_override ?? item.label,
       effectiveCategory,
+      usageCount: usageTally
+        ? usageCountForItem(item, usageTally)
+        : undefined,
     };
   });
 }
