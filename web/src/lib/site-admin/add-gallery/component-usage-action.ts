@@ -52,11 +52,11 @@ function tallyColumn<Row>(
 }
 
 /**
- * Load the platform-wide component-TYPE usage tally. Super_admin-gated;
- * returns an empty tally (never throws) when not authorized or on a read error,
- * so the Catalog view degrades to "—" rather than failing. Memoized per request.
+ * Per-request-memoized implementation. NOT exported — a `"use server"` file may
+ * only export async functions, so the `cache()`-wrapped const stays private and
+ * the public entry point below is a thin async wrapper.
  */
-export const loadComponentUsageTally = cache(
+const loadComponentUsageTallyCached = cache(
   async (): Promise<ComponentUsageTally> => {
     if (!(await requireSuperAdmin())) return emptyUsageTally();
 
@@ -99,3 +99,12 @@ export const loadComponentUsageTally = cache(
     }
   },
 );
+
+/**
+ * Load the platform-wide component-TYPE usage tally. Super_admin-gated;
+ * returns an empty tally (never throws) when not authorized or on a read error,
+ * so the Catalog view degrades to "—" rather than failing. Memoized per request.
+ */
+export async function loadComponentUsageTally(): Promise<ComponentUsageTally> {
+  return loadComponentUsageTallyCached();
+}

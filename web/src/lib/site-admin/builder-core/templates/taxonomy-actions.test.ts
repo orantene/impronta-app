@@ -18,7 +18,7 @@ import {
   applyTagRename,
   applyTagMerge,
   applyTagDelete,
-} from "./taxonomy-actions";
+} from "./taxonomy-shape";
 import type { BuilderTemplateRow } from "./registry-rows";
 
 // ── Minimal fixture factory ───────────────────────────────────────────────────
