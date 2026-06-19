@@ -13,6 +13,8 @@ import {
   mintCopySlug,
   stripCopyTitleSuffix,
   mintCopyTitle,
+  suggestDuplicateDefaults,
+  isSlugTaken,
 } from "./slug-minting";
 
 // ── stripCopySuffix ────────────────────────────────────────────────────────────
@@ -198,5 +200,96 @@ describe("mintCopyTitle", () => {
     existing.add(third);
 
     assert.equal(new Set([first, second, third]).size, 3);
+  });
+});
+
+// ── suggestDuplicateDefaults ───────────────────────────────────────────────────
+// A1 — these helpers power the duplicate-with-rename dialog in TemplateManager.
+
+describe("suggestDuplicateDefaults", () => {
+  it("suggests the first free copy slug and title when no copies exist", () => {
+    const rows = [{ slug: "editorial-dark", title: "Editorial Dark" }];
+    const result = suggestDuplicateDefaults("editorial-dark", "Editorial Dark", rows);
+    assert.equal(result.slug, "editorial-dark-copy");
+    assert.equal(result.title, "Editorial Dark (Copy)");
+  });
+
+  it("skips -copy and suggests -copy-2 when -copy is already taken", () => {
+    const rows = [
+      { slug: "editorial-dark", title: "Editorial Dark" },
+      { slug: "editorial-dark-copy", title: "Editorial Dark (Copy)" },
+    ];
+    const result = suggestDuplicateDefaults("editorial-dark", "Editorial Dark", rows);
+    assert.equal(result.slug, "editorial-dark-copy-2");
+    assert.equal(result.title, "Editorial Dark (Copy 2)");
+  });
+
+  it("uses source row as base when source already has -copy suffix", () => {
+    // Duplicating a copy — should not accumulate -copy-copy
+    const rows = [
+      { slug: "editorial-dark", title: "Editorial Dark" },
+      { slug: "editorial-dark-copy", title: "Editorial Dark (Copy)" },
+    ];
+    const result = suggestDuplicateDefaults(
+      "editorial-dark-copy",
+      "Editorial Dark (Copy)",
+      rows,
+    );
+    assert.equal(result.slug, "editorial-dark-copy-2");
+    assert.equal(result.title, "Editorial Dark (Copy 2)");
+  });
+
+  it("returns distinct slug and title when both free slots differ", () => {
+    // Title slot (Copy) taken but slug slot -copy is free
+    const rows = [
+      { slug: "hero-dark", title: "Hero Dark" },
+      { slug: "hero-dark-other", title: "Hero Dark (Copy)" },
+    ];
+    const result = suggestDuplicateDefaults("hero-dark", "Hero Dark", rows);
+    assert.equal(result.slug, "hero-dark-copy");
+    assert.equal(result.title, "Hero Dark (Copy 2)");
+  });
+});
+
+// ── isSlugTaken ────────────────────────────────────────────────────────────────
+
+describe("isSlugTaken", () => {
+  const rows = [
+    { slug: "editorial-dark" },
+    { slug: "hero-section" },
+    { slug: "editorial-dark-copy" },
+  ];
+
+  it("returns true when slug is in the list", () => {
+    assert.equal(isSlugTaken("editorial-dark", rows), true);
+  });
+
+  it("returns false when slug is not in the list", () => {
+    assert.equal(isSlugTaken("brand-new-slug", rows), false);
+  });
+
+  it("is case-insensitive", () => {
+    assert.equal(isSlugTaken("EDITORIAL-DARK", rows), true);
+  });
+
+  it("returns false for the excluded slug (pre-populated default is always valid)", () => {
+    // The suggested default slug "editorial-dark-copy" is already in the list,
+    // but we pass it as excludeSlug so it doesn't block submitting the default.
+    assert.equal(
+      isSlugTaken("editorial-dark-copy", rows, "editorial-dark-copy"),
+      false,
+    );
+  });
+
+  it("returns true for a different slug that happens to collide even with excludeSlug set", () => {
+    // User typed "editorial-dark" while excludeSlug is "editorial-dark-copy"
+    assert.equal(
+      isSlugTaken("editorial-dark", rows, "editorial-dark-copy"),
+      true,
+    );
+  });
+
+  it("returns false for an empty list", () => {
+    assert.equal(isSlugTaken("any-slug", []), false);
   });
 });
