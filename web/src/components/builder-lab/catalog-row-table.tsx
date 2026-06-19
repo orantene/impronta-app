@@ -162,6 +162,52 @@ function toLabStatus(status: string): LabStatus {
     : "published";
 }
 
+/**
+ * O9 — multi-row edit accordion adapter. When supplied, the row table opens an
+ * inline editor for EVERY row whose id `isExpanded` returns true (not just the
+ * single `editingId`), and sources that row's form values from a PER-ROW bundle
+ * keyed by id — so several rows' locked/default-prop editors stay open
+ * side-by-side, each with independent inputs.
+ *
+ * This is the single additive seam ComponentCatalog uses to drive multi-open;
+ * the per-row `CatalogEditFormBundle` is exactly the flat edit-form value/setter
+ * slice that {@link EditAccordionRow} already consumes. When `multiEdit` is
+ * omitted the table falls back to the legacy single-open `editingId` path
+ * verbatim (backward-compatible).
+ */
+export type CatalogEditFormBundle = Pick<
+  CatalogRowTableProps,
+  | "editLabel"
+  | "setEditLabel"
+  | "editCategory"
+  | "setEditCategory"
+  | "editIcon"
+  | "setEditIcon"
+  | "editPlan"
+  | "setEditPlan"
+  | "editLockedProps"
+  | "setEditLockedProps"
+  | "editDefaultVariant"
+  | "setEditDefaultVariant"
+  | "editDefaultProps"
+  | "setEditDefaultProps"
+  | "editDefaultPropsError"
+  | "setEditDefaultPropsError"
+  | "editDataSourceDefaults"
+  | "setEditDataSourceDefaults"
+  | "editDataSourceDefaultsError"
+  | "setEditDataSourceDefaultsError"
+>;
+
+export interface CatalogMultiEditAdapter {
+  /** True iff this row's override editor should render open. */
+  isExpanded: (id: string) => boolean;
+  /** The per-row form value/setter bundle for an expanded row. */
+  formFor: (id: string) => CatalogEditFormBundle;
+  /** Close ONE row's editor (the per-row Cancel affordance under multi-open). */
+  closeRow: (id: string) => void;
+}
+
 /** Props the parent threads into each row group's table. The edit-form value +
  *  setter pairs are owned by ComponentCatalog so save/cancel/reset stay there. */
 export interface CatalogRowTableProps {
@@ -169,6 +215,9 @@ export interface CatalogRowTableProps {
   humanize: (id: string) => string;
   pendingId: string | null;
   editingId: string | null;
+  /** O9 — optional multi-open adapter; when set it supersedes `editingId` for
+   *  deciding which rows show the editor and supplies per-row form state. */
+  multiEdit?: CatalogMultiEditAdapter;
   confirmingResetId: string | null;
   // edit-form state (owned by parent)
   editLabel: string;
@@ -218,6 +267,7 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
     humanize,
     pendingId,
     editingId,
+    multiEdit,
     confirmingResetId,
     onRowClick,
     onToggleSurface,
@@ -291,7 +341,11 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
             <tbody>
               {group.rows.map((r) => {
                 const busy = pendingId === r.id;
-                const editing = editingId === r.id;
+                // O9 — multi-open: when the adapter is supplied, a row's editor
+                // is open per the expanded SET; otherwise the legacy single id.
+                const editing = multiEdit
+                  ? multiEdit.isExpanded(r.id)
+                  : editingId === r.id;
                 const isTemplate = r.source === "template";
                 const chips = governanceChips(r.overlay);
                 return (
@@ -424,7 +478,17 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                         {editing ? (
                           <span style={{ display: "inline-flex", gap: 6 }}>
                             <LinkBtn label="Save" testId={`lab-catalog-row-save-${r.id}`} onClick={() => onSaveEdit(r)} disabled={busy} primary />
-                            <LinkBtn label="Cancel" onClick={onCancelEdit} disabled={busy} />
+                            <LinkBtn
+                              label="Cancel"
+                              onClick={
+                                // O9 — close THIS row when multi-open; else the
+                                // legacy single-editor cancel.
+                                multiEdit
+                                  ? () => multiEdit.closeRow(r.id)
+                                  : onCancelEdit
+                              }
+                              disabled={busy}
+                            />
                           </span>
                         ) : confirmingResetId === r.id ? (
                           <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
@@ -462,7 +526,16 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                         onReverted={onReverted}
                       />
                     ) : null}
-                    {editing ? <EditAccordionRow item={r} {...props} /> : null}
+                    {editing ? (
+                      // O9 — when multi-open, override the shared flat form
+                      // value/setters with THIS row's per-id bundle so every
+                      // open editor edits its own values independently.
+                      <EditAccordionRow
+                        item={r}
+                        {...props}
+                        {...(multiEdit ? multiEdit.formFor(r.id) : {})}
+                      />
+                    ) : null}
                   </Fragment>
                 );
               })}

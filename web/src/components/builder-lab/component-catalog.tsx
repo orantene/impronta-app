@@ -52,7 +52,22 @@ import {
 } from "@/lib/site-admin/builder-core/templates/registry-actions";
 import { CatalogStudioView } from "./catalog-studio";
 import { SurfaceSwitcher } from "./surface-switcher";
-import { CatalogRowTable, targetAllows } from "./catalog-row-table";
+import {
+  CatalogRowTable,
+  targetAllows,
+  type CatalogEditFormBundle,
+} from "./catalog-row-table";
+import {
+  type EditFormMap,
+  type EditFormState,
+  allExpanded,
+  collapseAll,
+  editFormFromItem,
+  emptyEditForm,
+  expandAll,
+  expandedCount,
+  toggleExpanded,
+} from "./catalog-edit-accordion";
 import { PlaygroundView } from "./catalog-playground";
 import { SiteStarterKitView } from "./catalog-starter-kit";
 import { CatalogActivityFeed } from "./catalog-activity-feed";
@@ -144,6 +159,34 @@ const CATEGORY_LABEL = new Map(
   ADD_GALLERY_CATEGORIES.map((c) => [c.id, c.label] as const),
 );
 
+// O9 — placeholder values for CatalogRowTable's (required) flat edit-form props.
+// Under multi-open these are NEVER read — each open editor's values come from
+// `multiEdit.formFor(id)`. They only satisfy the prop contract so the row table
+// stays backward-compatible (the flat props remain required for legacy callers).
+const NOOP = () => {};
+const PLACEHOLDER_EDIT_FORM_PROPS: CatalogEditFormBundle = {
+  editLabel: "",
+  setEditLabel: NOOP,
+  editCategory: "",
+  setEditCategory: NOOP,
+  editIcon: "",
+  setEditIcon: NOOP,
+  editPlan: "",
+  setEditPlan: NOOP,
+  editLockedProps: "",
+  setEditLockedProps: NOOP,
+  editDefaultVariant: "",
+  setEditDefaultVariant: NOOP,
+  editDefaultProps: "",
+  setEditDefaultProps: NOOP,
+  editDefaultPropsError: null,
+  setEditDefaultPropsError: NOOP,
+  editDataSourceDefaults: "",
+  setEditDataSourceDefaults: NOOP,
+  editDataSourceDefaultsError: null,
+  setEditDataSourceDefaultsError: NOOP,
+};
+
 function humanize(id: string): string {
   return (
     CATEGORY_LABEL.get(id) ??
@@ -228,21 +271,25 @@ export function ComponentCatalog({
   const [structure, setStructure] = useState<CatalogStructureMap>({});
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editLabel, setEditLabel] = useState("");
-  const [editCategory, setEditCategory] = useState("");
-  const [editIcon, setEditIcon] = useState("");
-  const [editPlan, setEditPlan] = useState("");
-  const [editLockedProps, setEditLockedProps] = useState("");
-  const [editDefaultVariant, setEditDefaultVariant] = useState("");
-  const [editDefaultProps, setEditDefaultProps] = useState("");
-  const [editDefaultPropsError, setEditDefaultPropsError] = useState<string | null>(
-    null,
+  // O9 — multi-row edit accordion. `expandedIds` is the SET of rows whose
+  // override editor is open (was a single `editingId`); `editForms` holds each
+  // open row's form values keyed by id, so several rows' locked/default props
+  // stay open side-by-side with independent inputs.
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(
+    () => new Set<string>(),
   );
-  const [editDataSourceDefaults, setEditDataSourceDefaults] = useState("");
-  const [editDataSourceDefaultsError, setEditDataSourceDefaultsError] = useState<
-    string | null
-  >(null);
+  const [editForms, setEditForms] = useState<EditFormMap>({});
+
+  /** Patch one row's open form snapshot (used by the per-row field setters). */
+  const patchEditForm = useCallback(
+    (id: string, patch: Partial<EditFormState>) => {
+      setEditForms((prev) => {
+        const base = prev[id] ?? emptyEditForm();
+        return { ...prev, [id]: { ...base, ...patch } };
+      });
+    },
+    [],
+  );
   // W11 — inline (non-blocking) reset confirmation.
   const [confirmingResetId, setConfirmingResetId] = useState<string | null>(null);
   // W6 — search + filter over the (large) catalog.
@@ -515,68 +562,80 @@ export function ComponentCatalog({
     [mutate],
   );
 
+  /** Open ONE row's editor (added to the expanded set) + seed its form. */
   const startEdit = useCallback((item: CatalogAdminItem) => {
-    setEditingId(item.id);
-    setEditLabel(item.overlay?.label_override ?? "");
-    setEditCategory(item.overlay?.category_override ?? "");
-    setEditIcon(item.overlay?.icon_override ?? "");
-    setEditPlan(item.overlay?.required_plan_override ?? "");
-    setEditLockedProps((item.overlay?.locked_props ?? []).join(", "));
-    setEditDefaultVariant(item.overlay?.default_variant ?? "");
-    const dp = item.overlay?.default_props;
-    setEditDefaultProps(dp ? JSON.stringify(dp, null, 2) : "");
-    setEditDefaultPropsError(null);
-    const dsd = item.overlay?.data_source_defaults;
-    setEditDataSourceDefaults(dsd ? JSON.stringify(dsd, null, 2) : "");
-    setEditDataSourceDefaultsError(null);
+    setEditForms((prev) => ({ ...prev, [item.id]: editFormFromItem(item) }));
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      next.add(item.id);
+      return next;
+    });
   }, []);
+
+  /** Close ONE row's editor (removed from the set) + drop its form snapshot. */
+  const closeEdit = useCallback((id: string) => {
+    setExpandedIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setEditForms((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
+  /** Toggle ONE row's editor open/closed (the row-click affordance). */
+  const toggleEdit = useCallback(
+    (item: CatalogAdminItem) => {
+      if (expandedIds.has(item.id)) closeEdit(item.id);
+      else startEdit(item);
+    },
+    [expandedIds, closeEdit, startEdit],
+  );
 
   const saveEdit = useCallback(
     (item: CatalogAdminItem) => {
-      const dp = parseJsonObjectField(editDefaultProps, "Default props");
+      // O9 — read THIS row's per-id form snapshot (several may be open at once).
+      const form = editForms[item.id] ?? emptyEditForm();
+      const dp = parseJsonObjectField(form.defaultProps, "Default props");
       if (!dp.ok) {
         // Invalid JSON → keep the editor open, show the inline error, don't save.
-        setEditDefaultPropsError(dp.error);
+        patchEditForm(item.id, { defaultPropsError: dp.error });
         return;
       }
-      const dsd = parseJsonObjectField(editDataSourceDefaults, "Data-source defaults");
+      const dsd = parseJsonObjectField(form.dataSourceDefaults, "Data-source defaults");
       if (!dsd.ok) {
-        setEditDataSourceDefaultsError(dsd.error);
+        patchEditForm(item.id, { dataSourceDefaultsError: dsd.error });
         return;
       }
-      setEditDefaultPropsError(null);
-      setEditDataSourceDefaultsError(null);
+      patchEditForm(item.id, {
+        defaultPropsError: null,
+        dataSourceDefaultsError: null,
+      });
       void mutate(item.id, () =>
         setComponentOverlay({
           item_ref: item.id,
           source: item.source,
-          label_override: editLabel.trim() || null,
-          category_override: editCategory.trim() || null,
-          icon_override: editIcon.trim() || null,
+          label_override: form.label.trim() || null,
+          category_override: form.category.trim() || null,
+          icon_override: form.icon.trim() || null,
           required_plan_override:
-            (editPlan as "free" | "studio" | "agency" | "network" | "") || null,
-          locked_props: parseLockedProps(editLockedProps),
-          default_variant: editDefaultVariant.trim() || null,
+            (form.plan as "free" | "studio" | "agency" | "network" | "") || null,
+          locked_props: parseLockedProps(form.lockedProps),
+          default_variant: form.defaultVariant.trim() || null,
           default_props: dp.value,
           data_source_defaults: dsd.value,
         }),
       ).then(() => {
-        setEditingId(null);
+        closeEdit(item.id);
         flash("Saved ✓");
       });
     },
-    [
-      mutate,
-      editLabel,
-      editCategory,
-      editIcon,
-      editPlan,
-      editLockedProps,
-      editDefaultVariant,
-      editDefaultProps,
-      editDataSourceDefaults,
-      flash,
-    ],
+    [mutate, editForms, patchEditForm, closeEdit, flash],
   );
 
   const confirmReset = useCallback(
@@ -728,6 +787,66 @@ export function ComponentCatalog({
         }))
       : [{ key: String(currentView), label: viewLabel(currentView), rows: currentRows }]
   ).filter((g) => g.rows.length > 0);
+
+  // O9 — ids of every row currently rendered (across the visible groups); the
+  // expand-all / collapse-all header acts over exactly these.
+  const visibleRowIds = rowGroups.flatMap((g) => g.rows.map((r) => r.id));
+  const visibleExpandedCount = expandedCount(expandedIds, visibleRowIds);
+  const allVisibleExpanded = allExpanded(expandedIds, visibleRowIds);
+
+  /** Build the per-row form value/setter bundle the row table threads into each
+   *  open editor — reads the row's snapshot, writes back through patchEditForm. */
+  const formBundleFor = (id: string): CatalogEditFormBundle => {
+    const f = editForms[id] ?? emptyEditForm();
+    return {
+      editLabel: f.label,
+      setEditLabel: (v) => patchEditForm(id, { label: v }),
+      editCategory: f.category,
+      setEditCategory: (v) => patchEditForm(id, { category: v }),
+      editIcon: f.icon,
+      setEditIcon: (v) => patchEditForm(id, { icon: v }),
+      editPlan: f.plan,
+      setEditPlan: (v) => patchEditForm(id, { plan: v }),
+      editLockedProps: f.lockedProps,
+      setEditLockedProps: (v) => patchEditForm(id, { lockedProps: v }),
+      editDefaultVariant: f.defaultVariant,
+      setEditDefaultVariant: (v) => patchEditForm(id, { defaultVariant: v }),
+      editDefaultProps: f.defaultProps,
+      setEditDefaultProps: (v) => patchEditForm(id, { defaultProps: v }),
+      editDefaultPropsError: f.defaultPropsError,
+      setEditDefaultPropsError: (v) => patchEditForm(id, { defaultPropsError: v }),
+      editDataSourceDefaults: f.dataSourceDefaults,
+      setEditDataSourceDefaults: (v) => patchEditForm(id, { dataSourceDefaults: v }),
+      editDataSourceDefaultsError: f.dataSourceDefaultsError,
+      setEditDataSourceDefaultsError: (v) =>
+        patchEditForm(id, { dataSourceDefaultsError: v }),
+    };
+  };
+
+  /** Expand-all over the currently-listed rows: seed any not-yet-open form. */
+  const onExpandAllVisible = () => {
+    setEditForms((prev) => {
+      const next = { ...prev };
+      for (const g of rowGroups) {
+        for (const r of g.rows) {
+          if (!(r.id in next)) next[r.id] = editFormFromItem(r);
+        }
+      }
+      return next;
+    });
+    setExpandedIds((prev) => expandAll(prev, visibleRowIds));
+  };
+
+  /** Collapse-all over the currently-listed rows (rows hidden by another tab /
+   *  filter stay open). Drops their form snapshots. */
+  const onCollapseAllVisible = () => {
+    setExpandedIds((prev) => collapseAll(prev, visibleRowIds));
+    setEditForms((prev) => {
+      const next = { ...prev };
+      for (const id of visibleRowIds) delete next[id];
+      return next;
+    });
+  };
 
   return (
     <div
@@ -985,40 +1104,74 @@ export function ComponentCatalog({
           )}
         </EmptyCard>
       ) : (
+        <>
+        {/* O9 — group-header expand-all / collapse-all over the listed rows.
+            Multiple override editors stay open side-by-side; this toggles them
+            as a batch. */}
+        <div
+          role="group"
+          aria-label="Edit accordion controls"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <span style={{ fontSize: 11.5, color: T.inkDim }}>
+            {visibleExpandedCount > 0
+              ? `${visibleExpandedCount} of ${visibleRowIds.length} editor${
+                  visibleRowIds.length === 1 ? "" : "s"
+                } open`
+              : `${visibleRowIds.length} component${
+                  visibleRowIds.length === 1 ? "" : "s"
+                }`}
+          </span>
+          <span style={{ display: "inline-flex", gap: 6 }}>
+            <LabButton
+              variant="soft"
+              testId="lab-catalog-expand-all"
+              style={{ fontSize: 11.5, padding: "3px 10px" }}
+              onClick={onExpandAllVisible}
+              disabled={allVisibleExpanded}
+            >
+              Expand all
+            </LabButton>
+            <LabButton
+              variant="soft"
+              testId="lab-catalog-collapse-all"
+              style={{ fontSize: 11.5, padding: "3px 10px" }}
+              onClick={onCollapseAllVisible}
+              disabled={visibleExpandedCount === 0}
+            >
+              Collapse all
+            </LabButton>
+          </span>
+        </div>
         <CatalogRowTable
           groups={rowGroups}
           humanize={humanize}
           pendingId={pendingId}
-          editingId={editingId}
+          // O9 — multi-open: editingId is unused (adapter drives which rows
+          // open); the flat *placeholder* edit-form props satisfy the required
+          // prop contract but are overridden PER-ROW by `multiEdit.formFor`.
+          editingId={null}
+          multiEdit={{
+            isExpanded: (id) => expandedIds.has(id),
+            formFor: formBundleFor,
+            closeRow: closeEdit,
+          }}
+          {...PLACEHOLDER_EDIT_FORM_PROPS}
           confirmingResetId={confirmingResetId}
-          editLabel={editLabel}
-          setEditLabel={setEditLabel}
-          editCategory={editCategory}
-          setEditCategory={setEditCategory}
-          editIcon={editIcon}
-          setEditIcon={setEditIcon}
-          editPlan={editPlan}
-          setEditPlan={setEditPlan}
-          editLockedProps={editLockedProps}
-          setEditLockedProps={setEditLockedProps}
-          editDefaultVariant={editDefaultVariant}
-          setEditDefaultVariant={setEditDefaultVariant}
-          editDefaultProps={editDefaultProps}
-          setEditDefaultProps={setEditDefaultProps}
-          editDefaultPropsError={editDefaultPropsError}
-          setEditDefaultPropsError={setEditDefaultPropsError}
-          editDataSourceDefaults={editDataSourceDefaults}
-          setEditDataSourceDefaults={setEditDataSourceDefaults}
-          editDataSourceDefaultsError={editDataSourceDefaultsError}
-          setEditDataSourceDefaultsError={setEditDataSourceDefaultsError}
-          onRowClick={(item) =>
-            editingId === item.id ? setEditingId(null) : startEdit(item)
-          }
+          onRowClick={toggleEdit}
           onToggleSurface={toggleSurface}
           onToggleLab={toggleLab}
           onSetStatus={setStatus}
           onSaveEdit={saveEdit}
-          onCancelEdit={() => setEditingId(null)}
+          // Legacy single-editor cancel (unused under multi-open — the per-row
+          // Cancel routes through multiEdit.closeRow); collapse all as a sane
+          // fallback should the adapter ever be absent.
+          onCancelEdit={onCollapseAllVisible}
           onConfirmReset={confirmReset}
           onStartReset={(id) => setConfirmingResetId(id)}
           onCancelReset={() => setConfirmingResetId(null)}
@@ -1041,6 +1194,7 @@ export function ComponentCatalog({
             );
           }}
         />
+        </>
       )}
 
       <p style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5, margin: 0 }}>
