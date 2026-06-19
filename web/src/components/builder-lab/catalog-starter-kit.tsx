@@ -43,9 +43,11 @@ import {
   syncBuiltinStartersAction,
 } from "@/lib/site-admin/builder-core/templates/import-builtin-starters";
 import {
+  getTemplateById,
   resolveLabMediaTenantId,
   resolveTemplateThumbnails,
 } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import { triggerTemplateDownload } from "./template-export";
 import { renameTemplateCategory } from "@/lib/site-admin/builder-core/templates/taxonomy-actions";
 import {
   distinctThumbnailAssetIds,
@@ -243,6 +245,9 @@ export function SiteStarterKitView({
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
     new Set(),
   );
+  // A3 — id of the row currently being exported (shows "Exporting…" while the
+  // server action fetch is in flight for built-in templates).
+  const [exportingId, setExportingId] = useState<string | null>(null);
   // A7 — quick-rename: the category being renamed and the draft value
   const [renamingCategory, setRenamingCategory] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -565,6 +570,32 @@ export function SiteStarterKitView({
     [renameValue, categoryFilter, reload, flash, cancelCategoryRename],
   );
 
+  // ── A3 export handler ──────────────────────────────────────────────────────
+
+  /** Fetch a fresh row (to capture the latest builder_tree) then trigger a
+   *  `<slug>.template.json` download with only portable fields. */
+  const exportRow = useCallback(
+    async (row: BuilderTemplateRow) => {
+      setExportingId(row.id);
+      setError(null);
+      try {
+        const res = await getTemplateById(row.id);
+        if (!res.ok) {
+          setError(res.error ?? "Export failed.");
+          return;
+        }
+        // res.data has the freshest builder_tree from the DB.
+        triggerTemplateDownload(res.data, res.data.builder_tree);
+        flash(`Exported "${row.title}"`);
+      } catch {
+        setError("Export failed.");
+      } finally {
+        setExportingId(null);
+      }
+    },
+    [flash],
+  );
+
   // ── A7 category collapse toggle ────────────────────────────────────────────
 
   const toggleCollapse = useCallback((category: string) => {
@@ -641,6 +672,7 @@ export function SiteStarterKitView({
     confirmingDeleteId,
     deleteDependents,
     scanningDelete: scanningDeleteId !== null,
+    exportingId,
     mediaTenantId,
     thumbUrlByRow,
     thumbBusyId,
@@ -652,6 +684,7 @@ export function SiteStarterKitView({
     onOpen: (r: BuilderTemplateRow) =>
       onLaunchEditor?.(targetToLabTarget(r.target_context), r.id),
     onDuplicate: duplicate,
+    onExport: (r: BuilderTemplateRow) => void exportRow(r),
     onSetStatus: setStatus,
     onStartDelete: startDelete,
     onCancelDelete: cancelDelete,
@@ -959,6 +992,8 @@ interface StarterTableProps {
   deleteDependents: ComponentDependent[];
   /** G5 — true while the pre-delete dependency scan is in flight. */
   scanningDelete: boolean;
+  /** A3 — id of the row whose export fetch is in flight. */
+  exportingId: string | null;
   /** A2 — media scope for the thumbnail picker (hub tenant; null = disabled). */
   mediaTenantId: string | null;
   /** A2 — resolved starter id → thumbnail public URL. */
@@ -976,6 +1011,8 @@ interface StarterTableProps {
   onCancelEdit: () => void;
   onOpen: (row: BuilderTemplateRow) => void;
   onDuplicate: (row: BuilderTemplateRow) => void;
+  /** A3 — serialize and download this row as `<slug>.template.json`. */
+  onExport: (row: BuilderTemplateRow) => void;
   onSetStatus: (row: BuilderTemplateRow, next: LabStatus) => void;
   onStartDelete: (row: BuilderTemplateRow) => void;
   onCancelDelete: () => void;
@@ -990,6 +1027,7 @@ function StarterTable(props: StarterTableProps) {
     confirmingDeleteId,
     deleteDependents,
     scanningDelete,
+    exportingId,
     mediaTenantId,
     thumbUrlByRow,
     thumbBusyId,
@@ -999,6 +1037,7 @@ function StarterTable(props: StarterTableProps) {
     onCancelEdit,
     onOpen,
     onDuplicate,
+    onExport,
     onSetStatus,
     onStartDelete,
     onCancelDelete,
@@ -1025,6 +1064,7 @@ function StarterTable(props: StarterTableProps) {
         <tbody>
           {rows.map((r) => {
             const busy = pendingId === r.id;
+            const exporting = exportingId === r.id;
             const editing = editingId === r.id;
             return (
               <Fragment key={r.id}>
@@ -1238,6 +1278,12 @@ function StarterTable(props: StarterTableProps) {
                           label="Duplicate"
                           onClick={() => onDuplicate(r)}
                           disabled={busy}
+                        />
+                        <LinkBtn
+                          label={exporting ? "Exporting…" : "Export"}
+                          testId={`lab-starter-export-${r.id}`}
+                          onClick={() => onExport(r)}
+                          disabled={busy || exporting}
                         />
                         <LinkBtn
                           label="Delete"
