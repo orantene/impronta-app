@@ -210,9 +210,22 @@ function classifyExport(fragment) {
   // Type-only exports — pass (they're stripped before runtime).
   if (/^export\s+type\b/.test(f)) return { kind: "pass" };
   if (/^export\s+interface\b/.test(f)) return { kind: "pass" };
-  // `export type { ... }` and `export type * from ...` — pass.
-  if (/^export\s+type\s+\{/.test(f)) return { kind: "pass" };
+  // `export type { X } from "./y"` — a pure type re-export WITH a source is
+  // erased safely (verified: 6 existing such cases build clean). `export type *`
+  // likewise.
+  if (/^export\s+type\s+\{[^}]*\}\s+from\b/.test(f)) return { kind: "pass" };
   if (/^export\s+type\s+\*/.test(f)) return { kind: "pass" };
+  // BUT `export type { X };` (no `from` — re-exporting a LOCALLY-IMPORTED type)
+  // makes Next's server-actions codegen emit a RUNTIME reference → "X is not
+  // defined" → 500 on every action. This exact form shipped to prod (see
+  // web/docs/builder-lab-completion-audit-2026.md). Fail it.
+  if (/^export\s+type\s+\{/.test(f)) {
+    return {
+      kind: "fail",
+      reason:
+        "type re-export without `from` in a 'use server' file — Next codegen emits a runtime reference ('X is not defined'). Import the type for local use only; consumers import it from the *-shape module.",
+    };
+  }
 
   // `export default ...` — if it's a function, must be async. We can't
   // always tell; flag for manual review.
@@ -231,15 +244,19 @@ function classifyExport(fragment) {
     return { kind: "pass" };
   }
 
-  // Re-exports — can't verify. We warn rather than fail because some
-  // codebases do `export * from './types'` for type-only re-exports, and
-  // SWC will catch the runtime cases.
+  // `export * from './x'` — can't introspect; leave to the build gate.
   if (/^export\s*\*\s+from/.test(f)) return { kind: "pass" };
+  // A VALUE re-export (`export { foo }` / `export { foo } from './x'`) in a
+  // 'use server' file breaks SWC server-actions codegen the same way the type
+  // re-export does — every export must be an async function. Zero existing such
+  // cases, so this is a hard fail (was a non-blocking warn — the gap the audit
+  // flagged). Define an async wrapper here, or re-export from a non-'use server'
+  // module.
   if (/^export\s*\{/.test(f)) {
     return {
-      kind: "warn",
+      kind: "fail",
       reason:
-        "indirect re-export in a 'use server' file — SWC will validate at bundle time, but this check can't",
+        "value re-export in a 'use server' file — re-exports break SWC server-actions codegen. Define an async wrapper here, or move the re-export to a non-'use server' module.",
     };
   }
 

@@ -39,8 +39,11 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** System actor stamped on cron-driven audit rows (no human acted). */
-const CRON_ACTOR = "system:builder-rollout-cron";
+/** System/cron actor for audit rows: `null`. The audit `actor` column is a
+ *  nullable uuid FK to profiles, so a sentinel string ("system:...") fails the
+ *  uuid cast and the row silently never lands. null = "no human actor". (A
+ *  dedicated actor_label text column is the longer-term representation.) */
+const CRON_ACTOR = null;
 
 /** How far in the future to re-arm rollout_ramp_at after a non-final tick. */
 const RAMP_TICK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 1 day

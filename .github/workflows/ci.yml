@@ -204,3 +204,27 @@ jobs:
       - name: tests — components (vitest smoke)
         if: ${{ !cancelled() }}
         run: npm run test:components
+
+      # ── Gate 5: Server-action bundle safety ──────────────────────────
+      # tsc/tsx/lint are STRUCTURALLY BLIND to non-async exports and
+      # value/type re-exports in "use server" files — they pass the gate yet
+      # break `next build` (SWC server-actions codegen) and 500 at runtime.
+      # Two such breakers shipped to a prod deploy before this gate existed
+      # (see web/docs/builder-lab-completion-audit-2026.md). Cheap static guard.
+      - name: verify — server-action export rules ("use server" files)
+        if: ${{ !cancelled() }}
+        run: npm run verify:server-actions
+
+      # ── Gate 6: Production build (catch-all bundle gate) ─────────────
+      # The ONLY step that exercises the real SWC bundle the way Vercel does, so
+      # `main` refuses bundle-time breakers tsc/tsx never see. Runs `next build`
+      # directly to skip the network-bound `prebuild` migration check; the
+      # placeholder public env keeps module-eval happy without secrets (server
+      # env is read at runtime, not build).
+      - name: build — next production build (bundle gate)
+        if: ${{ !cancelled() }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          NODE_OPTIONS: --max-old-space-size=8192
+        run: npx next build
