@@ -25,12 +25,13 @@ export function AdminInboxList({
   filter: AdminFilter; onFilterChange: (f: AdminFilter) => void;
   totalUnread: number; needsMe: number;
 }) {
-  // "Coordinating" surfaces the talent_coord lens — inquiries where
-  // the user is the coordinator on the lineup (their own studio's
-  // bookings). Pinned with a small star so it reads as a saved view.
+  const { toast: toastBulk, effectiveTenant, tenantSlug, bridgeSessionIdentity } = useAdminShell();
+  const currentUserId = bridgeSessionIdentity?.userId ?? null;
+  // "Coordinating" surfaces inquiries the CURRENT signed-in user coordinates,
+  // matched by the real coordinator user-id (inquiries.coordinator_id). Pinned
+  // as a saved view.
   const coordCount = inquiries.filter(i =>
-    i.coordinator?.name === "Marta Reyes"
-    || i.requirementGroups.some(g => g.talents.some(t => t.name === "Marta Reyes")),
+    !!currentUserId && i.coordinator?.id === currentUserId,
   ).length;
   // Subscribe to handoff store + count the user's incoming handoffs.
   // The "Handoffs" chip only renders when the queue is non-empty so
@@ -39,7 +40,7 @@ export function AdminInboxList({
   // Subscribe to pin/manual-unread flags so the inbox re-orders +
   // re-tints when those toggle from a row's hover actions.
   useFlagsSubscription();
-  const incomingHandoffs = getIncomingHandoffs("Marta Reyes");
+  const incomingHandoffs = getIncomingHandoffs(bridgeSessionIdentity?.displayName ?? "");
   const handoffCount = incomingHandoffs.length;
   // Saved views — "Coordinating" + "Handoffs" are the canonical
   // saved views in the prototype; production would let users build
@@ -88,8 +89,8 @@ export function AdminInboxList({
   // is the default (just opens the row); bulk mode is the explicit
   // gesture for multi-row operations (nudge / archive / reassign).
   // Operations are admin+ only — Coord/Editor see the bulk button
-  // hidden so they don't get a no-op toggle.
-  const { toast: toastBulk, effectiveTenant, tenantSlug } = useAdminShell();
+  // hidden so they don't get a no-op toggle. (toastBulk/effectiveTenant/
+  // tenantSlug/bridgeSessionIdentity destructured once at the top.)
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const toggleSelect = (id: string) => {

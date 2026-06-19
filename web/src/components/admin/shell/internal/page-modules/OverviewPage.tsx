@@ -5,24 +5,11 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ActivityFeedItem, Affordance, Bullet, CompactLockedCard, GhostButton, Icon, MoreWithSection, PrimaryButton, PrimaryCard, SecondaryButton, SecondaryCard, StarterCard, StatDot, StatusCard } from "../primitives";
-import { ACTIVATION_TASKS, COLORS, FONTS, MY_TALENT_PROFILE, RADIUS, RICH_INQUIRIES, TRANSITION, formatRecentActivity, getInquiries, getRoster, getTeam, meetsRole, pluralize, relativeTime, useAdminShell } from "../state";
-
-// Q5: demo activity feed builder hoisted to module scope so the Date.now()
-// call isn't inside a render-time / useMemo body (react-hooks/purity flags
-// it in both). Called once at mount via useMemo([]) below.
-function mkDemoActivityFeed() {
-  const now = Date.now();
-  return [
-    { actor: "Oran Tene", action: "sent an offer to", target: "Vogue Italia", timestamp: relativeTime(now - 2 * 60_000), iconName: "mail" as const },
-    { actor: "Marta Reyes", action: "accepted hold for", target: "Bvlgari campaign", timestamp: relativeTime(now - 34 * 60_000), iconName: "check" as const },
-    { actor: "Kai Lin", action: "updated profile", target: "measurements + comp card", timestamp: relativeTime(now - 65 * 60_000), iconName: "user" as const },
-    { actor: "System", action: "auto-archived expired inquiry from", target: "H&M (6 weeks old)", timestamp: relativeTime(now - 3 * 60 * 60_000), iconName: "archive" as const },
-  ];
-}
+import { ACTIVATION_TASKS, COLORS, FONTS, RADIUS, RICH_INQUIRIES, TRANSITION, formatRecentActivity, getInquiries, getRoster, getTeam, meetsRole, pluralize, useAdminShell } from "../state";
 import { DemoDataBanner, WorkspaceActivationBanner } from "../wave2";
-import { MOCK_STOREFRONT_STATS, greeting } from "./ControlBar";
+import { greeting } from "./ControlBar";
 import { FreeValuePanel } from "./WorkPage";
-import { Grid, PageHeader, TodaysFocusCard, WorkspaceStatStrip } from "./pages-shared";
+import { Grid, PageHeader, WorkspaceStatStrip } from "./pages-shared";
 
 
 export function OverviewPage() {
@@ -32,7 +19,6 @@ export function OverviewPage() {
     openUpgrade,
     completeTask,
     toast,
-    setPage,
     overviewMetrics,
     effectiveMessagesInquiries,
     effectiveRoster,
@@ -53,15 +39,8 @@ export function OverviewPage() {
     ? `${bridgeTenantIdentity.slug}.tulala.digital`
     : effectiveTenant.domain;
 
-  // Q5: timestamps pinned to mount time (see module-level mkDemoActivityFeed).
-  const demoActivityFeed = useMemo(() => mkDemoActivityFeed(), []);
-
-  // Real workspace activity from inquiry_events (via the bridge). `null` means
-  // standalone/mock mode → fall back to the demo feed. An empty array means
-  // live mode with no events yet → render the honest empty state, NOT demo.
-  // formatRecentActivity owns the new Date() call (kept out of this body to
-  // satisfy react-hooks/purity, same reason mkDemoActivityFeed is hoisted).
-  const isLiveActivity = bridgeRecentActivity != null;
+  // Real workspace activity from inquiry_events (via the bridge). Empty array
+  // = no events yet → honest empty state. No mock fallback.
   const realActivity = useMemo(
     () => (bridgeRecentActivity ?? []).map((it) => formatRecentActivity(it)),
     [bridgeRecentActivity],
@@ -89,12 +68,29 @@ export function OverviewPage() {
     (i) => i.stage === "booked" || i.stage === "approved",
   );
 
+  // ── "Needs you now" — the single action surface, from REAL server counts ──
+  // No mock fallback: overviewMetrics is null only in standalone dev (no
+  // workspace layout), in which case the buckets read 0 honestly. Four
+  // mutually-exclusive cohorts the agency owes action on; "waiting on client"
+  // is deliberately NOT here — that's the client's move, surfaced separately.
+  const unassignedCount = overviewMetrics?.unassignedOpenCount ?? 0;
+  const yourReplyCount = overviewMetrics?.agencyActionCount ?? 0;
+  const readyToBookCount = overviewMetrics?.readyToBookCount ?? 0;
+  const needsYouTotal = unassignedCount + yourReplyCount + readyToBookCount + draftCount;
+  const awaitingClientCount = overviewMetrics?.awaitingClientCount ?? awaiting.length;
+  const needsYouBuckets = [
+    { key: "unassigned", n: unassignedCount, label: "needs a coordinator" },
+    { key: "reply", n: yourReplyCount, label: "awaiting your reply" },
+    { key: "ready", n: readyToBookCount, label: "ready to book" },
+    { key: "drafts", n: draftCount, label: "to send" },
+  ].filter((b) => b.n > 0);
+
   return (
     <>
       <PageHeader
         title={(() => {
-          // Phase 1 — greeting uses real signed-in user when bridge identity
-          // is present; standalone demo falls back to MY_TALENT_PROFILE.
+          // Greeting uses the real signed-in user from bridge identity; with
+          // no identity (standalone dev) it falls back to a neutral "there".
           const realFirst = (() => {
             if (!bridgeSessionIdentity) return null;
             const dn = bridgeSessionIdentity.displayName?.trim();
@@ -103,7 +99,7 @@ export function OverviewPage() {
             if (email) return email.split("@")[0]?.split(/[.\-_]/u)[0] ?? null;
             return null;
           })();
-          return `${greeting()}, ${realFirst ?? MY_TALENT_PROFILE.name.split(" ")[0]}`;
+          return `${greeting()}, ${realFirst ?? "there"}`;
         })()}
         subtitle={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         actions={
@@ -161,17 +157,74 @@ export function OverviewPage() {
         );
       })()}
 
-      {/* Audit #49 — Today's focus card. ONE prominent banner at the
-          top with the highest-urgency line of the day. Single source
-          of urgency above the metric strip. */}
-      <TodaysFocusCard
-        pendingClients={awaiting.length}
-        draftCount={draftCount}
-        nextBookingLabel={confirmedThisWeek[0]?.clientName ? `${confirmedThisWeek[0].clientName} starts soon` : null}
-        oldestWaitDays={awaiting.length > 0 ? Math.max(...awaiting.map((i) => i.ageDays)) : 0}
-        onOpen={() => openDrawer("today-pulse")}
-        onOpenDrafts={() => openDrawer("drafts-holds")}
-      />
+      {/* Needs you now — the ONE action surface. Real server counts; the four
+          cohorts the agency owes action on. "Waiting on client" is shown as a
+          separate, honest sub-line (their move, not yours). Clicking opens the
+          pulse drawer, which lists the specific inquiries with deep-links. */}
+      <section
+        style={{
+          background: needsYouTotal > 0
+            ? `linear-gradient(135deg, ${COLORS.coralSoft} 0%, #fff 60%)`
+            : `linear-gradient(135deg, ${COLORS.accentSoft} 0%, #fff 60%)`,
+          border: `1px solid ${needsYouTotal > 0 ? COLORS.coral : COLORS.accent}`,
+          borderRadius: 14,
+          padding: "16px 20px",
+          marginBottom: 16,
+          fontFamily: FONTS.body,
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+        }}
+      >
+        <div
+          aria-hidden
+          style={{
+            width: 38, height: 38, borderRadius: 12, background: "#fff",
+            border: `1px solid ${needsYouTotal > 0 ? COLORS.coral : COLORS.accent}`,
+            color: needsYouTotal > 0 ? COLORS.coral : COLORS.accent,
+            display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}
+        >
+          <Icon name="bolt" size={18} stroke={1.7} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: needsYouTotal > 0 ? COLORS.coralDeep : COLORS.accent }}>
+            Needs you now
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.ink, marginTop: 2 }}>
+            {needsYouTotal === 0
+              ? "You're all caught up."
+              : `${needsYouTotal} ${needsYouTotal === 1 ? "thing needs" : "things need"} your team`}
+          </div>
+          {needsYouBuckets.length > 0 && (
+            <div style={{ marginTop: 7, display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {needsYouBuckets.map((b) => (
+                <button
+                  key={b.key}
+                  type="button"
+                  onClick={() => openDrawer("today-pulse")}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "3px 9px 3px 4px", borderRadius: 999, cursor: "pointer",
+                    background: "#fff", border: `1px solid ${COLORS.coral}40`, fontFamily: FONTS.body,
+                  }}
+                >
+                  <span style={{ minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, display: "inline-flex", alignItems: "center", justifyContent: "center", background: COLORS.coral, color: "#fff", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{b.n}</span>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.coralDeep }}>{b.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {awaitingClientCount > 0 && (
+            <div style={{ marginTop: 7, fontSize: 12, color: COLORS.inkMuted }}>
+              {awaitingClientCount} {awaitingClientCount === 1 ? "inquiry is" : "inquiries are"} waiting on the client — their move, not yours.
+            </div>
+          )}
+        </div>
+        {needsYouTotal > 0 && (
+          <PrimaryButton onClick={() => openDrawer("today-pulse")}>Review</PrimaryButton>
+        )}
+      </section>
 
       {/* Stat strip — replaces the old 4-up StatusCard grid that ate
           ~440px of vertical space showing 4 numbers. Premium pattern:
@@ -179,15 +232,14 @@ export function OverviewPage() {
           card-frame chrome around individual values. */}
       <WorkspaceStatStrip
         items={[
-          { label: "Needs you", value: awaiting.length + draftCount, tone: COLORS.coral, onClick: () => openDrawer("today-pulse") },
-          { label: "Active", value: richInqs.filter((i) => i.stage !== "rejected" && i.stage !== "expired").length, tone: COLORS.indigo, onClick: () => openDrawer("pipeline") },
-          { label: "Confirmed", value: confirmedThisWeek.length, tone: COLORS.success, onClick: () => openDrawer("confirmed-bookings") },
+          { label: "Needs you", value: needsYouTotal, tone: COLORS.coral, onClick: () => openDrawer("today-pulse") },
+          { label: "Waiting on client", value: awaitingClientCount, tone: COLORS.indigo, onClick: () => openDrawer("awaiting-client") },
+          { label: "Confirmed", value: overviewMetrics?.confirmedBookingCount ?? confirmedThisWeek.length, tone: COLORS.success, onClick: () => openDrawer("confirmed-bookings") },
           {
             label: "Views 7d",
-            value: overviewMetrics?.storefrontViews7d ?? MOCK_STOREFRONT_STATS.views7d,
+            value: overviewMetrics?.storefrontViews7d ?? 0,
             tone: COLORS.inkMuted,
             onClick: () => openDrawer("storefront-visibility"),
-            demo: overviewMetrics?.storefrontViews7d == null,
           },
         ]}
       />
@@ -197,12 +249,12 @@ export function OverviewPage() {
       {/* Primary row */}
       <Grid cols="2">
         <PrimaryCard
-          title="What needs you today"
-          description={`${pluralize(awaiting.length, "inquiry", "inquiries")} ${awaiting.length === 1 ? "is" : "are"} waiting for a client decision and ${pluralize(draftCount, "draft", "drafts")} ${draftCount === 1 ? "hasn't" : "haven't"} been sent.`}
-          icon={<Icon name="bolt" size={14} stroke={1.7} />}
-          affordance="Open focus list"
-          meta={<>{pluralize(awaiting.length + draftCount, "item", "items", true)}</>}
-          onClick={() => openDrawer("today-pulse")}
+          title="Waiting on client"
+          description="Offers and approvals sent — the ball is in the client's court. Nudge if one goes cold."
+          icon={<Icon name="mail" size={14} stroke={1.7} />}
+          affordance="Open list"
+          meta={<>{pluralize(awaitingClientCount, "inquiry", "inquiries", true)}</>}
+          onClick={() => openDrawer("awaiting-client")}
         />
         <PrimaryCard
           title="Workflow"
@@ -232,23 +284,10 @@ export function OverviewPage() {
           onClick={() => openDrawer("drafts-holds")}
         />
         <SecondaryCard
-          title="Sent — waiting"
-          description="Offers sent. Waiting on the client to confirm."
-          meta={pluralize(awaiting.length, "item", "items")}
-          affordance="Review"
-          onClick={() => openDrawer("awaiting-client")}
-        />
-        <SecondaryCard
           title="Recent activity"
           description="What teammates and clients did in the last 24h."
           affordance="See feed"
           onClick={() => openDrawer("team-activity")}
-        />
-        <SecondaryCard
-          title="Approval queue"
-          description="Briefs, offers, and documents waiting for sign-off."
-          affordance="Review"
-          onClick={() => openDrawer("approval-flow")}
         />
       </Grid>
 
@@ -260,7 +299,7 @@ export function OverviewPage() {
           <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.indigo }} />
           <h2 style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, margin: 0, letterSpacing: -0.1 }} className="text-admin-ink">Analytics</h2>
         </div>
-        <Grid cols="4">
+        <Grid cols="2">
           <SecondaryCard
             title="Revenue"
             description="P&L, per-talent payouts, top clients. Live commission data."
@@ -273,115 +312,7 @@ export function OverviewPage() {
             affordance="Open"
             onClick={() => openDrawer("conversion-funnel")}
           />
-          <SecondaryCard
-            title="Top performers"
-            description="Talent and client rankings by YTD revenue."
-            affordance="Open"
-            onClick={() => openDrawer("top-performers")}
-          />
-          <SecondaryCard
-            title="Team workload"
-            description="Active load, messages, and reply time per coordinator."
-            affordance="Open"
-            onClick={() => openDrawer("coordinator-workload")}
-          />
         </Grid>
-      </div>
-
-      {/* WS-20 — Operations entry points */}
-      <div className="mt-5">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 10,
-          }}
-        >
-          <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: -0.2 }} className="text-admin-ink">
-            Operations
-          </h2>
-        </div>
-        <Grid cols="3">
-          <SecondaryCard
-            title="My queue"
-            description="Your assigned inquiries sorted by SLA urgency."
-            affordance="Open"
-            onClick={() => openDrawer("my-queue")}
-          />
-          <SecondaryCard
-            title="SLA timers"
-            description="Response deadlines across all active inquiries."
-            affordance="Open"
-            onClick={() => openDrawer("sla-timers")}
-          />
-          <SecondaryCard
-            title="Automation rules"
-            description="Trigger-action rules that run automatically."
-            affordance="Open"
-            onClick={() => openDrawer("rules-builder")}
-          />
-          <SecondaryCard
-            title="Saved replies"
-            description="Reusable message templates with variable substitution."
-            affordance="Open"
-            onClick={() => openDrawer("saved-replies")}
-          />
-          <SecondaryCard
-            title="Vacation handover"
-            description="Reassign your workload while you're away."
-            affordance="Open"
-            onClick={() => openDrawer("vacation-handover")}
-          />
-          <SecondaryCard
-            title="On-call rotation"
-            description="Weekly schedule and escalation ladder."
-            affordance="Open"
-            onClick={() => openDrawer("on-call-rotation")}
-          />
-        </Grid>
-      </div>
-
-      {/* Pointers to the new Operations + Production pages */}
-      <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <button
-          type="button"
-          onClick={() => setPage("operations")}
-          style={{
-            display: "flex", alignItems: "center", gap: 14,
-            padding: "16px 18px", textAlign: "left", cursor: "pointer",
-            background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md,
-            fontFamily: FONTS.body, transition: TRANSITION.sm,
-          }}
-        >
-          <div style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="rounded-admin-md bg-admin-indigo-soft">
-            <Icon name="bolt" size={18} color={COLORS.indigo} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-admin-ink text-sm font-bold">Operations</div>
-            <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">Analytics, queues, automations, comms.</div>
-          </div>
-          <Icon name="arrow-right" size={14} color={COLORS.inkMuted} />
-        </button>
-        <button
-          type="button"
-          onClick={() => setPage("production")}
-          style={{
-            display: "flex", alignItems: "center", gap: 14,
-            padding: "16px 18px", textAlign: "left", cursor: "pointer",
-            background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md,
-            fontFamily: FONTS.body, transition: TRANSITION.sm,
-          }}
-        >
-          <div style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="rounded-admin-md bg-admin-accent-soft">
-            <Icon name="team" size={18} color={COLORS.accent} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-admin-ink text-sm font-bold">Production</div>
-            <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">Casting, crew, on-set, rights & safety.</div>
-          </div>
-          <Icon name="arrow-right" size={14} color={COLORS.inkMuted} />
-        </button>
       </div>
 
       {/* Locked strip — what's available higher up */}
@@ -500,12 +431,12 @@ export function OverviewPage() {
             padding: "0 18px",
           }}
         >
-          {isLiveActivity && realActivity.length === 0 ? (
+          {realActivity.length === 0 ? (
             <div style={{ padding: "18px 2px", fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
               No activity yet. Offers, approvals, roster changes, and bookings show up here as your team works.
             </div>
           ) : (
-            (isLiveActivity ? realActivity : demoActivityFeed).slice(0, 6).map((ev, i) => (
+            realActivity.slice(0, 6).map((ev, i) => (
               <div key={"id" in ev ? ev.id : i} style={{ borderTop: i > 0 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
                 <ActivityFeedItem
                   actor={ev.actor}

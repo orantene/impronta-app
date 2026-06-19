@@ -37,15 +37,15 @@ export function TodayPulseDrawer() {
   const richInqs = effectiveMessagesInquiries/* trust the bridge — context handles empty-vs-mock */;
   const items = [
     ...richInqs
-      .filter((i) => i.nextActionBy === "client" || i.stage === "offer_pending" || i.stage === "approved")
+      .filter((i) => ["submitted", "coordination", "offer_pending", "approved"].includes(i.stage)
+        && (!i.coordinator || i.stage === "approved" || i.nextActionBy === "coordinator"))
       .map((i) => ({
         id: i.id,
-        title: `${i.clientName} · waiting on confirmation`,
-        // Offer total (when priced) + how long it's waited — no name echo.
+        title: `${i.clientName} · ${!i.coordinator ? "needs a coordinator" : i.stage === "approved" ? "ready to book" : "awaiting your reply"}`,
         sub: [i.offer?.total ? `${i.offer.total} offer` : null, `${i.ageDays}d waiting`].filter(Boolean).join(" · "),
         tone: "amber" as const,
         ageDays: i.ageDays,
-        action: () => openDrawer("inquiry-workspace", { id: i.id }),
+        action: () => openDrawer("inquiry-workspace", { inquiryId: i.id }),
       })),
     ...richInqs
       .filter((i) => i.stage === "draft")
@@ -55,7 +55,7 @@ export function TodayPulseDrawer() {
         sub: i.brief && i.brief !== i.clientName ? i.brief : `Draft · started ${i.ageDays}d ago`,
         tone: "dim" as const,
         ageDays: i.ageDays,
-        action: () => openDrawer("inquiry-workspace", { id: i.id }),
+        action: () => openDrawer("inquiry-workspace", { inquiryId: i.id }),
       })),
   ]
     .sort((a, b) => b.ageDays - a.ageDays); // oldest-waiting first (matches the copy)

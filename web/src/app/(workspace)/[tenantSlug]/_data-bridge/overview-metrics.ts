@@ -28,6 +28,21 @@ export type WorkspaceOverviewMetrics = {
   awaitingClientCount: number;
   /** Inquiries in draft state. */
   draftInquiryCount: number;
+  /**
+   * "Your move" cohort — work the agency owes action on right now. Three
+   * mutually-exclusive (by status) real counts that power the single
+   * "Needs you now" surface on the overview:
+   *  - unassignedOpenCount: open (submitted/coordination/offer_pending) with
+   *    coordinator_id IS NULL — nobody is driving them, an admin must claim one.
+   *  - agencyActionCount: same open statuses, assigned, where next_action_by is
+   *    'coordinator'/'admin' — the assigned owner owes the next move.
+   *  - readyToBookCount: status = 'approved' — client signed off, one
+   *    Move-to-Booked away from a confirmed job.
+   * Drafts are tracked separately by {@link draftInquiryCount}.
+   */
+  unassignedOpenCount: number;
+  agencyActionCount: number;
+  readyToBookCount: number;
   /** Days since the oldest coordinator-pending inquiry was created. Null if none. */
   oldestCoordinatorWaitDays: number | null;
   /** Label for the next upcoming confirmed booking (contact_name + event_date). Null if none. */
@@ -88,7 +103,7 @@ export async function loadWorkspaceOverviewMetrics(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
 
-    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes, oldestCoordRes, nextBookingRes, viewsRes, financialKpisRes] = await Promise.all([
+    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes, oldestCoordRes, nextBookingRes, viewsRes, financialKpisRes, unassignedRes, agencyActionRes, readyToBookRes] = await Promise.all([
       // Roster: total + published count
       supabase
         .from("agency_talent_roster")
@@ -161,6 +176,30 @@ export async function loadWorkspaceOverviewMetrics(
         .limit(1),
       loadStorefrontViews7d(tenantId),
       loadWorkspaceFinancialKpis(tenantId),
+
+      // "Your move" cohorts — positive status filters only (an invalid enum in
+      // a NOT-IN filter would error the whole query). Mutually exclusive by status.
+      // Unassigned: open + no coordinator of record.
+      supabase
+        .from("inquiries")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .is("coordinator_id", null)
+        .in("status", ["submitted", "coordination", "offer_pending"]),
+      // Assigned + the agency owes the next move.
+      supabase
+        .from("inquiries")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .not("coordinator_id", "is", null)
+        .in("next_action_by", ["coordinator", "admin"])
+        .in("status", ["submitted", "coordination", "offer_pending"]),
+      // Ready to book — client-approved, not yet converted.
+      supabase
+        .from("inquiries")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("status", "approved"),
     ]);
 
     if (rosterRes.error) {
@@ -213,6 +252,9 @@ export async function loadWorkspaceOverviewMetrics(
       pendingApprovals: pendingRes.count ?? 0,
       awaitingClientCount: awaitingClientRes.count ?? 0,
       draftInquiryCount: draftInqRes.count ?? 0,
+      unassignedOpenCount: unassignedRes.count ?? 0,
+      agencyActionCount: agencyActionRes.count ?? 0,
+      readyToBookCount: readyToBookRes.count ?? 0,
       oldestCoordinatorWaitDays,
       nextBookingLabel,
       nextBookingDate,
