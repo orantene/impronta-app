@@ -58,6 +58,10 @@ import {
   buildSubmitStamp,
   buildReviewStamp,
 } from "./approval-guard";
+import { buildHideImpact, type HideImpact } from "./hide-impact";
+import { loadComponentUsageTally } from "@/lib/site-admin/add-gallery/component-usage-action";
+import { usageCountForItem } from "@/lib/site-admin/add-gallery/component-usage-scan";
+import type { BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -689,6 +693,104 @@ export async function scanComponentDependents(
   } catch (err) {
     logServerError("scanComponentDependents", err);
     return fail(CLIENT_ERROR.generic);
+  }
+}
+
+// ── loadHideImpact (D6 — where-used / impact preview, read-only) ──────────────
+
+/**
+ * The identity of the thing about to be hidden/archived, in whichever form the
+ * caller can supply. A `templateId` resolves the component identity from the
+ * row's `slug` (which doubles as a curated `section_embed` key — the same vector
+ * G5's `archiveTemplate` scans). An `itemRef` lets a catalog (code-row) caller
+ * pass the component identity directly (a native `nativeKind` and/or a
+ * `sectionEmbedKey`) without a template row.
+ */
+export type HideImpactRef =
+  | { kind: "template"; templateId: string }
+  | {
+      kind: "item";
+      nativeKind?: BuilderNodeKind;
+      sectionEmbedKey?: string;
+    };
+
+/**
+ * D6 read-only impact preview: how much live surface area a hide/archive touches.
+ * Composes the two complementary already-shipped signals —
+ *
+ *   1. D1 live-page usage (`loadComponentUsageTally` + `usageCountForItem`):
+ *      tenant trees (live/draft pages, saved sections, reusable components,
+ *      Max-site snapshots) that reference the component TYPE. "Used on N live
+ *      pages; they keep their copy but it leaves the gallery."
+ *   2. G5 template dependents (`scanComponentDependents`): OTHER published
+ *      templates that embed the component.
+ *
+ * — into a single {@link HideImpact} (the pure `buildHideImpact` owns the shape +
+ * message). The confirm dialog (`WhereUsedConfirm`) renders it BEFORE the one-way
+ * archive/hide switch.
+ *
+ * Read-only, never writes. super_admin-gated; degrades to a safe zero-impact
+ * preview (never throws) so the confirm always has something to show.
+ */
+export async function loadHideImpact(
+  ref: HideImpactRef,
+  action: "hide" | "archive" = "archive",
+): Promise<TemplateActionResult<HideImpact>> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return fail(gate.error);
+
+  try {
+    // Resolve the component identity (nativeKind + sectionEmbedKey) and, for a
+    // template ref, the row id we must EXCLUDE from the dependent scan (a row
+    // never depends on itself).
+    let nativeKind: BuilderNodeKind | undefined;
+    let sectionEmbedKey: string | undefined;
+    let selfTemplateId: string | null = null;
+
+    if (ref.kind === "template") {
+      selfTemplateId = ref.templateId;
+      const sb = getAdminClient();
+      const { data: row } = await sb
+        .from("builder_templates")
+        .select("slug")
+        .eq("id", ref.templateId)
+        .maybeSingle();
+      // The row's slug doubles as its curated section-embed key (G5 convention).
+      sectionEmbedKey = (row as { slug?: string } | null)?.slug ?? undefined;
+    } else {
+      nativeKind = ref.nativeKind;
+      sectionEmbedKey = ref.sectionEmbedKey;
+    }
+
+    // ── D1 live-page usage ────────────────────────────────────────────────────
+    const tally = await loadComponentUsageTally();
+    const usageCount =
+      usageCountForItem({ nativeKind, sectionEmbedKey }, tally) ?? 0;
+
+    // ── G5 template dependents ────────────────────────────────────────────────
+    const target: ComponentDependencyTarget = {
+      sectionEmbedKeys: sectionEmbedKey ? [sectionEmbedKey] : [],
+      builderNodeKinds: nativeKind ? [nativeKind] : [],
+    };
+    let dependentCount = 0;
+    if (!isEmptyDependencyTarget(target)) {
+      const sb = getAdminClient();
+      const all = await loadPublishedScanTemplates(sb);
+      // Exclude the row itself so a template is never reported as its own dependent.
+      const others = selfTemplateId
+        ? all.filter((t) => t.id !== selfTemplateId)
+        : all;
+      dependentCount = scanTemplatesForComponentDependents(
+        others,
+        target,
+      ).length;
+    }
+
+    return ok(buildHideImpact(usageCount, dependentCount, action));
+  } catch (err) {
+    logServerError("loadHideImpact", err);
+    // Degrade to a zero-impact preview rather than failing the confirm.
+    return ok(buildHideImpact(0, 0, action));
   }
 }
 

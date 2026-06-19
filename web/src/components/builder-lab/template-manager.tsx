@@ -39,7 +39,10 @@ import {
   setTemplateRollout,
   listPublishedTemplates,
   getPublishDiff,
+  loadHideImpact,
 } from "@/lib/site-admin/builder-core/templates/registry-actions";
+import type { HideImpact } from "@/lib/site-admin/builder-core/templates/hide-impact";
+import { WhereUsedConfirm } from "./where-used-confirm";
 import {
   suggestDuplicateDefaults,
   isSlugTaken,
@@ -601,6 +604,11 @@ function TemplateRowCard({
   const [showRollout, setShowRollout] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [changelog, setChangelog] = useState("");
+  // D6 — where-used / impact preview before the one-way archive. `archiving`
+  // gates the confirm dialog; `archiveImpact` is null while loadHideImpact is in
+  // flight (the dialog shows a "checking…" state until it resolves).
+  const [archiving, setArchiving] = useState(false);
+  const [archiveImpact, setArchiveImpact] = useState<HideImpact | null>(null);
   // G3 — advisory diff verdict fetched when the publish panel opens.
   const [publishDiff, setPublishDiff] = useState<{
     treeDiff: TemplateTreeDiff;
@@ -624,6 +632,29 @@ function TemplateRowCard({
       cancelled = true;
     };
   }, [publishing, row.id]);
+
+  // D6 — when the archive confirm opens, load the where-used impact (D1 live-page
+  // usage + G5 template dependents) so the operator sees the blast radius BEFORE
+  // the one-way switch. A failure degrades to a zero-impact preview inside the
+  // action, so the confirm always resolves to something.
+  useEffect(() => {
+    if (!archiving) {
+      setArchiveImpact(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const res = await loadHideImpact(
+        { kind: "template", templateId: row.id },
+        "archive",
+      ).catch(() => null);
+      if (cancelled || !res || !res.ok) return;
+      setArchiveImpact(res.data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [archiving, row.id]);
 
   // A6 — pre-publish checklist, recomputed as the admin types the changelog so
   // the "has changelog" row flips live. Read-only; uses the row data already in
@@ -787,12 +818,33 @@ function TemplateRowCard({
         ) : null}
         <GhostBtn onClick={onDuplicateRequest} disabled={busy}>Duplicate…</GhostBtn>
         {row.status !== "archived" ? (
-          <GhostBtn onClick={onArchive} disabled={busy} tone="danger">Archive</GhostBtn>
+          <GhostBtn
+            onClick={() => setArchiving((a) => !a)}
+            disabled={busy}
+            tone="danger"
+          >
+            Archive
+          </GhostBtn>
         ) : null}
         <GhostBtn onClick={() => setShowRollout((s) => !s)} disabled={busy}>
           {showRollout ? "Hide rollout" : "Rollout"}
         </GhostBtn>
       </div>
+
+      {/* D6 — where-used / impact preview before the one-way archive. */}
+      <WhereUsedConfirm
+        open={archiving}
+        subjectLabel={row.title}
+        action="archive"
+        impact={archiveImpact}
+        loading={archiveImpact === null}
+        busy={busy}
+        onCancel={() => setArchiving(false)}
+        onConfirm={() => {
+          setArchiving(false);
+          onArchive();
+        }}
+      />
 
       {/* A1 — inline rename panel: shown when user clicks "Duplicate…" */}
       {duplicatingOpen ? (
