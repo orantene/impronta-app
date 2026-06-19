@@ -59,6 +59,7 @@ import {
   buildReviewStamp,
 } from "./approval-guard";
 import { buildHideImpact, type HideImpact } from "./hide-impact";
+import { maybeAutoCaptureThumbnail } from "./auto-thumbnail";
 import { loadComponentUsageTally } from "@/lib/site-admin/add-gallery/component-usage-action";
 import { usageCountForItem } from "@/lib/site-admin/add-gallery/component-usage-scan";
 import type { BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
@@ -196,9 +197,20 @@ async function publishRowCore(
     logServerError("publishRowCore/revision", revErr);
   }
 
+  // A8: best-effort auto-thumbnail. FLAG-GATED (BUILDER_AUTO_THUMBNAIL_ENABLED,
+  // default OFF) and self-swallowing — mirrors the best-effort revision-snapshot
+  // insert above. With the flag OFF, `maybeAutoCaptureThumbnail` returns
+  // `publishedRow` UNCHANGED before any I/O, so this block is byte-identical to
+  // the pre-A8 path. With the flag ON, a capture/upload failure can never throw
+  // (the helper returns the original row), so it can never block or fail the
+  // publish that already committed above.
+  const rowAfterThumbnail = await maybeAutoCaptureThumbnail(sb, publishedRow, {
+    createdBy: input.createdBy,
+  });
+
   await bumpCatalogVersion(sb);
   revalidatePath(TEMPLATE_CACHE_PATH);
-  return ok(publishedRow);
+  return ok(rowAfterThumbnail);
 }
 
 // ── createTemplateDraft ───────────────────────────────────────────────────────
