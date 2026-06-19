@@ -27,6 +27,13 @@ import {
   setComponentOverlayBatch,
   clearComponentOverlayBatch,
 } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
+// D6 — where-used impact preview before the one-way archive switch.
+import {
+  loadHideImpact,
+  type HideImpactRef,
+} from "@/lib/site-admin/builder-core/templates/registry-actions";
+import type { HideImpact } from "@/lib/site-admin/builder-core/templates/hide-impact";
+import { WhereUsedConfirm } from "./where-used-confirm";
 // Import the 4-surface helpers/constants directly from their module, NOT the
 // add-gallery barrel — the barrel transitively pulls a `.css` side-effect import
 // that the tsx test runner can't parse (it compiles CSS as JS). The erased types
@@ -340,6 +347,46 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+
+  // D6 — where-used impact preview before an archive. Archiving a load-bearing
+  // component is one-way (it leaves the gallery), so we gate the status→archived
+  // transition on a confirm that first loads the live-page usage + dependent
+  // template counts via the already-shipped `loadHideImpact` (D1 usage + G5
+  // dependents). Other transitions still fire `onSetStatus` directly.
+  const [archiveConfirm, setArchiveConfirm] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
+  const [archiveImpact, setArchiveImpact] = useState<HideImpact | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+
+  const beginArchive = useCallback((row: CatalogAdminItem) => {
+    setArchiveConfirm({
+      id: row.id,
+      label: row.effectiveLabel || row.baseLabel || row.id,
+    });
+    setArchiveImpact(null);
+    setArchiveLoading(true);
+    const ref: HideImpactRef =
+      row.source === "template" && row.dbTemplateId
+        ? { kind: "template", templateId: row.dbTemplateId }
+        : {
+            kind: "item",
+            nativeKind: row.nativeKind,
+            sectionEmbedKey: row.sectionEmbedKey,
+          };
+    loadHideImpact(ref, "archive")
+      .then((res) => {
+        if (res.ok) setArchiveImpact(res.data);
+      })
+      .finally(() => setArchiveLoading(false));
+  }, []);
+
+  const closeArchiveConfirm = useCallback(() => {
+    setArchiveConfirm(null);
+    setArchiveImpact(null);
+    setArchiveLoading(false);
+  }, []);
 
   // All rows across every group — used for counts + keyboard look-ups.
   const allRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
@@ -955,13 +1002,20 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                             <LinkBtn label="No" onClick={onCancelReset} disabled={busy} />
                           </span>
                         ) : (
+                          <span style={{ display: "inline-flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
                           <span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}>
                             <LabStatusDropdown
                               testId={`lab-catalog-row-status-${r.id}`}
                               status={toLabStatus(r.status)}
                               options={statusOptionsFor(r.source, toLabStatus(r.status))}
                               busy={busy}
-                              onSelect={(next) => onSetStatus(r, next)}
+                              onSelect={(next) =>
+                                // D6 — gate archive on the where-used confirm; all
+                                // other transitions fire immediately.
+                                next === "archived"
+                                  ? beginArchive(r)
+                                  : onSetStatus(r, next)
+                              }
                             />
                             <LinkBtn label="Preview" onClick={() => onPreview(r)} disabled={busy} />
                             <LinkBtn
@@ -972,6 +1026,22 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                             {r.overlay ? (
                               <LinkBtn label="Reset" onClick={() => onStartReset(r.id)} disabled={busy} />
                             ) : null}
+                          </span>
+                          {archiveConfirm?.id === r.id ? (
+                            <WhereUsedConfirm
+                              open
+                              subjectLabel={archiveConfirm.label}
+                              action="archive"
+                              impact={archiveImpact}
+                              loading={archiveLoading}
+                              busy={busy}
+                              onConfirm={() => {
+                                onSetStatus(r, "archived");
+                                closeArchiveConfirm();
+                              }}
+                              onCancel={closeArchiveConfirm}
+                            />
+                          ) : null}
                           </span>
                         )}
                       </td>

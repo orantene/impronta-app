@@ -89,12 +89,43 @@ export interface CapturedPng {
  * Isolated + exported so it can be swapped for a real implementation later
  * WITHOUT touching the publish path or the decision logic.
  */
+/**
+ * External screenshot-service endpoint. When set, capture is delegated to an
+ * HTTP service (Browserless / ScreenshotOne / urlbox / a self-hosted shooter)
+ * — the only viable headless path in a Vercel serverless runtime, which can't
+ * launch Chromium itself. Contract: GET `${SCREENSHOT_SERVICE_URL}?url=<enc>`
+ * → `image/png` body. An optional `SCREENSHOT_SERVICE_TOKEN` is sent as a
+ * Bearer header. Unset ⇒ this path is skipped (no-op degrade). This makes A8
+ * "one env var from working" without baking a vendor/cost choice into code.
+ */
+async function captureViaScreenshotService(
+  previewUrl: string,
+): Promise<CapturedPng | null> {
+  const base = process.env.SCREENSHOT_SERVICE_URL;
+  if (!base) return null;
+  const token = process.env.SCREENSHOT_SERVICE_TOKEN;
+  const endpoint = `${base}${base.includes("?") ? "&" : "?"}url=${encodeURIComponent(previewUrl)}`;
+  const res = await fetch(endpoint, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) return null;
+  const buf = new Uint8Array(await res.arrayBuffer());
+  if (buf.byteLength === 0) return null;
+  // Dimensions are advisory metadata only; the service owns the real viewport.
+  return { bytes: buf, width: 0, height: 0 };
+}
+
 export async function renderTemplatePreviewToPng(
   previewUrl: string,
 ): Promise<CapturedPng | null> {
   try {
-    // Optional, runtime-soft dependency. The variable indirection keeps the
-    // bundler/TS from treating this as a static import that must resolve.
+    // 1) Preferred serverless-viable path: an external screenshot service.
+    const viaService = await captureViaScreenshotService(previewUrl);
+    if (viaService) return viaService;
+
+    // 2) Fallback: an OPTIONAL, runtime-soft headless module (present only in a
+    //    self-hosted worker). The variable indirection keeps the bundler/TS
+    //    from treating this as a static import that must resolve.
     const moduleName = "@builder/headless-capture";
     const mod = (await import(/* webpackIgnore: true */ moduleName).catch(
       () => null,

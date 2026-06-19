@@ -211,6 +211,11 @@ export interface CatalogAdminItem {
    * real type, used on N tenant pages.
    */
   usageCount?: number;
+  /** D6 — component-identity keys (mirrored from the source AddGalleryItem) so a
+   *  where-used confirm can build a HideImpactRef. Native items carry `nativeKind`;
+   *  curated section embeds carry `sectionEmbedKey`; DB templates carry neither. */
+  nativeKind?: AddGalleryItem["nativeKind"];
+  sectionEmbedKey?: AddGalleryItem["sectionEmbedKey"];
 }
 
 /**
@@ -324,6 +329,10 @@ export function buildCatalogAdminView(
       usageCount: usageTally
         ? usageCountForItem(item, usageTally)
         : undefined,
+      // D6 — the component-identity keys (carried through so the where-used
+      // confirm can build a HideImpactRef for a code-row without re-deriving).
+      nativeKind: item.nativeKind,
+      sectionEmbedKey: item.sectionEmbedKey,
     };
   });
 }
