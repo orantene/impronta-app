@@ -290,12 +290,6 @@ export function OverviewPage() {
           affordance="See feed"
           onClick={() => openDrawer("team-activity")}
         />
-        <SecondaryCard
-          title="Approval queue"
-          description="Briefs, offers, and documents waiting for sign-off."
-          affordance="Review"
-          onClick={() => openDrawer("approval-flow")}
-        />
       </Grid>
 
       {/* Analytics — premium section header (sentence-case, compact) */}
@@ -306,7 +300,7 @@ export function OverviewPage() {
           <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.indigo }} />
           <h2 style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, margin: 0, letterSpacing: -0.1 }} className="text-admin-ink">Analytics</h2>
         </div>
-        <Grid cols="4">
+        <Grid cols="2">
           <SecondaryCard
             title="Revenue"
             description="P&L, per-talent payouts, top clients. Live commission data."
@@ -318,72 +312,6 @@ export function OverviewPage() {
             description="Inquiry → offer → booking. Drop-off by stage."
             affordance="Open"
             onClick={() => openDrawer("conversion-funnel")}
-          />
-          <SecondaryCard
-            title="Top performers"
-            description="Talent and client rankings by YTD revenue."
-            affordance="Open"
-            onClick={() => openDrawer("top-performers")}
-          />
-          <SecondaryCard
-            title="Team workload"
-            description="Active load, messages, and reply time per coordinator."
-            affordance="Open"
-            onClick={() => openDrawer("coordinator-workload")}
-          />
-        </Grid>
-      </div>
-
-      {/* WS-20 — Operations entry points */}
-      <div className="mt-5">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 10,
-          }}
-        >
-          <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: -0.2 }} className="text-admin-ink">
-            Operations
-          </h2>
-        </div>
-        <Grid cols="3">
-          <SecondaryCard
-            title="My queue"
-            description="Your assigned inquiries sorted by SLA urgency."
-            affordance="Open"
-            onClick={() => openDrawer("my-queue")}
-          />
-          <SecondaryCard
-            title="SLA timers"
-            description="Response deadlines across all active inquiries."
-            affordance="Open"
-            onClick={() => openDrawer("sla-timers")}
-          />
-          <SecondaryCard
-            title="Automation rules"
-            description="Trigger-action rules that run automatically."
-            affordance="Open"
-            onClick={() => openDrawer("rules-builder")}
-          />
-          <SecondaryCard
-            title="Saved replies"
-            description="Reusable message templates with variable substitution."
-            affordance="Open"
-            onClick={() => openDrawer("saved-replies")}
-          />
-          <SecondaryCard
-            title="Vacation handover"
-            description="Reassign your workload while you're away."
-            affordance="Open"
-            onClick={() => openDrawer("vacation-handover")}
-          />
-          <SecondaryCard
-            title="On-call rotation"
-            description="Weekly schedule and escalation ladder."
-            affordance="Open"
-            onClick={() => openDrawer("on-call-rotation")}
           />
         </Grid>
       </div>
