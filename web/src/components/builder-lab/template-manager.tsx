@@ -41,6 +41,10 @@ import {
   getPublishDiff,
 } from "@/lib/site-admin/builder-core/templates/registry-actions";
 import {
+  suggestDuplicateDefaults,
+  isSlugTaken,
+} from "@/lib/site-admin/builder-core/templates/slug-minting";
+import {
   listAllTemplates,
   resolveLabMediaTenantId,
   resolveTemplateThumbnails,
@@ -168,6 +172,9 @@ export function TemplateManager() {
   const [usageByTemplate, setUsageByTemplate] = useState<
     Record<string, TemplateUsageTotals>
   >({});
+  // A1 — duplicate-with-rename: tracks which row is waiting for rename input.
+  // null = no panel open; string = the templateId whose panel is open.
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -497,9 +504,20 @@ export function TemplateManager() {
                 onArchive={() =>
                   runLifecycle(row.id, "Archived", () => archiveTemplate(row.id))
                 }
-                onDuplicate={() =>
-                  runLifecycle(row.id, "Duplicated", () => duplicateTemplate(row.id))
-                }
+                duplicatingOpen={duplicatingId === row.id}
+                onDuplicateRequest={() => {
+                  setDuplicatingId(row.id);
+                  setCreating(false);
+                  setEditId(null);
+                }}
+                onDuplicateCancel={() => setDuplicatingId(null)}
+                onDuplicateConfirm={(title, slug) => {
+                  setDuplicatingId(null);
+                  void runLifecycle(row.id, "Duplicated", () =>
+                    duplicateTemplate(row.id, { title, slug }),
+                  );
+                }}
+                sameKindRows={rows.filter((r) => r.kind === row.kind)}
                 onRestore={(version) =>
                   runLifecycle(row.id, `Restored v${version}`, () =>
                     restoreTemplateRevision(row.id, version),
@@ -547,7 +565,11 @@ function TemplateRowCard({
   onPublish,
   onUnpublish,
   onArchive,
-  onDuplicate,
+  duplicatingOpen,
+  onDuplicateRequest,
+  onDuplicateCancel,
+  onDuplicateConfirm,
+  sameKindRows,
   onRestore,
   onRollback,
   onSetRollout,
@@ -565,7 +587,12 @@ function TemplateRowCard({
   onPublish: (changelog?: string | null) => void;
   onUnpublish: () => void;
   onArchive: () => void;
-  onDuplicate: () => void;
+  /** A1 — duplicate-with-rename */
+  duplicatingOpen: boolean;
+  onDuplicateRequest: () => void;
+  onDuplicateCancel: () => void;
+  onDuplicateConfirm: (title: string, slug: string) => void;
+  sameKindRows: ReadonlyArray<{ slug: string; title: string }>;
   onRestore: (version: number) => void;
   onRollback: (version: number) => void;
   onSetRollout: (input: SetTemplateRolloutInput) => void;
@@ -737,7 +764,7 @@ function TemplateRowCard({
         {row.status === "published" ? (
           <GhostBtn onClick={onUnpublish} disabled={busy}>Unpublish</GhostBtn>
         ) : null}
-        <GhostBtn onClick={onDuplicate} disabled={busy}>Duplicate</GhostBtn>
+        <GhostBtn onClick={onDuplicateRequest} disabled={busy}>Duplicate…</GhostBtn>
         {row.status !== "archived" ? (
           <GhostBtn onClick={onArchive} disabled={busy} tone="danger">Archive</GhostBtn>
         ) : null}
@@ -745,6 +772,17 @@ function TemplateRowCard({
           {showRollout ? "Hide rollout" : "Rollout"}
         </GhostBtn>
       </div>
+
+      {/* A1 — inline rename panel: shown when user clicks "Duplicate…" */}
+      {duplicatingOpen ? (
+        <DuplicateRenamePanel
+          sourceRow={row}
+          sameKindRows={sameKindRows}
+          busy={busy}
+          onCancel={onDuplicateCancel}
+          onConfirm={onDuplicateConfirm}
+        />
+      ) : null}
 
       {publishing ? (
         <PublishNotePanel
@@ -785,6 +823,100 @@ function TemplateRowCard({
           onRollback={onRollback}
         />
       ) : null}
+    </div>
+  );
+}
+
+// ── A1: Duplicate-with-rename panel ──────────────────────────────────────────
+
+/**
+ * Inline rename row shown when the admin clicks "Duplicate…" on a template
+ * card.  Pre-populates title + slug with the first collision-safe suggestion
+ * (via mintCopyTitle / mintCopySlug) and validates uniqueness client-side
+ * before the action fires.
+ */
+function DuplicateRenamePanel({
+  sourceRow,
+  sameKindRows,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  sourceRow: BuilderTemplateRow;
+  /** All rows of the same kind — used for uniqueness checking. */
+  sameKindRows: ReadonlyArray<{ slug: string; title: string }>;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: (title: string, slug: string) => void;
+}) {
+  const defaults = suggestDuplicateDefaults(
+    sourceRow.slug,
+    sourceRow.title,
+    sameKindRows,
+  );
+  const [title, setTitle] = useState(defaults.title);
+  const [slug, setSlug] = useState(defaults.slug);
+
+  // Exclude the default slug itself from the uniqueness check so the
+  // pre-populated suggestion is always valid without the user touching it.
+  const slugConflict = isSlugTaken(slug, sameKindRows, defaults.slug);
+  const valid =
+    title.trim().length > 0 && slug.trim().length > 0 && !slugConflict;
+
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: "12px 14px",
+        border: `1px solid ${T.border}`,
+        borderRadius: 10,
+        background: T.card,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      <div style={{ fontSize: 11.5, fontWeight: 700, color: T.ink, letterSpacing: 0.2 }}>
+        Duplicate — pick a name
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <Field label="New title">
+          <input
+            style={input}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            autoFocus
+          />
+        </Field>
+        <Field label="New slug">
+          <input
+            style={{
+              ...input,
+              borderColor: slugConflict ? T.red : undefined,
+            }}
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+          />
+        </Field>
+      </div>
+      {slugConflict ? (
+        <div style={{ fontSize: 11.5, color: T.red }}>
+          Slug &ldquo;{slug}&rdquo; is already in use — choose a unique slug.
+        </div>
+      ) : null}
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button type="button" onClick={onCancel} disabled={busy} style={ghostBase}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={!valid || busy}
+          onClick={() => onConfirm(title.trim(), slug.trim())}
+          style={{ ...primaryBtn, opacity: valid && !busy ? 1 : 0.5, cursor: valid && !busy ? "pointer" : "default" }}
+        >
+          Duplicate
+        </button>
+      </div>
     </div>
   );
 }

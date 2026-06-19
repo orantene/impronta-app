@@ -95,3 +95,46 @@ export function mintCopyTitle(
 
   return `${base} (Copy ${Date.now()})`;
 }
+
+// ── UI helpers for the duplicate-with-rename dialog ────────────────────────────
+
+/**
+ * Given the source template row and the full list of same-kind rows (used for
+ * collision avoidance), compute the default title + slug to pre-populate the
+ * duplicate-rename dialog.
+ *
+ * This is a pure helper — no I/O — so it can be used directly in the client
+ * component and independently unit-tested.
+ */
+export function suggestDuplicateDefaults(
+  sourceSlug: string,
+  sourceTitle: string,
+  existingRows: ReadonlyArray<{ slug: string; title: string }>,
+): { title: string; slug: string } {
+  const existingSlugs = new Set(existingRows.map((r) => r.slug));
+  const existingTitles = new Set(existingRows.map((r) => r.title));
+  return {
+    title: mintCopyTitle(sourceTitle, existingTitles),
+    slug: mintCopySlug(sourceSlug, existingSlugs),
+  };
+}
+
+/**
+ * Check whether a candidate slug is already in use by any row in the provided
+ * list (excluding the source row being duplicated, if any).
+ *
+ * Returns `true` when the slug is already taken (the caller should prevent
+ * submit and show an error message).
+ */
+export function isSlugTaken(
+  candidateSlug: string,
+  existingRows: ReadonlyArray<{ slug: string }>,
+  excludeSlug?: string,
+): boolean {
+  const normalised = candidateSlug.trim().toLowerCase();
+  return existingRows.some(
+    (r) =>
+      r.slug.toLowerCase() === normalised &&
+      r.slug.toLowerCase() !== excludeSlug?.toLowerCase(),
+  );
+}
