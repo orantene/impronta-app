@@ -21,7 +21,9 @@ import { useState, useTransition } from "react";
 
 import {
   runParityProbe,
+  runRolloutAdmissionProbe,
   type ParityProbeResult,
+  type RolloutAdmissionResult,
 } from "@/lib/site-admin/add-gallery/parity-probe-action";
 import {
   PARITY_PLAN_KEYS,
@@ -33,7 +35,9 @@ import {
 } from "@/lib/site-admin/add-gallery/parity-surface-descriptors";
 import {
   PARITY_REASON_LABEL,
+  ROLLOUT_VERDICT_LABEL,
   type ParityHiddenReason,
+  type RolloutAdmissionVerdict,
 } from "@/lib/site-admin/add-gallery/parity-probe";
 import {
   LAB as T,
@@ -67,6 +71,11 @@ const REASON_TONE: Record<ParityHiddenReason, { bg: string; fg: string }> = {
   tier: { bg: T.accentSoft, fg: T.accent },
   rollout: { bg: "rgba(155,168,183,0.16)", fg: T.amber },
 };
+
+const ADMIT_TONE = { bg: T.accentBg, fg: T.accent } as const;
+const DENY_TONE = { bg: T.redBg, fg: T.red } as const;
+const verdictTone = (v: RolloutAdmissionVerdict) =>
+  v.startsWith("admitted-") ? ADMIT_TONE : DENY_TONE;
 
 export function ParityProbePanel() {
   const [surface, setSurface] = useState<ParitySurfaceKey>("talent_profile");
@@ -186,6 +195,191 @@ export function ParityProbePanel() {
 
       {/* Result */}
       {result ? <ResultBlock result={result} /> : null}
+
+      {/* X7 — per-surface rollout admission diff. */}
+      <RolloutAdmissionSection />
+    </div>
+  );
+}
+
+/**
+ * X7 — per-surface rollout admission diff. Pick ONE template + enter a tenant id
+ * and see, per surface, whether `templateRolloutAllowed` admits that tenant and
+ * by WHICH gate (allowlist / N% bucket / denylist / outside bucket). Makes a
+ * staged rollout's real per-surface reach auditable before assuming "published =
+ * everyone".
+ */
+function RolloutAdmissionSection() {
+  const [templateId, setTemplateId] = useState<string>("");
+  const [tenantId, setTenantId] = useState("");
+  const [result, setResult] = useState<RolloutAdmissionResult | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  // Load the template picker once (templateId omitted ⇒ picker only).
+  const loadTemplates = (selId: string, tenant: string) => {
+    startTransition(async () => {
+      const res = await runRolloutAdmissionProbe({
+        templateId: selId || null,
+        tenantId: tenant,
+      });
+      setResult(res);
+      // Default-select the first staged template the first time we load.
+      if (!selId && res.ok && res.templates.length > 0) {
+        const firstStaged = res.templates.find((t) => t.staged) ?? res.templates[0];
+        setTemplateId(firstStaged.id);
+      }
+    });
+  };
+
+  const run = () => loadTemplates(templateId, tenantId);
+
+  const labelStyle = { fontSize: 11, fontWeight: 600, color: T.inkMuted } as const;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <LabViewHeader
+        title="Per-surface rollout admission"
+        badge={<LabBadge tone="accent">Staged rollout</LabBadge>}
+        blurb={
+          <>
+            Pick a template and enter a tenant id to see, per surface, whether a
+            staged rollout actually admits that tenant — and by which gate. Reuses
+            the same frozen rollout bucketing the live + gallery uses, so a 60%
+            canary that reads &quot;published&quot; is shown for what it really is.
+          </>
+        }
+        actions={
+          <LabButton
+            onClick={run}
+            disabled={pending}
+            testId="rollout-admission-run"
+          >
+            {pending ? "Evaluating…" : result ? "Re-evaluate" : "Evaluate"}
+          </LabButton>
+        }
+      />
+
+      <div
+        style={{
+          ...panelStyle,
+          padding: 16,
+          display: "flex",
+          gap: 18,
+          flexWrap: "wrap",
+          alignItems: "flex-end",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 260 }}>
+          <label htmlFor="rollout-template" style={labelStyle}>
+            Template
+          </label>
+          <select
+            id="rollout-template"
+            value={templateId}
+            onChange={(e) => setTemplateId(e.target.value)}
+            style={{ ...fieldStyle, minWidth: 260 }}
+          >
+            {!result || result.templates.length === 0 ? (
+              <option value="">— run to load templates —</option>
+            ) : null}
+            {result?.templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title} · {t.percentage}%{t.staged ? " (staged)" : ""} · {t.status}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220 }}>
+          <label htmlFor="rollout-tenant" style={labelStyle}>
+            Tenant id (blank ⇒ no rollout gating)
+          </label>
+          <input
+            id="rollout-tenant"
+            value={tenantId}
+            onChange={(e) => setTenantId(e.target.value)}
+            placeholder="e.g. a tenant uuid"
+            style={{ ...fieldStyle, minWidth: 220 }}
+          />
+        </div>
+      </div>
+
+      {result ? <RolloutAdmissionResultBlock result={result} /> : null}
+    </div>
+  );
+}
+
+function RolloutAdmissionResultBlock({ result }: { result: RolloutAdmissionResult }) {
+  if (!result.ok) {
+    return <EmptyCard>Admission probe failed: {result.error ?? "unknown error"}</EmptyCard>;
+  }
+  if (!result.selectedId) {
+    return (
+      <EmptyCard>
+        {result.templates.length} template(s) loaded — pick one and re-evaluate.
+      </EmptyCard>
+    );
+  }
+  if (result.surfaces.length === 0) {
+    return (
+      <EmptyCard>
+        This template is not offered on any surface (its target_context excludes
+        every audience, or DB templates are off everywhere).
+      </EmptyCard>
+    );
+  }
+
+  const admittedCount = result.surfaces.filter((s) => s.admitted).length;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ fontSize: 12, color: T.inkMuted }}>
+        Tenant{" "}
+        <strong style={{ color: T.ink }}>{result.tenantId || "(none)"}</strong> reaches
+        this template on{" "}
+        <strong style={{ color: T.ink }}>{admittedCount}</strong> of{" "}
+        {result.surfaces.length} offered surface(s).
+      </div>
+      <div style={{ ...panelStyle, overflow: "hidden" }}>
+        {result.surfaces.map((s, idx) => {
+          const tone = verdictTone(s.verdict);
+          return (
+            <div
+              key={s.surface}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "10px 14px",
+                borderTop: idx === 0 ? "none" : `1px solid ${T.borderSoft}`,
+              }}
+            >
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: T.ink }}>
+                    {s.surfaceLabel}
+                  </span>
+                  {s.bucket != null ? (
+                    <span style={{ fontSize: 10.5, color: T.inkDim }}>
+                      bucket {s.bucket} / {s.percentage}%
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 10.5, color: T.inkDim }}>
+                      {s.percentage}% rollout
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 11, color: T.inkMuted, marginTop: 3, lineHeight: 1.5 }}>
+                  {s.detail}
+                </div>
+              </div>
+              <LabBadge tone="custom" bg={tone.bg} fg={tone.fg} style={{ flexShrink: 0 }}>
+                {ROLLOUT_VERDICT_LABEL[s.verdict]}
+              </LabBadge>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

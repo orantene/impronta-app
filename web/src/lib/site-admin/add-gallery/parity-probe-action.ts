@@ -30,16 +30,21 @@ import type { AddGalleryItem } from "./types";
 import { fetchSurfaceGalleryItems } from "./gallery-fetch-action";
 import {
   computeParityProbe,
+  evaluateRolloutAdmissionPerSurface,
   summarizeParityReasons,
   type ParityHiddenReason,
   type ParityProbeRow,
+  type SurfaceRolloutAdmission,
 } from "./parity-probe";
 import {
   buildParityDescriptor,
+  paritySurfaceByKey,
   type ParityPlanKey,
   type ParitySurfaceKey,
   type ParityTierKey,
 } from "./parity-surface-descriptors";
+import { templateTargetAllowed } from "./registry-db-merge";
+import type { TemplateRolloutFields } from "@/lib/site-admin/builder-core/templates/rollout";
 import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
 import { listCatalogOverlays } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
 
@@ -156,5 +161,114 @@ export async function runParityProbe(
     universeCount: universe.length,
     liveCount,
     parityMismatch,
+  };
+}
+
+// ── X7: per-surface rollout admission diff ─────────────────────────────────────
+
+/** One template option for the X7 admission selector. */
+export interface RolloutAdmissionTemplateOption {
+  id: string;
+  title: string;
+  status: string;
+  /** The rollout ceiling shown next to the title (null/undefined ⇒ 100). */
+  percentage: number;
+  /** True when the template carries any non-trivial staged-rollout config. */
+  staged: boolean;
+}
+
+export interface RolloutAdmissionResult {
+  ok: boolean;
+  error?: string;
+  /** All templates the operator can pick from (super_admin universe). */
+  templates: RolloutAdmissionTemplateOption[];
+  /** The selected template id (echoed back), or null when none chosen yet. */
+  selectedId: string | null;
+  /** Per-surface admission for the selected template + entered tenant id. */
+  surfaces: SurfaceRolloutAdmission[];
+  /** The trimmed tenant id used (empty ⇒ no tenant context). */
+  tenantId: string;
+}
+
+export interface RunRolloutAdmissionInput {
+  /** Template id to audit. When omitted, the action returns only the picker. */
+  templateId?: string | null;
+  /** Live tenant id to bucket. Empty/undefined ⇒ no rollout gating. */
+  tenantId?: string | null;
+}
+
+/**
+ * X7 — evaluate `templateRolloutAllowed` per surface for ONE selected template +
+ * ONE entered tenant id, so a staged rollout's real per-surface reach is
+ * auditable before assuming "published = everyone".
+ *
+ * A surface contributes a verdict only when the template is actually OFFERED
+ * there (its `target_context` admits the surface audience AND the surface allows
+ * DB templates) — otherwise the row would be hidden by `target` regardless of the
+ * rollout bucket, and showing an admission verdict there would be misleading.
+ */
+export async function runRolloutAdmissionProbe(
+  input: RunRolloutAdmissionInput,
+): Promise<RolloutAdmissionResult> {
+  const tenantId = input.tenantId && input.tenantId.trim() ? input.tenantId.trim() : "";
+
+  const templatesRes = await listAllTemplates(); // super_admin-gated; ALL statuses
+  if (!templatesRes.ok) {
+    return {
+      ok: false,
+      error: templatesRes.error,
+      templates: [],
+      selectedId: null,
+      surfaces: [],
+      tenantId,
+    };
+  }
+
+  const rows = templatesRes.data;
+  const templates: RolloutAdmissionTemplateOption[] = rows.map((row) => {
+    const pct = row.rollout_percentage ?? 100;
+    return {
+      id: row.id,
+      title: row.title,
+      status: row.status,
+      percentage: pct,
+      staged:
+        pct < 100 ||
+        (row.tenant_allowlist?.length ?? 0) > 0 ||
+        (row.tenant_denylist?.length ?? 0) > 0,
+    };
+  });
+
+  const selectedId = input.templateId ?? null;
+  const selected = selectedId ? rows.find((r) => r.id === selectedId) ?? null : null;
+
+  let surfaces: SurfaceRolloutAdmission[] = [];
+  if (selected) {
+    const rolloutFields: TemplateRolloutFields = {
+      id: selected.id,
+      rollout_percentage: selected.rollout_percentage ?? null,
+      tenant_allowlist: selected.tenant_allowlist ?? null,
+      tenant_denylist: selected.tenant_denylist ?? null,
+    };
+    surfaces = evaluateRolloutAdmissionPerSurface({
+      tenantId,
+      rolloutBySurface: (surfaceKey) => {
+        const shape = paritySurfaceByKey(surfaceKey);
+        // Offered on this surface? DB templates must be allowed AND the
+        // template's target_context must admit the surface's audience.
+        const offered =
+          shape.allowDbTemplates &&
+          templateTargetAllowed(selected.target_context, shape.surfaceTarget);
+        return offered ? rolloutFields : null;
+      },
+    });
+  }
+
+  return {
+    ok: true,
+    templates,
+    selectedId: selected?.id ?? null,
+    surfaces,
+    tenantId,
   };
 }
