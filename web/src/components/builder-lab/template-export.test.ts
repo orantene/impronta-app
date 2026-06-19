@@ -64,7 +64,7 @@ describe("toPortableTemplateJson", () => {
   });
 
   it("excludes non-portable fields", () => {
-    const result = toPortableTemplateJson(STUB_ROW) as Record<string, unknown>;
+    const result = toPortableTemplateJson(STUB_ROW) as unknown as Record<string, unknown>;
 
     const excluded = [
       "id",
