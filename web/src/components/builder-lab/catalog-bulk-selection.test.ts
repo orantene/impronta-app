@@ -21,6 +21,9 @@ import {
   deriveSurfaceBatchInputs,
   deriveAvailabilityBatchInputs,
   deriveResetRefs,
+  summarizeBatchResults,
+  failedRefs,
+  summarizeUsageForRows,
 } from "./catalog-bulk-selection";
 
 // ── fixtures ─────────────────────────────────────────────────────────────────
@@ -28,13 +31,16 @@ import {
 /** Minimal CatalogAdminItem stub — only the fields the derivation reads. */
 function row(
   id: string,
-  opts: Partial<Pick<CatalogAdminItem, "source" | "targetContext" | "overlay">> = {},
+  opts: Partial<
+    Pick<CatalogAdminItem, "source" | "targetContext" | "overlay" | "usageCount">
+  > = {},
 ): CatalogAdminItem {
   return {
     id,
     source: opts.source ?? "code",
     targetContext: opts.targetContext ?? "both",
     overlay: opts.overlay ?? null,
+    usageCount: opts.usageCount,
     // Unused-by-derivation fields, stubbed to satisfy the type.
     tab: "elements",
     status: "published",
@@ -165,4 +171,83 @@ test("deriveAvailabilityBatchInputs maps every row to an availability_override",
 test("deriveResetRefs returns every selected row's item_ref", () => {
   assert.deepEqual(deriveResetRefs([row("a"), row("b")]), ["a", "b"]);
   assert.deepEqual(deriveResetRefs([]), []);
+});
+
+// ── P2: batch-outcome summary ────────────────────────────────────────────────
+
+test("summarizeBatchResults counts applied + per-item failures (all attempted)", () => {
+  const s = summarizeBatchResults(
+    [
+      { item_ref: "a", ok: true },
+      { item_ref: "b", ok: true },
+      { item_ref: "c", ok: false, error: "nope" },
+    ],
+    3,
+    3,
+  );
+  assert.deepEqual(
+    { applied: s.applied, skipped: s.skipped, failed: s.failed },
+    { applied: 2, skipped: 0, failed: 1 },
+  );
+  assert.equal(s.message, "2 applied · 1 failed");
+});
+
+test("summarizeBatchResults derives client-skipped from selected − attempted", () => {
+  // 5 selected, derivation only produced 3 inputs (2 forbidden-target rows),
+  // all 3 written ok.
+  const s = summarizeBatchResults(
+    [
+      { item_ref: "a", ok: true },
+      { item_ref: "b", ok: true },
+      { item_ref: "c", ok: true },
+    ],
+    3,
+    5,
+  );
+  assert.deepEqual(
+    { applied: s.applied, skipped: s.skipped, failed: s.failed },
+    { applied: 3, skipped: 2, failed: 0 },
+  );
+  assert.equal(s.message, "3 applied · 2 skipped");
+});
+
+test("summarizeBatchResults never reports a negative skipped count", () => {
+  const s = summarizeBatchResults([{ item_ref: "a", ok: true }], 3, 1);
+  assert.equal(s.skipped, 0);
+});
+
+test("summarizeBatchResults — fully clean run reads as just N applied", () => {
+  const s = summarizeBatchResults(
+    [{ item_ref: "a", ok: true }, { item_ref: "b", ok: true }],
+    2,
+    2,
+  );
+  assert.equal(s.message, "2 applied");
+});
+
+test("failedRefs returns only the per-item failures, keeping them retryable", () => {
+  const refs = failedRefs([
+    { item_ref: "a", ok: true },
+    { item_ref: "b", ok: false, error: "x" },
+    { item_ref: "c", ok: false },
+  ]);
+  assert.deepEqual([...refs].sort(), ["b", "c"]);
+});
+
+// ── P2: usage aggregate for the bulk-hide confirm ────────────────────────────
+
+test("summarizeUsageForRows counts used vs unknown (undefined) usageCount", () => {
+  const rows = [
+    row("a", { usageCount: 3 }),
+    row("b", { usageCount: 0 }),
+    row("c", { usageCount: 1 }),
+    row("d"), // undefined → unknown
+  ];
+  const agg = summarizeUsageForRows(rows);
+  assert.deepEqual(agg, { total: 4, used: 2, unknown: 1 });
+});
+
+test("summarizeUsageForRows treats undefined as unknown, not zero", () => {
+  const agg = summarizeUsageForRows([row("a"), row("b")]);
+  assert.deepEqual(agg, { total: 2, used: 0, unknown: 2 });
 });

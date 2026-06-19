@@ -57,6 +57,11 @@ import {
   deriveSurfaceBatchInputs,
   deriveAvailabilityBatchInputs,
   deriveResetRefs,
+  summarizeBatchResults,
+  failedRefs,
+  summarizeUsageForRows,
+  type BatchOutcomeItem,
+  type BulkUsageAggregate,
 } from "./catalog-bulk-selection";
 // O8 — the PURE roving-tabindex + key→action logic the keyboard handler drives.
 // Lives in its own leaf (no React/DOM) so the off-by-one movement math + the
@@ -72,10 +77,12 @@ import { AddGalleryIcon } from "@/components/edit-chrome/add-gallery/add-gallery
 import { governanceChips } from "./catalog-governance";
 import {
   LAB as T,
+  RADII,
   fieldStyle,
   panelStyle,
   LabBadge,
   LabChip,
+  LabButton,
   LinkBtn,
   LabStatusDropdown,
   LAB_STATUS_LABEL,
@@ -388,6 +395,19 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
     setArchiveLoading(false);
   }, []);
 
+  // P2 — confirm before a DESTRUCTIVE bulk op (Hide-on-all-surfaces / Reset). The
+  // single-row paths already gate (WhereUsedConfirm / inline Yes-No); the bulk
+  // bar fired with no confirm. We name the COUNT ("Hide N components on all
+  // surfaces?" / "Reset N overlays to default?") and, for Hide, surface the
+  // aggregate live-page usage of the selected rows (undefined usageCount = the
+  // "unknown" tally, never assumed safe). Per-surface Show/Hide + Publish stay
+  // un-gated (they are not the global one-way suppress).
+  const [bulkConfirm, setBulkConfirm] = useState<{
+    kind: "hide" | "reset";
+    count: number;
+    usage: BulkUsageAggregate;
+  } | null>(null);
+
   // All rows across every group — used for counts + keyboard look-ups.
   const allRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
 
@@ -555,21 +575,52 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
       ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [focusedId]);
 
-  /** Run a batch op, optimistically dim the table, then reload + clear on success. */
+  /**
+   * Run a batch op, optimistically dim the table, then reload and reconcile the
+   * selection against the per-item outcome.
+   *
+   * `attempted` = how many inputs the derivation actually produced (the batch
+   * that reached the server); `totalSelected` = the original selection size.
+   * The difference is the client-skipped rows (forbidden surface targets the
+   * derivation dropped). On a partial result we surface "N applied · K skipped ·
+   * M failed" and KEEP the failed rows (+ any client-skipped rows) selected so
+   * the operator can retry just them, instead of silently clearing everything.
+   */
   async function runBulk(
-    run: () => Promise<{ ok: boolean; error?: string }>,
+    run: () => Promise<
+      { ok: true; data: ReadonlyArray<BatchOutcomeItem> } | { ok: false; error?: string }
+    >,
+    attempted: number,
+    totalSelected: number,
   ): Promise<void> {
     setBulkBusy(true);
     setBulkError(null);
     try {
       const res = await run();
-      if (!res.ok) {
-        setBulkError(res.error ?? "Bulk update failed.");
-      }
       // Reconcile against server truth whether or not it reported ok — a partial
       // batch still wrote some rows, and reload() is the source of truth.
       await onReverted();
-      if (res.ok) setSelected(clearSelection());
+      if (!res.ok) {
+        setBulkError(res.error ?? "Bulk update failed.");
+        return; // keep the whole selection so the operator can retry.
+      }
+      const summary = summarizeBatchResults(res.data, attempted, totalSelected);
+      if (summary.skipped === 0 && summary.failed === 0) {
+        setSelected(clearSelection());
+        return;
+      }
+      // Partial: report the breakdown and keep the failed rows + the
+      // client-skipped rows (selected but not in the attempted result set).
+      setBulkError(summary.message);
+      const failed = failedRefs(res.data);
+      const attemptedRefs = new Set(res.data.map((r) => r.item_ref));
+      setSelected((prev) => {
+        const next = new Set<string>();
+        for (const id of prev) {
+          if (failed.has(id) || !attemptedRefs.has(id)) next.add(id);
+        }
+        return next;
+      });
     } catch {
       setBulkError("Bulk update failed.");
       await onReverted();
@@ -580,16 +631,55 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
 
   const chosen = () => selectedRowsOf(allRows, selected);
 
-  const bulkSetSurface = (surfaceKey: CatalogSurfaceKey, enabled: boolean) =>
-    void runBulk(() =>
-      setComponentOverlayBatch(deriveSurfaceBatchInputs(chosen(), surfaceKey, enabled)),
+  const bulkSetSurface = (surfaceKey: CatalogSurfaceKey, enabled: boolean) => {
+    const rows = chosen();
+    const inputs = deriveSurfaceBatchInputs(rows, surfaceKey, enabled);
+    void runBulk(
+      () => setComponentOverlayBatch(inputs),
+      inputs.length,
+      rows.length,
     );
-  const bulkSetAvailability = (availability: "available" | "hidden") =>
-    void runBulk(() =>
-      setComponentOverlayBatch(deriveAvailabilityBatchInputs(chosen(), availability)),
+  };
+  const bulkSetAvailability = (availability: "available" | "hidden") => {
+    const rows = chosen();
+    const inputs = deriveAvailabilityBatchInputs(rows, availability);
+    void runBulk(
+      () => setComponentOverlayBatch(inputs),
+      inputs.length,
+      rows.length,
     );
-  const bulkReset = () =>
-    void runBulk(() => clearComponentOverlayBatch(deriveResetRefs(chosen())));
+  };
+  const bulkReset = () => {
+    const rows = chosen();
+    const refs = deriveResetRefs(rows);
+    void runBulk(
+      () => clearComponentOverlayBatch(refs),
+      refs.length,
+      rows.length,
+    );
+  };
+
+  // P2 — open the destructive-bulk confirm (snapshots the count + usage so the
+  // dialog copy stays stable even if the selection changes underneath it).
+  const beginBulkHide = () =>
+    setBulkConfirm({
+      kind: "hide",
+      count: selected.size,
+      usage: summarizeUsageForRows(chosen()),
+    });
+  const beginBulkReset = () =>
+    setBulkConfirm({
+      kind: "reset",
+      count: selected.size,
+      usage: summarizeUsageForRows(chosen()),
+    });
+  const closeBulkConfirm = () => setBulkConfirm(null);
+  const confirmBulk = () => {
+    if (!bulkConfirm) return;
+    if (bulkConfirm.kind === "hide") bulkSetAvailability("hidden");
+    else bulkReset();
+    setBulkConfirm(null);
+  };
 
   return (
     <div
@@ -611,12 +701,15 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
           count={selected.size}
           busy={bulkBusy}
           error={bulkError}
+          confirm={bulkConfirm}
+          onConfirm={confirmBulk}
+          onCancelConfirm={closeBulkConfirm}
           onClear={() => setSelected(clearSelection())}
           onShowSurface={(sk) => bulkSetSurface(sk, true)}
           onHideSurface={(sk) => bulkSetSurface(sk, false)}
           onPublish={() => bulkSetAvailability("available")}
-          onArchive={() => bulkSetAvailability("hidden")}
-          onReset={bulkReset}
+          onArchive={beginBulkHide}
+          onReset={beginBulkReset}
         />
       ) : null}
 
@@ -746,7 +839,20 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
             </span>
           </div>
 
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+          {/* P2 — horizontal scroll wrapper. The 4-surface matrix carries 11
+              columns; below ~1280px they used to clip (the section is
+              overflow:hidden for its rounded corners). Let the table scroll
+              sideways inside its own pane instead, with a min-width floor so the
+              columns keep their readable widths rather than crushing. */}
+          <div data-testid="lab-catalog-matrix-scroll" style={{ overflowX: "auto" }}>
+          <table
+            style={{
+              width: "100%",
+              minWidth: 980,
+              borderCollapse: "collapse",
+              fontSize: 12.5,
+            }}
+          >
             <thead>
               <tr style={{ color: T.inkDim }}>
                 <th
@@ -1069,6 +1175,7 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
               })}
             </tbody>
           </table>
+          </div>
         </section>
       ))}
     </div>
@@ -1090,6 +1197,9 @@ function BulkActionBar({
   count,
   busy,
   error,
+  confirm,
+  onConfirm,
+  onCancelConfirm,
   onClear,
   onShowSurface,
   onHideSurface,
@@ -1100,6 +1210,9 @@ function BulkActionBar({
   count: number;
   busy: boolean;
   error: string | null;
+  confirm: { kind: "hide" | "reset"; count: number; usage: BulkUsageAggregate } | null;
+  onConfirm: () => void;
+  onCancelConfirm: () => void;
   onClear: () => void;
   onShowSurface: (surfaceKey: CatalogSurfaceKey) => void;
   onHideSurface: (surfaceKey: CatalogSurfaceKey) => void;
@@ -1115,8 +1228,7 @@ function BulkActionBar({
         top: 0,
         zIndex: 5,
         display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
+        flexDirection: "column",
         gap: 12,
         padding: "10px 16px",
         borderRadius: 12,
@@ -1126,6 +1238,7 @@ function BulkActionBar({
         opacity: busy ? 0.7 : 1,
       }}
     >
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
       <span
         data-testid="lab-catalog-bulk-count"
         style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, whiteSpace: "nowrap" }}
@@ -1178,7 +1291,10 @@ function BulkActionBar({
           primary
         />
         <BulkBtn
-          label="Archive"
+          // P2 — bulk "Archive" writes availability_override:"hidden" (a global
+          // suppress across all surfaces), NOT the per-row status:"archived".
+          // Label it honestly so it doesn't read like the row-level Archive.
+          label="Hide on all surfaces"
           testId="lab-catalog-bulk-archive"
           onClick={onArchive}
           disabled={busy}
@@ -1199,6 +1315,110 @@ function BulkActionBar({
         ) : null}
         <LinkBtn label="Clear" onClick={onClear} disabled={busy} />
       </span>
+      </div>
+
+      {/* P2 — confirm gate for the destructive bulk ops (Hide-on-all-surfaces /
+          Reset). Names the COUNT; the Hide variant also surfaces the aggregate
+          live-page usage of the selected rows so the operator sees the blast
+          radius before suppressing them everywhere. */}
+      {confirm ? (
+        <BulkConfirm
+          confirm={confirm}
+          busy={busy}
+          onConfirm={onConfirm}
+          onCancel={onCancelConfirm}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** P2 — the count-named confirm shown before a destructive bulk op. */
+function BulkConfirm({
+  confirm,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  confirm: { kind: "hide" | "reset"; count: number; usage: BulkUsageAggregate };
+  busy: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { kind, count, usage } = confirm;
+  const n = count;
+  const noun = `${n} ${n === 1 ? "component" : "components"}`;
+  const heading =
+    kind === "hide"
+      ? `Hide ${noun} on all surfaces?`
+      : `Reset ${n} ${n === 1 ? "overlay" : "overlays"} to default?`;
+  // Usage line for Hide: "K of N selected used on live pages" (+ unknowns).
+  const usageBits: string[] = [];
+  if (kind === "hide") {
+    usageBits.push(`${usage.used} of ${usage.total} selected used on live pages`);
+    if (usage.unknown > 0) {
+      usageBits.push(
+        `${usage.unknown} with unknown usage`,
+      );
+    }
+  }
+  const loadBearing = kind === "hide" && usage.used > 0;
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={heading}
+      data-testid="lab-catalog-bulk-confirm"
+      style={{
+        padding: 14,
+        background: T.card,
+        border: `1px solid ${loadBearing ? T.red : T.border}`,
+        borderRadius: RADII.card,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: T.ink }}>{heading}</span>
+        {loadBearing ? (
+          <LabBadge tone="custom" bg={T.redBg} fg={T.red}>
+            Used on live pages
+          </LabBadge>
+        ) : null}
+      </div>
+      <p
+        style={{
+          fontSize: 12.5,
+          color: T.inkMuted,
+          lineHeight: 1.55,
+          margin: 0,
+          maxWidth: 540,
+        }}
+      >
+        {kind === "hide"
+          ? `This removes them from every builder gallery (Publish brings them back). ${usageBits.join(" · ")}. Live pages already using them keep their copy.`
+          : "This clears the Lab overlay on the selected rows, restoring each component's built-in label, category, icon, plan gate, and surface visibility."}
+      </p>
+      <div style={{ display: "flex", gap: 8 }}>
+        <LabButton
+          variant="secondary"
+          onClick={onCancel}
+          disabled={busy}
+          testId="lab-catalog-bulk-confirm-cancel"
+        >
+          Cancel
+        </LabButton>
+        <LabButton
+          variant="primary"
+          onClick={onConfirm}
+          disabled={busy}
+          testId="lab-catalog-bulk-confirm-go"
+          style={loadBearing ? { background: T.red, color: "#0F0F11" } : undefined}
+        >
+          {kind === "hide" ? `Hide ${noun}` : `Reset ${n}`}
+        </LabButton>
+      </div>
     </div>
   );
 }
