@@ -32,10 +32,11 @@ import {
 } from "./taxonomy-shape";
 
 // Pure taxonomy types + helpers live in `taxonomy-shape` (this file carries the
-// `"use server"` directive, under which every export must be an async function).
+// `"use server"` directive, under which every export must be an async function —
+// AND must not re-export types: Next's server-actions codegen emits a runtime
+// reference for a re-exported binding, throwing `X is not defined`. Types are
+// imported here for local use only; consumers import them from `taxonomy-shape`).
 import type { TemplateTaxonomy } from "./taxonomy-shape";
-export type { TaxonomyEntry } from "./taxonomy-shape";
-export type { TemplateTaxonomy };
 
 // ── Result type ───────────────────────────────────────────────────────────────
 

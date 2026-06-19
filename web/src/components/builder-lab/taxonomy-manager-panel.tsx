@@ -20,9 +20,11 @@ import {
   renameTemplateCategory,
   mergeTemplateTags,
   deleteTemplateTag,
-  type TemplateTaxonomy,
-  type TaxonomyEntry,
 } from "@/lib/site-admin/builder-core/templates/taxonomy-actions";
+import type {
+  TemplateTaxonomy,
+  TaxonomyEntry,
+} from "@/lib/site-admin/builder-core/templates/taxonomy-shape";
 import {
   LAB,
   RADII,
