@@ -16,6 +16,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -127,13 +128,13 @@ export async function getCatalogVersion(): Promise<number | null> {
  * template row is a data integrity issue unrelated to the overlay write).
  */
 async function fetchTemplateTargetContext(
-  sb: ReturnType<typeof import("@/lib/supabase/admin").createServiceRoleClient>,
+  sb: SupabaseClient,
   itemRef: string,
   source: "code" | "template",
 ): Promise<"talent" | "workspace" | "both" | "platform" | null> {
   if (source !== "template") return "both"; // code items: no target_context row
   const uuid = itemRef.startsWith("db-template:") ? itemRef.slice("db-template:".length) : itemRef;
-  const { data } = await (sb as NonNullable<typeof sb>)
+  const { data } = await sb
     .from("builder_templates")
     .select("target_context")
     .eq("id", uuid)
