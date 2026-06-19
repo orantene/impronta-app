@@ -222,6 +222,27 @@ async function fetchTemplateTargetContext(
   return (data.target_context as "talent" | "workspace" | "both" | "platform") ?? "both";
 }
 
+/** Maps each catalog surface key to its overlay-input boolean field. */
+const SURFACE_KEY_TO_INPUT_FIELD: Record<
+  CatalogSurfaceKey,
+  keyof SetCatalogOverlayInput
+> = {
+  talent_profile: "talent_profile_enabled",
+  talent_shell: "talent_shell_enabled",
+  workspace_page: "workspace_page_enabled",
+  workspace_shell: "workspace_shell_enabled",
+};
+
+/** The surface keys an overlay input is ENABLING (setting to `true`). Drives the
+ *  X3 tighten-only guard on BOTH the single-row and the batch write paths. */
+function enablingSurfaceKeys(
+  input: SetCatalogOverlayInput,
+): CatalogSurfaceKey[] {
+  return CATALOG_SURFACE_KEYS.filter(
+    (sk) => input[SURFACE_KEY_TO_INPUT_FIELD[sk]] === true,
+  );
+}
+
 /**
  * Upsert an overlay for one gallery item. Only the provided fields are written;
  * a brand-new row takes table defaults (both surfaces enabled, no overrides).
@@ -238,15 +259,7 @@ export async function setComponentOverlay(
   // that the component's target_context excludes. lab_enabled is never gated.
   // We only need to run the DB lookup when at least one surface toggle is being
   // set to `true`; disable-only writes and non-surface fields always proceed.
-  const surfaceKeyToInputField: Record<CatalogSurfaceKey, keyof SetCatalogOverlayInput> = {
-    talent_profile: "talent_profile_enabled",
-    talent_shell: "talent_shell_enabled",
-    workspace_page: "workspace_page_enabled",
-    workspace_shell: "workspace_shell_enabled",
-  };
-  const enablingKeys = CATALOG_SURFACE_KEYS.filter(
-    (sk) => input[surfaceKeyToInputField[sk]] === true,
-  );
+  const enablingKeys = enablingSurfaceKeys(input);
   if (enablingKeys.length > 0) {
     try {
       const sbGuard = getAdminClient();
@@ -452,8 +465,43 @@ export async function setComponentOverlayBatch(
     }
   }
 
-  // Build upsert payloads from the deduplicated map.
+  const sb = getAdminClient();
+  // Refs that pass the guard and will actually be written — tracked so the audit
+  // (below) and the ok-results only cover rows that landed.
+  const writtenRefs: string[] = [];
+
+  // Build upsert payloads from the deduplicated map, enforcing the SAME
+  // tighten-only invariant the single-row path runs (X3): a row trying to ENABLE
+  // a surface its target_context excludes is rejected as a per-item failure and
+  // never written — so the bulk path can't silently bypass the integrity guard.
   for (const [, input] of seen) {
+    const enablingKeys = enablingSurfaceKeys(input);
+    if (enablingKeys.length > 0) {
+      try {
+        const targetCtx = await fetchTemplateTargetContext(
+          sb,
+          input.item_ref,
+          input.source,
+        );
+        if (targetCtx !== null) {
+          const violations = enablingKeys.filter(
+            (sk) => !surfaceAllowedForTarget(targetCtx, sk),
+          );
+          if (violations.length > 0) {
+            results.push({
+              ok: false,
+              error: `Tighten-only invariant: component targets "${targetCtx}"; cannot enable surface(s): ${violations.join(", ")}.`,
+              item_ref: input.item_ref,
+            });
+            continue;
+          }
+        }
+      } catch (err) {
+        logServerError("setComponentOverlayBatch.guardLookup", err);
+        // Non-fatal lookup error — proceed; the write itself may still error.
+      }
+    }
+
     const payload: Record<string, unknown> = {
       item_ref: input.item_ref,
       source: input.source,
@@ -482,25 +530,49 @@ export async function setComponentOverlayBatch(
     assign("data_source_defaults");
     assign("locked_props");
     payloads.push(payload);
+    writtenRefs.push(input.item_ref);
   }
 
   if (!payloads.length) {
-    // All inputs had validation errors — nothing to write.
+    // All inputs were validation errors or guard violations — nothing to write.
     return ok(results);
   }
 
   try {
-    const sb = getAdminClient();
-    const { error } = await sb
+    // Capture the pre-write rows (one query) so the per-row audit carries a diff.
+    const { data: beforeRows } = await sb
       .from("builder_catalog_overlay")
-      .upsert(payloads, { onConflict: "item_ref" });
+      .select()
+      .in("item_ref", writtenRefs);
+    const beforeByRef = new Map(
+      (beforeRows ?? []).map((r) => [r.item_ref as string, r]),
+    );
+
+    const { data: afterRows, error } = await sb
+      .from("builder_catalog_overlay")
+      .upsert(payloads, { onConflict: "item_ref" })
+      .select();
     if (error) return fail(error.message);
+    const afterByRef = new Map(
+      (afterRows ?? []).map((r) => [r.item_ref as string, r]),
+    );
+
     // One bump + one revalidate for the whole batch.
     await bumpCatalogVersion(sb);
     revalidateCatalog();
 
-    for (const [item_ref] of seen) {
-      results.push({ ok: true, data: undefined, item_ref });
+    // G1 — audit EACH written row (best-effort, never blocks). Mirrors the
+    // single-row path so bulk re-gates leave the same accountability trail +
+    // feed the G7 per-row undo.
+    for (const ref of writtenRefs) {
+      await appendBuilderLabAudit({
+        action: "overlay.set",
+        itemRef: ref,
+        actor: gate.userId,
+        before: beforeByRef.get(ref) ?? null,
+        after: afterByRef.get(ref) ?? null,
+      });
+      results.push({ ok: true, data: undefined, item_ref: ref });
     }
     return ok(results);
   } catch (err) {

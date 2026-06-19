@@ -105,8 +105,12 @@ async function captureViaScreenshotService(
   if (!base) return null;
   const token = process.env.SCREENSHOT_SERVICE_TOKEN;
   const endpoint = `${base}${base.includes("?") ? "&" : "?"}url=${encodeURIComponent(previewUrl)}`;
+  // Hard timeout — this is awaited inline in publishRowCore, so a hung/slow
+  // screenshot vendor must NOT stall the publish (the try/catch around the call
+  // catches the AbortError → null → publish proceeds thumbnail-less).
   const res = await fetch(endpoint, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) return null;
   const buf = new Uint8Array(await res.arrayBuffer());

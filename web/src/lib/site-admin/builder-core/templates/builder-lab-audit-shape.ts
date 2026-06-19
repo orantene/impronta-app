@@ -20,8 +20,10 @@ export interface AppendBuilderLabAuditInput {
   itemRef?: string | null;
   /** Raw builder_templates.id for lifecycle writes. */
   templateId?: string | null;
-  /** Acting super-admin (gate.userId). */
-  actor: string;
+  /** Acting super-admin (gate.userId), or `null` for a system/cron actor — the
+   *  `actor` column is a nullable uuid FK, so a non-UUID sentinel string would
+   *  fail the cast and the row would silently never land. */
+  actor: string | null;
   before?: unknown;
   after?: unknown;
 }
@@ -57,7 +59,7 @@ export function buildAuditInsertPayload(input: AppendBuilderLabAuditInput): {
   action: string;
   item_ref: string | null;
   template_id: string | null;
-  actor: string;
+  actor: string | null;
   before: unknown;
   after: unknown;
 } {
