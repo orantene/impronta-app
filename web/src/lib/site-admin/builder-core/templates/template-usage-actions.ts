@@ -19,6 +19,14 @@
  * Inserts go through the service-role admin client (no insert RLS policy); reads
  * are gated here AND by the super_admin SELECT RLS. The pure aggregation lives in
  * `template-usage-shape.ts` so it stays unit-testable without a DB client.
+ *
+ * P3 SCALE FIX: `getTemplateUsageTotals` no longer SELECTs every usage row and
+ * folds them in JS (which truncated at PostgREST's 1000-row `max_rows`). The
+ * `count(*)` / `count(distinct tenant_id)` group-by now runs server-side in the
+ * `builder_template_usage_totals()` SECURITY-DEFINER RPC (one migration,
+ * 20261106000900), and the pure `aggregateUsageTotalsRows` just maps the
+ * pre-aggregated rows → the totals map. `aggregateTemplateUsage` (the old
+ * raw-row fold) stays exported + unit-tested but is OFF the SQL path now.
  */
 
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -26,8 +34,8 @@ import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
-  aggregateTemplateUsage,
-  type BuilderTemplateUsageRow,
+  aggregateUsageTotalsRows,
+  type BuilderTemplateUsageTotalsRow,
   type TemplateUsageTotals,
 } from "./template-usage-shape";
 
@@ -95,16 +103,16 @@ export async function getTemplateUsageTotals(): Promise<TemplateUsageResult> {
     const sb = createServiceRoleClient();
     if (!sb) return { ok: false, error: "Service-role client unavailable." };
 
-    const { data, error } = await sb
-      .from("builder_template_usage")
-      .select("template_id, tenant_id");
+    // P3 — server-side aggregate (count(*) + count(distinct tenant_id) group by
+    // template_id). No row streaming, no 1000-row truncation.
+    const { data, error } = await sb.rpc("builder_template_usage_totals");
     if (error) {
       logServerError("getTemplateUsageTotals", error);
       return { ok: false, error: "Could not load template usage." };
     }
 
-    const rows = (data ?? []) as BuilderTemplateUsageRow[];
-    const totals = aggregateTemplateUsage(rows);
+    const rows = (data ?? []) as BuilderTemplateUsageTotalsRow[];
+    const totals = aggregateUsageTotalsRows(rows);
     return { ok: true, data: Object.fromEntries(totals) };
   } catch (err) {
     logServerError("getTemplateUsageTotals", err);

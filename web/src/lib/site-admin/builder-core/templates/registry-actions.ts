@@ -668,6 +668,12 @@ export interface ComponentDependentsScan {
 async function loadPublishedScanTemplates(
   sb: SupabaseClient,
 ): Promise<ScannableTemplate[]> {
+  // P3: the select is already narrow — `builder_tree` is the only heavy column
+  // and it IS required by the dependency walker (scanTemplatesForComponentDependents
+  // walks the tree), so there is nothing to trim without breaking the scan. The
+  // scale win is keeping this off the Lab-open hot path (it runs only from the
+  // pre-write confirm guards) and no longer co-firing it with an unbounded D1
+  // four-table scan — see loadHideImpact.
   const { data, error } = await sb
     .from("builder_templates")
     .select("id, title, slug, builder_tree")
@@ -775,6 +781,11 @@ export async function loadHideImpact(
     }
 
     // ── D1 live-page usage ────────────────────────────────────────────────────
+    // P3: loadComponentUsageTally is now backed by two SECURITY-DEFINER aggregate
+    // RPCs (server-side count/group-by, no row streaming, no 1000-row truncation),
+    // so this is a CHEAP read. It therefore no longer co-fires an unbounded
+    // four-table scan alongside loadPublishedScanTemplates below — the two heavy
+    // reads that used to run together on every hide-impact preview are decoupled.
     const tally = await loadComponentUsageTally();
     const usageCount =
       usageCountForItem({ nativeKind, sectionEmbedKey }, tally) ?? 0;

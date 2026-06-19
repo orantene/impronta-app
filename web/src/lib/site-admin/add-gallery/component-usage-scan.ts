@@ -128,6 +128,54 @@ export function mergeUsageTallies(
   return out;
 }
 
+// ── Fold SECURITY-DEFINER RPC rows into a tally (P3) ──────────────────────────
+
+/** One `(kind, n)` row from `count_builder_component_usage()`. */
+export interface UsageByKindRow {
+  kind: string;
+  /** PostgREST returns `bigint` as either a number or a numeric STRING; the
+   *  coercion below tolerates both. */
+  n: number | string;
+}
+
+/** One `(embed_key, n)` row from `count_builder_component_section_embed_keys()`. */
+export interface UsageByEmbedKeyRow {
+  embed_key: string;
+  n: number | string;
+}
+
+/** Coerce a PostgREST bigint (number or numeric string) to a finite number; a
+ *  non-numeric / NaN value folds to 0 so a bad row can never NaN-poison a tally. */
+function coerceCount(n: number | string): number {
+  const num = typeof n === "string" ? Number(n) : n;
+  return Number.isFinite(num) ? num : 0;
+}
+
+/**
+ * Fold the two SECURITY-DEFINER usage RPCs' rows into a {@link ComponentUsageTally}
+ * (PURE — no DB, no I/O). The server side has already done the recursive-descent
+ * walk + group-by, so this just maps `(kind,n)` → `byKind` and `(embed_key,n)` →
+ * `bySectionEmbedKey`, coercing bigint-as-string to a number. Repeated keys (which
+ * a correct group-by never emits, but a defensive fold should still survive) are
+ * summed; empty inputs → an empty tally.
+ */
+export function tallyFromRpcRows(
+  byKindRows: ReadonlyArray<UsageByKindRow> | null | undefined,
+  byEmbedRows: ReadonlyArray<UsageByEmbedKeyRow> | null | undefined,
+): ComponentUsageTally {
+  const tally = emptyUsageTally();
+  for (const row of byKindRows ?? []) {
+    if (!row.kind) continue;
+    tally.byKind[row.kind] = (tally.byKind[row.kind] ?? 0) + coerceCount(row.n);
+  }
+  for (const row of byEmbedRows ?? []) {
+    if (!row.embed_key) continue;
+    tally.bySectionEmbedKey[row.embed_key] =
+      (tally.bySectionEmbedKey[row.embed_key] ?? 0) + coerceCount(row.n);
+  }
+  return tally;
+}
+
 // ── Resolve a catalog item's usage count ──────────────────────────────────────
 
 /**

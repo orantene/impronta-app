@@ -36,7 +36,10 @@ import {
   type CatalogStructureMap,
 } from "@/lib/site-admin/add-gallery/catalog-structure";
 import { listCatalogStructure } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
-import { loadCatalogAdminView } from "@/lib/site-admin/add-gallery/catalog-admin-view-action";
+import {
+  loadCatalogAdminView,
+  loadCatalogUsageCounts,
+} from "@/lib/site-admin/add-gallery/catalog-admin-view-action";
 import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
 import { getTemplateUsageTotals } from "@/lib/site-admin/builder-core/templates/template-usage-actions";
 import type { TemplateUsageTotals } from "@/lib/site-admin/builder-core/templates/template-usage-shape";
@@ -440,10 +443,32 @@ export function ComponentCatalog({
     }
   }, [savingPreset]);
 
+  // P3 — D1 usage counts are loaded LAZILY (the eager Lab open no longer waits on
+  // the platform-wide usage scan). This fetches the cheap `id → usageCount` map
+  // (a SECURITY-DEFINER RPC pair, server-side aggregated, no 1000-row truncation)
+  // and merges it into the already-rendered rows. Non-fatal: a failure just
+  // leaves the "Used" column at "—". Until it lands, rows carry usageCount:
+  // undefined from loadCatalogAdminView.
+  const mergeUsageCounts = useCallback(async () => {
+    try {
+      const map = await loadCatalogUsageCounts();
+      setItems((prev) =>
+        prev
+          ? prev.map((r) => ({ ...r, usageCount: map[r.id] ?? r.usageCount }))
+          : prev,
+      );
+    } catch {
+      /* keep "—" in the Used column */
+    }
+  }, []);
+
   const reload = useCallback(async () => {
     const data = await loadCatalogAdminView();
     setItems(data);
-  }, []);
+    // Re-fire the lazy usage merge after a reload so the Used column reflects any
+    // tree changes since the last load.
+    void mergeUsageCounts();
+  }, [mergeUsageCounts]);
 
   useEffect(() => {
     let cancelled = false;
@@ -457,6 +482,27 @@ export function ComponentCatalog({
     loadCatalogAdminView()
       .then((data) => {
         if (!cancelled) setItems(data);
+        // P3 — fire the LAZY D1 usage fetch only AFTER the catalog rows are
+        // painted, then merge counts into them by id. Self-contained + non-fatal:
+        // its own catch keeps a usage failure from tripping the catalog error
+        // below (the catalog already loaded); the Used column shows "—" until it
+        // resolves.
+        loadCatalogUsageCounts()
+          .then((map) => {
+            if (!cancelled) {
+              setItems((prev) =>
+                prev
+                  ? prev.map((r) => ({
+                      ...r,
+                      usageCount: map[r.id] ?? r.usageCount,
+                    }))
+                  : prev,
+              );
+            }
+          })
+          .catch(() => {
+            /* keep "—" in the Used column */
+          });
       })
       .catch(() => {
         if (!cancelled) setError("Failed to load the component catalog.");
