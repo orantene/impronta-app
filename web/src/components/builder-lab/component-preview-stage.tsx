@@ -14,7 +14,7 @@
  * declarative BuilderNode JSON (the literal insert payload).
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getTemplateById } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
@@ -23,6 +23,7 @@ import {
   createPlatformLabAdapter,
   emptyLabComposition,
 } from "@/lib/site-admin/builder-core/adapters/platform-lab-adapter";
+import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import { useEditContext } from "@/components/edit-chrome/edit-context";
 import { getAddGalleryItemById } from "@/lib/site-admin/add-gallery/registry";
 import { resolveAddGalleryInsertAction } from "@/lib/site-admin/add-gallery/insert";
@@ -31,6 +32,13 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { CHROME } from "@/components/edit-chrome/kit/tokens";
 
 import { LAB } from "./ui";
+import {
+  PREVIEW_SURFACE_DESCRIPTORS,
+  previewSubjectKindForSurface,
+  type PreviewSurfaceTarget,
+} from "./preview-surface-target";
+import { type PreviewSubject } from "./preview-subject-picker";
+import { SurfaceSubjectPicker } from "./surface-subject-picker";
 
 export type CatalogItemPreview = {
   id: string;
@@ -205,6 +213,16 @@ export function BuilderLabComponentPreview({
 }) {
   const [showCode, setShowCode] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  // X8 — which of the four real surfaces (or the generic Lab default) the
+  // connected component previews against. Default `lab` keeps F5's behaviour:
+  // the generic Lab subject (tenant default, previewSubjectKind null).
+  const [surfaceTarget, setSurfaceTarget] = useState<PreviewSurfaceTarget>("lab");
+  // The real subject (talent / workspace) picked for the chosen surface, plus the
+  // canvas render data rebuilt against it — a reactive prop, so connected nodes
+  // re-hydrate in place when it changes (same pattern as BuilderLabStage).
+  const [subject, setSubject] = useState<PreviewSubject | null>(null);
+  const [canvasRenderData, setCanvasRenderData] =
+    useState<InEditorCanvasRenderData | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -215,6 +233,22 @@ export function BuilderLabComponentPreview({
       document.body.style.overflow = prev;
     };
   }, []);
+
+  // Switching surface clears any subject/canvas hydration from the prior surface
+  // so the new surface starts from its own clean state.
+  const onSurfaceChange = useCallback((next: PreviewSurfaceTarget) => {
+    setSurfaceTarget(next);
+    setSubject(null);
+    setCanvasRenderData(null);
+  }, []);
+
+  const onSubjectResolved = useCallback(
+    (next: PreviewSubject, data: InEditorCanvasRenderData) => {
+      setSubject(next);
+      setCanvasRenderData(data);
+    },
+    [],
+  );
 
   // Ephemeral adapter seeded with the component's default tree (no draft, no I/O).
   const adapter = useMemo(
@@ -231,9 +265,16 @@ export function BuilderLabComponentPreview({
       }),
     [preview.tree, preview.label],
   );
+  // X8 — the config's previewSubjectKind is now derived from the chosen surface,
+  // mirroring that surface's real config builder (talent_page → "talent"; the
+  // shells / cms_page → null). `lab` keeps the F5 generic default (null).
   const surfaceConfig = useMemo(
-    () => buildPlatformLabBuilderConfig(adapter, null),
-    [adapter],
+    () =>
+      buildPlatformLabBuilderConfig(
+        adapter,
+        previewSubjectKindForSurface(surfaceTarget),
+      ),
+    [adapter, surfaceTarget],
   );
 
   return (
@@ -261,12 +302,27 @@ export function BuilderLabComponentPreview({
             workspacePlan={workspacePlan ?? null}
             locale={locale}
             pageSlug={null}
+            canvasRenderData={canvasRenderData}
             headerVariant="lab"
             onExit={onExit}
             exitLabel="Close preview"
-            previewSubjectChip={<PreviewChip label={preview.label} />}
+            previewSubjectChip={
+              <PreviewChip
+                label={preview.label}
+                surfaceTarget={surfaceTarget}
+                subject={subject}
+              />
+            }
             labHeaderActions={
-              <PreviewHeaderActions onOpenSettings={() => setShowSettings(true)} />
+              <PreviewHeaderActions
+                surfaceTarget={surfaceTarget}
+                onSurfaceChange={onSurfaceChange}
+                subject={subject}
+                tenantId={tenantId}
+                locale={locale}
+                onSubjectResolved={onSubjectResolved}
+                onOpenSettings={() => setShowSettings(true)}
+              />
             }
           >
             <SeedPreviewing />
@@ -290,8 +346,22 @@ export function BuilderLabComponentPreview({
   );
 }
 
-/** A read-only chip in the topbar showing what's being previewed. */
-function PreviewChip({ label }: { label: string }) {
+/** A read-only chip in the topbar showing what's being previewed — and, when a
+ *  non-Lab surface is chosen, which surface (+ subject) it hydrates against. */
+function PreviewChip({
+  label,
+  surfaceTarget,
+  subject,
+}: {
+  label: string;
+  surfaceTarget: PreviewSurfaceTarget;
+  subject: PreviewSubject | null;
+}) {
+  const surfaceLabel =
+    surfaceTarget === "lab"
+      ? null
+      : PREVIEW_SURFACE_DESCRIPTORS.find((d) => d.target === surfaceTarget)
+          ?.label ?? null;
   return (
     <span
       style={{
@@ -309,6 +379,12 @@ function PreviewChip({ label }: { label: string }) {
     >
       <span aria-hidden style={{ fontSize: 12 }}>👁</span>
       Previewing: {label}
+      {surfaceLabel ? (
+        <span style={{ opacity: 0.75, fontWeight: 500 }}>
+          · {surfaceLabel}
+          {subject ? ` (${subject.label})` : ""}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -436,33 +512,61 @@ function CodeInspector({
   );
 }
 
-/** Lock (read-only ↔ editable) + Settings buttons in the lab topbar. Rendered
- *  INSIDE the editor provider (via labHeaderActions) so the lock can read/toggle
- *  the live `previewing` state. Lock semantics: locked = read-only (look-only),
- *  unlocked = editable preview. */
-function PreviewHeaderActions({ onOpenSettings }: { onOpenSettings: () => void }) {
+/** Surface switcher + subject picker + Lock + Settings in the lab topbar.
+ *  Rendered INSIDE the editor provider (via labHeaderActions) so the lock can
+ *  read/toggle the live `previewing` state AND the subject picker can read the
+ *  live builder tree (`useBuilderTree`) when rebuilding canvas data against a
+ *  picked subject. Lock semantics: locked = read-only (look-only), unlocked =
+ *  editable preview. */
+function PreviewHeaderActions({
+  surfaceTarget,
+  onSurfaceChange,
+  subject,
+  tenantId,
+  locale,
+  onSubjectResolved,
+  onOpenSettings,
+}: {
+  surfaceTarget: PreviewSurfaceTarget;
+  onSurfaceChange: (next: PreviewSurfaceTarget) => void;
+  subject: PreviewSubject | null;
+  tenantId: string;
+  locale?: string;
+  onSubjectResolved: (s: PreviewSubject, data: InEditorCanvasRenderData) => void;
+  onOpenSettings: () => void;
+}) {
   const { previewing, setPreviewing } = useEditContext();
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-      <HeaderIconBtn
-        active={previewing}
-        title={
-          previewing
-            ? "Locked (read-only) — click to edit this preview"
-            : "Editable — click to lock (read-only)"
-        }
-        ariaLabel={previewing ? "Locked — read only" : "Unlocked — editable"}
-        onClick={() => setPreviewing(!previewing)}
-      >
-        <LockGlyph locked={previewing} />
-      </HeaderIconBtn>
-      <HeaderIconBtn
-        title="Component settings"
-        ariaLabel="Component settings"
-        onClick={onOpenSettings}
-      >
-        <GearGlyph />
-      </HeaderIconBtn>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <SurfaceSubjectPicker
+        surfaceTarget={surfaceTarget}
+        onSurfaceChange={onSurfaceChange}
+        subject={subject}
+        tenantId={tenantId}
+        locale={locale}
+        onSubjectResolved={onSubjectResolved}
+      />
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+        <HeaderIconBtn
+          active={previewing}
+          title={
+            previewing
+              ? "Locked (read-only) — click to edit this preview"
+              : "Editable — click to lock (read-only)"
+          }
+          ariaLabel={previewing ? "Locked — read only" : "Unlocked — editable"}
+          onClick={() => setPreviewing(!previewing)}
+        >
+          <LockGlyph locked={previewing} />
+        </HeaderIconBtn>
+        <HeaderIconBtn
+          title="Component settings"
+          ariaLabel="Component settings"
+          onClick={onOpenSettings}
+        >
+          <GearGlyph />
+        </HeaderIconBtn>
+      </span>
     </span>
   );
 }
