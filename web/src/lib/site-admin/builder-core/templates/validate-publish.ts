@@ -192,3 +192,149 @@ export function validateTemplateForPublish(
 
   return { ok: true, treeDiff };
 }
+
+// ── Pre-publish checklist (A6 — read-only preview) ────────────────────────────
+
+/**
+ * One row in the pre-publish checklist surfaced by `PublishNotePanel` (A6).
+ * `pass` is whether the check is satisfied; `blocking` distinguishes a hard
+ * failure (publish would be rejected by `validateTemplateForPublish`) from a
+ * soft warning (publish still works, but the template ships incomplete — e.g.
+ * no description / thumbnail / changelog).
+ */
+export interface PublishChecklistRow {
+  /** Stable machine key (for tests / data-testid). */
+  key:
+    | "has_content"
+    | "bindings_resolvable"
+    | "has_description"
+    | "has_thumbnail"
+    | "has_changelog";
+  /** Human label shown in the panel. */
+  label: string;
+  /** True when the check is satisfied. */
+  pass: boolean;
+  /** True when a failure BLOCKS publish; false = advisory warning only. */
+  blocking: boolean;
+  /** Optional one-line detail shown when the check fails. */
+  detail?: string;
+}
+
+/** Aggregate checklist verdict. */
+export interface PublishChecklist {
+  rows: PublishChecklistRow[];
+  /** True when no BLOCKING row is failing — i.e. publish would be accepted. */
+  canPublish: boolean;
+  /** True when at least one advisory (non-blocking) row is failing. */
+  hasWarnings: boolean;
+}
+
+/**
+ * The read-only inputs the checklist needs. This is exactly the subset of a
+ * `builder_templates` row the publish UI already holds in memory, so the
+ * preview is computed WITHOUT a DB round-trip and WITHOUT mutating anything.
+ */
+export interface PublishChecklistInput {
+  tree: ReadonlyArray<BuilderNode> | null | undefined;
+  description?: string | null;
+  thumbnailAssetId?: string | null;
+  changelog?: string | null;
+  /** Optional changelog the admin is about to type in the panel (A6). When
+   *  non-empty it satisfies the changelog row even if the row's stored value
+   *  is blank — the note is about to be stamped on this publish. */
+  pendingChangelog?: string | null;
+  previousTree?: ReadonlyArray<BuilderNode> | null;
+}
+
+function isNonBlank(value: string | null | undefined): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * READ-ONLY wrapper over `validateTemplateForPublish` (A6). Runs the SAME
+ * structural validator the publish gate runs (no fork) and maps its result —
+ * plus the advisory metadata checks (description / thumbnail / changelog) — into
+ * a flat list of pass/fail rows for `PublishNotePanel` to render BEFORE the
+ * admin ships. Never mutates, never does I/O: purely a function of its input.
+ *
+ * The two structural rows (`has_content`, `bindings_resolvable`) are BLOCKING —
+ * they mirror the two failure modes of `validateTemplateForPublish`. The three
+ * metadata rows are advisory warnings: a template with no description still
+ * publishes, but the operator sees what's missing first.
+ */
+export function previewPublishChecklist(
+  input: PublishChecklistInput,
+): PublishChecklist {
+  const validation = validateTemplateForPublish(input.tree, {
+    previousTree: input.previousTree,
+  });
+
+  // Derive the two structural rows from the validator's reasons. An empty tree
+  // is the first reason; a dangling-binding reason mentions "data source".
+  const reasons = validation.ok ? [] : validation.reasons;
+  const emptyContent =
+    !Array.isArray(input.tree) || input.tree.length === 0;
+  const bindingReason = reasons.find((r) => r.includes("data source"));
+  const structureReason = reasons.find(
+    (r) => r.includes("template structure is invalid"),
+  );
+
+  // "Has content" fails when the tree is empty OR structurally invalid (both
+  // would make validateTemplateForPublish reject — both are blocking).
+  const contentPass = !emptyContent && structureReason == null;
+  const contentDetail = emptyContent
+    ? "Template has no content — it would insert nothing into a page."
+    : structureReason;
+
+  const bindingsPass = bindingReason == null;
+
+  const rows: PublishChecklistRow[] = [
+    {
+      key: "has_content",
+      label: "Has content",
+      pass: contentPass,
+      blocking: true,
+      ...(contentPass ? {} : { detail: contentDetail ?? undefined }),
+    },
+    {
+      key: "bindings_resolvable",
+      label: "Bindings resolvable",
+      pass: bindingsPass,
+      blocking: true,
+      ...(bindingsPass ? {} : { detail: bindingReason }),
+    },
+    {
+      key: "has_description",
+      label: "Has description",
+      pass: isNonBlank(input.description),
+      blocking: false,
+      ...(isNonBlank(input.description)
+        ? {}
+        : { detail: "No description — clients see a blank gallery card." }),
+    },
+    {
+      key: "has_thumbnail",
+      label: "Has thumbnail",
+      pass: isNonBlank(input.thumbnailAssetId),
+      blocking: false,
+      ...(isNonBlank(input.thumbnailAssetId)
+        ? {}
+        : { detail: "No thumbnail — the gallery shows a placeholder." }),
+    },
+    {
+      key: "has_changelog",
+      label: "Has changelog",
+      pass:
+        isNonBlank(input.pendingChangelog) || isNonBlank(input.changelog),
+      blocking: false,
+      ...(isNonBlank(input.pendingChangelog) || isNonBlank(input.changelog)
+        ? {}
+        : { detail: "No changelog — the revision will read “No changelog”." }),
+    },
+  ];
+
+  const canPublish = rows.every((r) => !r.blocking || r.pass);
+  const hasWarnings = rows.some((r) => !r.blocking && !r.pass);
+
+  return { rows, canPublish, hasWarnings };
+}

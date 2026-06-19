@@ -23,7 +23,7 @@
  * this Manager then drives the rest of the lifecycle.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   createTemplateDraft,
@@ -66,7 +66,11 @@ import {
   RevisionList,
   PublishNotePanel,
 } from "./template-revision-list";
-import type { TemplateTreeDiff } from "@/lib/site-admin/builder-core/templates/validate-publish";
+import {
+  previewPublishChecklist,
+  type TemplateTreeDiff,
+  type PublishChecklist,
+} from "@/lib/site-admin/builder-core/templates/validate-publish";
 import {
   RolloutPanel,
   rolloutSummary,
@@ -485,15 +489,11 @@ export function TemplateManager() {
                   )
                 }
                 onPublish={(changelog) => {
-                  // W7 — guard against publishing an empty template (inserts nothing).
-                  if (
-                    (row.builder_tree?.length ?? 0) === 0 &&
-                    !window.confirm(
-                      "This template has no content — it will insert nothing into a page. Publish to the gallery anyway?",
-                    )
-                  ) {
-                    return;
-                  }
+                  // A6 — the empty/invalid-template guard moved into the
+                  // PublishNotePanel pre-publish checklist (a BLOCKING row hard-
+                  // disables confirm before the operator can reach here), so the
+                  // raw window.confirm gate is gone: the panel now shows what's
+                  // missing BEFORE shipping rather than failing after.
                   void runLifecycle(row.id, "Published to gallery", () =>
                     publishTemplate(row.id, changelog ?? null),
                   );
@@ -624,6 +624,27 @@ function TemplateRowCard({
       cancelled = true;
     };
   }, [publishing, row.id]);
+
+  // A6 — pre-publish checklist, recomputed as the admin types the changelog so
+  // the "has changelog" row flips live. Read-only; uses the row data already in
+  // memory + the diff snapshot fetched above (no extra round-trip).
+  const checklist: PublishChecklist = useMemo(
+    () =>
+      previewPublishChecklist({
+        tree: row.builder_tree,
+        description: row.description,
+        thumbnailAssetId: row.thumbnail_asset_id,
+        changelog: row.changelog,
+        pendingChangelog: changelog,
+      }),
+    [
+      row.builder_tree,
+      row.description,
+      row.thumbnail_asset_id,
+      row.changelog,
+      changelog,
+    ],
+  );
 
   const chipText = rolloutChipText(row);
   const statusTone =
@@ -793,6 +814,7 @@ function TemplateRowCard({
           }
           treeDiff={publishDiff?.treeDiff ?? null}
           publishedVersion={publishDiff?.publishedVersion ?? null}
+          checklist={checklist}
           onChange={setChangelog}
           onCancel={() => setPublishing(false)}
           onConfirm={() => {
