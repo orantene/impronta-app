@@ -8,17 +8,26 @@
  */
 
 import { useRef, type ComponentType, type MutableRefObject } from "react";
-import { GripVertical } from "lucide-react";
 
 import { useEditContext } from "./edit-context";
 import { useFloatingDrag } from "./floating-panel";
 import { inspectorRailDockStyle } from "./inspector-rail-dock";
-import type { InspectorTabKey } from "./inspector-tab-config";
+import {
+  INSPECTOR_TABS,
+  inspectorTabItemsForKeys,
+  type InspectorTabKey,
+} from "./inspector-tab-config";
 import {
   CHROME,
   INSPECTOR_CHROME_TOP_PX,
+  INSPECTOR_RAIL_COLLAPSED_STORAGE_KEY,
+  INSPECTOR_RAIL_PINNED_STORAGE_KEY,
   INSPECTOR_RAIL_RIGHT_PX,
   INSPECTOR_RAIL_WIDTH_PX,
+  PinnableRailItem,
+  RailHandle,
+  useRailCollapsed,
+  useRailPinned,
   Z_INDEX,
 } from "./kit";
 import { useInspectorRailCoupling } from "./use-inspector-rail-coupling";
@@ -101,7 +110,6 @@ export function InspectorCommandRail() {
   const { tabItems } = useInspectorVisibleTabs();
   const { dragOptions, inspectorRailDocked } =
     useInspectorRailCoupling("inspector-rail");
-  const dockedToRail = inspectorRailDocked && inspectorDockOpen;
   const {
     setPanelNode,
     onHandlePointerDown,
@@ -111,6 +119,23 @@ export function InspectorCommandRail() {
   } = useFloatingDrag(dragOptions);
   const moved = offset.x !== 0 || offset.y !== 0;
   const dragMovedRef = useRef(false);
+  const [collapsed, toggleCollapsed] = useRailCollapsed(
+    INSPECTOR_RAIL_COLLAPSED_STORAGE_KEY,
+  );
+  const { isPinned, togglePinned } = useRailPinned(
+    INSPECTOR_RAIL_PINNED_STORAGE_KEY,
+  );
+  // Tabs kept visible while the rail is collapsed (in their natural order).
+  // Sourced from the FULL tab list, not the selection-scoped `tabItems`, so a
+  // pinned tab never silently vanishes from the pill when the current selection
+  // happens not to expose it (e.g. a section without a Motion tab).
+  const collapsedPinnedTabs = inspectorTabItemsForKeys(
+    INSPECTOR_TABS.map((t) => t.key),
+  ).filter((item) => isPinned(item.key));
+  // While collapsed the rail is a standalone handle pill — drop the docked
+  // "merge" styling so it renders as a clean rounded card rather than a short
+  // stub mating against the still-tall inspector panel.
+  const dockedToRail = inspectorRailDocked && inspectorDockOpen && !collapsed;
   const dockStyle = inspectorRailDockStyle(
     dockedToRail,
     dragging,
@@ -142,58 +167,74 @@ export function InspectorCommandRail() {
         ...dockStyle,
       }}
     >
-      <button
-        type="button"
-        aria-label="Drag tab strip"
-        title="Drag to move"
-        onPointerDown={(e) => {
-          dragMovedRef.current = false;
-          const startX = e.clientX;
-          const startY = e.clientY;
-          const onMove = (ev: PointerEvent) => {
-            if (
-              Math.abs(ev.clientX - startX) > 4 ||
-              Math.abs(ev.clientY - startY) > 4
-            ) {
-              dragMovedRef.current = true;
-            }
-          };
-          window.addEventListener("pointermove", onMove);
-          window.addEventListener(
-            "pointerup",
-            () => window.removeEventListener("pointermove", onMove),
-            { once: true },
-          );
-          onHandlePointerDown(e);
-        }}
-        className="mx-auto mb-2 inline-flex cursor-grab items-center justify-center border-none bg-transparent p-0 active:cursor-grabbing"
-        style={{ color: CHROME.muted3, height: 20 }}
-      >
-        <GripVertical size={16} strokeWidth={2.25} aria-hidden />
-      </button>
+      <RailHandle
+        collapsed={collapsed}
+        onToggleCollapsed={toggleCollapsed}
+        onHandlePointerDown={onHandlePointerDown}
+        dragMovedRef={dragMovedRef}
+        collapseLabel="tabs"
+      />
 
-      <div
-        role="tablist"
-        aria-orientation="vertical"
-        className="flex flex-col gap-1"
-        style={{
-          background: moved ? "rgba(124, 58, 237, 0.03)" : undefined,
-          borderRadius: 12,
-        }}
-      >
-        {tabItems.map((item) => (
-          <RailTabButton
-            key={item.key}
-            tabKey={item.key}
-            label={item.label}
-            hint={item.hint}
-            icon={item.icon}
-            active={inspectorDockOpen && inspectorActiveTab === item.key}
-            dragMovedRef={dragMovedRef}
-            onSelect={(key) => toggleInspectorTab(key)}
-          />
-        ))}
-      </div>
+      {collapsed
+        ? collapsedPinnedTabs.length > 0 && (
+            <div
+              role="tablist"
+              aria-orientation="vertical"
+              className="flex flex-col gap-1"
+              style={{ borderRadius: 12 }}
+            >
+              {collapsedPinnedTabs.map((item) => (
+                <PinnableRailItem
+                  key={item.key}
+                  pinned
+                  onTogglePinned={() => togglePinned(item.key)}
+                  label={item.label}
+                  showPinnedIndicator={false}
+                >
+                  <RailTabButton
+                    tabKey={item.key}
+                    label={item.label}
+                    hint={item.hint}
+                    icon={item.icon}
+                    active={inspectorDockOpen && inspectorActiveTab === item.key}
+                    dragMovedRef={dragMovedRef}
+                    onSelect={(key) => toggleInspectorTab(key)}
+                  />
+                </PinnableRailItem>
+              ))}
+            </div>
+          )
+        : (
+          <div
+            role="tablist"
+            aria-orientation="vertical"
+            className="flex flex-col gap-1"
+            style={{
+              background: moved ? "rgba(124, 58, 237, 0.03)" : undefined,
+              borderRadius: 12,
+            }}
+          >
+            {tabItems.map((item) => (
+              <PinnableRailItem
+                key={item.key}
+                pinned={isPinned(item.key)}
+                onTogglePinned={() => togglePinned(item.key)}
+                label={item.label}
+                showPinnedIndicator
+              >
+                <RailTabButton
+                  tabKey={item.key}
+                  label={item.label}
+                  hint={item.hint}
+                  icon={item.icon}
+                  active={inspectorDockOpen && inspectorActiveTab === item.key}
+                  dragMovedRef={dragMovedRef}
+                  onSelect={(key) => toggleInspectorTab(key)}
+                />
+              </PinnableRailItem>
+            ))}
+          </div>
+        )}
     </nav>
   );
 }

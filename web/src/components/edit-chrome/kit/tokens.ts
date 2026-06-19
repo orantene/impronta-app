@@ -158,6 +158,18 @@ export const INSPECTOR_PANEL_RIGHT_INSET_PX =
 export const INSPECTOR_DOCK_OPEN_STORAGE_KEY =
   "impronta.editChrome.inspectorDockOpen.v1";
 
+/** Persisted "shrunk to handle" state for the left command dock + right inspector rail. */
+export const COMMAND_DOCK_COLLAPSED_STORAGE_KEY =
+  "impronta.editChrome.commandDockCollapsed.v1";
+export const INSPECTOR_RAIL_COLLAPSED_STORAGE_KEY =
+  "impronta.editChrome.inspectorRailCollapsed.v1";
+
+/** Persisted set of pinned item ids — pinned items stay visible when a rail is collapsed. */
+export const COMMAND_DOCK_PINNED_STORAGE_KEY =
+  "impronta.editChrome.commandDockPinned.v1";
+export const INSPECTOR_RAIL_PINNED_STORAGE_KEY =
+  "impronta.editChrome.inspectorRailPinned.v1";
+
 /** Multi-layer box-shadows. Each value can drop straight into `style.boxShadow`. */
 export const CHROME_SHADOWS = {
   card: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px -4px rgba(0,0,0,0.06)",
