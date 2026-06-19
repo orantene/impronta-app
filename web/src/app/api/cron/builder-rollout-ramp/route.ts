@@ -30,11 +30,13 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { appendBuilderLabAudit } from "@/lib/site-admin/builder-core/templates/builder-lab-audit";
+import { shouldAutoArchive } from "@/lib/site-admin/builder-core/templates/rollout-ramp";
 import {
-  computeRampStep,
-  shouldAutoArchive,
-  DEFAULT_RAMP_STEP,
-} from "@/lib/site-admin/builder-core/templates/rollout-ramp";
+  parseRolloutCronFlag,
+  checkCronSecret,
+  buildRampPatch,
+} from "./rollout-ramp-cron-logic";
+import type { RampRow } from "./rollout-ramp-cron-logic";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,18 +49,6 @@ const CRON_ACTOR = null;
 
 /** How far in the future to re-arm rollout_ramp_at after a non-final tick. */
 const RAMP_TICK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 1 day
-
-function flagEnabled(): boolean {
-  const v = (process.env.BUILDER_ROLLOUT_CRON_ENABLED ?? "").trim().toLowerCase();
-  return v === "1" || v === "true" || v === "yes" || v === "on";
-}
-
-interface RampRow {
-  id: string;
-  rollout_percentage: number;
-  rollout_ramp_to: number | null;
-  rollout_ramp_at: string | null;
-}
 
 interface ExpiringDraftRow {
   id: string;
@@ -73,13 +63,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Not configured" }, { status: 503 });
   }
 
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!token || token !== secret) {
+  const authHeader = request.headers.get("authorization");
+  if (!checkCronSecret(authHeader, secret).authorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // Flag gate — inert until explicitly enabled.
-  if (!flagEnabled()) {
+  if (!parseRolloutCronFlag(process.env.BUILDER_ROLLOUT_CRON_ENABLED)) {
     return NextResponse.json({ ok: true, skipped: "flag_disabled" });
   }
 
@@ -106,26 +96,10 @@ export async function GET(request: Request) {
     if (rampErr) throw rampErr;
 
     for (const row of (dueRamps ?? []) as RampRow[]) {
-      if (row.rollout_ramp_to === null) continue;
-      const stepResult = computeRampStep({
-        current: row.rollout_percentage,
-        target: row.rollout_ramp_to,
-        step: DEFAULT_RAMP_STEP,
-      });
+      const patch = buildRampPatch(row, now, RAMP_TICK_INTERVAL_MS);
+      if (patch === null) continue;
 
-      // Build the patch: always advance the %, then either clear the ramp (done)
-      // or re-arm the next tick.
-      const patch: Record<string, unknown> = {
-        rollout_percentage: stepResult.next,
-      };
-      if (stepResult.complete) {
-        patch.rollout_ramp_to = null;
-        patch.rollout_ramp_at = null;
-      } else {
-        patch.rollout_ramp_at = new Date(
-          now.getTime() + RAMP_TICK_INTERVAL_MS,
-        ).toISOString();
-      }
+      const stepComplete = patch.rollout_ramp_to === null;
 
       const { error: updErr } = await admin
         .from("builder_templates")
@@ -137,7 +111,7 @@ export async function GET(request: Request) {
       }
 
       ramped++;
-      if (stepResult.complete) rampsCompleted++;
+      if (stepComplete) rampsCompleted++;
 
       await appendBuilderLabAudit({
         action: "template.rollout",
@@ -148,9 +122,9 @@ export async function GET(request: Request) {
           rollout_ramp_to: row.rollout_ramp_to,
         },
         after: {
-          rollout_percentage: stepResult.next,
-          rollout_ramp_to: stepResult.complete ? null : row.rollout_ramp_to,
-          ramp_complete: stepResult.complete,
+          rollout_percentage: patch.rollout_percentage,
+          rollout_ramp_to: stepComplete ? null : row.rollout_ramp_to,
+          ramp_complete: stepComplete,
         },
       });
     }
