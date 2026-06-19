@@ -12,7 +12,7 @@
  * accordion groups the governance inputs under a "Governance" subhead.
  */
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 import type {
   AddGalleryNativeVariant,
@@ -22,7 +22,11 @@ import {
   listBuilderLabAudit,
   type BuilderLabAuditEntry,
 } from "@/lib/site-admin/builder-core/templates/builder-lab-audit";
-import { revertOverlayToAudit } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
+import {
+  revertOverlayToAudit,
+  setComponentOverlayBatch,
+  clearComponentOverlayBatch,
+} from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
 // Import the 4-surface helpers/constants directly from their module, NOT the
 // add-gallery barrel — the barrel transitively pulls a `.css` side-effect import
 // that the tsx test runner can't parse (it compiles CSS as JS). The erased types
@@ -33,6 +37,20 @@ import {
   surfaceKeyToTarget,
   type CatalogSurfaceKey,
 } from "@/lib/site-admin/add-gallery/registry-db-merge";
+// O2 — the PURE selection-set + batch-input derivation (no React/DB) the sticky
+// bulk action bar drives. Kept in its own leaf so the tsx test runner can load
+// it without the .css side-effect the add-gallery barrel drags in.
+import {
+  toggleSelected,
+  selectAllVisible,
+  clearVisible,
+  clearSelection,
+  allVisibleSelected,
+  selectedRows as selectedRowsOf,
+  deriveSurfaceBatchInputs,
+  deriveAvailabilityBatchInputs,
+  deriveResetRefs,
+} from "./catalog-bulk-selection";
 import { AddGalleryIcon } from "@/components/edit-chrome/add-gallery/add-gallery-icons";
 import { governanceChips } from "./catalog-governance";
 import {
@@ -285,8 +303,90 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
   // Which row's audit history popover is open (G1 per-row history affordance).
   const [historyId, setHistoryId] = useState<string | null>(null);
 
+  // O2 — bulk selection. The selected ids are LOCAL to the table (the parent
+  // owns no selection state); the sticky action bar fires the O1 batch server
+  // actions directly and reloads the catalog through the existing `onReverted`
+  // prop (already wired to the parent's reload). Optimistic flip is the table's
+  // `pendingBulk` opacity; reload() reconciles against server truth.
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+
+  // All visible row ids across every group (the selection spans grouped tables).
+  const visibleIds = useMemo(
+    () => groups.flatMap((g) => g.rows.map((r) => r.id)),
+    [groups],
+  );
+  const allRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
+
+  // Drop any selected id that scrolled out of the current (filtered) view so the
+  // "N selected" count + batch inputs never reference a row no longer rendered.
+  useEffect(() => {
+    setSelected((prev) => {
+      const visible = new Set(visibleIds);
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (visible.has(id)) next.add(id);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [visibleIds]);
+
+  const headerAllSelected = allVisibleSelected(selected, visibleIds);
+
+  /** Run a batch op, optimistically dim the table, then reload + clear on success. */
+  async function runBulk(
+    run: () => Promise<{ ok: boolean; error?: string }>,
+  ): Promise<void> {
+    setBulkBusy(true);
+    setBulkError(null);
+    try {
+      const res = await run();
+      if (!res.ok) {
+        setBulkError(res.error ?? "Bulk update failed.");
+      }
+      // Reconcile against server truth whether or not it reported ok — a partial
+      // batch still wrote some rows, and reload() is the source of truth.
+      await onReverted();
+      if (res.ok) setSelected(clearSelection());
+    } catch {
+      setBulkError("Bulk update failed.");
+      await onReverted();
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  const chosen = () => selectedRowsOf(allRows, selected);
+
+  const bulkSetSurface = (surfaceKey: CatalogSurfaceKey, enabled: boolean) =>
+    void runBulk(() =>
+      setComponentOverlayBatch(deriveSurfaceBatchInputs(chosen(), surfaceKey, enabled)),
+    );
+  const bulkSetAvailability = (availability: "available" | "hidden") =>
+    void runBulk(() =>
+      setComponentOverlayBatch(deriveAvailabilityBatchInputs(chosen(), availability)),
+    );
+  const bulkReset = () =>
+    void runBulk(() => clearComponentOverlayBatch(deriveResetRefs(chosen())));
+
   return (
     <>
+      {selected.size > 0 ? (
+        <BulkActionBar
+          count={selected.size}
+          busy={bulkBusy}
+          error={bulkError}
+          onClear={() => setSelected(clearSelection())}
+          onShowSurface={(sk) => bulkSetSurface(sk, true)}
+          onHideSurface={(sk) => bulkSetSurface(sk, false)}
+          onPublish={() => bulkSetAvailability("available")}
+          onArchive={() => bulkSetAvailability("hidden")}
+          onReset={bulkReset}
+        />
+      ) : null}
       {groups.map((group) => (
         <section key={group.key} style={{ ...panelStyle, overflow: "hidden" }}>
           <div
@@ -310,6 +410,28 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
             <thead>
               <tr style={{ color: T.inkDim }}>
+                <th
+                  style={{
+                    padding: "9px 0 9px 16px",
+                    width: 34,
+                    textAlign: "center",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    data-testid="lab-catalog-select-all"
+                    aria-label="Select all visible components"
+                    checked={headerAllSelected}
+                    onChange={(e) =>
+                      setSelected(
+                        e.target.checked
+                          ? selectAllVisible(selected, visibleIds)
+                          : clearVisible(selected, visibleIds),
+                      )
+                    }
+                    style={{ cursor: "pointer", accentColor: T.accent }}
+                  />
+                </th>
                 <Th>Component</Th>
                 <Th>Category</Th>
                 <Th>Source</Th>
@@ -365,10 +487,25 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                       }}
                       style={{
                         borderTop: `1px solid ${T.borderSoft}`,
-                        opacity: busy ? 0.55 : 1,
+                        opacity: busy || (bulkBusy && selected.has(r.id)) ? 0.55 : 1,
                         cursor: "pointer",
+                        background: selected.has(r.id)
+                          ? "rgba(93,211,160,0.06)"
+                          : undefined,
                       }}
                     >
+                      <td style={{ padding: "9px 0 9px 16px", textAlign: "center" }}>
+                        <input
+                          type="checkbox"
+                          data-testid={`lab-catalog-select-${r.id}`}
+                          aria-label={`Select ${r.effectiveLabel}`}
+                          checked={selected.has(r.id)}
+                          onChange={() =>
+                            setSelected((prev) => toggleSelected(prev, r.id))
+                          }
+                          style={{ cursor: "pointer", accentColor: T.accent }}
+                        />
+                      </td>
                       <td style={{ padding: "9px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <span
@@ -547,6 +684,172 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
   );
 }
 
+// ── O2: sticky bulk action bar ───────────────────────────────────────────────
+
+/**
+ * The sticky "N selected" bar shown above the grouped tables whenever ≥1 row is
+ * checked. Offers Show/Hide on each of the four real surfaces (subtract-only —
+ * the underlying derivation skips rows whose target_context forbids a surface),
+ * plus Publish / Archive (availability overlay) and Reset overlay. Every action
+ * dispatches through one of the O1 batch server actions; while in-flight the
+ * whole bar is `busy`. Pure presentation — the parent table owns selection +
+ * dispatch.
+ */
+function BulkActionBar({
+  count,
+  busy,
+  error,
+  onClear,
+  onShowSurface,
+  onHideSurface,
+  onPublish,
+  onArchive,
+  onReset,
+}: {
+  count: number;
+  busy: boolean;
+  error: string | null;
+  onClear: () => void;
+  onShowSurface: (surfaceKey: CatalogSurfaceKey) => void;
+  onHideSurface: (surfaceKey: CatalogSurfaceKey) => void;
+  onPublish: () => void;
+  onArchive: () => void;
+  onReset: () => void;
+}) {
+  return (
+    <div
+      data-testid="lab-catalog-bulk-bar"
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 5,
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 16px",
+        borderRadius: 12,
+        border: `1px solid ${T.border}`,
+        background: T.cardSoft,
+        boxShadow: "0 6px 18px rgba(0,0,0,0.18)",
+        opacity: busy ? 0.7 : 1,
+      }}
+    >
+      <span
+        data-testid="lab-catalog-bulk-count"
+        style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, whiteSpace: "nowrap" }}
+      >
+        {count} selected
+      </span>
+
+      {/* Per-surface show/hide. Each surface offers both directions; the
+          derivation subtract-only skips rows the surface can't widen onto. */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+        {CATALOG_SURFACE_KEYS.map((sk) => (
+          <span
+            key={sk}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "3px 8px",
+              borderRadius: 999,
+              border: `1px solid ${T.borderSoft}`,
+            }}
+          >
+            <span style={{ fontSize: 10.5, color: T.inkMuted, whiteSpace: "nowrap" }}>
+              {CATALOG_SURFACE_LABEL[sk]}
+            </span>
+            <BulkBtn
+              label="Show"
+              testId={`lab-catalog-bulk-show-${sk}`}
+              onClick={() => onShowSurface(sk)}
+              disabled={busy}
+            />
+            <BulkBtn
+              label="Hide"
+              testId={`lab-catalog-bulk-hide-${sk}`}
+              onClick={() => onHideSurface(sk)}
+              disabled={busy}
+            />
+          </span>
+        ))}
+      </div>
+
+      <span style={{ width: 1, height: 18, background: T.borderSoft }} aria-hidden />
+
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <BulkBtn
+          label="Publish"
+          testId="lab-catalog-bulk-publish"
+          onClick={onPublish}
+          disabled={busy}
+          primary
+        />
+        <BulkBtn
+          label="Archive"
+          testId="lab-catalog-bulk-archive"
+          onClick={onArchive}
+          disabled={busy}
+        />
+        <BulkBtn
+          label="Reset overlay"
+          testId="lab-catalog-bulk-reset"
+          onClick={onReset}
+          disabled={busy}
+        />
+      </div>
+
+      <span style={{ marginLeft: "auto", display: "inline-flex", gap: 12, alignItems: "center" }}>
+        {error ? (
+          <span data-testid="lab-catalog-bulk-error" style={{ fontSize: 11, color: T.red }}>
+            {error}
+          </span>
+        ) : null}
+        <LinkBtn label="Clear" onClick={onClear} disabled={busy} />
+      </span>
+    </div>
+  );
+}
+
+/** A pill button for the bulk bar (matches the LinkBtn affordance but reads as a
+ *  discrete action chip). */
+function BulkBtn({
+  label,
+  testId,
+  onClick,
+  disabled,
+  primary,
+}: {
+  label: string;
+  testId: string;
+  onClick: () => void;
+  disabled?: boolean;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      onClick={onClick}
+      disabled={disabled}
+      className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60"
+      style={{
+        cursor: disabled ? "default" : "pointer",
+        border: `1px solid ${primary ? "rgba(93,211,160,0.45)" : T.border}`,
+        background: primary ? "rgba(93,211,160,0.16)" : "transparent",
+        color: primary ? T.yes : T.inkMuted,
+        borderRadius: 999,
+        padding: "2px 9px",
+        fontSize: 10.5,
+        fontWeight: 700,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 /** The inline override-edit accordion row, shown under the editing row. Splits
  *  the 8 inputs into "Display" (cosmetic) + "Governance" (insert-time policy)
  *  groups with a subhead + helper text each. */
@@ -575,7 +878,7 @@ function EditAccordionRow({
 }: CatalogRowTableProps & { item: CatalogAdminItem }) {
   return (
     <tr style={{ background: T.cardSoft }}>
-      <td colSpan={9} style={{ padding: "12px 16px" }}>
+      <td colSpan={10} style={{ padding: "12px 16px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Display group — cosmetic overrides */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -839,7 +1142,7 @@ function RowHistoryRow({
 
   return (
     <tr>
-      <td colSpan={9} style={{ padding: "10px 16px", background: T.cardSoft }}>
+      <td colSpan={10} style={{ padding: "10px 16px", background: T.cardSoft }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
           <SectionLabel>History</SectionLabel>
           <LinkBtn label="Close" onClick={onClose} />
