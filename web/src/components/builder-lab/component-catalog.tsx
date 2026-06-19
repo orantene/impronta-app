@@ -1022,6 +1022,7 @@ export function ComponentCatalog({
           onConfirmReset={confirmReset}
           onStartReset={(id) => setConfirmingResetId(id)}
           onCancelReset={() => setConfirmingResetId(null)}
+          onReverted={reload}
           onPreview={(r) => {
             const meta = {
               id: r.id,

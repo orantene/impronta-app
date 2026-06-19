@@ -22,6 +22,7 @@ import {
   listBuilderLabAudit,
   type BuilderLabAuditEntry,
 } from "@/lib/site-admin/builder-core/templates/builder-lab-audit";
+import { revertOverlayToAudit } from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
 // Import the 4-surface helpers/constants directly from their module, NOT the
 // add-gallery barrel — the barrel transitively pulls a `.css` side-effect import
 // that the tsx test runner can't parse (it compiles CSS as JS). The erased types
@@ -206,6 +207,9 @@ export interface CatalogRowTableProps {
   onStartReset: (id: string) => void;
   onCancelReset: () => void;
   onPreview: (item: CatalogAdminItem) => void;
+  /** G7 — called after a successful per-row overlay REVERT so the parent reloads
+   *  the catalog view (the reverted item's toggles/overrides changed). */
+  onReverted: () => void | Promise<void>;
 }
 
 export function CatalogRowTable(props: CatalogRowTableProps) {
@@ -225,6 +229,7 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
     onStartReset,
     onCancelReset,
     onPreview,
+    onReverted,
   } = props;
 
   // Which row's audit history popover is open (G1 per-row history affordance).
@@ -454,6 +459,7 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                         itemRef={r.id}
                         templateId={r.dbTemplateId}
                         onClose={() => setHistoryId(null)}
+                        onReverted={onReverted}
                       />
                     ) : null}
                     {editing ? <EditAccordionRow item={r} {...props} /> : null}
@@ -696,13 +702,21 @@ function RowHistoryRow({
   itemRef,
   templateId,
   onClose,
+  onReverted,
 }: {
   itemRef: string;
   templateId?: string;
   onClose: () => void;
+  /** G7 — bubble a successful revert up so the parent reloads the catalog. */
+  onReverted: () => void | Promise<void>;
 }) {
   const [entries, setEntries] = useState<BuilderLabAuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  // G7 — which audit row is mid-revert (disables every revert button), and the
+  // last revert error (shown inline, mirrors the parent's error surface).
+  const [revertingId, setRevertingId] = useState<string | null>(null);
+  const [revertError, setRevertError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -726,7 +740,29 @@ function RowHistoryRow({
     return () => {
       active = false;
     };
-  }, [itemRef, templateId]);
+  }, [itemRef, templateId, reloadKey]);
+
+  // G7 — revert this item's overlay to the chosen audit row's captured state.
+  // The server re-applies the full snapshot through the normal writer (guard +
+  // dual-write + a fresh audit row), so on success we reload BOTH this strip
+  // (the new revert row appears) and the parent catalog (toggles changed).
+  async function revertTo(auditId: string) {
+    setRevertingId(auditId);
+    setRevertError(null);
+    try {
+      const res = await revertOverlayToAudit(auditId);
+      if (!res.ok) {
+        setRevertError(res.error ?? "Revert failed.");
+        return;
+      }
+      await onReverted();
+      setReloadKey((k) => k + 1);
+    } catch {
+      setRevertError("Revert failed.");
+    } finally {
+      setRevertingId(null);
+    }
+  }
 
   return (
     <tr>
@@ -735,6 +771,14 @@ function RowHistoryRow({
           <SectionLabel>History</SectionLabel>
           <LinkBtn label="Close" onClick={onClose} />
         </div>
+        {revertError ? (
+          <div
+            data-testid="lab-row-revert-error"
+            style={{ fontSize: 11, color: T.red, marginBottom: 8 }}
+          >
+            {revertError}
+          </div>
+        ) : null}
         {loading ? (
           <div style={{ fontSize: 11.5, color: T.inkMuted }}>Loading history…</div>
         ) : entries.length === 0 ? (
@@ -743,23 +787,42 @@ function RowHistoryRow({
           </div>
         ) : (
           <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-            {entries.map((e) => (
-              <li
-                key={e.id}
-                data-testid={`lab-row-history-${e.id}`}
-                style={{ display: "flex", gap: 10, alignItems: "baseline", fontSize: 11.5 }}
-              >
-                <span style={{ color: T.ink, fontWeight: 600, minWidth: 110 }}>
-                  {historyActionLabel(e.action)}
-                </span>
-                <span style={{ color: T.inkMuted }}>
-                  {e.actorName ?? (e.actorId ? `${e.actorId.slice(0, 8)}…` : "—")}
-                </span>
-                <span style={{ color: T.inkDim, whiteSpace: "nowrap" }}>
-                  {new Date(e.createdAt).toLocaleString()}
-                </span>
-              </li>
-            ))}
+            {entries.map((e) => {
+              // Only overlay writes captured a revertable snapshot (lifecycle
+              // rows aren't overlay state). The newest overlay row is the CURRENT
+              // state, so reverting to its `before` still "undoes" that change.
+              const revertable =
+                e.action === "overlay.set" || e.action === "overlay.clear";
+              const when = new Date(e.createdAt).toLocaleString();
+              return (
+                <li
+                  key={e.id}
+                  data-testid={`lab-row-history-${e.id}`}
+                  style={{ display: "flex", gap: 10, alignItems: "baseline", fontSize: 11.5 }}
+                >
+                  <span style={{ color: T.ink, fontWeight: 600, minWidth: 110 }}>
+                    {historyActionLabel(e.action)}
+                  </span>
+                  <span style={{ color: T.inkMuted }}>
+                    {e.actorName ?? (e.actorId ? `${e.actorId.slice(0, 8)}…` : "—")}
+                  </span>
+                  <span style={{ color: T.inkDim, whiteSpace: "nowrap" }}>{when}</span>
+                  {revertable ? (
+                    <span
+                      style={{ marginLeft: "auto" }}
+                      title={`Revert this item to its state on ${when}`}
+                    >
+                      <LinkBtn
+                        label={revertingId === e.id ? "Reverting…" : "Revert to this state"}
+                        testId={`lab-row-revert-${e.id}`}
+                        onClick={() => void revertTo(e.id)}
+                        disabled={revertingId !== null}
+                      />
+                    </span>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </td>

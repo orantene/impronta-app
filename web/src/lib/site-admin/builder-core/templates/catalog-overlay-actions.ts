@@ -23,7 +23,12 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
 import { bumpCatalogVersion } from "./catalog-version";
-import { appendBuilderLabAudit } from "./builder-lab-audit";
+import { appendBuilderLabAudit, listBuilderLabAudit } from "./builder-lab-audit";
+import type { BuilderLabAuditEntry } from "./builder-lab-audit-shape";
+import {
+  pickRevertPlanFromAudit,
+  snapshotToOverlayInput,
+} from "./overlay-revert-shape";
 import {
   CATALOG_SURFACE_KEYS,
   surfaceAllowedForTarget,
@@ -438,6 +443,70 @@ export async function clearComponentOverlayBatch(
     return ok(results);
   } catch (err) {
     logServerError("clearComponentOverlayBatch", err);
+    return fail(CLIENT_ERROR.generic);
+  }
+}
+
+// ── per-row overlay revision / revert (G7) ───────────────────────────────────
+
+/**
+ * G7 — the overlay-mutating audit history for ONE catalog item, newest first.
+ * Thin super_admin-gated wrapper over G1's `listBuilderLabAudit` scoped to the
+ * item_ref. Returned to the catalog-row revision strip so each row offers
+ * "revert this item to its state on <date>". Never throws — degrades to [].
+ */
+export async function loadOverlayHistory(
+  itemRef: string,
+): Promise<BuilderLabAuditEntry[]> {
+  if (!itemRef) return [];
+  // listBuilderLabAudit applies its own super_admin gate + RLS; we only scope it.
+  const entries = await listBuilderLabAudit({ itemRef });
+  return entries.filter(
+    (e) => e.action === "overlay.set" || e.action === "overlay.clear",
+  );
+}
+
+/**
+ * G7 — revert one item's overlay to the state captured in a chosen audit row.
+ *
+ * Reads G1's `builder_lab_audit` rows for the item, picks the target row by
+ * `auditId`, and re-applies its `before` snapshot through the EXISTING overlay
+ * writer (`setComponentOverlay` / `clearComponentOverlay`). Going through the
+ * normal writer is the whole point: the revert
+ *  - re-runs the X3 tighten-only invariant guard,
+ *  - performs the X4 4-surface + X6 lab-axis dual-write,
+ *  - bumps the catalog version + revalidates, and
+ *  - appends its OWN audit row (so the revert is itself auditable / re-revertable).
+ *
+ * A single bad overlay tweak therefore reverts WHOLE — every column the bad
+ * tweak left alone is restored too, because we write back the full captured
+ * snapshot, not just the delta. Returns the gate/writer failure verbatim.
+ */
+export async function revertOverlayToAudit(
+  auditId: string,
+): Promise<OverlayActionResult> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return fail(gate.error);
+  if (!auditId) return fail("Missing audit reference.");
+
+  try {
+    // We don't know the item_ref up front, so read the recent overlay history
+    // and locate the row by id. listBuilderLabAudit is super_admin-gated + RLS'd.
+    const entries = await listBuilderLabAudit({ limit: 200 });
+    const plan = pickRevertPlanFromAudit(entries, auditId);
+    if (!plan) {
+      return fail("That history entry can't be reverted.");
+    }
+
+    // Re-apply through the existing writer so the guard + dual-write + a fresh
+    // audit row all fire. snapshot === null ⇒ the target state was "no overlay".
+    if (plan.snapshot === null) {
+      if (!plan.itemRef) return fail("Missing item reference for revert.");
+      return clearComponentOverlay(plan.itemRef);
+    }
+    return setComponentOverlay(snapshotToOverlayInput(plan.snapshot));
+  } catch (err) {
+    logServerError("revertOverlayToAudit", err);
     return fail(CLIENT_ERROR.generic);
   }
 }
