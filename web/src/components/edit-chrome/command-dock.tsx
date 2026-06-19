@@ -9,7 +9,6 @@
  */
 
 import { useRef, type ReactNode } from "react";
-import { GripVertical } from "lucide-react";
 
 import { commandDockRailDockStyle } from "./command-dock-rail-dock";
 import { useEditContext } from "./edit-context";
@@ -17,9 +16,15 @@ import { useFloatingDrag } from "./floating-panel";
 import {
   CHROME,
   COMMAND_DOCK_CHROME_TOP_PX,
+  COMMAND_DOCK_COLLAPSED_STORAGE_KEY,
   COMMAND_DOCK_LEFT_PX,
   COMMAND_DOCK_PANEL_GAP_PX,
+  COMMAND_DOCK_PINNED_STORAGE_KEY,
   COMMAND_DOCK_WIDTH_PX,
+  PinnableRailItem,
+  RailHandle,
+  useRailCollapsed,
+  useRailPinned,
   Z_INDEX,
 } from "./kit";
 import { useCommandDockCoupling } from "./use-command-dock-coupling";
@@ -359,7 +364,20 @@ export function CommandDock() {
   } = useFloatingDrag(dragOptions);
   const moved = offset.x !== 0 || offset.y !== 0;
   const dragMovedRef = useRef(false);
-  const dockedToPanel = commandDockDocked;
+  const [collapsed, toggleCollapsed] = useRailCollapsed(
+    COMMAND_DOCK_COLLAPSED_STORAGE_KEY,
+  );
+  const { isPinned, togglePinned } = useRailPinned(
+    COMMAND_DOCK_PINNED_STORAGE_KEY,
+  );
+  // Items kept visible while the rail is collapsed (in their natural order).
+  const collapsedPinnedItems = [...primaryItems, helpItem].filter((item) =>
+    isPinned(item.id),
+  );
+  // While collapsed the rail is a standalone handle pill — drop the docked
+  // "merge" styling (borderless + squared edge) so it renders as a clean
+  // rounded card instead of a short stub mating against a tall docked panel.
+  const dockedToPanel = commandDockDocked && !collapsed;
   const dockStyle = commandDockRailDockStyle(
     dockedToPanel,
     dragging,
@@ -387,60 +405,72 @@ export function CommandDock() {
         borderLeft: dockBorder,
         borderRight: dockedToPanel ? "none" : dockBorder,
         padding: "14px 8px 12px",
-        gap: 4,
         transform,
         userSelect: dragging ? "none" : undefined,
         ...dockStyle,
       }}
     >
-      <button
-        type="button"
-        aria-label="Drag tab strip"
-        title="Drag to move"
-        onPointerDown={(e) => {
-          dragMovedRef.current = false;
-          const startX = e.clientX;
-          const startY = e.clientY;
-          const onMove = (ev: PointerEvent) => {
-            if (
-              Math.abs(ev.clientX - startX) > 4 ||
-              Math.abs(ev.clientY - startY) > 4
-            ) {
-              dragMovedRef.current = true;
-            }
-          };
-          window.addEventListener("pointermove", onMove);
-          window.addEventListener(
-            "pointerup",
-            () => window.removeEventListener("pointermove", onMove),
-            { once: true },
-          );
-          onHandlePointerDown(e);
-        }}
-        className="mx-auto mb-2 inline-flex cursor-grab items-center justify-center border-none bg-transparent p-0 active:cursor-grabbing"
-        style={{ color: CHROME.muted3, height: 20 }}
-      >
-        <GripVertical size={16} strokeWidth={2.25} aria-hidden />
-      </button>
-
-      <div
-        className="flex flex-col gap-1"
-        style={{
-          background: moved ? "rgba(124, 58, 237, 0.03)" : undefined,
-          borderRadius: 12,
-        }}
-      >
-      {primaryItems.map((item) => (
-        <DockButton key={item.id} item={item} />
-      ))}
-      </div>
-      <span aria-hidden className="flex-1" />
-      <span
-        aria-hidden
-        className="my-[6px] h-px w-full shrink-0"
-        style={{ background: CHROME.line }}
+      <RailHandle
+        collapsed={collapsed}
+        onToggleCollapsed={toggleCollapsed}
+        onHandlePointerDown={onHandlePointerDown}
+        dragMovedRef={dragMovedRef}
+        collapseLabel="tools"
       />
-      <DockButton item={helpItem} />
+
+      {collapsed
+        ? collapsedPinnedItems.length > 0 && (
+            <div className="flex flex-col gap-1" style={{ borderRadius: 12 }}>
+              {collapsedPinnedItems.map((item) => (
+                <PinnableRailItem
+                  key={item.id}
+                  pinned
+                  onTogglePinned={() => togglePinned(item.id)}
+                  label={item.label}
+                  showPinnedIndicator={false}
+                >
+                  <DockButton item={item} />
+                </PinnableRailItem>
+              ))}
+            </div>
+          )
+        : (
+          <>
+            <div
+              className="flex flex-col gap-1"
+              style={{
+                background: moved ? "rgba(124, 58, 237, 0.03)" : undefined,
+                borderRadius: 12,
+              }}
+            >
+              {primaryItems.map((item) => (
+                <PinnableRailItem
+                  key={item.id}
+                  pinned={isPinned(item.id)}
+                  onTogglePinned={() => togglePinned(item.id)}
+                  label={item.label}
+                  showPinnedIndicator
+                >
+                  <DockButton item={item} />
+                </PinnableRailItem>
+              ))}
+            </div>
+            <span aria-hidden className="flex-1" />
+            <span
+              aria-hidden
+              className="my-[6px] h-px w-full shrink-0"
+              style={{ background: CHROME.line }}
+            />
+            <PinnableRailItem
+              pinned={isPinned(helpItem.id)}
+              onTogglePinned={() => togglePinned(helpItem.id)}
+              label={helpItem.label}
+              showPinnedIndicator
+            >
+              <DockButton item={helpItem} />
+            </PinnableRailItem>
+          </>
+        )}
     </nav>
   );
 }
