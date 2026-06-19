@@ -73,6 +73,41 @@ function stampItemLockedProps(node: BuilderNode, item: AddGalleryItem): BuilderN
 }
 
 /**
+ * D7 (provenance) — stamp the source `builder_templates` id onto the inserted
+ * ROOT node so every landed copy carries a back-reference to the template it
+ * came from. This is the durable counterpart to the `builder_template_usage`
+ * tally: the usage table records "a template was applied"; this field records
+ * "this node IS a copy of template X", surviving inside the tenant's tree.
+ *
+ * PURE — returns a new node (or the input unchanged when there is no source
+ * template id). Applied to `dbTemplate` + `sectionTemplate` inserts (the two
+ * template-backed insert methods); native nodes carry no template provenance.
+ *
+ * The id is read from the item:
+ *   - dbTemplate     → `item.dbTemplateId` (the raw builder_templates.id)
+ *   - sectionTemplate→ `item.sectionTemplateId` (the section template id)
+ */
+export function stampSourceTemplateId(
+  node: BuilderNode,
+  item: AddGalleryItem,
+): BuilderNode {
+  const sourceTemplateId =
+    item.insertMethod === "dbTemplate"
+      ? item.dbTemplateId
+      : item.insertMethod === "sectionTemplate"
+        ? item.sectionTemplateId
+        : undefined;
+  if (!sourceTemplateId) return node;
+  return {
+    ...node,
+    props: {
+      ...(node.props as Record<string, unknown>),
+      __sourceTemplateId: sourceTemplateId,
+    },
+  } as unknown as BuilderNode;
+}
+
+/**
  * Builder Studio (WS-C C2/C4 → C1) — apply a catalog item's admin overlay to a
  * variant-resolved insert node, in the fixed order:
  *   variant (already applied by the caller) → defaults → data-source defaults → locks.
@@ -461,12 +496,18 @@ export function resolveAddGalleryInsertAction(
       if (!node) {
         throw new Error(`Unknown section template "${templateId}".`);
       }
-      return { type: "sectionTemplate", node: applyItemOverlayAtInsert(node, item) };
+      return {
+        type: "sectionTemplate",
+        node: stampSourceTemplateId(applyItemOverlayAtInsert(node, item), item),
+      };
     }
     case "dbTemplate":
       return {
         type: "dbTemplate",
-        node: applyItemOverlayAtInsert(createDbTemplateNodeForGalleryItem(item), item),
+        node: stampSourceTemplateId(
+          applyItemOverlayAtInsert(createDbTemplateNodeForGalleryItem(item), item),
+          item,
+        ),
       };
     case "sectionEmbed":
     case "connectedNode": {

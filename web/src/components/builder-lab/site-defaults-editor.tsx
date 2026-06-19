@@ -25,7 +25,7 @@ import { resolvePlatformDefaultThemeActionSet } from "@/components/edit-chrome/t
 import { listThemePresets } from "@/lib/site-admin/presets/theme-presets";
 import { SurfaceSwitcher } from "./surface-switcher";
 import { ComponentStylesEditor } from "./component-styles-editor";
-import { LAB as T, RADII, fieldStyle, LabButton, SectionLabel } from "./ui";
+import { LAB as T, RADII, fieldStyle, LabButton, LabViewHeader, SectionLabel } from "./ui";
 import type { PlatformThemeSurface } from "@/lib/platform/default-theme";
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
 
@@ -159,6 +159,11 @@ export function SiteDefaultsEditor() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <LabViewHeader
+        title="Site Defaults"
+        blurb="The platform default theme every new agency and talent page inherits. Apply a preset or edit the key tokens, then Save & publish so new sites pick it up."
+      />
+
       {/* Surface toggle — Agency (shared) vs Talent (override) */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <SurfaceSwitcher
@@ -175,7 +180,7 @@ export function SiteDefaultsEditor() {
       {loading ? (
         <div style={{ color: T.inkMuted, fontSize: 13, padding: "12px 0" }}>Loading Site Default…</div>
       ) : loadError ? (
-        <div style={{ color: "#f0a8a8", fontSize: 13, padding: "12px 0" }}>{loadError}</div>
+        <div style={{ color: T.red, fontSize: 13, padding: "12px 0" }}>{loadError}</div>
       ) : (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: 16, alignItems: "start" }}>
       {/* ── Controls ── */}
@@ -289,7 +294,7 @@ export function SiteDefaultsEditor() {
             {pending ? "Saving…" : "Save & publish default"}
           </LabButton>
           {status && (
-            <span style={{ fontSize: 12.5, color: status.ok ? T.accent : "#f0a8a8" }}>{status.msg}</span>
+            <span style={{ fontSize: 12.5, color: status.ok ? T.accent : T.red }}>{status.msg}</span>
           )}
         </div>
       </div>

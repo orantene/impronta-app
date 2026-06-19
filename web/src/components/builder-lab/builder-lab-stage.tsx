@@ -259,26 +259,6 @@ function BuilderLabSubjectPicker({
     };
   }, [open]);
 
-  // Dismiss the open subject dropdown on Escape or an outside click (mirrors the
-  // editor's PagePicker). Scoped to this picker via the data-attr — it does not
-  // touch the editor's own Escape handling.
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && !t.closest("[data-builder-lab-subject-picker]")) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   const buildFor = useCallback(
     async (next: PreviewSubject) => {
       setPending(true);

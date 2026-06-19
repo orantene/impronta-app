@@ -10,6 +10,7 @@
  *   2. blocks a dangling (unknown source) data binding
  *   3. passes a valid tree (incl. a registered binding)
  *   4. diff vs previous snapshot is advisory, never blocks
+ *   5. (G3) ok result carries treeDiff — no-op and changed cases
  */
 
 import { describe, it } from "node:test";
@@ -98,6 +99,37 @@ describe("validateTemplateForPublish", () => {
     const tree = validTree();
     const res = validateTemplateForPublish(tree, { previousTree: tree });
     assert.equal(res.ok, true);
+  });
+
+  // G3 — treeDiff verdict is returned (not void-discarded) in the ok result.
+  it("(G3) ok result includes treeDiff — no-op re-publish: changed=false", () => {
+    const tree = validTree();
+    const res = validateTemplateForPublish(tree, { previousTree: tree });
+    assert.equal(res.ok, true);
+    assert.ok(res.ok); // narrow type
+    assert.ok("treeDiff" in res, "treeDiff should be present on ok result");
+    assert.equal(res.treeDiff.hasPrevious, true);
+    assert.equal(res.treeDiff.changed, false);
+  });
+
+  it("(G3) ok result includes treeDiff — changed publish: changed=true", () => {
+    const before = validTree();
+    const after = boundTree("featured_talent_profiles");
+    const res = validateTemplateForPublish(after, { previousTree: before });
+    assert.equal(res.ok, true);
+    assert.ok(res.ok);
+    assert.ok("treeDiff" in res);
+    assert.equal(res.treeDiff.hasPrevious, true);
+    assert.equal(res.treeDiff.changed, true);
+  });
+
+  it("(G3) ok result includes treeDiff — first publish: hasPrevious=false, changed=true", () => {
+    const res = validateTemplateForPublish(validTree());
+    assert.equal(res.ok, true);
+    assert.ok(res.ok);
+    assert.ok("treeDiff" in res);
+    assert.equal(res.treeDiff.hasPrevious, false);
+    assert.equal(res.treeDiff.changed, true);
   });
 });
 

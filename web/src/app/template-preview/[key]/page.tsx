@@ -11,10 +11,14 @@
  *     name / photo / bio / services (owner-gated, see resolvePreviewHydration).
  *   - otherwise (anonymous, non-owner, missing) → a public-safe DEMO persona.
  *
- * The single route serves BOTH template families, selected by `?kind`:
+ * The single route serves every template family, selected by `?kind`:
  *   - `talent-site` → slot-based snapshot via `buildTemplateSnapshot`
  *   - `max-site`    → freeform builder tree via `buildMaxSiteTemplateTrees`
  *                     hydrated with `hydrateTalentTree(talentProfileTokens(...))`
+ *   - `db-template` → a persisted `builder_templates` row by id (e.g. a
+ *                     Default-surfaces pointer); its authored `builder_tree` is
+ *                     rendered through the SAME freeform renderer (super_admin
+ *                     gated via `getTemplateById`).
  * Both render through the SAME `TalentSiteRenderer` (which branches internally to
  * the shared freeform renderer for freeform snapshots) — no second preview
  * endpoint, no per-family render fork.
@@ -30,6 +34,7 @@ import {
   previewFamilyForRegistry,
   type TemplatePreviewFamily,
 } from "@/lib/site-admin/builder-core/templates/template-def";
+import { getTemplateById } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
 import { hydrateTalentTree } from "@/lib/talent-site/default-talent-tree";
 import {
   buildMaxSiteTemplateTrees,
@@ -47,6 +52,7 @@ export const dynamic = "force-dynamic";
 function parseFamily(raw: string | undefined): TemplatePreviewFamily {
   if (raw === "max-site") return "max-site";
   if (raw === "talent-site") return "talent-site";
+  if (raw === "db-template") return "db-template";
   // Tolerate a registry-kind value (page-design etc.) → map to a family.
   if (raw === "page-design") return previewFamilyForRegistry("page-design");
   return "talent-site";
@@ -69,7 +75,34 @@ export default async function TemplatePreviewPage({
 
   let snapshot: TalentSiteSnapshot | null = null;
 
-  if (family === "talent-site") {
+  if (family === "db-template") {
+    // Persisted-template family: `key` is a `builder_templates.id` (e.g. a
+    // Default-surfaces pointer). Load its authored `builder_tree` and render it
+    // through the SAME freeform path the max-site family uses. `getTemplateById`
+    // is super_admin-gated, so a non-admin / unknown / unpublished id resolves to
+    // notFound() (the panel pre-validates the pointer, so this is the safety net
+    // for the ghost stale-pointer case rather than a silent blank render).
+    const loaded = await getTemplateById(key);
+    if (!loaded.ok) notFound();
+    const tree = hydrateTalentTree(loaded.data.builder_tree, hydration.tokens);
+    snapshot = {
+      version: 1,
+      siteKind: "talent_personal",
+      templateKey: loaded.data.slug,
+      compositionMode: "freeform",
+      publishedAt: null,
+      pageVersion: 1,
+      locale: "en",
+      fields: {
+        title: loaded.data.title,
+        metaDescription: loaded.data.description,
+        introTagline: hydration.tokens.tagline || null,
+      },
+      templateSchemaVersion: 1,
+      slots: [],
+      builderTree: tree,
+    };
+  } else if (family === "talent-site") {
     if (!isTalentSiteTemplateKey(key)) notFound();
     snapshot = buildTemplateSnapshot(key, {
       profile: hydration.profile,

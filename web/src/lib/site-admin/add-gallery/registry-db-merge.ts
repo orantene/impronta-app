@@ -31,7 +31,14 @@ import { templatePlanAllowed } from "@/lib/site-admin/builder-core/templates/reg
 import { templateRolloutAllowed } from "@/lib/site-admin/builder-core/templates/rollout";
 
 import { ADD_GALLERY_ITEMS } from "./registry";
-import { applyStructureToItems, type CatalogStructureMap } from "./catalog-structure";
+import {
+  applyStructureToItems,
+  type CatalogStructureMap,
+} from "./catalog-structure";
+import {
+  usageCountForItem,
+  type ComponentUsageTally,
+} from "./component-usage-scan";
 import type { AddGalleryItem, AddGalleryTab } from "./types";
 
 // ── Plan rank (mirrors registry-rows.templatePlanAllowed / data-bindings PLAN_RANK) ──
@@ -62,8 +69,28 @@ function morePlanRestrictive(
 export interface CatalogOverlayRow {
   item_ref: string;
   source: "code" | "template";
+  /** LEGACY 2-toggle axis (kept for dual-write + back-compat). The day X4 lands
+   *  these still drive any code path that hasn't been threaded a `surfaceKey`
+   *  (e.g. a null-surface homepage/Lab merge, which never subtracts per-surface).
+   *  The new per-surface quad below SUPERSEDES these where a `surfaceKey` is
+   *  supplied. */
   talent_enabled: boolean;
   workspace_enabled: boolean;
+  /** X4 — the four INDEPENDENT real-surface toggles. Optional so older overlay
+   *  fixtures / the live DB during the migration window still typecheck; absence
+   *  ⇒ fall back to the legacy pair (talent_* ⇐ talent_enabled, workspace_* ⇐
+   *  workspace_enabled — see {@link surfaceEnabledForRow}). The DB supplies all
+   *  four after the 20261106000300 migration backfills them losslessly. */
+  talent_profile_enabled?: boolean;
+  talent_shell_enabled?: boolean;
+  workspace_page_enabled?: boolean;
+  workspace_shell_enabled?: boolean;
+  /** X6 — the FIFTH, INDEPENDENT axis: visibility in the Builder LAB itself
+   *  (orthogonal to the four tenant surfaces + to target_context). Optional so
+   *  older fixtures / the live DB during the migration window still typecheck;
+   *  absence ⇒ Lab-visible (the table default, see {@link labEnabledForRow}). The
+   *  DB supplies it after the 20261106000400 migration (DEFAULT true). */
+  lab_enabled?: boolean;
   label_override: string | null;
   icon_override: string | null;
   category_override: string | null;
@@ -87,8 +114,21 @@ export type CatalogOverlayMap = Record<string, CatalogOverlayRow>;
 export interface SetCatalogOverlayInput {
   item_ref: string;
   source: "code" | "template";
+  /** LEGACY 2-toggle axis — writers dual-write these alongside the X4 quad so a
+   *  rollback to pre-X4 code keeps reading correct visibility. */
   talent_enabled?: boolean;
   workspace_enabled?: boolean;
+  /** X4 — the four INDEPENDENT real-surface toggles. A toggle from the 4-column
+   *  Lab matrix sets exactly one of these; the writer mirrors the corresponding
+   *  legacy column (AND of the two talent / two workspace surfaces) for safety. */
+  talent_profile_enabled?: boolean;
+  talent_shell_enabled?: boolean;
+  workspace_page_enabled?: boolean;
+  workspace_shell_enabled?: boolean;
+  /** X6 — the independent Builder-Lab visibility toggle. A toggle from the Lab
+   *  matrix's 5th column sets exactly this; orthogonal to the four tenant
+   *  surfaces, so it never mirrors any legacy column. */
+  lab_enabled?: boolean;
   label_override?: string | null;
   icon_override?: string | null;
   category_override?: string | null;
@@ -118,8 +158,15 @@ export interface CatalogAdminItem {
   id: string;
   tab: AddGalleryTab;
   source: "code" | "template";
-  /** Lifecycle status: 'built-in' for code items; the template's status
-   *  (draft|in_review|published|archived) for DB templates. */
+  /** For DB-template rows, the raw `builder_templates` row id (the namespaced
+   *  gallery `id` is `db-template:<dbTemplateId>`). The lifecycle actions
+   *  (publishTemplate / archiveTemplate / …) take this raw id. Undefined for
+   *  code rows. */
+  dbTemplateId?: string;
+  /** Lifecycle status. DB templates: the row's status enum
+   *  (draft|in_review|published|archived). Code items have no lifecycle row, so
+   *  this is DERIVED from `availability_override` — 'archived' when hidden,
+   *  'published' otherwise (the only two states a code row can hold). */
   status: string;
   itemKind: AddGalleryItem["itemKind"];
   availability: AddGalleryItem["availability"];
@@ -134,14 +181,59 @@ export interface CatalogAdminItem {
   overlay: CatalogOverlayRow | null;
   talentVisible: boolean;
   workspaceVisible: boolean;
+  /**
+   * X4 — effective visibility on EACH of the four real surfaces, computed from
+   * target_context ∩ the per-surface overlay toggle (honoring the new columns,
+   * losslessly falling back to the legacy pair). This is the REAL matrix the
+   * 4-column Lab table renders; `talentVisible`/`workspaceVisible` are retained
+   * for the legacy 2-toggle controls + back-compat callers.
+   */
+  surfaceVisible: Record<CatalogSurfaceKey, boolean>;
+  /**
+   * X6 — effective visibility in the Builder LAB itself: the independent
+   * `lab_enabled` overlay toggle ∩ not availability-hidden. ORTHOGONAL to the
+   * four tenant surfaces and to `target_context` — a component can be hidden from
+   * every tenant surface yet still Lab-visible (and vice-versa). The 5th matrix
+   * column renders this; it never collapses onto any tenant-surface toggle.
+   */
+  labVisible: boolean;
   effectiveLabel: string;
   effectiveCategory: string;
+  /**
+   * D1 — how many tenant trees reference this component's TYPE, aggregated
+   * across every tenant tree-bearing column (cms_pages.blocks /
+   * cms_sections.props_jsonb / cms_builder_components.subtree_jsonb /
+   * talent_sites snapshots + shell). Resolved by `applyUsageCounts` from the
+   * platform-wide `ComponentUsageTally` (native items key on `nativeKind`,
+   * curated section embeds on `sectionEmbedKey`). `undefined` ⇒ the item has no
+   * single countable TYPE (a DB page/section template is inlined as a whole
+   * subtree, not one node kind) → the UI renders "—"; a NUMBER (incl. 0) ⇒ a
+   * real type, used on N tenant pages.
+   */
+  usageCount?: number;
+  /** D6 — component-identity keys (mirrored from the source AddGalleryItem) so a
+   *  where-used confirm can build a HideImpactRef. Native items carry `nativeKind`;
+   *  curated section embeds carry `sectionEmbedKey`; DB templates carry neither. */
+  nativeKind?: AddGalleryItem["nativeKind"];
+  sectionEmbedKey?: AddGalleryItem["sectionEmbedKey"];
 }
 
 /**
  * Compute the Catalog admin view (PURE) from the ungated universe + overlays.
  * Effective visibility = target_context allows the surface AND the overlay
  * doesn't disable it AND it isn't availability-hidden. Code items target "both".
+ *
+ * CATEGORY/TAB PRECEDENCE — must match the LIVE "+" gallery (F4). The live read
+ * path (`listGalleryItems` → finalize) applies the overlay FIRST, then the
+ * catalog structure, so a structure `item:<id>` placement WINS over an overlay
+ * `category_override` ("structure wins on placement" — it is the explicit
+ * 'move this component' control). To keep the Lab == live, this view resolves
+ * placement the SAME way: base → overlay.category_override → structure
+ * (`item:<id>`) tab/category override. The optional `structure` arg is threaded
+ * by `loadCatalogAdminView`; omitted ⇒ overlay-only placement (identity for
+ * existing callers/tests). `baseCategory` is the genuine code/template default
+ * (pre-overlay, pre-structure) so the override-input placeholder shows the real
+ * baseline, and `tab`/`effectiveCategory` are the live-resolved placement.
  *
  * NOTE: talentVisible/workspaceVisible intentionally IGNORE required_plan and
  * required_talent_tier gating, which the live consumer gallery DOES apply
@@ -154,15 +246,32 @@ export function buildCatalogAdminView(
   universe: ReadonlyArray<AddGalleryItem>,
   overlays: CatalogOverlayMap,
   statusByRef?: Record<string, string>,
+  structure: CatalogStructureMap = {},
+  // D1 — the platform-wide component-TYPE usage tally. When supplied, each row's
+  // `usageCount` is resolved from it (native items key on `nativeKind`, curated
+  // section embeds on `sectionEmbedKey`). Omitted ⇒ `usageCount` stays undefined
+  // (identity for existing callers/tests) and the UI renders "—".
+  usageTally?: ComponentUsageTally,
 ): CatalogAdminItem[] {
   return universe.map((item) => {
     const source: "code" | "template" =
       item.insertMethod === "dbTemplate" ? "template" : "code";
-    const status =
-      source === "template" ? statusByRef?.[item.id] ?? "published" : "built-in";
-    const targetContext: BuilderTemplateTarget = item.targetContext ?? "both";
     const ov = overlays[item.id] ?? null;
+    const structRow = structure[`item:${item.id}`] ?? null;
     const hidden = ov?.availability_override === "hidden";
+    // Lifecycle status. DB templates carry a real status enum
+    // (draft|in_review|published|archived). Code items have NO lifecycle row, so
+    // we DERIVE one from their `availability_override`: hidden → archived,
+    // otherwise published. This replaces the synthetic 'built-in' literal so the
+    // Catalog UI reflects the only two states a code row can actually hold
+    // (Published / Archived), driven by the same overlay the live gallery honors.
+    const status =
+      source === "template"
+        ? statusByRef?.[item.id] ?? "published"
+        : hidden
+          ? "archived"
+          : "published";
+    const targetContext: BuilderTemplateTarget = item.targetContext ?? "both";
     const talentVisible =
       templateTargetAllowed(targetContext, "talent") &&
       (ov ? ov.talent_enabled : true) &&
@@ -171,10 +280,37 @@ export function buildCatalogAdminView(
       templateTargetAllowed(targetContext, "workspace") &&
       (ov ? ov.workspace_enabled : true) &&
       !hidden;
+    // X4 — the REAL 4-surface visibility: target_context (coarse) ∩ the precise
+    // per-surface overlay toggle ∩ not availability-hidden. Each surface keys off
+    // its own independent column now (lossless legacy fallback baked into
+    // surfaceEnabledForRow), so the talent shell is no longer chained to workspace.
+    const surfaceVisible = CATALOG_SURFACE_KEYS.reduce(
+      (acc, key) => {
+        acc[key] =
+          templateTargetAllowed(targetContext, surfaceKeyToTarget(key)) &&
+          surfaceEnabledForRow(ov, key) &&
+          !hidden;
+        return acc;
+      },
+      {} as Record<CatalogSurfaceKey, boolean>,
+    );
+    // X6 — the INDEPENDENT Builder-Lab visibility: the lab_enabled overlay toggle
+    // ∩ not availability-hidden. Deliberately NOT gated by target_context (the Lab
+    // authors for ALL audiences) and NOT chained to any tenant surface.
+    const labVisible = labEnabledForRow(ov) && !hidden;
+    // LIVE-MATCHING placement (F4): base → overlay → structure, structure wins.
+    // Mirrors the live finalize() order (applyCatalogOverlay then
+    // applyStructureToItems). `item.tab`/`item.category` here are the genuine
+    // base (loadCatalogAdminView passes the raw universe, NOT pre-structured).
+    const effectiveTab: AddGalleryTab =
+      (structRow?.parent_tab as AddGalleryTab | null | undefined) ?? item.tab;
+    const effectiveCategory =
+      structRow?.category_override ?? ov?.category_override ?? item.category;
     return {
       id: item.id,
-      tab: item.tab,
+      tab: effectiveTab,
       source,
+      dbTemplateId: source === "template" ? item.dbTemplateId : undefined,
       status,
       itemKind: item.itemKind,
       availability: item.availability,
@@ -186,10 +322,149 @@ export function buildCatalogAdminView(
       overlay: ov,
       talentVisible,
       workspaceVisible,
+      surfaceVisible,
+      labVisible,
       effectiveLabel: ov?.label_override ?? item.label,
-      effectiveCategory: ov?.category_override ?? item.category,
+      effectiveCategory,
+      usageCount: usageTally
+        ? usageCountForItem(item, usageTally)
+        : undefined,
+      // D6 — the component-identity keys (carried through so the where-used
+      // confirm can build a HideImpactRef for a code-row without re-deriving).
+      nativeKind: item.nativeKind,
+      sectionEmbedKey: item.sectionEmbedKey,
     };
   });
+}
+
+// ── 4-surface matrix projection (X1, read-only) ──────────────────────────────
+
+// The four-surface vocabulary + the PURE 2→4 lossless-migration helpers live in
+// `surface-keys.ts` (split out to keep this file under the 800-line cap). They are
+// RE-EXPORTED here so existing direct imports (`from "./registry-db-merge"`) — and
+// the test discipline of never importing through the .css-laden barrel — keep
+// working unchanged.
+export {
+  CATALOG_SURFACE_KEYS,
+  CATALOG_SURFACE_LABEL,
+  SURFACE_COLUMN,
+  LAB_COLUMN,
+  legacyToFourSurface,
+  surfaceEnabledForRow,
+  surfaceKeyToTarget,
+  labEnabledForRow,
+  type CatalogSurfaceKey,
+} from "./surface-keys";
+import {
+  CATALOG_SURFACE_KEYS,
+  CATALOG_SURFACE_LABEL,
+  SURFACE_COLUMN,
+  surfaceEnabledForRow,
+  surfaceKeyToTarget,
+  labEnabledForRow,
+  type CatalogSurfaceKey,
+} from "./surface-keys";
+
+/** One cell of the derived 4-surface matrix. */
+export interface CatalogSurfaceCell {
+  key: CatalogSurfaceKey;
+  /** Human label for the cell. */
+  label: string;
+  /** Effective visibility on this surface. */
+  visible: boolean;
+  /**
+   * Which underlying toggle governs this cell.
+   *
+   *   • X4 (real) — when the view carries an independent `surfaceVisible` map,
+   *     each surface is governed by its OWN per-surface column
+   *     (`talent_profile_enabled` … `workspace_shell_enabled`).
+   *   • Legacy (back-compat) — when only the 2-toggle
+   *     `talentVisible`/`workspaceVisible` projection is supplied, the cell still
+   *     reports the lossy `talent_enabled`/`workspace_enabled` it rides.
+   */
+  governedBy:
+    | "talent_enabled"
+    | "workspace_enabled"
+    | "talent_profile_enabled"
+    | "talent_shell_enabled"
+    | "workspace_page_enabled"
+    | "workspace_shell_enabled";
+}
+
+/**
+ * Project a `CatalogAdminItem` onto the FOUR real builder surfaces (X1, PURE,
+ * read-only). This is a *derivation* over the existing 2-toggle overlay state
+ * (`talentVisible` ⇐ `talent_enabled`, `workspaceVisible` ⇐ `workspace_enabled`)
+ * — it adds NO new column and performs NO write. Its sole job is to make the
+ * current LOSSY mapping visible:
+ *
+ *   • talent profile  ⇐ talent_enabled        (`buildTalentPageBuilderConfig`,
+ *                                               adapter target → "talent")
+ *   • talent shell    ⇐ workspace_enabled      (THE SURPRISE — the talent Max
+ *                                               SITE-SHELL is governed by the
+ *                                               Workspace toggle because
+ *                                               `buildSiteShellBuilderConfig`
+ *                                               hardcodes surfaceTarget:'workspace')
+ *   • workspace page  ⇐ workspace_enabled      (`buildCmsPageBuilderConfig`,
+ *                                               surfaceTarget:'workspace')
+ *   • workspace shell ⇐ workspace_enabled      (same site_shell config, workspace)
+ *
+ * So hiding a component "from Workspace" silently also hides it from the talent's
+ * own Max-site header/footer — three of the four surfaces collapse onto one
+ * toggle. X4 later splits this into a true 4-column matrix; this read-only view
+ * de-risks that migration by exposing the truth first.
+ *
+ * Visibility per cell honors the item's `target_context` exactly as
+ * `buildCatalogAdminView` does (talent-targeted rows can't show on workspace
+ * surfaces and vice-versa; "both" shows on all) because we reuse the
+ * already-computed `talentVisible`/`workspaceVisible`, keeping this a pure
+ * projection of that view.
+ */
+export function deriveSurfaceMatrix(
+  view: Pick<CatalogAdminItem, "talentVisible" | "workspaceVisible"> &
+    Partial<Pick<CatalogAdminItem, "surfaceVisible">>,
+): CatalogSurfaceCell[] {
+  // X4 — when the view carries the REAL per-surface visibility map, each surface
+  // reports its OWN independent toggle. The talent shell is now governed by
+  // `talent_shell_enabled`, NOT the workspace toggle: the lossy 3-on-1 collapse
+  // is gone. Callers that only pass the legacy 2-toggle projection (e.g. the X1
+  // read-only test) fall through to the back-compat branch below, which keeps
+  // documenting the OLD lossy reality so that path's tests stay meaningful.
+  if (view.surfaceVisible) {
+    const sv = view.surfaceVisible;
+    return CATALOG_SURFACE_KEYS.map((key) => ({
+      key,
+      label: CATALOG_SURFACE_LABEL[key],
+      visible: sv[key],
+      governedBy: SURFACE_COLUMN[key] as CatalogSurfaceCell["governedBy"],
+    }));
+  }
+  return [
+    {
+      key: "talent_profile",
+      label: "Talent profile",
+      visible: view.talentVisible,
+      governedBy: "talent_enabled",
+    },
+    {
+      key: "talent_shell",
+      label: "Talent shell",
+      visible: view.workspaceVisible,
+      governedBy: "workspace_enabled",
+    },
+    {
+      key: "workspace_page",
+      label: "Workspace page",
+      visible: view.workspaceVisible,
+      governedBy: "workspace_enabled",
+    },
+    {
+      key: "workspace_shell",
+      label: "Workspace shell",
+      visible: view.workspaceVisible,
+      governedBy: "workspace_enabled",
+    },
+  ];
 }
 
 /**
@@ -199,8 +474,13 @@ export function buildCatalogAdminView(
  *   - `required_plan_override` → a TIGHTEN-only extra plan gate (never loosens;
  *     drops the item when the surface plan can't meet the override).
  *   - label / icon / category overrides are applied to the survivors.
- * The surface is taken from `ctx.surfaceTarget`; "both"/"platform"/null surfaces
- * (e.g. the homepage / Lab) are not subtracted per-surface, only by availability.
+ * X4 — when `ctx.surfaceKey` is set (one of the FOUR real surfaces) the
+ * per-surface subtraction keys off that surface's INDEPENDENT toggle (via
+ * {@link surfaceEnabledForRow}, which falls back losslessly to the legacy pair
+ * for rows predating the migration). When `surfaceKey` is absent the legacy
+ * coarse `ctx.surfaceTarget` 2-toggle subtraction applies, exactly as before.
+ * "both"/"platform"/null surfaces (e.g. the homepage / Lab) are not subtracted
+ * per-surface, only by availability.
  */
 export function applyCatalogOverlay(
   items: ReadonlyArray<AddGalleryItem>,
@@ -208,6 +488,7 @@ export function applyCatalogOverlay(
   ctx: GalleryMergeContext,
 ): AddGalleryItem[] {
   const surface = ctx.surfaceTarget;
+  const surfaceKey = ctx.surfaceKey ?? null;
   const out: AddGalleryItem[] = [];
   for (const item of items) {
     const ov = overlays[item.id];
@@ -216,8 +497,19 @@ export function applyCatalogOverlay(
       continue;
     }
     if (ov.availability_override === "hidden") continue;
-    if (surface === "talent" && !ov.talent_enabled) continue;
-    if (surface === "workspace" && !ov.workspace_enabled) continue;
+    // X4 precise 4-surface subtraction takes precedence when a surfaceKey is
+    // supplied; otherwise the legacy coarse target axis governs (back-compat).
+    if (surfaceKey) {
+      if (!surfaceEnabledForRow(ov, surfaceKey)) continue;
+    } else {
+      if (surface === "talent" && !ov.talent_enabled) continue;
+      if (surface === "workspace" && !ov.workspace_enabled) continue;
+    }
+    // X6 — the INDEPENDENT Lab axis. Only the Lab merge subtracts on it; tenant
+    // builders never carry `isLab`, so `lab_enabled` can never hide a component
+    // from a tenant surface (and the four tenant toggles can never hide it from
+    // the Lab — the two axes are fully orthogonal).
+    if (ctx.isLab && !labEnabledForRow(ov)) continue;
     if (
       ov.required_plan_override &&
       ctx.plan &&
@@ -374,6 +666,27 @@ export interface GalleryMergeContext {
   galleryPolicy: BuilderGalleryPolicy;
   /** Surface subject target for target_context gating (§E). */
   surfaceTarget?: BuilderTemplateTarget | null;
+  /**
+   * X4 — the PRECISE builder surface for per-surface overlay subtraction. This
+   * is ORTHOGONAL to `surfaceTarget`: `surfaceTarget` is the coarse audience
+   * (talent|workspace) used for target_context gating; `surfaceKey` is the exact
+   * one of FOUR real surfaces whose overlay toggle decides lifecycle
+   * (enabled/disabled). When set, `applyCatalogOverlay` subtracts using the
+   * matching per-surface column; when absent it falls back to the legacy
+   * `surfaceTarget`-driven 2-toggle subtraction (back-compat — null-surface
+   * homepage/Lab merges never carry a surfaceKey and stay availability-only).
+   */
+  surfaceKey?: CatalogSurfaceKey | null;
+  /**
+   * X6 — when true, the merge runs for the BUILDER LAB surface, so the
+   * independent `lab_enabled` overlay toggle subtracts (a `lab_enabled === false`
+   * row is hidden from the Lab gallery). ORTHOGONAL to `surfaceKey`/`surfaceTarget`
+   * (a tenant builder is never `isLab`, the Lab never carries a `surfaceKey`), so
+   * hiding a component from the Lab never touches any tenant surface and vice
+   * versa. Absent/false ⇒ the lab axis is not applied (tenant builders + the
+   * null-surface homepage stay availability-only on this axis).
+   */
+  isLab?: boolean;
   /** Surface plan for required_plan gating (§E). */
   plan?: PlanKey | null;
   /** Surface talent tier for required_talent_tier gating (§E). */

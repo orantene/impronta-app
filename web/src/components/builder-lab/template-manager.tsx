@@ -23,7 +23,7 @@
  * this Manager then drives the rest of the lifecycle.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   createTemplateDraft,
@@ -38,14 +38,49 @@ import {
   rollbackToRevision,
   setTemplateRollout,
   listPublishedTemplates,
+  getPublishDiff,
+  loadHideImpact,
 } from "@/lib/site-admin/builder-core/templates/registry-actions";
-import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import type { HideImpact } from "@/lib/site-admin/builder-core/templates/hide-impact";
+import { WhereUsedConfirm } from "./where-used-confirm";
+import {
+  suggestDuplicateDefaults,
+  isSlugTaken,
+} from "@/lib/site-admin/builder-core/templates/slug-minting";
+import {
+  listAllTemplates,
+  resolveLabMediaTenantId,
+  resolveTemplateThumbnails,
+} from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import {
+  getTemplateUsageTotals,
+  type TemplateUsageTotals,
+} from "@/lib/site-admin/builder-core/templates/template-usage-actions";
+import { formatTemplateAdoption } from "@/lib/site-admin/builder-core/templates/template-usage-shape";
+import {
+  distinctThumbnailAssetIds,
+  resolveTemplateThumbnailMap,
+  templateThumbnailPatch,
+} from "./thumbnail-helpers";
+import { TemplateThumbnailCell } from "./template-thumbnail-cell";
+import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
 import { galleryTabForTemplateKind } from "@/lib/site-admin/builder-core/templates/apply-shell-template-core";
 import {
   RevisionList,
   PublishNotePanel,
 } from "./template-revision-list";
-import { RolloutPanel, rolloutSummary } from "./template-rollout-panel";
+import {
+  previewPublishChecklist,
+  type TemplateTreeDiff,
+  type PublishChecklist,
+} from "@/lib/site-admin/builder-core/templates/validate-publish";
+import {
+  RolloutPanel,
+  rolloutSummary,
+  isPartialRollout,
+  rolloutChipText,
+} from "./template-rollout-panel";
+import { summarizeLatestRevision } from "./template-revision-summary";
 import type {
   BuilderTemplateRow,
   BuilderTemplateKind,
@@ -125,11 +160,50 @@ export function TemplateManager() {
   const [rows, setRows] = useState<BuilderTemplateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<BuilderTemplateStatus | "all">("all");
+  /** "all" = no rollout filter; "partial" = only canaried templates */
+  const [rolloutFilter, setRolloutFilter] = useState<"all" | "partial">("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  // A2 — thumbnail affordance: media scope (hub tenant) + resolved row→url map +
+  // the id of the row whose thumbnail is currently saving.
+  const [mediaTenantId, setMediaTenantId] = useState<string | null>(null);
+  const [thumbUrlByRow, setThumbUrlByRow] = useState<Map<string, string>>(
+    new Map(),
+  );
+  const [thumbBusyId, setThumbBusyId] = useState<string | null>(null);
+  // D7 — per-template adoption tally (templateId → {appliedCount, tenantCount})
+  // from `builder_template_usage`, rendered as "applied N times across M tenants".
+  const [usageByTemplate, setUsageByTemplate] = useState<
+    Record<string, TemplateUsageTotals>
+  >({});
+  // A1 — duplicate-with-rename: tracks which row is waiting for rename input.
+  // null = no panel open; string = the templateId whose panel is open.
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+
+  const flash = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2600);
+  }, []);
+
+  /** Resolve every row's thumbnail asset id → public URL in one batch. */
+  const refreshThumbnails = useCallback(
+    async (rowsToResolve: BuilderTemplateRow[]) => {
+      const ids = distinctThumbnailAssetIds(rowsToResolve);
+      if (ids.length === 0) {
+        setThumbUrlByRow(new Map());
+        return;
+      }
+      const res = await resolveTemplateThumbnails(ids).catch(() => null);
+      const urlById = new Map<string, string>(
+        res && res.ok ? Object.entries(res.data) : [],
+      );
+      setThumbUrlByRow(resolveTemplateThumbnailMap(rowsToResolve, urlById));
+    },
+    [],
+  );
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -140,29 +214,84 @@ export function TemplateManager() {
     if (res && res.ok) {
       setRows(res.data);
       setLoading(false);
+      void refreshThumbnails(res.data);
       return;
     }
     const pub = await listPublishedTemplates();
     setLoading(false);
     if (pub.ok) {
       setRows(pub.data);
+      void refreshThumbnails(pub.data);
     } else {
       setError(pub.error);
     }
-  }, []);
+  }, [refreshThumbnails]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  const flash = useCallback((msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2600);
+  // D7 — load the adoption tally once. A failure leaves the map empty (cards
+  // then show no adoption line rather than a wrong/zero count).
+  useEffect(() => {
+    let cancelled = false;
+    getTemplateUsageTotals()
+      .then((res) => {
+        if (!cancelled && res.ok) setUsageByTemplate(res.data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const filtered =
+  // Resolve the Lab's media scope (hub tenant) once so the thumbnail picker can
+  // open. A failure leaves the picker disabled (the cell renders a hint).
+  useEffect(() => {
+    let cancelled = false;
+    resolveLabMediaTenantId()
+      .then((res) => {
+        if (!cancelled && res.ok) setMediaTenantId(res.data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Persist a row's thumbnail (assetId=null clears it) with explicit busy
+   *  state, then optimistically update the rendered URL. */
+  const setThumbnail = useCallback(
+    async (rowId: string, assetId: string | null, publicUrl: string | null) => {
+      setThumbBusyId(rowId);
+      setError(null);
+      const res = await updateTemplateDraft(
+        templateThumbnailPatch(rowId, assetId),
+      );
+      setThumbBusyId(null);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setThumbUrlByRow((prev) => {
+        const next = new Map(prev);
+        if (assetId && publicUrl) next.set(rowId, publicUrl);
+        else next.delete(rowId);
+        return next;
+      });
+      flash(assetId ? "Thumbnail set ✓" : "Thumbnail removed ✓");
+    },
+    [flash],
+  );
+
+  const statusFiltered =
     statusFilter === "all" ? rows : rows.filter((r) => r.status === statusFilter);
+  const filtered =
+    rolloutFilter === "partial"
+      ? statusFiltered.filter(isPartialRollout)
+      : statusFiltered;
   const pendingCount = rows.filter((r) => r.status === "in_review").length;
+  const partialRolloutCount = rows.filter(isPartialRollout).length;
 
   // ── lifecycle handlers ─────────────────────────────────────────────────────
 
@@ -215,6 +344,36 @@ export function TemplateManager() {
             );
           })}
         </div>
+        {/* Rollout filter — only visible when at least one template is canaried */}
+        {partialRolloutCount > 0 ? (
+          <button
+            type="button"
+            onClick={() =>
+              setRolloutFilter((f) => (f === "partial" ? "all" : "partial"))
+            }
+            style={{
+              background:
+                rolloutFilter === "partial"
+                  ? "rgba(155,168,183,0.20)"
+                  : "transparent",
+              color: rolloutFilter === "partial" ? "#B6C2CF" : T.inkMuted,
+              border: `1px solid ${
+                rolloutFilter === "partial"
+                  ? "rgba(155,168,183,0.40)"
+                  : "rgba(255,255,255,0.10)"
+              }`,
+              fontSize: 11.5,
+              fontWeight: 600,
+              padding: "5px 12px",
+              borderRadius: 999,
+              cursor: "pointer",
+            }}
+          >
+            {rolloutFilter === "partial"
+              ? "Partial rollout ×"
+              : `Partial rollout (${partialRolloutCount})`}
+          </button>
+        ) : null}
         <span style={{ flex: 1 }} />
         <button
           type="button"
@@ -311,6 +470,13 @@ export function TemplateManager() {
                 key={row.id}
                 row={row}
                 busy={busyId === row.id}
+                adoption={formatTemplateAdoption(usageByTemplate[row.id])}
+                mediaTenantId={mediaTenantId}
+                thumbUrl={thumbUrlByRow.get(row.id) ?? null}
+                thumbBusy={thumbBusyId === row.id}
+                onSetThumbnail={(assetId, publicUrl) =>
+                  setThumbnail(row.id, assetId, publicUrl)
+                }
                 onEdit={() => {
                   setEditId(row.id);
                   setCreating(false);
@@ -326,15 +492,11 @@ export function TemplateManager() {
                   )
                 }
                 onPublish={(changelog) => {
-                  // W7 — guard against publishing an empty template (inserts nothing).
-                  if (
-                    (row.builder_tree?.length ?? 0) === 0 &&
-                    !window.confirm(
-                      "This template has no content — it will insert nothing into a page. Publish to the gallery anyway?",
-                    )
-                  ) {
-                    return;
-                  }
+                  // A6 — the empty/invalid-template guard moved into the
+                  // PublishNotePanel pre-publish checklist (a BLOCKING row hard-
+                  // disables confirm before the operator can reach here), so the
+                  // raw window.confirm gate is gone: the panel now shows what's
+                  // missing BEFORE shipping rather than failing after.
                   void runLifecycle(row.id, "Published to gallery", () =>
                     publishTemplate(row.id, changelog ?? null),
                   );
@@ -345,9 +507,20 @@ export function TemplateManager() {
                 onArchive={() =>
                   runLifecycle(row.id, "Archived", () => archiveTemplate(row.id))
                 }
-                onDuplicate={() =>
-                  runLifecycle(row.id, "Duplicated", () => duplicateTemplate(row.id))
-                }
+                duplicatingOpen={duplicatingId === row.id}
+                onDuplicateRequest={() => {
+                  setDuplicatingId(row.id);
+                  setCreating(false);
+                  setEditId(null);
+                }}
+                onDuplicateCancel={() => setDuplicatingId(null)}
+                onDuplicateConfirm={(title, slug) => {
+                  setDuplicatingId(null);
+                  void runLifecycle(row.id, "Duplicated", () =>
+                    duplicateTemplate(row.id, { title, slug }),
+                  );
+                }}
+                sameKindRows={rows.filter((r) => r.kind === row.kind)}
                 onRestore={(version) =>
                   runLifecycle(row.id, `Restored v${version}`, () =>
                     restoreTemplateRevision(row.id, version),
@@ -384,26 +557,45 @@ export function TemplateManager() {
 function TemplateRowCard({
   row,
   busy,
+  adoption,
+  mediaTenantId,
+  thumbUrl,
+  thumbBusy,
+  onSetThumbnail,
   onEdit,
   onSubmit,
   onReject,
   onPublish,
   onUnpublish,
   onArchive,
-  onDuplicate,
+  duplicatingOpen,
+  onDuplicateRequest,
+  onDuplicateCancel,
+  onDuplicateConfirm,
+  sameKindRows,
   onRestore,
   onRollback,
   onSetRollout,
 }: {
   row: BuilderTemplateRow;
   busy: boolean;
+  adoption: string | null;
+  mediaTenantId: string | null;
+  thumbUrl: string | null;
+  thumbBusy: boolean;
+  onSetThumbnail: (assetId: string | null, publicUrl: string | null) => void;
   onEdit: () => void;
   onSubmit: () => void;
   onReject: () => void;
   onPublish: (changelog?: string | null) => void;
   onUnpublish: () => void;
   onArchive: () => void;
-  onDuplicate: () => void;
+  /** A1 — duplicate-with-rename */
+  duplicatingOpen: boolean;
+  onDuplicateRequest: () => void;
+  onDuplicateCancel: () => void;
+  onDuplicateConfirm: (title: string, slug: string) => void;
+  sameKindRows: ReadonlyArray<{ slug: string; title: string }>;
   onRestore: (version: number) => void;
   onRollback: (version: number) => void;
   onSetRollout: (input: SetTemplateRolloutInput) => void;
@@ -412,7 +604,80 @@ function TemplateRowCard({
   const [showRollout, setShowRollout] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [changelog, setChangelog] = useState("");
-  const rolloutPct = row.rollout_percentage ?? 100;
+  // D6 — where-used / impact preview before the one-way archive. `archiving`
+  // gates the confirm dialog; `archiveImpact` is null while loadHideImpact is in
+  // flight (the dialog shows a "checking…" state until it resolves).
+  const [archiving, setArchiving] = useState(false);
+  const [archiveImpact, setArchiveImpact] = useState<HideImpact | null>(null);
+  // G3 — advisory diff verdict fetched when the publish panel opens.
+  const [publishDiff, setPublishDiff] = useState<{
+    treeDiff: TemplateTreeDiff;
+    publishedVersion: number | null;
+  } | null>(null);
+
+  // Fetch the diff when the publish panel opens so the admin sees "no changes
+  // since v(N)" vs "tree changed since v(N)" before confirming.
+  useEffect(() => {
+    if (!publishing) {
+      setPublishDiff(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const res = await getPublishDiff(row.id).catch(() => null);
+      if (cancelled || !res || !res.ok) return;
+      setPublishDiff(res.data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [publishing, row.id]);
+
+  // D6 — when the archive confirm opens, load the where-used impact (D1 live-page
+  // usage + G5 template dependents) so the operator sees the blast radius BEFORE
+  // the one-way switch. A failure degrades to a zero-impact preview inside the
+  // action, so the confirm always resolves to something.
+  useEffect(() => {
+    if (!archiving) {
+      setArchiveImpact(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const res = await loadHideImpact(
+        { kind: "template", templateId: row.id },
+        "archive",
+      ).catch(() => null);
+      if (cancelled || !res || !res.ok) return;
+      setArchiveImpact(res.data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [archiving, row.id]);
+
+  // A6 — pre-publish checklist, recomputed as the admin types the changelog so
+  // the "has changelog" row flips live. Read-only; uses the row data already in
+  // memory + the diff snapshot fetched above (no extra round-trip).
+  const checklist: PublishChecklist = useMemo(
+    () =>
+      previewPublishChecklist({
+        tree: row.builder_tree,
+        description: row.description,
+        thumbnailAssetId: row.thumbnail_asset_id,
+        changelog: row.changelog,
+        pendingChangelog: changelog,
+      }),
+    [
+      row.builder_tree,
+      row.description,
+      row.thumbnail_asset_id,
+      row.changelog,
+      changelog,
+    ],
+  );
+
+  const chipText = rolloutChipText(row);
   const statusTone =
     row.status === "published"
       ? T.accent
@@ -433,6 +698,12 @@ function TemplateRowCard({
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <TemplateThumbnailCell
+          tenantId={mediaTenantId}
+          thumbUrl={thumbUrl}
+          busy={thumbBusy}
+          onPick={onSetThumbnail}
+        />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{row.title}</span>
@@ -440,9 +711,15 @@ function TemplateRowCard({
             <Pill>{row.kind.replace("_", " ")}</Pill>
             <Pill>{row.target_context}</Pill>
             <Pill>{row.required_plan}</Pill>
-            <Pill tone={rolloutPct < 100 ? T.amber : undefined}>
-              {rolloutSummary(row)}
-            </Pill>
+            {/* Rollout chip: amber when canaried, dim quiet "100%" when fully
+                rolled out. The tooltip always shows the full rolloutSummary. */}
+            {chipText !== null ? (
+              <Pill tone={T.amber} title={rolloutSummary(row)}>
+                {chipText}
+              </Pill>
+            ) : (
+              <Pill title="Fully rolled out to all tenants">100%</Pill>
+            )}
           </div>
           <div style={{ fontSize: 11.5, color: T.inkMuted, marginTop: 4, fontFamily: "ui-monospace, monospace" }}>
             {row.slug} · v{row.version} · {row.gallery_tab}
@@ -455,11 +732,73 @@ function TemplateRowCard({
               {row.description}
             </div>
           ) : null}
+          {/* D4 — inline per-template changelog/revision summary line.
+              Shows "v7, changed 2d ago, copy fix" at all times. Clicking
+              "History ▾" / "History ▴" expands the full RevisionList below. */}
+          <button
+            type="button"
+            onClick={() => setShowRevs((s) => !s)}
+            disabled={busy}
+            title={showRevs ? "Hide revision history" : "Expand revision history"}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              marginTop: 7,
+              background: showRevs ? "rgba(93,211,160,0.08)" : "transparent",
+              border: `1px solid ${showRevs ? "rgba(93,211,160,0.30)" : T.borderSoft}`,
+              borderRadius: 999,
+              padding: "2px 9px",
+              fontSize: 10.5,
+              fontWeight: 600,
+              color: showRevs ? T.accent : T.inkDim,
+              cursor: busy ? "default" : "pointer",
+              fontFamily: "ui-monospace, monospace",
+              letterSpacing: 0.1,
+            }}
+          >
+            {summarizeLatestRevision(row.version, row.updated_at, row.changelog)}
+            <span aria-hidden style={{ fontSize: 8, opacity: 0.7, fontFamily: "inherit" }}>
+              {showRevs ? "▴" : "▾"}
+            </span>
+          </button>
+          {/* D7 — adoption stat: "applied N times across M tenants". Hidden when
+              the template has never been applied (formatTemplateAdoption → null). */}
+          {adoption ? (
+            <div
+              style={{
+                fontSize: 11,
+                color: T.inkMuted,
+                marginTop: 6,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <span aria-hidden style={{ fontSize: 9, opacity: 0.7 }}>
+                ◆
+              </span>
+              {adoption}
+            </div>
+          ) : null}
         </div>
       </div>
 
       <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
         <GhostBtn onClick={onEdit} disabled={busy}>Edit</GhostBtn>
+        <GhostBtn
+          onClick={() => {
+            if (typeof window === "undefined") return;
+            window.open(
+              getTemplatePreviewUrl(row.id, { family: "db-template" }),
+              "_blank",
+              "noopener,noreferrer",
+            );
+          }}
+          disabled={busy}
+        >
+          Open preview
+        </GhostBtn>
         {row.status === "draft" ? (
           <GhostBtn onClick={onSubmit} disabled={busy}>Submit for review</GhostBtn>
         ) : null}
@@ -477,17 +816,46 @@ function TemplateRowCard({
         {row.status === "published" ? (
           <GhostBtn onClick={onUnpublish} disabled={busy}>Unpublish</GhostBtn>
         ) : null}
-        <GhostBtn onClick={onDuplicate} disabled={busy}>Duplicate</GhostBtn>
+        <GhostBtn onClick={onDuplicateRequest} disabled={busy}>Duplicate…</GhostBtn>
         {row.status !== "archived" ? (
-          <GhostBtn onClick={onArchive} disabled={busy} tone="danger">Archive</GhostBtn>
+          <GhostBtn
+            onClick={() => setArchiving((a) => !a)}
+            disabled={busy}
+            tone="danger"
+          >
+            Archive
+          </GhostBtn>
         ) : null}
         <GhostBtn onClick={() => setShowRollout((s) => !s)} disabled={busy}>
           {showRollout ? "Hide rollout" : "Rollout"}
         </GhostBtn>
-        <GhostBtn onClick={() => setShowRevs((s) => !s)} disabled={busy}>
-          {showRevs ? "Hide revisions" : "Revisions"}
-        </GhostBtn>
       </div>
+
+      {/* D6 — where-used / impact preview before the one-way archive. */}
+      <WhereUsedConfirm
+        open={archiving}
+        subjectLabel={row.title}
+        action="archive"
+        impact={archiveImpact}
+        loading={archiveImpact === null}
+        busy={busy}
+        onCancel={() => setArchiving(false)}
+        onConfirm={() => {
+          setArchiving(false);
+          onArchive();
+        }}
+      />
+
+      {/* A1 — inline rename panel: shown when user clicks "Duplicate…" */}
+      {duplicatingOpen ? (
+        <DuplicateRenamePanel
+          sourceRow={row}
+          sameKindRows={sameKindRows}
+          busy={busy}
+          onCancel={onDuplicateCancel}
+          onConfirm={onDuplicateConfirm}
+        />
+      ) : null}
 
       {publishing ? (
         <PublishNotePanel
@@ -496,6 +864,9 @@ function TemplateRowCard({
           ctaLabel={
             row.status === "in_review" ? "Approve + publish" : "Publish to gallery"
           }
+          treeDiff={publishDiff?.treeDiff ?? null}
+          publishedVersion={publishDiff?.publishedVersion ?? null}
+          checklist={checklist}
           onChange={setChangelog}
           onCancel={() => setPublishing(false)}
           onConfirm={() => {
@@ -526,6 +897,100 @@ function TemplateRowCard({
           onRollback={onRollback}
         />
       ) : null}
+    </div>
+  );
+}
+
+// ── A1: Duplicate-with-rename panel ──────────────────────────────────────────
+
+/**
+ * Inline rename row shown when the admin clicks "Duplicate…" on a template
+ * card.  Pre-populates title + slug with the first collision-safe suggestion
+ * (via mintCopyTitle / mintCopySlug) and validates uniqueness client-side
+ * before the action fires.
+ */
+function DuplicateRenamePanel({
+  sourceRow,
+  sameKindRows,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  sourceRow: BuilderTemplateRow;
+  /** All rows of the same kind — used for uniqueness checking. */
+  sameKindRows: ReadonlyArray<{ slug: string; title: string }>;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: (title: string, slug: string) => void;
+}) {
+  const defaults = suggestDuplicateDefaults(
+    sourceRow.slug,
+    sourceRow.title,
+    sameKindRows,
+  );
+  const [title, setTitle] = useState(defaults.title);
+  const [slug, setSlug] = useState(defaults.slug);
+
+  // Exclude the default slug itself from the uniqueness check so the
+  // pre-populated suggestion is always valid without the user touching it.
+  const slugConflict = isSlugTaken(slug, sameKindRows, defaults.slug);
+  const valid =
+    title.trim().length > 0 && slug.trim().length > 0 && !slugConflict;
+
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: "12px 14px",
+        border: `1px solid ${T.border}`,
+        borderRadius: 10,
+        background: T.card,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      <div style={{ fontSize: 11.5, fontWeight: 700, color: T.ink, letterSpacing: 0.2 }}>
+        Duplicate — pick a name
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <Field label="New title">
+          <input
+            style={input}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            autoFocus
+          />
+        </Field>
+        <Field label="New slug">
+          <input
+            style={{
+              ...input,
+              borderColor: slugConflict ? T.red : undefined,
+            }}
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+          />
+        </Field>
+      </div>
+      {slugConflict ? (
+        <div style={{ fontSize: 11.5, color: T.red }}>
+          Slug &ldquo;{slug}&rdquo; is already in use — choose a unique slug.
+        </div>
+      ) : null}
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button type="button" onClick={onCancel} disabled={busy} style={ghostBase}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={!valid || busy}
+          onClick={() => onConfirm(title.trim(), slug.trim())}
+          style={{ ...primaryBtn, opacity: valid && !busy ? 1 : 0.5, cursor: valid && !busy ? "pointer" : "default" }}
+        >
+          Duplicate
+        </button>
+      </div>
     </div>
   );
 }
@@ -652,9 +1117,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Pill({ children, tone }: { children: React.ReactNode; tone?: string }) {
+function Pill({
+  children,
+  tone,
+  title,
+}: {
+  children: React.ReactNode;
+  tone?: string;
+  title?: string;
+}) {
   return (
     <span
+      title={title}
       style={{
         fontSize: 9.5,
         fontWeight: 600,

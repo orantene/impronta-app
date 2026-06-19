@@ -8,6 +8,7 @@
  * replaced by this).
  */
 
+import { useEffect, useId, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
@@ -35,6 +36,9 @@ export const LAB = {
   amber: "#9BA8B7",
   red: "#F36772",
   redBg: "rgba(243,103,114,0.12)",
+  // how long a transient success/status toast stays up (ms) — the one value
+  // every Lab view's `flash()` timer reads so they all dismiss in lockstep.
+  toastMs: 2400,
 } as const;
 
 export const RADII = { control: 8, card: 12, icon: 7, pill: 999 } as const;
@@ -97,6 +101,9 @@ export function LabButton({
   ariaLabel,
   title,
   type = "button",
+  testId,
+  ariaHasPopup,
+  ariaExpanded,
 }: {
   variant?: LabButtonVariant;
   active?: boolean;
@@ -107,6 +114,11 @@ export function LabButton({
   ariaLabel?: string;
   title?: string;
   type?: "button" | "submit";
+  /** Inert data-testid for QA. */
+  testId?: string;
+  /** Pass-through for menu-trigger buttons (e.g. Playground "+ New"). */
+  ariaHasPopup?: boolean;
+  ariaExpanded?: boolean;
 }) {
   const base = BUTTON_VARIANT[variant];
   const ghost = variant === "ghost";
@@ -117,6 +129,9 @@ export function LabButton({
       disabled={disabled}
       aria-label={ariaLabel}
       title={title}
+      data-testid={testId}
+      aria-haspopup={ariaHasPopup ? "menu" : undefined}
+      aria-expanded={ariaHasPopup ? ariaExpanded : undefined}
       className={`rounded ${FOCUS_RING}`}
       style={{
         display: "inline-flex",
@@ -133,6 +148,56 @@ export function LabButton({
       }}
     >
       {children}
+    </button>
+  );
+}
+
+// ── Link-style button (inline text action) ────────────────────────────────────
+/** The borderless, text-only inline action used in a table row's "Manage"
+ *  column (Save / Cancel / Preview / Publish / Delete …). Was hand-rolled
+ *  identically in catalog-row-table.tsx + catalog-starter-kit.tsx; promoted here
+ *  so both row tables share one. `primary` = accent (the affirmative action),
+ *  `danger` = red (destructive). `testId` is an inert data-testid for QA. */
+export function LinkBtn({
+  label,
+  onClick,
+  disabled,
+  primary,
+  danger,
+  testId,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  primary?: boolean;
+  danger?: boolean;
+  testId?: string;
+}) {
+  const color = disabled
+    ? LAB.inkDim
+    : danger
+      ? LAB.red
+      : primary
+        ? LAB.accent
+        : LAB.inkMuted;
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      onClick={onClick}
+      disabled={disabled}
+      className={`rounded ${FOCUS_RING}`}
+      style={{
+        background: "transparent",
+        border: "none",
+        color,
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: disabled ? "default" : "pointer",
+        padding: 0,
+      }}
+    >
+      {label}
     </button>
   );
 }
@@ -320,13 +385,33 @@ export function LabChip({
 }
 
 // ── Toast (transient success / status banner) ─────────────────────────────────
+/** Optional inline action rendered at the toast's trailing edge (e.g. "Undo").
+ *  Additive — toasts without an `action` render exactly as before. */
+export interface LabToastAction {
+  label: string;
+  onClick: () => void;
+  /** Inert data-testid for QA. */
+  testId?: string;
+}
+
 /** The one canonical success/status toast — was hand-rolled identically in the
- *  Catalog + Catalog Studio. `role="status"` for SR announcement. */
-export function LabToast({ children }: { children: ReactNode }) {
+ *  Catalog + Catalog Studio. `role="status"` for SR announcement. Pass an
+ *  optional `action` to surface an inline button (the O5 "Undo" affordance);
+ *  existing callers omit it and render unchanged. */
+export function LabToast({
+  children,
+  action,
+}: {
+  children: ReactNode;
+  action?: LabToastAction;
+}) {
   return (
     <div
       role="status"
       style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 12,
         fontSize: 12,
         color: LAB.accent,
         background: "rgba(93,211,160,0.10)",
@@ -335,7 +420,28 @@ export function LabToast({ children }: { children: ReactNode }) {
         alignSelf: "flex-start",
       }}
     >
-      {children}
+      <span>{children}</span>
+      {action ? (
+        <button
+          type="button"
+          data-testid={action.testId}
+          onClick={action.onClick}
+          className={`rounded ${FOCUS_RING}`}
+          style={{
+            background: "transparent",
+            border: `1px solid ${LAB.accent}`,
+            borderRadius: RADII.control,
+            color: LAB.accent,
+            fontSize: 11.5,
+            fontWeight: 700,
+            padding: "2px 9px",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {action.label}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -420,6 +526,213 @@ export function EmptyCard({ children }: { children: ReactNode }) {
       <p style={{ fontSize: 12.5, color: LAB.inkMuted, margin: "0 auto", maxWidth: 480, lineHeight: 1.55 }}>
         {children}
       </p>
+    </div>
+  );
+}
+
+// ── Status dropdown (lifecycle control) ───────────────────────────────────────
+/** The four lifecycle states a catalog row can hold. Code-sourced rows only ever
+ *  resolve to `published` / `archived` (derived from availability); DB templates
+ *  use the full ladder. */
+export type LabStatus = "draft" | "in_review" | "published" | "archived";
+
+/** Canonical human label per status — shared so the trigger button + the menu +
+ *  any inline status pill all read identically. */
+export const LAB_STATUS_LABEL: Record<LabStatus, string> = {
+  draft: "Draft",
+  in_review: "In review",
+  published: "Published",
+  archived: "Archived",
+};
+
+/** Per-status dot color for the trigger/menu indicator. Published = accent
+ *  (live), in_review = amber/neutral, draft = dim, archived = red. */
+const STATUS_DOT: Record<LabStatus, string> = {
+  draft: LAB.inkDim,
+  in_review: LAB.amber,
+  published: LAB.accent,
+  archived: LAB.red,
+};
+
+export interface LabStatusOption {
+  value: LabStatus;
+  label: string;
+  /** Render the option but block selection (e.g. a transition that's illegal
+   *  for the current status, or a state code components can't enter). */
+  disabled?: boolean;
+  /** Hover hint — shown on a disabled option to explain why it can't apply. */
+  tooltip?: string;
+}
+
+/**
+ * A small status control: a button showing the current lifecycle status that
+ * opens a menu of the four statuses. PRESENTATIONAL ONLY — the caller wires the
+ * actual transition (server action) via `onSelect`; this primitive just renders
+ * the trigger + menu and reports the chosen value. Disabled options are visible
+ * (so the full ladder always reads) but inert, with an optional tooltip.
+ *
+ * Matches the LAB dark token language (no gold/rust): a colored dot + label
+ * trigger, a card-on-dark popover menu.
+ */
+export function LabStatusDropdown({
+  status,
+  options,
+  onSelect,
+  disabled,
+  busy,
+  testId,
+}: {
+  status: LabStatus;
+  options: ReadonlyArray<LabStatusOption>;
+  onSelect: (value: LabStatus) => void;
+  /** Whole control disabled (e.g. another row action is mid-flight). */
+  disabled?: boolean;
+  /** A transition for THIS row is in flight — dims + shows a working hint. */
+  busy?: boolean;
+  testId?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const menuId = useId();
+
+  // Close on outside click / Escape while open.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const triggerDisabled = disabled || busy;
+
+  return (
+    <div ref={rootRef} style={{ position: "relative", display: "inline-block" }}>
+      <button
+        type="button"
+        data-testid={testId}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        disabled={triggerDisabled}
+        title={busy ? "Updating…" : `Status: ${LAB_STATUS_LABEL[status]}`}
+        onClick={() => setOpen((v) => !v)}
+        className={`rounded ${FOCUS_RING}`}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          background: "transparent",
+          border: `1px solid ${LAB.border}`,
+          borderRadius: RADII.control,
+          color: LAB.ink,
+          fontSize: 11.5,
+          fontWeight: 600,
+          padding: "4px 9px",
+          cursor: triggerDisabled ? "default" : "pointer",
+          opacity: triggerDisabled ? 0.6 : 1,
+          whiteSpace: "nowrap",
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: 999,
+            background: STATUS_DOT[status],
+            flexShrink: 0,
+          }}
+        />
+        {busy ? "Updating…" : LAB_STATUS_LABEL[status]}
+        <span aria-hidden style={{ fontSize: 8, opacity: 0.6, marginLeft: 1 }}>
+          ▾
+        </span>
+      </button>
+      {open ? (
+        <div
+          id={menuId}
+          role="menu"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            right: 0,
+            zIndex: 30,
+            minWidth: 168,
+            background: LAB.card,
+            border: `1px solid ${LAB.border}`,
+            borderRadius: RADII.control,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.40)",
+            padding: 4,
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+          }}
+        >
+          {options.map((opt) => {
+            const isCurrent = opt.value === status;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="menuitem"
+                disabled={opt.disabled}
+                title={opt.tooltip}
+                aria-current={isCurrent ? "true" : undefined}
+                onClick={() => {
+                  if (opt.disabled) return;
+                  setOpen(false);
+                  if (!isCurrent) onSelect(opt.value);
+                }}
+                className={FOCUS_RING}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  width: "100%",
+                  textAlign: "left",
+                  background: isCurrent ? LAB.cardSoft : "transparent",
+                  border: "none",
+                  borderRadius: 6,
+                  color: opt.disabled ? LAB.inkDim : LAB.ink,
+                  fontSize: 12,
+                  fontWeight: isCurrent ? 700 : 500,
+                  padding: "7px 9px",
+                  cursor: opt.disabled ? "not-allowed" : "pointer",
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: 999,
+                    background: STATUS_DOT[opt.value],
+                    opacity: opt.disabled ? 0.45 : 1,
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ flex: 1 }}>{opt.label}</span>
+                {isCurrent ? (
+                  <span aria-hidden style={{ color: LAB.accent, fontSize: 11 }}>
+                    ✓
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }

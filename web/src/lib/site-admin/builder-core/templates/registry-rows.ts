@@ -84,6 +84,13 @@ export interface BuilderTemplateRow {
   tenant_allowlist?: string[];
   tenant_denylist?: string[];
   changelog?: string | null;
+  // G4 two-person approval provenance. Optional so existing row constructors/
+  // tests don't need updating; the DB always supplies them (null when unset).
+  submitted_by?: string | null;
+  submitted_at?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  review_note?: string | null;
 }
 
 /**

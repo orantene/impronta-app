@@ -47,9 +47,13 @@
     },
     "src/app/api/stripe/webhook/route.ts": {
       "maxDuration": 30
+    },
+    "src/app/api/cron/builder-rollout-ramp/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
+    { "path": "/api/cron/builder-rollout-ramp", "schedule": "0 7 * * *" },
     { "path": "/api/cron/skill-metrics-refresh", "schedule": "0 4 * * *" },
     { "path": "/api/cron/cleanup-guest-cart", "schedule": "0 5 * * *" },
     { "path": "/api/cron/refresh-discover-index", "schedule": "*/15 * * * *" },

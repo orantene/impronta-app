@@ -2788,14 +2788,19 @@ export type Database = {
           default_variant: string | null
           icon_override: string | null
           item_ref: string
+          lab_enabled: boolean
           label_override: string | null
           locked_props: string[]
           required_plan_override: string | null
           source: string
           talent_enabled: boolean
+          talent_profile_enabled: boolean
+          talent_shell_enabled: boolean
           updated_at: string
           updated_by: string | null
           workspace_enabled: boolean
+          workspace_page_enabled: boolean
+          workspace_shell_enabled: boolean
         }
         Insert: {
           availability_override?: string | null
@@ -2805,14 +2810,19 @@ export type Database = {
           default_variant?: string | null
           icon_override?: string | null
           item_ref: string
+          lab_enabled?: boolean
           label_override?: string | null
           locked_props?: string[]
           required_plan_override?: string | null
           source: string
           talent_enabled?: boolean
+          talent_profile_enabled?: boolean
+          talent_shell_enabled?: boolean
           updated_at?: string
           updated_by?: string | null
           workspace_enabled?: boolean
+          workspace_page_enabled?: boolean
+          workspace_shell_enabled?: boolean
         }
         Update: {
           availability_override?: string | null
@@ -2822,14 +2832,19 @@ export type Database = {
           default_variant?: string | null
           icon_override?: string | null
           item_ref?: string
+          lab_enabled?: boolean
           label_override?: string | null
           locked_props?: string[]
           required_plan_override?: string | null
           source?: string
           talent_enabled?: boolean
+          talent_profile_enabled?: boolean
+          talent_shell_enabled?: boolean
           updated_at?: string
           updated_by?: string | null
           workspace_enabled?: boolean
+          workspace_page_enabled?: boolean
+          workspace_shell_enabled?: boolean
         }
         Relationships: [
           {
@@ -2901,6 +2916,47 @@ export type Database = {
         }
         Relationships: []
       }
+      builder_lab_audit: {
+        Row: {
+          action: string
+          actor: string | null
+          after: Json | null
+          before: Json | null
+          created_at: string
+          id: string
+          item_ref: string | null
+          template_id: string | null
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          item_ref?: string | null
+          template_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          item_ref?: string | null
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "builder_lab_audit_actor_fkey"
+            columns: ["actor"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       builder_template_revisions: {
         Row: {
           created_at: string
@@ -2949,6 +3005,41 @@ export type Database = {
           },
         ]
       }
+      builder_template_usage: {
+        Row: {
+          id: string
+          inserted_at: string
+          page_ref: string | null
+          surface: string | null
+          template_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          id?: string
+          inserted_at?: string
+          page_ref?: string | null
+          surface?: string | null
+          template_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          id?: string
+          inserted_at?: string
+          page_ref?: string | null
+          surface?: string | null
+          template_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "builder_template_usage_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "builder_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       builder_templates: {
         Row: {
           builder_tree: Json
@@ -2968,11 +3059,19 @@ export type Database = {
           published_at: string | null
           required_plan: string
           required_talent_tier: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           rollout_percentage: number
+          rollout_ramp_at: string | null
+          rollout_ramp_to: number | null
           schema_version: number
           slug: string
           source_tenant_id: string | null
           status: Database["public"]["Enums"]["builder_template_status"]
+          status_expire_at: string | null
+          submitted_at: string | null
+          submitted_by: string | null
           tags: string[]
           target_context: Database["public"]["Enums"]["builder_template_target"]
           tenant_allowlist: string[]
@@ -3001,11 +3100,19 @@ export type Database = {
           published_at?: string | null
           required_plan?: string
           required_talent_tier?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           rollout_percentage?: number
+          rollout_ramp_at?: string | null
+          rollout_ramp_to?: number | null
           schema_version?: number
           slug: string
           source_tenant_id?: string | null
           status?: Database["public"]["Enums"]["builder_template_status"]
+          status_expire_at?: string | null
+          submitted_at?: string | null
+          submitted_by?: string | null
           tags?: string[]
           target_context?: Database["public"]["Enums"]["builder_template_target"]
           tenant_allowlist?: string[]
@@ -3034,11 +3141,19 @@ export type Database = {
           published_at?: string | null
           required_plan?: string
           required_talent_tier?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           rollout_percentage?: number
+          rollout_ramp_at?: string | null
+          rollout_ramp_to?: number | null
           schema_version?: number
           slug?: string
           source_tenant_id?: string | null
           status?: Database["public"]["Enums"]["builder_template_status"]
+          status_expire_at?: string | null
+          submitted_at?: string | null
+          submitted_by?: string | null
           tags?: string[]
           target_context?: Database["public"]["Enums"]["builder_template_target"]
           tenant_allowlist?: string[]
@@ -3065,10 +3180,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "builder_templates_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "builder_templates_source_tenant_id_fkey"
             columns: ["source_tenant_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "builder_templates_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {

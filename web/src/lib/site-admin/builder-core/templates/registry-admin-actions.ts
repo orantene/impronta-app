@@ -22,6 +22,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
+import { isSafeMediaUrl } from "@/lib/site-admin/media/validation";
 import type {
   BuilderTemplateRow,
   BuilderTemplateStatus,
@@ -97,6 +98,88 @@ export async function getTemplateById(
     return { ok: true, data: data as BuilderTemplateRow };
   } catch (err) {
     logServerError("getTemplateById", err);
+    return { ok: false, error: CLIENT_ERROR.generic };
+  }
+}
+
+/**
+ * A2 — the platform Builder Lab's media scope (tenant id). The Lab is scoped to
+ * the Tulala hub tenant (mirrors the builder-lab page's tenant resolution), and
+ * the thumbnail `MediaPickerDrawer` needs that tenant id to list/upload assets.
+ * Returning it from a super_admin-gated action keeps the client components from
+ * having to thread it through the catalog shell. super_admin only.
+ */
+export async function resolveLabMediaTenantId(): Promise<
+  AdminTemplateResult<string>
+> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  try {
+    const sb = getAdminClient();
+    const { data, error } = await sb
+      .from("agencies")
+      .select("id")
+      .eq("kind", "hub")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) return { ok: false, error: error.message };
+    if (!data?.id) return { ok: false, error: "No platform hub tenant found." };
+    return { ok: true, data: data.id as string };
+  } catch (err) {
+    logServerError("resolveLabMediaTenantId", err);
+    return { ok: false, error: CLIENT_ERROR.generic };
+  }
+}
+
+/**
+ * A2 — batch-resolve `media_assets` ids → public URLs for the template/starter
+ * thumbnail cells. Resolves by id (the thumbnail asset may live on any tenant the
+ * Lab authored against), prefers the stored `public_url`, and falls back to the
+ * storage bucket's public URL. Non-safe / missing URLs are simply omitted. The
+ * caller maps `templateId → url` with `resolveTemplateThumbnailMap` (pure).
+ * super_admin only.
+ */
+export async function resolveTemplateThumbnails(
+  assetIds: ReadonlyArray<string>,
+): Promise<AdminTemplateResult<Record<string, string>>> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const ids = [...new Set(assetIds.filter((id) => id && id.trim()))];
+  if (ids.length === 0) return { ok: true, data: {} };
+
+  try {
+    const sb = getAdminClient();
+    const { data, error } = await sb
+      .from("media_assets")
+      .select("id, bucket_id, storage_path, public_url")
+      .in("id", ids);
+
+    if (error) return { ok: false, error: error.message };
+
+    const out: Record<string, string> = {};
+    for (const row of data ?? []) {
+      const r = row as {
+        id: string;
+        bucket_id: string | null;
+        storage_path: string | null;
+        public_url: string | null;
+      };
+      let url = isSafeMediaUrl(r.public_url) ? r.public_url : "";
+      if (!url && r.bucket_id && r.storage_path) {
+        const { data: pub } = sb.storage
+          .from(r.bucket_id)
+          .getPublicUrl(r.storage_path);
+        if (isSafeMediaUrl(pub?.publicUrl)) url = pub.publicUrl;
+      }
+      if (url) out[r.id] = url;
+    }
+    return { ok: true, data: out };
+  } catch (err) {
+    logServerError("resolveTemplateThumbnails", err);
     return { ok: false, error: CLIENT_ERROR.generic };
   }
 }

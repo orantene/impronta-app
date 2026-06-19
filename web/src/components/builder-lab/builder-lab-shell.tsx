@@ -16,6 +16,11 @@
  * chrome). `BuilderLabStage` always opens SUBJECT-LESS. Persistence is EPHEMERAL —
  * the only durable output is a `builder_templates` row written through the WS2
  * registry actions, never a homepage / page.
+ *
+ * X2 — Catalog version drift banner: `useCatalogVersionDrift` polls
+ * `getCatalogVersion` every 25 s while this tab is visible. When the version
+ * advances past the mount-time baseline, a dismissible inline banner prompts the
+ * admin to reload so their view stays current.
  */
 
 import { useState } from "react";
@@ -26,7 +31,8 @@ import {
   type CatalogItemPreview,
 } from "./component-preview-stage";
 import { ComponentCatalog } from "./component-catalog";
-import { LAB, panelStyle } from "./ui";
+import { LAB, panelStyle, RADII } from "./ui";
+import { useCatalogVersionDrift } from "./use-catalog-version-drift";
 
 export function BuilderLabShell({
   tenantId,
@@ -50,6 +56,9 @@ export function BuilderLabShell({
   // After the first editor exit, return to the Playground view (you launched
   // from there) rather than the default Catalog landing.
   const [hasLaunched, setHasLaunched] = useState(false);
+
+  // X2 — poll getCatalogVersion; show banner when another session advanced it.
+  const { drifted, reset } = useCatalogVersionDrift();
 
   // A component preview takes over full-bleed (its own read-only chrome).
   if (preview) {
@@ -83,6 +92,7 @@ export function BuilderLabShell({
 
   return (
     <Panel>
+      {drifted ? <CatalogDriftBanner onDismiss={reset} /> : null}
       <ComponentCatalog
         onLaunchEditor={(target, draftId) => setLaunch({ target, draftId })}
         onPreviewComponent={setPreview}
@@ -91,6 +101,78 @@ export function BuilderLabShell({
     </Panel>
   );
 }
+
+// ── Drift banner ───────────────────────────────────────────────────────────────
+
+/**
+ * Inline dismissible bar shown when `useCatalogVersionDrift` detects that
+ * another session has mutated the catalog since this tab mounted.
+ *
+ * Reloading re-fetches everything; dismissing simply hides the bar so the
+ * admin can finish what they're doing before reloading manually.
+ */
+function CatalogDriftBanner({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div
+      role="alert"
+      aria-live="polite"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        background: "rgba(155,168,183,0.10)",
+        border: `1px solid rgba(155,168,183,0.28)`,
+        borderRadius: RADII.control,
+        padding: "9px 14px",
+        marginBottom: 12,
+        flexWrap: "wrap",
+      }}
+    >
+      <span style={{ fontSize: 12.5, color: LAB.inkMuted, lineHeight: 1.4 }}>
+        <span style={{ color: LAB.ink, fontWeight: 600 }}>Catalog changed elsewhere</span>
+        {" — another session updated the catalog. Reload to see the latest."}
+      </span>
+      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          style={{
+            background: LAB.accent,
+            color: LAB.accentInk,
+            border: "none",
+            borderRadius: RADII.control,
+            fontSize: 12,
+            fontWeight: 700,
+            padding: "5px 12px",
+            cursor: "pointer",
+          }}
+        >
+          Reload
+        </button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss catalog drift notice"
+          style={{
+            background: "transparent",
+            color: LAB.inkMuted,
+            border: `1px solid ${LAB.border}`,
+            borderRadius: RADII.control,
+            fontSize: 12,
+            fontWeight: 600,
+            padding: "5px 12px",
+            cursor: "pointer",
+          }}
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Panel wrapper ──────────────────────────────────────────────────────────────
 
 function Panel({ children }: { children: React.ReactNode }) {
   return (

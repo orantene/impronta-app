@@ -72,6 +72,40 @@ export interface BuilderGalleryPolicy {
    * audience differs from the preview subject.
    */
   surfaceTarget?: "talent" | "workspace" | "platform";
+  /**
+   * X4 — the PRECISE one of the four real builder surfaces this policy governs,
+   * for per-surface catalog-overlay subtraction. ORTHOGONAL to `surfaceTarget`
+   * (the coarse target_context audience): two distinct surfaces can share a
+   * target yet have INDEPENDENT enable toggles. The mapping:
+   *
+   *   • talent_page  → `talent_profile`
+   *   • site_shell   → `talent_shell` (a talent's Max-site shell) OR
+   *                    `workspace_shell` (an agency's site shell). The kind alone
+   *                    can't tell them apart — `buildSiteShellBuilderConfig` takes
+   *                    an optional `talentTier` and picks `talent_shell` when a
+   *                    talent subject is editing, else `workspace_shell` (the
+   *                    historical default, preserving today's behavior).
+   *   • cms_page     → `workspace_page`
+   *   • homepage / platform_lab → omitted (null surface — availability-only).
+   *
+   * Omitted ⇒ the merge falls back to the legacy 2-toggle `surfaceTarget`
+   * subtraction (back-compat).
+   */
+  surfaceKey?:
+    | "talent_profile"
+    | "talent_shell"
+    | "workspace_page"
+    | "workspace_shell";
+  /**
+   * X6 — true ONLY for the Builder Lab surface (`platform_lab`). It turns on the
+   * independent `lab_enabled` overlay axis in the merge: a component the Lab
+   * Catalog has hidden (`lab_enabled === false`) is dropped from the Lab's own
+   * gallery. ORTHOGONAL to `surfaceKey`/`surfaceTarget` — tenant surfaces never
+   * set it, so the Lab toggle can never affect a tenant builder (and the four
+   * tenant toggles can never hide a component from the Lab). Omitted ⇒ the lab
+   * axis is inert (every other surface).
+   */
+  isLab?: boolean;
 }
 
 /**
@@ -270,6 +304,9 @@ export function buildCmsPageBuilderConfig(
       // gating bite on the live builder. Without this the surface target would
       // collapse to null and deactivation from the Lab would be a no-op here.
       surfaceTarget: "workspace",
+      // X4 — the agency freeform PAGE surface (distinct toggle from the agency
+      // site shell, which is the site_shell surface).
+      surfaceKey: "workspace_page",
     },
     dataSources: { allowed: AGENCY_PAGE_DATA_SOURCES },
     previewSubjectKind: null,
@@ -331,6 +368,9 @@ export function buildTalentPageBuilderConfig(
     galleryPolicy: {
       allowedTabs: ["layout", "elements", "sections", "connected", "page_templates"],
       allowDbTemplates: true,
+      // X4 — the talent PROFILE page surface (distinct toggle from the talent
+      // Max-site shell, which is the site_shell surface).
+      surfaceKey: "talent_profile",
     },
     dataSources: { allowed: TALENT_PAGE_DATA_SOURCES },
     previewSubjectKind: "talent",
@@ -374,6 +414,17 @@ export function buildSiteShellBuilderConfig(
   opts?: {
     /** Allow raw HTML code elements (super_admin only). Defaults to false. */
     canInsertRawHtmlElements?: boolean;
+    /**
+     * X4 — talent tier of the shell's subject. The `site_shell` kind is SHARED
+     * by a talent's Max-site shell and an agency's site shell; the kind alone
+     * can't distinguish them. A non-null tier ⇒ a TALENT is editing the shell →
+     * the catalog overlay subtracts on `talent_shell`; null/omitted ⇒ an agency
+     * site shell → `workspace_shell` (the historical default — today every
+     * site_shell surface was treated as workspace, so the default is a no-op
+     * change for existing agency shells). Also threaded into `surfaceTalentTier`
+     * for §E required_talent_tier gating, mirroring the talent_page factory.
+     */
+    talentTier?: string | null;
   },
 ): BuilderContextConfig {
   const kind: BuilderSurfaceKind = siteShellSurfaceAdapter.kind;
@@ -382,6 +433,11 @@ export function buildSiteShellBuilderConfig(
       `buildSiteShellBuilderConfig requires a site_shell adapter, got "${kind}".`,
     );
   }
+  // X4 — a talent-subject shell governs `talent_shell`; an agency shell governs
+  // `workspace_shell`. The talent shell is no longer chained to the workspace
+  // toggle (that was the lossy 3-on-1 collapse X1 documented).
+  const isTalentShell =
+    opts?.talentTier !== undefined && opts.talentTier !== null;
   return {
     surface: siteShellSurfaceAdapter,
     permissions: {
@@ -405,10 +461,17 @@ export function buildSiteShellBuilderConfig(
       // published shell templates. The merge still filters by `allowedTabs`, so
       // only `shell`-tab templates surface on this surface.
       allowDbTemplates: true,
-      surfaceTarget: "workspace",
+      // §E target gating: a talent shell is talent-audience, an agency shell is
+      // workspace-audience. (Default stays "workspace" — today's behavior.)
+      surfaceTarget: isTalentShell ? "talent" : "workspace",
+      // X4 — the precise overlay surface: the talent Max-site shell now has its
+      // OWN toggle (`talent_shell`), no longer riding the workspace toggle.
+      surfaceKey: isTalentShell ? "talent_shell" : "workspace_shell",
     },
     dataSources: { allowed: AGENCY_PAGE_DATA_SOURCES },
     previewSubjectKind: null,
+    // §E required_talent_tier gating for a talent-subject shell (null on agency).
+    surfaceTalentTier: opts?.talentTier ?? null,
     capabilities: {
       motion: true,
       themeTokens: true,
@@ -499,6 +562,12 @@ export function buildPlatformLabBuilderConfig(
       ],
       // The Lab both authors and consumes DB templates.
       allowDbTemplates: true,
+      // X6 — this IS the Builder Lab surface, so the independent `lab_enabled`
+      // overlay axis applies here (and ONLY here): a component the Lab Catalog
+      // has hidden is dropped from the Lab's own gallery, without affecting any
+      // tenant surface. No `surfaceKey` (the Lab carries none — availability +
+      // the lab axis only).
+      isLab: true,
     },
     dataSources: { allowed: PLATFORM_LAB_DATA_SOURCES },
     previewSubjectKind,

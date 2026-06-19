@@ -28,8 +28,9 @@ import {
   type DefaultSurfaceTemplateOption,
 } from "@/lib/server-actions/admin-platform-default-templates";
 import type { PlatformTemplateSurface } from "@/lib/platform/default-templates";
+import { getTemplatePreviewUrl } from "@/lib/site-admin/builder-core/templates/template-def";
 import { SurfaceSwitcher } from "./surface-switcher";
-import { LAB as T, RADII, fieldStyle, LabButton, SectionLabel } from "./ui";
+import { LAB as T, RADII, fieldStyle, LabViewHeader, SectionLabel } from "./ui";
 
 // Which DEFAULT surface the operator is managing. "storefront" = the agency
 // homepage default (every unconfigured agency homepage); "talent" = the fallback
@@ -38,21 +39,18 @@ const SURFACE_TABS: ReadonlyArray<{
   key: PlatformTemplateSurface;
   label: string;
   blurb: string;
-  previewKey: string;
 }> = [
   {
     key: "storefront",
     label: "Default Storefront",
     blurb:
       "The agency homepage rendered for any workspace that has NOT published its own composition.",
-    previewKey: "default-storefront",
   },
   {
     key: "talent",
     label: "Default Talent Profile",
     blurb:
       "The fallback profile rendered for any talent without a published Max site (when the freeform default is on).",
-    previewKey: "default-talent",
   },
 ];
 
@@ -101,6 +99,22 @@ export function DefaultSurfacesPanel() {
   const activeTab = SURFACE_TABS.find((t) => t.key === surface);
   const activeOption = options.find((o) => o.id === pointerId) ?? null;
 
+  // GHOST pointer: a pointer id is set but no longer resolves to a published
+  // option (the template was unpublished, archived, or deleted out from under
+  // the pointer). The live render path silently falls back to the reserved slug
+  // / built-in, so the operator would otherwise see nothing here. Surface it
+  // explicitly so they can re-point or reset rather than guess.
+  const isGhostPointer = pointerId != null && activeOption == null;
+
+  // The hydrated preview renders the RESOLVED pointer template (the persisted
+  // `builder_templates` row), NOT the built-in tree. Only a live, published
+  // pointer is previewable — a ghost pointer would 404 the route, and the
+  // built-in default has no persisted id to hydrate.
+  const previewUrl =
+    activeOption != null
+      ? getTemplatePreviewUrl(activeOption.id, { family: "db-template" })
+      : null;
+
   const onSelectTemplate = (value: string) => {
     const nextId = value === BUILT_IN ? null : value;
     setStatus(null);
@@ -144,6 +158,11 @@ export function DefaultSurfacesPanel() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <LabViewHeader
+        title="Default surfaces"
+        blurb="The load-bearing platform defaults: the storefront every unconfigured agency homepage renders, and the fallback talent profile. Point each at a published page template or reset to the built-in."
+      />
+
       {/* Surface toggle — Default Storefront vs Default Talent Profile */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <SurfaceSwitcher
@@ -162,7 +181,7 @@ export function DefaultSurfacesPanel() {
           Loading default surfaces…
         </div>
       ) : loadError ? (
-        <div style={{ color: "#f0a8a8", fontSize: 13, padding: "12px 0" }}>
+        <div style={{ color: T.red, fontSize: 13, padding: "12px 0" }}>
           {loadError}
         </div>
       ) : (
@@ -181,6 +200,11 @@ export function DefaultSurfacesPanel() {
                 style={{ ...fieldStyle, padding: "8px 10px", borderRadius: RADII.control }}
               >
                 <option value={BUILT_IN}>Use built-in default</option>
+                {isGhostPointer ? (
+                  <option value={pointerId ?? ""} disabled>
+                    ⚠ Stale pointer — template no longer published
+                  </option>
+                ) : null}
                 {options.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.title} ({o.slug})
@@ -197,6 +221,12 @@ export function DefaultSurfacesPanel() {
                   </span>
                   . Render order: this template → reserved slug → built-in.
                 </>
+              ) : isGhostPointer ? (
+                <span style={{ color: T.red }}>
+                  This surface points at a template that is no longer published, so
+                  the live default silently falls back to the reserved slug / built-in.
+                  Re-point it at a published template or reset to the built-in default.
+                </span>
               ) : (
                 <>
                   Using the <span style={{ color: T.ink, fontWeight: 600 }}>built-in default</span>{" "}
@@ -215,28 +245,57 @@ export function DefaultSurfacesPanel() {
           {/* ── Preview ── */}
           <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <SectionLabel>Preview</SectionLabel>
-            <a
-              href={`/dev/template-preview/${activeTab?.previewKey ?? "default-storefront"}`}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                alignSelf: "flex-start",
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: T.accent,
-                textDecoration: "none",
-                border: `1px solid ${T.accent}`,
-                background: T.accentSoft,
-                borderRadius: RADII.control,
-                padding: "7px 13px",
-              }}
-            >
-              Open built-in {activeTab?.label.toLowerCase()} preview ↗
-            </a>
-            <div style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5 }}>
-              The harness renders the built-in default tree. A pointer / reserved-slug
-              template is reflected on the live default surface.
-            </div>
+            {previewUrl ? (
+              <>
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    alignSelf: "flex-start",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: T.accent,
+                    textDecoration: "none",
+                    border: `1px solid ${T.accent}`,
+                    background: T.accentSoft,
+                    borderRadius: RADII.control,
+                    padding: "7px 13px",
+                  }}
+                >
+                  Open hydrated preview of {activeOption?.title} ↗
+                </a>
+                <div style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5 }}>
+                  Opens the live owner-gated render of the template this surface
+                  points at — the same tree the default surface serves, not the
+                  built-in fallback.
+                </div>
+              </>
+            ) : (
+              <>
+                <span
+                  aria-disabled
+                  style={{
+                    alignSelf: "flex-start",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: T.inkDim,
+                    border: `1px solid ${T.border}`,
+                    background: T.cardSoft,
+                    borderRadius: RADII.control,
+                    padding: "7px 13px",
+                    cursor: "not-allowed",
+                  }}
+                >
+                  No hydrated preview available
+                </span>
+                <div style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5 }}>
+                  {isGhostPointer
+                    ? "The pointer references a template that is no longer published — re-point it to preview."
+                    : "This surface uses the built-in default (no pointer set), which has no persisted template to hydrate. Point it at a published template to preview the live render."}
+                </div>
+              </>
+            )}
           </section>
 
           {/* ── Talent freeform toggle (talent surface only) ── */}
@@ -302,7 +361,7 @@ export function DefaultSurfacesPanel() {
             <div
               style={{
                 fontSize: 12.5,
-                color: status.ok ? T.accent : "#f0a8a8",
+                color: status.ok ? T.accent : T.red,
               }}
             >
               {status.msg}

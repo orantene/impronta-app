@@ -18,6 +18,10 @@ import {
   listTemplateRevisions,
   type TemplateRevisionSummary,
 } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import type {
+  TemplateTreeDiff,
+  PublishChecklist,
+} from "@/lib/site-admin/builder-core/templates/validate-publish";
 import { LAB, fieldStyle } from "./ui";
 
 const ghostMini: React.CSSProperties = {
@@ -134,11 +138,19 @@ export function RevisionList({
  * optional — leaving it blank publishes exactly as before (note → null). On
  * confirm the note is threaded to publishTemplate, which stamps it on both the
  * revision snapshot and the template row's `changelog` convenience column.
+ *
+ * `treeDiff` (G3) is advisory — when supplied, shows "No changes since v(N) —
+ * re-publishing only bumps the version" or "Tree changed since v(N)" before
+ * the admin confirms, so they can decide whether the publish is intentional.
+ * `publishedVersion` is the last published version number (for the label).
  */
 export function PublishNotePanel({
   value,
   busy,
   ctaLabel,
+  treeDiff,
+  publishedVersion,
+  checklist,
   onChange,
   onCancel,
   onConfirm,
@@ -146,10 +158,46 @@ export function PublishNotePanel({
   value: string;
   busy: boolean;
   ctaLabel: string;
+  /** Advisory diff result from getPublishDiff. Omitting it hides the hint. */
+  treeDiff?: TemplateTreeDiff | null;
+  /** Last published version number — shown in the diff hint label. */
+  publishedVersion?: number | null;
+  /**
+   * A6 — pre-publish checklist (has content / bindings / description /
+   * thumbnail / changelog). When supplied, the panel shows the pass/fail rows
+   * and DISABLES confirm while a blocking row fails — so the admin sees what's
+   * missing BEFORE shipping, replacing the old post-failure error.
+   */
+  checklist?: PublishChecklist | null;
   onChange: (v: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  // A6 — blocking-row failure hard-disables confirm (was the window.confirm gate).
+  const blocked = checklist != null && !checklist.canPublish;
+  // Build the diff hint line when the verdict is available (G3).
+  const diffHint: { text: string; tone: string } | null = (() => {
+    if (!treeDiff) return null;
+    const vLabel =
+      treeDiff.hasPrevious && publishedVersion != null
+        ? `v${publishedVersion}`
+        : null;
+    if (!treeDiff.changed) {
+      return {
+        text: vLabel
+          ? `No changes since ${vLabel} — re-publishing only bumps the version.`
+          : "No changes since last publish — re-publishing only bumps the version.",
+        tone: LAB.accent,
+      };
+    }
+    return {
+      text: vLabel
+        ? `Tree changed since ${vLabel}.`
+        : "Tree changed since last publish.",
+      tone: LAB.inkMuted,
+    };
+  })();
+
   return (
     <div
       style={{
@@ -161,6 +209,85 @@ export function PublishNotePanel({
         gap: 8,
       }}
     >
+      {checklist ? (
+        <div
+          data-testid="publish-checklist"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 5,
+            background: "rgba(255,255,255,0.03)",
+            border: `1px solid ${LAB.borderSoft}`,
+            borderRadius: 8,
+            padding: "8px 10px",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+              color: LAB.inkMuted,
+            }}
+          >
+            Pre-publish checklist
+          </span>
+          {checklist.rows.map((r) => {
+            const tone = r.pass
+              ? LAB.accent
+              : r.blocking
+                ? LAB.red
+                : LAB.inkMuted;
+            return (
+              <div
+                key={r.key}
+                data-testid={`publish-check-${r.key}`}
+                style={{ display: "flex", alignItems: "baseline", gap: 7, fontSize: 11.5 }}
+              >
+                <span aria-hidden style={{ color: tone, fontWeight: 700, width: 12 }}>
+                  {r.pass ? "✓" : r.blocking ? "✕" : "!"}
+                </span>
+                <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                  <span style={{ color: r.pass ? LAB.ink : tone, fontWeight: 600 }}>
+                    {r.label}
+                    {!r.pass && !r.blocking ? (
+                      <span style={{ color: LAB.inkDim, fontWeight: 500 }}> · optional</span>
+                    ) : null}
+                  </span>
+                  {!r.pass && r.detail ? (
+                    <span style={{ color: LAB.inkDim, fontSize: 11 }}>{r.detail}</span>
+                  ) : null}
+                </span>
+              </div>
+            );
+          })}
+          {blocked ? (
+            <div style={{ fontSize: 11, color: LAB.red, marginTop: 2 }}>
+              Fix the blocking items above before publishing.
+            </div>
+          ) : checklist.hasWarnings ? (
+            <div style={{ fontSize: 11, color: LAB.inkMuted, marginTop: 2 }}>
+              Optional items are missing — you can still publish.
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {diffHint ? (
+        <div
+          style={{
+            fontSize: 11.5,
+            color: diffHint.tone,
+            background: diffHint.tone === LAB.accent
+              ? "rgba(93,211,160,0.08)"
+              : "rgba(255,255,255,0.04)",
+            borderRadius: 7,
+            padding: "5px 10px",
+          }}
+        >
+          {diffHint.text}
+        </div>
+      ) : null}
       <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <span
           style={{
@@ -180,7 +307,7 @@ export function PublishNotePanel({
           placeholder="What changed in this version? (shown in revision history)"
           autoFocus
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !busy) onConfirm();
+            if (e.key === "Enter" && !busy && !blocked) onConfirm();
             else if (e.key === "Escape") onCancel();
           }}
         />
@@ -206,7 +333,12 @@ export function PublishNotePanel({
         <button
           type="button"
           onClick={onConfirm}
-          disabled={busy}
+          disabled={busy || blocked}
+          title={
+            blocked
+              ? "Resolve the blocking checklist items before publishing."
+              : undefined
+          }
           style={{
             padding: "6px 13px",
             borderRadius: 8,
@@ -215,7 +347,8 @@ export function PublishNotePanel({
             color: LAB.accentInk,
             fontSize: 11.5,
             fontWeight: 700,
-            cursor: busy ? "default" : "pointer",
+            opacity: busy || blocked ? 0.5 : 1,
+            cursor: busy || blocked ? "default" : "pointer",
           }}
         >
           {ctaLabel}

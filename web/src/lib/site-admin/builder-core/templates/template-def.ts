@@ -181,20 +181,29 @@ export const TEMPLATE_PREVIEW_BASE_PATH = "/template-preview";
 /**
  * Which template family a preview key belongs to. The preview route uses this
  * to choose the correct render path: slot-based snapshots vs Max-site freeform
- * builder trees. Passed as the `?kind` searchParam so the single route serves
- * both families without a second endpoint.
+ * builder trees vs a persisted DB `builder_templates` row. Passed as the `?kind`
+ * searchParam so the single route serves every family without a second endpoint.
+ *
+ * `db-template` is the family for a PERSISTED template: the `[key]` is the
+ * `builder_templates.id` (e.g. a Default-surfaces pointer), and the route loads
+ * that row's authored `builder_tree` and renders it through the SAME freeform
+ * renderer the `max-site` family uses — no second render path.
  */
-export type TemplatePreviewFamily = "talent-site" | "max-site";
+export type TemplatePreviewFamily = "talent-site" | "max-site" | "db-template";
 
 /**
  * Map a registry kind to the preview family the route understands. `page-design`
  * previews are not hydrated with a single talent's data (they target storefront
  * OR talent and have no per-talent token model), so they fall back to the
  * Max-site freeform path which renders the tree structurally with demo tokens.
+ *
+ * A registry kind never maps to `db-template` (that family is for persisted
+ * `builder_templates` rows referenced by id, not registry keys), so the return
+ * type stays the narrower registry-key subset for picker consumers.
  */
 export function previewFamilyForRegistry(
   kind: TemplateRegistryKind,
-): TemplatePreviewFamily {
+): "talent-site" | "max-site" {
   return kind === "talent-site" ? "talent-site" : "max-site";
 }
 

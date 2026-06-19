@@ -39,7 +39,30 @@ import {
   type SetTemplateRolloutInput,
 } from "./registry-rows";
 import { bumpCatalogVersion } from "./catalog-version";
-import { validateTemplateForPublish } from "./validate-publish";
+import {
+  validateTemplateForPublish,
+  diffTemplateTreeForPublish,
+  type TemplateTreeDiff,
+} from "./validate-publish";
+import { mintCopySlug, mintCopyTitle } from "./slug-minting";
+import {
+  scanTemplatesForComponentDependents,
+  isEmptyDependencyTarget,
+  type ComponentDependencyTarget,
+  type ComponentDependent,
+  type ScannableTemplate,
+} from "./dependency-scan";
+import { appendBuilderLabAudit } from "./builder-lab-audit";
+import {
+  isSelfApprove,
+  buildSubmitStamp,
+  buildReviewStamp,
+} from "./approval-guard";
+import { buildHideImpact, type HideImpact } from "./hide-impact";
+import { maybeAutoCaptureThumbnail } from "./auto-thumbnail";
+import { loadComponentUsageTally } from "@/lib/site-admin/add-gallery/component-usage-action";
+import { usageCountForItem } from "@/lib/site-admin/add-gallery/component-usage-scan";
+import type { BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
 
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -94,23 +117,15 @@ interface PublishRowCoreInput {
   createdBy: string;
   /** Optional revision note. */
   note?: string | null;
-  /**
-   * Optional author changelog (WS-D D4). When provided, written to the template
-   * row's `changelog` column as the latest-changelog convenience field. Omitting
-   * it (undefined) leaves the existing value untouched; passing an empty/blank
-   * string clears it to null.
-   */
+  /** Latest-changelog convenience field (WS-D D4). Omitting leaves existing
+   *  value untouched; blank clears to null. */
   changelog?: string | null;
-  /**
-   * When true, the row's builder_tree is overwritten with `tree` (rollback —
-   * the live tree must become the restored revision's tree). When false (the
-   * normal publish path), builder_tree is left as-is and only the published
-   * metadata + freshly-computed data_binding_requirements are written. The
-   * normal-publish behaviour is byte-identical to the pre-extraction inline
-   * block — the caller passes the live row's own tree, so even the computed
-   * data_binding_requirements match.
-   */
+  /** When true, also writes builder_tree on the row (rollback path). */
   writeTree?: boolean;
+  /** Extra columns to merge into the row UPDATE (G4: reviewer provenance —
+   *  reviewed_by/reviewed_at/review_note). Merged last; never overrides the
+   *  core published-metadata keys. */
+  extraPatch?: Record<string, unknown>;
 }
 
 /**
@@ -148,6 +163,12 @@ async function publishRowCore(
   if (normalizedChangelog !== undefined) {
     patch.changelog = normalizedChangelog;
   }
+  // G4: merge reviewer provenance (reviewed_by/reviewed_at/review_note) last so
+  // it lands on the snapshot too. Core published-metadata keys are already set;
+  // extraPatch only carries approval columns, so there is no key collision.
+  if (input.extraPatch) {
+    Object.assign(patch, input.extraPatch);
+  }
 
   const { data: updated, error: updateErr } = await sb
     .from("builder_templates")
@@ -176,9 +197,20 @@ async function publishRowCore(
     logServerError("publishRowCore/revision", revErr);
   }
 
+  // A8: best-effort auto-thumbnail. FLAG-GATED (BUILDER_AUTO_THUMBNAIL_ENABLED,
+  // default OFF) and self-swallowing — mirrors the best-effort revision-snapshot
+  // insert above. With the flag OFF, `maybeAutoCaptureThumbnail` returns
+  // `publishedRow` UNCHANGED before any I/O, so this block is byte-identical to
+  // the pre-A8 path. With the flag ON, a capture/upload failure can never throw
+  // (the helper returns the original row), so it can never block or fail the
+  // publish that already committed above.
+  const rowAfterThumbnail = await maybeAutoCaptureThumbnail(sb, publishedRow, {
+    createdBy: input.createdBy,
+  });
+
   await bumpCatalogVersion(sb);
   revalidatePath(TEMPLATE_CACHE_PATH);
-  return ok(publishedRow);
+  return ok(rowAfterThumbnail);
 }
 
 // ── createTemplateDraft ───────────────────────────────────────────────────────
@@ -315,6 +347,12 @@ export async function setTemplateRollout(
 
   try {
     const sb = getAdminClient();
+    // Capture pre-write rollout state for the audit diff.
+    const { data: beforeRow } = await sb
+      .from("builder_templates")
+      .select("rollout_percentage, tenant_allowlist, tenant_denylist")
+      .eq("id", templateId)
+      .maybeSingle();
     const { data, error } = await sb
       .from("builder_templates")
       .update(patch)
@@ -326,6 +364,13 @@ export async function setTemplateRollout(
     if (!data) return fail("Template not found.");
 
     await bumpCatalogVersion(sb);
+    await appendBuilderLabAudit({
+      action: "template.rollout",
+      templateId,
+      actor: gate.userId,
+      before: beforeRow ?? null,
+      after: patch,
+    });
     revalidatePath(TEMPLATE_CACHE_PATH);
     return ok(data as BuilderTemplateRow);
   } catch (err) {
@@ -344,9 +389,11 @@ export async function submitTemplateForReview(
 
   try {
     const sb = getAdminClient();
+    // Stamp submit provenance (G4) so a later publish can block self-approval.
+    // A fresh submit also clears any prior review provenance (buildSubmitStamp).
     const { data, error } = await sb
       .from("builder_templates")
-      .update({ status: "in_review" })
+      .update({ status: "in_review", ...buildSubmitStamp(gate.userId) })
       .eq("id", templateId)
       .in("status", ["draft"])
       .select()
@@ -368,9 +415,13 @@ export async function submitTemplateForReview(
  * Reviewer "send back": flips an in_review template back to draft (P4 approval
  * queue). The author can revise and re-submit. No revision snapshot — nothing
  * was published.
+ *
+ * G4: stamps reviewer provenance (reviewed_by/reviewed_at) and captures the
+ * optional rejection `reason` into review_note (normalized via buildReviewStamp).
  */
 export async function rejectToDraft(
   templateId: string,
+  reason?: string | null,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
@@ -379,7 +430,7 @@ export async function rejectToDraft(
     const sb = getAdminClient();
     const { data, error } = await sb
       .from("builder_templates")
-      .update({ status: "draft" })
+      .update({ status: "draft", ...buildReviewStamp(gate.userId, reason) })
       .eq("id", templateId)
       .eq("status", "in_review")
       .select()
@@ -407,10 +458,16 @@ export async function rejectToDraft(
  * template row's `changelog` convenience field (latest published note). Omitting
  * it leaves the row's changelog untouched; passing blank clears it.
  */
+export type PublishTemplateResult = BuilderTemplateRow & {
+  /** Advisory diff verdict: whether the builder_tree changed vs the previously
+   *  published revision. Returned so the UI can surface "no changes" warnings. */
+  treeDiff: TemplateTreeDiff;
+};
+
 export async function publishTemplate(
   templateId: string,
   changelog?: string | null,
-): Promise<TemplateActionResult<BuilderTemplateRow>> {
+): Promise<TemplateActionResult<PublishTemplateResult>> {
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
@@ -428,6 +485,16 @@ export async function publishTemplate(
       return fail(fetchErr?.message ?? "Template not found.");
 
     const row = current as BuilderTemplateRow;
+
+    // TWO-PERSON APPROVAL GUARD (G4) — block self-approval. Only enforced when
+    // the template is genuinely in_review (a direct draft→publish by its author
+    // is a single-person flow, not a review, so it is intentionally allowed).
+    // A row with no recorded submitter never blocks (isSelfApprove handles null).
+    if (row.status === "in_review" && isSelfApprove(row.submitted_by, gate.userId)) {
+      return fail(
+        "Two-person approval: you submitted this template for review, so a different super admin must publish it.",
+      );
+    }
 
     // VALIDATE + DIFF GATE (WS-D D1) — must run BEFORE the row update so a
     // broken / empty / unbindable template never reaches a tenant's "+"
@@ -451,19 +518,90 @@ export async function publishTemplate(
       return fail("Can't publish: " + validation.reasons.join("; "));
     }
 
+    // Extract the advisory diff verdict before publishing (validation.treeDiff is
+    // now returned rather than void-discarded — G3).
+    const treeDiff = validation.treeDiff;
+
     // Publish the live row's own tree at version+1 (writeTree omitted: the row's
     // builder_tree is unchanged; only published metadata + freshly-computed
     // data_binding_requirements are written — identical to the prior inline path).
-    return await publishRowCore(sb, {
+    const coreResult = await publishRowCore(sb, {
       templateId,
       tree: row.builder_tree,
       fromVersion: row.version,
       createdBy: gate.userId,
       note: changelog,
       changelog,
+      // G4: stamp the approving reviewer + thread the changelog as the review
+      // note so the published snapshot records who approved and why.
+      extraPatch: { ...buildReviewStamp(gate.userId, changelog) },
     });
+
+    if (!coreResult.ok) return coreResult;
+
+    // Best-effort audit (non-fatal — mirrors the best-effort revision snapshot).
+    await appendBuilderLabAudit({
+      action: "template.publish",
+      templateId,
+      actor: gate.userId,
+      before: { status: row.status, version: row.version },
+      after: { status: coreResult.data.status, version: coreResult.data.version, changelog },
+    });
+
+    return ok({ ...coreResult.data, treeDiff });
   } catch (err) {
     logServerError("publishTemplate", err);
+    return fail(CLIENT_ERROR.generic);
+  }
+}
+
+// ── getPublishDiff (G3 — advisory, read-only) ─────────────────────────────────
+
+/**
+ * Read-only advisory action: computes the tree diff between the current draft's
+ * builder_tree and the last published revision's snapshot. Used by the publish
+ * UI to show "No changes since v(N)" vs "Tree changed since v(N)" BEFORE the
+ * admin clicks confirm — so they can decide whether the re-publish is intentional.
+ *
+ * Never blocks publish; never writes. super_admin-gated for defence-in-depth.
+ */
+export async function getPublishDiff(
+  templateId: string,
+): Promise<TemplateActionResult<{ treeDiff: TemplateTreeDiff; publishedVersion: number | null }>> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return fail(gate.error);
+
+  try {
+    const sb = getAdminClient();
+
+    const { data: current, error: fetchErr } = await sb
+      .from("builder_templates")
+      .select("builder_tree")
+      .eq("id", templateId)
+      .single();
+
+    if (fetchErr || !current) return fail(fetchErr?.message ?? "Template not found.");
+
+    const { data: lastRev } = await sb
+      .from("builder_template_revisions")
+      .select("snapshot, version")
+      .eq("template_id", templateId)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const previousTree =
+      (lastRev?.snapshot as BuilderTemplateRow | undefined)?.builder_tree ?? null;
+    const publishedVersion = lastRev?.version ?? null;
+
+    const treeDiff = diffTemplateTreeForPublish(
+      (current as { builder_tree: BuilderTemplateRow["builder_tree"] }).builder_tree,
+      previousTree,
+    );
+
+    return ok({ treeDiff, publishedVersion });
+  } catch (err) {
+    logServerError("getPublishDiff", err);
     return fail(CLIENT_ERROR.generic);
   }
 }
@@ -491,6 +629,14 @@ export async function unpublishTemplate(
       return fail("Template not found or not currently published.");
 
     await bumpCatalogVersion(sb);
+    await appendBuilderLabAudit({
+      action: "template.unpublish",
+      templateId,
+      actor: gate.userId,
+      // Guarded by .eq("status","published") above — prior status is published.
+      before: { status: "published" },
+      after: { status: (data as BuilderTemplateRow).status },
+    });
     revalidatePath(TEMPLATE_CACHE_PATH);
     return ok(data as BuilderTemplateRow);
   } catch (err) {
@@ -499,16 +645,222 @@ export async function unpublishTemplate(
   }
 }
 
+// ── scanComponentDependents (G5 — pre-write dependency scan) ───────────────────
+
+/**
+ * Result shape for the G5 dependency scan. `dependents` is the list of PUBLISHED
+ * templates that reference the target component (empty when nothing depends on
+ * it); `blocked` is a convenience flag (`dependents.length > 0`) the UI uses to
+ * decide whether to show the "archive anyway — N templates depend on this"
+ * confirm.
+ */
+export interface ComponentDependentsScan {
+  dependents: ComponentDependent[];
+  blocked: boolean;
+}
+
+/**
+ * Load every PUBLISHED `builder_templates` tree (id/title/slug/builder_tree only)
+ * for the dependency scan. Service-role read so the scan sees the full published
+ * universe regardless of the caller's plan/tier (this is an admin safety check,
+ * not a tenant-facing list).
+ */
+async function loadPublishedScanTemplates(
+  sb: SupabaseClient,
+): Promise<ScannableTemplate[]> {
+  const { data, error } = await sb
+    .from("builder_templates")
+    .select("id, title, slug, builder_tree")
+    .eq("status", "published");
+  if (error || !data) return [];
+  return data as ScannableTemplate[];
+}
+
+/**
+ * G5 pre-write scan: which PUBLISHED templates depend on the given catalog
+ * component? The UI calls this BEFORE archiving / hiding a component (the hide
+ * path itself lives in the X6-owned catalog-overlay writer, so this is a guard
+ * the UI invokes as a pre-check — not a write). Reuses the pure
+ * `scanTemplatesForComponentDependents` visitor (mirrors
+ * computeDataBindingRequirements / collectDanglingBindings).
+ *
+ * super_admin-gated for defence in depth; read-only (never writes).
+ */
+export async function scanComponentDependents(
+  target: ComponentDependencyTarget,
+): Promise<TemplateActionResult<ComponentDependentsScan>> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return fail(gate.error);
+
+  // An empty target can never depend-block; short-circuit without a DB round-trip.
+  if (isEmptyDependencyTarget(target)) {
+    return ok({ dependents: [], blocked: false });
+  }
+
+  try {
+    const sb = getAdminClient();
+    const templates = await loadPublishedScanTemplates(sb);
+    const dependents = scanTemplatesForComponentDependents(templates, target);
+    return ok({ dependents, blocked: dependents.length > 0 });
+  } catch (err) {
+    logServerError("scanComponentDependents", err);
+    return fail(CLIENT_ERROR.generic);
+  }
+}
+
+// ── loadHideImpact (D6 — where-used / impact preview, read-only) ──────────────
+
+/**
+ * The identity of the thing about to be hidden/archived, in whichever form the
+ * caller can supply. A `templateId` resolves the component identity from the
+ * row's `slug` (which doubles as a curated `section_embed` key — the same vector
+ * G5's `archiveTemplate` scans). An `itemRef` lets a catalog (code-row) caller
+ * pass the component identity directly (a native `nativeKind` and/or a
+ * `sectionEmbedKey`) without a template row.
+ */
+export type HideImpactRef =
+  | { kind: "template"; templateId: string }
+  | {
+      kind: "item";
+      nativeKind?: BuilderNodeKind;
+      sectionEmbedKey?: string;
+    };
+
+/**
+ * D6 read-only impact preview: how much live surface area a hide/archive touches.
+ * Composes the two complementary already-shipped signals —
+ *
+ *   1. D1 live-page usage (`loadComponentUsageTally` + `usageCountForItem`):
+ *      tenant trees (live/draft pages, saved sections, reusable components,
+ *      Max-site snapshots) that reference the component TYPE. "Used on N live
+ *      pages; they keep their copy but it leaves the gallery."
+ *   2. G5 template dependents (`scanComponentDependents`): OTHER published
+ *      templates that embed the component.
+ *
+ * — into a single {@link HideImpact} (the pure `buildHideImpact` owns the shape +
+ * message). The confirm dialog (`WhereUsedConfirm`) renders it BEFORE the one-way
+ * archive/hide switch.
+ *
+ * Read-only, never writes. super_admin-gated; degrades to a safe zero-impact
+ * preview (never throws) so the confirm always has something to show.
+ */
+export async function loadHideImpact(
+  ref: HideImpactRef,
+  action: "hide" | "archive" = "archive",
+): Promise<TemplateActionResult<HideImpact>> {
+  const gate = await requireSuperAdmin();
+  if (!gate.ok) return fail(gate.error);
+
+  try {
+    // Resolve the component identity (nativeKind + sectionEmbedKey) and, for a
+    // template ref, the row id we must EXCLUDE from the dependent scan (a row
+    // never depends on itself).
+    let nativeKind: BuilderNodeKind | undefined;
+    let sectionEmbedKey: string | undefined;
+    let selfTemplateId: string | null = null;
+
+    if (ref.kind === "template") {
+      selfTemplateId = ref.templateId;
+      const sb = getAdminClient();
+      const { data: row } = await sb
+        .from("builder_templates")
+        .select("slug")
+        .eq("id", ref.templateId)
+        .maybeSingle();
+      // The row's slug doubles as its curated section-embed key (G5 convention).
+      sectionEmbedKey = (row as { slug?: string } | null)?.slug ?? undefined;
+    } else {
+      nativeKind = ref.nativeKind;
+      sectionEmbedKey = ref.sectionEmbedKey;
+    }
+
+    // ── D1 live-page usage ────────────────────────────────────────────────────
+    const tally = await loadComponentUsageTally();
+    const usageCount =
+      usageCountForItem({ nativeKind, sectionEmbedKey }, tally) ?? 0;
+
+    // ── G5 template dependents ────────────────────────────────────────────────
+    const target: ComponentDependencyTarget = {
+      sectionEmbedKeys: sectionEmbedKey ? [sectionEmbedKey] : [],
+      builderNodeKinds: nativeKind ? [nativeKind] : [],
+    };
+    let dependentCount = 0;
+    if (!isEmptyDependencyTarget(target)) {
+      const sb = getAdminClient();
+      const all = await loadPublishedScanTemplates(sb);
+      // Exclude the row itself so a template is never reported as its own dependent.
+      const others = selfTemplateId
+        ? all.filter((t) => t.id !== selfTemplateId)
+        : all;
+      dependentCount = scanTemplatesForComponentDependents(
+        others,
+        target,
+      ).length;
+    }
+
+    return ok(buildHideImpact(usageCount, dependentCount, action));
+  } catch (err) {
+    logServerError("loadHideImpact", err);
+    // Degrade to a zero-impact preview rather than failing the confirm.
+    return ok(buildHideImpact(0, 0, action));
+  }
+}
+
 // ── archiveTemplate ───────────────────────────────────────────────────────────
+
+/**
+ * Archive a template row. G5: when the row carries a curated `section_embed`
+ * identity (its `slug` doubles as a `sectionTypeKey` for curated-section
+ * components), a pre-write scan walks every OTHER published template tree for
+ * dependents. If any are found and the caller did NOT pass
+ * `confirmDependents: true`, the archive is BLOCKED and the dependent list is
+ * returned (in the error string + via a prior `scanComponentDependents` call the
+ * UI makes) so the operator gets an explicit "archive anyway — N templates
+ * depend on this" confirm. An unreferenced archive is unaffected.
+ */
+export interface ArchiveTemplateOptions {
+  /** Skip the G5 dependent-block (operator clicked "archive anyway"). */
+  confirmDependents?: boolean;
+}
 
 export async function archiveTemplate(
   templateId: string,
+  options?: ArchiveTemplateOptions,
 ): Promise<TemplateActionResult<BuilderTemplateRow>> {
   const gate = await requireSuperAdmin();
   if (!gate.ok) return fail(gate.error);
 
   try {
     const sb = getAdminClient();
+    // Capture the prior status + slug for the audit diff and the G5 dependency
+    // scan (archive is reachable from any non-archived status).
+    const { data: beforeRow } = await sb
+      .from("builder_templates")
+      .select("status, slug")
+      .eq("id", templateId)
+      .maybeSingle();
+
+    // G5: block when a published template depends on this component, unless the
+    // operator explicitly confirmed. The component identity a host tree can carry
+    // is a curated `section_embed` keyed on the row's slug; we scan every OTHER
+    // published template tree for that key. Self-references are excluded so a
+    // template is never reported as depending on itself.
+    if (!options?.confirmDependents) {
+      const slug = (beforeRow as { slug?: string } | null)?.slug ?? null;
+      if (slug) {
+        const target: ComponentDependencyTarget = { sectionEmbedKeys: [slug] };
+        const all = await loadPublishedScanTemplates(sb);
+        const others = all.filter((t) => t.id !== templateId);
+        const dependents = scanTemplatesForComponentDependents(others, target);
+        if (dependents.length > 0) {
+          const names = dependents.map((d) => d.title).join(", ");
+          return fail(
+            `Archive blocked: ${dependents.length} published template(s) depend on this component (${names}). Confirm "archive anyway" to proceed.`,
+          );
+        }
+      }
+    }
+
     const { data, error } = await sb
       .from("builder_templates")
       .update({ status: "archived" })
@@ -522,6 +874,13 @@ export async function archiveTemplate(
       return fail("Template not found or already archived.");
 
     await bumpCatalogVersion(sb);
+    await appendBuilderLabAudit({
+      action: "template.archive",
+      templateId,
+      actor: gate.userId,
+      before: beforeRow ? { status: (beforeRow as { status: string }).status } : null,
+      after: { status: (data as BuilderTemplateRow).status },
+    });
     revalidatePath(TEMPLATE_CACHE_PATH);
     return ok(data as BuilderTemplateRow);
   } catch (err) {
@@ -552,8 +911,28 @@ export async function duplicateTemplate(
       return fail(fetchErr?.message ?? "Source template not found.");
 
     const src = source as BuilderTemplateRow;
-    const newSlug = (overrides?.slug ?? `${src.slug}-copy`).trim();
-    const newTitle = (overrides?.title ?? `${src.title} (Copy)`).trim();
+
+    // Collision-safe slug & title: when overrides are not fully supplied, query
+    // existing rows for this kind and mint the first free -copy/-copy-N /
+    // (Copy)/(Copy N) slot (F1 fix — duplicating twice previously caused a
+    // unique-violation 500).
+    let newSlug: string;
+    let newTitle: string;
+    if (overrides?.slug && overrides?.title) {
+      newSlug = overrides.slug.trim();
+      newTitle = overrides.title.trim();
+    } else {
+      const { data: existing, error: listErr } = await sb
+        .from("builder_templates")
+        .select("slug, title")
+        .eq("kind", src.kind);
+      if (listErr) return fail(listErr.message);
+      const rows = (existing ?? []) as Array<{ slug: string; title: string }>;
+      const existingSlugs = new Set(rows.map((r) => r.slug));
+      const existingTitles = new Set(rows.map((r) => r.title));
+      newSlug = overrides?.slug?.trim() ?? mintCopySlug(src.slug, existingSlugs);
+      newTitle = overrides?.title?.trim() ?? mintCopyTitle(src.title, existingTitles);
+    }
 
     const { data: dup, error: insErr } = await sb
       .from("builder_templates")

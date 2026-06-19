@@ -2062,6 +2062,14 @@ export function EditProvider({
         ? "workspace"
         : null);
   const gallerySurfaceTier = resolvedSurfaceConfig.surfaceTalentTier ?? null;
+  // X4 — the precise 4-surface key for per-surface overlay subtraction. Sourced
+  // from the surface config; null on homepage / platform_lab (availability-only).
+  const gallerySurfaceKey: GallerySurfaceDescriptor["surfaceKey"] =
+    resolvedSurfaceConfig.galleryPolicy.surfaceKey ?? null;
+  // X6 — the independent Builder-Lab axis: true only on the platform_lab surface,
+  // so a Lab-hidden component (lab_enabled === false) drops from the Lab's own
+  // gallery without touching any tenant surface.
+  const galleryIsLab = resolvedSurfaceConfig.galleryPolicy.isLab ?? false;
   const gallerySurface = useMemo<GallerySurfaceDescriptor>(
     () => ({
       allowedTabs: galleryTabsKey
@@ -2069,6 +2077,8 @@ export function EditProvider({
         : [],
       allowDbTemplates: galleryAllowDbTemplates,
       surfaceTarget: gallerySurfaceTarget,
+      surfaceKey: gallerySurfaceKey,
+      isLab: galleryIsLab,
       plan: normalizedWorkspacePlan || null,
       talentTier: gallerySurfaceTier,
       // Builder Studio — live tenant id for staged-rollout bucketing (WS-D).
@@ -2078,6 +2088,8 @@ export function EditProvider({
       galleryTabsKey,
       galleryAllowDbTemplates,
       gallerySurfaceTarget,
+      gallerySurfaceKey,
+      galleryIsLab,
       normalizedWorkspacePlan,
       gallerySurfaceTier,
       tenantId,

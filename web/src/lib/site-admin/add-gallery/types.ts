@@ -172,6 +172,25 @@ export interface GallerySurfaceDescriptor {
   allowDbTemplates: boolean;
   /** Surface subject target for `target_context` gating (talent | workspace | platform | null). */
   surfaceTarget: "talent" | "workspace" | "both" | "platform" | null;
+  /**
+   * X4 — the PRECISE one of the four real builder surfaces, for per-surface
+   * catalog-overlay subtraction (orthogonal to `surfaceTarget`). Null on the
+   * homepage / platform_lab (availability-only). Sourced from
+   * `galleryPolicy.surfaceKey`.
+   */
+  surfaceKey:
+    | "talent_profile"
+    | "talent_shell"
+    | "workspace_page"
+    | "workspace_shell"
+    | null;
+  /**
+   * X6 — true ONLY for the Builder Lab surface, turning on the independent
+   * `lab_enabled` overlay axis (a Lab-hidden component is dropped from the Lab's
+   * own gallery). Orthogonal to `surfaceKey`/`surfaceTarget`. Sourced from
+   * `galleryPolicy.isLab`; omitted/false on every tenant surface + the homepage.
+   */
+  isLab?: boolean;
   /** Surface plan for `required_plan` gating. */
   plan: string | null;
   /** Surface talent tier for `required_talent_tier` gating. */
