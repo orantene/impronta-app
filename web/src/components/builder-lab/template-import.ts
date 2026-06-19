@@ -87,53 +87,52 @@ const REQUIRED_PLAN_VALUES = [
  *
  * We are deliberately lenient on `builder_tree` elements (z.record + z.unknown)
  * so that future BuilderNode fields do not break imports of older exports.
- * The `MAX_IMPORT_TREE_NODES` limit is enforced in the refine step.
+ * The `MAX_IMPORT_TREE_NODES` limit is enforced via a superRefine step.
  */
-export const portableTemplateSchema = z.object({
-  kind: z.enum(BUILDER_TEMPLATE_KIND_VALUES, {
-    errorMap: (issue, ctx) => {
-      if (issue.code === "invalid_enum_value") {
-        return {
-          message: `Unknown kind "${String(ctx.data)}" — must be one of: ${BUILDER_TEMPLATE_KIND_VALUES.join(", ")}`,
-        };
-      }
-      return { message: ctx.defaultError };
-    },
-  }),
-  title: z
-    .string({ required_error: "title is required" })
-    .min(1, "title must not be empty"),
-  slug: z
-    .string({ required_error: "slug is required" })
-    .min(1, "slug must not be empty"),
-  description: z.string().nullable(),
-  category: z
-    .string({ required_error: "category is required" })
-    .min(1, "category must not be empty"),
-  gallery_tab: z.enum(BUILDER_GALLERY_TAB_VALUES, {
-    errorMap: (issue, ctx) => {
-      if (issue.code === "invalid_enum_value") {
-        return {
-          message: `Unknown gallery_tab "${String(ctx.data)}" — must be one of: ${BUILDER_GALLERY_TAB_VALUES.join(", ")}`,
-        };
-      }
-      return { message: ctx.defaultError };
-    },
-  }),
-  target_context: z.enum(BUILDER_TEMPLATE_TARGET_VALUES),
-  required_plan: z.enum(REQUIRED_PLAN_VALUES),
-  tags: z.array(z.string()),
-  theme_tokens: z.record(z.string(), z.unknown()).nullable(),
-  builder_tree: z
-    .array(z.record(z.string(), z.unknown()))
-    .refine(
-      (tree) => tree.length <= MAX_IMPORT_TREE_NODES,
-      (tree) => ({
-        message: `builder_tree is too large (${tree.length} nodes, max ${MAX_IMPORT_TREE_NODES})`,
-      }),
-    ),
-  schema_version: z.number().int().positive(),
-});
+export const portableTemplateSchema = z
+  .object({
+    kind: z.enum(BUILDER_TEMPLATE_KIND_VALUES, {
+      error: (issue) => {
+        if (issue.input !== undefined) {
+          return `Unknown kind "${String(issue.input)}" — must be one of: ${BUILDER_TEMPLATE_KIND_VALUES.join(", ")}`;
+        }
+        return "kind is required";
+      },
+    }),
+    title: z
+      .string({ error: "title is required" })
+      .min(1, "title must not be empty"),
+    slug: z
+      .string({ error: "slug is required" })
+      .min(1, "slug must not be empty"),
+    description: z.string().nullable(),
+    category: z
+      .string({ error: "category is required" })
+      .min(1, "category must not be empty"),
+    gallery_tab: z.enum(BUILDER_GALLERY_TAB_VALUES, {
+      error: (issue) => {
+        if (issue.input !== undefined) {
+          return `Unknown gallery_tab "${String(issue.input)}" — must be one of: ${BUILDER_GALLERY_TAB_VALUES.join(", ")}`;
+        }
+        return "gallery_tab is required";
+      },
+    }),
+    target_context: z.enum(BUILDER_TEMPLATE_TARGET_VALUES),
+    required_plan: z.enum(REQUIRED_PLAN_VALUES),
+    tags: z.array(z.string()),
+    theme_tokens: z.record(z.string(), z.unknown()).nullable(),
+    builder_tree: z.array(z.record(z.string(), z.unknown())),
+    schema_version: z.number().int().positive(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.builder_tree.length > MAX_IMPORT_TREE_NODES) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["builder_tree"],
+        message: `builder_tree is too large (${data.builder_tree.length} nodes, max ${MAX_IMPORT_TREE_NODES})`,
+      });
+    }
+  });
 
 /** The validated portable template shape (output of the schema). */
 export type ParsedPortableTemplate = z.output<typeof portableTemplateSchema>;
@@ -163,8 +162,8 @@ export function parsePortableTemplate(
   }
 
   // Surface the first (most specific) error message so the admin knows exactly
-  // what to fix. Zod's flatten() groups by path; we prefer the first issue
-  // ordered by path depth for readability.
+  // what to fix. Zod's issues array is ordered by path depth; we prefer the
+  // first issue for readability.
   const issues = result.error.issues;
   const first = issues[0];
 
@@ -184,9 +183,9 @@ export function parsePortableTemplate(
  * by the caller via `mintCopySlug`) into a `CreateTemplateDraftInput` ready to
  * pass directly to `createTemplateDraft`.
  *
- * The original slug from the exported file is used as the TITLE (preserved
- * as-is); the `newSlug` is the collision-safe DB slug (which may be the
- * original or a `-copy` variant). PURE — no I/O.
+ * The original title from the exported file is preserved; the `newSlug` is the
+ * collision-safe DB slug (which may be the original or a `-copy` variant).
+ * PURE — no I/O.
  */
 export function buildImportDraftInput(
   parsed: ParsedPortableTemplate,
@@ -203,11 +202,11 @@ export function buildImportDraftInput(
     required_plan: parsed.required_plan,
     tags: [...parsed.tags],
     theme_tokens: parsed.theme_tokens ?? null,
-    // Cast needed: the zod schema uses z.record(z.string(), z.unknown()) for
+    // Double-cast needed: zod schema uses z.record(z.string(), z.unknown()) for
     // builder_tree items (intentionally loose for forward-compat); the registry
     // action types the tree as BuilderNode[]. The shape is structurally
     // compatible; the cast is safe because createTemplateDraft re-validates via
     // computeDataBindingRequirements before persisting.
-    builder_tree: parsed.builder_tree as CreateTemplateDraftInput["builder_tree"],
+    builder_tree: parsed.builder_tree as unknown as CreateTemplateDraftInput["builder_tree"],
   };
 }
