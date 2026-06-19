@@ -37,6 +37,8 @@ import {
 } from "@/lib/site-admin/add-gallery/catalog-structure";
 import { listCatalogStructure } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
 import { loadCatalogAdminView } from "@/lib/site-admin/add-gallery/catalog-admin-view-action";
+import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/registry-admin-actions";
+import type { BuilderTemplateRow } from "@/lib/site-admin/builder-core/templates/registry-rows";
 import {
   clearComponentOverlay,
   setComponentOverlay,
@@ -102,6 +104,7 @@ import {
   snapshotToPreset,
   stateMatchesPreset,
 } from "./catalog-filter-presets";
+import { LabCommandPalette, isPaletteChord } from "./command-palette";
 
 // Single source — derived from the Builder Studio catalog-structure resolver
 // (was duplicated with add-gallery-panel.tsx's TAB_DEFS). WS-B threads loaded
@@ -310,6 +313,11 @@ export function ComponentCatalog({
   // hydration (data-hydrated="true" on the catalog root) before clicking tabs,
   // fixing the clicks-before-React-attaches race. Inert; no behavior change.
   const [hydrated, setHydrated] = useState(false);
+  // O6 — global Cmd/Ctrl-K command palette. `paletteOpen` drives the overlay;
+  // `allTemplates` is the full `builder_templates` set (templates ∪ Playground
+  // drafts) the palette indexes alongside the gallery `items`.
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [allTemplates, setAllTemplates] = useState<BuilderTemplateRow[]>([]);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -418,9 +426,33 @@ export function ComponentCatalog({
       .catch(() => {
         if (!cancelled) setError("Failed to load the component catalog.");
       });
+    // O6 — index source: every builder_templates row (templates ∪ drafts). A
+    // failure here is non-fatal: the palette still indexes gallery components.
+    listAllTemplates()
+      .then((res) => {
+        if (!cancelled && res.ok) setAllTemplates(res.data);
+      })
+      .catch(() => {
+        /* palette degrades to components-only */
+      });
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // O6 — the Cmd/Ctrl-K listener is mounted with the Lab catalog and torn down
+  // on unmount, so the chord only opens the palette while this surface is on
+  // screen. We don't steal the chord when an unrelated modal is focused-out;
+  // the catalog is the Lab's primary surface so a global capture is correct.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (isPaletteChord(e)) {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   const mutate = useCallback(
@@ -848,12 +880,73 @@ export function ComponentCatalog({
     });
   };
 
+  // ── O6: command-palette index inputs + jump handler ─────────────────────────
+  // Gallery components carry their gallery `tab` so a hit jumps straight to that
+  // Catalog view. builder_templates rows split by kind: page/shell kinds are the
+  // Playground's drafts (jump → "playground"), the rest are governed templates
+  // (jump → the "templates" manager). The pure index lives in command-search.
+  const paletteComponents = items.map((r) => ({
+    id: r.id,
+    tab: r.tab,
+    effectiveLabel: r.effectiveLabel,
+    effectiveCategory: r.effectiveCategory,
+    baseLabel: r.baseLabel,
+  }));
+  const isDraftKind = (k: string) =>
+    k === "page_template" || k === "shell_header" || k === "shell_footer";
+  const paletteDrafts = allTemplates
+    .filter((t) => isDraftKind(t.kind))
+    .map((t) => ({
+      id: t.id,
+      title: t.title,
+      slug: t.slug,
+      status: t.status,
+      kind: t.kind,
+    }));
+  const paletteTemplates = allTemplates
+    .filter((t) => !isDraftKind(t.kind))
+    .map((t) => ({
+      id: t.id,
+      title: t.title,
+      slug: t.slug,
+      status: t.status,
+      kind: t.kind,
+    }));
+
+  /** Jump to a catalog view from a palette result. For a gallery tab the target
+   *  row is also pre-expanded (O9 expand set); special views (Playground /
+   *  Templates) just activate — they own their own row state. The chosen view
+   *  may not be in `viewTabs` if it's a gallery tab currently empty under the
+   *  active filter, but setActiveTab is tolerant (currentView falls back). */
+  const handlePaletteJump = (tab: string, rowId: string) => {
+    setActiveTab(tab as CatalogView);
+    if (!isSpecialTab(tab as CatalogView)) {
+      // Gallery component — open its override editor (seed the form).
+      const row = items.find((r) => r.id === rowId);
+      if (row) startEdit(row);
+    }
+  };
+
   return (
     <div
       data-testid="lab-catalog-root"
       data-hydrated={hydrated ? "true" : undefined}
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
+      {/* O6 — global Cmd/Ctrl-K command palette across components, templates,
+          and Playground drafts. Selecting a result jumps to the owning tab with
+          the row pre-expanded. */}
+      <LabCommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        components={paletteComponents}
+        templates={paletteTemplates}
+        drafts={paletteDrafts}
+        templateTab="templates"
+        playgroundTab="playground"
+        onJump={handlePaletteJump}
+      />
+
       {viewTabs.length > 0 ? (
         <div
           role="tablist"
