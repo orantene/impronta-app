@@ -38,7 +38,7 @@ function row(
     // Unused-by-derivation fields, stubbed to satisfy the type.
     tab: "elements",
     status: "published",
-    itemKind: "element",
+    itemKind: "static",
     availability: "available",
     connectedSource: undefined,
     baseLabel: id,
