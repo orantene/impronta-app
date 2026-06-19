@@ -40,7 +40,7 @@ function makeRow(
     tab: "layout",
     source: "code",
     status: "published",
-    itemKind: "native",
+    itemKind: "static",
     availability: "available",
     targetContext: "both",
     connectedSource: undefined,
