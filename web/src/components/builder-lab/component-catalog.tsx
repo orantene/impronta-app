@@ -264,6 +264,11 @@ export function ComponentCatalog({
   // fixing the clicks-before-React-attaches race. Inert; no behavior change.
   const [hydrated, setHydrated] = useState(false);
 
+  const flash = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), T.toastMs);
+  }, []);
+
   // ── O7: persisted filter presets ──────────────────────────────────────────
   // Presets are loaded from localStorage on mount (SSR-safe: only in effects).
   // The strip shows built-ins + custom presets; active preset is highlighted.
@@ -276,7 +281,10 @@ export function ComponentCatalog({
 
   useEffect(() => {
     setHydrated(true);
-    // Restore custom presets and the active preset on mount.
+    // Restore custom presets and the active preset on mount. All setters are
+    // stable (React guarantees); this effect is intentionally mount-only ([]
+    // deps) because we only want to read localStorage once, not on every render.
+    // State setters from useState are stable refs — safe to omit from deps.
     const stored = loadCustomPresets();
     setCustomPresets(stored);
     const activeKey = loadActivePresetKey();
@@ -284,14 +292,13 @@ export function ComponentCatalog({
       const allWithBuiltins = mergePresets(stored);
       const found = allWithBuiltins.find((p) => p.key === activeKey);
       if (found) {
-        const state = presetToState(found);
-        if (state.tab !== null) setActiveTab(state.tab as typeof activeTab);
-        setFilterMode(state.mode);
-        setConnectedSurface(state.surface);
+        const restored = presetToState(found);
+        if (restored.tab !== null) setActiveTab(restored.tab as CatalogView);
+        setFilterMode(restored.mode);
+        setConnectedSurface(restored.surface);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // mount-only: localStorage read; setters are stable and safe to omit
 
   /** Current filter state snapshot (for save + active-highlight). */
   const currentFilterState = useCallback((): FilterState => ({
@@ -303,7 +310,7 @@ export function ComponentCatalog({
   /** Apply a preset — restores all three filter dimensions and persists the key. */
   const applyPreset = useCallback((preset: FilterPreset) => {
     const state = presetToState(preset);
-    if (state.tab !== null) setActiveTab(state.tab as typeof activeTab);
+    if (state.tab !== null) setActiveTab(state.tab as CatalogView);
     else setActiveTab(defaultView ?? null);
     setFilterMode(state.mode);
     setConnectedSurface(state.surface);
@@ -342,11 +349,6 @@ export function ComponentCatalog({
       presetInputRef.current?.focus();
     }
   }, [savingPreset]);
-
-  const flash = useCallback((msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), T.toastMs);
-  }, []);
 
   const reload = useCallback(async () => {
     const data = await loadCatalogAdminView();
