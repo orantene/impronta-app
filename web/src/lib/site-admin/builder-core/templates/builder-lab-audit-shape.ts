@@ -24,6 +24,10 @@ export interface AppendBuilderLabAuditInput {
    *  `actor` column is a nullable uuid FK, so a non-UUID sentinel string would
    *  fail the cast and the row would silently never land. */
   actor: string | null;
+  /** Free-text identity for a non-human writer (e.g. "system:builder-rollout-cron").
+   *  Surfaced as the display actor when `actor` is null, so cron transitions are
+   *  attributed in the Activity feed instead of rendering blank. */
+  actorLabel?: string | null;
   before?: unknown;
   after?: unknown;
 }
@@ -48,6 +52,7 @@ export interface BuilderLabAuditRow {
   item_ref: string | null;
   template_id: string | null;
   actor: string | null;
+  actor_label: string | null;
   before: unknown;
   after: unknown;
   created_at: string;
@@ -60,6 +65,7 @@ export function buildAuditInsertPayload(input: AppendBuilderLabAuditInput): {
   item_ref: string | null;
   template_id: string | null;
   actor: string | null;
+  actor_label: string | null;
   before: unknown;
   after: unknown;
 } {
@@ -68,6 +74,7 @@ export function buildAuditInsertPayload(input: AppendBuilderLabAuditInput): {
     item_ref: input.itemRef ?? null,
     template_id: input.templateId ?? null,
     actor: input.actor,
+    actor_label: input.actorLabel ?? null,
     before: input.before ?? null,
     after: input.after ?? null,
   };
@@ -84,7 +91,12 @@ export function mapAuditRowToEntry(
     itemRef: row.item_ref,
     templateId: row.template_id,
     actorId: row.actor,
-    actorName: row.actor ? nameById.get(row.actor) ?? null : null,
+    // Human actor → resolved profile name; otherwise fall back to the free-text
+    // actor_label (e.g. "system:builder-rollout-cron") so non-human writers are
+    // attributed in the feed instead of rendering blank.
+    actorName: row.actor
+      ? nameById.get(row.actor) ?? row.actor_label ?? null
+      : row.actor_label ?? null,
     before: row.before,
     after: row.after,
     createdAt: row.created_at,

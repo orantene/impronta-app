@@ -88,6 +88,7 @@ import {
   analyzeCatalogHealth,
   type CatalogHealthIssue,
 } from "./catalog-health";
+import { PAGE_DESIGN_SUMMARIES } from "@/lib/site-admin/builder-node/page-designs/summaries";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
   buildCatalogItemPreview,
@@ -146,6 +147,14 @@ import { CatalogNav } from "./catalog-nav-bar";
 // (was duplicated with add-gallery-panel.tsx's TAB_DEFS). WS-B threads loaded
 // structure for admin tab rename/reorder; code defaults verbatim otherwise.
 const ALL_TABS: ReadonlyArray<AddGalleryTab> = CODE_TAB_DEFS.map((t) => t.id);
+
+// Canonical page-template starter intent categories (from the page-design ids)
+// + the Playground draft bucket — passed to the catalog-health orphaned-category
+// check as "known" so built-in starters aren't false-flagged.
+const KNOWN_TEMPLATE_CATEGORIES: ReadonlyArray<string> = [
+  ...PAGE_DESIGN_SUMMARIES.map((d) => d.id),
+  "playground",
+];
 
 // X4 — the overlay-input column written when toggling each of the four surfaces.
 const SURFACE_ENABLED_COLUMN: Record<
@@ -1026,6 +1035,12 @@ export function ComponentCatalog({
         rows: items ?? [],
         templates: allTemplates,
         templateUsage,
+        // The built-in page-template starters carry an INTENT category (coach,
+        // restaurant, editorial, …) from the page-design ids — a legitimate
+        // taxonomy distinct from the component-tab categories. Register them
+        // (+ the Playground draft bucket) so the orphaned-category check stops
+        // false-flagging every built-in starter; a genuine typo still surfaces.
+        knownCategories: KNOWN_TEMPLATE_CATEGORIES,
       }),
     [items, allTemplates, templateUsage],
   );
