@@ -3342,15 +3342,23 @@ function renderBuilderNodeElement(
         const sc = node.props.sharedContent;
         const heroSlides = node.children
           .filter((child) => shouldRenderNode(child, options))
-          .map((child, index) => (
-            <div
-              key={`${node.id}:slide:${child.id}`}
-              className="site-bn-hero__slide"
-              data-active={index === 0 ? "" : undefined}
-            >
-              {renderBuilderNode(child, options)}
-            </div>
-          ));
+          .map((child, index) => {
+            // Hero slides crossfade into view within seconds — eager-load image
+            // slides so advancing never flashes a blank (lazy) frame.
+            const slideChild =
+              child.kind === "image"
+                ? { ...child, props: { ...child.props, priority: true } }
+                : child;
+            return (
+              <div
+                key={`${node.id}:slide:${child.id}`}
+                className="site-bn-hero__slide"
+                data-active={index === 0 ? "" : undefined}
+              >
+                {renderBuilderNode(slideChild, options)}
+              </div>
+            );
+          });
         const sharedBlock =
           mode === "shared" && sc ? (
             <div className="site-bn-hero__inner" data-align={align}>
@@ -3407,9 +3415,10 @@ function renderBuilderNodeElement(
             style={inlineNodeStyle(
               node.props.style,
               builderNodeStyleVars({
-                "--bn-hero-min-h": node.props.minHeightPx
-                  ? `${node.props.minHeightPx}px`
-                  : undefined,
+                "--bn-hero-min-h":
+                  heightMode === "fixed" && node.props.minHeightPx
+                    ? `${node.props.minHeightPx}px`
+                    : undefined,
                 "--bn-transition-ms": node.props.transitionMs
                   ? `${node.props.transitionMs}ms`
                   : undefined,

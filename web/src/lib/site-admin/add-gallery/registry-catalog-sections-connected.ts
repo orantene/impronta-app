@@ -37,6 +37,24 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     icon: "hero-minimal",
     sectionTemplateId: "hero-minimal",
   }),
+  section({
+    id: "sec-hero-slider",
+    label: "Hero Slider",
+    description:
+      "Full-screen image slider with crossfade, Ken Burns, and an overlaid headline.",
+    category: "hero",
+    icon: "hero-split",
+    sectionTemplateId: "hero-slider",
+    searchTerms: [
+      "hero",
+      "slider",
+      "carousel",
+      "slideshow",
+      "full screen",
+      "ken burns",
+      "noir",
+    ],
+  }),
 
   // ── Sections / About ────────────────────────────────────────────────────
   section({

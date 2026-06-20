@@ -1,4 +1,5 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { makeId } from "@/lib/site-admin/builder-node/create";
 import { buildTalentDisciplineDecomposedSection } from "@/lib/site-admin/builder-node/talent-discipline-freeform";
 import { buildFeaturedTalentDecomposedSection } from "@/lib/site-admin/builder-node/featured-talent-freeform";
 import { buildLocationDiscoveryDecomposedSection } from "@/lib/site-admin/builder-node/location-discovery-freeform";
@@ -511,6 +512,66 @@ function buildContactForm(): BuilderNode {
   ]);
 }
 
+// Hero Slider — a full-screen carousel-variant hero (Noir & Or). Slides are
+// background images (committed demo photos so it always renders full); the
+// content is a shared overlay block. Every lever is editable in the inspector.
+function buildHeroSlider(): BuilderNode {
+  const slideImages = [
+    "01-hero.jpg",
+    "03-runway.jpg",
+    "05-editorial.jpg",
+    "09-editorial.jpg",
+  ];
+  return {
+    id: makeId("carousel"),
+    kind: "carousel",
+    props: {
+      variant: "hero",
+      layerLabel: "Hero Slider",
+      heightMode: "viewport",
+      minHeightPx: 620,
+      overlay: { scrim: true, tone: "dark", vignette: true, opacity: 0.6 },
+      grain: true,
+      transition: "crossfade",
+      transitionMs: 1600,
+      kenBurns: true,
+      kenBurnsAmount: 0.1,
+      autoplayMs: 5200,
+      loop: true,
+      pauseOnHover: true,
+      controls: {
+        dots: true,
+        arrows: false,
+        progress: false,
+        counter: true,
+        scrollCue: true,
+      },
+      contentAlign: "bl",
+      contentMode: "shared",
+      sharedContent: {
+        eyebrow: "Talent Agency · Tulum, Mexico",
+        headingLead: "Faces with an",
+        headingAccent: "imprint.",
+        sub: "A boutique roster of models and creative talent, managed end to end.",
+        primaryCta: { label: "Explore the roster", href: "/roster" },
+        secondaryCta: { label: "Start an inquiry", href: "/contact" },
+      },
+    },
+    // All hero slides eager-load: they crossfade into view within seconds, so a
+    // lazy slide would flash black when autoplay advances to it.
+    children: slideImages.map((name, index) => ({
+      id: makeId("image"),
+      kind: "image",
+      props: {
+        src: `/talent-templates/demo/model/${name}`,
+        alt: "",
+        priority: true,
+        layerLabel: `Slide ${index + 1}`,
+      },
+    })),
+  };
+}
+
 const SECTION_TEMPLATE_BUILDERS: Readonly<
   Record<string, () => BuilderNode>
 > = {
@@ -518,6 +579,7 @@ const SECTION_TEMPLATE_BUILDERS: Readonly<
   "hero-centered": buildHeroCentered,
   "hero-split": buildHeroSplit,
   "hero-minimal": buildHeroMinimal,
+  "hero-slider": buildHeroSlider,
   "hero-search": buildHeroSearch,
   about: buildAboutSimple,
   "about-split": buildAboutSplit,
