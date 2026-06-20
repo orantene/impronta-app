@@ -109,10 +109,19 @@ the impronta storefront render: full-screen photo + scrim + gold "imprint." + CT
     (new provisions get it; existing sites keep their saved shell). Direct prod-DB seeding was denied,
     so visual QA needs either owner-granted prod read/seed of one talent DRAFT shell (QA + restore) or
     provisioning/viewing a new talent Max site.
-  - **WF-4 next:** register the 3 palettes (`noir-or` default, `espresso`, `atelier-blanc`) +
-    `inquiryAction` toggle; wire the Component to emit `data-scroll-tone`.
-  - **WF-5 next:** freeform L/C/R header regions + per-item per-breakpoint responsive/overflow +
-    header inspector.
+  - **WF-4 BUILT** (commit on branch): registered `noir-or` (default), `espresso`, `atelier-blanc`
+    `background.mode` palettes + a token-presets block each (re-pinning `--token-color-*` incl.
+    `primary`). The hero + header render any palette by selection. tsc + lint clean. (Deferred: a
+    `data-scroll-tone` emit on the Component + an `inquiryAction` toggle — the scroll-to-solid already
+    works via the observer + `[data-scrolled]` CSS.)
+  - **WF-5 REMAINING (large):** freeform L/C/R header regions (`regions` schema + `headerItem` union)
+    + per-item per-breakpoint responsive (label/icon/hide/move-to-menu) + priority/overflow →
+    hamburger, + the header inspector group. The header already places brand/nav/lang/CTA/social/
+    phone/count-badge via the existing `standard`/`editorial-split` variants, so the talent header is
+    already premium + functional; WF-5 adds arbitrary per-region placement + the responsive engine.
+    Recommended as a focused build + QA pass.
+  - **End-to-end QA (pending):** provision/seed a talent Max site, set `background.mode=noir-or`, and
+    screenshot the header across breakpoints + all 3 palettes alongside the hero.
 
 ---
 
