@@ -76,7 +76,29 @@ export function Segmented<T extends string>({
             type="button"
             role="radio"
             aria-checked={active}
+            // Roving tabindex — only the active radio is a tab stop; arrows move
+            // selection within the group (the correct ARIA radiogroup model).
+            tabIndex={active ? 0 : -1}
             onClick={() => onChange(opt.value)}
+            onKeyDown={(e) => {
+              if (
+                e.key !== "ArrowRight" &&
+                e.key !== "ArrowDown" &&
+                e.key !== "ArrowLeft" &&
+                e.key !== "ArrowUp"
+              )
+                return;
+              e.preventDefault();
+              const idx = options.findIndex((o) => o.value === value);
+              const dir = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1;
+              const next = (idx + dir + options.length) % options.length;
+              onChange(options[next].value);
+              const btns =
+                e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
+                  '[role="radio"]',
+                );
+              btns?.[next]?.focus();
+            }}
             title={typeof opt.label === "string" ? opt.label : undefined}
             className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md transition-all"
             style={{

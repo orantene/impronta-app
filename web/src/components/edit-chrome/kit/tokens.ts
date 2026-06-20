@@ -203,6 +203,20 @@ export const CHROME_SHADOWS = {
 } as const;
 
 /**
+ * Motion tokens — one place to tune the editor's feel so hover/press/entrance
+ * read the same on the dock, drawers, and handles. Durations in ms; easings as
+ * cubic-beziers (emphasized reuses the drawer curve). Geometry-tracking overlays
+ * (selection/hover rings) stay deliberately instant and must NOT consume these.
+ */
+export const CHROME_MOTION = {
+  durationFast: 110,
+  durationBase: 160,
+  durationSlow: 220,
+  easeStandard: "cubic-bezier(0.2, 0, 0, 1)",
+  easeEmphasized: "cubic-bezier(0.32, 0.72, 0, 1)",
+} as const;
+
+/**
  * Standard radii — match the mockup `--r-*` scale. These were stubbed to 0,
  * which silently left every consumer (color-picker popover + preview, the
  * navigator footer shortcuts, drawers, …) hard-square while the rest of the

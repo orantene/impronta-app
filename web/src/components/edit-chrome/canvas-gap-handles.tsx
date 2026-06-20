@@ -47,7 +47,7 @@ const GRID = 8;
 // Don't surface gap handles on a near-empty/giant-child container — needs at
 // least two children that actually sit apart.
 const MIN_GAP_TO_SHOW = 2;
-const ACCENT = "#2f4678";
+const ACCENT = "#7c3aed";
 
 function readGapPx(el: HTMLElement | null): number {
   if (!el) return 0;

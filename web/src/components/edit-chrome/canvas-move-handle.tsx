@@ -42,8 +42,8 @@ const SPACING_SNAP = 6;
 const MIN_BOX = 64;
 // 4A #8 — teal for equal-spacing (distribution) pills; magenta-ish accent for
 // edge/centre alignment stays the caller-supplied `accent`. Matches the
-// Figma/Webflow distribution-cue colour family.
-const SPACING_TEAL = "#00b8a9";
+// Violet distribution-cue colour (one guide language across resize/move/gap).
+const SPACING_GUIDE = "#7c3aed";
 
 interface Box {
   top: number;
@@ -64,7 +64,7 @@ export function CanvasMoveHandle({
   rect,
   liveEl,
   onCommitTranslate,
-  accent = "#3d4f7c",
+  accent = "#7c3aed",
   overlayRef,
 }: {
   rect: Rect;
@@ -362,14 +362,14 @@ export function CanvasMoveHandle({
                     top: guide.cross,
                     width: length,
                     height: 0,
-                    borderTop: `2px solid ${SPACING_TEAL}`,
+                    borderTop: `2px solid ${SPACING_GUIDE}`,
                   }
                 : {
                     top: band.from,
                     left: guide.cross,
                     height: length,
                     width: 0,
-                    borderLeft: `2px solid ${SPACING_TEAL}`,
+                    borderLeft: `2px solid ${SPACING_GUIDE}`,
                   }),
               pointerEvents: "none",
               zIndex: 97,
@@ -380,16 +380,16 @@ export function CanvasMoveHandle({
               style={{
                 position: "absolute",
                 ...(horizontal
-                  ? { left: -1, top: -4, width: 0, height: 8, borderLeft: `2px solid ${SPACING_TEAL}` }
-                  : { top: -1, left: -4, height: 0, width: 8, borderTop: `2px solid ${SPACING_TEAL}` }),
+                  ? { left: -1, top: -4, width: 0, height: 8, borderLeft: `2px solid ${SPACING_GUIDE}` }
+                  : { top: -1, left: -4, height: 0, width: 8, borderTop: `2px solid ${SPACING_GUIDE}` }),
               }}
             />
             <span
               style={{
                 position: "absolute",
                 ...(horizontal
-                  ? { right: -1, top: -4, width: 0, height: 8, borderLeft: `2px solid ${SPACING_TEAL}` }
-                  : { bottom: -1, left: -4, height: 0, width: 8, borderTop: `2px solid ${SPACING_TEAL}` }),
+                  ? { right: -1, top: -4, width: 0, height: 8, borderLeft: `2px solid ${SPACING_GUIDE}` }
+                  : { bottom: -1, left: -4, height: 0, width: 8, borderTop: `2px solid ${SPACING_GUIDE}` }),
               }}
             />
           </div>
