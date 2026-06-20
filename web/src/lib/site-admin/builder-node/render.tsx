@@ -624,6 +624,75 @@ const CONTAINER_STYLE: CSSProperties = {
   marginLeft: "auto",
 };
 
+// Hero-variant carousel CSS (a full-bleed image slider with crossfade / Ken
+// Burns / scrim / grain). Fully theme-tokenized: colors come from --token-color-*
+// so the same hero renders Noir & Or / Espresso / Atelier Blanc by swapping the
+// palette. Ported 1:1 from the Noir & Or reference (impronta-mockup-3).
+const BUILDER_NODE_CAROUSEL_HERO_CSS = `
+.site-builder-node--carousel[data-builder-carousel-variant="hero"]{position:relative;display:block;width:100%;max-width:none;min-width:0;margin:0;padding:0;gap:0;overflow:hidden;min-height:var(--bn-hero-min-h,100svh);background:var(--token-color-background,#100e13);--bn-ease:cubic-bezier(0.16,1,0.3,1)}
+.site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-height-mode="large"]{min-height:var(--bn-hero-min-h,78svh)}
+.site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-height-mode="medium"]{min-height:var(--bn-hero-min-h,60svh)}
+.site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-height-mode="fixed"]{min-height:var(--bn-hero-min-h,620px)}
+.site-bn-hero__slides{position:absolute;inset:0;z-index:1}
+.site-bn-hero__slide{position:absolute;inset:0;opacity:0;transition:opacity var(--bn-transition-ms,1600ms) var(--bn-ease)}
+.site-bn-hero__slide[data-active]{opacity:1}
+.site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-transition="slide"] .site-bn-hero__slide{transform:translateX(4%);transition:opacity calc(var(--bn-transition-ms,1600ms)*0.55) var(--bn-ease),transform var(--bn-transition-ms,1600ms) var(--bn-ease)}
+.site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-transition="slide"] .site-bn-hero__slide[data-active]{transform:translateX(0)}
+.site-bn-hero__slide>*{width:100%;height:100%;margin:0;max-width:none}
+.site-bn-hero__slide .site-builder-node--image,.site-bn-hero__slide img{width:100%;height:100%;object-fit:cover;object-position:var(--bn-hero-focal,center 28%)}
+.site-bn-hero__slide img{filter:brightness(0.82) saturate(1.05)}
+.site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-content-mode="per-slide"] .site-bn-hero__slides{z-index:4}
+.site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-kenburns="true"] .site-bn-hero__slide{transform:scale(1.04)}
+.site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-kenburns="true"] .site-bn-hero__slide[data-active]{animation:bn-kenburns var(--bn-kenburns-ms,9000ms) var(--bn-ease) forwards}
+@keyframes bn-kenburns{from{transform:scale(1.04)}to{transform:scale(calc(1.04 + var(--bn-kenburns-amount,0.1)))}}
+.site-bn-hero__scrim{position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(180deg,rgba(8,7,10,0.5) 0%,rgba(8,7,10,0.15) 30%,rgba(8,7,10,0.2) 52%,rgba(8,7,10,0.82) 100%)}
+.site-bn-hero__scrim[data-vignette="true"]{background:linear-gradient(180deg,rgba(8,7,10,0.5) 0%,rgba(8,7,10,0.15) 30%,rgba(8,7,10,0.2) 52%,rgba(8,7,10,0.82) 100%),radial-gradient(120% 90% at 50% 28%,rgba(8,7,10,0) 38%,rgba(8,7,10,0.55) 100%)}
+.site-bn-hero__scrim[data-tone="light"]{background:linear-gradient(180deg,rgba(248,246,242,0.12) 0%,rgba(248,246,242,0.04) 40%,rgba(248,246,242,0.58) 100%)}
+.site-bn-hero__grain{position:absolute;inset:0;z-index:3;opacity:var(--bn-grain-opacity,0.45);mix-blend-mode:overlay;pointer-events:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='bn-n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23bn-n)' opacity='0.5'/></svg>")}
+.site-bn-hero__inner{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;padding:clamp(20px,5vw,88px);padding-bottom:clamp(74px,11vh,134px);color:#fff;pointer-events:none}
+.site-bn-hero__inner>*{pointer-events:auto;max-width:min(100%,920px)}
+.site-bn-hero__inner[data-align^="t"]{justify-content:flex-start}
+.site-bn-hero__inner[data-align^="c"]{justify-content:center}
+.site-bn-hero__inner[data-align^="b"]{justify-content:flex-end}
+.site-bn-hero__inner[data-align$="l"]{align-items:flex-start;text-align:left}
+.site-bn-hero__inner[data-align$="c"]{align-items:center;text-align:center}
+.site-bn-hero__inner[data-align$="r"]{align-items:flex-end;text-align:right}
+.site-bn-hero__eyebrow{display:inline-flex;align-items:center;gap:0.75em;color:var(--token-color-primary,#e0c074);text-transform:uppercase;letter-spacing:0.26em;font-size:0.78rem;font-weight:500;margin-bottom:26px}
+.site-bn-hero__eyebrow::before{content:"";width:34px;height:1px;background:var(--token-color-primary,#c6a14e)}
+.site-bn-hero__heading{font-family:var(--site-heading-font,"Cormorant Garamond",Georgia,serif);font-weight:600;font-size:clamp(3.2rem,9.6vw,9rem);line-height:0.96;letter-spacing:0;max-width:16ch;text-shadow:0 2px 50px rgba(0,0,0,0.5);color:#fff}
+.site-bn-hero__heading .site-bn-hero__accent,.site-bn-hero__heading em{font-style:italic;color:var(--token-color-primary,#e0c074)}
+.site-bn-hero__sub{margin-top:26px;font-size:clamp(1rem,1.4vw,1.2rem);max-width:46ch;color:rgba(255,255,255,0.84);font-weight:300;line-height:1.55}
+.site-bn-hero__cta{margin-top:40px;display:flex;gap:14px;flex-wrap:wrap}
+.site-bn-hero__btn{display:inline-flex;align-items:center;justify-content:center;padding:0.95rem 1.8rem;border-radius:2px;font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;font-weight:500;text-decoration:none;transition:transform .4s var(--bn-ease),filter .4s var(--bn-ease)}
+.site-bn-hero__btn--primary{background:linear-gradient(135deg,color-mix(in srgb,var(--token-color-primary,#c6a14e) 80%,#fff),var(--token-color-primary,#c6a14e) 55%,color-mix(in srgb,var(--token-color-primary,#c6a14e) 72%,#000));color:#1a1408}
+.site-bn-hero__btn--secondary{border:1px solid color-mix(in srgb,var(--token-color-primary,#c6a14e) 60%,transparent);color:#fff}
+.site-bn-hero__btn:hover{transform:translateY(-2px);filter:brightness(1.08)}
+.site-bn-hero__meta{position:absolute;z-index:6;right:clamp(20px,5vw,88px);bottom:clamp(74px,11vh,134px);display:flex;flex-direction:column;gap:14px;align-items:flex-end}
+.site-bn-hero__count{color:rgba(255,255,255,0.6);font-size:11px;letter-spacing:0.2em;font-family:var(--site-heading-font,"Cormorant Garamond",serif)}
+.site-bn-hero__progress{width:120px;height:2px;background:rgba(255,255,255,0.2);overflow:hidden}
+.site-bn-hero__progress-bar{display:block;height:100%;width:0;background:var(--token-color-primary,#c6a14e);transition:width .35s linear}
+.site-bn-hero__dots{display:flex;gap:10px}
+.site-bn-hero__dot{width:34px;height:2px;border:0;padding:0;cursor:pointer;background:rgba(255,255,255,0.3);transition:background .4s}
+.site-bn-hero__dot[data-on]{background:var(--token-color-primary,#c6a14e)}
+.site-bn-hero__arrow{position:absolute;z-index:6;top:50%;transform:translateY(-50%);height:48px;width:48px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.35);border-radius:999px;background:rgba(8,7,10,0.25);color:#fff;font-size:1rem;cursor:pointer;backdrop-filter:blur(4px);transition:background .3s,border-color .3s}
+.site-bn-hero__arrow:hover{background:rgba(8,7,10,0.5);border-color:var(--token-color-primary,#c6a14e)}
+.site-bn-hero__arrow--prev{left:clamp(12px,2vw,28px)}
+.site-bn-hero__arrow--next{right:clamp(12px,2vw,28px)}
+.site-bn-hero__cue{position:absolute;z-index:5;left:50%;bottom:30px;transform:translateX(-50%);color:rgba(255,255,255,0.7);font-size:10px;letter-spacing:0.34em;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none}
+.site-bn-hero__cue::after{content:"";width:1px;height:38px;background:linear-gradient(var(--token-color-primary,#c6a14e),transparent);animation:bn-hero-cue 2.2s var(--bn-ease) infinite}
+@keyframes bn-hero-cue{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+@media (max-width:760px){
+  .site-bn-hero__meta{display:none}
+  .site-bn-hero__heading{font-size:clamp(2.6rem,12vw,4.5rem)}
+  .site-bn-hero__arrow{display:none}
+}
+@media (prefers-reduced-motion: reduce){
+  .site-bn-hero__slide{transition:opacity .2s linear}
+  .site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-kenburns="true"] .site-bn-hero__slide[data-active]{animation:none;transform:scale(1.04)}
+  .site-bn-hero__cue::after{animation:none}
+}
+`;
+
 const BUILDER_NODE_RENDERER_CSS = `
 @keyframes bn-anim-fade-in{from{opacity:0}to{opacity:1}}
 @keyframes bn-anim-rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
@@ -959,6 +1028,7 @@ const BUILDER_NODE_RENDERER_CSS = `
 ${BUILDER_NODE_CONTAINER_QUERY_CSS}
 ${BUILDER_NODE_NAV_CSS}
 ${BUILDER_NODE_SOCIAL_CSS}
+${BUILDER_NODE_CAROUSEL_HERO_CSS}
 `;
 
 /**
@@ -3259,6 +3329,129 @@ function renderBuilderNodeElement(
         </div>
       );
     case "carousel": {
+      if ((node.props.variant ?? "rail") === "hero") {
+        const overlay = node.props.overlay ?? {};
+        const scrimOn = overlay.scrim !== false;
+        const grainOn = node.props.grain !== false;
+        const kenBurns = node.props.kenBurns ?? true;
+        const heightMode = node.props.heightMode ?? "viewport";
+        const transition = node.props.transition ?? "crossfade";
+        const align = node.props.contentAlign ?? "bl";
+        const mode = node.props.contentMode ?? "per-slide";
+        const ctl = node.props.controls ?? {};
+        const sc = node.props.sharedContent;
+        const heroSlides = node.children
+          .filter((child) => shouldRenderNode(child, options))
+          .map((child, index) => (
+            <div
+              key={`${node.id}:slide:${child.id}`}
+              className="site-bn-hero__slide"
+              data-active={index === 0 ? "" : undefined}
+            >
+              {renderBuilderNode(child, options)}
+            </div>
+          ));
+        const sharedBlock =
+          mode === "shared" && sc ? (
+            <div className="site-bn-hero__inner" data-align={align}>
+              {sc.eyebrow ? (
+                <span className="site-bn-hero__eyebrow">{sc.eyebrow}</span>
+              ) : null}
+              {sc.headingLead || sc.headingAccent ? (
+                <h1 className="site-bn-hero__heading">
+                  {sc.headingLead}
+                  {sc.headingAccent ? (
+                    <>
+                      {sc.headingLead ? " " : ""}
+                      <em className="site-bn-hero__accent">{sc.headingAccent}</em>
+                    </>
+                  ) : null}
+                </h1>
+              ) : null}
+              {sc.sub ? <p className="site-bn-hero__sub">{sc.sub}</p> : null}
+              {sc.primaryCta?.label || sc.secondaryCta?.label ? (
+                <div className="site-bn-hero__cta">
+                  {sc.primaryCta?.label ? (
+                    <a
+                      className="site-bn-hero__btn site-bn-hero__btn--primary"
+                      href={sc.primaryCta.href || "#"}
+                    >
+                      {sc.primaryCta.label}
+                    </a>
+                  ) : null}
+                  {sc.secondaryCta?.label ? (
+                    <a
+                      className="site-bn-hero__btn site-bn-hero__btn--secondary"
+                      href={sc.secondaryCta.href || "#"}
+                    >
+                      {sc.secondaryCta.label}
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null;
+        return (
+          <div
+            key={node.id}
+            data-builder-node-id={node.id}
+            data-builder-node-kind={node.kind}
+            data-builder-carousel-variant="hero"
+            data-bn-height-mode={heightMode}
+            data-bn-transition={transition}
+            data-bn-kenburns={kenBurns ? "true" : "false"}
+            data-bn-content-mode={mode}
+            data-bn-content-align={align}
+            {...builderNodeStyleAttrs(node.props.style)}
+            className="site-builder-node site-builder-node--carousel"
+            style={inlineNodeStyle(
+              node.props.style,
+              builderNodeStyleVars({
+                "--bn-hero-min-h": node.props.minHeightPx
+                  ? `${node.props.minHeightPx}px`
+                  : undefined,
+                "--bn-transition-ms": node.props.transitionMs
+                  ? `${node.props.transitionMs}ms`
+                  : undefined,
+                "--bn-kenburns-amount": node.props.kenBurnsAmount,
+              }),
+            )}
+          >
+            <BuilderNodeCarouselTrack
+              nodeId={node.id}
+              variant="hero"
+              slideCount={heroSlides.length}
+              autoplayMs={node.props.autoplayMs}
+              loop={node.props.loop}
+              pauseOnHover={node.props.pauseOnHover}
+              controls={{
+                dots: ctl.dots ?? true,
+                arrows: ctl.arrows ?? false,
+                progress: ctl.progress ?? false,
+                counter: ctl.counter ?? true,
+                scrollCue: ctl.scrollCue ?? true,
+              }}
+            >
+              {heroSlides}
+            </BuilderNodeCarouselTrack>
+            {scrimOn ? (
+              <div
+                className="site-bn-hero__scrim"
+                data-vignette={overlay.vignette !== false ? "true" : undefined}
+                data-tone={overlay.tone ?? "dark"}
+                style={
+                  typeof overlay.opacity === "number"
+                    ? { opacity: overlay.opacity }
+                    : undefined
+                }
+                aria-hidden
+              />
+            ) : null}
+            {grainOn ? <div className="site-bn-hero__grain" aria-hidden /> : null}
+            {sharedBlock}
+          </div>
+        );
+      }
       const carouselItems = node.children
         .filter((child) => shouldRenderNode(child, options))
         .map((child, index) => (

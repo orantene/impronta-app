@@ -625,11 +625,68 @@ export interface BuilderTabPanelNode extends BuilderNodeBase {
 export interface BuilderCarouselNode extends BuilderNodeBase {
   kind: "carousel";
   props: {
+    /**
+     * Composition mode. `"rail"` (default) = the classic horizontal scroll-rail.
+     * `"hero"` = a full-bleed, full-viewport image slider (crossfade / Ken Burns
+     * / autoplay) — each child is a full-screen slide. Same node, two looks.
+     */
+    variant?: "rail" | "hero";
     slidesPerView?: 1 | 2 | 3 | 4;
     autoplayMs?: number;
     loop?: boolean;
     showArrows?: boolean;
     showDots?: boolean;
+    layerLabel?: string;
+    // ── hero-variant levers (ignored by the rail variant) ─────────────────
+    /** Hero height. viewport = 100svh, large = 78svh, medium = 60svh, fixed = minHeightPx. */
+    heightMode?: "viewport" | "large" | "medium" | "fixed";
+    minHeightPx?: number;
+    /** Legibility scrim painted over the photo. */
+    overlay?: {
+      scrim?: boolean;
+      tone?: "dark" | "light";
+      vignette?: boolean;
+      /** 0–1 multiplier on the scrim strength. */
+      opacity?: number;
+    };
+    /** SVG film-grain texture overlay. */
+    grain?: boolean;
+    /** Slide transition. */
+    transition?: "crossfade" | "slide";
+    transitionMs?: number;
+    /** Slow zoom on the active slide. */
+    kenBurns?: boolean;
+    /** Scale delta for Ken Burns, e.g. 0.1 → zooms 1.04 → 1.14. */
+    kenBurnsAmount?: number;
+    pauseOnHover?: boolean;
+    /** Navigation chrome shown on the hero. */
+    controls?: {
+      dots?: boolean;
+      arrows?: boolean;
+      progress?: boolean;
+      counter?: boolean;
+      scrollCue?: boolean;
+    };
+    /** Default placement of the content overlay. First char = vertical (t/c/b), second = horizontal (l/c/r). */
+    contentAlign?:
+      | "tl" | "tc" | "tr"
+      | "cl" | "cc" | "cr"
+      | "bl" | "bc" | "br";
+    /**
+     * `"per-slide"` (default): each slide owns its freeform children.
+     * `"shared"`: backgrounds rotate while one fixed content block stays put.
+     */
+    contentMode?: "per-slide" | "shared";
+    /** The fixed content block rendered when contentMode === "shared". */
+    sharedContent?: {
+      eyebrow?: string;
+      headingLead?: string;
+      /** Italic / accent word appended to the heading (the gold word). */
+      headingAccent?: string;
+      sub?: string;
+      primaryCta?: { label?: string; href?: string };
+      secondaryCta?: { label?: string; href?: string };
+    };
     style?: BuilderNodeStyle;
   };
   children: BuilderNode[];
