@@ -74,6 +74,56 @@ const contactLinkSchema = z.object({
   label: z.string().max(60).optional(),
 });
 
+/**
+ * WF-5 — per-item, per-breakpoint responsive behaviour for a freeform header
+ * item. `show` = full (icon + label), `label` = text only, `icon` = icon only,
+ * `hide` = removed at that breakpoint, `menu` = moved into the hamburger menu.
+ */
+const headerItemDisplay = z.enum(["show", "label", "icon", "hide", "menu"]);
+const headerResponsiveSchema = z
+  .object({
+    desktop: headerItemDisplay.optional(),
+    tablet: headerItemDisplay.optional(),
+    mobile: headerItemDisplay.optional(),
+  })
+  .optional();
+
+/**
+ * A freeform header item — a PLACEMENT reference into a region. Content comes
+ * from the existing header config (navItems / socialLinks / contactLinks /
+ * brand / primaryCta); only `cta` / `inquiry` carry optional inline overrides.
+ */
+const headerItemBase = {
+  responsive: headerResponsiveSchema,
+  /** Lower = collapses into the menu first when the row overflows. */
+  priority: z.number().int().min(0).max(100).optional(),
+};
+const headerItemSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("wordmark"), ...headerItemBase }),
+  z.object({ type: z.literal("logo"), ...headerItemBase }),
+  z.object({ type: z.literal("nav"), ...headerItemBase }),
+  z.object({ type: z.literal("language"), ...headerItemBase }),
+  z.object({
+    type: z.literal("cta"),
+    label: z.string().max(60).optional(),
+    href: z.string().max(500).optional(),
+    ...headerItemBase,
+  }),
+  z.object({ type: z.literal("social"), ...headerItemBase }),
+  z.object({ type: z.literal("phone"), ...headerItemBase }),
+  z.object({
+    type: z.literal("inquiry"),
+    label: z.string().max(60).optional(),
+    href: z.string().max(500).optional(),
+    showCount: z.boolean().optional(),
+    ...headerItemBase,
+  }),
+  z.object({ type: z.literal("saved"), href: z.string().max(500).optional(), ...headerItemBase }),
+  z.object({ type: z.literal("spacer"), ...headerItemBase }),
+]);
+
+export type HeaderItem = z.infer<typeof headerItemSchema>;
+
 export const siteHeaderSchemaV1 = z.object({
   /** Brand block. */
   brand: z.object({
@@ -202,6 +252,22 @@ export const siteHeaderSchemaV1 = z.object({
     .object({
       headline: nodePresentationSchema,
       primaryCta: nodePresentationSchema,
+    })
+    .optional(),
+  /**
+   * WF-5 — fully freeform header. When `regions` is set the header renders the
+   * `freeform` layout: arbitrary items dropped into left / center / right zones,
+   * each with per-breakpoint responsive behaviour + an overflow priority. The
+   * items REFERENCE the existing config (nav → navItems, social → socialLinks,
+   * phone → contactLinks, cta → primaryCta, wordmark/logo → brand) so there is
+   * no duplicate content store; they only decide placement + responsiveness.
+   * Undefined → the classic variant layout (every existing tenant unchanged).
+   */
+  regions: z
+    .object({
+      left: z.array(headerItemSchema).max(8).default([]),
+      center: z.array(headerItemSchema).max(8).default([]),
+      right: z.array(headerItemSchema).max(8).default([]),
     })
     .optional(),
   presentation: sectionPresentationSchema,

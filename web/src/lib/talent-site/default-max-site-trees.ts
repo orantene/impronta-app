@@ -64,6 +64,22 @@ export function buildDefaultShellTree(
       showLanguageToggle: true,
       showDiscoveryTools: false,
     },
+    // WF-5 — compose the header as fully-freeform left/center/right regions.
+    // Items reference the config above; social/phone/saved/inquiry no-op
+    // gracefully until the talent adds those channels. Per-breakpoint responsive
+    // collapses the row into the hamburger on mobile (brand stays in the bar).
+    regions: {
+      left: [{ type: "wordmark" }],
+      center: [{ type: "nav", responsive: { mobile: "menu" } }],
+      right: [
+        { type: "language", responsive: { mobile: "menu" } },
+        { type: "social", responsive: { tablet: "icon", mobile: "menu" } },
+        { type: "phone", responsive: { desktop: "label", mobile: "menu" } },
+        { type: "saved", responsive: { mobile: "menu" } },
+        { type: "inquiry", showCount: true },
+        { type: "cta", label: "Inquire", href: "/contact", responsive: { mobile: "menu" } },
+      ],
+    },
   };
   const header: BuilderNode = {
     id: makeId(),
