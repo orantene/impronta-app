@@ -6,6 +6,7 @@ import {
   parsePageRoles,
   pageRolesToSettings,
   resolveRoleSlug,
+  rolesPointingAt,
   withPageRole,
 } from "./page-roles-shape";
 
@@ -57,4 +58,17 @@ test("resolveRoleSlug: assigned wins, else built-in default", () => {
   const roles = withPageRole(EMPTY_PAGE_ROLES, "directory", "dir");
   assert.equal(resolveRoleSlug(roles, "directory", "__directory__"), "dir");
   assert.equal(resolveRoleSlug(roles, "home", "__home__"), "__home__"); // unset → default
+});
+
+test("rolesPointingAt: finds the role(s) whose pointer equals the slug", () => {
+  const roles = { home: "welcome", directory: "dir", notFound: "welcome" };
+  assert.deepEqual(rolesPointingAt(roles, "welcome").sort(), ["home", "notFound"]);
+  assert.deepEqual(rolesPointingAt(roles, "dir"), ["directory"]);
+});
+
+test("rolesPointingAt: no match / empty slug ⇒ []", () => {
+  const roles = withPageRole(EMPTY_PAGE_ROLES, "home", "welcome");
+  assert.deepEqual(rolesPointingAt(roles, "other"), []);
+  assert.deepEqual(rolesPointingAt(roles, ""), []); // a renamed-from "" never reconciles
+  assert.deepEqual(rolesPointingAt(EMPTY_PAGE_ROLES, "welcome"), []);
 });

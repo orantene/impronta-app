@@ -12,6 +12,7 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { reconcileRolesOnSlugChange } from "@/lib/site-admin/server/page-roles";
 
 // ---- quick inline rename ---------------------------------------------------
 
@@ -38,6 +39,13 @@ export async function quickRenamePageAction(input: {
     return { ok: false, error: "Slug may only contain lowercase letters, digits, and hyphens." };
   }
 
+  // Current slug — needed to reconcile any page-role pointer after a slug change.
+  const { data: current } = await tenantScopedQuery(auth.supabase, "cms_pages", scope.tenantId)
+    .select("slug")
+    .eq("id", input.id)
+    .maybeSingle() as { data: { slug: string } | null };
+  const oldSlug = current?.slug ?? "";
+
   if (slug !== "") {
     // Check the slug isn't already taken by another page in this tenant.
     const { data: clash } = await tenantScopedQuery(auth.supabase, "cms_pages", scope.tenantId)
@@ -59,6 +67,11 @@ export async function quickRenamePageAction(input: {
     logServerError("site-admin/pages/quick-rename", error);
     return { ok: false, error: CLIENT_ERROR.update };
   }
+  // PAGE ROLES — if this page served a role, follow the slug change so `/`,
+  // `/directory`, or the 404 keep pointing at it instead of silently reverting.
+  if (slug !== "" && oldSlug && oldSlug !== slug) {
+    await reconcileRolesOnSlugChange(scope.tenantId, oldSlug, slug);
+  }
   return { ok: true };
 }
 
@@ -77,9 +90,9 @@ export async function quickDeletePageAction(input: {
   if (!scope) return { ok: false, error: "No workspace." };
 
   const { data: page } = await tenantScopedQuery(auth.supabase, "cms_pages", scope.tenantId)
-    .select("id, is_system_owned")
+    .select("id, slug, is_system_owned")
     .eq("id", input.id)
-    .maybeSingle() as { data: { id: string; is_system_owned: boolean } | null };
+    .maybeSingle() as { data: { id: string; slug: string; is_system_owned: boolean } | null };
 
   if (!page) return { ok: false, error: "Page not found." };
   if (page.is_system_owned) return { ok: false, error: "System pages cannot be deleted." };
@@ -92,5 +105,8 @@ export async function quickDeletePageAction(input: {
     logServerError("site-admin/pages/quick-delete", error);
     return { ok: false, error: CLIENT_ERROR.update };
   }
+  // PAGE ROLES — clear any role that pointed at the deleted page so `/`,
+  // `/directory`, or the 404 don't dangle on a now-missing slug.
+  if (page.slug) await reconcileRolesOnSlugChange(scope.tenantId, page.slug, null);
   return { ok: true };
 }

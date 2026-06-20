@@ -184,6 +184,19 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:builder-node-bindings
 
+      # The big builder-lab + page-builder suite (1200+ node tests) + the
+      # builder-chrome suite. Both are in the `npm run ci` aggregate but Actions
+      # only runs this curated step list, so they never gated a PR — a behavioral
+      # regression in the builder/catalog/page-roles logic could land on main
+      # green. Wired in here (verified green on main at the time of this change).
+      - name: tests — builder
+        if: ${{ !cancelled() }}
+        run: npm run test:builder
+
+      - name: tests — builder-chrome
+        if: ${{ !cancelled() }}
+        run: npm run test:builder-chrome
+
       - name: tests — node-presentation
         if: ${{ !cancelled() }}
         run: npm run test:node-presentation
