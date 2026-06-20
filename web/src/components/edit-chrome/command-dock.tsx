@@ -9,6 +9,7 @@
  */
 
 import { useRef, type ReactNode } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 
 import { commandDockRailDockStyle } from "./command-dock-rail-dock";
 import { useEditContext } from "./edit-context";
@@ -58,6 +59,7 @@ interface DockItem {
 
 function DockButton({ item }: { item: DockItem }) {
   const { active, disabled } = item;
+  const reduceMotion = useReducedMotion();
   const isAdd = item.id === "add";
 
   if (isAdd) {
@@ -144,10 +146,17 @@ function DockButton({ item }: { item: DockItem }) {
       }}
     >
       {active ? (
-        <span
+        <motion.span
           aria-hidden
-          className="absolute left-[-10px] top-1/2 h-[24px] w-[3px] -translate-y-1/2 rounded-full"
+          layoutId="command-dock-active-bar"
+          initial={false}
+          className="absolute left-[-10px] inset-y-0 my-auto h-[24px] w-[3px] rounded-full"
           style={{ background: CHROME.accent }}
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 520, damping: 40 }
+          }
         />
       ) : null}
       <span
