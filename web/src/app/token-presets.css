@@ -208,6 +208,185 @@ html[data-token-background-mode="editorial-noir"] body.site-theme-tenant-overrid
   --site-ambient-base: #0a0a0a;
 }
 
+/* =========================================================================
+ * Noir & Or program — three swappable palettes. The hero + header (and the
+ * whole shell) read only --token-color-* + --site-heading-font, so the SAME
+ * components render all three by swapping the token set. `noir-or` is the
+ * shipped default + acceptance target. Each block mirrors the editorial-noir
+ * structure (html[mode] re-pin + body + tenant-override re-pin).
+ * ========================================================================= */
+
+/* Noir & Or — near-black canvas, warm off-white ink, gold accents. */
+html[data-token-background-mode="noir-or"] {
+  --site-page-background: #0b0a0d;
+  --token-color-background: #0b0a0d;
+  --token-color-surface-raised: #161320;
+  --token-color-line: rgba(198, 161, 78, 0.26);
+  --token-color-muted: rgba(236, 228, 211, 0.48);
+  --token-color-ink: #ece4d3;
+  --token-color-primary: #c6a14e;
+  --impronta-black: #0b0a0d;
+  --impronta-surface: #161320;
+  --impronta-foreground: #ece4d3;
+  --impronta-muted: rgba(236, 228, 211, 0.48);
+  --impronta-gold: #c6a14e;
+  --impronta-gold-bright: #e0c074;
+  --impronta-gold-dim: #9c7d35;
+  --impronta-gold-border: rgba(198, 161, 78, 0.26);
+  --background: #0b0a0d;
+  --foreground: #ece4d3;
+  --card: #161320;
+  --card-foreground: #ece4d3;
+  --popover: #1b1722;
+  --popover-foreground: #ece4d3;
+  --primary: #c6a14e;
+  --primary-foreground: #1a1408;
+  --secondary: #1b1722;
+  --secondary-foreground: #ece4d3;
+  --muted: #1b1722;
+  --muted-foreground: rgba(236, 228, 211, 0.48);
+  --accent: rgba(198, 161, 78, 0.1);
+  --accent-foreground: #ece4d3;
+  --border: rgba(198, 161, 78, 0.18);
+  --input: rgba(236, 228, 211, 0.08);
+  --ring: #e0c074;
+  --radius: 0.4rem;
+}
+html[data-token-background-mode="noir-or"] body {
+  background: var(--site-page-background);
+  color: var(--token-color-ink);
+}
+html[data-token-background-mode="noir-or"] body.site-theme-tenant-override {
+  --token-color-background: #0b0a0d;
+  --token-color-surface-raised: #161320;
+  --token-color-ink: #ece4d3;
+  --token-color-primary: #c6a14e;
+  --impronta-black: #0b0a0d;
+  --impronta-gold: #c6a14e;
+  --impronta-gold-bright: #e0c074;
+  --impronta-gold-border: rgba(198, 161, 78, 0.26);
+  --background: #0b0a0d;
+  --foreground: #ece4d3;
+  --primary: #c6a14e;
+  --primary-foreground: #1a1408;
+  --ring: #e0c074;
+  --site-ambient-base: #0b0a0d;
+}
+
+/* Espresso — warm dark browns, copper accent. */
+html[data-token-background-mode="espresso"] {
+  --site-page-background: #1a1410;
+  --token-color-background: #1a1410;
+  --token-color-surface-raised: #241c16;
+  --token-color-line: rgba(196, 154, 108, 0.24);
+  --token-color-muted: rgba(239, 231, 218, 0.5);
+  --token-color-ink: #efe7da;
+  --token-color-primary: #c0875a;
+  --impronta-black: #1a1410;
+  --impronta-surface: #241c16;
+  --impronta-foreground: #efe7da;
+  --impronta-muted: rgba(239, 231, 218, 0.5);
+  --impronta-gold: #c0875a;
+  --impronta-gold-bright: #d8a877;
+  --impronta-gold-dim: #946542;
+  --impronta-gold-border: rgba(196, 154, 108, 0.24);
+  --background: #1a1410;
+  --foreground: #efe7da;
+  --card: #241c16;
+  --card-foreground: #efe7da;
+  --popover: #2c221b;
+  --popover-foreground: #efe7da;
+  --primary: #c0875a;
+  --primary-foreground: #1a1410;
+  --secondary: #2c221b;
+  --secondary-foreground: #efe7da;
+  --muted: #2c221b;
+  --muted-foreground: rgba(239, 231, 218, 0.5);
+  --accent: rgba(196, 154, 108, 0.12);
+  --accent-foreground: #efe7da;
+  --border: rgba(196, 154, 108, 0.18);
+  --input: rgba(239, 231, 218, 0.08);
+  --ring: #d8a877;
+  --radius: 0.4rem;
+}
+html[data-token-background-mode="espresso"] body {
+  background: var(--site-page-background);
+  color: var(--token-color-ink);
+}
+html[data-token-background-mode="espresso"] body.site-theme-tenant-override {
+  --token-color-background: #1a1410;
+  --token-color-surface-raised: #241c16;
+  --token-color-ink: #efe7da;
+  --token-color-primary: #c0875a;
+  --impronta-black: #1a1410;
+  --impronta-gold: #c0875a;
+  --impronta-gold-bright: #d8a877;
+  --impronta-gold-border: rgba(196, 154, 108, 0.24);
+  --background: #1a1410;
+  --foreground: #efe7da;
+  --primary: #c0875a;
+  --primary-foreground: #1a1410;
+  --ring: #d8a877;
+  --site-ambient-base: #1a1410;
+}
+
+/* Atelier Blanc — light ivory canvas, charcoal ink, refined gold accent. */
+html[data-token-background-mode="atelier-blanc"] {
+  --site-page-background: #f6f3ee;
+  --token-color-background: #f6f3ee;
+  --token-color-surface-raised: #ffffff;
+  --token-color-line: rgba(42, 38, 34, 0.12);
+  --token-color-muted: rgba(42, 38, 34, 0.55);
+  --token-color-ink: #2a2622;
+  --token-color-primary: #a98643;
+  --impronta-black: #2a2622;
+  --impronta-surface: #ffffff;
+  --impronta-foreground: #2a2622;
+  --impronta-muted: rgba(42, 38, 34, 0.55);
+  --impronta-gold: #a98643;
+  --impronta-gold-bright: #c2a05a;
+  --impronta-gold-dim: #836634;
+  --impronta-gold-border: rgba(169, 134, 67, 0.3);
+  --background: #f6f3ee;
+  --foreground: #2a2622;
+  --card: #ffffff;
+  --card-foreground: #2a2622;
+  --popover: #ffffff;
+  --popover-foreground: #2a2622;
+  --primary: #a98643;
+  --primary-foreground: #ffffff;
+  --secondary: #efe9e0;
+  --secondary-foreground: #2a2622;
+  --muted: #efe9e0;
+  --muted-foreground: rgba(42, 38, 34, 0.55);
+  --accent: rgba(169, 134, 67, 0.12);
+  --accent-foreground: #2a2622;
+  --border: rgba(42, 38, 34, 0.1);
+  --input: rgba(42, 38, 34, 0.08);
+  --ring: #a98643;
+  --radius: 0.4rem;
+}
+html[data-token-background-mode="atelier-blanc"] body {
+  background: var(--site-page-background);
+  color: var(--token-color-ink);
+}
+html[data-token-background-mode="atelier-blanc"] body.site-theme-tenant-override {
+  --token-color-background: #f6f3ee;
+  --token-color-surface-raised: #ffffff;
+  --token-color-ink: #2a2622;
+  --token-color-primary: #a98643;
+  --impronta-black: #2a2622;
+  --impronta-gold: #a98643;
+  --impronta-gold-bright: #c2a05a;
+  --impronta-gold-border: rgba(169, 134, 67, 0.3);
+  --background: #f6f3ee;
+  --foreground: #2a2622;
+  --primary: #a98643;
+  --primary-foreground: #ffffff;
+  --ring: #a98643;
+  --site-ambient-base: #f6f3ee;
+}
+
 /* Texture / gradient modes paint their effect on `body` (overlaying the base
  * canvas). Re-pin --token-color-background to each mode's base tint so the
  * `[data-theme-canvas-root]` paint (which consumes the var directly) matches
