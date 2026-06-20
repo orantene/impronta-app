@@ -11,6 +11,9 @@ import { getPublicSettings } from "@/lib/public-settings";
 import { getSavedTalentIds } from "@/lib/public-discovery";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
+import { readTenantPageRoles } from "@/lib/site-admin/server/page-roles";
+import { resolveRoleSlug } from "@/lib/site-admin/server/page-roles-shape";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -92,8 +95,17 @@ export default async function DirectoryPage() {
   // seed lands).
   const publicScope = await getPublicTenantScope();
   const tenantId = publicScope?.tenantId ?? "";
+  // PAGE ROLES — `/directory` serves whichever page the tenant assigned the
+  // `directory` role; unset falls back to the seeded `__directory__` page (and
+  // then to the built-in component below), so zero-config tenants are unchanged.
+  // Role pointers live in agencies.settings — read with the service-role client
+  // (server-only) so anon RLS on settings can't silently disable the pointer.
+  const roleClient = tenantId ? createServiceRoleClient() : null;
+  const directorySlug = roleClient
+    ? resolveRoleSlug(await readTenantPageRoles(roleClient, tenantId), "directory", "__directory__")
+    : "__directory__";
   const directorySectionPage = tenantId
-    ? await loadPageForRender(tenantId, locale as Locale, "__directory__")
+    ? await loadPageForRender(tenantId, locale as Locale, directorySlug)
     : null;
 
   return (

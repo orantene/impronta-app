@@ -28,6 +28,14 @@ import {
   quickDeletePageAction,
   quickRenamePageAction,
 } from "@/lib/server-actions/admin-site-pages-inline";
+import {
+  readPageRolesAction,
+  setPageRoleAction,
+} from "@/lib/server-actions/page-role-actions";
+import type {
+  PageRole,
+  TenantPageRoles,
+} from "@/lib/site-admin/server/page-roles-shape";
 import { useDirty } from "./dirty-bridge";
 import { useEditContext } from "./edit-context";
 import { DockFloatingPanel } from "./dock-floating-panel";
@@ -238,12 +246,18 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   // ONB-4 — inline editing state: one page at a time can be in rename or delete mode.
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // PAGE ROLES — which page currently serves home/directory/404 (by slug).
+  const [roles, setRoles] = useState<TenantPageRoles | null>(null);
+  const [roleBusyId, setRoleBusyId] = useState<string | null>(null);
 
   const workspaceWebsiteHref = "/admin/website/pages";
 
   const loadPages = useCallback(() => {
     setLoading(true);
     setFetchErr(null);
+    void readPageRolesAction()
+      .then((r) => { if (r.ok) setRoles(r.roles); })
+      .catch(() => {});
     void listPagesForPickerAction()
       .then((result) => {
         if (result.ok) {
@@ -260,6 +274,25 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  // PAGE ROLES — assign this page's slug to a role (home/directory/404). The
+  // home/directory ROUTES then serve this page; the badge moves on reload.
+  const handleSetRole = useCallback(
+    async (slug: string, role: PageRole) => {
+      setMoreOpenId(null);
+      setRoleBusyId(slug + ":" + role);
+      try {
+        const res = await setPageRoleAction(role, slug);
+        if (!res.ok) setFetchErr(res.error);
+        else loadPages();
+      } catch {
+        setFetchErr("Couldn't update the page role — try again.");
+      } finally {
+        setRoleBusyId(null);
+      }
+    },
+    [loadPages],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -422,10 +455,19 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
 
         {pages?.map((page) => {
           const isCurrent = page.id === pageId;
-          const isHome =
-            page.systemTemplateKey === "homepage" ||
-            page.slug === "" ||
-            page.slug === pageSlug;
+          // A role belongs to whichever page the tenant ASSIGNED it (by slug);
+          // until assigned, the legacy system page keeps the badge.
+          const assignedHome = roles?.home ?? null;
+          const assignedDir = roles?.directory ?? null;
+          const isRoleHome = assignedHome
+            ? page.slug === assignedHome
+            : page.systemTemplateKey === "homepage";
+          const isRoleDir = assignedDir
+            ? page.slug === assignedDir
+            : page.systemTemplateKey === "directory";
+          const isHome = isRoleHome || page.slug === "" || page.slug === pageSlug;
+          // Only a real, non-system page slug can be assigned a role.
+          const assignable = page.slug !== "" && !page.slug.startsWith("__");
 
           // ONB-4 — inline forms replace the ⋯ menu entries for this page.
           if (renamingId === page.id) {
@@ -465,11 +507,11 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
               >
                 <span className="min-w-0 flex-1 truncate text-[13px] font-medium" style={{ color: CHROME.ink }}>
                   {page.title}
-                  {page.systemTemplateKey === "homepage" ? (
+                  {isRoleHome ? (
                     <span className="ml-[6px] text-[10px] font-semibold uppercase tracking-wide" style={{ color: CHROME.muted }}>
                       Home
                     </span>
-                  ) : page.systemTemplateKey === "directory" ? (
+                  ) : isRoleDir ? (
                     <span className="ml-[6px] text-[10px] font-semibold uppercase tracking-wide" style={{ color: CHROME.muted }}>
                       Directory
                     </span>
@@ -541,6 +583,34 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                     >
                       {duplicatingId === page.id ? "Duplicating…" : "Duplicate"}
                     </button>
+                    {/* PAGE ROLES — assign this page as the site's home / directory.
+                        Only real (non-system) pages can take a role. */}
+                    {assignable && !isRoleHome ? (
+                      <button
+                        type="button"
+                        disabled={roleBusyId === page.slug + ":home"}
+                        onClick={() => void handleSetRole(page.slug, "home")}
+                        className="block w-full cursor-pointer rounded-[6px] border-none px-[10px] py-[7px] text-left text-[12px]"
+                        style={{ background: "transparent", color: CHROME.ink }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                      >
+                        {roleBusyId === page.slug + ":home" ? "Setting…" : "Set as homepage"}
+                      </button>
+                    ) : null}
+                    {assignable && !isRoleDir ? (
+                      <button
+                        type="button"
+                        disabled={roleBusyId === page.slug + ":directory"}
+                        onClick={() => void handleSetRole(page.slug, "directory")}
+                        className="block w-full cursor-pointer rounded-[6px] border-none px-[10px] py-[7px] text-left text-[12px]"
+                        style={{ background: "transparent", color: CHROME.ink }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                      >
+                        {roleBusyId === page.slug + ":directory" ? "Setting…" : "Set as directory"}
+                      </button>
+                    ) : null}
                     {/* ONB-4 — styled inline delete instead of window.confirm */}
                     {!isHome ? (
                       <button
