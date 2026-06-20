@@ -5323,6 +5323,19 @@ html[data-theme="dark"] [data-tone="light"] {
  * ========================================================================= */
 .site-header { display: block; width: 100%; padding-block: clamp(12px, 1.4vw, 18px); border-bottom: 1px solid transparent; transition: background var(--site-motion-dur-short, 180ms) var(--site-motion-ease, ease); }
 .site-header[data-sticky="true"] { position: sticky; top: 0; z-index: 40; backdrop-filter: saturate(1.1) blur(6px); }
+/* STICKY FIX — when the header renders as a shell SLOT it lives inside its own
+ * wrapper (`[data-cms-section]` on the agency storefront; `[data-talent-max-site-header]`
+ * on talent sites). A position:sticky on the INNER `.site-header` only sticks
+ * within that wrapper's (header-height) box → the bar scrolls away. Promote the
+ * sticky to the WRAPPER, whose containing block is the tall page column, so the
+ * header actually pins. Scoped to the header slot + gated on the inner header
+ * opting into sticky, so nothing else is affected. */
+[data-cms-section][data-section-type-key="site_header"]:has(> .site-header[data-sticky="true"]),
+[data-talent-max-site-header]:has(.site-header[data-sticky="true"]) {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
 .site-header[data-tone="surface"] { background: color-mix(in srgb, var(--token-color-surface-raised, #fff) 92%, transparent); border-bottom-color: color-mix(in srgb, var(--token-color-line) 60%, transparent); }
 .site-header[data-tone="solid"] { background: var(--token-color-surface-raised, #fff); border-bottom-color: var(--token-color-line); }
 .site-header[data-tone="transparent"] { background: transparent; border-bottom-color: transparent; }
