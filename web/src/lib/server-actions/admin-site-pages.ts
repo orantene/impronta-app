@@ -31,6 +31,12 @@ import {
   requirePhase5Capability,
 } from "@/lib/site-admin";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import {
+  toPickerItems,
+  type PagePickerItem,
+  type PagePickerAvailability,
+  type PickerPageRow,
+} from "./admin-site-pages-picker";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import {
   archivePage,
@@ -511,18 +517,6 @@ export async function endPagePreviewAction(
 
 // ---- list pages for picker -----------------------------------------------
 
-export type PagePickerItem = {
-  id: string;
-  title: string;
-  slug: string;
-  status: "draft" | "published" | "archived";
-};
-
-export type PagePickerAvailability = {
-  canCreatePages: boolean;
-  createPageHint: string | null;
-};
-
 /**
  * Returns a flat list of non-archived pages for the active tenant.
  * Used by the editor topbar PagePicker component — called directly
@@ -539,7 +533,7 @@ export async function listPagesForPickerAction(): Promise<
 
   const { data, error } = await auth.supabase
     .from("cms_pages")
-    .select("id, title, slug, status")
+    .select("id, title, slug, status, locale, system_template_key")
     .eq("tenant_id", scope.tenantId)
     .neq("status", "archived")
     .order("updated_at", { ascending: false });
@@ -548,6 +542,9 @@ export async function listPagesForPickerAction(): Promise<
     logServerError("site-admin/pages/list-for-picker", error);
     return { ok: false, error: "Failed to load pages." };
   }
+
+  // Drop the site shell + map to picker items (see admin-site-pages-picker).
+  const pages = toPickerItems((data ?? []) as PickerPageRow[]);
 
   const workspacePlan = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId, {
     onError: (message) =>
@@ -562,7 +559,7 @@ export async function listPagesForPickerAction(): Promise<
     createPageHint: denyReason,
   };
 
-  return { ok: true, pages: (data ?? []) as PagePickerItem[], availability };
+  return { ok: true, pages, availability };
 }
 
 // ---- create blank draft page ---------------------------------------------
