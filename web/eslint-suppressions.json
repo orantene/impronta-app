@@ -9,11 +9,6 @@
       "count": 1
     }
   },
-  "src/lib/site-admin/add-gallery/registry-db-merge.ts": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "src/components/builder-lab/template-manager.tsx": {
     "max-lines": {
       "count": 1
@@ -1820,11 +1815,6 @@
     }
   },
   "src/lib/site-admin/edit-mode/starter-action.ts": {
-    "max-lines": {
-      "count": 1
-    }
-  },
-  "src/lib/site-admin/sections/contact_form/Component.tsx": {
     "max-lines": {
       "count": 1
     }
