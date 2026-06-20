@@ -99,9 +99,20 @@ the impronta storefront render: full-screen photo + scrim + gold "imprint." + CT
   landmark carries its `SiteHeaderV1` config inline and self-contained (the render port reads it; the
   WF-5 inspector edits it). Lower-risk + freeform-compatible vs. wiring a `cms_sections` instance for
   every talent. Recommended.
-- **Status:** WF-3 foundations landed (scroll-to-solid schema levers on `site_header`); the render
-  port + landmark seed + brand re-scope is the next focused build on this fragile path (needs live
-  talent-Max-site QA per the memory warnings: brand mis-scope, field-engine localeCompare crash).
+- **Status:**
+  - **WF-3 BUILT** (commits `6bcb6a678`, `187b5b7a6`, `66a16a426`): `sectionProps` on the section
+    node; `buildDefaultShellTree` seeds a schema-valid `site_header` landmark (talent-scoped brand →
+    agency reads skipped); `renderShellRoot` port in `render-max-site.tsx` renders it via the bespoke
+    Component (no duplicate `<header>`, no agency flag path); `HeaderScrollObserver` + `[data-scrolled]`
+    token CSS for scroll-to-solid. tsc + lint clean; 8/8 default-tree tests (incl. SiteHeaderV1
+    validity). **Visual QA pending** — needs a talent site whose `shell_tree` carries the landmark
+    (new provisions get it; existing sites keep their saved shell). Direct prod-DB seeding was denied,
+    so visual QA needs either owner-granted prod read/seed of one talent DRAFT shell (QA + restore) or
+    provisioning/viewing a new talent Max site.
+  - **WF-4 next:** register the 3 palettes (`noir-or` default, `espresso`, `atelier-blanc`) +
+    `inquiryAction` toggle; wire the Component to emit `data-scroll-tone`.
+  - **WF-5 next:** freeform L/C/R header regions + per-item per-breakpoint responsive/overflow +
+    header inspector.
 
 ---
 
