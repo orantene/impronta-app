@@ -105,7 +105,7 @@ export function PinnableRailItem({
         }}
         aria-label={pinLabel}
         title={pinLabel}
-        className={`absolute right-1 top-1 inline-flex size-[18px] items-center justify-center rounded-md border-none p-0 transition-opacity focus-visible:opacity-100 ${
+        className={`absolute right-0.5 top-0.5 inline-flex size-6 items-center justify-center rounded-md border-none p-0 transition-opacity focus-visible:opacity-100 focus-visible:[outline:2px_solid_#7c3aed] focus-visible:[outline-offset:1px] ${
           persistentlyShown
             ? "opacity-100"
             : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
@@ -114,7 +114,7 @@ export function PinnableRailItem({
         // notably the solid-accent "Add" circle, where a bare violet pin would
         // sit invisibly violet-on-violet.
         style={{
-          color: pinned ? CHROME.accent : CHROME.muted3,
+          color: pinned ? CHROME.accent : CHROME.muted2,
           background: CHROME.surface,
           boxShadow:
             "0 0 0 1px rgba(24,24,27,0.08), 0 1px 2px rgba(0,0,0,0.10)",
@@ -123,7 +123,7 @@ export function PinnableRailItem({
           if (!pinned) e.currentTarget.style.color = CHROME.muted;
         }}
         onMouseLeave={(e) => {
-          if (!pinned) e.currentTarget.style.color = CHROME.muted3;
+          if (!pinned) e.currentTarget.style.color = CHROME.muted2;
         }}
       >
         <Pin
