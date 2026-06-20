@@ -2922,6 +2922,7 @@ export function EditProvider({
     setRevisionsOpen(false);
     setThemeOpen(false);
     setAssetsOpen(false);
+    setCollectionsOpen(false);
     setScheduleOpen(false);
     setCommentsOpen(false);
     setCommentsFocusSectionId(null);
