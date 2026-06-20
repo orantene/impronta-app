@@ -138,6 +138,7 @@ export function CanvasGapHandles({
 }) {
   const [pills, setPills] = useState<GapPill[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [liveGap, setLiveGap] = useState<number>(0);
   const startRef = useRef<{
     axis: Axis;
@@ -247,6 +248,7 @@ export function CanvasGapHandles({
         // Pill fills the gap span (capped) with a comfortable cross thickness.
         const thickness = 8;
         const length = Math.min(Math.max(pill.span, 8), 44);
+        const isHov = hoveredIdx === i && !dragging;
         return (
           <button
             key={`gap-${i}`}
@@ -255,6 +257,8 @@ export function CanvasGapHandles({
             title="Drag to set gap"
             data-canvas-gap-handle={pill.axis}
             onPointerDown={(e) => begin(pill.axis, e)}
+            onPointerEnter={() => setHoveredIdx(i)}
+            onPointerLeave={() => setHoveredIdx((v) => (v === i ? null : v))}
             style={{
               position: "absolute",
               left: pill.cx - originLeft,
@@ -263,11 +267,18 @@ export function CanvasGapHandles({
               width: horizontal ? thickness : length,
               height: horizontal ? length : thickness,
               borderRadius: 999,
-              background: dragging ? ACCENT : "rgba(47,70,120,0.62)",
+              background: dragging
+                ? ACCENT
+                : isHov
+                  ? "rgba(124,58,237,0.85)"
+                  : "rgba(47,70,120,0.62)",
               border: "1.5px solid rgba(255,255,255,0.9)",
               boxShadow: dragging
-                ? "0 0 0 3px rgba(47,70,120,0.22), 0 1px 5px rgba(0,0,0,0.3)"
-                : "0 1px 4px rgba(0,0,0,0.28)",
+                ? "0 0 0 3px rgba(124,58,237,0.22), 0 1px 5px rgba(0,0,0,0.3)"
+                : isHov
+                  ? "0 0 0 3px rgba(124,58,237,0.18), 0 1px 5px rgba(0,0,0,0.3)"
+                  : "0 1px 4px rgba(0,0,0,0.28)",
+              transition: "background 120ms ease, box-shadow 120ms ease",
               cursor: horizontal ? "ew-resize" : "ns-resize",
               pointerEvents: "auto",
               padding: 0,
