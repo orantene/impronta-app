@@ -205,6 +205,31 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:publish-preflight
 
+      # ── Money / content lanes ─────────────────────────────────────────
+      # These four lanes were in the `npm run ci` aggregate but NOT in this
+      # curated step list, so they never gated a PR (the same drift that hid
+      # test:builder). For a payments product, test:money/billing not gating is
+      # the highest-risk gap; check:ci-lane-parity (below) now prevents recurrence.
+      - name: tests — billing
+        if: ${{ !cancelled() }}
+        run: npm run test:billing
+
+      - name: tests — money
+        if: ${{ !cancelled() }}
+        run: npm run test:money
+
+      - name: tests — fields
+        if: ${{ !cancelled() }}
+        run: npm run test:fields
+
+      - name: tests — notifications
+        if: ${{ !cancelled() }}
+        run: npm run test:notifications
+
+      - name: tests — reviews
+        if: ${{ !cancelled() }}
+        run: npm run test:reviews
+
       # ── Component test gate (10th test step) ─────────────────────────
       # Vitest + @testing-library/react + jsdom. Smoke tests for the
       # top god-files (primitives, profile-shell-internal, WorkspacePageView,
@@ -217,6 +242,15 @@ jobs:
       - name: tests — components (vitest smoke)
         if: ${{ !cancelled() }}
         run: npm run test:components
+
+      # ── CI lane parity ───────────────────────────────────────────────
+      # This curated step list is NOT `npm run ci` — Actions invokes the steps
+      # above one by one. When a `test:*` lane is added to the `ci` aggregate
+      # but not here, it silently never gates (test:builder + 5 money/content
+      # lanes drifted that way). This guard fails red the moment that recurs.
+      - name: verify — ci.yml gates every `npm run ci` test lane
+        if: ${{ !cancelled() }}
+        run: npm run check:ci-lane-parity
 
       # ── Gate 5: Server-action bundle safety ──────────────────────────
       # tsc/tsx/lint are STRUCTURALLY BLIND to non-async exports and
