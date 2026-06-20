@@ -79,6 +79,30 @@ the impronta storefront render: full-screen photo + scrim + gold "imprint." + CT
   `npm ci`; a symlink is rejected by Turbopack) and `.env.local` (copy it, or every route 404s on the
   host gate). Both done for `/Users/oranpersonal/Desktop/impronta-noir`.
 
+### Part B findings (from the render-path mapping — change the WF-3 approach)
+- **F5 — freeform render returns `null` for `kind:"section"`** (`render.tsx:3163-3166`). So a
+  `site_header` landmark dropped into the talent shell tree renders **nothing** through the normal
+  freeform path. WF-3 therefore needs a **dedicated render port** in `render-max-site.tsx` that
+  intercepts shell roots with `sectionTypeKey:"site_header"`/`"site_footer"` and invokes
+  `getSectionType(key).Component` directly (porting `PublishedShell.renderShellSlot:206-407`), then
+  renders the landmark's freeform `children`. Do NOT route through `isSiteShellEnabledForTenant`
+  (agency flag) and handle the missing-snapshot fallback inline.
+- **F6 — `site_header`/`site_footer` are shell-only (`visibleToAgency:false`)** and must NOT go in
+  `TALENT_PERSONAL_SECTION_TYPE_KEYS` — that list is the *addable page-section* allowlist, and
+  `site-kind-allowlist.test.ts` enforces "every talent-allowlisted key is agency-addable." The shell
+  landmark is **seeded + rendered via the port**, never picker-filtered, so the allowlist needs no
+  change (verified: the freeform shell render path calls no `sectionAllowedForSiteKind`).
+- **F7 — `BuilderSectionNode.props` has no field for inline section config.** The agency model keeps
+  the `SiteHeaderV1` config in the shell snapshot (`slot.props`), separate from the builder node.
+  ARCHITECTURE CHOICE for the editable talent header: add an optional
+  `sectionProps?: Record<string, unknown>` to `BuilderSectionNode.props` (+ Zod) so the talent shell
+  landmark carries its `SiteHeaderV1` config inline and self-contained (the render port reads it; the
+  WF-5 inspector edits it). Lower-risk + freeform-compatible vs. wiring a `cms_sections` instance for
+  every talent. Recommended.
+- **Status:** WF-3 foundations landed (scroll-to-solid schema levers on `site_header`); the render
+  port + landmark seed + brand re-scope is the next focused build on this fragile path (needs live
+  talent-Max-site QA per the memory warnings: brand mis-scope, field-engine localeCompare crash).
+
 ---
 
 ## Part B — Premium header (next)

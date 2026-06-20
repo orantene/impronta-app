@@ -114,6 +114,15 @@ export const siteHeaderSchemaV1 = z.object({
    */
   tone: z.enum(["transparent", "surface", "solid"]).default("surface"),
   /**
+   * Scroll-to-solid (Noir & Or). When set, the header starts at `tone` and
+   * animates to `scrollTone` once the viewport scrolls past `scrollThresholdPx`
+   * (a `[data-scrolled="true"]` attribute toggled by a tiny client observer).
+   * Undefined keeps today's single static tone, so every existing tenant is
+   * unchanged.
+   */
+  scrollTone: z.enum(["transparent", "surface", "solid"]).optional(),
+  scrollThresholdPx: z.number().int().min(0).max(400).optional(),
+  /**
    * Layout. `standard` = left brand / right nav. `minimal` = centered
    * brand + nav under. `split` = 3-col grid. `editorial` = premium
    * centered editorial shell (scaled wordmark, uppercase letter-spaced
