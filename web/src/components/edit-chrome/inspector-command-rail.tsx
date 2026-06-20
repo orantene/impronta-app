@@ -8,6 +8,7 @@
  */
 
 import { useRef, type ComponentType, type MutableRefObject } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 
 import { useEditContext } from "./edit-context";
 import { useFloatingDrag } from "./floating-panel";
@@ -56,6 +57,7 @@ function RailTabButton({
   onSelect: (key: InspectorTabKey) => void;
   dragMovedRef: MutableRefObject<boolean>;
 }) {
+  const reduceMotion = useReducedMotion();
   return (
     <button
       type="button"
@@ -92,14 +94,20 @@ function RailTabButton({
       >
         {label}
       </span>
-      <span
-        aria-hidden
-        className="absolute inset-x-2 bottom-1 h-[2px] rounded-full transition-opacity"
-        style={{
-          background: CHROME.accent,
-          opacity: active ? 1 : 0,
-        }}
-      />
+      {active ? (
+        <motion.span
+          aria-hidden
+          layoutId="inspector-rail-active-underline"
+          initial={false}
+          className="absolute inset-x-2 bottom-1 h-[2px] rounded-full"
+          style={{ background: CHROME.accent }}
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 520, damping: 40 }
+          }
+        />
+      ) : null}
     </button>
   );
 }
