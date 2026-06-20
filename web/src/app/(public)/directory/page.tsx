@@ -11,9 +11,9 @@ import { getPublicSettings } from "@/lib/public-settings";
 import { getSavedTalentIds } from "@/lib/public-discovery";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
-import { readTenantPageRoles } from "@/lib/site-admin/server/page-roles";
-import { resolveRoleSlug } from "@/lib/site-admin/server/page-roles-shape";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveDirectorySlug } from "@/lib/site-admin/server/page-roles";
+import { isLocale } from "@/lib/site-admin/locales";
+import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -95,17 +95,23 @@ export default async function DirectoryPage() {
   // seed lands).
   const publicScope = await getPublicTenantScope();
   const tenantId = publicScope?.tenantId ?? "";
-  // PAGE ROLES — `/directory` serves whichever page the tenant assigned the
-  // `directory` role; unset falls back to the seeded `__directory__` page (and
-  // then to the built-in component below), so zero-config tenants are unchanged.
-  // Role pointers live in agencies.settings — read with the service-role client
-  // (server-only) so anon RLS on settings can't silently disable the pointer.
-  const roleClient = tenantId ? createServiceRoleClient() : null;
-  const directorySlug = roleClient
-    ? resolveRoleSlug(await readTenantPageRoles(roleClient, tenantId), "directory", "__directory__")
-    : "__directory__";
+  // PAGE ROLES — an ASSIGNED directory page (a real, published page) is served
+  // through the full storefront renderer (CmsPublicPage), exactly like the home
+  // role. This is required because assigned pages are freeform (cms_pages.blocks)
+  // and have no section snapshot — the snapshot-only `loadPageForRender` path
+  // below would silently render nothing and fall back to the built-in directory.
+  // resolveDirectorySlug guards on published existence, so a dangling pointer
+  // degrades to the built-in __directory__ page instead of being trusted blindly.
+  const assignedDirectorySlug = tenantId
+    ? await resolveDirectorySlug(tenantId, isLocale(locale) ? locale : "en")
+    : null;
+  if (assignedDirectorySlug) {
+    return <CmsPublicPage params={Promise.resolve({ slug: [assignedDirectorySlug] })} />;
+  }
+  // Unset/dangling → the seeded `__directory__` section page, then the built-in
+  // component below (zero-config tenants are unchanged).
   const directorySectionPage = tenantId
-    ? await loadPageForRender(tenantId, locale as Locale, directorySlug)
+    ? await loadPageForRender(tenantId, locale as Locale, "__directory__")
     : null;
 
   return (
