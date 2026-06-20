@@ -15,6 +15,8 @@ import {
   type BuilderNode,
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
+import { getSectionType } from "@/lib/site-admin/sections/registry";
+import { HeaderScrollObserver } from "@/lib/site-admin/sections/site_header/HeaderScrollObserver";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
 import {
@@ -404,6 +406,72 @@ async function renderMaxSiteDocument(args: {
   const hasShell = hasRenderableBuilderNodes(shellTree, { mode: "freeform" });
   const [headerTree, footerTree] = splitShell(shellTree);
 
+  // Render one shell root. A `site_header`/`site_footer` SECTION LANDMARK carries
+  // its config inline (`props.sectionProps`) and is rendered via the bespoke
+  // section Component (the freeform renderer returns null for `kind:"section"`),
+  // then its freeform children. Any other root renders as freeform as before.
+  // This is the talent-scoped port of PublishedShell.renderShellSlot — it does
+  // NOT route through the agency `site-shell-flag` path.
+  const renderShellRoot = (root: BuilderNode): ReactNode => {
+    if (
+      root.kind === "section" &&
+      (root.props.sectionTypeKey === "site_header" ||
+        root.props.sectionTypeKey === "site_footer")
+    ) {
+      const entry = getSectionType(root.props.sectionTypeKey);
+      const schema = entry?.schemasByVersion[entry.currentVersion];
+      const parsed = schema?.safeParse(root.props.sectionProps ?? {});
+      if (!entry || !parsed?.success) return null;
+      const Comp = entry.Component;
+      return (
+        <div key={root.id} data-talent-shell-landmark={root.props.sectionTypeKey}>
+          <Comp
+            sectionId={root.id}
+            tenantId={tenantId ?? ""}
+            locale={locale}
+            preview={false}
+            props={parsed.data}
+            publicPathPrefix={publicPathPrefix}
+          />
+          {root.children && root.children.length > 0
+            ? renderBuilderNodes(root.children, {
+                publicPathPrefix,
+                mode: "freeform",
+                includeRendererStyles: false,
+                includeFontLinks: false,
+                renderSectionEmbed,
+              })
+            : null}
+        </div>
+      );
+    }
+    return (
+      <div key={root.id}>
+        {renderBuilderNodes([root], {
+          publicPathPrefix,
+          mode: "freeform",
+          includeRendererStyles: false,
+          includeFontLinks: false,
+          renderSectionEmbed,
+        })}
+      </div>
+    );
+  };
+
+  const headerLandmark = headerTree.find(
+    (n) => n.kind === "section" && n.props.sectionTypeKey === "site_header",
+  );
+  const headerHasLandmark = Boolean(headerLandmark);
+  const headerScrollCfg =
+    headerLandmark && headerLandmark.kind === "section"
+      ? (headerLandmark.props.sectionProps as
+          | { scrollTone?: string; scrollThresholdPx?: number }
+          | undefined)
+      : undefined;
+  const headerScrollThreshold = headerScrollCfg?.scrollTone
+    ? headerScrollCfg.scrollThresholdPx ?? 40
+    : null;
+
   return (
     <div
       data-talent-max-site=""
@@ -459,15 +527,30 @@ async function renderMaxSiteDocument(args: {
       ) : null}
 
       {hasShell && headerTree.length > 0 ? (
-        <header data-talent-max-site-header="">
-          {renderBuilderNodes(headerTree, {
-            publicPathPrefix,
-            mode: "freeform",
-            includeRendererStyles: false,
-            includeFontLinks: false,
-            renderSectionEmbed,
-          })}
-        </header>
+        headerHasLandmark ? (
+          // The landmark's bespoke component renders its own <header.site-header>,
+          // so the wrapper is a <div> (no duplicate banner). data-scrolled is
+          // toggled by the observer; the token CSS paints the solid bar.
+          <div
+            data-talent-max-site-header=""
+            {...(headerScrollThreshold != null ? { "data-scrolled": "false" } : {})}
+          >
+            {headerTree.map((root) => renderShellRoot(root))}
+            {headerScrollThreshold != null ? (
+              <HeaderScrollObserver thresholdPx={headerScrollThreshold} />
+            ) : null}
+          </div>
+        ) : (
+          <header data-talent-max-site-header="">
+            {renderBuilderNodes(headerTree, {
+              publicPathPrefix,
+              mode: "freeform",
+              includeRendererStyles: false,
+              includeFontLinks: false,
+              renderSectionEmbed,
+            })}
+          </header>
+        )
       ) : null}
 
       <main id="main-content" data-talent-max-site-main="" style={{ flex: "1 0 auto" }}>

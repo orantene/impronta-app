@@ -94,6 +94,10 @@ const sectionPropsSchema = z.object({
   sortOrder: z.number().int().min(0).optional(),
   dataBinding: dataBindingPropsSchema.optional(),
   ejected: z.boolean().optional(),
+  // Inline self-contained section config for shell landmarks (e.g. the talent
+  // site_header). Opaque passthrough here; the render port validates it against
+  // the section's own registered schema before use.
+  sectionProps: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**

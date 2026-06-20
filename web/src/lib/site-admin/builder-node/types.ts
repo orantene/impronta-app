@@ -456,6 +456,16 @@ export interface BuilderSectionNode extends BuilderNodeBase {
     slotKey?: string | null;
     sortOrder?: number;
     dataBinding?: BuilderDataBindingProps;
+    /**
+     * Inline, self-contained section config (the section's own schema shape,
+     * e.g. `SiteHeaderV1`). Used by SHELL landmarks that carry their config in
+     * the tree rather than in a separate `cms_sections`/snapshot slot — the
+     * talent Max-site header/footer are seeded this way and rendered via the
+     * bespoke section Component (render-max-site.tsx). Opaque here to avoid a
+     * cross-module type cycle; the render port validates it against the
+     * section's registered schema before use.
+     */
+    sectionProps?: Record<string, unknown>;
     // "2018 bye-bye" — when true this curated section has been EJECTED to
     // freeform: its content was re-minted as roleless builder children, the
     // curated React component no longer renders for it, and the legacy
