@@ -87,3 +87,10 @@ export function resolveRoleSlug(
 ): string {
   return roles[role] ?? builtinDefault;
 }
+
+/** The roles whose pointer currently equals `slug` (used to reconcile pointers
+ *  when a page's slug changes or it is deleted). Empty slug ⇒ none. */
+export function rolesPointingAt(roles: TenantPageRoles, slug: string): PageRole[] {
+  if (!slug) return [];
+  return PAGE_ROLES.filter((role) => roles[role] === slug);
+}

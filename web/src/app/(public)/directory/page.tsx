@@ -106,7 +106,20 @@ export default async function DirectoryPage() {
     ? await resolveDirectorySlug(tenantId, isLocale(locale) ? locale : "en")
     : null;
   if (assignedDirectorySlug) {
-    return <CmsPublicPage params={Promise.resolve({ slug: [assignedDirectorySlug] })} />;
+    // Render the assigned page through the full storefront renderer, but keep
+    // the directory client bridges so a directory/roster section on it still
+    // works: DiscoveryStateBridge (saved-talent state) + DirectoryInquiryUrlSync
+    // (the post-inquiry confirmation sheet + ?inquiry param strip). CmsPublicPage
+    // supplies its own header + page-view analytics, so we don't re-add those.
+    return (
+      <>
+        <DiscoveryStateBridge savedIds={initialSavedIds} />
+        <Suspense fallback={null}>
+          <DirectoryInquiryUrlSync />
+        </Suspense>
+        <CmsPublicPage params={Promise.resolve({ slug: [assignedDirectorySlug] })} />
+      </>
+    );
   }
   // Unset/dangling → the seeded `__directory__` section page, then the built-in
   // component below (zero-config tenants are unchanged).

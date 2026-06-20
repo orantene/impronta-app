@@ -7,6 +7,7 @@ import {
   parsePageRoles,
   pageRolesToSettings,
   withPageRole,
+  rolesPointingAt,
   EMPTY_PAGE_ROLES,
   type PageRole,
   type TenantPageRoles,
@@ -148,4 +149,30 @@ export function resolveDirectorySlug(
   locale: string,
 ): Promise<string | null> {
   return resolveRolePageSlug(tenantId, locale, "directory");
+}
+
+/**
+ * Keep role pointers consistent when a page's slug changes or it is deleted.
+ * Roles store the raw SLUG, so a rename/delete would otherwise leave the pointer
+ * dangling (it then falls back to the legacy default with no warning — a
+ * surprising regression on a routine admin action). Call AFTER the slug change
+ * commits: re-point any role at `oldSlug` to `newSlug` (rename) or null (delete).
+ * Uses the service role (the inline rename/delete actions run as tenant staff,
+ * who don't write `agencies.settings`). Never throws.
+ */
+export async function reconcileRolesOnSlugChange(
+  tenantId: string,
+  oldSlug: string,
+  newSlug: string | null,
+): Promise<void> {
+  if (!tenantId || !oldSlug || oldSlug.startsWith("__")) return;
+  if (newSlug === oldSlug) return;
+  const svc = createServiceRoleClient();
+  if (!svc) return;
+  const roles = await readTenantPageRoles(svc, tenantId);
+  // A page is rarely more than one role; this runs 0–1 times in practice. Each
+  // writeTenantPageRole re-reads settings, so sequential calls don't clobber.
+  for (const role of rolesPointingAt(roles, oldSlug)) {
+    await writeTenantPageRole(svc, tenantId, role, newSlug);
+  }
 }
