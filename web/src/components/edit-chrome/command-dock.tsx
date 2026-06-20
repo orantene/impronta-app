@@ -71,7 +71,7 @@ function DockButton({ item }: { item: DockItem }) {
         aria-pressed={active}
         data-dock-item={item.id}
         data-dock-active={active ? "true" : undefined}
-        className="group relative mx-auto flex shrink-0 cursor-pointer flex-col items-center gap-[6px] border-none bg-transparent p-0 transition-transform disabled:cursor-not-allowed disabled:opacity-40"
+        className="group relative mx-auto flex shrink-0 cursor-pointer flex-col items-center gap-[6px] border-none bg-transparent p-0 transition-transform motion-safe:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40"
         style={{ width: "100%", padding: "4px 0 8px" }}
       >
         <span
@@ -127,7 +127,7 @@ function DockButton({ item }: { item: DockItem }) {
       aria-pressed={active}
       data-dock-item={item.id}
       data-dock-active={active ? "true" : undefined}
-      className="group relative flex w-full shrink-0 cursor-pointer flex-col items-center gap-[6px] rounded-[14px] border-none px-[4px] py-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+      className="group relative flex w-full shrink-0 cursor-pointer flex-col items-center gap-[6px] rounded-[14px] border-none px-[4px] py-[11px] transition-[transform,background-color,color] motion-safe:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
       style={{
         background: active ? "rgba(124, 58, 237, 0.10)" : "transparent",
         color: active ? CHROME.accent : CHROME.muted,

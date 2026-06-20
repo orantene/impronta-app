@@ -148,7 +148,7 @@ function TbIconBtn({
       aria-expanded={ariaExpanded}
       aria-haspopup={ariaHaspopup}
       aria-controls={ariaControls}
-      className="relative inline-flex shrink-0 cursor-pointer items-center rounded-[10px] border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60 disabled:cursor-not-allowed"
+      className="relative inline-flex shrink-0 cursor-pointer items-center rounded-[10px] border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/45 disabled:cursor-not-allowed"
       style={{
         width: label ? 48 : 40,
         height: 40,
@@ -1623,7 +1623,7 @@ function TbTextBtn({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="inline-flex shrink-0 cursor-pointer items-center gap-[8px] rounded-[10px] border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60 disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex shrink-0 cursor-pointer items-center gap-[8px] rounded-[10px] border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/45 disabled:cursor-not-allowed disabled:opacity-50"
       style={{
         height: TB_CONTROL_H,
         padding: "0 12px",

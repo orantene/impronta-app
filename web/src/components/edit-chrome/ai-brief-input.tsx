@@ -63,9 +63,9 @@ export function AIBriefInput({
   const busy = pending;
 
   return (
-    <div className="mt-8 rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-white px-5 py-4">
+    <div className="mt-8 rounded-xl border border-[#7c3aed]/15 bg-gradient-to-br from-[#7c3aed]/[0.05] to-white px-5 py-4">
       <div className="flex items-center gap-2">
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#7c3aed] text-white">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M12 3l1.9 4.8L19 9.7l-4.1 2.9L16 18l-4-2.8L8 18l1.1-5.4L5 9.7l5.1-1.9z" />
           </svg>
@@ -95,12 +95,12 @@ export function AIBriefInput({
             placeholder ?? "e.g. a portfolio for my wedding photography"
           }
           aria-label="Describe the page you want"
-          className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-800 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:opacity-60"
+          className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-800 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-[#7c3aed]/40 focus:ring-2 focus:ring-[#7c3aed]/20 disabled:cursor-not-allowed disabled:opacity-60"
         />
         <button
           type="submit"
           disabled={busy || disabled || brief.trim().length < 3}
-          className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#7c3aed] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#8b5cf6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/45 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? (
             <>
