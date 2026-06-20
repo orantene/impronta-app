@@ -358,6 +358,7 @@ function BetweenBlocksPickerPopover({
   return (
     <div
       data-canvas-between-blocks-picker=""
+      className="edit-anim-pop"
       style={{
         position: "fixed",
         top,
