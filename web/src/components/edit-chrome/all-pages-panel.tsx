@@ -19,9 +19,11 @@ import {
   createDraftPageAction,
   duplicatePageAction,
   listPagesForPickerAction,
+} from "@/lib/server-actions/admin-site-pages";
+import {
   type PagePickerAvailability,
   type PagePickerItem,
-} from "@/lib/server-actions/admin-site-pages";
+} from "@/lib/server-actions/admin-site-pages-picker";
 import {
   quickDeletePageAction,
   quickRenamePageAction,
@@ -420,7 +422,10 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
 
         {pages?.map((page) => {
           const isCurrent = page.id === pageId;
-          const isHome = page.slug === "" || page.slug === pageSlug;
+          const isHome =
+            page.systemTemplateKey === "homepage" ||
+            page.slug === "" ||
+            page.slug === pageSlug;
 
           // ONB-4 — inline forms replace the ⋯ menu entries for this page.
           if (renamingId === page.id) {
@@ -460,9 +465,21 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
               >
                 <span className="min-w-0 flex-1 truncate text-[13px] font-medium" style={{ color: CHROME.ink }}>
                   {page.title}
-                  {page.slug === "" ? (
+                  {page.systemTemplateKey === "homepage" ? (
                     <span className="ml-[6px] text-[10px] font-semibold uppercase tracking-wide" style={{ color: CHROME.muted }}>
                       Home
+                    </span>
+                  ) : page.systemTemplateKey === "directory" ? (
+                    <span className="ml-[6px] text-[10px] font-semibold uppercase tracking-wide" style={{ color: CHROME.muted }}>
+                      Directory
+                    </span>
+                  ) : null}
+                  {/* Locale chip disambiguates per-locale rows (the homepage exists
+                      as both en + es under the same empty slug). en = implicit
+                      default, so only non-en rows get the chip to keep it clean. */}
+                  {page.locale && page.locale !== "en" ? (
+                    <span className="ml-[6px] text-[10px] font-semibold uppercase tracking-wide" style={{ color: CHROME.muted }}>
+                      {page.locale}
                     </span>
                   ) : null}
                 </span>

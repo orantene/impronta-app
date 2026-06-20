@@ -48,9 +48,11 @@ import {
   listPagesForPickerAction,
   duplicatePageAction,
   createDraftPageAction,
+} from "@/lib/server-actions/admin-site-pages";
+import {
   type PagePickerItem,
   type PagePickerAvailability,
-} from "@/lib/server-actions/admin-site-pages";
+} from "@/lib/server-actions/admin-site-pages-picker";
 import {
   useMaybeEditContext,
   type EditDevice,
