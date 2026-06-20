@@ -17,7 +17,9 @@ import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { resolveAgencyHomeSlug } from "@/lib/site-admin/server/page-roles";
 import { isLocale } from "@/lib/site-admin/locales";
+import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 
 /** Server reads cookies (Supabase / host-context header); must not be statically prerendered. */
 export const dynamic = "force-dynamic";
@@ -121,8 +123,22 @@ export default async function HomePage() {
   const ctx = await getPublicHostContext();
 
   switch (ctx.kind) {
-    case "agency":
+    case "agency": {
+      // PAGE ROLES — if the tenant assigned a page the `home` role, serve THAT
+      // page at `/` (reusing the full storefront page renderer, so an assigned
+      // home is a normal page with the complete builder). resolveAgencyHomeSlug
+      // returns null unless a published page exists at the slug for this locale,
+      // so a dangling pointer falls back to the legacy storefront below.
+      const homeLocale = await getRequestLocale();
+      const homeSlug = await resolveAgencyHomeSlug(
+        ctx.tenantId,
+        isLocale(homeLocale) ? homeLocale : "en",
+      );
+      if (homeSlug) {
+        return <CmsPublicPage params={Promise.resolve({ slug: [homeSlug] })} />;
+      }
       return <AgencyHomeStorefront tenantId={ctx.tenantId} />;
+    }
     case "hub":
       // Phase 5/6 M1 — hub now carries its tenantId (the hub agency UUID)
       // so it consumes the same CMS reads as agency tenants.

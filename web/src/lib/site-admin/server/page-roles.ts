@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { improntaLog } from "@/lib/server/structured-log";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import {
   parsePageRoles,
   pageRolesToSettings,
@@ -83,4 +85,32 @@ export async function writeTenantPageRole(
     return { ok: false, error: "Could not save the page role." };
   }
   return { ok: true };
+}
+
+/**
+ * Resolve the slug the storefront root (`/`) should serve for a tenant, or null
+ * to use the legacy homepage. Returns the assigned `home` slug ONLY when a
+ * PUBLISHED page actually exists at that slug for the requested locale — so a
+ * dangling pointer (page deleted, or not published in this locale) can never
+ * 404 the homepage; `/` falls back to the legacy storefront instead. Reads with
+ * the service role (server-only) so anon RLS on `agencies.settings` can't
+ * silently disable the pointer.
+ */
+export async function resolveAgencyHomeSlug(
+  tenantId: string,
+  locale: string,
+): Promise<string | null> {
+  if (!tenantId) return null;
+  const svc = createServiceRoleClient();
+  if (!svc) return null;
+  const roles = await readTenantPageRoles(svc, tenantId);
+  if (!roles.home) return null;
+  const { data } = await tenantScopedQuery(svc, "cms_pages", tenantId)
+    .select("id")
+    .eq("slug", roles.home)
+    .eq("locale", locale)
+    .eq("status", "published")
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+  return data ? roles.home : null;
 }
