@@ -1213,11 +1213,6 @@
       "count": 1
     }
   },
-  "src/components/builder-lab/component-catalog.tsx": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "src/components/details-tab/DetailsTab.tsx": {
     "max-lines": {
       "count": 1
