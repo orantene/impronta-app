@@ -29,6 +29,7 @@ import {
   quickRenamePageAction,
 } from "@/lib/server-actions/admin-site-pages-inline";
 import {
+  convertLegacyHomepageToPageAction,
   readPageRolesAction,
   setPageRoleAction,
 } from "@/lib/server-actions/page-role-actions";
@@ -293,6 +294,23 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     },
     [loadPages],
   );
+
+  // PAGE ROLES — turn the legacy system homepage into a normal, editable page
+  // (copies its builder content into a freeform page + assigns it the home role).
+  const [converting, setConverting] = useState(false);
+  const handleConvertHomepage = useCallback(async () => {
+    setMoreOpenId(null);
+    setConverting(true);
+    try {
+      const res = await convertLegacyHomepageToPageAction();
+      if (!res.ok) setFetchErr(res.error);
+      else loadPages();
+    } catch {
+      setFetchErr("Couldn't convert the homepage — try again.");
+    } finally {
+      setConverting(false);
+    }
+  }, [loadPages]);
 
   useEffect(() => {
     if (!open) {
@@ -609,6 +627,21 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       >
                         {roleBusyId === page.slug + ":directory" ? "Setting…" : "Set as directory"}
+                      </button>
+                    ) : null}
+                    {/* PAGE ROLES — the legacy system homepage (no home role yet)
+                        can be converted into a normal, editable page. */}
+                    {page.systemTemplateKey === "homepage" && !assignedHome ? (
+                      <button
+                        type="button"
+                        disabled={converting}
+                        onClick={() => void handleConvertHomepage()}
+                        className="block w-full cursor-pointer rounded-[6px] border-none px-[10px] py-[7px] text-left text-[12px]"
+                        style={{ background: "transparent", color: CHROME.ink }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                      >
+                        {converting ? "Converting…" : "Convert to editable page"}
                       </button>
                     ) : null}
                     {/* ONB-4 — styled inline delete instead of window.confirm */}
