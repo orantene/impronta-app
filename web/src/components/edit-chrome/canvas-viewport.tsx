@@ -224,7 +224,7 @@ export function CanvasViewportProvider({
     (z: number) => {
       setZoom(z);
       // Scroll to top so the page is fully visible after a zoom-to.
-      if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+      if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
     },
     [setZoom],
   );
@@ -242,7 +242,7 @@ export function CanvasViewportProvider({
     const pageWidth = document.documentElement.scrollWidth;
     const fit = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((available / pageWidth) * 100) / 100));
     setZoom(fit);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, [setZoom]);
 
   const toggleRulers = useCallback(() => {

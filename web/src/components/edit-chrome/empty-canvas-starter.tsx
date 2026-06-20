@@ -415,7 +415,7 @@ export function EmptyCanvasStarter({
                       {summary.description}
                     </p>
                   </div>
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white transition group-hover:bg-stone-700">
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#7c3aed] px-3 py-1.5 text-xs font-semibold text-white transition group-hover:bg-[#8b5cf6]">
                     {busy ? "Applying…" : "Use this"}
                     <svg
                       width="12"

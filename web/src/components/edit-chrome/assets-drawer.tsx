@@ -250,6 +250,14 @@ export function AssetsDrawer(): ReactElement | null {
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"idle" | "loading">("idle");
+  // Re-tick the relative "Synced Xs ago" label so it stays honest while the
+  // drawer stays open instead of freezing at render time (mirrors the topbar
+  // SaveStatus interval).
+  const [, setSyncTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setSyncTick((t) => t + 1), 30000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const [tab, setTab] = useState<TabKey>("all");
   const [query, setQuery] = useState("");
