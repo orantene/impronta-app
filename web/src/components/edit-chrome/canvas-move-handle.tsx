@@ -83,7 +83,6 @@ export function CanvasMoveHandle({
   overlayRef?: React.Ref<HTMLDivElement>;
 }) {
   const [dragging, setDragging] = useState(false);
-  const [hovered, setHovered] = useState(false);
   const [live, setLive] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   // Alignment-guide lines + equal-spacing pills (viewport coords) shown while
   // the dragged block is snapped to a sibling/parent edge or an even gap.
@@ -425,8 +424,6 @@ export function CanvasMoveHandle({
         title="Drag to move · double-click to snap back to natural position"
         data-canvas-move-handle=""
         onPointerDown={begin}
-        onPointerEnter={() => setHovered(true)}
-        onPointerLeave={() => setHovered(false)}
         onDoubleClick={(e) => {
           // Recover a strayed block: reset its translate to 0,0 (natural
           // position). The commit path drops the translate entirely at 0,0,
@@ -443,17 +440,11 @@ export function CanvasMoveHandle({
           width: 26,
           height: 26,
           borderRadius: 7,
-          background: dragging
-            ? accent
-            : hovered
-              ? "rgba(124,58,237,0.82)"
-              : "rgba(61,79,124,0.55)",
+          background: dragging ? accent : "rgba(61,79,124,0.55)",
           border: "2px solid #ffffff",
           boxShadow: dragging
-            ? "0 0 0 3px rgba(124,58,237,0.25), 0 2px 6px rgba(0,0,0,0.35)"
-            : hovered
-              ? "0 0 0 3px rgba(124,58,237,0.20), 0 2px 6px rgba(0,0,0,0.32)"
-              : "0 1px 4px rgba(0,0,0,0.30)",
+            ? "0 0 0 3px rgba(61,79,124,0.25), 0 2px 6px rgba(0,0,0,0.35)"
+            : "0 1px 4px rgba(0,0,0,0.30)",
           cursor: "move",
           pointerEvents: "auto",
           padding: 0,
