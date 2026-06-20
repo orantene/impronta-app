@@ -19,7 +19,9 @@ import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { resolveAgencyHomeSlug } from "@/lib/site-admin/server/page-roles";
 import { isLocale } from "@/lib/site-admin/locales";
-import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
+import CmsPublicPage, {
+  generateMetadata as cmsPageMetadata,
+} from "@/app/(public)/p/[[...slug]]/page";
 
 /** Server reads cookies (Supabase / host-context header); must not be statically prerendered. */
 export const dynamic = "force-dynamic";
@@ -28,6 +30,27 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
   const ctx = await getPublicHostContext();
+
+  // PAGE ROLES — when this agency assigned a page the `home` role, `/` renders
+  // that page (see the agency case below), so its SEO must come from the
+  // assigned page too. Reuse the storefront page's own metadata builder, then
+  // re-root the canonical/alternates to `/` (the page is served at the root,
+  // not at `/p/<slug>`).
+  if (ctx.kind === "agency") {
+    const homeLocale = isLocale(locale) ? locale : "en";
+    const homeSlug = await resolveAgencyHomeSlug(ctx.tenantId, homeLocale);
+    if (homeSlug) {
+      const pageMeta = await cmsPageMetadata({
+        params: Promise.resolve({ slug: [homeSlug] }),
+      });
+      const rootAlt = buildPublicLocaleAlternates(locale, "/");
+      return {
+        ...pageMeta,
+        metadataBase: rootAlt.metadataBase,
+        alternates: rootAlt.alternates,
+      };
+    }
+  }
 
   if (ctx.kind === "agency" || ctx.kind === "hub") {
     // Phase 5 / M5: CMS-driven meta overrides the i18n defaults when the

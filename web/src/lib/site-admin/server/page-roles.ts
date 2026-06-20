@@ -96,21 +96,44 @@ export async function writeTenantPageRole(
  * the service role (server-only) so anon RLS on `agencies.settings` can't
  * silently disable the pointer.
  */
-export async function resolveAgencyHomeSlug(
+async function resolveRolePageSlug(
   tenantId: string,
   locale: string,
+  role: PageRole,
 ): Promise<string | null> {
   if (!tenantId) return null;
   const svc = createServiceRoleClient();
   if (!svc) return null;
   const roles = await readTenantPageRoles(svc, tenantId);
-  if (!roles.home) return null;
+  const slug = roles[role];
+  if (!slug) return null;
   const { data } = await tenantScopedQuery(svc, "cms_pages", tenantId)
     .select("id")
-    .eq("slug", roles.home)
+    .eq("slug", slug)
     .eq("locale", locale)
     .eq("status", "published")
     .limit(1)
     .maybeSingle<{ id: string }>();
-  return data ? roles.home : null;
+  return data ? slug : null;
+}
+
+export function resolveAgencyHomeSlug(
+  tenantId: string,
+  locale: string,
+): Promise<string | null> {
+  return resolveRolePageSlug(tenantId, locale, "home");
+}
+
+/**
+ * The slug the agency 404 boundary should render (with the shell) for a tenant,
+ * or null to use the built-in branded 404. Like {@link resolveAgencyHomeSlug},
+ * returns the assigned `notFound` slug ONLY when a PUBLISHED page exists at it
+ * for the locale — so a dangling pointer can never recurse the not-found
+ * boundary; it falls back to the generic 404 instead.
+ */
+export function resolveNotFoundSlug(
+  tenantId: string,
+  locale: string,
+): Promise<string | null> {
+  return resolveRolePageSlug(tenantId, locale, "notFound");
 }
