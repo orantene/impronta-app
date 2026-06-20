@@ -183,3 +183,23 @@ the impronta storefront render: full-screen photo + scrim + gold "imprint." + CT
 Brand mis-scope (mitigated via prop-override); client-island `"use server"`/`type` re-export 500s
 (keep islands strictly `"use client"`); stale `web/supabase/migrations` dir; pre-existing field-engine
 `localeCompare` crash in the talent layout (don't absorb into scope); flag-bypass null-shell fallback.
+
+## Findings F8–F10 (live QA, 2026-06-20)
+- **F8 — Impronta storefront header is the pre-existing `editorial-split` variant, not WF-5 freeform.**
+  The storefront supports the rich `site_header` via the per-tenant site-shell flag with NO code
+  change (`shouldRenderSnapshotShell` in `PublishedShell.tsx` early-returns `PublishedShellHeader`).
+  Enabling it for Impronta (`ENABLE_SITE_SHELL=tenants` + `SITE_SHELL_TENANT_IDS=<impronta id>` in
+  `.env.local`) revealed the agency's already-configured editorial-split header (social+phone L /
+  wordmark+tagline C / lang+saved+inquiry-count+hamburger R / nav row). The WF-5 **freeform** branch
+  fires on `props.regions` being set (Component.tsx:468) regardless of `variant`; Impronta has no
+  `regions` → editorial-split. PROD: owner sets the two env vars in Vercel.
+- **F9 — sticky bug (FIXED, commit 8b9db8c90).** The shell header renders inside its own wrapper
+  (`[data-cms-section]` on agency, `[data-talent-max-site-header]` on talent). `position:sticky` on the
+  inner `.site-header` only sticks within that wrapper's header-height box → the bar scrolled away on
+  BOTH surfaces. Fix = promote sticky to the wrapper (containing block = the tall page column) via a
+  scoped rule in token-presets.css, gated on `.site-header[data-sticky="true"]`. Verified live: header
+  pins at top:0 through scroll on /impronta.
+- **F10 — agency-path scroll-to-solid not wired.** `HeaderScrollObserver` + the `[data-scrolled]`
+  tone rule are scoped to the talent wrapper only. Not visually needed for Impronta (its header is
+  tone:surface = already solid). Enhancement for transparent agency headers: mount the observer in
+  `renderShellSlot` / make scroll-to-solid self-contained on `.site-header[data-scrolled]`.
