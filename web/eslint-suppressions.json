@@ -1223,11 +1223,6 @@
       "count": 1
     }
   },
-  "src/components/builder-lab/template-manager.tsx": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "src/components/details-tab/DetailsTab.tsx": {
     "max-lines": {
       "count": 1
