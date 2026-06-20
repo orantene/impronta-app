@@ -899,24 +899,8 @@ function SaveStatus({
 
   if (saving) {
     return (
-      <span
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        className="inline-flex shrink-0 items-center gap-[6px] rounded-full border text-[11px] font-semibold"
-        style={{
-          padding: "4px 11px 4px 9px",
-          background: CHROME.blueBg,
-          color: CHROME.blue,
-          borderColor: CHROME.blueLine,
-        }}
-      >
-        <span
-          className={`${dot} animate-pulse`}
-          style={{ width: 6, height: 6, background: CHROME.blue, boxShadow: "0 0 8px rgba(58,123,255,0.6)" }}
-          aria-hidden
-        />
-        Saving…
+      <span role="status" aria-live="polite" aria-atomic="true">
+        <SaveChip status="saving" label="Saving…" />
       </span>
     );
   }
@@ -945,22 +929,10 @@ function SaveStatus({
         role="status"
         aria-live="polite"
         aria-atomic="true"
-        className="inline-flex shrink-0 items-center gap-[6px] rounded-full border text-[11px] font-semibold"
-        style={{
-          padding: "4px 11px 4px 9px",
-          background: CHROME.amberBg,
-          color: CHROME.amber,
-          borderColor: CHROME.amberLine,
-        }}
         title="Edits are only in your draft until you publish. If the canvas or device preview looks one step behind, wait for autosave to finish or switch viewport to refresh the preview."
         aria-label="Unsaved draft — changes are not fully saved yet, or the preview may still be catching up."
       >
-        <span
-          className={dot}
-          style={{ width: 6, height: 6, background: CHROME.amber, boxShadow: "0 0 8px rgba(180,83,9,0.6)" }}
-          aria-hidden
-        />
-        Unsaved draft
+        <SaveChip status="dirty" label="Unsaved draft" />
       </span>
     );
   }
