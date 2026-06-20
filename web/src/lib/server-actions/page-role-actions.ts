@@ -1,9 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
+import { tagFor } from "@/lib/site-admin";
 import { readTenantPageRoles, writeTenantPageRole } from "@/lib/site-admin/server/page-roles";
 import type { PageRole, TenantPageRoles } from "@/lib/site-admin/server/page-roles-shape";
 import { EMPTY_PAGE_ROLES, PAGE_ROLES } from "@/lib/site-admin/server/page-roles-shape";
@@ -51,7 +52,10 @@ export async function setPageRoleAction(
     if (cleaned.startsWith("__")) {
       return { ok: false, error: "Pick a real page for this role." };
     }
-    // Verify the target is a real, non-archived, non-shell page of THIS tenant.
+    // Verify the target is a real, PUBLISHED, non-shell page of THIS tenant.
+    // Published is required because the render guards (resolveRolePageSlug) only
+    // serve a published page — assigning a draft would "succeed" in the UI but
+    // silently no-op the route.
     const { data: page, error } = await tenantScopedQuery(
       auth.supabase,
       "cms_pages",
@@ -59,11 +63,13 @@ export async function setPageRoleAction(
     )
       .select("id, system_template_key")
       .eq("slug", cleaned)
-      .neq("status", "archived")
+      .eq("status", "published")
       .limit(1)
       .maybeSingle<{ id: string; system_template_key: string | null }>();
     if (error) return { ok: false, error: "Could not verify the page." };
-    if (!page) return { ok: false, error: "That page no longer exists." };
+    if (!page) {
+      return { ok: false, error: "That page must be published before it can take a role." };
+    }
     if (page.system_template_key === "site_shell") {
       return { ok: false, error: "The site shell can't be a page role." };
     }
@@ -112,12 +118,21 @@ export async function convertLegacyHomepageToPageAction(): Promise<
     .select("published_homepage_snapshot")
     .eq("system_template_key", "homepage")
     .eq("locale", locale)
-    .maybeSingle<{ published_homepage_snapshot: { builderTree?: unknown } | null }>();
-  const tree = hp?.published_homepage_snapshot?.builderTree;
+    .maybeSingle<{
+      published_homepage_snapshot: { builderTree?: unknown; slots?: unknown } | null;
+    }>();
+  const snapshot = hp?.published_homepage_snapshot;
+  const tree = snapshot?.builderTree;
   if (!Array.isArray(tree) || tree.length === 0) {
+    // Distinguish a slot-composed homepage (published, but no freeform tree to
+    // copy) from one that simply hasn't been published — the old message wrongly
+    // told slot-mode operators to "publish first" when they already had.
+    const hasSlots = Array.isArray(snapshot?.slots) && snapshot.slots.length > 0;
     return {
       ok: false,
-      error: "Publish your homepage first — there's no builder content to convert yet.",
+      error: hasSlots
+        ? "Your homepage uses the older section layout, which can't be auto-converted to a freeform page yet."
+        : "Publish your homepage first — there's no builder content to convert yet.",
     };
   }
 
@@ -150,6 +165,10 @@ export async function convertLegacyHomepageToPageAction(): Promise<
   const res = await writeTenantPageRole(svc, scope.tenantId, "home", slug);
   if (!res.ok) return res;
 
+  // The convert publishes a page via a raw update (not the normal publish path),
+  // so bust the broad pages cache tag too — otherwise the new home, if also
+  // linked at /<slug>, would serve stale from the cached page read for ~5 min.
+  revalidateTag(tagFor(scope.tenantId, "pages-all"), "default");
   revalidatePath("/");
   return { ok: true, slug };
 }

@@ -137,3 +137,15 @@ export function resolveNotFoundSlug(
 ): Promise<string | null> {
   return resolveRolePageSlug(tenantId, locale, "notFound");
 }
+
+/**
+ * The slug `/directory` should serve, or null to use the built-in directory.
+ * Same published-existence guard as home/404 so a dangling directory pointer
+ * degrades to the built-in directory instead of being trusted blindly.
+ */
+export function resolveDirectorySlug(
+  tenantId: string,
+  locale: string,
+): Promise<string | null> {
+  return resolveRolePageSlug(tenantId, locale, "directory");
+}
