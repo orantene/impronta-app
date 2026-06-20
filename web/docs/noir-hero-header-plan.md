@@ -114,14 +114,28 @@ the impronta storefront render: full-screen photo + scrim + gold "imprint." + CT
     `primary`). The hero + header render any palette by selection. tsc + lint clean. (Deferred: a
     `data-scroll-tone` emit on the Component + an `inquiryAction` toggle — the scroll-to-solid already
     works via the observer + `[data-scrolled]` CSS.)
-  - **WF-5 REMAINING (large):** freeform L/C/R header regions (`regions` schema + `headerItem` union)
-    + per-item per-breakpoint responsive (label/icon/hide/move-to-menu) + priority/overflow →
-    hamburger, + the header inspector group. The header already places brand/nav/lang/CTA/social/
-    phone/count-badge via the existing `standard`/`editorial-split` variants, so the talent header is
-    already premium + functional; WF-5 adds arbitrary per-region placement + the responsive engine.
-    Recommended as a focused build + QA pass.
-  - **End-to-end QA (pending):** provision/seed a talent Max site, set `background.mode=noir-or`, and
-    screenshot the header across breakpoints + all 3 palettes alongside the hero.
+  - **WF-5 ENGINE BUILT** (commit `065c97e29`): `regions {left,center,right}` schema + `headerItem`
+    union (wordmark/logo/nav/language/cta/social/phone/inquiry/saved/spacer) with per-breakpoint
+    responsive (show/label/icon/hide/menu) + priority; a self-contained `data-variant="freeform"`
+    render path (classic variants untouched) with a pure-CSS hamburger → full-screen mobile menu;
+    live count badge for inquiry/saved (client island); theme-tokenized CSS; ClusterIcon extracted +
+    inquiry/saved icons. The **talent default header is now seeded as freeform regions** (brand · nav ·
+    language/social/phone/saved/inquiry/cta, collapsing to a hamburger on mobile). tsc + lint clean;
+    24/24 tests; a 10-item L/C/R config validates against SiteHeaderV1.
+  - **WF-5 FOLLOW-UPS (documented):**
+    1. **Inspector regions editor** — a Regions tab in `SiteHeaderInspector` (add/remove/reorder items
+       per region + per-item responsive). `patchSection({regions})` already exists; this is a bounded
+       UI build. Note it edits the AGENCY `site_header`; the talent header is composed via the seed.
+    2. **Talent-shell editable surface** — to let the owner drop header items in/out for a TALENT site
+       via the builder, the talent `shell_tree` must load as an editable builder surface (today the
+       talent header config lives in the landmark `sectionProps`, edited only via the seed). Separate
+       architectural lift.
+  - **End-to-end header QA (blocked locally):** the talent header renders only on a site whose
+    `shell_tree` carries the landmark (new provisions get it). Direct prod-DB seeding was denied and
+    no talent slug is queryable locally, so live visual QA must happen on the **Vercel preview** (PR
+    #643): provision/view a talent Max site, set `background.mode=noir-or`, screenshot the header
+    (transparent → scroll-to-solid), hero, palettes, and mobile hamburger. The hero (Part A) is fully
+    QA-proven in the real builder (add/change/swap/swipe + Builder Lab catalog).
 
 ---
 
