@@ -508,11 +508,17 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     void listCatalogStructure()
       .then((s) => live() && setStructure(s))
       .catch(() => {});
-    if (gallerySurface.allowDbTemplates) {
-      void fetchSurfaceGalleryItems(gallerySurface)
-        .then((merged) => live() && setMergedItems(merged))
-        .catch(() => {});
-    }
+    // The server fetch is the ONLY path that applies the Builder Lab catalog
+    // overlay (per-surface enable/disable + global `availability_override`
+    // archive) via `applyOverlayToItems`. It must run on EVERY surface — not
+    // just `allowDbTemplates` ones — otherwise a Lab-disabled or Lab-archived
+    // component still shows in the live gallery (the homepage surface bug:
+    // `allowDbTemplates:false` left it painting the raw, un-governed codeSeed).
+    // `fetchSurfaceGalleryItems` internally skips the DB-template merge when the
+    // surface disallows it, so calling it unconditionally only adds the overlay.
+    void fetchSurfaceGalleryItems(gallerySurface)
+      .then((merged) => live() && setMergedItems(merged))
+      .catch(() => {});
     return () => {
       cancelled = true;
     };

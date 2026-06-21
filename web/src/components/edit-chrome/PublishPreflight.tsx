@@ -15,6 +15,7 @@ import {
   type PreflightIssue,
 } from "@/lib/site-admin/edit-mode/publish-preflight-action";
 import { useEditContext } from "./edit-context";
+import { DrawerSkeleton } from "./kit";
 
 const CATEGORY_LABEL: Record<PreflightIssue["category"], string> = {
   headings: "Headings",
@@ -97,12 +98,8 @@ export function PublishPreflight({
 
   if (loading) {
     return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="rounded-md border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground"
-      >
-        Running publish checks…
+      <div role="status" aria-live="polite" aria-label="Running publish checks">
+        <DrawerSkeleton rows={3} />
       </div>
     );
   }

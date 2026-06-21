@@ -109,8 +109,8 @@ export function RailHandle({
           );
           onHandlePointerDown(e);
         }}
-        className="inline-flex cursor-grab items-center justify-center border-none bg-transparent p-0 active:cursor-grabbing"
-        style={{ color: CHROME.muted3, height: 20 }}
+        className="inline-flex size-6 cursor-grab items-center justify-center rounded-md border-none bg-transparent p-0 transition-shadow active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/45"
+        style={{ color: CHROME.muted2 }}
       >
         <GripVertical size={16} strokeWidth={2.25} aria-hidden />
       </button>
@@ -120,15 +120,15 @@ export function RailHandle({
         onClick={onToggleCollapsed}
         aria-label={toggleLabel}
         title={toggleLabel}
-        className="inline-flex size-5 cursor-pointer items-center justify-center rounded-md border-none bg-transparent p-0 transition-colors"
-        style={{ color: CHROME.muted3 }}
+        className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md border-none bg-transparent p-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/45"
+        style={{ color: CHROME.muted2 }}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = "rgba(124, 58, 237, 0.08)";
           e.currentTarget.style.color = CHROME.accent;
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = "transparent";
-          e.currentTarget.style.color = CHROME.muted3;
+          e.currentTarget.style.color = CHROME.muted2;
         }}
       >
         {collapsed ? (

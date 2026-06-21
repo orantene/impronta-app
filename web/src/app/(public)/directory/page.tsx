@@ -11,6 +11,9 @@ import { getPublicSettings } from "@/lib/public-settings";
 import { getSavedTalentIds } from "@/lib/public-discovery";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
+import { resolveDirectorySlug } from "@/lib/site-admin/server/page-roles";
+import { isLocale } from "@/lib/site-admin/locales";
+import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -92,6 +95,34 @@ export default async function DirectoryPage() {
   // seed lands).
   const publicScope = await getPublicTenantScope();
   const tenantId = publicScope?.tenantId ?? "";
+  // PAGE ROLES — an ASSIGNED directory page (a real, published page) is served
+  // through the full storefront renderer (CmsPublicPage), exactly like the home
+  // role. This is required because assigned pages are freeform (cms_pages.blocks)
+  // and have no section snapshot — the snapshot-only `loadPageForRender` path
+  // below would silently render nothing and fall back to the built-in directory.
+  // resolveDirectorySlug guards on published existence, so a dangling pointer
+  // degrades to the built-in __directory__ page instead of being trusted blindly.
+  const assignedDirectorySlug = tenantId
+    ? await resolveDirectorySlug(tenantId, isLocale(locale) ? locale : "en")
+    : null;
+  if (assignedDirectorySlug) {
+    // Render the assigned page through the full storefront renderer, but keep
+    // the directory client bridges so a directory/roster section on it still
+    // works: DiscoveryStateBridge (saved-talent state) + DirectoryInquiryUrlSync
+    // (the post-inquiry confirmation sheet + ?inquiry param strip). CmsPublicPage
+    // supplies its own header + page-view analytics, so we don't re-add those.
+    return (
+      <>
+        <DiscoveryStateBridge savedIds={initialSavedIds} />
+        <Suspense fallback={null}>
+          <DirectoryInquiryUrlSync />
+        </Suspense>
+        <CmsPublicPage params={Promise.resolve({ slug: [assignedDirectorySlug] })} />
+      </>
+    );
+  }
+  // Unset/dangling → the seeded `__directory__` section page, then the built-in
+  // component below (zero-config tenants are unchanged).
   const directorySectionPage = tenantId
     ? await loadPageForRender(tenantId, locale as Locale, "__directory__")
     : null;

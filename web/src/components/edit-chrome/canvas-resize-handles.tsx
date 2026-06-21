@@ -49,9 +49,9 @@ const SNAP_THRESHOLD = 14;
 // Pointer distance (px) within which the dragged EDGE snaps to a sibling /
 // parent edge (4A #8 alignment guide during resize).
 const EDGE_SNAP = 8;
-// Magenta alignment-guide colour (matches the move handle's distribution
-// language: a line-up to a neighbour edge/centre).
-const ALIGN_MAGENTA = "#ec407a";
+// Violet alignment-guide colour (one guide language across resize/move/gap;
+// a line-up to a neighbour edge/centre).
+const ALIGN_GUIDE = "#7c3aed";
 
 /**
  * Snap a raw dragged length to (a) the nearest grid step, and (b) any of the
@@ -77,7 +77,7 @@ export function CanvasResizeHandles({
   rect,
   liveEl,
   onCommit,
-  accent = "#3d4f7c",
+  accent = "#7c3aed",
   overlayRef,
 }: {
   /** Selected element's viewport rect (fixed-position coordinates). */
@@ -301,7 +301,7 @@ export function CanvasResizeHandles({
             top: 0,
             width: 0,
             height: "100vh",
-            borderLeft: `1px solid ${ALIGN_MAGENTA}`,
+            borderLeft: `1px solid ${ALIGN_GUIDE}`,
             pointerEvents: "none",
             zIndex: 97,
           }}
@@ -317,7 +317,7 @@ export function CanvasResizeHandles({
             left: 0,
             height: 0,
             width: "100vw",
-            borderTop: `1px solid ${ALIGN_MAGENTA}`,
+            borderTop: `1px solid ${ALIGN_GUIDE}`,
             pointerEvents: "none",
             zIndex: 97,
           }}

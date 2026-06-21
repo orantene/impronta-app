@@ -31,9 +31,21 @@ describe("buildAuditInsertPayload", () => {
       item_ref: "el-button",
       template_id: null,
       actor: "actor-1",
+      actor_label: null,
       before: { talent_enabled: true },
       after: { talent_enabled: false },
     });
+  });
+
+  it("carries a system actor_label through (cron writer)", () => {
+    const payload = buildAuditInsertPayload({
+      action: "template.rollout",
+      templateId: "tmpl-9",
+      actor: null,
+      actorLabel: "system:builder-rollout-cron",
+    });
+    assert.equal(payload.actor, null);
+    assert.equal(payload.actor_label, "system:builder-rollout-cron");
   });
 
   it("null-coalesces missing itemRef / templateId / before / after", () => {
@@ -69,6 +81,7 @@ describe("mapAuditRowToEntry", () => {
     item_ref: null,
     template_id: "tmpl-7",
     actor: "actor-1",
+    actor_label: null,
     before: { status: "published" },
     after: { status: "archived" },
     created_at: "2026-06-18T10:00:00.000Z",
@@ -98,15 +111,32 @@ describe("mapAuditRowToEntry", () => {
     assert.equal(entry.actorId, null);
     assert.equal(entry.actorName, null);
   });
+
+  it("falls back to actor_label when actor is null (system/cron writer)", () => {
+    const entry = mapAuditRowToEntry(
+      { ...row, actor: null, actor_label: "system:builder-rollout-cron" },
+      new Map(),
+    );
+    assert.equal(entry.actorId, null);
+    assert.equal(entry.actorName, "system:builder-rollout-cron");
+  });
+
+  it("prefers a resolved profile name over actor_label when both exist", () => {
+    const entry = mapAuditRowToEntry(
+      { ...row, actor: "actor-1", actor_label: "stale-label" },
+      new Map([["actor-1", "Oran T"]]),
+    );
+    assert.equal(entry.actorName, "Oran T");
+  });
 });
 
 describe("distinctActorIds", () => {
   it("dedupes and drops nulls", () => {
     const rows: BuilderLabAuditRow[] = [
-      { id: "a", action: "overlay.set", item_ref: "x", template_id: null, actor: "u1", before: null, after: null, created_at: "t" },
-      { id: "b", action: "overlay.set", item_ref: "y", template_id: null, actor: "u1", before: null, after: null, created_at: "t" },
-      { id: "c", action: "overlay.set", item_ref: "z", template_id: null, actor: null, before: null, after: null, created_at: "t" },
-      { id: "d", action: "overlay.set", item_ref: "w", template_id: null, actor: "u2", before: null, after: null, created_at: "t" },
+      { id: "a", action: "overlay.set", item_ref: "x", template_id: null, actor: "u1", actor_label: null, before: null, after: null, created_at: "t" },
+      { id: "b", action: "overlay.set", item_ref: "y", template_id: null, actor: "u1", actor_label: null, before: null, after: null, created_at: "t" },
+      { id: "c", action: "overlay.set", item_ref: "z", template_id: null, actor: null, actor_label: null, before: null, after: null, created_at: "t" },
+      { id: "d", action: "overlay.set", item_ref: "w", template_id: null, actor: "u2", actor_label: null, before: null, after: null, created_at: "t" },
     ];
     const ids = distinctActorIds(rows);
     assert.deepEqual([...ids].sort(), ["u1", "u2"]);

@@ -18,20 +18,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  ADD_GALLERY_CATEGORIES,
   type AddGalleryTab,
   type CatalogAdminItem,
-  type CatalogOverlayRow,
 } from "@/lib/site-admin/add-gallery";
 import {
-  CATALOG_SURFACE_KEYS,
-  surfaceEnabledForRow,
-  surfaceKeyToTarget,
-  labEnabledForRow,
-  type CatalogSurfaceKey,
-} from "@/lib/site-admin/add-gallery/registry-db-merge";
-import {
-  CODE_TAB_DEFS,
   resolveTabLabel,
   type CatalogStructureMap,
 } from "@/lib/site-admin/add-gallery/catalog-structure";
@@ -44,24 +34,10 @@ import { listAllTemplates } from "@/lib/site-admin/builder-core/templates/regist
 import { getTemplateUsageTotals } from "@/lib/site-admin/builder-core/templates/template-usage-actions";
 import type { TemplateUsageTotals } from "@/lib/site-admin/builder-core/templates/template-usage-shape";
 import type { BuilderTemplateRow } from "@/lib/site-admin/builder-core/templates/registry-rows";
-import {
-  clearComponentOverlay,
-  setComponentOverlay,
-} from "@/lib/site-admin/builder-core/templates/catalog-overlay-actions";
 import { SiteDefaultsEditor } from "./site-defaults-editor";
 import { DefaultSurfacesPanel } from "./default-surfaces-panel";
-import {
-  archiveTemplate,
-  publishTemplate,
-  rejectToDraft,
-  submitTemplateForReview,
-  unpublishTemplate,
-} from "@/lib/site-admin/builder-core/templates/registry-actions";
 import { CatalogStudioView } from "./catalog-studio";
-import { SurfaceSwitcher } from "./surface-switcher";
 import {
-  CatalogRowTable,
-  targetAllows,
   type CatalogEditFormBundle,
 } from "./catalog-row-table";
 import {
@@ -73,7 +49,6 @@ import {
   emptyEditForm,
   expandAll,
   expandedCount,
-  toggleExpanded,
 } from "./catalog-edit-accordion";
 import { PlaygroundView } from "./catalog-playground";
 import { SiteStarterKitView } from "./catalog-starter-kit";
@@ -82,37 +57,19 @@ import { TemplateManager } from "./template-manager";
 import { ParityProbePanel } from "./parity-probe-panel";
 import { TaxonomyManagerPanel } from "./taxonomy-manager-panel";
 import { CatalogAllIndexTable } from "./catalog-all-index-table";
-import type { AllIndexRow } from "./catalog-all-index";
 import { CatalogHealthPanel } from "./catalog-health-panel";
-import {
-  analyzeCatalogHealth,
-  type CatalogHealthIssue,
-} from "./catalog-health";
+import { analyzeCatalogHealth } from "./catalog-health";
 import type { BuilderLabTarget } from "./builder-lab-stage";
 import {
-  buildCatalogItemPreview,
-  buildTemplateItemPreview,
   type CatalogItemPreview,
 } from "./component-preview-stage";
 import {
   LAB as T,
-  fieldStyle,
-  LabButton,
-  LabChip,
-  PillToggle,
-  LabToast,
-  EmptyCard,
   type LabToastAction,
 } from "./ui";
 import {
-  buildUndoDescriptor,
-  type UndoMutationKind,
-  type UndoRevert,
-} from "./catalog-undo";
-import {
   type FilterPreset,
   type FilterState,
-  BUILT_IN_PRESETS,
   labelToKey,
   loadActivePresetKey,
   loadCustomPresets,
@@ -121,7 +78,6 @@ import {
   saveActivePresetKey,
   saveCustomPresets,
   snapshotToPreset,
-  stateMatchesPreset,
 } from "./catalog-filter-presets";
 import { LabCommandPalette, isPaletteChord } from "./command-palette";
 import {
@@ -141,123 +97,20 @@ import {
   saveLastViewForGroup,
 } from "./catalog-nav-state";
 import { CatalogNav } from "./catalog-nav-bar";
+import { CatalogGalleryView } from "./catalog-gallery-view";
+import { useCatalogActions } from "./catalog-actions";
+import { buildPaletteJumps } from "./catalog-palette-jumps";
+import {
+  ALL_TABS,
+  CONNECTED_DATA_GROUPS,
+  KNOWN_TEMPLATE_CATEGORIES,
+  connectedDataGroupOf,
+  type ConnectedDataGroup,
+} from "./component-catalog-helpers";
 
-// Single source — derived from the Builder Studio catalog-structure resolver
-// (was duplicated with add-gallery-panel.tsx's TAB_DEFS). WS-B threads loaded
-// structure for admin tab rename/reorder; code defaults verbatim otherwise.
-const ALL_TABS: ReadonlyArray<AddGalleryTab> = CODE_TAB_DEFS.map((t) => t.id);
-
-// X4 — the overlay-input column written when toggling each of the four surfaces.
-const SURFACE_ENABLED_COLUMN: Record<
-  CatalogSurfaceKey,
-  | "talent_profile_enabled"
-  | "talent_shell_enabled"
-  | "workspace_page_enabled"
-  | "workspace_shell_enabled"
-> = {
-  talent_profile: "talent_profile_enabled",
-  talent_shell: "talent_shell_enabled",
-  workspace_page: "workspace_page_enabled",
-  workspace_shell: "workspace_shell_enabled",
-};
-// SPECIAL_TABS / CatalogView / VIEW_LABEL / isSpecialTab / TRAILING_SPECIAL_TABS
-// were lifted into catalog-nav.ts (P1) so the pure view-taxonomy is one source,
-// re-imported here.
-
-const CATEGORY_LABEL = new Map(
-  ADD_GALLERY_CATEGORIES.map((c) => [c.id, c.label] as const),
-);
-
-// O9 — placeholder values for CatalogRowTable's (required) flat edit-form props.
-// Under multi-open these are NEVER read — each open editor's values come from
-// `multiEdit.formFor(id)`. They only satisfy the prop contract so the row table
-// stays backward-compatible (the flat props remain required for legacy callers).
-const NOOP = () => {};
-const PLACEHOLDER_EDIT_FORM_PROPS: CatalogEditFormBundle = {
-  editLabel: "",
-  setEditLabel: NOOP,
-  editCategory: "",
-  setEditCategory: NOOP,
-  editIcon: "",
-  setEditIcon: NOOP,
-  editPlan: "",
-  setEditPlan: NOOP,
-  editLockedProps: "",
-  setEditLockedProps: NOOP,
-  editDefaultVariant: "",
-  setEditDefaultVariant: NOOP,
-  editDefaultProps: "",
-  setEditDefaultProps: NOOP,
-  editDefaultPropsError: null,
-  setEditDefaultPropsError: NOOP,
-  editDataSourceDefaults: "",
-  setEditDataSourceDefaults: NOOP,
-  editDataSourceDefaultsError: null,
-  setEditDataSourceDefaultsError: NOOP,
-};
-
-function humanize(id: string): string {
-  return (
-    CATEGORY_LABEL.get(id) ??
-    id
-      .split(/[-_\s]+/)
-      .filter(Boolean)
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ")
-  );
-}
-
-// The Connected view is split by which DATA the component binds: talent-roster /
-// collection / directory sources → "Talent Data"; agency profile / booking /
-// inquiry sources → "Agency Data". The surface switcher shows one at a time
-// (Agency first, matching Site Defaults). This is a DISPLAY grouping (derived
-// from the stable `connectedSource`, not from target_context), so it never
-// changes the real per-surface gating — that stays controlled by the Talent-Max
-// / Workspace toggles on each row.
-const CONNECTED_DATA_GROUPS = [
-  { key: "agency", label: "Agency Data" },
-  { key: "talent", label: "Talent Data" },
-] as const;
-type ConnectedDataGroup = (typeof CONNECTED_DATA_GROUPS)[number]["key"];
-
-function connectedDataGroupOf(item: CatalogAdminItem): ConnectedDataGroup {
-  const src = item.connectedSource ?? "";
-  return src === "Talent Collection" || src === "Talent Directory"
-    ? "talent"
-    : "agency";
-}
-
-/** Parse the "Locked props" textarea (comma/newline/space-separated dot-paths)
- *  into the normalized `locked_props` array. Empty ⇒ [] (clears the lock). */
-function parseLockedProps(raw: string): string[] {
-  const seen = new Set<string>();
-  for (const tok of raw.split(/[\s,]+/)) {
-    const key = tok.trim();
-    if (key) seen.add(key);
-  }
-  return Array.from(seen);
-}
-
-/** Parse a JSON-object textarea. Empty ⇒ null (clears the override). Invalid
- *  JSON or a non-object → `{ error }` so the caller can show an inline message
- *  and block the save. `noun` names the field in the error copy. */
-function parseJsonObjectField(
-  raw: string,
-  noun: string,
-): { ok: true; value: Record<string, unknown> | null } | { ok: false; error: string } {
-  const trimmed = raw.trim();
-  if (!trimmed) return { ok: true, value: null };
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch {
-    return { ok: false, error: "Invalid JSON." };
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    return { ok: false, error: `${noun} must be a JSON object.` };
-  }
-  return { ok: true, value: parsed as Record<string, unknown> };
-}
+// Pure constants + helpers lifted to component-catalog-helpers.ts (god-file
+// decomposition). SPECIAL_TABS / CatalogView / VIEW_LABEL / isSpecialTab /
+// TRAILING_SPECIAL_TABS were lifted earlier into catalog-nav.ts (P1).
 
 export function ComponentCatalog({
   onLaunchEditor,
@@ -567,408 +420,34 @@ export function ComponentCatalog({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const mutate = useCallback(
-    async (id: string, run: () => Promise<{ ok: boolean; error?: string }>) => {
-      setPendingId(id);
-      setError(null);
-      try {
-        const res = await run();
-        if (!res.ok) setError(res.error ?? "Update failed.");
-        await reload();
-      } catch {
-        setError("Update failed.");
-      } finally {
-        setPendingId(null);
-      }
-    },
-    [reload],
-  );
-
-  // O5 — run an undo revert (re-apply the captured `before`, or clear when the
-  // row had no overlay). Routes through the SAME mutate() round-trip a normal
-  // edit takes, so the live galleries reconcile identically. Dismisses the toast
-  // immediately so a second click can't double-fire the revert.
-  const runRevert = useCallback(
-    (itemRef: string, revert: UndoRevert) => {
-      setToast(null);
-      void mutate(itemRef, () =>
-        revert.mode === "apply"
-          ? setComponentOverlay(revert.input)
-          : clearComponentOverlay(revert.itemRef),
-      ).then(() => flash("Change undone ✓"));
-    },
-    [mutate, flash],
-  );
-
-  // O5 — emit a success toast that carries an Undo action built from the
-  // pre-mutation snapshot. `undoable: false` descriptors (e.g. DB-template status
-  // changes, which move the lifecycle, not the overlay) fall back to a plain
-  // toast with no action.
-  const flashWithUndo = useCallback(
-    (args: {
-      kind: UndoMutationKind;
-      itemRef: string;
-      source: "code" | "template";
-      before: CatalogOverlayRow | null;
-      itemLabel: string;
-      message: string;
-    }) => {
-      const desc = buildUndoDescriptor(
-        {
-          kind: args.kind,
-          itemRef: args.itemRef,
-          source: args.source,
-          before: args.before,
-          itemLabel: args.itemLabel,
-        },
-        args.message,
-      );
-      if (!desc.undoable || !desc.revert) {
-        flash(desc.message);
-        return;
-      }
-      const revert = desc.revert;
-      setToast({
-        message: desc.message,
-        undo: {
-          label: desc.undoLabel,
-          testId: `lab-catalog-undo-${args.itemRef}`,
-          onClick: () => runRevert(args.itemRef, revert),
-        },
-      });
-      setTimeout(() => setToast(null), T.toastMs);
-    },
-    [flash, runRevert],
-  );
-
-  // X4 — toggle ONE of the four real surfaces. Each surface has its OWN overlay
-  // column (`talent_profile_enabled` … `workspace_shell_enabled`); we also
-  // dual-write the legacy `talent_enabled` / `workspace_enabled` pair (as the AND
-  // of the two surfaces sharing that target) so a rollback to pre-X4 code still
-  // reads sane visibility. The talent shell is now independent of the workspace
-  // toggle — the lossy 3-on-1 collapse is gone.
-  const toggleSurface = useCallback(
-    (item: CatalogAdminItem, surfaceKey: CatalogSurfaceKey) => {
-      const ov = item.overlay;
-      const currentFour: Record<CatalogSurfaceKey, boolean> = {
-        talent_profile: surfaceEnabledForRow(ov, "talent_profile"),
-        talent_shell: surfaceEnabledForRow(ov, "talent_shell"),
-        workspace_page: surfaceEnabledForRow(ov, "workspace_page"),
-        workspace_shell: surfaceEnabledForRow(ov, "workspace_shell"),
-      };
-      const nextFour = { ...currentFour, [surfaceKey]: !currentFour[surfaceKey] };
-      // Legacy mirror: a target is "enabled" iff BOTH its surfaces are.
-      const legacyTalent = nextFour.talent_profile && nextFour.talent_shell;
-      const legacyWorkspace = nextFour.workspace_page && nextFour.workspace_shell;
-      // W11 — optimistic flip so the cell updates instantly; mutate() reloads and
-      // reconciles against server truth (reverting on error).
-      setItems((prev) =>
-        prev
-          ? prev.map((r) => {
-              if (r.id !== item.id) return r;
-              const overlay: CatalogOverlayRow = {
-                item_ref: r.id,
-                source: r.source as "code" | "template",
-                talent_enabled: legacyTalent,
-                workspace_enabled: legacyWorkspace,
-                talent_profile_enabled: nextFour.talent_profile,
-                talent_shell_enabled: nextFour.talent_shell,
-                workspace_page_enabled: nextFour.workspace_page,
-                workspace_shell_enabled: nextFour.workspace_shell,
-                label_override: r.overlay?.label_override ?? null,
-                icon_override: r.overlay?.icon_override ?? null,
-                category_override: r.overlay?.category_override ?? null,
-                required_plan_override: r.overlay?.required_plan_override ?? null,
-                availability_override: r.overlay?.availability_override ?? null,
-              };
-              const hidden = overlay.availability_override === "hidden";
-              const surfaceVisible = CATALOG_SURFACE_KEYS.reduce(
-                (acc, key) => {
-                  acc[key] =
-                    targetAllows(r.targetContext, surfaceKeyToTarget(key)) &&
-                    nextFour[key] &&
-                    !hidden;
-                  return acc;
-                },
-                {} as Record<CatalogSurfaceKey, boolean>,
-              );
-              return {
-                ...r,
-                overlay,
-                surfaceVisible,
-                talentVisible:
-                  targetAllows(r.targetContext, "talent") && legacyTalent && !hidden,
-                workspaceVisible:
-                  targetAllows(r.targetContext, "workspace") &&
-                  legacyWorkspace &&
-                  !hidden,
-              };
-            })
-          : prev,
-      );
-      const column = SURFACE_ENABLED_COLUMN[surfaceKey];
-      // O5 — snapshot the pre-toggle overlay so the toast's Undo can re-apply it
-      // (an accidental surface flip is one click away from recovery).
-      const before = item.overlay;
-      const surfaceLabel = surfaceKey
-        .split("_")
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" ");
-      void mutate(item.id, () =>
-        setComponentOverlay({
-          item_ref: item.id,
-          source: item.source,
-          [column]: nextFour[surfaceKey],
-          talent_enabled: legacyTalent,
-          workspace_enabled: legacyWorkspace,
-        }),
-      ).then(() =>
-        flashWithUndo({
-          kind: "toggle",
-          itemRef: item.id,
-          source: item.source,
-          before,
-          itemLabel: item.effectiveLabel,
-          message: `${nextFour[surfaceKey] ? "Enabled" : "Disabled"} on ${surfaceLabel}`,
-        }),
-      );
-    },
-    [mutate, flashWithUndo],
-  );
-
-  // X6 — toggle the INDEPENDENT Builder-Lab visibility. Orthogonal to the four
-  // tenant surfaces: it has NO legacy mirror and is NOT gated by target_context,
-  // so it writes ONLY `lab_enabled` and never touches a tenant column. Optimistic
-  // flip (like toggleSurface), reconciled by reload().
-  const toggleLab = useCallback(
-    (item: CatalogAdminItem) => {
-      const nextLab = !labEnabledForRow(item.overlay);
-      setItems((prev) =>
-        prev
-          ? prev.map((r) => {
-              if (r.id !== item.id) return r;
-              const overlay: CatalogOverlayRow = {
-                item_ref: r.id,
-                source: r.source as "code" | "template",
-                talent_enabled: r.overlay?.talent_enabled ?? true,
-                workspace_enabled: r.overlay?.workspace_enabled ?? true,
-                talent_profile_enabled: surfaceEnabledForRow(r.overlay, "talent_profile"),
-                talent_shell_enabled: surfaceEnabledForRow(r.overlay, "talent_shell"),
-                workspace_page_enabled: surfaceEnabledForRow(r.overlay, "workspace_page"),
-                workspace_shell_enabled: surfaceEnabledForRow(r.overlay, "workspace_shell"),
-                lab_enabled: nextLab,
-                label_override: r.overlay?.label_override ?? null,
-                icon_override: r.overlay?.icon_override ?? null,
-                category_override: r.overlay?.category_override ?? null,
-                required_plan_override: r.overlay?.required_plan_override ?? null,
-                availability_override: r.overlay?.availability_override ?? null,
-              };
-              const hidden = overlay.availability_override === "hidden";
-              return { ...r, overlay, labVisible: nextLab && !hidden };
-            })
-          : prev,
-      );
-      const before = item.overlay;
-      void mutate(item.id, () =>
-        setComponentOverlay({
-          item_ref: item.id,
-          source: item.source,
-          lab_enabled: nextLab,
-        }),
-      ).then(() =>
-        flashWithUndo({
-          kind: "toggle",
-          itemRef: item.id,
-          source: item.source,
-          before,
-          itemLabel: item.effectiveLabel,
-          message: `${nextLab ? "Shown" : "Hidden"} in Builder Lab`,
-        }),
-      );
-    },
-    [mutate, flashWithUndo],
-  );
-
-  /** Open ONE row's editor (added to the expanded set) + seed its form. */
-  const startEdit = useCallback((item: CatalogAdminItem) => {
-    setEditForms((prev) => ({ ...prev, [item.id]: editFormFromItem(item) }));
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      next.add(item.id);
-      return next;
-    });
-  }, []);
-
-  /** Close ONE row's editor (removed from the set) + drop its form snapshot. */
-  const closeEdit = useCallback((id: string) => {
-    setExpandedIds((prev) => {
-      if (!prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    setEditForms((prev) => {
-      if (!(id in prev)) return prev;
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-  }, []);
-
-  /** Toggle ONE row's editor open/closed (the row-click affordance). */
-  const toggleEdit = useCallback(
-    (item: CatalogAdminItem) => {
-      if (expandedIds.has(item.id)) closeEdit(item.id);
-      else startEdit(item);
-    },
-    [expandedIds, closeEdit, startEdit],
-  );
-
-  const saveEdit = useCallback(
-    (item: CatalogAdminItem) => {
-      // O9 — read THIS row's per-id form snapshot (several may be open at once).
-      const form = editForms[item.id] ?? emptyEditForm();
-      const dp = parseJsonObjectField(form.defaultProps, "Default props");
-      if (!dp.ok) {
-        // Invalid JSON → keep the editor open, show the inline error, don't save.
-        patchEditForm(item.id, { defaultPropsError: dp.error });
-        return;
-      }
-      const dsd = parseJsonObjectField(form.dataSourceDefaults, "Data-source defaults");
-      if (!dsd.ok) {
-        patchEditForm(item.id, { dataSourceDefaultsError: dsd.error });
-        return;
-      }
-      patchEditForm(item.id, {
-        defaultPropsError: null,
-        dataSourceDefaultsError: null,
-      });
-      const before = item.overlay;
-      void mutate(item.id, () =>
-        setComponentOverlay({
-          item_ref: item.id,
-          source: item.source,
-          label_override: form.label.trim() || null,
-          category_override: form.category.trim() || null,
-          icon_override: form.icon.trim() || null,
-          required_plan_override:
-            (form.plan as "free" | "studio" | "agency" | "network" | "") || null,
-          locked_props: parseLockedProps(form.lockedProps),
-          default_variant: form.defaultVariant.trim() || null,
-          default_props: dp.value,
-          data_source_defaults: dsd.value,
-        }),
-      ).then(() => {
-        closeEdit(item.id);
-        flashWithUndo({
-          kind: "save",
-          itemRef: item.id,
-          source: item.source,
-          before,
-          itemLabel: item.effectiveLabel,
-          message: "Saved ✓",
-        });
-      });
-    },
-    [mutate, editForms, patchEditForm, closeEdit, flashWithUndo],
-  );
-
-  // O5 — reset is now OPTIMISTIC (no inline "Reset to default?" confirm step):
-  // clicking Reset clears the overlay immediately and surfaces an Undo toast that
-  // re-applies the captured `before`. `resetWithUndo` is the single entry point;
-  // `confirmReset` is kept as a thin wrapper so the row table's (still-wired but
-  // now-dormant) confirm path stays type-compatible.
-  const resetWithUndo = useCallback(
-    (item: CatalogAdminItem) => {
-      setConfirmingResetId(null);
-      const before = item.overlay;
-      void mutate(item.id, () => clearComponentOverlay(item.id)).then(() =>
-        flashWithUndo({
-          kind: "reset",
-          itemRef: item.id,
-          source: item.source,
-          before,
-          itemLabel: item.effectiveLabel,
-          message: "Reset to default ✓",
-        }),
-      );
-    },
-    [mutate, flashWithUndo],
-  );
-
-  const confirmReset = resetWithUndo;
-
-  // O5 — the row "Reset" link calls onStartReset(id). It now applies the reset
-  // optimistically (with Undo) instead of opening the inline confirm row. Looks
-  // the row up by id (the link only carries the id).
-  const startResetOptimistic = useCallback(
-    (id: string) => {
-      const item = items?.find((r) => r.id === id);
-      if (item) resetWithUndo(item);
-    },
-    [items, resetWithUndo],
-  );
-
-  // ── Status transition (lifecycle control, ZERO migration) ───────────────────
-  // Two orthogonal mechanisms behind ONE dropdown, depending on row source:
-  //  • Code rows have no lifecycle enum — they reuse the existing
-  //    `availability_override` column. Published ⇒ 'available', Archived ⇒
-  //    'hidden' (which `applyCatalogOverlay` already honors globally). Draft /
-  //    In-review aren't selectable for code rows (shown disabled by the row UI).
-  //  • DB-template rows dispatch the existing registry lifecycle actions on their
-  //    raw `dbTemplateId`. Only the legal transition for the current status is
-  //    enabled (the row UI computes which); this makes in_review / archived
-  //    reachable from the row.
-  const setStatus = useCallback(
-    (item: CatalogAdminItem, next: "draft" | "in_review" | "published" | "archived") => {
-      if (item.source === "code") {
-        const availability = next === "archived" ? "hidden" : "available";
-        // O5 — code-row status rides the overlay (availability_override), so the
-        // captured `before` re-applies on Undo.
-        const before = item.overlay;
-        void mutate(item.id, () =>
-          setComponentOverlay({
-            item_ref: item.id,
-            source: item.source,
-            availability_override: availability,
-          }),
-        ).then(() =>
-          flashWithUndo({
-            kind: "status",
-            itemRef: item.id,
-            source: item.source,
-            before,
-            itemLabel: item.effectiveLabel,
-            message: next === "archived" ? "Archived" : "Published ✓",
-          }),
-        );
-        return;
-      }
-      // DB template — dispatch the matching lifecycle action on the raw row id.
-      const templateId = item.dbTemplateId ?? item.id;
-      const action =
-        next === "in_review"
-          ? () => submitTemplateForReview(templateId)
-          : next === "published"
-            ? () => publishTemplate(templateId)
-            : next === "archived"
-              ? () => archiveTemplate(templateId)
-              : // → draft: from in_review use rejectToDraft, from published use unpublish.
-                item.status === "in_review"
-                ? () => rejectToDraft(templateId)
-                : () => unpublishTemplate(templateId);
-      void mutate(item.id, action).then(() => {
-        const labels: Record<typeof next, string> = {
-          draft: "Moved to draft",
-          in_review: "Submitted for review",
-          published: "Published ✓",
-          archived: "Archived",
-        };
-        flash(labels[next]);
-      });
-    },
-    [mutate, flash, flashWithUndo],
-  );
+  // Row-level mutation handlers, lifted into useCatalogActions (god-file
+  // decomposition). The controller still owns all state; the hook receives the
+  // setters/state and returns the action callbacks (verbatim useCallback bodies).
+  const {
+    toggleSurface,
+    toggleLab,
+    startEdit,
+    closeEdit,
+    toggleEdit,
+    saveEdit,
+    confirmReset,
+    startResetOptimistic,
+    setStatus,
+  } = useCatalogActions({
+    items,
+    expandedIds,
+    editForms,
+    setPendingId,
+    setError,
+    reload,
+    setToast,
+    flash,
+    setItems,
+    patchEditForm,
+    setEditForms,
+    setExpandedIds,
+    setConfirmingResetId,
+  });
 
   const { presentTabs, rowsByTab } = useMemo(() => {
     const empty = {
@@ -1026,6 +505,12 @@ export function ComponentCatalog({
         rows: items ?? [],
         templates: allTemplates,
         templateUsage,
+        // The built-in page-template starters carry an INTENT category (coach,
+        // restaurant, editorial, …) from the page-design ids — a legitimate
+        // taxonomy distinct from the component-tab categories. Register them
+        // (+ the Playground draft bucket) so the orphaned-category check stops
+        // false-flagging every built-in starter; a genuine typo still surfaces.
+        knownCategories: KNOWN_TEMPLATE_CATEGORIES,
       }),
     [items, allTemplates, templateUsage],
   );
@@ -1145,91 +630,16 @@ export function ComponentCatalog({
     });
   };
 
-  // ── O6: command-palette index inputs + jump handler ─────────────────────────
-  // Gallery components carry their gallery `tab` so a hit jumps straight to that
-  // Catalog view. builder_templates rows split by kind: page/shell kinds are the
-  // Playground's drafts (jump → "playground"), the rest are governed templates
-  // (jump → the "templates" manager). The pure index lives in command-search.
-  const paletteComponents = items.map((r) => ({
-    id: r.id,
-    tab: r.tab,
-    effectiveLabel: r.effectiveLabel,
-    effectiveCategory: r.effectiveCategory,
-    baseLabel: r.baseLabel,
-  }));
-  const isDraftKind = (k: string) =>
-    k === "page_template" || k === "shell_header" || k === "shell_footer";
-  const paletteDrafts = allTemplates
-    .filter((t) => isDraftKind(t.kind))
-    .map((t) => ({
-      id: t.id,
-      title: t.title,
-      slug: t.slug,
-      status: t.status,
-      kind: t.kind,
-    }));
-  const paletteTemplates = allTemplates
-    .filter((t) => !isDraftKind(t.kind))
-    .map((t) => ({
-      id: t.id,
-      title: t.title,
-      slug: t.slug,
-      status: t.status,
-      kind: t.kind,
-    }));
-
-  /** Jump to a catalog view from a palette result. For a gallery tab the target
-   *  row is also pre-expanded (O9 expand set); special views (Playground /
-   *  Templates) just activate — they own their own row state. The chosen view
-   *  may not be in the active group's tier-2 list if it's a gallery tab
-   *  currently empty under the active filter, but selectView is tolerant
-   *  (currentView falls back, and the group is re-derived from the new view). */
-  const handlePaletteJump = (tab: string, rowId: string) => {
-    selectView(tab as CatalogView);
-    if (!isSpecialTab(tab as CatalogView)) {
-      // Gallery component — open its override editor (seed the form).
-      const row = items.find((r) => r.id === rowId);
-      if (row) startEdit(row);
-    }
-  };
-
-  // O10 — jump from an All-index row to its owning Catalog view. Code/template
-  // rows that ARE gallery items (have a real `tab`) jump to that gallery view
-  // with the row pre-expanded; draft/template-only rows route to the Templates
-  // manager. Mirrors handlePaletteJump's expand-on-arrival behavior.
-  const handleAllIndexJump = (row: AllIndexRow) => {
-    if (row.tab) {
-      selectView(row.tab as CatalogView);
-      const gridRow = items.find((r) => r.id === row.id);
-      if (gridRow) startEdit(gridRow);
-      return;
-    }
-    selectView("templates");
-  };
-
-  // D8 — jump from a Catalog-health issue to the offending row. A flagged row
-  // that IS a live gallery item (its catalog id is in `items`) jumps to its tab
-  // with the override editor pre-opened — mirroring handleAllIndexJump. Anything
-  // else (a draft/non-gallery template) routes to the Templates manager. Reuses
-  // the existing jump machinery; adds no new navigation surface.
-  const handleHealthJump = (issue: CatalogHealthIssue) => {
-    const gridRow = issue.rowId
-      ? items.find((r) => r.id === issue.rowId)
-      : undefined;
-    if (gridRow) {
-      selectView(gridRow.tab as CatalogView);
-      startEdit(gridRow);
-      return;
-    }
-    // P1 — an orphaned-category issue with no concrete row is a taxonomy
-    // problem; route it to the Taxonomy manager (Admin group) rather than the
-    // Templates manager. Everything else still routes to Templates.
-    if (issue.bucket === "orphaned_category") {
-      selectView("taxonomy");
-      return;
-    }
-    selectView("templates");
-  };
+  // Command-palette index + jump handlers lifted into buildPaletteJumps (god-file
+  // decomposition) — pure render-scope derivations, behavior-identical.
+  const {
+    paletteComponents,
+    paletteDrafts,
+    paletteTemplates,
+    handlePaletteJump,
+    handleAllIndexJump,
+    handleHealthJump,
+  } = buildPaletteJumps({ items, allTemplates, selectView, startEdit });
 
   return (
     <div
@@ -1279,323 +689,51 @@ export function ComponentCatalog({
       />
 
       {galleryView ? (
-        <>
-      {error ? (
-        <div style={{ color: T.red, fontSize: 12 }}>{error}</div>
-      ) : null}
-
-      {toast ? (
-        <LabToast action={toast.undo ?? undefined}>{toast.message}</LabToast>
-      ) : null}
-
-      {/* O7 — Filter preset strip */}
-      <div
-        role="group"
-        aria-label="Filter presets"
-        style={{
-          display: "flex",
-          gap: 6,
-          alignItems: "center",
-          flexWrap: "wrap",
-          minHeight: 28,
-        }}
-      >
-        {allPresets.map((preset) => {
-          const active = stateMatchesPreset(currentFilterState(), preset);
-          const isCustom = !BUILT_IN_PRESETS.some((b) => b.key === preset.key);
-          return (
-            <span
-              key={preset.key}
-              style={{ display: "inline-flex", alignItems: "center", gap: 0 }}
-            >
-              <button
-                type="button"
-                aria-pressed={active}
-                title={`Apply preset: ${preset.label}`}
-                onClick={() => applyPreset(preset)}
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: active ? 700 : 500,
-                  padding: "3px 10px",
-                  borderRadius: isCustom ? "999px 0 0 999px" : 999,
-                  border: `1px solid ${active ? T.accent : T.border}`,
-                  borderRight: isCustom ? "none" : undefined,
-                  background: active ? T.accentBg : T.cardSoft,
-                  color: active ? T.accent : T.inkMuted,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {preset.label}
-              </button>
-              {isCustom ? (
-                <button
-                  type="button"
-                  aria-label={`Delete preset "${preset.label}"`}
-                  title={`Delete preset "${preset.label}"`}
-                  onClick={() => deletePreset(preset.key)}
-                  style={{
-                    fontSize: 11,
-                    padding: "3px 7px",
-                    borderRadius: "0 999px 999px 0",
-                    border: `1px solid ${active ? T.accent : T.border}`,
-                    borderLeft: "none",
-                    background: active ? T.accentBg : T.cardSoft,
-                    color: active ? T.accent : T.inkDim,
-                    cursor: "pointer",
-                    lineHeight: 1,
-                  }}
-                >
-                  ×
-                </button>
-              ) : null}
-            </span>
-          );
-        })}
-
-        {/* Save-as-preset action / inline form */}
-        {savingPreset ? (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <input
-              ref={presetInputRef}
-              type="text"
-              value={presetDraftLabel}
-              onChange={(e) => setPresetDraftLabel(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commitSavePreset();
-                if (e.key === "Escape") {
-                  setSavingPreset(false);
-                  setPresetDraftLabel("");
-                }
-              }}
-              placeholder="Preset name…"
-              aria-label="New preset name"
-              style={{
-                ...fieldStyle,
-                fontSize: 11.5,
-                padding: "3px 9px",
-                width: 150,
-                outline: "none",
-              }}
-            />
-            <LabButton
-              variant="soft"
-              style={{ fontSize: 11.5, padding: "3px 10px" }}
-              onClick={commitSavePreset}
-              disabled={!presetDraftLabel.trim()}
-            >
-              Save
-            </LabButton>
-            <button
-              type="button"
-              onClick={() => {
-                setSavingPreset(false);
-                setPresetDraftLabel("");
-              }}
-              style={{
-                background: "none",
-                border: "none",
-                color: T.inkDim,
-                fontSize: 11.5,
-                cursor: "pointer",
-                padding: "3px 4px",
-              }}
-            >
-              Cancel
-            </button>
-          </span>
-        ) : (
-          <button
-            type="button"
-            title="Save current filter as a preset"
-            onClick={() => setSavingPreset(true)}
-            style={{
-              fontSize: 11.5,
-              padding: "3px 10px",
-              borderRadius: 999,
-              border: `1px dashed ${T.border}`,
-              background: "transparent",
-              color: T.inkDim,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            + Save view
-          </button>
-        )}
-      </div>
-
-      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search components by name, category, or id…"
-          aria-label="Search components"
-          style={{ ...fieldStyle, flex: 1, minWidth: 240, outline: "none" }}
-        />
-        <PillToggle
-          size="sm"
-          ariaLabel="Filter components"
-          value={filterMode}
-          onChange={(v) => {
-            setFilterMode(v);
-            saveActivePresetKey(null);
-          }}
-          options={[
-            { key: "all", label: "All" },
-            { key: "hidden", label: "Hidden" },
-            { key: "customized", label: "Customized" },
-          ]}
-        />
-      </div>
-
-      {currentView === "connected" ? (
-        <SurfaceSwitcher
-          options={CONNECTED_DATA_GROUPS}
-          value={connectedSurface}
-          onChange={setConnectedSurface}
-          ariaLabel="Connected data surface"
-        />
-      ) : null}
-
-      {rowGroups.length === 0 ? (
-        <EmptyCard>
-          {query || filterMode !== "all" ? (
-            <>
-              No {viewLabel(currentView)} components
-              {query ? ` matching “${query}”` : ""}
-              {filterMode !== "all" ? ` (${filterMode})` : ""}. Clear the search
-              or filter to see the full catalog.
-            </>
-          ) : (
-            <>No {viewLabel(currentView)} components in the catalog yet.</>
-          )}
-        </EmptyCard>
-      ) : (
-        <>
-        {/* O9 — group-header expand-all / collapse-all over the listed rows.
-            Multiple override editors stay open side-by-side; this toggles them
-            as a batch. */}
-        <div
-          role="group"
-          aria-label="Edit accordion controls"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flexWrap: "wrap",
-          }}
-        >
-          <span style={{ fontSize: 11.5, color: T.inkDim }}>
-            {visibleExpandedCount > 0
-              ? `${visibleExpandedCount} of ${visibleRowIds.length} editor${
-                  visibleRowIds.length === 1 ? "" : "s"
-                } open`
-              : `${visibleRowIds.length} component${
-                  visibleRowIds.length === 1 ? "" : "s"
-                }`}
-          </span>
-          <span style={{ display: "inline-flex", gap: 6 }}>
-            <LabButton
-              variant="soft"
-              testId="lab-catalog-expand-all"
-              style={{ fontSize: 11.5, padding: "3px 10px" }}
-              onClick={onExpandAllVisible}
-              disabled={allVisibleExpanded}
-            >
-              Expand all
-            </LabButton>
-            <LabButton
-              variant="soft"
-              testId="lab-catalog-collapse-all"
-              style={{ fontSize: 11.5, padding: "3px 10px" }}
-              onClick={onCollapseAllVisible}
-              disabled={visibleExpandedCount === 0}
-            >
-              Collapse all
-            </LabButton>
-          </span>
-          {/* P1 — health-issue chip on the Structure/gallery surface header.
-              Replaces the always-on health strip: when there are issues, it
-              jumps to the (Admin-group) Health view. Hidden when all-clear. */}
-          {healthReport.totalIssues > 0 ? (
-            <button
-              type="button"
-              data-testid="lab-health-chip"
-              onClick={() => selectView("health")}
-              title="Open the Catalog-health view"
-              style={{
-                marginLeft: "auto",
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-              }}
-            >
-              <LabChip tone="accent">
-                {healthReport.totalIssues} issue
-                {healthReport.totalIssues === 1 ? "" : "s"}
-              </LabChip>
-            </button>
-          ) : null}
-        </div>
-        <CatalogRowTable
-          groups={rowGroups}
-          humanize={humanize}
+        <CatalogGalleryView
+          error={error}
+          toast={toast}
+          allPresets={allPresets}
+          currentFilterState={currentFilterState}
+          applyPreset={applyPreset}
+          deletePreset={deletePreset}
+          savingPreset={savingPreset}
+          presetInputRef={presetInputRef}
+          presetDraftLabel={presetDraftLabel}
+          setPresetDraftLabel={setPresetDraftLabel}
+          commitSavePreset={commitSavePreset}
+          setSavingPreset={setSavingPreset}
+          query={query}
+          setQuery={setQuery}
+          filterMode={filterMode}
+          setFilterMode={setFilterMode}
+          currentView={currentView}
+          connectedSurface={connectedSurface}
+          setConnectedSurface={setConnectedSurface}
+          rowGroups={rowGroups}
+          viewLabel={viewLabel}
+          visibleExpandedCount={visibleExpandedCount}
+          visibleRowIds={visibleRowIds}
+          onExpandAllVisible={onExpandAllVisible}
+          allVisibleExpanded={allVisibleExpanded}
+          onCollapseAllVisible={onCollapseAllVisible}
+          healthReport={healthReport}
+          selectView={selectView}
           pendingId={pendingId}
-          // O9 — multi-open: editingId is unused (adapter drives which rows
-          // open); the flat *placeholder* edit-form props satisfy the required
-          // prop contract but are overridden PER-ROW by `multiEdit.formFor`.
-          editingId={null}
-          multiEdit={{
-            isExpanded: (id) => expandedIds.has(id),
-            formFor: formBundleFor,
-            closeRow: closeEdit,
-          }}
-          {...PLACEHOLDER_EDIT_FORM_PROPS}
+          expandedIds={expandedIds}
+          formBundleFor={formBundleFor}
+          closeEdit={closeEdit}
           confirmingResetId={confirmingResetId}
-          onRowClick={toggleEdit}
-          onToggleSurface={toggleSurface}
-          onToggleLab={toggleLab}
-          onSetStatus={setStatus}
-          onSaveEdit={saveEdit}
-          // Legacy single-editor cancel (unused under multi-open — the per-row
-          // Cancel routes through multiEdit.closeRow); collapse all as a sane
-          // fallback should the adapter ever be absent.
-          onCancelEdit={onCollapseAllVisible}
-          onConfirmReset={confirmReset}
-          onStartReset={startResetOptimistic}
-          onCancelReset={() => setConfirmingResetId(null)}
-          onReverted={reload}
-          onPreview={(r) => {
-            const meta = {
-              id: r.id,
-              label: r.effectiveLabel,
-              category: humanize(r.effectiveCategory),
-              talentVisible: r.talentVisible,
-              workspaceVisible: r.workspaceVisible,
-            };
-            if (r.source === "template") {
-              // Persisted templates need a server round-trip to load builder_tree.
-              void buildTemplateItemPreview(meta).then((p) => onPreviewComponent?.(p));
-              return;
-            }
-            onPreviewComponent?.(
-              buildCatalogItemPreview({ ...meta, source: r.source }),
-            );
-          }}
+          toggleEdit={toggleEdit}
+          toggleSurface={toggleSurface}
+          toggleLab={toggleLab}
+          setStatus={setStatus}
+          saveEdit={saveEdit}
+          confirmReset={confirmReset}
+          startResetOptimistic={startResetOptimistic}
+          setConfirmingResetId={setConfirmingResetId}
+          reload={reload}
+          onPreviewComponent={onPreviewComponent}
         />
-        </>
-      )}
-
-      <p style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5, margin: 0 }}>
-        Toggles control per-surface visibility (subtract-only — a component can&apos;t be forced onto a
-        surface its <code>target_context</code> excludes; locked cells show that). Renames apply to both
-        builders&apos; &quot;+&quot; gallery on next open. Built-in components can be hidden, renamed,
-        re-iconed, or plan-gated here; changing their internal structure is a code change.
-      </p>
-        </>
       ) : currentView === "all" ? (
         <CatalogAllIndexTable
           items={items}

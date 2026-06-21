@@ -86,7 +86,7 @@ export async function listBuilderLabAudit(
 
     let query = sb
       .from("builder_lab_audit")
-      .select("id, action, item_ref, template_id, actor, before, after, created_at")
+      .select("id, action, item_ref, template_id, actor, actor_label, before, after, created_at")
       .order("created_at", { ascending: false })
       .limit(options.limit ?? FEED_LIMIT);
 

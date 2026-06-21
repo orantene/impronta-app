@@ -26,6 +26,7 @@
  */
 
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -41,11 +42,29 @@ import type { RampRow } from "./rollout-ramp-cron-logic";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** System/cron actor for audit rows: `null`. The audit `actor` column is a
- *  nullable uuid FK to profiles, so a sentinel string ("system:...") fails the
- *  uuid cast and the row silently never lands. null = "no human actor". (A
- *  dedicated actor_label text column is the longer-term representation.) */
+/** System/cron actor for audit rows. The audit `actor` column is a nullable
+ *  uuid FK to profiles, so it stays `null` (no human actor — a sentinel string
+ *  would fail the uuid cast and the row would silently never land). The
+ *  human-readable identity rides in `actor_label` instead, so the Activity feed
+ *  attributes these transitions to the cron rather than rendering blank. */
 const CRON_ACTOR = null;
+const CRON_ACTOR_LABEL = "system:builder-rollout-cron";
+
+/** Best-effort Sentry capture for a cron failure — gives the failure a dedicated
+ *  `cron` tag so a broken (otherwise invisible, flag-OFF) cron can page someone.
+ *  `logServerError` already routes to Sentry, but with a generic `context` tag;
+ *  this adds the cron-scoped tag + error level. Must NEVER throw. */
+function captureCronError(err: unknown, phase: string): void {
+  try {
+    const exception = err instanceof Error ? err : new Error(String(err));
+    Sentry.captureException(exception, {
+      level: "error",
+      tags: { cron: "builder-rollout-ramp", phase },
+    });
+  } catch {
+    // Observability must not affect the request path.
+  }
+}
 
 /** How far in the future to re-arm rollout_ramp_at after a non-final tick. */
 const RAMP_TICK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 1 day
@@ -107,6 +126,7 @@ export async function GET(request: Request) {
         .eq("id", row.id);
       if (updErr) {
         logServerError("cron/builder-rollout-ramp", updErr);
+        captureCronError(updErr, "ramp_update");
         continue;
       }
 
@@ -117,6 +137,7 @@ export async function GET(request: Request) {
         action: "template.rollout",
         templateId: row.id,
         actor: CRON_ACTOR,
+        actorLabel: CRON_ACTOR_LABEL,
         before: {
           rollout_percentage: row.rollout_percentage,
           rollout_ramp_to: row.rollout_ramp_to,
@@ -150,6 +171,7 @@ export async function GET(request: Request) {
         .eq("status", "draft"); // guard: only archive if still a draft
       if (arcErr) {
         logServerError("cron/builder-rollout-ramp", arcErr);
+        captureCronError(arcErr, "archive_update");
         continue;
       }
 
@@ -159,6 +181,7 @@ export async function GET(request: Request) {
         action: "template.archive",
         templateId: row.id,
         actor: CRON_ACTOR,
+        actorLabel: CRON_ACTOR_LABEL,
         before: { status: "draft", status_expire_at: row.status_expire_at },
         after: { status: "archived", reason: "auto_expire" },
       });
@@ -169,6 +192,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     logServerError("cron/builder-rollout-ramp", err);
+    // Dedicated cron-tagged alert so a broken (flag-OFF, otherwise invisible) cron
+    // can page someone instead of failing silently.
+    captureCronError(err, "outer");
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

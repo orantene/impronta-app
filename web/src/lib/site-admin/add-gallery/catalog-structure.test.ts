@@ -121,3 +121,54 @@ test("applyStructureToItems: a row for a different item leaves others untouched"
   assert.equal(out[0].tab, "layout");
   assert.equal(out[1], items[1]); // unchanged reference
 });
+
+// ── structure HIDE subtracts the components, not just the grouping ───────────
+// (regression: a hidden category only got demoted to the end of the gallery's
+// category list because the panel's present-category fallback re-added it as an
+// "extra" — its items stayed addable. Hiding must remove the items too.)
+
+test("applyStructureToItems: a hidden category drops its components from the gallery", () => {
+  const items = [
+    item({ id: "el-text", category: "text" }),
+    item({ id: "el-button", category: "buttons" }),
+  ];
+  const s: CatalogStructureMap = {
+    "cat:text": row({ ref: "cat:text", kind: "category", parent_tab: "elements", hidden: true }),
+  };
+  const out = applyStructureToItems(items, s);
+  assert.deepEqual(out.map((i) => i.id), ["el-button"]); // el-text subtracted, control kept
+});
+
+test("applyStructureToItems: a hidden tab drops every component in it", () => {
+  const items = [
+    item({ id: "conn-repeater", tab: "connected", category: "dynamic" }),
+    item({ id: "el-button", tab: "elements", category: "buttons" }),
+  ];
+  const s: CatalogStructureMap = {
+    "tab:connected": row({ ref: "tab:connected", hidden: true }),
+  };
+  const out = applyStructureToItems(items, s);
+  assert.deepEqual(out.map((i) => i.id), ["el-button"]);
+});
+
+test("applyStructureToItems: an item moved OUT of a hidden category via item:<id> survives", () => {
+  // The whole "text" category is hidden, but this one component is explicitly
+  // re-homed into a visible category — its NEW location wins, so it stays.
+  const items = [item({ id: "el-text", category: "text" })];
+  const s: CatalogStructureMap = {
+    "cat:text": row({ ref: "cat:text", kind: "category", parent_tab: "elements", hidden: true }),
+    "item:el-text": row({ ref: "item:el-text", kind: "item", category_override: "buttons" }),
+  };
+  const out = applyStructureToItems(items, s);
+  assert.deepEqual(out.map((i) => i.id), ["el-text"]);
+  assert.equal(out[0].category, "buttons");
+});
+
+test("applyStructureToItems: an item moved INTO a hidden category via item:<id> is dropped", () => {
+  const items = [item({ id: "el-button", category: "buttons" })];
+  const s: CatalogStructureMap = {
+    "cat:archive": row({ ref: "cat:archive", kind: "category", parent_tab: "elements", hidden: true }),
+    "item:el-button": row({ ref: "item:el-button", kind: "item", category_override: "archive" }),
+  };
+  assert.equal(applyStructureToItems(items, s).length, 0);
+});

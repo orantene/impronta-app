@@ -1040,7 +1040,7 @@ export function CommandPalette({
       role="dialog"
       aria-modal="true"
       aria-labelledby="command-palette-title"
-      className="fixed inset-0 z-[150] flex items-start justify-center"
+      className="edit-anim-fade fixed inset-0 z-[150] flex items-start justify-center"
       style={{
         background: "rgba(11, 11, 13, 0.32)",
         paddingTop: "12vh",
@@ -1052,6 +1052,7 @@ export function CommandPalette({
       <div
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
+        className="edit-anim-pop"
         style={{
           width: "min(640px, calc(100vw - 32px))",
           background: CHROME.paper,

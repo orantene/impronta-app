@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { resolveNotFoundSlug } from "@/lib/site-admin/server/page-roles";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { isLocale } from "@/lib/site-admin/locales";
+import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 
 // E.2 — Branded 404 page (server component).
 //
@@ -40,6 +44,22 @@ async function loadAgencyBrand(): Promise<AgencyBrand | null> {
 }
 
 export default async function NotFound() {
+  // PAGE ROLES — if this agency assigned a page the `notFound` role, render THAT
+  // page (with the shell) as the 404 body. This boundary already renders with a
+  // 404 status, so SEO stays correct. resolveNotFoundSlug only returns a slug
+  // when a published page exists at it, so the not-found boundary can't recurse.
+  const roleCtx = await getPublicHostContext();
+  if (roleCtx?.kind === "agency" && roleCtx.tenantId) {
+    const locale = await getRequestLocale();
+    const notFoundSlug = await resolveNotFoundSlug(
+      roleCtx.tenantId,
+      isLocale(locale) ? locale : "en",
+    );
+    if (notFoundSlug) {
+      return <CmsPublicPage params={Promise.resolve({ slug: [notFoundSlug] })} />;
+    }
+  }
+
   const brand = await loadAgencyBrand();
   const isAgency = brand !== null;
   const eyebrow = isAgency && brand ? brand.name.toUpperCase() : "TULALA";

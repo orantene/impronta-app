@@ -151,6 +151,11 @@ function CollectionsList({
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  // Two-step delete confirm — a collection delete also wipes its content rows
+  // (which live-page repeaters bind to), so never one-click destroy it.
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
+    null,
+  );
 
   async function create() {
     const trimmed = name.trim();
@@ -229,14 +234,41 @@ function CollectionsList({
                 >
                   Edit
                 </button>
-                <button
-                  type="button"
-                  className={KIT.subtleButton}
-                  onClick={() => void remove(collection.id)}
-                  aria-label={`Delete ${collection.name}`}
-                >
-                  Delete
-                </button>
+                {confirmingDeleteId === collection.id ? (
+                  <>
+                    <button
+                      type="button"
+                      className={KIT.subtleButton}
+                      style={{ color: CHROME.rose }}
+                      onClick={() => {
+                        setConfirmingDeleteId(null);
+                        void remove(collection.id);
+                      }}
+                      aria-label={`Confirm delete ${collection.name}`}
+                    >
+                      Delete
+                      {collection.itemCount > 0
+                        ? ` ${collection.itemCount} item${collection.itemCount === 1 ? "" : "s"}`
+                        : ""}
+                    </button>
+                    <button
+                      type="button"
+                      className={KIT.subtleButton}
+                      onClick={() => setConfirmingDeleteId(null)}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className={KIT.subtleButton}
+                    onClick={() => setConfirmingDeleteId(collection.id)}
+                    aria-label={`Delete ${collection.name}`}
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             ))
           )}
