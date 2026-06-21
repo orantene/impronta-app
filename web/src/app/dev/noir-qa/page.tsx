@@ -60,6 +60,22 @@ const NOIR_VARS: React.CSSProperties = {
     "'Inter', ui-sans-serif, system-ui, sans-serif",
 };
 
+// Review harness renders the blocks statically — strip revealOnView so nothing
+// sits hidden behind a scroll-triggered fade (which read as "missing/broken"
+// when glancing at the page without scrolling each section into view).
+function stripReveal<T>(node: T): T {
+  const n = node as {
+    props?: { style?: Record<string, unknown> };
+    children?: unknown[];
+  };
+  if (n.props?.style) {
+    delete n.props.style.revealOnView;
+    delete n.props.style.revealDelay;
+  }
+  if (Array.isArray(n.children)) n.children.forEach((c) => stripReveal(c));
+  return node;
+}
+
 export default async function NoirQaPage({
   searchParams,
 }: {
@@ -100,27 +116,13 @@ export default async function NoirQaPage({
       {/* Renderer sheet once; per-block calls pass includeRendererStyles:false. */}
       <BuilderNodeRendererStyles />
       {ORDER.map((entry) => {
-        const node =
+        const built =
           entry.kind === "preset"
             ? createBuilderNodeCompositionPreset(entry.id)
             : buildAddGallerySectionTemplate(entry.id);
+        const node = built ? stripReveal(built) : null;
         return (
           <div key={entry.id} data-noir-qa={entry.id}>
-            <p
-              style={{
-                margin: 0,
-                padding: "6px 16px",
-                fontSize: "11px",
-                letterSpacing: "0.16em",
-                textTransform: "uppercase",
-                color: "#c6a14e",
-                borderTop: "1px solid rgba(198,161,78,0.26)",
-                background: "#0b0a0e",
-                fontFamily: "ui-monospace, Menlo, monospace",
-              }}
-            >
-              {entry.label}
-            </p>
             {node
               ? renderBuilderNodes([node], {
                   contentLocale,

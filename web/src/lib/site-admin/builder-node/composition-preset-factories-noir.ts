@@ -49,6 +49,9 @@ export function createMarqueeTickerPreset(): Exclude<
         textColor: "var(--token-color-ink, #ece4d3)",
         textTransform: "uppercase",
         letterSpacing: "0.04em",
+        // Keep each discipline on one line — "E-commerce" was breaking at the
+        // hyphen, splitting a word across two rows in the ticker.
+        whiteSpace: "nowrap",
       },
     },
     i18n: { es: { text: es } },

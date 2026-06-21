@@ -63,7 +63,7 @@ export function buildHeroSlider(): BuilderNode {
       layout: "stack",
       align: "stretch",
       style: {
-        backgroundImage: "url('/talent-templates/demo/model/01-hero.jpg')",
+        backgroundImage: "url('/talent-templates/demo/impronta-2026/atelier-1.jpg')",
         backgroundPosition: "center 28%",
         justifyContent: "flex-end",
         paddingLeft: "7vw",
@@ -111,7 +111,7 @@ export function buildHeroSlider(): BuilderNode {
       layout: "stack",
       align: "center",
       style: {
-        backgroundImage: "url('/talent-templates/demo/model/05-editorial.jpg')",
+        backgroundImage: "url('/talent-templates/demo/impronta-2026/hero-a.jpg')",
         backgroundPosition: "center 22%",
         justifyContent: "center",
         paddingLeft: "7vw",
@@ -127,11 +127,12 @@ export function buildHeroSlider(): BuilderNode {
     id: makeId("image"),
     kind: "image",
     props: {
-      src: "/talent-templates/demo/model/09-editorial.jpg",
-      alt: "Editorial campaign portrait of a model",
+      src: "/talent-templates/demo/impronta-2026/portrait-2.jpg",
+      alt: "Editorial portrait of an Impronta model in soft natural light",
       priority: true,
       layerLabel: "Slide 3 — Image only",
     },
+    i18n: { es: { alt: "Retrato editorial de una modelo de Impronta con luz natural suave" } },
   };
 
   return {
@@ -186,8 +187,8 @@ export function buildStoryHouse(): BuilderNode {
     id: makeId("image"),
     kind: "image",
     props: {
-      src: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1200&q=80",
-      alt: "Founder of the agency in the studio",
+      src: "/talent-templates/demo/impronta-2026/portrait-1.jpg",
+      alt: "Portrait of the Impronta founder in the atelier",
       priority: false,
       layerLabel: "Story Image",
       style: {
@@ -197,7 +198,7 @@ export function buildStoryHouse(): BuilderNode {
         width: "100%",
       },
     },
-    i18n: { es: { alt: "Fundadora de la agencia en el estudio" } },
+    i18n: { es: { alt: "Retrato de la fundadora de Impronta en el atelier" } },
   };
   const mediaFrame: BuilderNode = {
     id: frameId,
@@ -274,7 +275,9 @@ export function buildStoryHouse(): BuilderNode {
       layerLabel: "Description",
       style: {
         align: "left",
-        tone: "muted",
+        // Explicit light muted — tone:"muted" resolves to a dark muted that is
+        // invisible on the espresso ground.
+        textColor: "rgba(236,228,211,0.7)",
         maxWidthFree: "50ch",
         lineHeight: "1.7",
       },
@@ -335,7 +338,7 @@ export function buildStoryHouse(): BuilderNode {
       layerLabel: "Signature Role",
       style: {
         align: "left",
-        tone: "muted",
+        textColor: "rgba(236,228,211,0.55)",
         textTransform: "uppercase",
         letterSpacing: "0.2em",
         fontSize: "11px",

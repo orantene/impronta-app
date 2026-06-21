@@ -40,17 +40,34 @@ type Division = {
   /** Free-text directory query the page supports today (?q=). */
   query: string;
   imageIndex: number;
+  /** Real impronta-2026 portrait (gender-matched), overrides createImage src. */
+  photo: string;
 };
 
 const DIVISIONS: ReadonlyArray<Division> = [
-  { en: "Women", es: "Mujeres", index: "01", query: "women", imageIndex: 0 },
-  { en: "Men", es: "Hombres", index: "02", query: "men", imageIndex: 1 },
+  {
+    en: "Women",
+    es: "Mujeres",
+    index: "01",
+    query: "women",
+    imageIndex: 0,
+    photo: "/talent-templates/demo/impronta-2026/portrait-1.jpg",
+  },
+  {
+    en: "Men",
+    es: "Hombres",
+    index: "02",
+    query: "men",
+    imageIndex: 1,
+    photo: "/talent-templates/demo/impronta-2026/portrait-4.jpg",
+  },
   {
     en: "New Faces",
     es: "Caras Nuevas",
     index: "03",
     query: "new faces",
     imageIndex: 2,
+    photo: "/talent-templates/demo/impronta-2026/portrait-6.jpg",
   },
   {
     en: "Influence",
@@ -58,8 +75,16 @@ const DIVISIONS: ReadonlyArray<Division> = [
     index: "04",
     query: "influence",
     imageIndex: 3,
+    photo: "/talent-templates/demo/impronta-2026/portrait-5.jpg",
   },
-  { en: "Events", es: "Eventos", index: "05", query: "events", imageIndex: 0 },
+  {
+    en: "Events",
+    es: "Eventos",
+    index: "05",
+    query: "events",
+    imageIndex: 0,
+    photo: "/talent-templates/demo/impronta-2026/portrait-3.jpg",
+  },
 ];
 
 function divisionTile(d: Division): BuilderNode {
@@ -81,6 +106,9 @@ function divisionTile(d: Division): BuilderNode {
       filter: "brightness(.85) saturate(1.04)",
     }),
   };
+  // Repoint to the real gender-matched impronta-2026 portrait (keep the style
+  // overrides from createImage above; only swap the served src + alt).
+  (image as Extract<BuilderNode, { kind: "image" }>).props.src = d.photo;
   // Localize the alt text for the portrait.
   (image.props as { alt?: string }).alt = `${d.en} division`;
   image.i18n = { es: { alt: `División ${d.es}` } };

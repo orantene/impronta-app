@@ -40,6 +40,7 @@ interface Campaign {
   seasonEs: string;
   altEn: string;
   altEs: string;
+  src: string;
 }
 
 const CAMPAIGNS: readonly Campaign[] = [
@@ -48,48 +49,54 @@ const CAMPAIGNS: readonly Campaign[] = [
     brandEs: "Casa Tulum",
     seasonEn: "Resort SS26",
     seasonEs: "Resort PV26",
-    altEn: "Casa Tulum resort campaign",
-    altEs: "Campaña resort Casa Tulum",
+    altEn: "Casa Tulum resort campaign — atelier detail in warm light",
+    altEs: "Campaña resort Casa Tulum — detalle de atelier en luz cálida",
+    src: "/talent-templates/demo/impronta-2026/atelier-3.jpg",
   },
   {
     brandEn: "Maison Lloré",
     brandEs: "Maison Lloré",
     seasonEn: "Couture FW25",
     seasonEs: "Alta Costura OI25",
-    altEn: "Maison Lloré couture editorial",
-    altEs: "Editorial de alta costura Maison Lloré",
+    altEn: "Maison Lloré couture editorial portrait",
+    altEs: "Retrato editorial de alta costura Maison Lloré",
+    src: "/talent-templates/demo/impronta-2026/portrait-5.jpg",
   },
   {
     brandEn: "Atelier Sur",
     brandEs: "Atelier Sur",
     seasonEn: "Editorial",
     seasonEs: "Editorial",
-    altEn: "Atelier Sur editorial shoot",
-    altEs: "Sesión editorial Atelier Sur",
+    altEn: "Atelier Sur editorial portrait",
+    altEs: "Retrato editorial Atelier Sur",
+    src: "/talent-templates/demo/impronta-2026/portrait-2.jpg",
   },
   {
     brandEn: "Semana CDMX",
     brandEs: "Semana CDMX",
     seasonEn: "Runway 26",
     seasonEs: "Pasarela 26",
-    altEn: "Mexico City Fashion Week runway",
-    altEs: "Pasarela de la Semana de la Moda en CDMX",
+    altEn: "Mexico City Fashion Week runway portrait",
+    altEs: "Retrato de pasarela de la Semana de la Moda en CDMX",
+    src: "/talent-templates/demo/impronta-2026/portrait-3.jpg",
   },
   {
     brandEn: "Riviera Living",
     brandEs: "Riviera Living",
     seasonEn: "Lifestyle",
     seasonEs: "Estilo de vida",
-    altEn: "Riviera Living lifestyle campaign",
-    altEs: "Campaña de estilo de vida Riviera Living",
+    altEn: "Riviera Living lifestyle portrait",
+    altEs: "Retrato de estilo de vida Riviera Living",
+    src: "/talent-templates/demo/impronta-2026/portrait-6.jpg",
   },
   {
     brandEn: "Mar Azul",
     brandEs: "Mar Azul",
     seasonEn: "Swim SS26",
     seasonEs: "Baño PV26",
-    altEn: "Mar Azul swimwear campaign",
-    altEs: "Campaña de trajes de baño Mar Azul",
+    altEn: "Mar Azul swimwear campaign — atelier studio detail",
+    altEs: "Campaña de trajes de baño Mar Azul — detalle de estudio atelier",
+    src: "/talent-templates/demo/impronta-2026/atelier-1.jpg",
   },
 ];
 
@@ -245,6 +252,7 @@ function campaignCard(c: Campaign, index: number): BuilderNode {
         props: {
           ...(createImage(index) as Extract<BuilderNode, { kind: "image" }>)
             .props,
+          src: c.src,
           alt: c.altEn,
           priority: false,
           style: {

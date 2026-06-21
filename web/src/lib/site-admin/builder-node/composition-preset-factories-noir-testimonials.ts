@@ -42,33 +42,33 @@ interface QuoteSeed {
 const QUOTES: ReadonlyArray<QuoteSeed> = [
   {
     bodyEn:
-      "Impronta read the brief before we finished saying it. The cast walked on set already in character.",
+      "We sent a brief and got back a board that already understood the campaign. The shortlist was the final cast.",
     bodyEs:
-      "Impronta entendió el brief antes de que termináramos de explicarlo. El cast llegó al set ya en personaje.",
-    nameEn: "Lucía Fernández",
-    nameEs: "Lucía Fernández",
-    roleEn: "Creative Director, Casa Marea",
-    roleEs: "Directora Creativa, Casa Marea",
+      "Enviamos un brief y recibimos un board que ya entendía la campaña. La preselección fue el casting final.",
+    nameEn: "María Sandoval",
+    nameEs: "María Sandoval",
+    roleEn: "Casting Director, Marea Studio",
+    roleEs: "Directora de Casting, Marea Studio",
   },
   {
     bodyEn:
-      "Every face felt hand-picked, never pulled from a list. That is the difference between a board and an agency.",
+      "Every face felt chosen, not pulled from a database. That is the difference between a board and an agency.",
     bodyEs:
-      "Cada rostro se sintió elegido a mano, nunca sacado de una lista. Esa es la diferencia entre un catálogo y una agencia.",
-    nameEn: "Mateo Rivas",
-    nameEs: "Mateo Rivas",
-    roleEn: "Photographer, Editorial Tulum",
-    roleEs: "Fotógrafo, Editorial Tulum",
+      "Cada rostro se sintió elegido, no sacado de una base de datos. Esa es la diferencia entre un board y una agencia.",
+    nameEn: "Tomás Iglesias",
+    nameEs: "Tomás Iglesias",
+    roleEn: "Photographer, Editorial Norte",
+    roleEs: "Fotógrafo, Editorial Norte",
   },
   {
     bodyEn:
-      "Booking, contracts, call sheets — handled in one thread. We shot two campaigns in the time one used to take.",
+      "Bookings, contracts and call sheets in one thread. We shot two campaigns in the time one used to take.",
     bodyEs:
-      "Reservas, contratos, call sheets: todo en un solo hilo. Rodamos dos campañas en el tiempo que antes tomaba una.",
+      "Reservas, contratos y call sheets en un solo hilo. Rodamos dos campañas en el tiempo que antes tomaba una.",
     nameEn: "Daniela Cruz",
     nameEs: "Daniela Cruz",
-    roleEn: "Producer, Hotel Bardo",
-    roleEs: "Productora, Hotel Bardo",
+    roleEn: "Producer, Casa Lumera",
+    roleEs: "Productora, Casa Lumera",
   },
 ];
 

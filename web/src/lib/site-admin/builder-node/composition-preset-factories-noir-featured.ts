@@ -47,17 +47,18 @@ const MUTED = "rgba(236,228,211,0.62)";
 const VEIL =
   "linear-gradient(180deg,rgba(8,7,10,0) 42%,rgba(8,7,10,0.82) 100%)";
 
-// Unsplash editorial portraits (createImage seeds from the same 4-image set;
-// we cycle them so the 8 cards never repeat the same crop back-to-back).
+// Real impronta-2026 editorial photos, in card order 1..8. Card #1 (the hero)
+// gets portrait-1; the rest follow the curated sequence so adjacent tiles never
+// repeat the same crop. Served from /talent-templates/demo/impronta-2026/.
 const PORTRAITS = [
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=1200&q=80",
+  "/talent-templates/demo/impronta-2026/portrait-1.jpg",
+  "/talent-templates/demo/impronta-2026/portrait-4.jpg",
+  "/talent-templates/demo/impronta-2026/portrait-5.jpg",
+  "/talent-templates/demo/impronta-2026/portrait-6.jpg",
+  "/talent-templates/demo/impronta-2026/portrait-2.jpg",
+  "/talent-templates/demo/impronta-2026/portrait-3.jpg",
+  "/talent-templates/demo/impronta-2026/atelier-1.jpg",
+  "/talent-templates/demo/impronta-2026/hero-a.jpg",
 ] as const;
 
 interface FaceSpec {
@@ -211,8 +212,9 @@ export function createFeaturedFacesBoardPreset(): Exclude<
       },
       children: [],
     };
+    const idxId = makeId("paragraph");
     const idx: BuilderNode = {
-      id: makeId("paragraph"),
+      id: idxId,
       kind: "paragraph",
       props: {
         text: spec.index,
@@ -222,9 +224,16 @@ export function createFeaturedFacesBoardPreset(): Exclude<
           left: "18px",
           zIndex: 2,
           fontFamily: DISPLAY_FONT,
-          fontSize: "14px",
+          // Bumped up a notch (14px → 17px) for clearer read over the photos.
+          fontSize: "17px",
           letterSpacing: "0.1em",
+          // Full-strength champagne; the faint look came from the index sitting
+          // dark-on-dark, so we lift opacity to ~0.92 and add a legibility
+          // shadow (caps-bound → customCss, both routed per-node by id).
           textColor: CHAMPAGNE,
+          customCss: [
+            `[data-builder-node-id="${idxId}"] { color: rgba(224,192,116,0.92); text-shadow: 0 1px 4px rgba(8,7,10,0.6); }`,
+          ].join("\n"),
           pointerEvents: "none",
         },
       },

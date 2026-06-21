@@ -47,13 +47,19 @@ export function createCtaBannerSpotlightPreset(): Exclude<
     height: "100%",
     objectFit: "cover",
     objectPosition: "center 35%",
-    filter: "brightness(0.7) saturate(1.05)",
-    zIndex: -1,
+    // zIndex 0 (NOT -1): the section has an opaque espresso background, so a
+    // z-index:-1 image is painted BEHIND it and fully hidden. 0 puts the cover
+    // above the section bg, below the scrim (z1) + content (z2).
+    // band-dark.jpg is a dark runway frame — lift it so the scene reads, but
+    // keep it moody/premium (not washed out).
+    filter: "brightness(1.16) saturate(1.1) contrast(1.03)",
+    zIndex: 0,
   });
-  (image as Extract<BuilderNode, { kind: "image" }>).props.priority = true;
-  (image as Extract<BuilderNode, { kind: "image" }>).props.alt =
-    "Editorial campaign portrait";
-  image.i18n = { es: { alt: "Retrato de campaña editorial" } };
+  const ctaImg = image as Extract<BuilderNode, { kind: "image" }>;
+  ctaImg.props.src = "/talent-templates/demo/impronta-2026/band-dark.jpg";
+  ctaImg.props.priority = true;
+  ctaImg.props.alt = "Impronta talent on the runway";
+  image.i18n = { es: { alt: "Talento de Impronta en pasarela" } };
 
   // Top-down dark scrim — pure CSS gradient (no extra request), non-interactive.
   const scrim: BuilderNode = {
@@ -68,7 +74,7 @@ export function createCtaBannerSpotlightPreset(): Exclude<
         bottom: "0",
         left: "0",
         backgroundImage:
-          "linear-gradient(180deg, rgba(8,7,10,0.62), rgba(8,7,10,0.82))",
+          "linear-gradient(180deg, rgba(8,7,10,0.46), rgba(8,7,10,0.66))",
         pointerEvents: "none",
         zIndex: 1,
       },
