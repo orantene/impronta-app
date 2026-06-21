@@ -1,5 +1,4 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
-import { makeId } from "@/lib/site-admin/builder-node/create";
 import { buildTalentDisciplineDecomposedSection } from "@/lib/site-admin/builder-node/talent-discipline-freeform";
 import { buildFeaturedTalentDecomposedSection } from "@/lib/site-admin/builder-node/featured-talent-freeform";
 import { buildLocationDiscoveryDecomposedSection } from "@/lib/site-admin/builder-node/location-discovery-freeform";
@@ -26,6 +25,10 @@ import {
   tplTestimonialCard,
   tplTitle,
 } from "./section-template-nodes";
+import {
+  buildHeroSlider,
+  buildStoryHouse,
+} from "./section-templates-freeform";
 
 function buildHeroCentered(): BuilderNode {
   return tplSection("Hero Centered Section", [
@@ -512,159 +515,9 @@ function buildContactForm(): BuilderNode {
   ]);
 }
 
-// Hero Slider — a FREEFORM carousel-variant hero (Noir & Or). This is a
-// composition PRESET, not a fixed block: every slide is a full BuilderNode tree
-// the editor can rebuild on canvas. Each slide is a `container` with its OWN
-// background (lifted to the Ken-Burns layer in the renderer) + arbitrary
-// children (columns, headings, buttons, …). `contentMode:"per-slide"` so each
-// slide is an independent layout; the hero chrome (scrim/grain/Ken Burns/
-// autoplay/dots/counter) lives on the carousel and never swallows slide content.
-// Theme-tokenized: gold = var(--token-color-primary), so it reskins per palette.
-function buildHeroSlider(): BuilderNode {
-  // Slide 1 — two-column layout: eyebrow + heading + copy + CTAs over a photo
-  // (right column intentionally open so the background shows through).
-  const slide1 = tplContainer(
-    [
-      tplSplitColumn(
-        [
-          tplLabeledParagraph("Talent Agency · Tulum, Mexico", "Eyebrow", {
-            size: "sm",
-            align: "left",
-            textColor: "var(--token-color-primary)",
-            textTransform: "uppercase",
-            letterSpacing: "0.24em",
-          }),
-          tplTitle("Faces with an imprint.", 1, {
-            align: "left",
-            textColor: "#ffffff",
-            fontFamily: "Cormorant Garamond, ui-serif, Georgia, serif",
-            fontSize: "clamp(2.6rem, 7vw, 6rem)",
-            lineHeight: "1",
-          }),
-          tplLabeledParagraph(
-            "A boutique roster of models and creative talent, managed end to end.",
-            "Sub",
-            { align: "left", textColor: "#e8e4dc" },
-          ),
-          tplCtaGroup(
-            [
-              tplButton("Explore the roster", "/roster", { tone: "primary" }),
-              tplButton("Start an inquiry", "/contact", { tone: "secondary" }),
-            ],
-            { align: "start", layerLabel: "Slide 1 Buttons" },
-          ),
-        ],
-        [],
-        { ratio: "60-40", layerLabel: "Slide 1 Columns" },
-      ),
-    ],
-    {
-      layerLabel: "Slide 1 — Columns over photo",
-      layout: "stack",
-      align: "stretch",
-      style: {
-        backgroundImage: "url('/talent-templates/demo/model/01-hero.jpg')",
-        backgroundPosition: "center 28%",
-        justifyContent: "flex-end",
-        paddingLeft: "7vw",
-        paddingRight: "7vw",
-        paddingTop: "14vh",
-        paddingBottom: "12vh",
-      },
-    },
-  );
-
-  // Slide 2 — a STRUCTURALLY different layout: a single centered column.
-  const slide2 = tplContainer(
-    [
-      tplContainer(
-        [
-          tplLabeledParagraph("New Faces · 2026", "Badge", {
-            size: "sm",
-            align: "center",
-            textColor: "var(--token-color-primary)",
-            textTransform: "uppercase",
-            letterSpacing: "0.24em",
-          }),
-          tplTitle("The new class.", 1, {
-            align: "center",
-            textColor: "#ffffff",
-            fontFamily: "Cormorant Garamond, ui-serif, Georgia, serif",
-            fontSize: "clamp(2.6rem, 7vw, 6rem)",
-            lineHeight: "1",
-          }),
-          tplCtaGroup([tplButton("Meet them", "/roster", { tone: "primary" })], {
-            align: "center",
-            layerLabel: "Slide 2 Button",
-          }),
-        ],
-        {
-          layerLabel: "Slide 2 Content",
-          layout: "stack",
-          align: "center",
-          gap: "m",
-        },
-      ),
-    ],
-    {
-      layerLabel: "Slide 2 — Centered",
-      layout: "stack",
-      align: "center",
-      style: {
-        backgroundImage: "url('/talent-templates/demo/model/05-editorial.jpg')",
-        backgroundPosition: "center 22%",
-        justifyContent: "center",
-        paddingLeft: "7vw",
-        paddingRight: "7vw",
-        paddingTop: "14vh",
-        paddingBottom: "14vh",
-      },
-    },
-  );
-
-  // Slide 3 — image-only (no text). The eager <img> IS the background layer.
-  const slide3: BuilderNode = {
-    id: makeId("image"),
-    kind: "image",
-    props: {
-      src: "/talent-templates/demo/model/09-editorial.jpg",
-      alt: "Editorial campaign portrait of a model",
-      priority: true,
-      layerLabel: "Slide 3 — Image only",
-    },
-  };
-
-  return {
-    id: makeId("carousel"),
-    kind: "carousel",
-    props: {
-      variant: "hero",
-      layerLabel: "Hero Slider",
-      heightMode: "viewport",
-      minHeightPx: 620,
-      overlay: { scrim: true, tone: "dark", vignette: true, opacity: 0.6 },
-      grain: true,
-      transition: "crossfade",
-      transitionMs: 1600,
-      kenBurns: true,
-      kenBurnsAmount: 0.1,
-      autoplayMs: 5200,
-      loop: true,
-      pauseOnHover: true,
-      controls: {
-        dots: true,
-        arrows: false,
-        progress: false,
-        counter: true,
-        scrollCue: true,
-      },
-      contentAlign: "bl",
-      contentMode: "per-slide",
-    },
-    children: [slide1, slide2, slide3],
-  };
-}
-
+// `buildHeroSlider` (freeform per-slide carousel hero) and `buildStoryHouse`
+// (editorial origin-story split) live in ./section-templates-freeform to keep
+// this file under the 800-line cap; both are keyed into the map below.
 const SECTION_TEMPLATE_BUILDERS: Readonly<
   Record<string, () => BuilderNode>
 > = {
@@ -677,6 +530,7 @@ const SECTION_TEMPLATE_BUILDERS: Readonly<
   about: buildAboutSimple,
   "about-split": buildAboutSplit,
   "about-stats": buildAboutStats,
+  "story-house": buildStoryHouse,
   services: buildServicesGrid,
   "services-list": buildServicesList,
   gallery: buildGalleryGrid,

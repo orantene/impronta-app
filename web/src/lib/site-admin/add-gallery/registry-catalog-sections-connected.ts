@@ -74,6 +74,24 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     sectionTemplateId: "about-split",
   }),
   section({
+    id: "sec-story-house",
+    label: "Story House",
+    description:
+      "Editorial origin story — 4:5 portrait in a gold inset frame beside a Cormorant heading, muted copy, italic gold pull-quote, and signature.",
+    category: "about",
+    icon: "about-split",
+    sectionTemplateId: "story-house",
+    searchTerms: [
+      "story",
+      "about",
+      "origin",
+      "the house",
+      "founders",
+      "editorial",
+      "noir",
+    ],
+  }),
+  section({
     id: "sec-about-stats",
     label: "About Stats",
     description: "Credibility metrics beside your story.",
