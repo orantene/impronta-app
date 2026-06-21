@@ -5330,8 +5330,8 @@ html[data-theme="dark"] [data-tone="light"] {
  * sticky to the WRAPPER, whose containing block is the tall page column, so the
  * header actually pins. Scoped to the header slot + gated on the inner header
  * opting into sticky, so nothing else is affected. */
-[data-cms-section][data-section-type-key="site_header"]:has(> .site-header[data-sticky="true"]),
-[data-talent-max-site-header]:has(.site-header[data-sticky="true"]) {
+[data-cms-section][data-section-type-key="site_header"]:has(> .site-header[data-sticky="true"]:not([data-tone="transparent"])),
+[data-talent-max-site-header]:has(.site-header[data-sticky="true"]:not([data-tone="transparent"])) {
   position: sticky;
   top: 0;
   z-index: 40;
@@ -5353,6 +5353,46 @@ html[data-theme="dark"] [data-tone="light"] {
   box-shadow: 0 1px 0 color-mix(in srgb, var(--token-color-line) 45%, transparent), 0 10px 30px rgba(0, 0, 0, 0.18);
   color: var(--token-color-ink, #111);
   padding-block: clamp(8px, 1vw, 12px);
+}
+
+/* Noir & Or — AGENCY storefront transparent-over-hero + scroll-to-solid.
+ * The talent path (above) toggles [data-scrolled] on its wrapper; the agency
+ * shell has no such wrapper, so the scroll observer toggles [data-scrolled] on
+ * the `.site-header` element itself and these rules key off that. Everything is
+ * GATED on data-tone="transparent", so only a header an operator configured
+ * transparent floats as an overlay + animates to a solid bar — surface/solid
+ * agency headers keep the sticky behaviour above (zero regression for other
+ * tenants). Spec §2: bg rgba(10,9,12,.82), blur 16px saturate 140%, gold
+ * hairline + shadow, padding shrinks, wordmark turns gold; ~0.5s. */
+[data-cms-section][data-section-type-key="site_header"] .site-header[data-tone="transparent"] {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 50;
+  color: #fff;
+  transition: background 0.5s var(--site-motion-ease, ease), padding 0.5s var(--site-motion-ease, ease),
+    box-shadow 0.5s var(--site-motion-ease, ease), color 0.5s var(--site-motion-ease, ease);
+}
+[data-cms-section][data-section-type-key="site_header"] .site-header[data-tone="transparent"] a,
+[data-cms-section][data-section-type-key="site_header"] .site-header[data-tone="transparent"] .site-header__brand,
+[data-cms-section][data-section-type-key="site_header"] .site-header[data-tone="transparent"] .site-header__brand-label {
+  color: inherit;
+}
+.site-header[data-tone="transparent"][data-scrolled="true"] {
+  background: rgba(10, 9, 12, 0.82);
+  border-bottom-color: var(--token-color-line, rgba(198, 161, 78, 0.26));
+  backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--token-color-line) 45%, transparent), 0 10px 30px rgba(0, 0, 0, 0.28);
+  padding-block: clamp(8px, 1vw, 12px);
+}
+.site-header[data-tone="transparent"][data-scrolled="true"] .site-header__brand,
+.site-header[data-tone="transparent"][data-scrolled="true"] .site-header__brand-label {
+  color: var(--token-color-primary, #c6a14e);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-cms-section][data-section-type-key="site_header"] .site-header[data-tone="transparent"] { transition: none; }
 }
 
 /* =========================================================================

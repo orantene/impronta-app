@@ -43,12 +43,29 @@ function readShellTenantAllowlist(): ReadonlySet<string> {
 }
 
 /**
+ * LAUNCH allow-list — tenants the snapshot shell is enabled for at the CODE
+ * level, independent of the env flags. Lets a single-tenant launch ship
+ * atomically with the deploy (no Vercel env round-trip); the env flags
+ * (`ENABLE_SITE_SHELL` + `SITE_SHELL_TENANT_IDS`) still augment this for a
+ * wider staged rollout. The published-shell belt in `resolveShellRenderDecision`
+ * still applies, so a launch tenant with no published shell row renders the
+ * legacy header — never empty chrome. Roll back by removing an id here.
+ *   - Impronta (00000000-0000-0000-0000-000000000001) — launched 2026-06-20.
+ */
+const LAUNCH_SHELL_TENANT_IDS: ReadonlySet<string> = new Set([
+  "00000000-0000-0000-0000-000000000001",
+]);
+
+/**
  * Should the snapshot-rendered shell take over for this tenant on this
  * request? Returns false in ALL of: master flag off; mode=tenants but
  * tenant not in allow-list. Caller must additionally honor the published-
  * shell-exists belt by checking `loadPublishedShell` for null.
  */
 export function isSiteShellEnabledForTenant(tenantId: string): boolean {
+  // Code-level launch allow-list wins regardless of env (atomic single-tenant
+  // launch). The published-shell belt downstream still gates empty chrome.
+  if (LAUNCH_SHELL_TENANT_IDS.has(tenantId)) return true;
   const mode = readSiteShellMode();
   if (mode === "off") return false;
   if (mode === "all") return true;

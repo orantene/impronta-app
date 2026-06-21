@@ -55,6 +55,16 @@ test("[A8] render gate ON for an allow-listed tenant under mode=tenants; OFF for
   assert.equal(isSiteShellEnabledForTenant("some-other-tenant"), false);
 });
 
+test("[launch] code-level launch allow-list enables Impronta with NO env set", () => {
+  clearEnv();
+  const IMPRONTA = "00000000-0000-0000-0000-000000000001";
+  // Master switch reads OFF, yet the launch tenant is still enabled...
+  assert.equal(readSiteShellMode(), "off");
+  assert.equal(isSiteShellEnabledForTenant(IMPRONTA), true);
+  // ...while a non-launch tenant stays off (no env, not allow-listed).
+  assert.equal(isSiteShellEnabledForTenant(TENANT), false);
+});
+
 test("[A8] edit gate is INDEPENDENT of the render gate", () => {
   // Render on, edit off → editor must NOT route the shell surface.
   process.env.ENABLE_SITE_SHELL = "all";

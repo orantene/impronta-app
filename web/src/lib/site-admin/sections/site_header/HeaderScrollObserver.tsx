@@ -16,15 +16,19 @@ export function HeaderScrollObserver({
   thresholdPx?: number;
 }) {
   useEffect(() => {
-    const header = document.querySelector<HTMLElement>(
-      "[data-talent-max-site-header]",
-    );
-    if (!header) return;
+    // Two render paths feed this: the TALENT shell wraps its header in
+    // [data-talent-max-site-header] (CSS keys off the wrapper), while the
+    // AGENCY storefront renders `.site-header` directly inside a [data-cms-section]
+    // wrapper (CSS keys off the header's own [data-scrolled]). Drive both: any
+    // talent wrapper + any agency header that opted into a scroll tone.
+    const targets = [
+      ...document.querySelectorAll<HTMLElement>("[data-talent-max-site-header]"),
+      ...document.querySelectorAll<HTMLElement>(".site-header[data-scroll-tone]"),
+    ];
+    if (targets.length === 0) return;
     const apply = () => {
-      header.setAttribute(
-        "data-scrolled",
-        window.scrollY > thresholdPx ? "true" : "false",
-      );
+      const v = window.scrollY > thresholdPx ? "true" : "false";
+      for (const el of targets) el.setAttribute("data-scrolled", v);
     };
     apply();
     window.addEventListener("scroll", apply, { passive: true });

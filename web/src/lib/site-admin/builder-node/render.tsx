@@ -3005,6 +3005,7 @@ const OPTIMIZABLE_IMAGE_HOSTS: ReadonlySet<string> = new Set(
 
 function builderImageSrcSet(
   src: string,
+  sizesOverride?: string,
 ): { srcSet: string; sizes: string } | null {
   if (!BUILDER_IMAGE_OPT_ENABLED || !src || src.startsWith("data:")) return null;
   let optimizable = false;
@@ -3025,8 +3026,11 @@ function builderImageSrcSet(
     (w) => `/_next/image?url=${encodeURIComponent(src)}&w=${w}&q=75 ${w}w`,
   ).join(", ");
   // Builder images are width:100% of a variable container; full-width on phones,
-  // ~half on desktop is a safe default that never under-loads.
-  return { srcSet, sizes: "(max-width: 768px) 100vw, 50vw" };
+  // ~half on desktop is a safe default that never under-loads. Callers that know
+  // the image is full-bleed (e.g. a `priority` hero slide) pass `100vw` so the
+  // optimizer serves a large variant instead of the half-width one (which made
+  // full-screen hero slides render soft).
+  return { srcSet, sizes: sizesOverride ?? "(max-width: 768px) 100vw, 50vw" };
 }
 
 /**
@@ -3347,7 +3351,20 @@ function renderBuilderNodeElement(
             // slides so advancing never flashes a blank (lazy) frame.
             const slideChild =
               child.kind === "image"
-                ? { ...child, props: { ...child.props, priority: true } }
+                ? {
+                    ...child,
+                    props: {
+                      ...child.props,
+                      priority: true,
+                      style: {
+                        ...(child.props.style ?? {}),
+                        // Spec §1: full-bleed crop focuses at center 28% so heads
+                        // /faces stay in frame instead of the centred default.
+                        objectPosition:
+                          child.props.style?.objectPosition ?? "center 28%",
+                      },
+                    },
+                  }
                 : child;
             return (
               <div
@@ -3649,7 +3666,12 @@ function renderBuilderNodeElement(
         options.contentLocale,
       ).value;
       if (!src || !isSafeBuilderImageSrc(src)) return null;
-      const imageOpt = builderImageSrcSet(src);
+      // `priority` images are the LCP / full-bleed hero slides → request a
+      // full-viewport-width variant so they are not served the half-width default.
+      const imageOpt = builderImageSrcSet(
+        src,
+        node.props.priority ? "100vw" : undefined,
+      );
       return (
         // eslint-disable-next-line @next/next/no-img-element
         <img

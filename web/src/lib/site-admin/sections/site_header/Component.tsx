@@ -7,6 +7,7 @@ import {
 import type { SectionComponentProps } from "../types";
 import type { SiteHeaderV1, HeaderItem } from "./schema";
 import { HeaderRegionLiveCount } from "./HeaderRegionLiveCount";
+import { HeaderScrollObserver } from "./HeaderScrollObserver";
 import { ClusterIcon } from "./header-cluster-icon";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
@@ -350,6 +351,8 @@ export async function SiteHeaderComponent({
     primaryCta,
     sticky,
     tone,
+    scrollTone,
+    scrollThresholdPx,
     variant,
     authArea,
     socialLinks,
@@ -572,11 +575,15 @@ export async function SiteHeaderComponent({
         data-variant="freeform"
         data-tone={tone}
         data-sticky={sticky ? "true" : "false"}
+        {...(scrollTone ? { "data-scroll-tone": scrollTone } : {})}
         {...densityAttrs}
         {...presentationDataAttrs(presentation)}
         style={presentationInlineStyles(presentation)}
       >
         {responsiveCss ? <style dangerouslySetInnerHTML={{ __html: responsiveCss }} /> : null}
+        {scrollTone ? (
+          <HeaderScrollObserver thresholdPx={scrollThresholdPx ?? 40} />
+        ) : null}
         <div className="site-header__inner site-header__inner--freeform">
           <div className="site-header__region" data-region="left">{regions.left.map(renderItem)}</div>
           <div className="site-header__region" data-region="center">{regions.center.map(renderItem)}</div>
@@ -602,11 +609,18 @@ export async function SiteHeaderComponent({
       data-tone={tone}
       data-sticky={sticky ? "true" : "false"}
       data-has-cluster={hasCluster ? "true" : "false"}
+      {...(scrollTone ? { "data-scroll-tone": scrollTone } : {})}
       {...densityAttrs}
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
       {responsiveCss ? <style dangerouslySetInnerHTML={{ __html: responsiveCss }} /> : null}
+      {/* Noir & Or — drive the transparent→solid bar once the page scrolls past
+          the threshold. Only mounts when an operator set a scroll tone, so other
+          tenants pay nothing. Client island; self-discovers this header. */}
+      {scrollTone ? (
+        <HeaderScrollObserver thresholdPx={scrollThresholdPx ?? 40} />
+      ) : null}
       <div className="site-header__inner">
         {hasCluster ? (
           <div className="site-header__cluster" data-cluster-zone="lead">

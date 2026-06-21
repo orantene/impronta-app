@@ -516,11 +516,11 @@ function buildContactForm(): BuilderNode {
 // background images (committed demo photos so it always renders full); the
 // content is a shared overlay block. Every lever is editable in the inspector.
 function buildHeroSlider(): BuilderNode {
-  const slideImages = [
-    "01-hero.jpg",
-    "03-runway.jpg",
-    "05-editorial.jpg",
-    "09-editorial.jpg",
+  const slideImages: ReadonlyArray<{ name: string; alt: string }> = [
+    { name: "01-hero.jpg", alt: "Editorial fashion portrait of a model" },
+    { name: "03-runway.jpg", alt: "Model walking the runway" },
+    { name: "05-editorial.jpg", alt: "Editorial studio portrait of a model" },
+    { name: "09-editorial.jpg", alt: "Editorial campaign portrait of a model" },
   ];
   return {
     id: makeId("carousel"),
@@ -559,12 +559,12 @@ function buildHeroSlider(): BuilderNode {
     },
     // All hero slides eager-load: they crossfade into view within seconds, so a
     // lazy slide would flash black when autoplay advances to it.
-    children: slideImages.map((name, index) => ({
+    children: slideImages.map(({ name, alt }, index) => ({
       id: makeId("image"),
       kind: "image",
       props: {
         src: `/talent-templates/demo/model/${name}`,
-        alt: "",
+        alt,
         priority: true,
         layerLabel: `Slide ${index + 1}`,
       },
