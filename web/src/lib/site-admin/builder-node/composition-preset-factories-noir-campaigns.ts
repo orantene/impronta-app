@@ -219,15 +219,20 @@ function campaignCard(c: Campaign, index: number): BuilderNode {
     `@media (hover: hover) { &:hover [data-builder-node-id="${imageId}"] { transform: scale(1.05); filter: brightness(1); } }`,
   ].join("\n");
 
+  const mediaId = makeId("container");
   const media: BuilderNode = {
-    id: makeId("container"),
+    id: mediaId,
     kind: "container",
     props: {
       layout: "stack",
       style: {
+        // aspect-ratio drives the 4:5 frame via customCss — the aspectRatioFree
+        // prop's inline path only applies to image nodes, so on this container it
+        // is dropped and the frame falls back to the image's natural aspect.
         aspectRatioFree: "4 / 5",
         overflow: "hidden",
         backgroundColor: "var(--token-color-surface, #161320)",
+        customCss: "{ aspect-ratio: 4 / 5; }",
       },
     },
     children: [
