@@ -44,6 +44,10 @@ import {
   useGalleryCardState,
 } from "./add-gallery-card-meta";
 import { AddGalleryIcon } from "./add-gallery-icons";
+import {
+  AddGalleryPreviewModal,
+  GalleryPreviewTrigger,
+} from "./add-gallery-preview-modal";
 import { AddGallerySectionPreview } from "./add-gallery-section-previews";
 import { resolveGalleryInsertHint } from "./gallery-insert-hint";
 
@@ -204,10 +208,12 @@ function useGalleryCardPointerDrag(
 function ElementCard({
   item,
   onInsert,
+  onPreview,
   pending,
 }: {
   item: AddGalleryItem;
   onInsert: (item: AddGalleryItem) => void;
+  onPreview: (item: AddGalleryItem) => void;
   pending: boolean;
 }) {
   const { comingSoon, advanced, draggable, shortDescription, infoTooltip } =
@@ -239,7 +245,10 @@ function ElementCard({
       }}
       data-add-gallery-item={item.id}
     >
-      {infoTooltip ? <AddGalleryCardInfo tooltip={infoTooltip} /> : null}
+      <GalleryPreviewTrigger item={item} onPreview={onPreview} />
+      {infoTooltip ? (
+        <AddGalleryCardInfo tooltip={infoTooltip} rightOffset={32} />
+      ) : null}
       <div className="flex min-h-[48px] flex-1 items-center justify-center px-[8px] pt-[10px]">
         <AddGalleryIcon name={item.icon} size="xl" tone="accent" />
       </div>
@@ -262,10 +271,12 @@ function ElementCard({
 function SectionCard({
   item,
   onInsert,
+  onPreview,
   pending,
 }: {
   item: AddGalleryItem;
   onInsert: (item: AddGalleryItem) => void;
+  onPreview: (item: AddGalleryItem) => void;
   pending: boolean;
 }) {
   const { comingSoon, advanced, connected, draggable, shortDescription, infoTooltip } =
@@ -297,7 +308,10 @@ function SectionCard({
       }}
       data-add-gallery-item={item.id}
     >
-      {infoTooltip ? <AddGalleryCardInfo tooltip={infoTooltip} /> : null}
+      <GalleryPreviewTrigger item={item} onPreview={onPreview} />
+      {infoTooltip ? (
+        <AddGalleryCardInfo tooltip={infoTooltip} rightOffset={32} />
+      ) : null}
       <div
         className="relative h-[96px] w-full shrink-0 overflow-hidden"
         style={{
@@ -335,10 +349,12 @@ function SectionCard({
 function ConnectedCard({
   item,
   onInsert,
+  onPreview,
   pending,
 }: {
   item: AddGalleryItem;
   onInsert: (item: AddGalleryItem) => void;
+  onPreview: (item: AddGalleryItem) => void;
   pending: boolean;
 }) {
   const { comingSoon, advanced, draggable, shortDescription, infoTooltip } =
@@ -370,7 +386,10 @@ function ConnectedCard({
       }}
       data-add-gallery-item={item.id}
     >
-      {infoTooltip ? <AddGalleryCardInfo tooltip={infoTooltip} /> : null}
+      <GalleryPreviewTrigger item={item} onPreview={onPreview} />
+      {infoTooltip ? (
+        <AddGalleryCardInfo tooltip={infoTooltip} rightOffset={32} />
+      ) : null}
       <div className="flex gap-[10px] px-[10px] pt-[10px]">
         <div
           className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[10px]"
@@ -424,6 +443,7 @@ function GalleryCard(props: {
   item: AddGalleryItem;
   tab: AddGalleryTab;
   onInsert: (item: AddGalleryItem) => void;
+  onPreview: (item: AddGalleryItem) => void;
   pending: boolean;
 }) {
   // WS-A A7 — shell templates use the richer template-card look like sections.
@@ -457,6 +477,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
+  // Live-render preview popup — the item whose preview is open (null = closed).
+  const [previewItem, setPreviewItem] = useState<AddGalleryItem | null>(null);
 
   // P1 — merged catalog seeded synchronously from code; refreshed on open.
   const codeSeed = useMemo(
@@ -637,6 +659,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       : "repeat(4, minmax(0, 1fr))";
 
   return (
+    <>
     <DockFloatingPanel
       panelId="add-gallery"
       title={tabTitle}
@@ -758,6 +781,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
                     item={item}
                     tab={tab}
                     onInsert={handleInsert}
+                    onPreview={setPreviewItem}
                     pending={pending}
                   />
                 ))}
@@ -767,5 +791,10 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
         </div>
       </div>
     </DockFloatingPanel>
+    <AddGalleryPreviewModal
+      item={previewItem}
+      onClose={() => setPreviewItem(null)}
+    />
+    </>
   );
 }
