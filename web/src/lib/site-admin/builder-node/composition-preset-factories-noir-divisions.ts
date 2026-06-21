@@ -212,7 +212,10 @@ function divisionTile(d: Division): BuilderNode {
   // Card-scoped customCss: tile shape, hover zoom + colorize (descendant
   // selector on the image), gated behind hover + reduced-motion preference.
   const cardCss = [
-    `{ border: 1px solid transparent; transition: border-color .4s ease; }`,
+    // aspect-ratio drives the tile's height. It lives in customCss (not the
+    // aspectRatioFree prop) because the prop's inline path only applies to image
+    // nodes — on a container it is dropped and the tile collapses to 0 height.
+    `{ aspect-ratio: 3 / 4.4; border: 1px solid transparent; transition: border-color .4s ease; }`,
     `[data-builder-node-id="${image.id}"] { transition: transform 1.1s cubic-bezier(.2,.7,.2,1), filter 1.1s ease; }`,
     `@media (hover: hover) and (prefers-reduced-motion: no-preference) {`,
     `  &:hover { border-color: ${LINE}; }`,
