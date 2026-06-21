@@ -146,6 +146,40 @@ test("composition presets create valid premium nested sections", () => {
     const result = validateBuilderNodeTree([node]);
     assert.equal(result.ok, true, preset.id);
     assert.ok("children" in node);
-    assert.ok("children" in node && node.children.length >= 2, preset.id);
+    // The marquee is a single full-bleed band wrapping one scroll track — a
+    // legitimate 1-child root; every other pack composes multiple sections.
+    const minChildren = preset.id === "marquee-ticker" ? 1 : 2;
+    assert.ok(
+      "children" in node && node.children.length >= minChildren,
+      preset.id,
+    );
   }
+});
+
+test("marquee-ticker is a freeform ticker: a scroll track of editable word/separator nodes with keyframes in customCss", () => {
+  const node = createBuilderNodeCompositionPreset("marquee-ticker");
+  assert.equal(node.kind, "container");
+  assert.ok("children" in node && node.children.length === 1);
+  const track = "children" in node ? node.children[0] : undefined;
+  const trackChildren =
+    track && "children" in track && Array.isArray(track.children)
+      ? track.children
+      : [];
+  // The track holds the items duplicated for the seamless loop — every word +
+  // separator is its own editable node (never a fixed string).
+  assert.ok(trackChildren.length >= 16, "track items");
+  const words = trackChildren.filter((c) => c.kind === "heading");
+  assert.ok(words.length >= 8, "editable word nodes");
+  // EN/ES seeded at author time on every word.
+  assert.ok(
+    words.every((w) => w.i18n?.es?.text),
+    "es overlay on every word",
+  );
+  // Marquee keyframes/animation live in the root customCss (8000-cap), never a
+  // 120-cap transition/filter prop.
+  const css = (node.props as { style?: { customCss?: string } }).style?.customCss ?? "";
+  assert.match(css, /@keyframes/);
+  assert.match(css, /animation:/);
+  const valid = validateBuilderNodeTree([node]);
+  assert.equal(valid.ok, true);
 });

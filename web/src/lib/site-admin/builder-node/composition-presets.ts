@@ -20,6 +20,7 @@ import {
   createGalleryStripPreset,
   createNewsletterSignupPreset,
 } from "./composition-preset-factories";
+import { createMarqueeTickerPreset } from "./composition-preset-factories-noir";
 import {
   createTeamGridPreset,
   createProcessStepsPreset,
@@ -56,7 +57,8 @@ export type BuilderNodeCompositionPresetId =
   | "production-agency"
   | "saas-product"
   | "print-store"
-  | "live-event";
+  | "live-event"
+  | "marquee-ticker";
 
 export interface BuilderNodeCompositionPreset {
   id: BuilderNodeCompositionPresetId;
@@ -300,6 +302,17 @@ export const BUILDER_NODE_COMPOSITION_PRESETS: ReadonlyArray<BuilderNodeComposit
     keywords: ["page", "full page", "template", "event", "festival", "lineup", "schedule", "tickets", "music"],
     sectionCount: 6,
   },
+  {
+    id: "marquee-ticker",
+    label: "Disciplines marquee",
+    description:
+      "Scrolling Noir & Or ticker of discipline words split by gold slashes — pauses on hover, static under reduced-motion. Every word is editable.",
+    rootKind: "container",
+    category: "page",
+    dataMode: "starter",
+    keywords: ["marquee", "ticker", "scroll", "strip", "disciplines", "specialties", "band"],
+    sectionCount: 1,
+  },
 ] as const;
 
 export function createBuilderNodeCompositionPreset(
@@ -350,5 +363,7 @@ export function createBuilderNodeCompositionPreset(
       return createPrintStorePreset();
     case "live-event":
       return createLiveEventPreset();
+    case "marquee-ticker":
+      return createMarqueeTickerPreset();
   }
 }
