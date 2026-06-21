@@ -26,9 +26,12 @@ const DISPLAY_FONT =
   "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)";
 const GOLD = "var(--token-color-primary, #c6a14e)";
 const CHAMPAGNE = "#e0c074";
-const INK = "var(--token-color-text, #100e13)";
+// This section sits on the dark espresso ground, so ink/muted must be LIGHT.
+// (The earlier values pointed at --token-color-text with a #100e13 fallback,
+// rendering dark-on-dark = invisible heading + copy.)
+const INK = "var(--token-color-ink, #ece4d3)";
 const LINE = "rgba(198,161,78,0.26)";
-const MUTED = "rgba(16,14,19,0.62)";
+const MUTED = "rgba(236,228,211,0.62)";
 
 interface Campaign {
   brandEn: string;

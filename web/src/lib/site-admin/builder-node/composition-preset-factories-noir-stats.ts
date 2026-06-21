@@ -26,9 +26,11 @@ const DISPLAY_FONT =
   "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)";
 const SANS_FONT =
   "var(--token-typography-body-font-family, 'Inter', system-ui, sans-serif)";
-const INK = "var(--token-color-text, #ece4d3)";
-const CHAMPAGNE = "var(--token-color-primary, #e0c074)";
-const GOLD = "var(--token-color-accent, #c6a14e)";
+// Standard Noir token mapping (matches every other block): ink=light text,
+// gold=primary #c6a14e (hairlines), champagne=accent #e0c074 (italic accents).
+const INK = "var(--token-color-ink, #ece4d3)";
+const GOLD = "var(--token-color-primary, #c6a14e)";
+const CHAMPAGNE = "var(--token-color-accent, #e0c074)";
 const STAT_NUMBER_SIZE = "clamp(2.8rem,4.8vw,4rem)"; // 24 chars — within fontSize cap (32)
 
 interface EditorialStat {
