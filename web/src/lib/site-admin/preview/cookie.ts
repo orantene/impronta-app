@@ -22,7 +22,15 @@
  */
 
 export const PREVIEW_COOKIE_NAME = "impronta_preview";
-export const PREVIEW_COOKIE_MAX_AGE_SECONDS = 15 * 60;
+// Staff edit-session lifetime. This cookie is minted ONLY by enterEditModeAction
+// + the composer Live Preview panel (both require staff auth), so it gates the
+// draft-render path for an authenticated operator — not a public share link.
+// The old 15-minute value silently expired mid-session: once it lapsed, every
+// DRAFT page (incl. brand-new pages, which are created as empty drafts) fell
+// through to notFound() — making "add a page and build it" intermittently 404.
+// A full work-day session removes that footgun without widening exposure (still
+// staff-only, still HttpOnly + SameSite=lax).
+export const PREVIEW_COOKIE_MAX_AGE_SECONDS = 8 * 60 * 60;
 export const PREVIEW_QUERY_PARAM = "preview";
 
 /** UUID regex for tenant-id scoping. Rejects anything that could break the cookie grammar. */
