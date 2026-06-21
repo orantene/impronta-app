@@ -28,6 +28,7 @@ import { createStatBandEditorialPreset } from "./composition-preset-factories-no
 import { createCampaignsLookbookRailPreset } from "./composition-preset-factories-noir-campaigns";
 import { createCtaBannerSpotlightPreset } from "./composition-preset-factories-noir-cta";
 import { createDivisionsRowPreset } from "./composition-preset-factories-noir-divisions";
+import { createImprontaNoirHomePreset } from "./composition-preset-factories-noir-home";
 import {
   createTeamGridPreset,
   createProcessStepsPreset,
@@ -72,7 +73,8 @@ export type BuilderNodeCompositionPresetId =
   | "stat-band-editorial"
   | "campaigns-lookbook"
   | "cta-banner-spotlight"
-  | "divisions-row";
+  | "divisions-row"
+  | "impronta-noir-home";
 
 export interface BuilderNodeCompositionPreset {
   id: BuilderNodeCompositionPresetId;
@@ -406,6 +408,17 @@ export const BUILDER_NODE_COMPOSITION_PRESETS: ReadonlyArray<BuilderNodeComposit
     keywords: ["divisions", "categories", "cast", "roster", "directory", "tiles", "grid", "talent"],
     sectionCount: 1,
   },
+  {
+    id: "impronta-noir-home",
+    label: "Impronta — Noir homepage",
+    description:
+      "The full Noir & Or homepage as one page — hero slider, disciplines marquee, featured board, divisions, story house, campaigns rail, stats, testimonials, CTA, and footer. Drops the whole design; every section is an editable freeform block.",
+    rootKind: "container",
+    category: "page",
+    dataMode: "starter",
+    keywords: ["page", "full page", "template", "impronta", "noir", "homepage", "editorial", "agency"],
+    sectionCount: 10,
+  },
 ] as const;
 
 export function createBuilderNodeCompositionPreset(
@@ -472,5 +485,7 @@ export function createBuilderNodeCompositionPreset(
       return createCtaBannerSpotlightPreset();
     case "divisions-row":
       return createDivisionsRowPreset();
+    case "impronta-noir-home":
+      return createImprontaNoirHomePreset();
   }
 }

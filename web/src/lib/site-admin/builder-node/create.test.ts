@@ -234,3 +234,28 @@ test("footer-editorial is a freeform site-shell footer: editable columns, EN/ES 
   const valid = validateBuilderNodeTree([node]);
   assert.equal(valid.ok, true);
 });
+
+test("impronta-noir-home is a full-page template assembling every Noir section", () => {
+  const node = createBuilderNodeCompositionPreset("impronta-noir-home");
+  assert.equal(node.kind, "container");
+  // Hero → marquee → featured → divisions → story → campaigns → stats →
+  // testimonials → cta → footer = 10 top-level sections, each editable on drop.
+  assert.ok(
+    "children" in node && node.children.length === 10,
+    "ten assembled sections",
+  );
+  // The whole page must pass the gallery-insert guard as one (deep) tree.
+  const valid = validateBuilderNodeTree([node], { maxDepth: 16 });
+  assert.equal(valid.ok, true);
+  // Every id across the assembled page is unique — factories mint fresh ids, so
+  // dropping the page never collides ids (or duplicate @keyframes names).
+  const ids: string[] = [];
+  const walk = (n: unknown) => {
+    if (!n || typeof n !== "object") return;
+    const cur = n as { id?: string; children?: unknown[] };
+    if (cur.id) ids.push(cur.id);
+    if (Array.isArray(cur.children)) cur.children.forEach(walk);
+  };
+  walk(node);
+  assert.equal(ids.length, new Set(ids).size, "all node ids unique");
+});

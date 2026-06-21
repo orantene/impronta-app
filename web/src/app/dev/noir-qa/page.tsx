@@ -79,12 +79,15 @@ function stripReveal<T>(node: T): T {
 export default async function NoirQaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lang?: string }>;
+  searchParams: Promise<{ lang?: string; page?: string }>;
 }) {
   if (process.env.NODE_ENV === "production") notFound();
 
   const sp = await searchParams;
   const locale = (sp.lang === "es" ? "es" : "en") as Locale;
+  // ?page=1 renders the assembled "impronta-noir-home" PAGE TEMPLATE as one tree
+  // (the exact gallery output); default stacks the individual section packs.
+  const pageMode = sp.page === "1";
   // The renderer resolves localizable props through an ordered fallback chain;
   // ES falls back to the EN base props the factories author.
   const contentLocale = {
@@ -115,24 +118,41 @@ export default async function NoirQaPage({
       />
       {/* Renderer sheet once; per-block calls pass includeRendererStyles:false. */}
       <BuilderNodeRendererStyles />
-      {ORDER.map((entry) => {
-        const built =
-          entry.kind === "preset"
-            ? createBuilderNodeCompositionPreset(entry.id)
-            : buildAddGallerySectionTemplate(entry.id);
-        const node = built ? stripReveal(built) : null;
-        return (
-          <div key={entry.id} data-noir-qa={entry.id}>
-            {node
-              ? renderBuilderNodes([node], {
-                  contentLocale,
-                  includeRendererStyles: false,
-                  includeFontLinks: false,
-                })
-              : null}
-          </div>
-        );
-      })}
+      {pageMode ? (
+        <div data-noir-qa="impronta-noir-home">
+          {renderBuilderNodes(
+            [
+              stripReveal(
+                createBuilderNodeCompositionPreset("impronta-noir-home"),
+              ),
+            ],
+            {
+              contentLocale,
+              includeRendererStyles: false,
+              includeFontLinks: false,
+            },
+          )}
+        </div>
+      ) : (
+        ORDER.map((entry) => {
+          const built =
+            entry.kind === "preset"
+              ? createBuilderNodeCompositionPreset(entry.id)
+              : buildAddGallerySectionTemplate(entry.id);
+          const node = built ? stripReveal(built) : null;
+          return (
+            <div key={entry.id} data-noir-qa={entry.id}>
+              {node
+                ? renderBuilderNodes([node], {
+                    contentLocale,
+                    includeRendererStyles: false,
+                    includeFontLinks: false,
+                  })
+                : null}
+            </div>
+          );
+        })
+      )}
       <BuilderNodeRevealRuntime />
     </main>
   );
