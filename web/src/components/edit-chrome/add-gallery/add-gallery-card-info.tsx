@@ -9,8 +9,12 @@ const POPOVER_MAX_WIDTH = 248;
 
 export function AddGalleryCardInfo({
   tooltip,
+  rightOffset = 6,
 }: {
   tooltip: string;
+  /** Distance (px) from the card's right edge — shifted left when a sibling
+   *  Preview button also sits in the top-right corner. */
+  rightOffset?: number;
 }) {
   const buttonId = useId();
   const popoverId = useId();
@@ -85,8 +89,8 @@ export function AddGalleryCardInfo({
           event.stopPropagation();
           setOpen((prev) => !prev);
         }}
-        className="absolute right-[6px] top-[6px] z-[2] inline-flex h-[20px] w-[20px] cursor-pointer items-center justify-center rounded-full bg-white/90 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40"
-        style={{ color: CHROME.muted }}
+        className="absolute top-[6px] z-[2] inline-flex h-[20px] w-[20px] cursor-pointer items-center justify-center rounded-full bg-white/90 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40"
+        style={{ right: rightOffset, color: CHROME.muted }}
         onMouseEnter={(e) => {
           e.currentTarget.style.color = CHROME.accent;
         }}

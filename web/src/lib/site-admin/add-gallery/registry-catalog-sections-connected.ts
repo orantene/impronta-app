@@ -37,6 +37,15 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     icon: "hero-minimal",
     sectionTemplateId: "hero-minimal",
   }),
+  section({
+    id: "sec-hero-spotlight",
+    label: "Hero Spotlight",
+    description: "Full-bleed photo with a left-anchored headline, description, and actions.",
+    category: "hero",
+    icon: "hero-split",
+    sectionTemplateId: "hero-spotlight",
+    searchTerms: ["hero", "spotlight", "full bleed", "photo", "overlay", "cover"],
+  }),
 
   // ── Sections / About ────────────────────────────────────────────────────
   section({

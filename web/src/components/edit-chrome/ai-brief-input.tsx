@@ -3,12 +3,13 @@
 /**
  * AI-1 (B4) — shared AI brief input.
  *
- * The "describe your page in one line → Compose with AI" affordance shown on the
- * shared EmptyCanvasStarter, next to "Start from scratch" and the design cards.
- * Built ONCE here and adopted by every surface that mounts EmptyCanvasStarter
- * (storefront homepage + cms_page, /t/[code] profile, /t/site page, Lab) — there
- * is no surface branch; the only per-surface variation is the `surface` context
- * the parent passes to the compose action.
+ * The "describe your page in one line → Design with AI" affordance shown on the
+ * shared EmptyCanvasStarter beneath the "Start here" banner. Built ONCE here and
+ * adopted by every surface that mounts EmptyCanvasStarter (storefront homepage +
+ * cms_page, /t/[code] profile, /t/site page, Lab) — there is no surface branch;
+ * the only per-surface variation is the `surface` context the parent passes to
+ * the compose action. Copy is overridable via props (defaults to "Design with
+ * AI").
  *
  * Behavior contract (admin-edit-UX bar): every state is explicit and persistent
  * — idle, composing (spinner + disabled), error (visible message, not a vanishing
@@ -29,6 +30,10 @@ export function AIBriefInput({
   pending,
   disabled,
   placeholder,
+  title = "Design with AI",
+  description = "Describe your page in a line and we'll design it from our sections — then make it yours.",
+  ctaLabel = "Design with AI",
+  pendingLabel = "Designing…",
 }: {
   /**
    * Run the compose + apply for this brief. The parent calls the shared
@@ -42,6 +47,12 @@ export function AIBriefInput({
   /** Hard-disable (e.g. another apply is in flight on the same card). */
   disabled?: boolean;
   placeholder?: string;
+  /** Heading copy — defaults to the "Design with AI" framing. */
+  title?: string;
+  description?: string;
+  /** Submit button label (idle / pending). */
+  ctaLabel?: string;
+  pendingLabel?: string;
 }) {
   const [brief, setBrief] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -71,12 +82,9 @@ export function AIBriefInput({
           </svg>
         </span>
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-stone-800">
-            Describe it and we&apos;ll compose a page
-          </p>
+          <p className="text-[13px] font-semibold text-stone-800">{title}</p>
           <p className="mt-0.5 text-xs leading-relaxed text-stone-500">
-            One line about what this page is for. We assemble it from our
-            designed sections, then you make it yours.
+            {description}
           </p>
         </div>
       </div>
@@ -118,10 +126,10 @@ export function AIBriefInput({
               >
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
-              Composing…
+              {pendingLabel}
             </>
           ) : (
-            "Compose with AI"
+            ctaLabel
           )}
         </button>
       </form>

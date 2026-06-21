@@ -152,6 +152,112 @@ function buildHeroSearch(): BuilderNode {
   ]);
 }
 
+// Hero Spotlight — a full-bleed photographic hero with a left-anchored copy
+// column (eyebrow · display headline · description · two CTAs) over a left-to-
+// right darkening scrim for legibility. Composed entirely from freeform
+// primitives so it renders through the existing renderer + primitive CSS.
+function buildHeroSpotlight(): BuilderNode {
+  return tplContainer(
+    [
+      tplContainer(
+        [
+          tplLabeledParagraph("Featured talent", "Eyebrow", {
+            align: "left",
+            size: "sm",
+            textColor: "rgba(255,255,255,0.82)",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            fontWeight: 600,
+          }),
+          tplTitle("Where standout talent meets unforgettable brands.", 1, {
+            align: "left",
+            size: "display",
+            textColor: "#ffffff",
+            textWrap: "balance",
+            lineHeight: "1.04",
+          }),
+          tplDescription(
+            "Add a short, vivid line about your roster or offer. Two sentences keep it punchy and let the photography carry the rest.",
+            "Description",
+            {
+              align: "left",
+              tone: "default",
+              size: "lg",
+              textColor: "rgba(255,255,255,0.88)",
+              maxWidthFree: "44ch",
+            },
+          ),
+          tplCtaGroup(
+            [
+              tplButton("Explore the roster", "/directory", {
+                layerLabel: "Primary Button",
+                style: {
+                  backgroundColor: "#ffffff",
+                  textColor: "#0b0d12",
+                  borderRadius: "999px",
+                  paddingTop: "14px",
+                  paddingBottom: "14px",
+                  paddingLeft: "28px",
+                  paddingRight: "28px",
+                  fontWeight: 600,
+                },
+              }),
+              tplButton("Start an inquiry", "/contact", {
+                layerLabel: "Secondary Button",
+                tone: "secondary",
+                style: {
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                  textColor: "#ffffff",
+                  borderColor: "rgba(255,255,255,0.6)",
+                  borderWidth: "1px",
+                  borderStyle: "solid",
+                  borderRadius: "999px",
+                  paddingTop: "14px",
+                  paddingBottom: "14px",
+                  paddingLeft: "28px",
+                  paddingRight: "28px",
+                  fontWeight: 600,
+                  backdropFilter: "blur(6px)",
+                },
+              }),
+            ],
+            { layerLabel: "Button Group", align: "start", gap: "s" },
+          ),
+        ],
+        {
+          layerLabel: "Content Column",
+          layout: "stack",
+          gap: "m",
+          align: "start",
+          style: {
+            maxWidthFree: "620px",
+            position: "relative",
+            zIndex: 2,
+          },
+        },
+      ),
+    ],
+    {
+      layerLabel: "Hero Spotlight Section",
+      layout: "stack",
+      align: "start",
+      style: {
+        position: "relative",
+        overflow: "hidden",
+        paddingTop: "16vh",
+        paddingBottom: "16vh",
+        paddingLeft: "7vw",
+        paddingRight: "7vw",
+        backgroundImage:
+          "linear-gradient(90deg, rgba(11,13,18,0.88) 0%, rgba(11,13,18,0.66) 36%, rgba(11,13,18,0.28) 68%, rgba(11,13,18,0.06) 100%), url('https://images.unsplash.com/photo-1492288991661-058aa541ff43?auto=format&fit=crop&w=2000&q=80')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      },
+    },
+  );
+}
+
 function buildAboutSimple(): BuilderNode {
   return tplSection("About Simple Section", [
     tplContentColumn([
@@ -518,6 +624,7 @@ const SECTION_TEMPLATE_BUILDERS: Readonly<
   "hero-centered": buildHeroCentered,
   "hero-split": buildHeroSplit,
   "hero-minimal": buildHeroMinimal,
+  "hero-spotlight": buildHeroSpotlight,
   "hero-search": buildHeroSearch,
   about: buildAboutSimple,
   "about-split": buildAboutSplit,
