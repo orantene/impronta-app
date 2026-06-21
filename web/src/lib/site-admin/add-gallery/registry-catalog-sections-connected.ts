@@ -41,7 +41,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     id: "sec-hero-slider",
     label: "Hero Slider",
     description:
-      "Full-screen image slider with crossfade, Ken Burns, and an overlaid headline.",
+      "Full-screen freeform slider — each slide is its own layout (columns, photo background, headings, buttons) with crossfade, Ken Burns, autoplay and dots.",
     category: "hero",
     icon: "hero-split",
     sectionTemplateId: "hero-slider",

@@ -537,6 +537,9 @@ function buildHeroSlider(): BuilderNode {
           tplTitle("Faces with an imprint.", 1, {
             align: "left",
             textColor: "#ffffff",
+            fontFamily: "Cormorant Garamond, ui-serif, Georgia, serif",
+            fontSize: "clamp(2.6rem, 7vw, 6rem)",
+            lineHeight: "1",
           }),
           tplLabeledParagraph(
             "A boutique roster of models and creative talent, managed end to end.",
@@ -586,6 +589,9 @@ function buildHeroSlider(): BuilderNode {
           tplTitle("The new class.", 1, {
             align: "center",
             textColor: "#ffffff",
+            fontFamily: "Cormorant Garamond, ui-serif, Georgia, serif",
+            fontSize: "clamp(2.6rem, 7vw, 6rem)",
+            lineHeight: "1",
           }),
           tplCtaGroup([tplButton("Meet them", "/roster", { tone: "primary" })], {
             align: "center",

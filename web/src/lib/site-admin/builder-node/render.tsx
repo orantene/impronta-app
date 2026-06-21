@@ -3417,7 +3417,10 @@ function renderBuilderNodeElement(
             if (childStyle.backgroundColor) {
               bgStyle.backgroundColor = childStyle.backgroundColor;
             }
-            const contentChild: BuilderNode = {
+            // Spread over the BuilderNode union loses the discriminated-union
+            // narrowing, so assert back to BuilderNode (structure is unchanged
+            // apart from the stripped background, which renderBuilderNode handles).
+            const contentChild = {
               ...child,
               props: {
                 ...child.props,
@@ -3430,7 +3433,7 @@ function renderBuilderNodeElement(
                   backgroundRepeat: undefined,
                 },
               },
-            };
+            } as BuilderNode;
             return (
               <div
                 key={`${node.id}:slide:${child.id}`}
