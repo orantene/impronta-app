@@ -1008,6 +1008,11 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "container",
           "card",
           "cta_group",
+          // A hero slide can be a full freeform layout — a `split` (columns) or a
+          // `masonry` directly, not only a `container`. Each slide stays a node
+          // tree the editor builds on canvas (no fixed slide fields).
+          "split",
+          "masonry",
         ],
       },
       propsSchema: carouselPropsSchema,

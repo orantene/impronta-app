@@ -638,12 +638,26 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 .site-bn-hero__slide[data-active]{opacity:1}
 .site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-transition="slide"] .site-bn-hero__slide{transform:translateX(4%);transition:opacity calc(var(--bn-transition-ms,1600ms)*0.55) var(--bn-ease),transform var(--bn-transition-ms,1600ms) var(--bn-ease)}
 .site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-transition="slide"] .site-bn-hero__slide[data-active]{transform:translateX(0)}
-.site-bn-hero__slide>*{width:100%;height:100%;margin:0;max-width:none}
-.site-bn-hero__slide .site-builder-node--image,.site-bn-hero__slide img{width:100%;height:100%;object-fit:cover;object-position:var(--bn-hero-focal,center 28%)}
-.site-bn-hero__slide img{filter:brightness(0.82) saturate(1.05)}
+.site-bn-hero__slide>*{margin:0;max-width:none}
+/* Per-slide BACKGROUND LAYER (image / colour). Ken Burns scales THIS layer, so a
+   slide's freeform content (columns, headings, buttons) on top stays put — the old
+   model scaled the whole slide incl. its text. The bg is either an <img> child
+   (image-only slide) or the slide container's background-image/colour, lifted here. */
+.site-bn-hero__slide-bg{position:absolute;inset:0;z-index:0;overflow:hidden;background-size:cover;background-repeat:no-repeat;background-position:var(--bn-hero-focal,center 28%)}
+.site-bn-hero__slide-bg>*,.site-bn-hero__slide-bg .site-builder-node--image,.site-bn-hero__slide-bg img{width:100%;height:100%;object-fit:cover;object-position:var(--bn-hero-focal,center 28%)}
+.site-bn-hero__slide-bg img{filter:brightness(0.82) saturate(1.05)}
+/* Per-slide scrim (over bg, under content) — keeps per-slide freeform copy legible. */
+.site-bn-hero__slide-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(8,7,10,0.5) 0%,rgba(8,7,10,0.15) 30%,rgba(8,7,10,0.2) 52%,rgba(8,7,10,0.82) 100%)}
+.site-bn-hero__slide-scrim[data-tone="light"]{background:linear-gradient(180deg,rgba(248,246,242,0.12) 0%,rgba(248,246,242,0.04) 40%,rgba(248,246,242,0.58) 100%)}
+.site-bn-hero__slide-scrim[data-tone="none"]{display:none}
+.site-bn-hero__slide-scrim[data-vignette="true"]{background:linear-gradient(180deg,rgba(8,7,10,0.5) 0%,rgba(8,7,10,0.15) 30%,rgba(8,7,10,0.2) 52%,rgba(8,7,10,0.82) 100%),radial-gradient(120% 90% at 50% 28%,rgba(8,7,10,0) 38%,rgba(8,7,10,0.55) 100%)}
+/* Per-slide freeform CONTENT layer (static, above bg + scrim). The slide's freeform
+   container fills it and lays out its own children (split columns, text, buttons). */
+.site-bn-hero__slide-content{position:absolute;inset:0;z-index:2}
+.site-bn-hero__slide-content>*{width:100%;height:100%;margin:0;max-width:none}
 .site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-content-mode="per-slide"] .site-bn-hero__slides{z-index:4}
-.site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-kenburns="true"] .site-bn-hero__slide{transform:scale(1.04)}
-.site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-kenburns="true"] .site-bn-hero__slide[data-active]{animation:bn-kenburns var(--bn-kenburns-ms,9000ms) var(--bn-ease) forwards}
+.site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-kenburns="true"] .site-bn-hero__slide-bg{transform:scale(1.04)}
+.site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-kenburns="true"] .site-bn-hero__slide[data-active] .site-bn-hero__slide-bg{animation:bn-kenburns var(--bn-kenburns-ms,9000ms) var(--bn-ease) forwards}
 @keyframes bn-kenburns{from{transform:scale(1.04)}to{transform:scale(calc(1.04 + var(--bn-kenburns-amount,0.1)))}}
 .site-bn-hero__scrim{position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(180deg,rgba(8,7,10,0.5) 0%,rgba(8,7,10,0.15) 30%,rgba(8,7,10,0.2) 52%,rgba(8,7,10,0.82) 100%)}
 .site-bn-hero__scrim[data-vignette="true"]{background:linear-gradient(180deg,rgba(8,7,10,0.5) 0%,rgba(8,7,10,0.15) 30%,rgba(8,7,10,0.2) 52%,rgba(8,7,10,0.82) 100%),radial-gradient(120% 90% at 50% 28%,rgba(8,7,10,0) 38%,rgba(8,7,10,0.55) 100%)}
@@ -688,7 +702,7 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 }
 @media (prefers-reduced-motion: reduce){
   .site-bn-hero__slide{transition:opacity .2s linear}
-  .site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-kenburns="true"] .site-bn-hero__slide[data-active]{animation:none;transform:scale(1.04)}
+  .site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-kenburns="true"] .site-bn-hero__slide[data-active] .site-bn-hero__slide-bg{animation:none;transform:none}
   .site-bn-hero__cue::after{animation:none}
 }
 `;
@@ -3344,35 +3358,97 @@ function renderBuilderNodeElement(
         const mode = node.props.contentMode ?? "per-slide";
         const ctl = node.props.controls ?? {};
         const sc = node.props.sharedContent;
+        // Per-slide scrim attrs (over bg, under freeform content). Mirrors the
+        // carousel-level scrim defaults so shared + per-slide look consistent.
+        const scrimTone = overlay.scrim === false ? "none" : overlay.tone ?? "dark";
+        const scrimVignette = overlay.vignette !== false ? "true" : undefined;
         const heroSlides = node.children
           .filter((child) => shouldRenderNode(child, options))
           .map((child, index) => {
-            // Hero slides crossfade into view within seconds — eager-load image
-            // slides so advancing never flashes a blank (lazy) frame.
-            const slideChild =
-              child.kind === "image"
-                ? {
-                    ...child,
-                    props: {
-                      ...child.props,
-                      priority: true,
-                      style: {
-                        ...(child.props.style ?? {}),
-                        // Spec §1: full-bleed crop focuses at center 28% so heads
-                        // /faces stay in frame instead of the centred default.
-                        objectPosition:
-                          child.props.style?.objectPosition ?? "center 28%",
-                      },
-                    },
-                  }
-                : child;
+            const activeAttr = index === 0 ? "" : undefined;
+            // Image-only slide → the eager <img> IS the Ken-Burns background layer.
+            if (child.kind === "image") {
+              const img = {
+                ...child,
+                props: {
+                  ...child.props,
+                  priority: true,
+                  style: {
+                    ...(child.props.style ?? {}),
+                    // Spec §1: focus the full-bleed crop at center 28% so heads /
+                    // faces stay in frame instead of the centred default.
+                    objectPosition:
+                      child.props.style?.objectPosition ?? "center 28%",
+                  },
+                },
+              };
+              return (
+                <div
+                  key={`${node.id}:slide:${child.id}`}
+                  className="site-bn-hero__slide"
+                  data-active={activeAttr}
+                >
+                  <div className="site-bn-hero__slide-bg">
+                    {renderBuilderNode(img, options)}
+                  </div>
+                  {mode === "per-slide" ? (
+                    <div
+                      className="site-bn-hero__slide-scrim"
+                      data-tone={scrimTone}
+                      data-vignette={scrimVignette}
+                    />
+                  ) : null}
+                </div>
+              );
+            }
+            // Freeform slide (container / split / card / …): lift its background to
+            // the Ken-Burns layer, then render the node with the background stripped
+            // as a STATIC content layer — so the zoom never scales the copy.
+            const childStyle: BuilderNodeStyleValue =
+              (child.props as { style?: BuilderNodeStyleValue }).style ?? {};
+            const bgStyle: CSSProperties = {};
+            if (childStyle.backgroundImage) {
+              bgStyle.backgroundImage = childStyle.backgroundImage;
+              bgStyle.backgroundSize = childStyle.backgroundSize ?? "cover";
+              bgStyle.backgroundPosition =
+                childStyle.backgroundPosition ?? "center 28%";
+              bgStyle.backgroundRepeat = childStyle.backgroundRepeat ?? "no-repeat";
+            }
+            if (childStyle.backgroundColor) {
+              bgStyle.backgroundColor = childStyle.backgroundColor;
+            }
+            const contentChild: BuilderNode = {
+              ...child,
+              props: {
+                ...child.props,
+                style: {
+                  ...childStyle,
+                  backgroundImage: undefined,
+                  backgroundColor: undefined,
+                  backgroundSize: undefined,
+                  backgroundPosition: undefined,
+                  backgroundRepeat: undefined,
+                },
+              },
+            };
             return (
               <div
                 key={`${node.id}:slide:${child.id}`}
                 className="site-bn-hero__slide"
-                data-active={index === 0 ? "" : undefined}
+                data-active={activeAttr}
               >
-                {renderBuilderNode(slideChild, options)}
+                <div
+                  className="site-bn-hero__slide-bg"
+                  style={Object.keys(bgStyle).length > 0 ? bgStyle : undefined}
+                />
+                <div
+                  className="site-bn-hero__slide-scrim"
+                  data-tone={scrimTone}
+                  data-vignette={scrimVignette}
+                />
+                <div className="site-bn-hero__slide-content">
+                  {renderBuilderNode(contentChild, options)}
+                </div>
               </div>
             );
           });

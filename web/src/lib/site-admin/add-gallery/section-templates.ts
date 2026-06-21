@@ -512,16 +512,122 @@ function buildContactForm(): BuilderNode {
   ]);
 }
 
-// Hero Slider — a full-screen carousel-variant hero (Noir & Or). Slides are
-// background images (committed demo photos so it always renders full); the
-// content is a shared overlay block. Every lever is editable in the inspector.
+// Hero Slider — a FREEFORM carousel-variant hero (Noir & Or). This is a
+// composition PRESET, not a fixed block: every slide is a full BuilderNode tree
+// the editor can rebuild on canvas. Each slide is a `container` with its OWN
+// background (lifted to the Ken-Burns layer in the renderer) + arbitrary
+// children (columns, headings, buttons, …). `contentMode:"per-slide"` so each
+// slide is an independent layout; the hero chrome (scrim/grain/Ken Burns/
+// autoplay/dots/counter) lives on the carousel and never swallows slide content.
+// Theme-tokenized: gold = var(--token-color-primary), so it reskins per palette.
 function buildHeroSlider(): BuilderNode {
-  const slideImages: ReadonlyArray<{ name: string; alt: string }> = [
-    { name: "01-hero.jpg", alt: "Editorial fashion portrait of a model" },
-    { name: "03-runway.jpg", alt: "Model walking the runway" },
-    { name: "05-editorial.jpg", alt: "Editorial studio portrait of a model" },
-    { name: "09-editorial.jpg", alt: "Editorial campaign portrait of a model" },
-  ];
+  // Slide 1 — two-column layout: eyebrow + heading + copy + CTAs over a photo
+  // (right column intentionally open so the background shows through).
+  const slide1 = tplContainer(
+    [
+      tplSplitColumn(
+        [
+          tplLabeledParagraph("Talent Agency · Tulum, Mexico", "Eyebrow", {
+            size: "sm",
+            align: "left",
+            textColor: "var(--token-color-primary)",
+            textTransform: "uppercase",
+            letterSpacing: "0.24em",
+          }),
+          tplTitle("Faces with an imprint.", 1, {
+            align: "left",
+            textColor: "#ffffff",
+          }),
+          tplLabeledParagraph(
+            "A boutique roster of models and creative talent, managed end to end.",
+            "Sub",
+            { align: "left", textColor: "#e8e4dc" },
+          ),
+          tplCtaGroup(
+            [
+              tplButton("Explore the roster", "/roster", { tone: "primary" }),
+              tplButton("Start an inquiry", "/contact", { tone: "secondary" }),
+            ],
+            { align: "start", layerLabel: "Slide 1 Buttons" },
+          ),
+        ],
+        [],
+        { ratio: "60-40", layerLabel: "Slide 1 Columns" },
+      ),
+    ],
+    {
+      layerLabel: "Slide 1 — Columns over photo",
+      layout: "stack",
+      align: "stretch",
+      style: {
+        backgroundImage: "url('/talent-templates/demo/model/01-hero.jpg')",
+        backgroundPosition: "center 28%",
+        justifyContent: "flex-end",
+        paddingLeft: "7vw",
+        paddingRight: "7vw",
+        paddingTop: "14vh",
+        paddingBottom: "12vh",
+      },
+    },
+  );
+
+  // Slide 2 — a STRUCTURALLY different layout: a single centered column.
+  const slide2 = tplContainer(
+    [
+      tplContainer(
+        [
+          tplLabeledParagraph("New Faces · 2026", "Badge", {
+            size: "sm",
+            align: "center",
+            textColor: "var(--token-color-primary)",
+            textTransform: "uppercase",
+            letterSpacing: "0.24em",
+          }),
+          tplTitle("The new class.", 1, {
+            align: "center",
+            textColor: "#ffffff",
+          }),
+          tplCtaGroup([tplButton("Meet them", "/roster", { tone: "primary" })], {
+            align: "center",
+            layerLabel: "Slide 2 Button",
+          }),
+        ],
+        {
+          layerLabel: "Slide 2 Content",
+          layout: "stack",
+          align: "center",
+          gap: "m",
+        },
+      ),
+    ],
+    {
+      layerLabel: "Slide 2 — Centered",
+      layout: "stack",
+      align: "center",
+      style: {
+        backgroundImage: "url('/talent-templates/demo/model/05-editorial.jpg')",
+        backgroundPosition: "center 22%",
+        justifyContent: "center",
+        paddingLeft: "7vw",
+        paddingRight: "7vw",
+        paddingTop: "14vh",
+        paddingBottom: "14vh",
+      },
+    },
+  );
+
+  // Slide 3 — image-only (no text). The eager <img> IS the background layer.
+  const slide3: BuilderNode = {
+    id: makeId("image"),
+    kind: "image",
+    props: {
+      src: "/talent-templates/demo/model/09-editorial.jpg",
+      alt: "Editorial campaign portrait of a model",
+      priority: true,
+      layerLabel: "Slide 3 — Image only",
+    },
+  };
+
   return {
     id: makeId("carousel"),
     kind: "carousel",
@@ -547,28 +653,9 @@ function buildHeroSlider(): BuilderNode {
         scrollCue: true,
       },
       contentAlign: "bl",
-      contentMode: "shared",
-      sharedContent: {
-        eyebrow: "Talent Agency · Tulum, Mexico",
-        headingLead: "Faces with an",
-        headingAccent: "imprint.",
-        sub: "A boutique roster of models and creative talent, managed end to end.",
-        primaryCta: { label: "Explore the roster", href: "/roster" },
-        secondaryCta: { label: "Start an inquiry", href: "/contact" },
-      },
+      contentMode: "per-slide",
     },
-    // All hero slides eager-load: they crossfade into view within seconds, so a
-    // lazy slide would flash black when autoplay advances to it.
-    children: slideImages.map(({ name, alt }, index) => ({
-      id: makeId("image"),
-      kind: "image",
-      props: {
-        src: `/talent-templates/demo/model/${name}`,
-        alt,
-        priority: true,
-        layerLabel: `Slide ${index + 1}`,
-      },
-    })),
+    children: [slide1, slide2, slide3],
   };
 }
 
