@@ -356,6 +356,10 @@ export async function assignTaxonomyTermToProfile(
   );
 
   if (error) {
+    // 23514 = check_violation (e.g. skills cap). This is expected user input; don't log to Sentry.
+    if (error.code === "23514") {
+      return { ok: false, error: "This profile has reached the maximum number of skills. Remove one before adding another." };
+    }
     logServerError("talent-taxonomy/assign", error);
     return { ok: false, error: "Could not save taxonomy." };
   }
