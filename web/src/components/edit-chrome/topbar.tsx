@@ -38,6 +38,7 @@ import {
   useState,
 } from "react";
 import { useFormStatus } from "react-dom";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -245,9 +246,11 @@ function PagePicker({
   const router = useRouter();
   const pagePickerMenuId = useId();
   const pagePickerTriggerId = useId();
-  // Fixed-position anchor so the menu escapes the topbar's overflow-y-hidden
-  // scroll container (an absolutely-positioned menu gets clipped — same reason
-  // the publish-split menu is position:fixed).
+  // Fixed-position anchor + portal to <body> so the menu escapes the topbar's
+  // overflow-y-hidden scroll container. position:fixed ALONE is not enough: the
+  // topbar's backdrop-filter makes it the containing block for fixed descendants,
+  // so an in-tree fixed menu still gets clipped to the bar. The portal is load-
+  // bearing — same fix as the publish-split menu.
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
     null,
@@ -508,15 +511,16 @@ function PagePicker({
         </button>
       )}
 
-      {open && menuPos ? (
+      {open && menuPos && typeof document !== "undefined" ? createPortal((
         <div
           id={pagePickerMenuId}
           role="menu"
+          data-page-picker
           aria-labelledby={pagePickerTriggerId}
           className="z-[120] min-w-[280px] rounded-[10px] p-[6px]"
           style={{
-            // Fixed (anchored to the trigger rect) so the topbar's
-            // overflow-y-hidden scroll container can't clip the menu.
+            // Fixed + portaled to <body> (see triggerRef note) so the topbar's
+            // overflow-y-hidden + backdrop-filter containing block can't clip it.
             position: "fixed",
             top: menuPos.top,
             left: menuPos.left,
@@ -829,7 +833,7 @@ function PagePicker({
             </svg>
           </Link>
         </div>
-      ) : null}
+      ), document.body) : null}
     </div>
   );
 }
@@ -1850,10 +1854,11 @@ function PublishSplitButton({
         </button>
       </div>
 
-      {menuOpen && menuPos ? (
+      {menuOpen && menuPos && typeof document !== "undefined" ? createPortal((
         <div
           id={publishMenuId}
           role="menu"
+          data-publish-split
           aria-labelledby={publishMenuTriggerId}
           className="z-[120] min-w-[240px] max-w-[calc(100vw-24px)] rounded-[10px] p-[6px] text-[12.5px]"
           style={{
@@ -1969,7 +1974,7 @@ function PublishSplitButton({
             onClick={() => { onMenuSelect("unpublish"); setMenuOpen(false); }}
           />
         </div>
-      ) : null}
+      ), document.body) : null}
     </div>
   );
 }
@@ -3099,10 +3104,11 @@ export function TopBar({
       />
       </div>
 
-      {/* WS4-TASK1 — Named checkpoint modal (backdrop + dialog). Rendered
-          inside the topbar container so it inherits the correct z-index stack
-          without a portal dependency. */}
-      {namedDraftOpen ? (
+      {/* WS4-TASK1 — Named checkpoint modal (backdrop + dialog). Portaled to
+          <body>: the topbar's backdrop-filter establishes a containing block for
+          fixed-positioned descendants, and its overflow-y-hidden would otherwise
+          clip this full-screen overlay to the ~54px bar. */}
+      {namedDraftOpen && typeof document !== "undefined" ? createPortal((
         <div
           style={{
             position: "fixed",
@@ -3218,7 +3224,7 @@ export function TopBar({
             </div>
           </div>
         </div>
-      ) : null}
+      ), document.body) : null}
     </div>
   );
 }
