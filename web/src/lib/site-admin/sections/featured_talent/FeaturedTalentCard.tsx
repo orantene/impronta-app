@@ -129,16 +129,15 @@ function FeaturedTalentCardInner({
           priority={priority}
         />
       ) : (
+        // Editorial monogram fallback — the talent's name set in the display
+        // face, never initials-in-a-box (product rule: imagery, never a
+        // placeholder block). Matches the canonical <TalentCard> fallback.
         <div
-          className="flex h-full min-h-[220px] items-center justify-center bg-muted text-sm font-medium tracking-[0.25em] text-muted-foreground"
+          className="flex h-full min-h-[220px] items-center justify-center px-4 text-center font-display text-sm tracking-[0.18em] text-muted-foreground"
+          data-card-monogram
           aria-hidden
         >
-          {card.displayName
-            .split(/\s+/)
-            .map((w) => w[0]?.toUpperCase())
-            .filter(Boolean)
-            .slice(0, 2)
-            .join("")}
+          {card.displayName}
         </div>
       )}
 

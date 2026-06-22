@@ -12,6 +12,7 @@ import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../../_data-bridge";
 import { loadClientShortlistsForUser } from "../../_data-bridge/discover";
+import { loadClientCardDesign } from "../_data-bridge/load-card-design";
 import { loadClientSubscription, canUsePro } from "@/lib/discover/client-subscription";
 import { ShortlistsShell } from "./ShortlistsShell";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
@@ -33,9 +34,10 @@ export default async function ClientShortlistsPage({ params }: { params: PagePar
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const [shortlists, subscription] = await Promise.all([
+  const [shortlists, subscription, cardDesign] = await Promise.all([
     loadClientShortlistsForUser(session.user.id),
     loadClientSubscription(session.user.id),
+    loadClientCardDesign(scope.tenantId),
   ]);
   const hasPro = canUsePro(subscription);
 
@@ -54,6 +56,7 @@ export default async function ClientShortlistsPage({ params }: { params: PagePar
           tenantSlug={tenantSlug}
           tier={subscription.tier}
           hasPro={hasPro}
+          cardDesign={cardDesign}
         />
       ) : (
         <EmptyState

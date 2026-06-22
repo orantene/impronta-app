@@ -14,6 +14,7 @@ import {
 import type { FieldValueRow } from "@/lib/directory/format-card-attribute-value";
 import { mapApiDirectoryRpcRowToDirectoryCardDTO } from "@/lib/directory/talent-card-dto";
 import type { ApiDirectoryCardRpcRow } from "@/lib/directory/talent-card-dto";
+import { loadTalentCardThumbs } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-card-thumbs";
 import { fetchLegacyDirectorySearchTalentIds } from "@/lib/directory/directory-search-legacy";
 import { fetchDirectoryCardValues } from "@/lib/field-engine/read-source-directory-card-values";
 import { extractPrimaryRoleTerm, type ProfileTaxonomyRow } from "@/lib/taxonomy/engine";
@@ -108,6 +109,23 @@ type AgencySeatRow = {
   plan_tier: string | null;
   talent_seat_limit: number | null;
 };
+
+/**
+ * Priority order for picking the best media row when selecting thumbnail
+ * dimensions (width/height). Mirrors the rank in talent-card-thumbs.ts so the
+ * dimension picked for layout always corresponds to the image URL that will be
+ * shown. Variants not listed here get rank 99 (deprioritised).
+ */
+const CARD_THUMB_RANK: Record<string, number> = {
+  card: 0,
+  hero: 1,
+  public_watermarked: 2,
+  gallery: 3,
+  original: 4,
+};
+
+/** Maximum number of ids per PostgREST `.in()` call (safe limit). */
+const THUMB_CHUNK_SIZE = 450;
 
 function cardResidenceLocation(profile: TalentProfileRow): LocationRow | null {
   const pick = (value: LocationRow | LocationRow[] | null): LocationRow | null =>
@@ -813,7 +831,7 @@ export async function fetchDirectoryPage(
           .in("owner_talent_profile_id", profileIds)
           .eq("approval_state", "approved")
           .is("deleted_at", null)
-          .in("variant_kind", ["card", "public_watermarked", "gallery"])
+          .in("variant_kind", ["card", "hero", "public_watermarked", "gallery", "original"])
           .order("sort_order", { ascending: true })
           .order("created_at", { ascending: true }),
       ]),
@@ -878,6 +896,19 @@ export async function fetchDirectoryPage(
     items.push(row);
     mediaByProfile.set(row.owner_talent_profile_id, items);
   }
+
+  // Resolve thumbnail URLs via the canonical shared helper (talent-card-thumbs).
+  // The helper's internal .in() has no chunking, so we chunk the id-set here
+  // into THUMB_CHUNK_SIZE windows and merge the returned Maps. This ensures
+  // correctness even if a future admin or bulk caller passes >450 ids.
+  // Ranking: card > hero > public_watermarked > gallery > original — so a
+  // hero-only talent (previously blank on /directory) now resolves a URL.
+  const thumbUrlByProfile = await auditTime(
+    audit,
+    timings,
+    "thumbUrlResolveMs",
+    () => chunkAndMergeThumbs(profileIds, (chunk) => loadTalentCardThumbs(supabase, chunk)),
+  );
 
   const mapStart = performance.now();
   const rows: ApiDirectoryCardRpcRow[] = profiles.map((profile) => {
@@ -973,11 +1004,17 @@ export async function fetchDirectoryPage(
           )
         : [];
 
-    const chosenMedia =
-      mediaRows.find((row) => row.variant_kind === "card") ??
-      mediaRows.find((row) => row.variant_kind === "public_watermarked") ??
-      mediaRows.find((row) => row.variant_kind === "gallery") ??
-      null;
+    // Pick the best media row for dimensions (width/height) using the same
+    // priority as the shared thumb resolver. URL comes from thumbUrlByProfile
+    // (set below after DTO mapping), so thumb_bucket_id/storage_path are
+    // intentionally null here to avoid a redundant getPublicUrl call in
+    // mapApiDirectoryRpcRowToDirectoryCardDTO.
+    let chosenMedia: MediaRow | null = null;
+    for (const row of mediaRows) {
+      const rank = CARD_THUMB_RANK[row.variant_kind] ?? 99;
+      const bestRank = chosenMedia != null ? (CARD_THUMB_RANK[chosenMedia.variant_kind] ?? 99) : 99;
+      if (rank < bestRank) chosenMedia = row;
+    }
 
     const valuesMap = valuesByProfileId.get(profile.id) ?? new Map<string, FieldValueRow>();
     const cardAttributes = buildCardAttributesForProfile(
@@ -1005,8 +1042,11 @@ export async function fetchDirectoryPage(
       manual_rank_override: profile.manual_rank_override,
       thumb_width: chosenMedia?.width ?? null,
       thumb_height: chosenMedia?.height ?? null,
-      thumb_bucket_id: chosenMedia?.bucket_id ?? null,
-      thumb_storage_path: chosenMedia?.storage_path ?? null,
+      // URL is resolved via loadTalentCardThumbs (chunked, patched below).
+      // Keeping bucket_id/storage_path null prevents a redundant getPublicUrl
+      // call in mapApiDirectoryRpcRowToDirectoryCardDTO.
+      thumb_bucket_id: null,
+      thumb_storage_path: null,
       primary_talent_type_name_en: primaryTalentType?.name_en ?? null,
       primary_talent_type_name_es: primaryTalentType?.name_es ?? null,
       location_display_en: location?.display_name_i18n?.en ?? null,
@@ -1036,6 +1076,13 @@ export async function fetchDirectoryPage(
   const items = rows.map((row) =>
     mapApiDirectoryRpcRowToDirectoryCardDTO(supabase, row, locale),
   );
+  // Patch thumbnail URLs from the shared resolver (thumb_bucket_id/storage_path
+  // were set to null above so mapApiDirectoryRpcRowToDirectoryCardDTO produces
+  // null; we fill in the canonical URL here). This is the only URL source.
+  for (let i = 0; i < items.length; i++) {
+    const url = thumbUrlByProfile.get(rows[i].id) ?? null;
+    items[i].thumbnail.url = url;
+  }
   if (audit) {
     timings.mapProfilesToDtoMs = performance.now() - mapStart;
   }
@@ -1068,4 +1115,32 @@ export async function fetchDirectoryPage(
     ...(totalCount !== undefined ? { totalCount } : {}),
     taxonomyTermIds,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Exported for unit-testing only
+// ---------------------------------------------------------------------------
+
+/**
+ * Calls `fn` in batches of `chunkSize` over `ids`, merges all returned Maps.
+ * This is the chunking primitive used internally to guard against PostgREST
+ * `.in()` limits (>450 ids in a single clause can be rejected).
+ *
+ * Exported so tests can verify (a) hero-only variant resolution and (b) that
+ * batches are respected — without standing up a real Supabase client.
+ *
+ * @internal — not part of the public API; subject to change without notice.
+ */
+export async function chunkAndMergeThumbs(
+  ids: string[],
+  fn: (chunk: string[]) => Promise<Map<string, string>>,
+  chunkSize: number = THUMB_CHUNK_SIZE,
+): Promise<Map<string, string>> {
+  const merged = new Map<string, string>();
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    const result = await fn(chunk);
+    for (const [k, v] of result) merged.set(k, v);
+  }
+  return merged;
 }

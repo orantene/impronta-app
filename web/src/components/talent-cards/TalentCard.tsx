@@ -1,3 +1,4 @@
+import type { CSSProperties, ElementType, KeyboardEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -8,6 +9,7 @@ import {
   type CanonicalTalentCardData,
   type TalentCardNameFallback,
   type TalentCardProps,
+  type TalentCardRootMode,
 } from "./talent-card-shape";
 
 /**
@@ -117,6 +119,55 @@ function Photo({
   );
 }
 
+/**
+ * Activation key handler for `rootMode="button"` — Enter / Space fire the
+ * handler (matching native button semantics) without scrolling the page.
+ */
+function onActivateKeyDown(
+  handler: (() => void) | undefined,
+): ((e: KeyboardEvent) => void) | undefined {
+  if (!handler) return undefined;
+  return (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handler();
+    }
+  };
+}
+
+/**
+ * Common root props shared by both render branches. `rootMode="button"` adds
+ * the `role="button"` + activation handlers a `<div>` root needs; `"link"`
+ * adds the `href`. The keystone `className` + the literal `data-card-style`
+ * attribute are written at each call site (so the source-text keystone guard
+ * stays green); this only assembles the behavior + style props.
+ */
+function cardRootProps(
+  rootMode: TalentCardRootMode,
+  href: string,
+  onActivate: (() => void) | undefined,
+  style: CSSProperties | undefined,
+):
+  | {
+      role: "button";
+      tabIndex: 0;
+      onClick: (() => void) | undefined;
+      onKeyDown: ((e: KeyboardEvent) => void) | undefined;
+      style: CSSProperties | undefined;
+    }
+  | { href: string; style: CSSProperties | undefined } {
+  if (rootMode === "button") {
+    return {
+      role: "button",
+      tabIndex: 0,
+      onClick: onActivate,
+      onKeyDown: onActivateKeyDown(onActivate),
+      style,
+    };
+  }
+  return { href, style };
+}
+
 export function TalentCard({
   data,
   style,
@@ -125,24 +176,65 @@ export function TalentCard({
   aspect,
   priority,
   index,
+  rootMode = "link",
+  onActivate,
+  cssVars,
+  availabilitySlot,
+  secondaryActionSlot,
+  badgeSlot,
 }: TalentCardProps) {
   const displayName = resolveName(data.name, show.showName, nameFallback);
   const href = data.profileHref || "#";
   const aspectRatio = TALENT_CARD_ASPECT_RATIO[aspect];
+  // Inline per-tenant card palette (cross-tenant surfaces) merged onto the
+  // root style. Undefined → no inline vars, card inherits the theme cascade.
+  const rootStyle: CSSProperties | undefined = cssVars as
+    | CSSProperties
+    | undefined;
+
+  // Root element: a navigating `<Link>` (default) or an in-place
+  // `role="button"` div (Discover drawer). The literal `data-card-style`
+  // attribute is written on each branch's root below so the source-text
+  // keystone guard stays green.
+  const Root: ElementType = rootMode === "button" ? "div" : Link;
+  const rootProps = cardRootProps(rootMode, href, onActivate, rootStyle);
 
   if (style === "editorial") {
     return (
-      <Link
-        href={href}
-        className={`${TALENT_CARD_CLASS} group/card flex flex-col gap-3 outline-none focus-visible:ring-2 focus-visible:ring-foreground/30`}
+      <Root
+        {...rootProps}
         data-card-style="editorial"
+        className={`${TALENT_CARD_CLASS} group/card flex flex-col gap-3 outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 ${
+          rootMode === "button" ? "cursor-pointer" : ""
+        }`}
       >
-        <Photo
-          data={data}
-          aspectRatio={aspectRatio}
-          priority={priority}
-          rounded="rounded-xl"
-        />
+        {badgeSlot || secondaryActionSlot ? (
+          <div className="relative">
+            <Photo
+              data={data}
+              aspectRatio={aspectRatio}
+              priority={priority}
+              rounded="rounded-xl"
+            />
+            {badgeSlot ? (
+              <div className="pointer-events-none absolute inset-0 z-[1]">
+                {badgeSlot}
+              </div>
+            ) : null}
+            {secondaryActionSlot ? (
+              <div className="absolute right-2.5 top-2.5 z-[2]">
+                {secondaryActionSlot}
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <Photo
+            data={data}
+            aspectRatio={aspectRatio}
+            priority={priority}
+            rounded="rounded-xl"
+          />
+        )}
         <div
           className="flex flex-col gap-1 border-t border-border pt-3"
           data-card-body
@@ -186,20 +278,25 @@ export function TalentCard({
           ) : null}
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
             {show.showBadges ? <OwnershipBadge data={data} /> : <span />}
-            {show.showAvailability ? <AvailabilityLine data={data} /> : null}
+            {/* availabilitySlot overrides the built-in line so a richer surface
+                (the Discover 14-day strip) can render in its place. */}
+            {availabilitySlot ??
+              (show.showAvailability ? <AvailabilityLine data={data} /> : null)}
           </div>
         </div>
-      </Link>
+      </Root>
     );
   }
 
   // Portrait (default / canonical). The five non-portrait/-editorial schema
   // styles intentionally fall through here until their kits land.
   return (
-    <Link
-      href={href}
-      className={`${TALENT_CARD_CLASS} group/card relative block overflow-hidden rounded-2xl border border-border outline-none transition-shadow duration-200 hover:shadow-md focus-visible:ring-2 focus-visible:ring-foreground/30`}
+    <Root
+      {...rootProps}
       data-card-style="portrait"
+      className={`${TALENT_CARD_CLASS} group/card relative block overflow-hidden rounded-2xl border border-border outline-none transition-shadow duration-200 hover:shadow-md focus-visible:ring-2 focus-visible:ring-foreground/30 ${
+        rootMode === "button" ? "cursor-pointer" : ""
+      }`}
     >
       <Photo
         data={data}
@@ -215,6 +312,17 @@ export function TalentCard({
         data-card-scrim
         className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent"
       />
+
+      {/* badgeSlot sits over the media (trust mark, favorite control). The
+          favorite control inside stops its own propagation, so a card-level
+          onActivate doesn't double-fire. */}
+      {badgeSlot ? <div className="absolute inset-0 z-[2]">{badgeSlot}</div> : null}
+      {/* secondaryActionSlot (e.g. the shortlist "+") sits beside the heart. */}
+      {secondaryActionSlot ? (
+        <div className="absolute right-2.5 top-2.5 z-[3]">
+          {secondaryActionSlot}
+        </div>
+      ) : null}
 
       {show.showBadges ? (
         <div className="absolute left-2.5 top-2.5 z-[1] flex flex-wrap gap-1.5">
@@ -247,21 +355,24 @@ export function TalentCard({
             {show.showLocation ? data.location : null}
           </p>
         ) : null}
-        {show.showAvailability ? (
-          <span
-            data-card-availability
-            className="mt-0.5 inline-flex items-center gap-1.5 text-[11px] text-white/75"
-          >
+        {/* availabilitySlot overrides the built-in line (e.g. the Discover
+            14-day strip). Falls back to the default white-over-scrim line. */}
+        {availabilitySlot ??
+          (show.showAvailability ? (
             <span
-              aria-hidden
-              className={`size-1.5 rounded-full ${
-                data.availabilityKnown ? "bg-white/80" : "bg-white/40"
-              }`}
-            />
-            {data.availabilityLabel}
-          </span>
-        ) : null}
+              data-card-availability
+              className="mt-0.5 inline-flex items-center gap-1.5 text-[11px] text-white/75"
+            >
+              <span
+                aria-hidden
+                className={`size-1.5 rounded-full ${
+                  data.availabilityKnown ? "bg-white/80" : "bg-white/40"
+                }`}
+              />
+              {data.availabilityLabel}
+            </span>
+          ) : null)}
       </div>
-    </Link>
+    </Root>
   );
 }

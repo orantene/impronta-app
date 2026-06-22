@@ -22,12 +22,15 @@ import { MarketingDirectoryShell } from "@/components/marketing/directory/Market
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import {
   DIRECTORY_PAGE_SIZE,
+  attachCardDesigns,
   cleanParam,
   isTruthyFlag,
   normalizeSort,
   normalizeView,
+  resolveCardDesignsForRows,
   type DirectoryActiveFilters,
 } from "@/components/marketing/directory/shared";
+import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
 
 export const dynamic = "force-dynamic";
 
@@ -99,6 +102,19 @@ export default async function MarketingDirectoryPage({
 
   const mapApiKey = isMap ? (readGoogleMapsBrowserKey() ?? null) : null;
 
+  // Per-row card design. The global directory is CROSS-TENANT — one page, many
+  // agencies — so the single `<html>` token cascade can't paint every row. We
+  // resolve a CardDesign once per DISTINCT agencyTenantId on the grid rows and
+  // ride it along on each row, so every card paints in its own agency's
+  // `--token-card-*` palette. Rows loaded later by the load-more action, and
+  // map points (which don't carry agencyTenantId), fall back to the platform
+  // default (see risks note).
+  const designByTenant = await resolveCardDesignsForRows(
+    gridData.items,
+    resolveCardDesign,
+  );
+  const gridItems = attachCardDesigns(gridData.items, designByTenant);
+
   return (
     <>
       <section
@@ -134,7 +150,7 @@ export default async function MarketingDirectoryPage({
           sort={sort}
           facets={facets}
           activeFilters={activeFilters}
-          initialItems={gridData.items}
+          initialItems={gridItems}
           initialTotal={gridData.total}
           pageSize={DIRECTORY_PAGE_SIZE}
           mapPoints={mapData.points}

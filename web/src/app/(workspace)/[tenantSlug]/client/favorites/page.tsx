@@ -12,6 +12,7 @@ import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../../_data-bridge";
 import { loadClientFavoritesForUser } from "../../_data-bridge/discover";
+import { loadClientCardDesign } from "../_data-bridge/load-card-design";
 import { FavoritesShell } from "./FavoritesShell";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { EmptyState } from "../_components/EmptyState";
@@ -32,7 +33,10 @@ export default async function ClientFavoritesPage({ params }: { params: PagePara
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const favorites = await loadClientFavoritesForUser(session.user.id);
+  const [favorites, cardDesign] = await Promise.all([
+    loadClientFavoritesForUser(session.user.id),
+    loadClientCardDesign(scope.tenantId),
+  ]);
 
   return (
     <div style={{ fontFamily: FONT }}>
@@ -44,7 +48,7 @@ export default async function ClientFavoritesPage({ params }: { params: PagePara
       />
 
       {favorites.length > 0 ? (
-        <FavoritesShell favorites={favorites} tenantSlug={tenantSlug} />
+        <FavoritesShell favorites={favorites} tenantSlug={tenantSlug} cardDesign={cardDesign} />
       ) : (
         <EmptyState
           icon="♡"

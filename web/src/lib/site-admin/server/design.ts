@@ -149,11 +149,17 @@ const DESIGN_REVISION_SELECT = `
 
 function bustDesignTags(tenantId: string): void {
   // Design publishes feed the storefront chrome + any CMS-rendered sections
-  // that consume tokens via CSS vars. Bust both the branding-scoped tag and
-  // the global tenant storefront tag so every downstream route that opted
-  // into either one revalidates on the next read.
+  // that consume tokens via CSS vars. Bust the branding-scoped tag and the
+  // global tenant storefront tag so every downstream route that opted into
+  // either one revalidates on the next read. Also bust the card-design tag:
+  // the per-tenant card-design resolver (card-design-resolver.ts) caches the
+  // projected card palette under it, so a publish must drop that entry too.
+  // (The resolver also tags `branding`, so this is belt-and-suspenders today,
+  // but it keeps the resolver's documented "busts it instantly" contract true
+  // if card-design publishing is ever split off the branding write.)
   updateTag(tagFor(tenantId, "branding"));
   updateTag(tagFor(tenantId, "storefront"));
+  updateTag(tagFor(tenantId, "card-design"));
 }
 
 async function loadRow(

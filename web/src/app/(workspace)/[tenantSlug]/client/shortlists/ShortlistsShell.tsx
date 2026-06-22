@@ -2,16 +2,28 @@
 
 // ShortlistsShell — viewer + send-inquiry surface for /client/shortlists.
 //
-// Each shortlist card shows the talents on it (initials/photo · name ·
-// agency or "Independent") plus a "Send inquiry" button that opens an
-// inline form. Submitting POSTs /api/discover/inquiry with the full
-// talent array — the server groups by primary tenant and fans out, so
-// one shortlist with talents from 3 agencies → 3 inquiries.
+// Each shortlist card shows the talents on it as canonical <TalentCard>
+// tiles (editorial monogram fallback · name · type · favorite heart) plus a
+// "Send inquiry" button that opens an inline form. Submitting POSTs
+// /api/discover/inquiry with the full talent array — the server groups by
+// primary tenant and fans out, so one shortlist with talents from 3 agencies
+// → 3 inquiries.
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { DiscoverShortlistWithTalents } from "../../_data-bridge/discover";
+import { useRouter } from "next/navigation";
+import type {
+  DiscoverShortlistWithTalents,
+  DiscoverShortlistTalent,
+} from "../../_data-bridge/discover";
+import { CompareDrawer } from "./CompareDrawer";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
+import { TalentCard } from "@/components/talent-cards/TalentCard";
+import type { CanonicalTalentCardData } from "@/components/talent-cards/talent-card-shape";
+import {
+  cardDesignToCssVars,
+  type CardDesign,
+} from "@/lib/site-admin/server/card-design-shape";
 
 const C = {
   ink:        "#0B0B0D",
@@ -33,12 +45,25 @@ export function ShortlistsShell({
   tenantSlug,
   tier,
   hasPro,
+  cardDesign,
 }: {
   shortlists: DiscoverShortlistWithTalents[];
   tenantSlug: string;
   tier: "standard" | "pro" | "enterprise";
   hasPro: boolean;
+  /**
+   * Shell-tenant card palette (load-card-design bridge → resolveCardDesign).
+   * Spread as inline `--token-card-*` vars on each canonical talent tile so the
+   * shortlist tiles paint the dashboard tenant's palette (they escape the
+   * storefront `<html>` cascade). Optional — un-wired pages inherit the theme
+   * through the `var(--token-card-*, …)` fallback chain.
+   */
+  cardDesign?: CardDesign;
 }) {
+  const cardCssVars = useMemo(
+    () => (cardDesign ? cardDesignToCssVars(cardDesign) : undefined),
+    [cardDesign],
+  );
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONT }}>
       {!hasPro && <ProUpsellBanner tier={tier} />}
@@ -48,6 +73,7 @@ export function ShortlistsShell({
           shortlist={s}
           tenantSlug={tenantSlug}
           hasPro={hasPro}
+          cardCssVars={cardCssVars}
         />
       ))}
       <div style={{
@@ -115,10 +141,12 @@ function ShortlistCard({
   shortlist,
   tenantSlug,
   hasPro,
+  cardCssVars,
 }: {
   shortlist: DiscoverShortlistWithTalents;
   tenantSlug: string;
   hasPro: boolean;
+  cardCssVars: Record<string, string> | undefined;
 }) {
   void tenantSlug;
   const [inquireOpen, setInquireOpen] = useState(false);
@@ -342,49 +370,7 @@ function ShortlistCard({
           gap: 10,
         }}>
           {shortlist.talents.map((t) => (
-            <div
-              key={t.talentId}
-              style={{
-                display: "flex", flexDirection: "column", gap: 4,
-                padding: 8, borderRadius: 10,
-                border: `1px solid ${C.borderSoft}`,
-                background: C.surface,
-              }}
-            >
-              <div style={{
-                position: "relative",
-                aspectRatio: "1/1", borderRadius: 8,
-                background: t.headshotUrl
-                  ? `url(${t.headshotUrl}) center/cover no-repeat`
-                  : C.accentSoft,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 16, fontWeight: 700, color: C.accent,
-                marginBottom: 4,
-              }}>
-                {!t.headshotUrl && t.displayName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")}
-                {/* Canonical favorite control — heart a talent straight
-                    from the shortlist tile, wired to client_favorites. */}
-                <div style={{ position: "absolute", top: 4, right: 4 }}>
-                  <TalentCardActions
-                    talentProfileId={t.talentId}
-                    profileCode={t.profileCode ?? ""}
-                    displayName={t.displayName}
-                    sourcePage="client-dashboard"
-                    variant="compact"
-                    hideInquiry
-                  />
-                </div>
-              </div>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>
-                {t.displayName}
-              </div>
-              <div style={{ fontSize: 10, color: C.inkMuted }}>
-                {t.primaryTypeLabel ?? "—"}
-              </div>
-              <div style={{ fontSize: 9.5, color: C.inkDim, marginTop: 1 }}>
-                {t.agencyName ?? "Independent"}
-              </div>
-            </div>
+            <ShortlistTalentTile key={t.talentId} talent={t} cardCssVars={cardCssVars} />
           ))}
         </div>
       )}
@@ -523,6 +509,82 @@ function ShortlistCard({
   );
 }
 
+/** Map a shortlist talent to the canonical `<TalentCard>` data shape. The
+ *  tile links to the public profile (a heart still lives in badgeSlot). No
+ *  availability snapshot on this surface → the line is suppressed. */
+function toShortlistTileData(t: DiscoverShortlistTalent): CanonicalTalentCardData {
+  return {
+    id: t.talentId,
+    name: t.displayName,
+    profileCode: t.profileCode,
+    profileHref: t.profileCode ? `/t/${t.profileCode}` : "",
+    primaryType: t.primaryTypeLabel,
+    location: [t.homeCity, t.homeCountry].filter(Boolean).join(" · ") || null,
+    photoUrl: t.headshotUrl,
+    agencyName: t.agencyName,
+    isExclusive: t.isExclusive,
+    availabilityLabel: "Availability on request",
+    availabilityKnown: false,
+    availableDaysInNext30: null,
+  };
+}
+
+/**
+ * One talent on a shortlist, rendered as the canonical compact card. Editorial
+ * style, 1:1 aspect (matches the prior bespoke tile). rootMode="button" (NOT
+ * "link") so the favorite <button> nested in badgeSlot stays valid HTML — a
+ * <button> inside an <a> warns at hydrate. onActivate navigates to the public
+ * profile (the tile was previously inert); the favorite heart rides in
+ * badgeSlot and stops its own propagation so the heart never triggers
+ * navigation. Tiles with no profile code are non-navigating (empty href).
+ */
+function ShortlistTalentTile({
+  talent,
+  cardCssVars,
+}: {
+  talent: DiscoverShortlistTalent;
+  cardCssVars: Record<string, string> | undefined;
+}) {
+  const router = useRouter();
+  const profileHref = talent.profileCode ? `/t/${talent.profileCode}` : "";
+  return (
+    <TalentCard
+      data={toShortlistTileData(talent)}
+      style="editorial"
+      aspect="1:1"
+      cssVars={cardCssVars}
+      nameFallback="first_name"
+      rootMode="button"
+      onActivate={profileHref ? () => router.push(profileHref) : undefined}
+      show={{
+        showName: true,
+        showTalentType: true,
+        showLocation: false,
+        showBadges: true,
+        showAvailability: false,
+      }}
+      badgeSlot={
+        // Canonical favorite control — heart a talent straight from the
+        // shortlist tile, wired to client_favorites. stopPropagation on keydown
+        // so Enter/Space on the heart doesn't also fire the card's onActivate.
+        <div
+          style={{ position: "absolute", top: 4, right: 4, pointerEvents: "auto" }}
+          onKeyDown={(e) => { e.stopPropagation(); }}
+        >
+          <TalentCardActions
+            talentProfileId={talent.talentId}
+            profileCode={talent.profileCode ?? ""}
+            displayName={talent.displayName}
+            sourcePage="client-dashboard"
+            variant="compact"
+            hideInquiry
+          />
+        </div>
+      }
+    />
+  );
+}
+
 /** Inline "PRO" pill shown next to gated CTAs for standard-tier clients. */
 function ProTierPill() {
   return (
@@ -536,260 +598,5 @@ function ProTierPill() {
     >
       Pro
     </span>
-  );
-}
-
-/** Local mirror of DiscoverTalentDetail (API response shape). */
-type CompareDetail = {
-  id: string;
-  displayName: string;
-  primaryTypeLabel: string | null;
-  secondaryTypeLabels: string[];
-  homeCity: string | null;
-  homeCountry: string | null;
-  agencyName: string | null;
-  isExclusive: boolean;
-  bio: string | null;
-  responseTime: "1h" | "4h" | "24h" | "48h" | null;
-  languages: string[];
-  headshotUrl: string | null;
-};
-
-function CompareDrawer({
-  shortlistName,
-  talents,
-  onClose,
-}: {
-  shortlistName: string;
-  talents: import("../../_data-bridge/discover").DiscoverShortlistTalent[];
-  onClose: () => void;
-}) {
-  const [details, setDetails] = useState<Map<string, CompareDetail>>(() => new Map());
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    Promise.all(
-      talents.map((t) =>
-        fetch(`/api/discover/talent/${t.talentId}`)
-          .then((r) => (r.ok ? r.json() : null))
-          .then((j: { talent?: CompareDetail } | null) => j?.talent ?? null)
-          .catch(() => null),
-      ),
-    ).then((rows) => {
-      if (cancelled) return;
-      const map = new Map<string, CompareDetail>();
-      rows.forEach((row, i) => {
-        const id = talents[i]?.talentId;
-        if (row && id) map.set(id, row);
-      });
-      setDetails(map);
-      setLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [talents]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  const ROWS: Array<{ label: string; render: (d: CompareDetail | undefined, t: import("../../_data-bridge/discover").DiscoverShortlistTalent) => React.ReactNode }> = [
-    {
-      label: "",
-      render: (d, t) => {
-        const url = d?.headshotUrl ?? t.headshotUrl;
-        if (url) {
-          return (
-            <div style={{
-              width: "100%", aspectRatio: "4 / 5", borderRadius: 10,
-              background: `url(${url}) center/cover no-repeat`,
-            }} />
-          );
-        }
-        return (
-          <div style={{
-            width: "100%", aspectRatio: "4 / 5", borderRadius: 10,
-            background: C.accentSoft, color: C.accent,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 28, fontWeight: 700,
-          }}>
-            {t.displayName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")}
-          </div>
-        );
-      },
-    },
-    { label: "Name", render: (_d, t) => <strong>{t.displayName}</strong> },
-    {
-      label: "Category",
-      render: (d, t) => {
-        const primary = d?.primaryTypeLabel ?? t.primaryTypeLabel ?? "—";
-        const secondary = d?.secondaryTypeLabels ?? [];
-        return (
-          <span>
-            {primary}
-            {secondary.length > 0 && (
-              <span style={{ color: C.inkDim, fontSize: 11 }}>
-                <br />+ {secondary.join(" · ")}
-              </span>
-            )}
-          </span>
-        );
-      },
-    },
-    {
-      label: "Location",
-      render: (_d, t) =>
-        t.homeCity || t.homeCountry
-          ? [t.homeCity, t.homeCountry].filter(Boolean).join(" · ")
-          : <span style={{ color: C.inkDim }}>—</span>,
-    },
-    {
-      label: "Agency",
-      render: (_d, t) => t.agencyName
-        ? <span>{t.agencyName}{t.isExclusive && <span style={{ color: C.inkDim, fontSize: 11 }}> · exclusive</span>}</span>
-        : <span style={{ color: C.inkDim }}>Independent</span>,
-    },
-    {
-      label: "Languages",
-      render: (d) =>
-        (d?.languages?.length ?? 0) > 0
-          ? d!.languages.join(" · ")
-          : <span style={{ color: C.inkDim }}>—</span>,
-    },
-    {
-      label: "Response",
-      render: (d) => d?.responseTime
-        ? `within ${d.responseTime}`
-        : <span style={{ color: C.inkDim }}>—</span>,
-    },
-    {
-      label: "Bio",
-      render: (d) => d?.bio
-        ? <span style={{ fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>{d.bio}</span>
-        : <span style={{ color: C.inkDim }}>—</span>,
-    },
-  ];
-
-  return (
-    <div
-      role="dialog"
-      aria-modal
-      aria-label={`Compare talents on ${shortlistName}`}
-      style={{
-        position: "fixed", inset: 0, zIndex: 60,
-        background: "rgba(11,11,13,0.55)",
-        backdropFilter: "blur(4px)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: 20,
-        fontFamily: FONT,
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        style={{
-          background: C.cardBg,
-          borderRadius: 14,
-          maxWidth: 1200, width: "100%", maxHeight: "90vh",
-          display: "flex", flexDirection: "column",
-          overflow: "hidden",
-          boxShadow: "0 24px 80px -16px rgba(11,11,13,0.4)",
-        }}
-      >
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "14px 18px",
-          borderBottom: `1px solid ${C.borderSoft}`,
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>
-            ⇄ Compare · {shortlistName} · {talents.length} talents
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close compare"
-            style={{
-              width: 32, height: 32, borderRadius: "50%",
-              border: `1px solid ${C.borderSoft}`,
-              background: "transparent", color: C.ink,
-              fontSize: 16, lineHeight: 1, cursor: "pointer",
-            }}
-          >
-            ✕
-          </button>
-        </div>
-
-        <div style={{
-          overflow: "auto", flex: 1,
-          padding: 18,
-        }}>
-          {loading ? (
-            <div style={{ padding: 24, color: C.inkMuted }}>Loading talent details…</div>
-          ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: `120px repeat(${talents.length}, minmax(180px, 1fr))`,
-                gap: 0,
-              }}
-            >
-              {ROWS.map((row, ri) => (
-                <CompareRowFragment
-                  key={row.label || `row-${ri}`}
-                  label={row.label}
-                  values={talents.map((t) => row.render(details.get(t.talentId), t))}
-                  borderBottom={ri < ROWS.length - 1}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CompareRowFragment({
-  label,
-  values,
-  borderBottom,
-}: {
-  label: string;
-  values: React.ReactNode[];
-  borderBottom: boolean;
-}) {
-  const borderStyle = borderBottom ? `1px solid ${C.borderSoft}` : "none";
-  return (
-    <>
-      <div
-        style={{
-          padding: "10px 12px",
-          fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
-          textTransform: "uppercase", color: C.inkDim,
-          borderBottom: borderStyle,
-          display: "flex", alignItems: "center",
-        }}
-      >
-        {label}
-      </div>
-      {values.map((v, i) => (
-        <div
-          key={i}
-          style={{
-            padding: "10px 12px",
-            fontSize: 13, color: C.ink,
-            borderBottom: borderStyle,
-            borderLeft: `1px solid ${C.borderSoft}`,
-            verticalAlign: "top",
-          }}
-        >
-          {v}
-        </div>
-      ))}
-    </>
   );
 }

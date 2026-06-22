@@ -14,10 +14,17 @@
 // useFavorites() → client_favorites. Un-favoriting a card here drops it
 // from the list reactively (no page reload).
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { DiscoverShortlistTalent } from "../../_data-bridge/discover";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
+import { TalentCard } from "@/components/talent-cards/TalentCard";
+import type { CanonicalTalentCardData } from "@/components/talent-cards/talent-card-shape";
+import {
+  cardDesignToCssVars,
+  type CardDesign,
+} from "@/lib/site-admin/server/card-design-shape";
 import { useFavorites } from "@/lib/talent-cards/use-favorites";
 
 const C = {
@@ -33,16 +40,28 @@ const C = {
 } as const;
 
 const FONT = '"Inter", system-ui, sans-serif';
-const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
 export function FavoritesShell({
   favorites,
   tenantSlug,
+  cardDesign,
 }: {
   favorites: DiscoverShortlistTalent[];
   tenantSlug: string;
+  /**
+   * Shell-tenant card palette (load-card-design bridge → resolveCardDesign).
+   * Spread as inline `--token-card-*` vars on each canonical card root so the
+   * favorites grid paints the dashboard tenant's palette (it escapes the
+   * storefront `<html>` cascade). Optional — un-wired pages inherit the theme
+   * through the `var(--token-card-*, …)` fallback chain.
+   */
+  cardDesign?: CardDesign;
 }) {
   const { isFavorited } = useFavorites();
+  const cardCssVars = useMemo(
+    () => (cardDesign ? cardDesignToCssVars(cardDesign) : undefined),
+    [cardDesign],
+  );
 
   // SSR renders the full server list. Once the canonical store has
   // hydrated (DiscoveryStateBridge runs in the client layout, an effect
@@ -80,7 +99,12 @@ export function FavoritesShell({
         }}
       >
         {visible.map((t) => (
-          <FavoriteCard key={t.talentId} talent={t} tenantSlug={tenantSlug} />
+          <FavoriteCard
+            key={t.talentId}
+            talent={t}
+            tenantSlug={tenantSlug}
+            cardCssVars={cardCssVars}
+          />
         ))}
       </div>
       <div style={{
@@ -94,16 +118,40 @@ export function FavoritesShell({
   );
 }
 
+/** Map a saved-favorite talent to the canonical `<TalentCard>` data shape.
+ *  Favorites is browse-only with no availability snapshot, so the availability
+ *  line is suppressed (showAvailability:false) and a neutral label is carried. */
+function toFavoriteCardData(
+  talent: DiscoverShortlistTalent,
+  nameHref: string,
+): CanonicalTalentCardData {
+  return {
+    id: talent.talentId,
+    name: talent.displayName,
+    profileCode: talent.profileCode,
+    profileHref: nameHref,
+    primaryType: talent.primaryTypeLabel,
+    location:
+      [talent.homeCity, talent.homeCountry].filter(Boolean).join(" · ") || null,
+    photoUrl: talent.headshotUrl,
+    agencyName: talent.agencyName,
+    isExclusive: talent.isExclusive,
+    availabilityLabel: "Availability on request",
+    availabilityKnown: false,
+    availableDaysInNext30: null,
+  };
+}
+
 function FavoriteCard({
   talent,
   tenantSlug,
+  cardCssVars,
 }: {
   talent: DiscoverShortlistTalent;
   tenantSlug: string;
+  cardCssVars: Record<string, string> | undefined;
 }) {
-  const initials = talent.displayName
-    .split(/\s+/).filter(Boolean).slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "").join("");
+  const router = useRouter();
 
   // Open the canonical public profile when the talent has a profile code;
   // otherwise keep the user on Discover (the in-app detail drawer lives
@@ -112,39 +160,38 @@ function FavoriteCard({
     ? `/t/${talent.profileCode}`
     : `/${tenantSlug}/client/discover`;
 
+  // Canonical card (editorial: photo + info block below). rootMode="button"
+  // (NOT "link") so the favorite control nested in badgeSlot stays a valid
+  // <button> — a <button> inside an <a> is invalid HTML and warns at hydrate.
+  // onActivate navigates to the same destination the prior name link used, so
+  // the whole tile is the (larger) hit target without the nested-anchor hazard.
+  // The favorite control's own onClick stops propagation, so tapping the heart
+  // never navigates; un-favoriting drops the card from the list via useFavorites.
   return (
-    <div
-      style={{
-        display: "flex", flexDirection: "column",
-        background: C.cardBg, border: `1px solid ${C.borderSoft}`,
-        borderRadius: 12, overflow: "hidden",
-        position: "relative",
+    <TalentCard
+      data={toFavoriteCardData(talent, nameHref)}
+      style="editorial"
+      aspect="4:5"
+      cssVars={cardCssVars}
+      nameFallback="first_name"
+      rootMode="button"
+      onActivate={() => router.push(nameHref)}
+      show={{
+        showName: true,
+        showTalentType: true,
+        showLocation: true,
+        showBadges: true,
+        showAvailability: false,
       }}
-    >
-      <div
-        style={{
-          aspectRatio: "4 / 5", position: "relative",
-          background: talent.headshotUrl
-            ? `url(${talent.headshotUrl}) center/cover no-repeat`
-            : C.surface,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}
-      >
-        {!talent.headshotUrl && (
-          <div
-            style={{
-              width: 56, height: 56, borderRadius: "50%",
-              background: C.accentSoft, color: C.accent,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 20, fontWeight: 700,
-            }}
-          >
-            {initials || "?"}
-          </div>
-        )}
-        {/* Canonical favorite control — toggles client_favorites via
-            useFavorites(). Un-favoriting drops this card from the list. */}
-        <div style={{ position: "absolute", top: 8, right: 8, zIndex: 1 }}>
+      badgeSlot={
+        // Canonical favorite control — toggles client_favorites via
+        // useFavorites(). Un-favoriting drops this card from the list.
+        // stopPropagation on keydown so Enter/Space on the heart doesn't also
+        // fire the card root's onActivate (which would navigate away).
+        <div
+          style={{ position: "absolute", top: 8, right: 8, zIndex: 1, pointerEvents: "auto" }}
+          onKeyDown={(e) => { e.stopPropagation(); }}
+        >
           <TalentCardActions
             talentProfileId={talent.talentId}
             profileCode={talent.profileCode ?? ""}
@@ -154,42 +201,7 @@ function FavoriteCard({
             hideInquiry
           />
         </div>
-        {talent.agencyName && (
-          <div
-            style={{
-              position: "absolute", bottom: 8, left: 8,
-              padding: "3px 8px", borderRadius: 999,
-              background: "rgba(255,255,255,0.94)", color: C.ink,
-              fontSize: 10, fontWeight: 600,
-              maxWidth: "calc(100% - 16px)",
-              overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
-              backdropFilter: "blur(6px)",
-            }}
-            title={`${talent.agencyName}${talent.isExclusive ? " · exclusive" : ""}`}
-          >
-            {talent.agencyName}
-          </div>
-        )}
-      </div>
-      <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
-        <Link
-          href={nameHref}
-          style={{
-            fontFamily: FONT_DISPLAY, fontSize: 13, fontWeight: 600,
-            color: C.ink, textDecoration: "none", letterSpacing: -0.1,
-          }}
-        >
-          {talent.displayName}
-        </Link>
-        {talent.primaryTypeLabel && (
-          <div style={{ fontSize: 11, color: C.inkMuted }}>{talent.primaryTypeLabel}</div>
-        )}
-        {(talent.homeCity || talent.homeCountry) && (
-          <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 1 }}>
-            {[talent.homeCity, talent.homeCountry].filter(Boolean).join(" · ")}
-          </div>
-        )}
-      </div>
-    </div>
+      }
+    />
   );
 }

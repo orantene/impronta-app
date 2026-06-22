@@ -15,6 +15,7 @@ import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../../_data-bridge";
 import { loadDiscoverTalents, loadDiscoverFacets, loadDiscoverHubs } from "../../_data-bridge/discover";
+import { loadClientCardDesign } from "../_data-bridge/load-card-design";
 import { loadClientSubscription, canUsePro } from "@/lib/discover/client-subscription";
 import { DiscoverShell } from "./DiscoverShell";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
@@ -49,8 +50,9 @@ export default async function ClientDiscoverPage({
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  // Parallel SSR loads: paginated talents + filter facets + hubs + tier.
-  const [{ items, total }, facets, hubs, subscription] = await Promise.all([
+  // Parallel SSR loads: paginated talents + filter facets + hubs + tier +
+  // the shell-tenant card palette (painted on every Discover card).
+  const [{ items, total }, facets, hubs, subscription, cardDesign] = await Promise.all([
     loadDiscoverTalents({
       country: sp.country,
       category: sp.category,
@@ -62,6 +64,7 @@ export default async function ClientDiscoverPage({
     loadDiscoverFacets(),
     loadDiscoverHubs(),
     loadClientSubscription(session.user.id),
+    loadClientCardDesign(scope.tenantId),
   ]);
   const hasPro = canUsePro(subscription);
 
@@ -98,6 +101,7 @@ export default async function ClientDiscoverPage({
           facets={facets}
           hubs={hubs}
           tenantSlug={tenantSlug}
+          cardDesign={cardDesign}
           activeFilters={{
             country: sp.country ?? null,
             category: sp.category ?? null,

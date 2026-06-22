@@ -13,6 +13,9 @@ import type {
   DirectoryFacets,
   DiscoverSort,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
+import type { CanonicalTalentCardData } from "@/components/talent-cards/talent-card-shape";
+import { AVAILABILITY_UNKNOWN } from "@/lib/site-admin/sections/directory/card-data";
+import type { CardDesign } from "@/lib/site-admin/server/card-design-shape";
 
 export type {
   DiscoverTalentListItem,
@@ -29,6 +32,9 @@ export type {
  */
 export type DirectoryCardData = Pick<
   DiscoverTalentListItem,
+  // `id` is the stable React key + dedup key the shell needs; carried so the
+  // row stays usable as a list item without falling back to the raw bridge type.
+  | "id"
   | "displayName"
   | "profileCode"
   | "primaryTypeLabel"
@@ -40,6 +46,104 @@ export type DirectoryCardData = Pick<
   | "trustTier"
   | "availableDaysInNext30"
 >;
+
+/**
+ * The row the marketing card actually renders. `DirectoryCardData` plus the
+ * `agencyTenantId` the cross-tenant directory uses to resolve each row's own
+ * agency card design (P3). Both grid items (`DiscoverTalentListItem`) and map
+ * points (`DiscoverMapPoint`) carry this field, so both feed the card with no
+ * extra conversion.
+ */
+export type DirectoryCardRow = DirectoryCardData & {
+  /** Owning agency tenant — present on grid rows (`DiscoverTalentListItem`),
+   *  absent on map points (`DiscoverMapPoint` doesn't carry it yet), so it's
+   *  optional. When absent the card paints the platform-default design. */
+  agencyTenantId?: string | null;
+  /**
+   * This row's resolved agency card design. The cross-tenant directory page
+   * resolves it per `agencyTenantId` (server-side, via `resolveCardDesign`)
+   * and rides it along on the SSR rows so each card paints in its own agency's
+   * palette without a separate prop channel through the client shell. Rows
+   * loaded incrementally (the load-more action) omit it and fall back to the
+   * platform default — see `attachCardDesigns`.
+   */
+  design?: CardDesign;
+};
+
+/**
+ * Build a `agencyTenantId → CardDesign` lookup, calling `resolve` once per
+ * DISTINCT tenant (the directory shows many rows per agency, so we never
+ * resolve the same tenant twice in a render). Returned as a plain `Map` the
+ * page then uses to enrich rows via `attachCardDesigns`.
+ *
+ * `resolve` is injected (not imported) so this helper stays framework-free and
+ * unit-testable — the server page passes `resolveCardDesign`; the test passes a
+ * spy that proves de-duplication + per-tenant distinctness.
+ */
+export async function resolveCardDesignsForRows<
+  T extends { agencyTenantId: string | null },
+>(
+  rows: readonly T[],
+  resolve: (tenantId: string) => Promise<CardDesign>,
+): Promise<Map<string, CardDesign>> {
+  const ids = Array.from(
+    new Set(
+      rows
+        .map((r) => r.agencyTenantId)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  );
+  const entries = await Promise.all(
+    ids.map(async (id) => [id, await resolve(id)] as const),
+  );
+  return new Map(entries);
+}
+
+/**
+ * Attach each row's resolved `CardDesign` (looked up by `agencyTenantId`) so
+ * the row carries its own palette through the client shell with no extra prop.
+ * Rows whose tenant isn't in the map (independents, or a failed resolve) keep
+ * `design` unset and the card falls back to the platform default.
+ */
+export function attachCardDesigns<
+  T extends { agencyTenantId: string | null; design?: CardDesign },
+>(rows: readonly T[], byTenant: Map<string, CardDesign>): T[] {
+  return rows.map((row) => {
+    const id = row.agencyTenantId;
+    const design = id ? byTenant.get(id) : undefined;
+    return design ? { ...row, design } : row;
+  });
+}
+
+/**
+ * Map a directory row to the canonical `<TalentCard>` data shape. The marketing
+ * directory is browse-only, so availability is rendered as the restrained
+ * "Open N of next 30 days" / "on request" line (never buyer-framed); when the
+ * 30-day snapshot is missing we fall through to the ratified unknown string and
+ * flag it as unknown so the card dims its dot.
+ */
+export function toCanonicalCardData(
+  talent: DirectoryCardRow,
+): CanonicalTalentCardData {
+  const days = talent.availableDaysInNext30;
+  const known = typeof days === "number" && days > 0;
+  return {
+    id: talent.profileCode ?? talent.displayName,
+    name: talent.displayName,
+    profileCode: talent.profileCode,
+    profileHref: talent.profileCode ? `/t/${talent.profileCode}` : "",
+    primaryType: talent.primaryTypeLabel,
+    location: locationLine(talent.homeCity, talent.homeCountry),
+    photoUrl: talent.headshotUrl,
+    agencyName: talent.agencyName,
+    isExclusive: talent.isExclusive,
+    availabilityLabel: known
+      ? availabilityLine(days).text
+      : AVAILABILITY_UNKNOWN,
+    availabilityKnown: known,
+    availableDaysInNext30: days,
+  };
+}
 
 /** Page size for the grid/list incremental load. Shared by page + action. */
 export const DIRECTORY_PAGE_SIZE = 24;

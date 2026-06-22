@@ -217,10 +217,10 @@ export async function DirectoryComponent({
       data-hover={props.hoverBehavior}
       className={
         props.background === "cool_ground"
-          ? "w-full bg-[var(--impronta-surface)]/25 px-4 py-12 sm:px-6 sm:py-16"
+          ? "w-full bg-[var(--token-color-surface-raised,var(--impronta-surface))]/25 px-4 py-14 sm:px-6 sm:py-20"
           : props.background === "subtle"
-            ? "w-full bg-foreground/[0.015] px-4 py-12 sm:px-6 sm:py-16"
-            : "w-full px-4 py-12 sm:px-6 sm:py-16"
+            ? "w-full bg-foreground/[0.015] px-4 py-14 sm:px-6 sm:py-20"
+            : "w-full px-4 py-14 sm:px-6 sm:py-20"
       }
       style={sectionStyle}
     >
@@ -228,35 +228,41 @@ export async function DirectoryComponent({
         {props.showHeading &&
         (props.eyebrow || props.headline || props.copy) ? (
           <header
-            className={`mb-9 flex max-w-2xl flex-col gap-3 ${headAlign}`}
+            className={`mb-10 flex max-w-2xl flex-col gap-4 border-b border-[var(--token-color-line,rgba(120,120,120,0.18))] pb-7 ${headAlign}`}
           >
             {props.eyebrow ? (
               <span
-                className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--impronta-muted)]"
+                className="text-[0.7rem] font-medium uppercase text-[var(--token-color-muted,var(--impronta-muted))]"
                 data-builder-node-id={nodeIdsByRole?.subheadline}
-                style={nodePresentationInlineStyle(
-                  props.nodePresentation?.subheadline,
-                  eyebrowSize,
-                )}
+                style={{
+                  letterSpacing: "var(--site-label-tracking, 0.22em)",
+                  ...nodePresentationInlineStyle(
+                    props.nodePresentation?.subheadline,
+                    eyebrowSize,
+                  ),
+                }}
               >
                 {renderInlineRich(props.eyebrow)}
               </span>
             ) : null}
             {props.headline ? (
               <h2
-                className="font-display text-3xl font-medium tracking-wide text-foreground sm:text-4xl"
+                className="font-display text-3xl font-medium tracking-wide text-[var(--token-color-ink,var(--foreground))] sm:text-4xl"
                 data-builder-node-id={nodeIdsByRole?.headline}
-                style={nodePresentationInlineStyle(
-                  props.nodePresentation?.headline,
-                  headingSize,
-                )}
+                style={{
+                  fontFamily: "var(--site-heading-font, inherit)",
+                  ...nodePresentationInlineStyle(
+                    props.nodePresentation?.headline,
+                    headingSize,
+                  ),
+                }}
               >
                 {renderInlineRich(props.headline)}
               </h2>
             ) : null}
             {props.copy ? (
               <p
-                className="text-[15px] leading-relaxed text-[var(--impronta-muted)]"
+                className="text-[15px] leading-relaxed text-[var(--token-color-muted,var(--impronta-muted))]"
                 data-builder-node-id={nodeIdsByRole?.copy}
                 style={nodePresentationInlineStyle(
                   props.nodePresentation?.copy,
@@ -277,7 +283,7 @@ export async function DirectoryComponent({
           >
             <Suspense
               fallback={
-                <div className="h-14 w-full rounded-xl border border-border bg-[var(--impronta-surface)]/40 sm:h-16" />
+                <div className="h-14 w-full rounded-xl border border-[var(--token-color-line,var(--border))] bg-[var(--token-color-surface-raised,var(--impronta-surface))]/40 sm:h-16" />
               }
             >
               <HeroSearch
@@ -292,21 +298,24 @@ export async function DirectoryComponent({
         ) : null}
 
         {seedFailed ? (
-          <div className="rounded-2xl border border-border bg-background/50 px-6 py-20 text-center">
-            <p className="mt-2 text-sm text-[var(--impronta-muted)]">
+          <div className="mx-auto max-w-md border-y border-[var(--token-color-line,rgba(120,120,120,0.18))] px-6 py-20 text-center">
+            <p className="text-sm text-[var(--token-color-muted,var(--impronta-muted))]">
               {ui.discoverLoadError}
             </p>
           </div>
         ) : !hasResults ? (
-          <div className="rounded-2xl border border-border bg-background/50 px-6 py-20 text-center">
+          <div className="mx-auto max-w-md border-y border-[var(--token-color-line,rgba(120,120,120,0.18))] px-6 py-20 text-center">
             {props.emptyStateTitle ? (
-              <p className="font-display text-lg text-foreground">
+              <p
+                className="font-display text-lg text-[var(--token-color-ink,var(--foreground))]"
+                style={{ fontFamily: "var(--site-heading-font, inherit)" }}
+              >
                 {props.emptyStateTitle}
               </p>
             ) : null}
-            <p className="mt-2 text-sm text-[var(--impronta-muted)]">
+            <p className="mt-3 text-sm leading-relaxed text-[var(--token-color-muted,var(--impronta-muted))]">
               {props.emptyStateText ||
-                "No one matches yet — check back as the roster grows."}
+                "No one matches yet, check back as the roster grows."}
             </p>
           </div>
         ) : (

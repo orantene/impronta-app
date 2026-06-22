@@ -12,6 +12,8 @@
  * no-ops — this is the keystone the unified card system turns back on.
  */
 
+import type { ReactNode } from "react";
+
 import type { DirectoryCardData } from "@/lib/site-admin/sections/directory/card-data";
 
 export type { DirectoryCardData };
@@ -49,6 +51,16 @@ export type TalentCardShow = {
   showBadges: boolean;
 };
 
+/**
+ * How the card root behaves when activated. The default `"link"` keeps the
+ * canonical card a `<Link>` to `data.profileHref` (every existing caller:
+ * directory grid, featured rails, marketing). `"button"` swaps the root for a
+ * `role="button"` div that calls `onActivate` instead — the model the client
+ * Discover grid needs, where a card tap opens an in-app detail drawer rather
+ * than navigating to the public profile.
+ */
+export type TalentCardRootMode = "link" | "button";
+
 export type TalentCardProps = {
   data: CanonicalTalentCardData;
   style: TalentCardStyle;
@@ -58,6 +70,39 @@ export type TalentCardProps = {
   /** First grid row → LCP priority. */
   priority?: boolean;
   index?: number;
+  /**
+   * Root behavior. `"link"` (default) → a `<Link>` to `data.profileHref`.
+   * `"button"` → a `role="button"` div that fires `onActivate` on click /
+   * Enter / Space (used by the client Discover grid to open a drawer). Both
+   * keep the keystone `className="talent-card"` + `data-card-*` hooks and the
+   * same body — only the root element + activation differ.
+   */
+  rootMode?: TalentCardRootMode;
+  /** Activation handler for `rootMode="button"`. Ignored when `"link"`. */
+  onActivate?: () => void;
+  /**
+   * Per-tenant card palette projected to inline `--token-card-*` vars merged
+   * onto the card root's `style`. The cross-tenant client dashboard + the
+   * marketing global directory escape the global `<html>` token cascade, so
+   * each card carries its OWN agency's palette inline. Built with
+   * `cardDesignToCssVars(design)`. Unset → the card inherits the theme through
+   * the `var(--token-card-*, …)` fallback chain.
+   */
+  cssVars?: Record<string, string>;
+  /**
+   * Escape hatches that let a richer surface (the Discover grid) inject its
+   * existing affordances into the canonical card WITHOUT forking it:
+   *   - `availabilitySlot` replaces the built-in availability line (e.g. the
+   *     Discover 14-day AvailabilityStrip).
+   *   - `secondaryActionSlot` renders an extra control beside the favorite
+   *     (e.g. the shortlist "+" button). Positioned by the card.
+   *   - `badgeSlot` renders trust / review marks over the media (e.g. the
+   *     "✓ Tulala" mark + the favorite control).
+   * All optional — omitting them keeps the card's default behavior.
+   */
+  availabilitySlot?: ReactNode;
+  secondaryActionSlot?: ReactNode;
+  badgeSlot?: ReactNode;
 };
 
 /**

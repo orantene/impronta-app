@@ -224,7 +224,10 @@ export function DirectoryReactiveGrid({
 
   if (status === "error" && items.length === 0) {
     return (
-      <p className="text-sm text-[var(--impronta-muted)]" role="alert">
+      <p
+        className="text-sm text-[var(--token-color-muted,var(--impronta-muted))]"
+        role="alert"
+      >
         {ui.loadResultsError}
       </p>
     );
@@ -245,11 +248,14 @@ export function DirectoryReactiveGrid({
     // instead of the technical "no matches" wall. The first line is
     // brand-tone (Cinzel display), the second is a gentle next step.
     return (
-      <div className="mx-auto max-w-md rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-16 text-center">
-        <p className="font-display text-xl tracking-wide text-foreground">
+      <div className="mx-auto max-w-md border-y border-[var(--token-color-line,rgba(120,120,120,0.18))] px-6 py-16 text-center">
+        <p
+          className="font-display text-xl tracking-wide text-[var(--token-color-ink,var(--foreground))]"
+          style={{ fontFamily: "var(--site-heading-font, inherit)" }}
+        >
           Nothing in the roster matches that yet.
         </p>
-        <p className="mt-3 text-[13px] leading-relaxed text-white/55">
+        <p className="mt-3 text-[13px] leading-relaxed text-[var(--token-color-muted,var(--impronta-muted))]">
           Try a broader discipline, clear filters, or check back as the
           roster grows.
         </p>
@@ -285,7 +291,7 @@ export function DirectoryReactiveGrid({
       </div>
       {filterRefetchBusy ? (
         <p
-          className="mt-2 text-center text-xs text-[var(--impronta-muted)]"
+          className="mt-2 text-center text-xs text-[var(--token-color-muted,var(--impronta-muted))]"
           role="status"
         >
           {ui.loadingMore}
@@ -297,7 +303,7 @@ export function DirectoryReactiveGrid({
         aria-hidden
       >
         {isFetchingNextPage ? (
-          <span className="text-sm text-[var(--impronta-muted)]">
+          <span className="text-sm text-[var(--token-color-muted,var(--impronta-muted))]">
             {ui.loadingMore}
           </span>
         ) : null}
@@ -320,11 +326,11 @@ function DirectoryCardSkeleton({
 }) {
   return (
     <div
-      className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025]"
+      className="overflow-hidden rounded-2xl border border-[var(--token-color-line,rgba(120,120,120,0.18))] bg-[var(--token-color-surface-raised,rgba(120,120,120,0.05))]"
       data-card-style="skeleton"
     >
       <div
-        className="w-full animate-pulse bg-white/[0.04]"
+        className="w-full animate-pulse bg-[var(--token-color-line,rgba(120,120,120,0.12))]"
         style={{ aspectRatio: ASPECT_RATIO[aspect] }}
         aria-hidden
       />
