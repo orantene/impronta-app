@@ -116,7 +116,10 @@ test("page-designs: each archetype is a pickable full-page composition preset", 
   const pagePresets = BUILDER_NODE_COMPOSITION_PRESETS.filter(
     (preset) => preset.category === "page",
   );
-  assert.equal(pagePresets.length, 5);
+  // 5 fidelity archetypes + 3 Noir & Or full-page presets (marquee-ticker,
+  // footer-editorial, impronta-noir-home). Each is a single-root `container`
+  // composition preset that bakes to a container — verified below.
+  assert.equal(pagePresets.length, 8);
   for (const preset of pagePresets) {
     assert.equal(preset.rootKind, "container", `${preset.id} rootKind`);
     const node = createBuilderNodeCompositionPreset(preset.id);

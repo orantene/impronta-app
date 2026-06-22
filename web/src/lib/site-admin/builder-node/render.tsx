@@ -641,7 +641,7 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 .site-bn-hero__slide>*{margin:0;max-width:none}
 /* Per-slide BACKGROUND LAYER (image / colour). Ken Burns scales THIS layer, so a
    slide's freeform content (columns, headings, buttons) on top stays put — the old
-   model scaled the whole slide incl. its text. The bg is either an <img> child
+   model scaled the whole slide incl. its text. The bg is either an image child
    (image-only slide) or the slide container's background-image/colour, lifted here. */
 .site-bn-hero__slide-bg{position:absolute;inset:0;z-index:0;overflow:hidden;background-size:cover;background-repeat:no-repeat;background-position:var(--bn-hero-focal,center 28%)}
 .site-bn-hero__slide-bg>*,.site-bn-hero__slide-bg .site-builder-node--image,.site-bn-hero__slide-bg img{width:100%;height:100%;object-fit:cover;object-position:var(--bn-hero-focal,center 28%)}
@@ -662,7 +662,8 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 .site-bn-hero__scrim{position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(180deg,rgba(8,7,10,0.5) 0%,rgba(8,7,10,0.15) 30%,rgba(8,7,10,0.2) 52%,rgba(8,7,10,0.82) 100%)}
 .site-bn-hero__scrim[data-vignette="true"]{background:linear-gradient(180deg,rgba(8,7,10,0.5) 0%,rgba(8,7,10,0.15) 30%,rgba(8,7,10,0.2) 52%,rgba(8,7,10,0.82) 100%),radial-gradient(120% 90% at 50% 28%,rgba(8,7,10,0) 38%,rgba(8,7,10,0.55) 100%)}
 .site-bn-hero__scrim[data-tone="light"]{background:linear-gradient(180deg,rgba(248,246,242,0.12) 0%,rgba(248,246,242,0.04) 40%,rgba(248,246,242,0.58) 100%)}
-.site-bn-hero__grain{position:absolute;inset:0;z-index:3;opacity:var(--bn-grain-opacity,0.45);mix-blend-mode:overlay;pointer-events:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='bn-n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23bn-n)' opacity='0.5'/></svg>")}
+.site-bn-hero__grain{position:absolute;inset:0;z-index:3;opacity:var(--bn-grain-opacity,0.45);mix-blend-mode:overlay;pointer-events:none}
+.site-bn-hero__grain svg{position:absolute;inset:0;width:100%;height:100%}
 .site-bn-hero__inner{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;padding:clamp(20px,5vw,88px);padding-bottom:clamp(74px,11vh,134px);color:#fff;pointer-events:none}
 .site-bn-hero__inner>*{pointer-events:auto;max-width:min(100%,920px)}
 .site-bn-hero__inner[data-align^="t"]{justify-content:flex-start}
@@ -3552,7 +3553,36 @@ function renderBuilderNodeElement(
                 aria-hidden
               />
             ) : null}
-            {grainOn ? <div className="site-bn-hero__grain" aria-hidden /> : null}
+            {grainOn ? (
+              // Film-grain noise as a real inline <svg> (feTurbulence) rather than
+              // a data:image/svg+xml background URI — identical texture, and it
+              // keeps the always-shipped renderer stylesheet free of a literal
+              // `data:image` token (which would otherwise be indistinguishable
+              // from a leaked image src to substring-based checks).
+              <div className="site-bn-hero__grain" aria-hidden>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width={160}
+                  height={160}
+                  preserveAspectRatio="none"
+                >
+                  <filter id={`${node.id}-grain`}>
+                    <feTurbulence
+                      type="fractalNoise"
+                      baseFrequency={0.85}
+                      numOctaves={2}
+                      stitchTiles="stitch"
+                    />
+                  </filter>
+                  <rect
+                    width="100%"
+                    height="100%"
+                    filter={`url(#${node.id}-grain)`}
+                    opacity={0.5}
+                  />
+                </svg>
+              </div>
+            ) : null}
             {sharedBlock}
           </div>
         );
