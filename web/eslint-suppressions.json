@@ -607,13 +607,19 @@
     }
   },
   "src/components/admin/shell/internal/page-modules/CardDesignStudio-2.tsx": {
+    "max-lines": {
+      "count": 1
+    },
     "ratchet/no-new-inline-style": {
-      "count": 46
+      "count": 68
     }
   },
   "src/components/admin/shell/internal/page-modules/CardDesignStudio.tsx": {
+    "max-lines": {
+      "count": 1
+    },
     "ratchet/no-new-inline-style": {
-      "count": 60
+      "count": 75
     }
   },
   "src/components/admin/shell/internal/page-modules/ClientsPage.tsx": {

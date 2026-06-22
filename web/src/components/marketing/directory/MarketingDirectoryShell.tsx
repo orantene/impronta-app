@@ -47,7 +47,8 @@ export function MarketingDirectoryShell({
   activeFilters,
   initialItems,
   initialTotal,
-  pageSize,
+  // pageSize is part of Props (caller passes it) but the shell now paginates
+  // via the loadMoreDirectoryTalents server action, so it isn't read here.
   mapPoints,
   mapUnmappedCount,
   mapApiKey,

@@ -129,7 +129,10 @@ export function DiscoverShell({
   const [searchInput, setSearchInput] = useState<string>(activeFilters.q ?? "");
   const [, startNavTransition] = useTransition();
   const [openTalentId, setOpenTalentId] = useState<string | null>(null);
-  const [availabilityByTalent, setAvailabilityByTalent] = useState<Map<string, DiscoverAvailabilityDay[]>>(() => new Map());
+  // Read-only today: nothing populates it (cards render from the matview's
+  // availabilityDots14d — see the D3 note below); kept as a precedence hook
+  // for a future explicit hydration trigger.
+  const [availabilityByTalent] = useState<Map<string, DiscoverAvailabilityDay[]>>(() => new Map());
   const [shortlists, setShortlists] = useState<DiscoverShortlist[]>([]);
   const [autoOpenPicker, setAutoOpenPicker] = useState(false);
 

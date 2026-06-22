@@ -14,6 +14,8 @@ import { Bookmark, Check, Eye, Heart, Send } from "lucide-react";
 import { Icon, Toggle } from "../primitives";
 import { COLORS, FONTS, RADIUS, TRANSITION } from "../state";
 import type { RosterCardBadgePrefs } from "@/lib/talent-cards/roster-card-badges";
+import { TalentCard } from "@/components/talent-cards/TalentCard";
+import type { DirectoryCardData } from "@/components/talent-cards/talent-card-shape";
 
 // ────────────────────────────────────────────────────────────────────────
 // Surfaces + per-surface action rules (baked product decision)
@@ -783,6 +785,423 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
           Fashion Model
         </div>
         <div style={{ fontSize: 11, marginTop: 1, color: COLORS.inkMuted }}>📍 Milano, IT</div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Visual design — kit chooser + color knobs + LIVE canonical-card preview.
+//
+// This is the REAL persistence half of the studio (the folded-in P2.2 visual
+// studio): a kit / color edit writes the card-family tokens
+// (template.directory-card-family + card.surface / card.name-color /
+// card.muted) into the agency design draft via the design actions, and one
+// Publish promotes the draft live so every <TalentCard> repaints with zero
+// per-card edits. The vocabulary below is shared by CardDesignStudio.tsx,
+// which owns the action wiring + async state.
+//
+// Admin chrome stays neutral / cool — the ONLY gold lives inside the right-
+// hand <TalentCard> preview, which is the public editorial card painting from
+// its own published tokens.
+// ════════════════════════════════════════════════════════════════════════
+
+/** A talent-card kit (a named subset of card-family tokens). */
+export type CardKitOption = {
+  slug: string;
+  label: string;
+  description: string;
+  tokens: Record<string, string>;
+};
+
+/** The card-family token key that records which kit is active. */
+export const CARD_FAMILY_TOKEN_KEY = "template.directory-card-family";
+
+/** The three color knobs the studio exposes, in display order. */
+export const CARD_COLOR_KNOBS: Array<{ key: string; label: string; hint: string }> = [
+  { key: "card.surface", label: "Card surface", hint: "Media / panel ground" },
+  { key: "card.name-color", label: "Name color", hint: "Talent name" },
+  { key: "card.muted", label: "Secondary text", hint: "Type · location · availability" },
+];
+
+/** Every card-family token key the studio touches (kit + knobs). */
+export const CARD_DESIGN_TOKEN_KEYS: string[] = [
+  CARD_FAMILY_TOKEN_KEY,
+  ...CARD_COLOR_KNOBS.map((k) => k.key),
+];
+
+/**
+ * Realistic sample talent for the live preview. Editorial portrait imagery,
+ * never initials-in-a-box (product rule). Rendered with the editorial style so
+ * the name + muted tokens are visible (portrait keeps the name white over the
+ * scrim).
+ */
+export const CARD_PREVIEW_SAMPLE: DirectoryCardData = {
+  id: "preview-sample",
+  name: "Mara Delacroix",
+  profileCode: null,
+  profileHref: "#",
+  primaryType: "Editorial Model",
+  location: "Mexico City",
+  photoUrl:
+    "https://images.unsplash.com/photo-1492288991661-058aa541ff43?auto=format&fit=crop&w=900&q=80",
+  agencyName: "Casa Noir",
+  isExclusive: true,
+  availabilityLabel: "Available this month",
+  availabilityKnown: true,
+  availableDaysInNext30: 12,
+};
+
+export type DesignSaveState =
+  | { kind: "idle" }
+  | { kind: "saving" }
+  | { kind: "saved"; version: number }
+  | { kind: "error"; message: string };
+
+export type DesignPublishState =
+  | { kind: "idle" }
+  | { kind: "publishing" }
+  | { kind: "published"; version: number }
+  | { kind: "error"; message: string };
+
+export function isHex(value: string): boolean {
+  return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value.trim());
+}
+
+/** A tiny tri-swatch preview of a kit's surface / name / muted colors. */
+function KitSwatch({ tokens }: { tokens: Record<string, string> }) {
+  const surface = tokens["card.surface"] ?? "#f4f4f5";
+  const name = tokens["card.name-color"] ?? "#171717";
+  const muted = tokens["card.muted"] ?? "#6b7280";
+  return (
+    <div
+      style={{
+        height: 48,
+        borderRadius: 8,
+        background: surface,
+        border: `1px solid ${COLORS.border}`,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-end",
+        gap: 4,
+        padding: 8,
+      }}
+    >
+      <span style={{ width: "70%", height: 6, borderRadius: 3, background: name }} />
+      <span style={{ width: "45%", height: 5, borderRadius: 3, background: muted }} />
+    </div>
+  );
+}
+
+/**
+ * One-click kit chooser. Picking a tile calls back to the studio, which runs
+ * `applyCardKitFromEditAction` and reflects the kit's tokens in the working
+ * draft so the preview repaints instantly.
+ */
+export function CardKitChooser({
+  kits,
+  activeSlug,
+  pendingSlug,
+  canEdit,
+  onApply,
+}: {
+  kits: ReadonlyArray<CardKitOption>;
+  activeSlug: string;
+  pendingSlug: string | null;
+  canEdit: boolean;
+  onApply: (kit: CardKitOption) => void;
+}) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
+      {kits.map((kit) => {
+        const selected = activeSlug === kit.slug;
+        const busy = pendingSlug === kit.slug;
+        return (
+          <button
+            key={kit.slug}
+            type="button"
+            disabled={!canEdit || busy}
+            onClick={() => onApply(kit)}
+            aria-pressed={selected}
+            style={{
+              textAlign: "left",
+              padding: 12,
+              borderRadius: 10,
+              border: `1.5px solid ${selected ? COLORS.accent : COLORS.border}`,
+              background: selected ? COLORS.accentSoft : COLORS.card,
+              cursor: !canEdit || busy ? "default" : "pointer",
+              opacity: !canEdit ? 0.6 : 1,
+              transition: `border-color ${TRANSITION.sm}, background ${TRANSITION.sm}`,
+              fontFamily: FONTS.body,
+            }}
+          >
+            <KitSwatch tokens={kit.tokens} />
+            <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{kit.label}</span>
+              {selected ? (
+                <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.accent }}>
+                  {busy ? "Applying" : "Active"}
+                </span>
+              ) : null}
+            </div>
+            <div style={{ marginTop: 3, fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.4 }}>
+              {kit.description}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** A single native color knob with an inherit-from-theme empty state. */
+export function ColorKnob({
+  label,
+  hint,
+  value,
+  disabled,
+  onChange,
+  onClear,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  disabled: boolean;
+  onChange: (v: string) => void;
+  onClear: () => void;
+}) {
+  const hasValue = isHex(value);
+  // The native color input needs a concrete hex; show a neutral when inherited.
+  const swatchValue = hasValue ? value : "#cccccc";
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        padding: "9px 0",
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{label}</div>
+        <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 1 }}>
+          {hasValue ? hint : `${hint} · inherits theme`}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <input
+          type="color"
+          aria-label={label}
+          disabled={disabled}
+          value={swatchValue}
+          onChange={(e) => onChange(e.target.value)}
+          style={{
+            width: 34,
+            height: 28,
+            padding: 0,
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 6,
+            background: COLORS.card,
+            cursor: disabled ? "default" : "pointer",
+            opacity: hasValue ? 1 : 0.55,
+          }}
+        />
+        {hasValue && !disabled ? (
+          <button
+            type="button"
+            onClick={onClear}
+            style={{
+              padding: "3px 8px",
+              fontSize: 11,
+              fontWeight: 600,
+              fontFamily: FONTS.body,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 6,
+              background: COLORS.card,
+              color: COLORS.inkMuted,
+              cursor: "pointer",
+            }}
+          >
+            Clear
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Explicit, persistent draft-save status. Never a toast-and-vanish. */
+export function DesignSaveStatus({ state }: { state: DesignSaveState }) {
+  if (state.kind === "idle") return null;
+  let label: string;
+  let color: string;
+  let bg: string;
+  if (state.kind === "saving") {
+    label = "Saving draft…";
+    color = COLORS.inkMuted;
+    bg = COLORS.surfaceAlt;
+  } else if (state.kind === "saved") {
+    label = `Draft saved · v${state.version}`;
+    color = COLORS.successDeep;
+    bg = COLORS.successSoft;
+  } else {
+    label = state.message;
+    color = COLORS.critical;
+    bg = COLORS.criticalSoft;
+  }
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        marginTop: 12,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "5px 10px",
+        borderRadius: 6,
+        background: bg,
+        color,
+        fontSize: 11.5,
+        fontWeight: 600,
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
+/** Persistent Publish button + explicit lifecycle line. */
+export function PublishCluster({
+  canPublish,
+  dirty,
+  publishState,
+  publishedAt,
+  onPublish,
+}: {
+  canPublish: boolean;
+  dirty: boolean;
+  publishState: DesignPublishState;
+  publishedAt: string | null;
+  onPublish: () => void;
+}) {
+  const publishing = publishState.kind === "publishing";
+  let line: string;
+  if (publishState.kind === "error") {
+    line = publishState.message;
+  } else if (publishState.kind === "published") {
+    line = `Published v${publishState.version} · live everywhere`;
+  } else if (!canPublish) {
+    line = "You can edit the draft; publishing needs publish access.";
+  } else if (dirty) {
+    line = "Unpublished changes in the draft.";
+  } else if (publishedAt) {
+    line = `Live · last published ${fmtPublishDate(publishedAt)}`;
+  } else {
+    line = "Nothing published yet.";
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+      <button
+        type="button"
+        disabled={!canPublish || publishing}
+        onClick={onPublish}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "8px 16px",
+          fontSize: 13,
+          fontWeight: 700,
+          fontFamily: FONTS.body,
+          border: "none",
+          borderRadius: RADIUS.md,
+          background: canPublish ? COLORS.accent : "rgba(11,11,13,0.18)",
+          color: "#fff",
+          cursor: !canPublish || publishing ? "default" : "pointer",
+          opacity: publishing ? 0.7 : 1,
+        }}
+      >
+        {publishing ? "Publishing…" : "Publish"}
+      </button>
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          fontSize: 11,
+          color: publishState.kind === "error" ? COLORS.critical : COLORS.inkMuted,
+          textAlign: "right",
+          maxWidth: 220,
+        }}
+      >
+        {line}
+      </div>
+    </div>
+  );
+}
+
+function fmtPublishDate(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+/**
+ * LIVE preview of the canonical <TalentCard>. The wrapper sets
+ * `--token-card-surface / -name-color / -muted` from the working draft inline,
+ * so every edit repaints the card instantly — exactly what the live storefront
+ * card will look like once published. An empty token = no var = the card falls
+ * back to the theme color (the inherit contract). This is the ONLY place gold
+ * may appear in the studio (it's the public editorial card).
+ */
+export function CardLivePreview({ draft }: { draft: Record<string, string> }) {
+  const previewVars: React.CSSProperties = {
+    ...(isHex(draft["card.surface"] ?? "")
+      ? { ["--token-card-surface" as string]: draft["card.surface"] }
+      : {}),
+    ...(isHex(draft["card.name-color"] ?? "")
+      ? { ["--token-card-name-color" as string]: draft["card.name-color"] }
+      : {}),
+    ...(isHex(draft["card.muted"] ?? "")
+      ? { ["--token-card-muted" as string]: draft["card.muted"] }
+      : {}),
+  };
+
+  return (
+    <div
+      style={{
+        padding: 18,
+        borderRadius: RADIUS.xl,
+        border: `1px solid ${COLORS.border}`,
+        // Quiet ground; the card paints its own surface from the tokens so the
+        // preview reads true.
+        background: COLORS.surfaceAlt,
+        ...previewVars,
+      }}
+    >
+      <div style={{ width: 240, maxWidth: "100%", margin: "0 auto" }}>
+        <TalentCard
+          data={CARD_PREVIEW_SAMPLE}
+          style="editorial"
+          show={{
+            showName: true,
+            showTalentType: true,
+            showLocation: true,
+            showAvailability: true,
+            showBadges: true,
+          }}
+          nameFallback="role"
+          aspect="4:5"
+          priority
+        />
       </div>
     </div>
   );
