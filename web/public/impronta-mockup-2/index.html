@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Impronta Models — Faces with an imprint</title>
+  <meta name="description" content="Impronta Models — a Tulum-born talent agency representing faces for runway, editorial, and campaign across Mexico and Europe." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/impronta.css" />
+</head>
+<body>
+
+  <!-- NAV -->
+  <header class="nav">
+    <a class="nav__brand" href="index.html">IMPRONTA</a>
+    <nav class="nav__links">
+      <a href="roster.html" data-en="Models" data-es="Modelos">Models</a>
+      <a href="roster.html" data-en="Talent" data-es="Talento">Talent</a>
+      <a href="#campaigns" data-en="Campaigns" data-es="Campañas">Campaigns</a>
+      <a href="about.html" data-en="About" data-es="Nosotros">About</a>
+      <a href="about.html#contact" data-en="Contact" data-es="Contacto">Contact</a>
+    </nav>
+    <div class="nav__right">
+      <div class="lang">
+        <button data-lang="en" class="on">EN</button><span>/</span><button data-lang="es">ES</button>
+      </div>
+      <a href="about.html#contact" class="btn btn--light btn--sm" data-en="Book a face" data-es="Reservar">Book a face</a>
+      <button class="burger" aria-label="Menu"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <!-- MOBILE MENU -->
+  <div class="mobile-menu">
+    <a href="roster.html" data-en="Models" data-es="Modelos">Models</a>
+    <a href="roster.html" data-en="Talent" data-es="Talento">Talent</a>
+    <a href="#campaigns" data-en="Campaigns" data-es="Campañas">Campaigns</a>
+    <a href="about.html" data-en="About" data-es="Nosotros">About</a>
+    <a href="about.html#contact" data-en="Contact" data-es="Contacto">Contact</a>
+    <div class="mm-foot">Tulum · Mexico City · Ibiza</div>
+  </div>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero__slides">
+      <div class="hero__slide active"><img src="img/loc-hero.jpg" alt="Impronta model in editorial light" /></div>
+      <div class="hero__slide"><img src="img/loc-ed1.jpg" alt="Editorial fashion portrait" /></div>
+      <div class="hero__slide"><img src="img/hero1.jpg" alt="Model in golden hour light" /></div>
+      <div class="hero__slide"><img src="img/loc-gown.jpg" alt="Couture gown campaign" /></div>
+    </div>
+    <div class="hero__scrim"></div>
+    <div class="grain"></div>
+    <div class="wrap hero__inner">
+      <span class="eyebrow hero__eye" data-en="Talent agency · Tulum, Mexico" data-es="Agencia de talento · Tulum, México">Talent agency · Tulum, Mexico</span>
+      <h1>
+        <span data-en="Faces with an" data-es="Rostros que">Faces with an</span>
+        <em data-en="imprint." data-es="dejan huella.">imprint.</em>
+      </h1>
+      <p class="hero__sub" data-en="A Tulum-born house representing faces for runway, editorial, and campaign across two continents." data-es="Una casa nacida en Tulum que representa rostros para pasarela, editorial y campaña en dos continentes.">A Tulum-born house representing faces for runway, editorial, and campaign across two continents.</p>
+      <div class="hero__cta">
+        <a href="roster.html" class="btn btn--gold" data-en="View the board" data-es="Ver el board">View the board <span class="arr">→</span></a>
+        <a href="about.html#scout" class="btn btn--light" data-en="Represent me" data-es="Represéntame">Represent me</a>
+      </div>
+    </div>
+    <div class="hero__meta">
+      <div class="hero__count">01 / 04</div>
+      <div class="hero__dots">
+        <button class="on" aria-label="Slide 1"></button>
+        <button aria-label="Slide 2"></button>
+        <button aria-label="Slide 3"></button>
+        <button aria-label="Slide 4"></button>
+      </div>
+    </div>
+    <div class="scroll-cue" data-en="Scroll" data-es="Desliza">Scroll</div>
+  </section>
+
+  <!-- MARQUEE -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee__track">
+      <span>Runway <i>/</i></span><span>Editorial <i>/</i></span><span>Campaign <i>/</i></span><span>Lookbook <i>/</i></span><span>E-commerce <i>/</i></span><span>Fitness <i>/</i></span><span>Hospitality <i>/</i></span><span>Events <i>/</i></span>
+      <span>Runway <i>/</i></span><span>Editorial <i>/</i></span><span>Campaign <i>/</i></span><span>Lookbook <i>/</i></span><span>E-commerce <i>/</i></span><span>Fitness <i>/</i></span><span>Hospitality <i>/</i></span><span>Events <i>/</i></span>
+    </div>
+  </div>
+
+  <!-- FEATURED FACES -->
+  <section class="section wrap" id="featured">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow reveal" data-en="Selected talent" data-es="Talento selecto">Selected talent</span>
+        <h2 class="display h-lg reveal d1" style="margin-top:18px" data-en="The board, edited." data-es="El board, editado.">The board, edited.</h2>
+      </div>
+      <p class="section-head__aside reveal d2" data-en="A curated cut of the women and men we represent this season. Hover a face, then open the full portfolio." data-es="Una selección curada de las mujeres y hombres que representamos esta temporada. Pasa el cursor y abre el portafolio.">A curated cut of the women and men we represent this season. Hover a face, then open the full portfolio.</p>
+    </div>
+
+    <div class="mosaic">
+      <a class="face reveal" href="model.html?m=chiara-moretti">
+        <img src="img/w01.jpg" alt="Chiara Moretti, portrait" loading="lazy" />
+        <div class="face__veil"></div><span class="face__idx">01</span>
+        <div class="face__cap"><div class="face__name">Chiara Moretti</div><div class="face__loc">Milan</div></div>
+      </a>
+      <a class="face reveal" href="model.html?m=mateo-silva">
+        <img src="img/m01.jpg" alt="Mateo Silva, portrait" loading="lazy" />
+        <div class="face__veil"></div><span class="face__idx">02</span>
+        <div class="face__cap"><div class="face__name">Mateo Silva</div><div class="face__loc">Playa del Carmen</div></div>
+      </a>
+      <a class="face reveal" href="model.html?m=valentina-ruiz">
+        <img src="img/w02.jpg" alt="Valentina Ruiz, portrait" loading="lazy" />
+        <div class="face__veil"></div><span class="face__idx">03</span>
+        <div class="face__cap"><div class="face__name">Valentina Ruiz</div><div class="face__loc">Mexico City</div></div>
+      </a>
+      <a class="face reveal" href="model.html?m=diego-rios">
+        <img src="img/m02.jpg" alt="Diego Ríos, portrait" loading="lazy" />
+        <div class="face__veil"></div><span class="face__idx">04</span>
+        <div class="face__cap"><div class="face__name">Diego Ríos</div><div class="face__loc">Cancún</div></div>
+      </a>
+      <a class="face reveal" href="model.html?m=isabella-flores">
+        <img src="img/w04.jpg" alt="Isabella Flores, portrait" loading="lazy" />
+        <div class="face__veil"></div><span class="face__idx">05</span>
+        <div class="face__cap"><div class="face__name">Isabella Flores</div><div class="face__loc">Tulum</div></div>
+      </a>
+      <a class="face reveal" href="model.html?m=adriana-vega">
+        <img src="img/w05.jpg" alt="Adriana Vega, portrait" loading="lazy" />
+        <div class="face__veil"></div><span class="face__idx">06</span>
+        <div class="face__cap"><div class="face__name">Adriana Vega</div><div class="face__loc">Playa del Carmen</div></div>
+      </a>
+      <a class="face reveal" href="model.html?m=luca-ferrari">
+        <img src="img/m03.jpg" alt="Luca Ferrari, portrait" loading="lazy" />
+        <div class="face__veil"></div><span class="face__idx">07</span>
+        <div class="face__cap"><div class="face__name">Luca Ferrari</div><div class="face__loc">Ibiza</div></div>
+      </a>
+      <a class="face reveal" href="model.html?m=nina-hart">
+        <img src="img/w06.jpg" alt="Nina Hart, portrait" loading="lazy" />
+        <div class="face__veil"></div><span class="face__idx">08</span>
+        <div class="face__cap"><div class="face__name">Nina Hart</div><div class="face__loc">Ibiza</div></div>
+      </a>
+    </div>
+
+    <div style="text-align:center; margin-top:54px" class="reveal">
+      <a href="roster.html" class="txtlink" data-en="See all faces" data-es="Ver todos los rostros">See all faces →</a>
+    </div>
+  </section>
+
+  <!-- STORY -->
+  <section class="section wrap">
+    <div class="story">
+      <div class="story__media reveal"><img src="img/loc-ed2.jpg" alt="Impronta model on set" loading="lazy" /></div>
+      <div class="story__body">
+        <span class="eyebrow reveal" data-en="The house" data-es="La casa">The house</span>
+        <h2 class="display h-md reveal d1" style="margin-top:18px" data-en="Born on the Riviera Maya. Booked everywhere." data-es="Nacida en la Riviera Maya. Reservada en todas partes.">Born on the Riviera Maya. Booked everywhere.</h2>
+        <p class="reveal d2" data-en="Impronta began with a single idea: that a face can leave a mark long after the shutter closes. From Tulum we scout, develop, and place talent with the world's most demanding brands, photographers, and houses." data-es="Impronta nació de una idea: un rostro puede dejar una marca mucho después del obturador. Desde Tulum descubrimos, desarrollamos y colocamos talento con las marcas, fotógrafos y casas más exigentes.">Impronta began with a single idea: that a face can leave a mark long after the shutter closes. From Tulum we scout, develop, and place talent with the world's most demanding brands, photographers, and houses.</p>
+        <blockquote class="story__quote reveal d2" data-en="&ldquo;We do not represent looks. We represent presence.&rdquo;" data-es="&ldquo;No representamos looks. Representamos presencia.&rdquo;">&ldquo;We do not represent looks. We represent presence.&rdquo;</blockquote>
+        <div class="story__sign reveal d3">Impronta<small data-en="Founders, Tulum" data-es="Fundadores, Tulum">Founders, Tulum</small></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DIVISIONS -->
+  <section class="section wrap">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow reveal" data-en="Divisions" data-es="Divisiones">Divisions</span>
+        <h2 class="display h-lg reveal d1" style="margin-top:18px" data-en="Find your cast." data-es="Encuentra tu cast.">Find your cast.</h2>
+      </div>
+    </div>
+    <div class="divisions">
+      <a class="divcard reveal" href="roster.html?div=women"><img src="img/w15.jpg" alt="Women division" loading="lazy" /><div class="divcard__t"><div class="n" data-en="Women" data-es="Mujeres">Women</div><div class="c"><span>01</span><span>→</span></div></div></a>
+      <a class="divcard reveal d1" href="roster.html?div=men"><img src="img/m11.jpg" alt="Men division" loading="lazy" /><div class="divcard__t"><div class="n" data-en="Men" data-es="Hombres">Men</div><div class="c"><span>02</span><span>→</span></div></div></a>
+      <a class="divcard reveal d2" href="roster.html?div=new"><img src="img/w07.jpg" alt="New Faces division" loading="lazy" /><div class="divcard__t"><div class="n" data-en="New Faces" data-es="Caras Nuevas">New Faces</div><div class="c"><span>03</span><span>→</span></div></div></a>
+      <a class="divcard reveal d3" href="roster.html"><img src="img/ls05.jpg" alt="Influence division" loading="lazy" /><div class="divcard__t"><div class="n" data-en="Influence" data-es="Influencia">Influence</div><div class="c"><span>04</span><span>→</span></div></div></a>
+      <a class="divcard reveal d4" href="roster.html"><img src="img/loc-mkparty.jpg" alt="Events division" loading="lazy" /><div class="divcard__t"><div class="n" data-en="Events" data-es="Eventos">Events</div><div class="c"><span>05</span><span>→</span></div></div></a>
+    </div>
+  </section>
+
+  <!-- CAMPAIGNS -->
+  <section class="section wrap" id="campaigns">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow reveal" data-en="Recent work" data-es="Trabajo reciente">Recent work</span>
+        <h2 class="display h-lg reveal d1" style="margin-top:18px" data-en="Campaigns &amp; lookbooks." data-es="Campañas y lookbooks.">Campaigns &amp; lookbooks.</h2>
+      </div>
+      <p class="section-head__aside reveal d2" data-en="A season of editorials, runway, and brand work shot across the Riviera Maya, Mexico City, and the Mediterranean." data-es="Una temporada de editoriales, pasarela y trabajo de marca en la Riviera Maya, Ciudad de México y el Mediterráneo.">A season of editorials, runway, and brand work shot across the Riviera Maya, Mexico City, and the Mediterranean.</p>
+    </div>
+    <div class="rail">
+      <div class="rail__item reveal"><div class="rail__media"><img src="img/loc-ed1.jpg" alt="Casa Tulum campaign" loading="lazy" /></div><div class="rail__cap"><span class="b">Casa Tulum</span><span class="s">Resort SS26</span></div></div>
+      <div class="rail__item reveal d1"><div class="rail__media"><img src="img/loc-gown.jpg" alt="Maison Lloré couture" loading="lazy" /></div><div class="rail__cap"><span class="b">Maison Lloré</span><span class="s">Couture FW25</span></div></div>
+      <div class="rail__item reveal d2"><div class="rail__media"><img src="img/loc-ed3.jpg" alt="Atelier Sur editorial" loading="lazy" /></div><div class="rail__cap"><span class="b">Atelier Sur</span><span class="s">Editorial</span></div></div>
+      <div class="rail__item reveal d3"><div class="rail__media"><img src="img/loc-rw3.jpg" alt="Semana de Moda runway" loading="lazy" /></div><div class="rail__cap"><span class="b">Semana CDMX</span><span class="s">Runway 26</span></div></div>
+      <div class="rail__item reveal d4"><div class="rail__media"><img src="img/ed02.jpg" alt="Riviera Living lifestyle" loading="lazy" /></div><div class="rail__cap"><span class="b">Riviera Living</span><span class="s">Lifestyle</span></div></div>
+      <div class="rail__item reveal d4"><div class="rail__media"><img src="img/loc-rw1.jpg" alt="Mar Azul swim" loading="lazy" /></div><div class="rail__cap"><span class="b">Mar Azul</span><span class="s">Swim SS26</span></div></div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section class="section dark">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="eyebrow reveal" data-en="Kind words" data-es="Buenas palabras">Kind words</span>
+          <h2 class="display h-lg reveal d1" style="margin-top:18px" data-en="Trusted on set." data-es="Confianza en el set.">Trusted on set.</h2>
+        </div>
+      </div>
+      <div class="trio">
+        <div class="quote reveal">
+          <div class="quote__mark">&ldquo;</div>
+          <p data-en="Impronta sends faces that already understand the brief. Every booking has been effortless and the talent is impeccable." data-es="Impronta envía rostros que ya entienden el brief. Cada reserva ha sido impecable y sin esfuerzo.">Impronta sends faces that already understand the brief. Every booking has been effortless and the talent is impeccable.</p>
+          <div class="quote__by"><div class="n">Marco Della Valle</div><div class="r" data-en="Fashion Photographer, Milan" data-es="Fotógrafo de Moda, Milán">Fashion Photographer, Milan</div></div>
+        </div>
+        <div class="quote reveal d1">
+          <div class="quote__mark">&ldquo;</div>
+          <p data-en="The casting felt hand-picked for us. Professional from first call to final frame, in two languages without missing a beat." data-es="El casting se sintió elegido a mano para nosotros. Profesionales de la primera llamada al último cuadro, en dos idiomas.">The casting felt hand-picked for us. Professional from first call to final frame, in two languages without missing a beat.</p>
+          <div class="quote__by"><div class="n">Ana Sofía Beltrán</div><div class="r" data-en="Art Director, Mexico City" data-es="Directora de Arte, CDMX">Art Director, Mexico City</div></div>
+        </div>
+        <div class="quote reveal d2">
+          <div class="quote__mark">&ldquo;</div>
+          <p data-en="Our resort campaign needed range and warmth. Impronta delivered both, and the images outperformed everything before them." data-es="Nuestra campaña de resort necesitaba rango y calidez. Impronta entregó ambos, y las imágenes superaron todo lo anterior.">Our resort campaign needed range and warmth. Impronta delivered both, and the images outperformed everything before them.</p>
+          <div class="quote__by"><div class="n">Casa Tulum</div><div class="r" data-en="Brand Partner" data-es="Marca Aliada">Brand Partner</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="section wrap">
+    <div class="stats">
+      <div class="stat reveal"><div class="n">120<em>+</em></div><div class="l" data-en="Faces represented" data-es="Rostros representados">Faces represented</div></div>
+      <div class="stat reveal d1"><div class="n">6</div><div class="l" data-en="Cities on call" data-es="Ciudades disponibles">Cities on call</div></div>
+      <div class="stat reveal d2"><div class="n" style="font-style:italic">2019</div><div class="l" data-en="Established" data-es="Fundada">Established</div></div>
+      <div class="stat reveal d3"><div class="n">EN <em>/</em> ES</div><div class="l" data-en="Bilingual booking" data-es="Reservas bilingües">Bilingual booking</div></div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta">
+    <img src="img/ls08.jpg" alt="Riviera Maya lifestyle" loading="lazy" />
+    <div class="cta__scrim"></div>
+    <div class="grain"></div>
+    <div class="wrap cta__inner">
+      <span class="eyebrow center reveal" data-en="Work with Impronta" data-es="Trabaja con Impronta">Work with Impronta</span>
+      <h2 class="reveal d1"><span data-en="Leave your" data-es="Deja tu">Leave your</span> <em data-en="imprint." data-es="huella.">imprint.</em></h2>
+      <p class="reveal d2" data-en="Book a face for your next campaign, or apply to be scouted by the house. We answer in English and Spanish." data-es="Reserva un rostro para tu próxima campaña, o postúlate para ser descubierto por la casa. Respondemos en inglés y español.">Book a face for your next campaign, or apply to be scouted by the house. We answer in English and Spanish.</p>
+      <div class="cta__btns reveal d3">
+        <a href="about.html#contact" class="btn btn--gold" data-en="Cast Impronta" data-es="Castea Impronta">Cast Impronta <span class="arr">→</span></a>
+        <a href="about.html#scout" class="btn btn--light" data-en="Get scouted" data-es="Ser descubierto">Get scouted</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="foot">
+    <div class="wrap">
+      <div class="foot__top">
+        <div>
+          <div class="foot__brand">IMPRONTA</div>
+          <p data-en="A Tulum-born talent agency representing faces for runway, editorial, and campaign across Mexico and Europe." data-es="Agencia de talento nacida en Tulum que representa rostros para pasarela, editorial y campaña en México y Europa.">A Tulum-born talent agency representing faces for runway, editorial, and campaign across Mexico and Europe.</p>
+        </div>
+        <div>
+          <h4 data-en="Agency" data-es="Agencia">Agency</h4>
+          <ul>
+            <li><a href="roster.html" data-en="The board" data-es="El board">The board</a></li>
+            <li><a href="#campaigns" data-en="Campaigns" data-es="Campañas">Campaigns</a></li>
+            <li><a href="about.html" data-en="About" data-es="Nosotros">About</a></li>
+            <li><a href="about.html#scout" data-en="Get scouted" data-es="Ser descubierto">Get scouted</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 data-en="Studios" data-es="Estudios">Studios</h4>
+          <ul>
+            <li><a href="#">Tulum</a></li>
+            <li><a href="#">Mexico City</a></li>
+            <li><a href="#">Ibiza</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 data-en="Connect" data-es="Conecta">Connect</h4>
+          <ul>
+            <li><a href="#">Instagram</a></li>
+            <li><a href="#">TikTok</a></li>
+            <li><a href="about.html#contact" data-en="Bookings" data-es="Reservas">Bookings</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="foot__bottom">
+        <span>© 2026 Impronta Models</span>
+        <div class="lang">
+          <button data-lang="en" class="on">EN</button><span>/</span><button data-lang="es">ES</button>
+        </div>
+        <span class="pw">Powered by <em>Tulala</em></span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/impronta.js"></script>
+</body>
+</html>

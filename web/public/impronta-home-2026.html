@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Impronta — Models &amp; Talent</title>
+  <meta name="description" content="Impronta — a boutique models & talent agency in Ciudad de México. Editorial faces, presented with intention. Agency-managed from first inquiry to final call sheet." />
+  <meta name="theme-color" content="#0a0a0b" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Impronta — Models &amp; Talent" />
+  <meta property="og:description" content="A boutique models &amp; talent agency in Ciudad de México. Editorial faces, presented with intention." />
+  <meta property="og:image" content="/marketing/photos/impronta-2026/hero-a.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preload" as="image" href="/marketing/photos/impronta-2026/hero-a.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ══════════════════════════════ TOKENS ══════════════════════════════ */
+    :root{
+      --bg:#0a0a0b; --bg-2:#070708; --surface:#111113; --surface-2:#161618;
+      --gold:#C9A227; --gold-lite:#E4C76A; --gold-dim:rgba(201,162,39,.55);
+      --line:rgba(201,162,39,.12); --line-2:rgba(240,237,232,.07);
+      --fg:#f1ede6; --fg-soft:rgba(241,237,230,.74); --muted:rgba(241,237,230,.6); --muted-2:rgba(241,237,230,.42);
+      --display:'Cormorant Garamond',Georgia,serif; --body:'Inter',system-ui,sans-serif;
+      --ease:cubic-bezier(.16,1,.3,1); --maxw:1280px; --pad:clamp(1.15rem,4.5vw,3rem);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;scroll-padding-top:5.5rem}
+    body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+    /* only hide the native cursor once the custom-cursor JS is actually running */
+    body.cursor-custom, body.cursor-custom *{cursor:none}
+    a{color:inherit;text-decoration:none}
+    img{display:block;max-width:100%}
+    button{font-family:inherit;background:none;border:none;color:inherit}
+    ::selection{background:rgba(201,162,39,.26);color:#fff}
+    /* keyboard focus: clear gold ring (hidden for mouse/pointer focus) */
+    :focus{outline:none}
+    :focus-visible{outline:2px solid var(--gold-lite);outline-offset:3px;border-radius:2px}
+
+    /* skip link (visible only on keyboard focus) */
+    .skip{position:fixed;top:.6rem;left:.6rem;z-index:400;background:var(--gold);color:#0a0a0b;padding:.75rem 1.15rem;border-radius:2px;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;font-weight:600;transform:translateY(-180%);transition:transform .3s var(--ease)}
+    .skip:focus{transform:none}
+
+    /* fine film grain (no gold glow — restraint) */
+    body::before{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.045;mix-blend-mode:overlay;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+    .wrap{max-width:var(--maxw);margin-inline:auto;padding-inline:var(--pad)}
+
+    /* editorial atoms */
+    .eyebrow{font-size:.7rem;font-weight:500;letter-spacing:.26em;text-transform:uppercase;color:var(--muted);display:inline-flex;align-items:center;gap:.7rem}
+    .eyebrow .fo{font-family:var(--display);font-style:italic;color:var(--gold);font-size:.95rem;letter-spacing:.02em}
+    .display{font-family:var(--display);font-weight:300;line-height:1;letter-spacing:-.01em;color:var(--fg)}
+    .display em{font-style:italic;font-weight:400}
+    .gw{color:var(--gold)} /* gold word */
+
+    .reveal{opacity:0;transform:translateY(26px);filter:blur(4px);transition:opacity 1s var(--ease),transform 1s var(--ease),filter 1s var(--ease);transition-delay:var(--rd,0ms)}
+    .reveal.in{opacity:1;transform:none;filter:none}
+
+    /* link underline-draw */
+    .u{position:relative}
+    .u::after{content:'';position:absolute;left:0;bottom:-3px;height:1px;width:100%;background:var(--gold);transform:scaleX(0);transform-origin:left;transition:transform .45s var(--ease)}
+    .u:hover::after{transform:scaleX(1)}
+
+    /* buttons (gold used sparingly). transform is NOT transitioned so the magnetic
+       effect tracks the cursor instantly instead of rubber-banding. */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:.6rem;font-size:.76rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;padding:1.05rem 1.9rem;border-radius:1px;transition:background .5s var(--ease),border-color .5s var(--ease),color .5s var(--ease);white-space:nowrap}
+    .btn-gold{background:var(--gold);color:#0a0a0b;font-weight:600}
+    .btn-gold:hover{background:var(--gold-lite)}
+    .btn-line{border:1px solid var(--line);color:var(--fg)}
+    .btn-line:hover{border-color:var(--gold-dim);color:var(--gold-lite)}
+
+    @media (prefers-reduced-motion:reduce){
+      *{scroll-behavior:auto!important}
+      .reveal{opacity:1;transform:none;filter:none;transition:none}
+      .line__i{transform:none!important;opacity:1!important}
+      .marquee__track{animation:none!important}
+      .gw{color:var(--gold)!important}
+      .cue::before{animation:none!important;opacity:1}
+    }
+
+    /* ══════════════════════════════ CURSOR ══════════════════════════════ */
+    .cur-dot,.cur-ring{position:fixed;top:0;left:0;z-index:9999;pointer-events:none;border-radius:50%;will-change:transform}
+    .cur-dot{width:5px;height:5px;background:var(--fg);transform:translate(-50%,-50%);mix-blend-mode:difference}
+    .cur-ring{width:38px;height:38px;border:1px solid var(--gold-dim);transform:translate(-50%,-50%);display:grid;place-items:center;transition:width .3s var(--ease),height .3s var(--ease),background .3s,border-color .3s}
+    .cur-ring__l{font-size:.52rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-lite);opacity:0;transition:opacity .25s}
+    .cur-ring.lbl{width:74px;height:74px;background:rgba(201,162,39,.06);border-color:var(--gold-dim)}
+    .cur-ring.lbl .cur-ring__l{opacity:1}
+    @media (hover:none){.cur-dot,.cur-ring{display:none}}
+
+    /* ══════════════════════════════ FOLIO RAIL ══════════════════════════════ */
+    .folio{position:fixed;top:50%;right:clamp(.7rem,2vw,1.6rem);transform:translateY(-50%);z-index:120;display:flex;flex-direction:column;gap:1rem;align-items:flex-end}
+    .folio a{font-family:var(--display);font-size:.82rem;letter-spacing:.05em;color:var(--muted-2);position:relative;padding-right:1.1rem;transition:color .4s var(--ease)}
+    .folio a::after{content:'';position:absolute;right:0;top:50%;transform:translateY(-50%);width:.5rem;height:1px;background:currentColor;opacity:.5;transition:width .4s var(--ease)}
+    .folio a.active{color:var(--gold)}
+    .folio a.active::after{width:1.2rem;opacity:1}
+    @media (max-width:1100px){.folio{display:none}}
+
+    /* ══════════════════════════════ HEADER ══════════════════════════════ */
+    .top{position:fixed;inset:0 0 auto 0;z-index:200;display:flex;align-items:center;justify-content:space-between;gap:1.5rem;padding:1.5rem var(--pad);transition:transform .6s var(--ease),background .6s var(--ease),padding .6s var(--ease),border-color .6s var(--ease);border-bottom:1px solid transparent}
+    .top.scrolled{background:rgba(10,10,11,.82);backdrop-filter:blur(14px) saturate(1.2);border-bottom-color:var(--line);padding-top:1rem;padding-bottom:1rem}
+    .top.hidden{transform:translateY(-100%)}
+    .brand{display:flex;flex-direction:column;line-height:1}
+    .brand__w{font-family:var(--display);font-size:1.3rem;letter-spacing:.42em;font-weight:500;padding-left:.2em}
+    .brand__f{font-size:.58rem;letter-spacing:.34em;text-transform:uppercase;color:var(--gold-dim);margin-top:.32rem;padding-left:.25em}
+    .nav{display:flex;align-items:center;gap:2.2rem}
+    .nav a{font-size:.74rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);transition:color .3s;display:inline-flex;align-items:center;gap:.4rem}
+    .nav a:hover{color:var(--fg)}
+    .nav a .gdot{width:4px;height:4px;border-radius:50%;background:var(--gold);opacity:0;transition:opacity .3s}
+    .nav a:hover .gdot{opacity:1}
+    .slot{display:flex;align-items:center;gap:1.4rem}
+    .slot__quiet{font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);transition:color .3s}
+    .slot__quiet:hover{color:var(--fg)}
+    .slot__reg{font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-lite)}
+    /* member cluster */
+    .mem{display:none;align-items:center;gap:1.5rem}
+    .mem a{display:inline-flex;align-items:center}
+    .mem__msg{position:relative;font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);transition:color .3s}
+    .mem__msg:hover{color:var(--fg)}
+    .mem__msg .gdot{position:absolute;top:-4px;right:-9px;width:6px;height:6px;border-radius:50%;background:var(--gold)}
+    .mem__dash{font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);transition:color .3s}
+    .mem__dash:hover{color:var(--fg)}
+    .avatar{width:30px;height:30px;border-radius:50%;border:1px solid var(--gold-dim);object-fit:cover}
+    body[data-auth="member"] .guest{display:none}
+    body[data-auth="member"] .mem{display:flex}
+    .burger{display:none;flex-direction:column;gap:5px;padding:11px;margin:-11px}
+    .burger span{width:24px;height:1px;background:var(--fg);transition:.4s var(--ease)}
+
+    @media (max-width:1040px){
+      /* collapse everything but the burger (and member avatar) into the drawer
+         so the header can't overflow / clip on phones. .mem .mem__* needs the extra
+         specificity to beat the `.mem a{display:inline-flex}` rule. */
+      .nav,.slot__quiet,.slot__reg{display:none}
+      .mem .mem__msg,.mem .mem__dash{display:none}
+      .burger{display:flex}
+    }
+
+    /* ══════════════════════════════ HERO ══════════════════════════════ */
+    .hero{position:relative;min-height:100svh;display:grid;grid-template-columns:1.04fr .96fr;align-items:stretch;overflow:hidden}
+    .hero__l{position:relative;z-index:2;display:flex;flex-direction:column;justify-content:center;padding:8rem var(--pad) 5rem}
+    .hero__fo{font-family:var(--display);font-style:italic;font-size:.95rem;color:var(--gold-dim);margin-bottom:1.6rem}
+    .hero__eye{margin-bottom:2.1rem}
+    .hero__h1{font-size:clamp(3.3rem,7.6vw,7.2rem);line-height:.96;margin-bottom:1.7rem}
+    .line{overflow:hidden;display:block}
+    .line__i{display:block;transform:translateY(112%);opacity:0;transition:transform 1s var(--ease),opacity 1s var(--ease);transition-delay:var(--ld,0ms)}
+    .hero.ready .line__i{transform:none;opacity:1}
+    /* signature: the gold word warms in from neutral ink ~0.9s after its line lifts */
+    .hero__h1 .gw{color:var(--fg);transition:color .9s ease .9s}
+    .hero.ready .hero__h1 .gw{color:var(--gold)}
+    .hero__sub{font-size:clamp(.98rem,1.4vw,1.12rem);color:var(--fg-soft);max-width:29rem;line-height:1.75;margin-bottom:2.4rem}
+    .find{position:relative;max-width:33rem}
+    .find__ic{position:absolute;left:1.15rem;top:50%;transform:translateY(-50%);color:var(--gold-dim);width:18px;height:18px}
+    .find input{width:100%;height:4.1rem;background:rgba(17,17,19,.62);border:1px solid var(--line);border-radius:2px;padding:0 7.4rem 0 3.1rem;font-family:var(--body);font-size:.98rem;color:var(--fg);outline:none;transition:border-color .4s,background .4s;backdrop-filter:blur(6px)}
+    .find input::placeholder{color:var(--muted)}
+    .find input:focus{border-color:var(--gold-dim);background:rgba(17,17,19,.95)}
+    .find__btn{position:absolute;right:.45rem;top:50%;transform:translateY(-50%);background:var(--gold);color:#0a0a0b;border-radius:1px;padding:.82rem 1.4rem;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;transition:background .3s}
+    .find__btn:hover{background:var(--gold-lite)}
+    .hero__note{margin-top:1.15rem;font-size:.72rem;letter-spacing:.05em;color:var(--muted)}
+    .hero__note b{color:var(--gold-dim);font-weight:500}
+    .hero__r{position:relative;z-index:1;overflow:hidden}
+    .hero__img{position:absolute;inset:-8% 0;background-size:cover;background-position:center 18%;will-change:transform}
+    .hero__r::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,var(--bg) 0%,transparent 30%,transparent 86%,rgba(10,10,11,.4) 100%),linear-gradient(0deg,rgba(10,10,11,.5),transparent 42%)}
+    .hero__cr{position:absolute;right:1.4rem;bottom:1.4rem;z-index:3;font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+    .hero__cr b{color:var(--gold-lite);font-weight:500}
+    .cue{position:absolute;left:var(--pad);bottom:2rem;z-index:4;display:flex;align-items:center;gap:.7rem;font-size:.6rem;letter-spacing:.26em;text-transform:uppercase;color:var(--muted)}
+    .cue::before{content:'';width:2.4rem;height:1px;background:linear-gradient(90deg,var(--gold-dim),transparent);animation:cue 2.6s var(--ease) infinite}
+    @keyframes cue{0%,100%{opacity:.3;transform:scaleX(.5);transform-origin:left}50%{opacity:1;transform:scaleX(1);transform-origin:left}}
+    @media (max-width:880px){
+      .hero{grid-template-columns:1fr}
+      .hero__r{position:absolute;inset:0;z-index:0}
+      .hero__r::after{background:linear-gradient(180deg,rgba(10,10,11,.45),rgba(10,10,11,.72) 46%,var(--bg) 97%)}
+      .hero__l{z-index:2;justify-content:flex-end;padding-top:9rem;padding-bottom:5.5rem;min-height:100svh}
+    }
+
+    /* ══════════════════════════════ MARQUEE ══════════════════════════════ */
+    .marquee{border-block:1px solid var(--line);padding:1.4rem 0;overflow:hidden;background:var(--bg-2);position:relative;z-index:2}
+    /* margin-right (not flex gap) so the duplicated set tiles seamlessly across the -50% loop */
+    .marquee__track{display:flex;width:max-content;animation:slide 42s linear infinite}
+    .marquee:hover .marquee__track{animation-play-state:paused}
+    .marquee__i{font-family:var(--display);font-style:italic;font-weight:300;font-size:clamp(1.5rem,2.8vw,2.4rem);color:var(--fg);display:inline-flex;align-items:center;gap:2.4rem;white-space:nowrap;margin-right:2.4rem}
+    .marquee__i::after{content:'✦';color:var(--gold);font-size:.6em;font-style:normal}
+    @keyframes slide{to{transform:translateX(-50%)}}
+
+    /* ══════════════════════════════ SECTION SHELL ══════════════════════════════ */
+    section.block{padding:clamp(4.5rem,9vh,8.5rem) 0;position:relative;z-index:2}
+    .headrow{display:flex;align-items:flex-end;justify-content:space-between;gap:2rem;margin-bottom:3.4rem}
+    .headrow h2{font-size:clamp(2rem,4.2vw,3.4rem);margin-top:1.1rem}
+    .more{display:inline-flex;align-items:center;gap:.5rem;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);transition:color .3s;white-space:nowrap}
+    .more svg{width:15px;height:15px;transition:transform .4s var(--ease)}
+    .more:hover{color:var(--gold-lite)}
+    .more:hover svg{transform:translateX(5px)}
+    @media (max-width:640px){.headrow{flex-direction:column;align-items:flex-start;gap:1.3rem}}
+
+    /* DISCOVER chips */
+    .chips{display:flex;gap:.55rem;flex-wrap:wrap;margin-bottom:2.2rem}
+    .chip{display:inline-flex;align-items:center;gap:.6rem;padding:.55rem 1.15rem .55rem .55rem;border:1px solid var(--line);border-radius:999px;font-size:.82rem;color:var(--fg-soft);transition:border-color .4s var(--ease),color .4s var(--ease)}
+    .chip__n{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(201,162,39,.08);color:var(--gold-lite);font-family:var(--display);font-style:italic;font-size:.82rem}
+    .chip:hover,.chip.on{border-color:var(--gold-dim);color:var(--gold-lite)}
+    .chip--ghost{color:var(--muted);border-style:dashed}
+
+    /* CASTING mosaic */
+    .cast{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:1fr;gap:.55rem}
+    .face{position:relative;overflow:hidden;border-radius:2px;aspect-ratio:3/4;display:block}
+    .face--xl{grid-column:span 2;grid-row:span 2;aspect-ratio:auto}
+    .face__img{position:absolute;inset:0;background-size:cover;background-position:center 22%;filter:grayscale(.55) brightness(.92);transition:filter .7s var(--ease),transform 1s var(--ease),opacity .6s var(--ease)}
+    .face::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.82),rgba(0,0,0,.12) 48%,transparent 70%)}
+    .cast.live .face:not(.lit) .face__img{opacity:.4;filter:grayscale(.9) brightness(.7)}
+    .cast.live .face.lit .face__img{filter:grayscale(0) brightness(1);transform:scale(1.04)}
+    .face__tag{position:absolute;top:.85rem;left:.85rem;z-index:2;font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-lite);border:1px solid var(--gold-dim);border-radius:999px;padding:.2rem .6rem;background:rgba(10,10,11,.35);backdrop-filter:blur(4px)}
+    .face__m{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:1.4rem 1.15rem 1.1rem}
+    .face__nm{font-family:var(--display);font-size:1.12rem;letter-spacing:.03em;color:#fff}
+    .face--xl .face__nm{font-size:clamp(1.4rem,2.3vw,2rem)}
+    .face__rl{font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.62);margin-top:.25rem}
+    .face__go{display:inline-flex;align-items:center;gap:.4rem;margin-top:.65rem;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-lite);opacity:0;transform:translateY(6px);transition:all .45s var(--ease)}
+    .face:hover .face__go,.face:focus-visible .face__go{opacity:1;transform:none}
+    .face__go svg{width:12px;height:12px}
+    @media (max-width:820px){.cast{grid-template-columns:repeat(2,1fr)}.face--xl{grid-column:span 2;grid-row:span 1;aspect-ratio:4/3}}
+
+    /* ══════════════════════════════ FULL-BLEED PLATE ══════════════════════════════ */
+    .plate{position:relative;height:clamp(24rem,68vh,40rem);overflow:hidden;border-block:1px solid var(--line)}
+    .plate__img{position:absolute;inset:-10% 0;background-size:cover;background-position:center 30%;will-change:transform}
+    .plate::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,7,8,.78),rgba(7,7,8,.28) 50%,rgba(7,7,8,.6))}
+    .plate__c{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:center}
+    .plate__no{font-family:var(--display);font-weight:300;font-size:clamp(4rem,12vw,9rem);line-height:.8;color:rgba(201,162,39,.22)}
+    .plate__q{font-family:var(--display);font-style:italic;font-weight:300;font-size:clamp(1.7rem,3.4vw,3rem);color:#fff;max-width:24ch;margin-top:1rem;line-height:1.18}
+
+    /* ══════════════════════════════ STATEMENT ══════════════════════════════ */
+    .state{border-block:1px solid var(--line);background:var(--bg-2)}
+    .state__grid{display:grid;grid-template-columns:1.05fr 1fr;min-height:32rem}
+    .state__media{position:relative;overflow:hidden}
+    .state__media .ph{position:absolute;inset:-8% 0;background-size:cover;background-position:center 24%;will-change:transform}
+    .state__media::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 62%,rgba(7,7,8,.85))}
+    .state__copy{display:flex;flex-direction:column;justify-content:center;padding:clamp(3rem,6vw,5.5rem) var(--pad)}
+    .state__q{font-family:var(--display);font-style:italic;font-weight:300;font-size:clamp(1.7rem,3.1vw,2.7rem);line-height:1.28;color:var(--fg)}
+    .state__q b{color:var(--gold);font-weight:400;font-style:normal}
+    .state__by{margin-top:2rem;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+    @media (max-width:880px){.state__grid{grid-template-columns:1fr}.state__media{min-height:22rem}}
+
+    /* BEST FOR */
+    .uc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0 3.6rem}
+    .uc{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.3rem 0;border-bottom:1px solid var(--line-2);transition:padding .4s var(--ease);position:relative}
+    .uc::before{content:'';position:absolute;left:0;bottom:-1px;height:1px;width:0;background:var(--gold-dim);transition:width .5s var(--ease)}
+    .uc:hover{padding-left:.6rem}
+    .uc:hover::before{width:100%}
+    .uc__l{font-size:.92rem;color:var(--fg-soft);transition:color .3s}
+    .uc:hover .uc__l{color:var(--gold-lite)}
+    .uc__a{width:14px;height:14px;color:var(--gold-dim);flex-shrink:0;transition:transform .4s var(--ease),color .3s}
+    .uc:hover .uc__a{transform:translateX(5px);color:var(--gold)}
+    @media (max-width:820px){.uc-grid{grid-template-columns:1fr;gap:0}}
+
+    /* HOW */
+    .how{background:var(--bg-2);border-block:1px solid var(--line)}
+    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:3rem;position:relative}
+    .steps::before{content:'';position:absolute;top:2.5rem;left:18%;right:18%;height:1px;background:linear-gradient(90deg,transparent,var(--line) 18%,var(--line) 82%,transparent)}
+    .step__n{font-family:var(--display);font-weight:300;font-size:4.2rem;line-height:1;color:rgba(201,162,39,.22);margin-bottom:1.3rem}
+    .step__t{font-size:.92rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.6rem}
+    .step__b{font-size:.86rem;color:var(--muted);line-height:1.7;max-width:19rem}
+    @media (max-width:820px){.steps{grid-template-columns:1fr;gap:2.4rem}.steps::before{display:none}}
+
+    /* INQUIRY SENTENCE */
+    .saymore{text-align:center}
+    .say{font-family:var(--display);font-weight:300;font-size:clamp(2.1rem,5.4vw,4.6rem);line-height:1.12;letter-spacing:-.01em}
+    .say .brk{display:inline-block;position:relative;color:var(--gold);font-style:italic}
+    .say .brk::before{content:'';position:absolute;left:0;right:0;bottom:.08em;height:1px;background:var(--gold-dim)}
+    .say__sub{margin-top:1.8rem;font-size:.82rem;letter-spacing:.06em;color:var(--muted)}
+    .say__sub b{color:var(--gold-dim);font-weight:500}
+
+    /* STATS */
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:2px;overflow:hidden;margin-top:3.6rem}
+    .stat{padding:2.4rem 1.4rem;text-align:center;border-right:1px solid var(--line)}
+    .stat:last-child{border-right:none}
+    .stat__n{font-family:var(--display);font-size:clamp(2.4rem,4vw,3.4rem);font-weight:300;color:var(--gold-lite);line-height:1}
+    .stat__l{margin-top:.7rem;font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+    @media (max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}.stat:nth-child(2){border-right:none}.stat:nth-child(1),.stat:nth-child(2){border-bottom:1px solid var(--line)}}
+
+    /* JOIN */
+    .join{display:grid;grid-template-columns:.82fr 1.18fr;border:1px solid var(--line);border-radius:2px;overflow:hidden;background:var(--surface)}
+    .join__media{position:relative;overflow:hidden;min-height:25rem}
+    .join__media .ph{position:absolute;inset:0;background-size:cover;background-position:center 18%}
+    .join__media::after{content:'';position:absolute;inset:0;background:linear-gradient(0deg,rgba(10,10,11,.4),transparent 50%),linear-gradient(90deg,transparent 68%,rgba(17,17,19,.92))}
+    .join__b{padding:clamp(2.6rem,5vw,4.4rem);display:flex;flex-direction:column;justify-content:center}
+    .join__b h2{font-size:clamp(1.9rem,3.4vw,2.8rem);margin:1rem 0 1.1rem}
+    .join__b p{color:var(--muted);max-width:30rem;margin-bottom:2rem}
+    .join__act{display:flex;gap:.8rem;flex-wrap:wrap}
+    @media (max-width:820px){.join{grid-template-columns:1fr}.join__media{min-height:16rem}}
+
+    /* FINAL */
+    .final{text-align:center;border-block:1px solid var(--line);background:var(--surface-2)}
+    .final h2{font-size:clamp(2.3rem,6vw,4.6rem);max-width:15ch;margin:0 auto 1.2rem}
+    .final p{color:var(--muted);margin-bottom:2.4rem}
+    .final__b{display:flex;justify-content:center;gap:.8rem;flex-wrap:wrap}
+
+    /* COLOPHON FOOTER */
+    footer{background:var(--bg-2);border-top:1px solid var(--line);position:relative;z-index:2;overflow:hidden;padding-top:clamp(3.5rem,6vw,5rem)}
+    .foot{display:grid;grid-template-columns:1.7fr 1fr 1fr 1fr;gap:2.5rem;position:relative;z-index:2}
+    .foot__tag{margin-top:1.2rem;color:var(--muted);max-width:22rem;font-size:.9rem;line-height:1.7}
+    .foot__soc{display:flex;gap:.7rem;margin-top:1.6rem}
+    .soc{width:42px;height:42px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;color:var(--muted);transition:border-color .4s var(--ease),color .4s var(--ease),transform .4s var(--ease)}
+    .soc:hover{border-color:var(--gold-dim);color:var(--gold-lite);transform:translateY(-2px)}
+    .soc svg{width:16px;height:16px}
+    .foot__col h3{font-size:.64rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:1.2rem;font-weight:600}
+    .foot__col a{display:block;font-size:.86rem;color:var(--muted);padding:.4rem 0;transition:color .3s}
+    .foot__col a:hover{color:var(--fg)}
+    .foot__word{font-family:var(--display);font-weight:300;font-size:clamp(4rem,16vw,17rem);line-height:.8;letter-spacing:.04em;color:rgba(241,237,230,.045);margin-top:2.5rem;white-space:nowrap;text-align:center;user-select:none;position:relative;z-index:1}
+    .foot__base{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1.8rem var(--pad);border-top:1px solid var(--line-2);font-size:.72rem;letter-spacing:.06em;color:var(--muted);position:relative;z-index:2}
+    .lang{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+    .lang button{font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;padding:.45rem .8rem;color:var(--muted);transition:all .3s}
+    .lang button.on{background:var(--gold);color:#0a0a0b;font-weight:600}
+    @media (max-width:820px){.foot{grid-template-columns:1fr 1fr}.foot__brand{grid-column:span 2}}
+
+    /* MOBILE DRAWER */
+    .drawer{position:fixed;inset:0;z-index:250;background:rgba(7,7,8,.98);backdrop-filter:blur(14px);transform:translateY(-100%);transition:transform .55s var(--ease),opacity .55s;display:flex;flex-direction:column;padding:6rem var(--pad) 3rem;opacity:0;visibility:hidden;overflow-y:auto}
+    .drawer.open{transform:none;opacity:1;visibility:visible}
+    .drawer a{font-family:var(--display);font-size:2rem;font-weight:300;padding:.65rem 0;border-bottom:1px solid var(--line-2);display:flex;justify-content:space-between;align-items:center}
+    .drawer a span{font-size:.7rem;font-family:var(--body);letter-spacing:.2em;color:var(--gold-dim)}
+    .drawer__cta{margin-top:2rem;display:flex;gap:.7rem}
+    .drawer__cta .btn{flex:1}
+    .drawer__cta.mem-only{display:none}
+    body[data-auth="member"] .drawer__cta.guest-cta{display:none}
+    body[data-auth="member"] .drawer__cta.mem-only{display:flex}
+    .drawer__close{position:absolute;top:1.3rem;right:calc(var(--pad) - .5rem);font-family:var(--display);font-size:1.8rem;line-height:1;color:var(--muted);padding:.6rem}
+
+    /* VIEW-AS */
+    .viewas{position:fixed;z-index:300;left:clamp(1rem,4vw,2rem);bottom:clamp(1rem,4vw,2rem);display:flex;align-items:center;gap:.6rem;background:rgba(17,17,19,.9);border:1px solid var(--line);border-radius:999px;padding:.4rem .5rem .4rem 1rem;backdrop-filter:blur(12px);box-shadow:0 16px 40px -20px #000;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+    .viewas b{color:var(--gold-dim);font-weight:500}
+    .viewas__g{display:flex;background:var(--bg);border-radius:999px;padding:2px}
+    .viewas__b{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:.4rem .8rem;border-radius:999px;transition:all .3s}
+    .viewas__b.on{background:var(--gold);color:#0a0a0b;font-weight:600}
+    @media (max-width:600px){.viewas{display:none}}
+  </style>
+</head>
+<body data-auth="guest">
+
+  <a href="#main" class="skip" data-es="Saltar al contenido">Skip to content</a>
+
+  <div class="cur-dot" id="cdot" aria-hidden="true"></div>
+  <div class="cur-ring" id="cring" aria-hidden="true"><span class="cur-ring__l" id="cringL"></span></div>
+
+  <!-- FOLIO RAIL -->
+  <nav class="folio" id="folio" aria-label="Sections">
+    <a href="#discover" data-folio="discover" aria-label="01 — Discover">01</a>
+    <a href="#statement" data-folio="statement" aria-label="02 — The Impronta way">02</a>
+    <a href="#bestfor" data-folio="bestfor" aria-label="03 — Best for">03</a>
+    <a href="#process" data-folio="process" aria-label="04 — How it works">04</a>
+    <a href="#inquiry" data-folio="inquiry" aria-label="05 — Start an inquiry">05</a>
+    <a href="#talent" data-folio="talent" aria-label="06 — For talent">06</a>
+    <a href="#close" data-folio="close" aria-label="07 — Get started">07</a>
+  </nav>
+
+  <!-- HEADER -->
+  <header class="top" id="top">
+    <a class="brand" href="#top" data-cursor="view" aria-label="Impronta — home">
+      <span class="brand__w">IMPRONTA</span>
+      <span class="brand__f">MX — Nº 01</span>
+    </a>
+    <nav class="nav" aria-label="Primary">
+      <a href="#discover" data-cursor="browse" data-es="Descubre">Discover <span class="gdot" aria-hidden="true"></span></a>
+      <a href="#talent" data-es="Talento">Talent</a>
+      <a href="#inquiry" data-cursor="inquire" data-es="Solicita talento">Start an inquiry <span class="gdot" aria-hidden="true"></span></a>
+    </nav>
+    <div class="slot">
+      <a class="slot__quiet guest u" href="#" data-cursor="view" data-es="Entrar">Sign in</a>
+      <a class="slot__reg guest u" href="#talent" data-cursor="view" data-es="Registro">Register</a>
+      <div class="mem">
+        <a class="mem__msg" href="#" data-cursor="view" data-es="Mensajes">Messages <span class="gdot" aria-hidden="true"></span></a>
+        <a class="mem__dash" href="#" data-cursor="view" data-es="Panel">Dashboard</a>
+        <a href="#" data-cursor="view" aria-label="Your account"><img class="avatar" src="/marketing/photos/impronta-2026/portrait-2.jpg" alt="" /></a>
+      </div>
+      <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="drawer"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <!-- DRAWER -->
+  <div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Menu">
+    <button class="drawer__close" id="drawerClose" aria-label="Close menu">✕</button>
+    <a href="#discover" data-close data-es="Descubre">Discover <span>01</span></a>
+    <a href="#statement" data-close data-es="El método Impronta">The Impronta way <span>02</span></a>
+    <a href="#bestfor" data-close data-es="Ideal para">Best for <span>03</span></a>
+    <a href="#process" data-close data-es="Cómo funciona">How it works <span>04</span></a>
+    <a href="#inquiry" data-close data-es="Inicia una solicitud">Start an inquiry <span>05</span></a>
+    <a href="#talent" data-close data-es="Para talento">For talent <span>06</span></a>
+    <div class="drawer__cta guest-cta">
+      <a href="#" class="btn btn-line guest" data-close data-es="Entrar">Sign in</a>
+      <a href="#talent" class="btn btn-gold" data-close data-es="Registro">Register</a>
+    </div>
+    <div class="drawer__cta mem-only">
+      <a href="#" class="btn btn-line" data-close data-es="Mensajes">Messages</a>
+      <a href="#" class="btn btn-gold" data-close data-es="Panel">Dashboard</a>
+    </div>
+  </div>
+
+  <main id="main" tabindex="-1">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero__l">
+      <p class="hero__fo" data-es="Nº 01 — La Edición de Casting">Nº 01 — The Casting Issue</p>
+      <p class="eyebrow hero__eye" data-es="Models &amp; Talent boutique · CDMX">Boutique Models &amp; Talent · CDMX</p>
+      <h1 class="display hero__h1"
+          data-es-html='<span class="line"><span class="line__i" style="--ld:80ms">Talento,</span></span><span class="line"><span class="line__i" style="--ld:200ms">presentado</span></span><span class="line"><span class="line__i" style="--ld:320ms">con <em class="gw">intención.</em></span></span>'>
+        <span class="line"><span class="line__i" style="--ld:80ms">Talent,</span></span>
+        <span class="line"><span class="line__i" style="--ld:200ms">presented</span></span>
+        <span class="line"><span class="line__i" style="--ld:320ms">with <em class="gw">intention.</em></span></span>
+      </h1>
+      <p class="hero__sub" data-es="Un roster curado de rostros y performers — encontrados con facilidad y gestionados, de principio a fin, por personas. Sin ruido. Sin intermediarios. Solo la presencia correcta para el momento.">A curated roster of faces and performers — found with ease, and managed, end to end, by people. No noise. No intermediaries. Only the right presence for the moment.</p>
+      <form class="find" id="inquiry-field" onsubmit="return false">
+        <svg class="find__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" data-cursor="inquire" placeholder="Describe your campaign, event, or shoot…" data-es-ph="Describe tu campaña, evento o sesión…" aria-label="Describe your campaign, event, or shoot" />
+        <button class="find__btn" type="submit" data-es="Solicitar">Inquire</button>
+      </form>
+      <p class="hero__note" data-es-html='No necesitas cuenta para explorar &nbsp;·&nbsp; <b>La agencia responde en 24 horas</b>'>No account needed to browse &nbsp;·&nbsp; <b>The agency replies within 24 hours</b></p>
+      <div class="cue" data-es="Desliza — comienza la edición">Scroll — the issue begins</div>
+    </div>
+    <div class="hero__r">
+      <div class="hero__img" data-parallax="0.12" style="background-image:url('/marketing/photos/impronta-2026/hero-a.jpg')"></div>
+      <p class="hero__cr" data-es-html='Destacada — <b>Noa V.</b> · Editorial'>Featured — <b>Noa V.</b> · Editorial</p>
+    </div>
+  </section>
+
+  <!-- MARQUEE -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee__track">
+      <span class="marquee__i" data-es="Modelos">Models</span><span class="marquee__i" data-es="Anfitrionas">Hostesses</span><span class="marquee__i" data-es="Bailarines">Dancers</span><span class="marquee__i" data-es="Embajadores">Brand Ambassadors</span><span class="marquee__i" data-es="Performers">Performers</span><span class="marquee__i" data-es="Promotoría">Promotional Staff</span>
+      <span class="marquee__i" data-es="Modelos">Models</span><span class="marquee__i" data-es="Anfitrionas">Hostesses</span><span class="marquee__i" data-es="Bailarines">Dancers</span><span class="marquee__i" data-es="Embajadores">Brand Ambassadors</span><span class="marquee__i" data-es="Performers">Performers</span><span class="marquee__i" data-es="Promotoría">Promotional Staff</span>
+    </div>
+  </div>
+
+  <!-- 01 — DISCOVER / CASTING -->
+  <section class="block wrap" id="discover">
+    <div class="headrow reveal">
+      <div>
+        <p class="eyebrow"><span class="fo">01</span> <span data-es="Descubre el roster">Discover the roster</span></p>
+        <h2 class="display" data-es-html="Mueve la luz<br>por la sala.">Move the light across<br>the room.</h2>
+      </div>
+      <a class="more u" href="#" data-cursor="browse" data-es-html='Ver todo el roster <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>'>View full roster <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+    </div>
+
+    <div class="chips reveal" id="chips">
+      <a class="chip" href="#" data-disc="models" data-cursor="browse"><span class="chip__n" aria-hidden="true">M</span><span data-es="Modelos">Models</span></a>
+      <a class="chip" href="#" data-disc="hostesses" data-cursor="browse"><span class="chip__n" aria-hidden="true">H</span><span data-es="Anfitrionas">Hostesses</span></a>
+      <a class="chip" href="#" data-disc="promotional" data-cursor="browse"><span class="chip__n" aria-hidden="true">P</span><span data-es="Promotoría">Promotional</span></a>
+      <a class="chip" href="#" data-disc="dancers" data-cursor="browse"><span class="chip__n" aria-hidden="true">D</span><span data-es="Bailarines">Dancers</span></a>
+      <a class="chip" href="#" data-disc="ambassadors" data-cursor="browse"><span class="chip__n" aria-hidden="true">A</span><span data-es="Embajadores">Brand Ambassadors</span></a>
+      <a class="chip" href="#" data-disc="performers" data-cursor="browse"><span class="chip__n" aria-hidden="true">★</span><span data-es="Performers">Performers</span></a>
+      <a class="chip chip--ghost" href="#" data-cursor="browse" data-es="+ 4 más">+ 4 more</a>
+    </div>
+
+    <div class="cast reveal" id="cast">
+      <a class="face face--xl" href="#" data-disc="models" data-cursor="view">
+        <div class="face__img" style="background-image:url('/marketing/photos/impronta-2026/portrait-1.jpg')"></div>
+        <span class="face__tag" data-es="Rostro nuevo">New face</span>
+        <div class="face__m"><p class="face__nm">Sofía M.</p><p class="face__rl" data-es="Modelo editorial · CDMX">Editorial Model · CDMX</p><span class="face__go" data-es-html='Ver perfil <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>'>View profile <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span></div>
+      </a>
+      <a class="face" href="#" data-disc="models" data-cursor="view">
+        <div class="face__img" style="background-image:url('/marketing/photos/impronta-2026/portrait-6.jpg')"></div>
+        <div class="face__m"><p class="face__nm">Amélie V.</p><p class="face__rl" data-es="Pasarela · Guadalajara">Runway · Guadalajara</p><span class="face__go" data-es-html='Ver perfil <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>'>View profile <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span></div>
+      </a>
+      <a class="face" href="#" data-disc="ambassadors" data-cursor="view">
+        <div class="face__img" style="background-image:url('/marketing/photos/impronta-2026/portrait-4.jpg')"></div>
+        <div class="face__m"><p class="face__nm">Marco D.</p><p class="face__rl" data-es="Embajador de marca · Monterrey">Brand Ambassador · Monterrey</p><span class="face__go" data-es-html='Ver perfil <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>'>View profile <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span></div>
+      </a>
+      <a class="face" href="#" data-disc="performers" data-cursor="view">
+        <div class="face__img" style="background-image:url('/marketing/photos/impronta-2026/portrait-3.jpg')"></div>
+        <div class="face__m"><p class="face__nm">Lena K.</p><p class="face__rl" data-es="Performer · CDMX">Performer · CDMX</p><span class="face__go" data-es-html='Ver perfil <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>'>View profile <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span></div>
+      </a>
+      <a class="face" href="#" data-disc="hostesses" data-cursor="view">
+        <div class="face__img" style="background-image:url('/marketing/photos/impronta-2026/portrait-5.jpg')"></div>
+        <div class="face__m"><p class="face__nm">Valentina R.</p><p class="face__rl" data-es="Anfitriona · CDMX">Hostess · CDMX</p><span class="face__go" data-es-html='Ver perfil <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>'>View profile <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span></div>
+      </a>
+    </div>
+  </section>
+
+  <!-- PLATE — the runway -->
+  <section class="plate">
+    <div class="plate__img" data-parallax="0.1" aria-hidden="true" style="background-image:url('/marketing/photos/impronta-2026/band-dark.jpg')"></div>
+    <div class="plate__c wrap">
+      <div class="reveal">
+        <div class="plate__no" aria-hidden="true">I.</div>
+        <p class="plate__q" data-es="La pasarela es una frase. Nos aseguramos de que el rostro correcto la diga.">The runway is a sentence. We make sure the right face says it.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 — STATEMENT -->
+  <section class="state" id="statement">
+    <div class="state__grid">
+      <div class="state__media">
+        <div class="ph" data-parallax="0.08" style="background-image:url('/marketing/photos/impronta-2026/atelier-1.jpg')"></div>
+      </div>
+      <div class="state__copy reveal">
+        <p class="eyebrow" style="margin-bottom:1.8rem"><span class="fo">02</span> <span data-es="El método Impronta">The Impronta way</span></p>
+        <p class="state__q" data-es-html="Cada booking lo gestionan <b>personas</b>, no formularios. Hacemos el casting, negociamos, confirmamos — para que lo único que elijas sea el <b>rostro</b>.">Every booking is handled by <b>people</b>, not forms. We cast, we negotiate, we confirm — so the only thing you choose is the <b>face</b>.</p>
+        <p class="state__by" data-es="Clientes bajo reserva — la discreción es parte del servicio">Clients on request — discretion is part of the service</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 — BEST FOR -->
+  <section class="block wrap" id="bestfor">
+    <div class="headrow reveal">
+      <div>
+        <p class="eyebrow"><span class="fo">03</span> <span data-es="Ideal para">Best for</span></p>
+        <h2 class="display" data-es="Encuentra talento por ocasión.">Find talent by occasion.</h2>
+      </div>
+    </div>
+    <div class="uc-grid reveal">
+      <a class="uc" href="#" data-cursor="browse"><span class="uc__l" data-es="Campañas de moda">Fashion Campaigns</span><svg class="uc__a" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+      <a class="uc" href="#" data-cursor="browse"><span class="uc__l" data-es="Lanzamientos de producto">Product Launches</span><svg class="uc__a" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+      <a class="uc" href="#" data-cursor="browse"><span class="uc__l" data-es="Pasarela y showroom">Runway &amp; Showroom</span><svg class="uc__a" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+      <a class="uc" href="#" data-cursor="browse"><span class="uc__l" data-es="Corporativo y galas">Corporate &amp; Galas</span><svg class="uc__a" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+      <a class="uc" href="#" data-cursor="browse"><span class="uc__l" data-es="Ferias y expos">Trade Shows &amp; Expos</span><svg class="uc__a" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+      <a class="uc" href="#" data-cursor="browse"><span class="uc__l" data-es="Hospitalidad y VIP">Hospitality &amp; VIP</span><svg class="uc__a" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+      <a class="uc" href="#" data-cursor="browse"><span class="uc__l" data-es="Sesiones de marca de lujo">Luxury Brand Shoots</span><svg class="uc__a" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+      <a class="uc" href="#" data-cursor="browse"><span class="uc__l" data-es="Automotriz y tech">Automotive &amp; Tech</span><svg class="uc__a" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+      <a class="uc" href="#" data-cursor="browse"><span class="uc__l" data-es="Música y performance">Music &amp; Performance</span><svg class="uc__a" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+    </div>
+  </section>
+
+  <!-- 04 — HOW -->
+  <section class="how" id="process">
+    <div class="block wrap">
+      <div class="headrow reveal" style="justify-content:center;text-align:center">
+        <div>
+          <p class="eyebrow" style="justify-content:center"><span class="fo">04</span> <span data-es="Cómo funciona">How it works</span></p>
+          <h2 class="display" data-es="Tres pasos. Cero fricción.">Three steps. Zero friction.</h2>
+        </div>
+      </div>
+      <div class="steps">
+        <div class="step reveal"><div class="step__n" aria-hidden="true">01</div><h3 class="step__t" data-es="Descubre">Discover</h3><p class="step__b" data-es="Explora el roster por disciplina, ciudad, o simplemente describe el momento — la búsqueda entiende tu intención.">Browse the roster by discipline, city, or simply describe the moment — the search understands intent.</p></div>
+        <div class="step reveal" style="--rd:90ms"><div class="step__n" aria-hidden="true">02</div><h3 class="step__t" data-es="Selecciona">Shortlist</h3><p class="step__b" data-es="Guarda los rostros que encajan. No necesitas cuenta para tu primera selección — mantenla privada y refínala después.">Save the faces that fit. No account required for your first shortlist — keep it private, refine it later.</p></div>
+        <div class="step reveal" style="--rd:180ms"><div class="step__n" aria-hidden="true">03</div><h3 class="step__t" data-es="Solicita">Inquire</h3><p class="step__b" data-es="Envíala a la agencia. Confirmamos disponibilidad, tarifas y logística, y gestionamos el booking hasta el pago.">Send it to the agency. We confirm availability, rates and logistics, and manage the booking through to payout.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 — INQUIRY AS A SENTENCE -->
+  <section class="block wrap saymore" id="inquiry">
+    <p class="eyebrow reveal" style="justify-content:center;margin-bottom:2rem"><span class="fo">05</span> <span data-es="Inicia una solicitud">Start an inquiry</span></p>
+    <h2 class="say reveal"
+        data-es-html='Dinos a quién <a class="brk" href="#inquiry-field" data-magnetic data-cursor="inquire">buscas</a> —<br>del resto nos <a class="brk" href="#inquiry-field" data-magnetic data-cursor="inquire">encargamos</a>.'>Tell us who you're <a class="brk" href="#inquiry-field" data-magnetic data-cursor="inquire">looking&nbsp;for</a> —<br>the rest is ours to <a class="brk" href="#inquiry-field" data-magnetic data-cursor="inquire">handle</a>.</h2>
+    <p class="say__sub reveal" data-es-html='<b>Sin cuenta.</b> &nbsp;Una persona real de la agencia responde en 24 horas.'><b>No account needed.</b> &nbsp;A real person from the agency replies within 24 hours.</p>
+
+    <div class="stats reveal">
+      <div class="stat"><div class="stat__n">101</div><div class="stat__l" data-es="Talentos representados">Talents represented</div></div>
+      <div class="stat"><div class="stat__n">12</div><div class="stat__l" data-es="Ciudades cubiertas">Cities covered</div></div>
+      <div class="stat"><div class="stat__n">&lt;24h</div><div class="stat__l" data-es="Primera respuesta">To first reply</div></div>
+      <div class="stat"><div class="stat__n">100%</div><div class="stat__l" data-es="Gestión de agencia">Agency-managed</div></div>
+    </div>
+  </section>
+
+  <!-- PLATE — the room -->
+  <section class="plate">
+    <div class="plate__img" data-parallax="0.1" aria-hidden="true" style="background-image:url('/marketing/photos/impronta-2026/atelier-3.jpg')"></div>
+    <div class="plate__c wrap">
+      <div class="reveal">
+        <div class="plate__no" aria-hidden="true">II.</div>
+        <p class="plate__q" data-es="Detrás de cada rostro, un equipo responsable de cada detalle.">Behind every face, a room of people answerable for every detail.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 — TALENT -->
+  <section class="block wrap" id="talent">
+    <div class="join reveal">
+      <div class="join__media"><div class="ph" style="background-image:url('/marketing/photos/impronta-2026/portrait-2.jpg')"></div></div>
+      <div class="join__b">
+        <p class="eyebrow"><span class="fo">06</span> <span data-es="Para talento">For talent</span></p>
+        <h2 class="display" data-es-html="Tu rostro pertenece<br>a este roster.">Your face belongs<br>on this roster.</h2>
+        <p data-es="Modelos, anfitriones, bailarines y performers — postúlate para ser representado por Impronta. Un perfil, cada booking gestionado por ti, pagado a tiempo. La selección es por invitación y portafolio.">Models, hosts, dancers and performers — apply to be represented by Impronta. One profile, every booking managed for you, paid on time. Review is by invitation and portfolio.</p>
+        <div class="join__act">
+          <a class="btn btn-gold" href="#" data-magnetic data-cursor="view" data-es="Postúlate">Apply as talent</a>
+          <a class="btn btn-line" href="#" data-cursor="view" data-es="Acceso talento">Talent login</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 — CLOSE -->
+  <section class="block final" id="close">
+    <div class="wrap reveal">
+      <p class="eyebrow" style="justify-content:center;margin-bottom:1.6rem" data-es="Cuando quieras">Ready when you are</p>
+      <h2 class="display" data-es-html='El talento correcto está a una <em class="gw">búsqueda.</em>'>The right talent is one search <em class="gw">away.</em></h2>
+      <p data-es="Gestión de agencia, de la primera solicitud al call sheet final.">Agency-managed from first inquiry to final call sheet.</p>
+      <div class="final__b">
+        <a class="btn btn-gold" href="#discover" data-magnetic data-cursor="browse" data-es="Explora el roster">Browse the roster</a>
+        <a class="btn btn-line" href="#inquiry-field" data-cursor="inquire" data-es="Inicia una solicitud">Start an inquiry</a>
+      </div>
+    </div>
+  </section>
+
+  </main>
+
+  <!-- FOOTER / COLOPHON -->
+  <footer>
+    <div class="wrap">
+      <div class="foot">
+        <div class="foot__brand">
+          <span class="brand__w" style="font-size:1.5rem">IMPRONTA</span>
+          <p class="foot__tag" data-es="Agencia boutique de models &amp; talent en la Ciudad de México. Rostros editoriales y performers, presentados con intención — y gestionados por personas, de la primera solicitud al call sheet final.">A boutique models &amp; talent agency in Ciudad de México. Editorial faces and performers, presented with intention — and managed by people, from first inquiry to final call sheet.</p>
+          <div class="foot__soc">
+            <a class="soc" href="https://www.instagram.com/impronta_models" target="_blank" rel="noopener" title="Instagram" aria-label="Instagram" data-cursor="follow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
+            <a class="soc" href="#" title="TikTok" aria-label="TikTok" data-cursor="follow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 12a4 4 0 1 0 4 4V4c.5 2.5 2.5 4.2 5 4.5"/></svg></a>
+          </div>
+        </div>
+        <div class="foot__col">
+          <h3 data-es="Descubre">Discover</h3>
+          <a href="#discover" data-cursor="browse" data-es="El roster">The roster</a>
+          <a href="#discover" data-cursor="browse" data-es="Por disciplina">By discipline</a>
+          <a href="#bestfor" data-cursor="browse" data-es="Por ocasión">By occasion</a>
+          <a href="#inquiry" data-cursor="inquire" data-es="Inicia una solicitud">Start an inquiry</a>
+        </div>
+        <div class="foot__col">
+          <h3 data-es="Para talento">For talent</h3>
+          <a href="#talent" data-es="Postúlate">Apply as talent</a>
+          <a href="#" data-es="Acceso talento">Talent login</a>
+          <a href="#" data-es="Panel">Dashboard</a>
+          <a href="#" data-es="Mensajes">Messages</a>
+        </div>
+        <div class="foot__col" id="accountCol">
+          <h3 data-es="Cuenta">Account</h3>
+          <a class="guest" href="#" data-es="Entrar">Sign in</a>
+          <a class="guest" href="#talent" data-es="Registro">Register</a>
+          <a class="mem-link" href="#" style="display:none" data-es="Mensajes">Messages</a>
+          <a class="mem-link" href="#" style="display:none" data-es="Panel">Dashboard</a>
+          <a href="#" data-es="Contacto">Contact</a>
+        </div>
+      </div>
+      <div class="foot__word" aria-hidden="true">IMPRONTA</div>
+    </div>
+    <div class="foot__base">
+      <span>© <span id="yr">2026</span> Impronta Models &amp; Talent · Ciudad de México · <span data-es="Hecho con Tulala">Powered by Tulala</span></span>
+      <span style="display:inline-flex;align-items:center;gap:.8rem">
+        <span class="lang" role="group" aria-label="Language"><button class="on" data-lang="en" aria-pressed="true">EN</button><button data-lang="es" aria-pressed="false">ES</button></span>
+        Hecho en CDMX
+      </span>
+    </div>
+  </footer>
+
+  <!-- VIEW-AS -->
+  <div class="viewas">
+    <b>Header · view as</b>
+    <div class="viewas__g" role="group" aria-label="Preview header as">
+      <button class="viewas__b on" data-as="guest" aria-pressed="true">Guest</button>
+      <button class="viewas__b" data-as="member" aria-pressed="false">Member</button>
+    </div>
+  </div>
+
+  <script>
+    var RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var FINE = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    document.getElementById('yr').textContent = new Date().getFullYear();
+
+    // hero line-mask reveal + gold-word warm. rAF drives the smooth animation for real
+    // viewers; a hard fallback force-sets the final visible state after the animation
+    // window so the headline can NEVER stay hidden if rAF/transitions are throttled.
+    function heroReveal(){ var h=document.querySelector('.hero'); if(h) h.classList.add('ready'); }
+    function heroForce(){
+      document.querySelectorAll('.hero__h1 .line__i').forEach(function(li){ li.style.transition='none'; li.style.opacity='1'; li.style.transform='none'; });
+      document.querySelectorAll('.hero__h1 .gw').forEach(function(g){ g.style.transition='none'; g.style.color='var(--gold)'; });
+    }
+    if(RM){ heroReveal(); heroForce(); }
+    else { requestAnimationFrame(function(){ requestAnimationFrame(heroReveal); }); setTimeout(heroReveal, 220); setTimeout(heroForce, 1700); }
+    window.addEventListener('load', heroReveal);
+
+    // header: condense + hide-on-down/reveal-on-up
+    // NOTE: do not name this 'top' — that collides with the read-only global window.top.
+    var hdrBar = document.getElementById('top'), lastY = 0;
+    function hdr(){
+      var y = window.scrollY;
+      hdrBar.classList.toggle('scrolled', y > 40);
+      if (y > 520 && y > lastY + 4) hdrBar.classList.add('hidden');
+      else if (y < lastY - 4 || y < 520) hdrBar.classList.remove('hidden');
+      lastY = y;
+    }
+    hdr(); window.addEventListener('scroll', hdr, {passive:true});
+
+    // reveals — IntersectionObserver animates each element in as it enters the viewport
+    var io = new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } }); }, {threshold:.16, rootMargin:'0px 0px -7% 0px'});
+    document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+    // Safety net: IntersectionObserver does NOT fire while a tab is hidden (background tab,
+    // headless preview, prerender). Nobody is watching the animation then, so just show the
+    // content — it must never be stuck at opacity:0. Visible viewers are unaffected.
+    function revealAll(){ document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); el.style.transition='none'; el.style.opacity='1'; el.style.transform='none'; el.style.filter='none'; }); }
+    if (RM || document.hidden) revealAll();
+    document.addEventListener('visibilitychange', function(){ if (document.hidden) revealAll(); });
+
+    // folio rail active state
+    var folioLinks = {};
+    document.querySelectorAll('.folio a').forEach(function(a){ folioLinks[a.dataset.folio] = a; });
+    var spy = new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(e.isIntersecting){
+          Object.values(folioLinks).forEach(function(a){ a.classList.remove('active'); });
+          var id = e.target.id; if(folioLinks[id]) folioLinks[id].classList.add('active');
+        }
+      });
+    }, {threshold:.0, rootMargin:'-45% 0px -45% 0px'});
+    ['discover','statement','bestfor','process','inquiry','talent','close'].forEach(function(id){ var el=document.getElementById(id); if(el) spy.observe(el); });
+
+    // casting-light: hover face OR discipline chip -> spotlight matching, dim rest.
+    // Guard: if a chip matches NO faces (e.g. Promotional/Dancers), do nothing rather
+    // than dimming the whole roster into a broken-looking empty state.
+    var cast = document.getElementById('cast');
+    var faces = [].slice.call(document.querySelectorAll('#cast .face'));
+    function spotlight(test){ cast.classList.add('live'); faces.forEach(function(f){ f.classList.toggle('lit', test(f)); }); }
+    function clearLight(){ cast.classList.remove('live'); faces.forEach(function(f){ f.classList.remove('lit'); }); }
+    faces.forEach(function(f){ f.addEventListener('mouseenter', function(){ spotlight(function(x){ return x===f; }); }); });
+    cast.addEventListener('mouseleave', clearLight);
+    document.querySelectorAll('#chips .chip[data-disc]').forEach(function(c){
+      c.addEventListener('mouseenter', function(){
+        var d=c.dataset.disc;
+        if(faces.some(function(x){ return x.dataset.disc===d; })){ spotlight(function(x){ return x.dataset.disc===d; }); c.classList.add('on'); }
+      });
+      c.addEventListener('mouseleave', function(){ clearLight(); c.classList.remove('on'); });
+    });
+
+    // view-as toggle (guest / member header + footer account column)
+    document.querySelectorAll('.viewas__b').forEach(function(b){
+      b.addEventListener('click', function(){
+        document.querySelectorAll('.viewas__b').forEach(function(x){ x.classList.remove('on'); x.setAttribute('aria-pressed','false'); });
+        b.classList.add('on'); b.setAttribute('aria-pressed','true');
+        document.body.setAttribute('data-auth', b.dataset.as);
+        var mem = b.dataset.as==='member';
+        document.querySelectorAll('#accountCol .guest').forEach(function(a){ a.style.display = mem?'none':'block'; });
+        document.querySelectorAll('#accountCol .mem-link').forEach(function(a){ a.style.display = mem?'block':'none'; });
+      });
+    });
+
+    // mobile drawer: open/close with scroll-lock, Escape, focus management, aria state
+    var drawer = document.getElementById('drawer'), burger = document.getElementById('burger'), drawerClose = document.getElementById('drawerClose');
+    function openDrawer(){ drawer.classList.add('open'); document.body.style.overflow='hidden'; burger.setAttribute('aria-expanded','true'); drawerClose.focus(); }
+    function closeDrawer(){ drawer.classList.remove('open'); document.body.style.overflow=''; burger.setAttribute('aria-expanded','false'); }
+    burger.addEventListener('click', openDrawer);
+    drawerClose.addEventListener('click', closeDrawer);
+    document.querySelectorAll('[data-close]').forEach(function(a){ a.addEventListener('click', closeDrawer); });
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape' && drawer.classList.contains('open')){ closeDrawer(); burger.focus(); } });
+
+    // inert mock links: keep '#' from jumping the page to the top on activation
+    document.querySelectorAll('a[href="#"]').forEach(function(a){ a.addEventListener('click', function(e){ e.preventDefault(); }); });
+
+    // ── i18n: real EN/ES toggle ──────────────────────────────────────────────
+    function applyLang(lang){
+      var es = lang === 'es';
+      document.documentElement.lang = lang;
+      document.querySelectorAll('[data-es]').forEach(function(el){
+        if(el.getAttribute('data-en')===null) el.setAttribute('data-en', el.textContent);
+        el.textContent = es ? el.getAttribute('data-es') : el.getAttribute('data-en');
+      });
+      document.querySelectorAll('[data-es-html]').forEach(function(el){
+        if(el.getAttribute('data-en-html')===null) el.setAttribute('data-en-html', el.innerHTML);
+        el.innerHTML = es ? el.getAttribute('data-es-html') : el.getAttribute('data-en-html');
+      });
+      document.querySelectorAll('[data-es-ph]').forEach(function(el){
+        if(el.getAttribute('data-en-ph')===null) el.setAttribute('data-en-ph', el.getAttribute('placeholder')||'');
+        el.setAttribute('placeholder', es ? el.getAttribute('data-es-ph') : el.getAttribute('data-en-ph'));
+      });
+      document.querySelectorAll('.lang button').forEach(function(b){ var on=b.dataset.lang===lang; b.classList.toggle('on',on); b.setAttribute('aria-pressed', on?'true':'false'); });
+      bindFX(); // re-attach cursor/magnetic to nodes recreated by innerHTML swaps
+    }
+    document.querySelectorAll('.lang button').forEach(function(b){ b.addEventListener('click', function(){ applyLang(b.dataset.lang); }); });
+
+    // parallax (rAF-throttled). NOTE: no element carries both data-parallax and .reveal,
+    // so the inline transform here never fights the reveal animation.
+    if(!RM){
+      var px = [].slice.call(document.querySelectorAll('[data-parallax]'));
+      var ticking=false;
+      function par(){
+        var vh = window.innerHeight;
+        px.forEach(function(el){
+          var r = el.parentElement.getBoundingClientRect();
+          var prog = (r.top + r.height/2 - vh/2) / vh;
+          var f = parseFloat(el.dataset.parallax) || .1;
+          el.style.transform = 'translateY(' + (prog * f * 100).toFixed(2) + 'px)';
+        });
+        ticking=false;
+      }
+      window.addEventListener('scroll', function(){ if(!ticking){ requestAnimationFrame(par); ticking=true; } }, {passive:true});
+      par();
+    }
+
+    // custom cursor + labels + magnetic. bindFX is idempotent (guards via _fx) so it can be
+    // re-run after a language swap recreates [data-cursor]/[data-magnetic] nodes.
+    var ring, ringL;
+    var LBL={view:'View',inquire:'Inquire',browse:'Browse',follow:'Follow'};
+    function bindFX(){
+      if(!(FINE && !RM)) return;
+      document.querySelectorAll('[data-cursor]').forEach(function(el){
+        if(el._fx) return; el._fx=true;
+        el.addEventListener('mouseenter', function(){ ring.classList.add('lbl'); ringL.textContent = LBL[el.dataset.cursor]||''; });
+        el.addEventListener('mouseleave', function(){ ring.classList.remove('lbl'); ringL.textContent=''; });
+      });
+      document.querySelectorAll('a:not([data-cursor]),button:not([data-cursor]),input').forEach(function(el){
+        if(el._fx) return; el._fx=true;
+        el.addEventListener('mouseenter', function(){ ring.classList.add('lbl'); });
+        el.addEventListener('mouseleave', function(){ ring.classList.remove('lbl'); });
+      });
+      document.querySelectorAll('[data-magnetic]').forEach(function(el){
+        if(el._mag) return; el._mag=true;
+        el.addEventListener('mousemove', function(e){
+          var r=el.getBoundingClientRect();
+          var mx=e.clientX-(r.left+r.width/2), my=e.clientY-(r.top+r.height/2);
+          var tx=Math.max(-8,Math.min(8,mx*.25)), ty=Math.max(-8,Math.min(8,my*.25));
+          el.style.transform='translate('+tx+'px,'+ty+'px)';
+        });
+        el.addEventListener('mouseleave', function(){ el.style.transform=''; });
+      });
+    }
+    if(FINE && !RM){
+      document.body.classList.add('cursor-custom');
+      var dot=document.getElementById('cdot'); ring=document.getElementById('cring'); ringL=document.getElementById('cringL');
+      var rx=0,ry=0,dx=0,dy=0;
+      window.addEventListener('mousemove', function(e){ dx=e.clientX; dy=e.clientY; dot.style.transform='translate('+dx+'px,'+dy+'px) translate(-50%,-50%)'; });
+      (function loop(){ rx+=(dx-rx)*.16; ry+=(dy-ry)*.16; ring.style.transform='translate('+rx+'px,'+ry+'px) translate(-50%,-50%)'; requestAnimationFrame(loop); })();
+      bindFX();
+    }
+  </script>
+</body>
+</html>

@@ -138,6 +138,27 @@
       "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web && NODE_ENV=development PORT=3000 npm run dev"],
       "port": 3000,
       "autoPort": false
+    },
+    {
+      "name": "Impronta Models Mockup (4520)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web/public/impronta-mockup && python3 -m http.server 4520"],
+      "port": 4520,
+      "autoPort": true
+    },
+    {
+      "name": "Impronta Atelier Blanc (4521)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web/public/impronta-mockup-2 && python3 -m http.server 4521"],
+      "port": 4521,
+      "autoPort": true
+    },
+    {
+      "name": "Impronta Noir & Or (4522)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web/public/impronta-mockup-3 && python3 -m http.server 4522"],
+      "port": 4522,
+      "autoPort": true
     }
   ]
 }

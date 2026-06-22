@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Board — Impronta Models</title>
+  <meta name="description" content="Browse the Impronta Models board — women, men, and new faces across Tulum, Mexico City, Ibiza and beyond." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/impronta.css" />
+</head>
+<body>
+
+  <!-- NAV (solid) -->
+  <header class="nav nav--solid">
+    <a class="nav__brand" href="index.html">IMPRONTA</a>
+    <nav class="nav__links">
+      <a href="roster.html" data-en="Models" data-es="Modelos">Models</a>
+      <a href="roster.html" data-en="Talent" data-es="Talento">Talent</a>
+      <a href="index.html#campaigns" data-en="Campaigns" data-es="Campañas">Campaigns</a>
+      <a href="about.html" data-en="About" data-es="Nosotros">About</a>
+      <a href="about.html#contact" data-en="Contact" data-es="Contacto">Contact</a>
+    </nav>
+    <div class="nav__right">
+      <div class="lang"><button data-lang="en" class="on">EN</button><span>/</span><button data-lang="es">ES</button></div>
+      <a href="about.html#contact" class="btn btn--light btn--sm" data-en="Book a face" data-es="Reservar">Book a face</a>
+      <button class="burger" aria-label="Menu"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <div class="mobile-menu">
+    <a href="roster.html" data-en="Models" data-es="Modelos">Models</a>
+    <a href="index.html#campaigns" data-en="Campaigns" data-es="Campañas">Campaigns</a>
+    <a href="about.html" data-en="About" data-es="Nosotros">About</a>
+    <a href="about.html#contact" data-en="Contact" data-es="Contacto">Contact</a>
+    <div class="mm-foot">Tulum · Mexico City · Ibiza</div>
+  </div>
+
+  <!-- PAGE HEAD -->
+  <section class="wrap page-head">
+    <span class="eyebrow" data-en="The board" data-es="El board">The board</span>
+    <h1 data-en="Every face we represent." data-es="Todos los rostros que representamos.">Every face we represent.</h1>
+    <p data-en="Filter by division and city, or search a name. Hover a card for measurements, then open the full portfolio." data-es="Filtra por división y ciudad, o busca un nombre. Pasa el cursor para ver medidas y abre el portafolio.">Filter by division and city, or search a name. Hover a card for measurements, then open the full portfolio.</p>
+  </section>
+
+  <!-- FILTER BAR -->
+  <div class="filterbar">
+    <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;width:100%;padding-inline:var(--pad)">
+      <div class="tabs">
+        <button class="tab on" data-div="all" data-en="All" data-es="Todos">All</button>
+        <button class="tab" data-div="women" data-en="Women" data-es="Mujeres">Women</button>
+        <button class="tab" data-div="men" data-en="Men" data-es="Hombres">Men</button>
+        <button class="tab" data-div="new" data-en="New Faces" data-es="Caras Nuevas">New Faces</button>
+      </div>
+      <div class="filter-right">
+        <div class="selectwrap">
+          <select id="cityFilter" aria-label="Filter by city">
+            <option value="all" data-en="All cities" data-es="Todas las ciudades">All cities</option>
+          </select>
+        </div>
+        <div class="searchwrap">
+          <input id="searchInput" type="search" placeholder="Search name" data-attr="placeholder" data-en="Search name" data-es="Buscar nombre" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOARD (rendered by JS) -->
+  <section class="wrap">
+    <div class="board" id="board"></div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="foot">
+    <div class="wrap">
+      <div class="foot__top">
+        <div>
+          <div class="foot__brand">IMPRONTA</div>
+          <p data-en="A Tulum-born talent agency representing faces for runway, editorial, and campaign across Mexico and Europe." data-es="Agencia de talento nacida en Tulum que representa rostros para pasarela, editorial y campaña en México y Europa.">A Tulum-born talent agency representing faces for runway, editorial, and campaign across Mexico and Europe.</p>
+        </div>
+        <div><h4 data-en="Agency" data-es="Agencia">Agency</h4><ul><li><a href="roster.html" data-en="The board" data-es="El board">The board</a></li><li><a href="index.html#campaigns" data-en="Campaigns" data-es="Campañas">Campaigns</a></li><li><a href="about.html" data-en="About" data-es="Nosotros">About</a></li></ul></div>
+        <div><h4 data-en="Studios" data-es="Estudios">Studios</h4><ul><li><a href="#">Tulum</a></li><li><a href="#">Mexico City</a></li><li><a href="#">Ibiza</a></li></ul></div>
+        <div><h4 data-en="Connect" data-es="Conecta">Connect</h4><ul><li><a href="#">Instagram</a></li><li><a href="#">TikTok</a></li><li><a href="about.html#contact" data-en="Bookings" data-es="Reservas">Bookings</a></li></ul></div>
+      </div>
+      <div class="foot__bottom">
+        <span>© 2026 Impronta Models</span>
+        <div class="lang"><button data-lang="en" class="on">EN</button><span>/</span><button data-lang="es">ES</button></div>
+        <span class="pw">Powered by <em>Tulala</em></span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/impronta.js"></script>
+</body>
+</html>
