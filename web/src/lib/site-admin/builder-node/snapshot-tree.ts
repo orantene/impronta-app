@@ -187,6 +187,11 @@ export function builderSectionNodeAddressKey(
 export function resolveSnapshotBuilderTree(
   snapshot: SnapshotWithBuilderTree,
 ): SnapshotBuilderTreeResolution {
+  // `slots` is typed required, but an edit-mode draft snapshot built from a
+  // pure builderTree (e.g. the agency homepage in edit mode) can arrive with it
+  // undefined — which crashed the canvas at `.some(...)`. Normalize to [] so the
+  // resolver never throws and the legacy-slot helpers just see "no legacy slots".
+  const slots = snapshot.slots ?? [];
   if (snapshot.builderTree != null) {
     const parsed = validateBuilderNodeTree(snapshot.builderTree);
     if (parsed.ok) {
@@ -197,7 +202,7 @@ export function resolveSnapshotBuilderTree(
       // not drop orphan snapshot sections when `slots` is empty (legacy tests).
       let tree = parsed.tree;
       const sectionIndex = indexBuilderSectionNodeIds(tree);
-      const hasSlotMissingFromTree = snapshot.slots.some((slot) => {
+      const hasSlotMissingFromTree = slots.some((slot) => {
         const key = builderSectionNodeAddressKey({
           sectionId: slot.sectionId,
           slotKey: slot.slotKey,
@@ -206,11 +211,11 @@ export function resolveSnapshotBuilderTree(
         return Boolean(key && !sectionIndex.has(key));
       });
       if (hasSlotMissingFromTree) {
-        tree = reconcileBuilderTreeWithLegacySlots(tree, snapshot.slots);
+        tree = reconcileBuilderTreeWithLegacySlots(tree, slots);
       }
       tree = migrateMonolithicTalentTypeGridEmbeds(
         migrateUnboundGallerySectionsToContainers(
-          hydrateLegacySectionChildren(tree, snapshot.slots),
+          hydrateLegacySectionChildren(tree, slots),
         ),
       );
       return {
@@ -219,7 +224,7 @@ export function resolveSnapshotBuilderTree(
         issues: [],
       };
     }
-    const fallback = buildLegacySectionBuilderTree(snapshot.slots);
+    const fallback = buildLegacySectionBuilderTree(slots);
     return {
       source: "legacy_slots",
       tree: fallback,
@@ -229,7 +234,7 @@ export function resolveSnapshotBuilderTree(
 
   return {
     source: "legacy_slots",
-    tree: buildLegacySectionBuilderTree(snapshot.slots),
+    tree: buildLegacySectionBuilderTree(slots),
     issues: [],
   };
 }
@@ -246,7 +251,7 @@ export function resolveSnapshotBuilderTreeForPublish(
   }
   const alignmentIssues = validateBuilderTreeSectionSlotAlignment(
     resolved.tree,
-    snapshot.slots,
+    snapshot.slots ?? [],
   );
   if (alignmentIssues.length > 0) {
     return {
