@@ -245,6 +245,9 @@ const LAYOUT_PRESETS: ReadonlyArray<PresetSpec> = [
       { value: "mesh-noir", label: "Mesh noir" },
       { value: "mesh-aurora", label: "Mesh aurora" },
       { value: "noise-animated", label: "Noise (animated)" },
+      { value: "noir-or", label: "Noir & Or" },
+      { value: "espresso", label: "Espresso" },
+      { value: "atelier-blanc", label: "Atelier Blanc" },
     ],
   },
 ];
@@ -1016,6 +1019,9 @@ const BACKGROUND_MODE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "mesh-noir", label: "Mesh noir" },
   { value: "mesh-aurora", label: "Mesh aurora" },
   { value: "noise-animated", label: "Noise (animated)" },
+  { value: "noir-or", label: "Noir & Or" },
+  { value: "espresso", label: "Espresso" },
+  { value: "atelier-blanc", label: "Atelier Blanc" },
 ];
 
 function ColorsTab({

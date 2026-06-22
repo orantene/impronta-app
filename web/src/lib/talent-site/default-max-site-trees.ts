@@ -36,51 +36,62 @@ export function buildDefaultShellTree(
   makeId: NodeIdFactory = defaultIdFactory,
 ): BuilderNode[] {
   const homeHref = input.homeHref ?? "/";
+  // Premium shell header — the rich `site_header` section reused on talent Max
+  // sites as a self-contained landmark (config carried inline on the node so the
+  // tree stays portable; rendered via the bespoke SiteHeaderComponent in
+  // render-max-site.tsx). Transparent over the hero → blurred solid bar on
+  // scroll. Brand/logo are passed explicitly so the agency-scoped identity reads
+  // are skipped (the header shows the TALENT's name, not the managing agency's).
+  const headerConfig: Record<string, unknown> = {
+    brand: {
+      label: input.displayName,
+      logoUrl: input.logoUrl ?? undefined,
+      logoAlt: input.displayName,
+      href: homeHref,
+    },
+    brandDisplay: input.logoUrl ? "image-and-text" : "text",
+    navItems: [{ label: "Home", href: homeHref }],
+    primaryCta: { label: "Inquire", href: "/contact" },
+    sticky: true,
+    tone: "transparent",
+    scrollTone: "solid",
+    scrollThresholdPx: 40,
+    variant: "standard",
+    socialLinks: [],
+    contactLinks: [],
+    authArea: {
+      showAccountMenu: false,
+      showLanguageToggle: true,
+      showDiscoveryTools: false,
+    },
+    // WF-5 — compose the header as fully-freeform left/center/right regions.
+    // Items reference the config above; social/phone/saved/inquiry no-op
+    // gracefully until the talent adds those channels. Per-breakpoint responsive
+    // collapses the row into the hamburger on mobile (brand stays in the bar).
+    regions: {
+      left: [{ type: "wordmark" }],
+      center: [{ type: "nav", responsive: { mobile: "menu" } }],
+      right: [
+        { type: "language", responsive: { mobile: "menu" } },
+        { type: "social", responsive: { tablet: "icon", mobile: "menu" } },
+        { type: "phone", responsive: { desktop: "label", mobile: "menu" } },
+        { type: "saved", responsive: { mobile: "menu" } },
+        { type: "inquiry", showCount: true },
+        { type: "cta", label: "Inquire", href: "/contact", responsive: { mobile: "menu" } },
+      ],
+    },
+  };
   const header: BuilderNode = {
     id: makeId(),
-    kind: "container",
+    kind: "section",
     props: {
-      layout: "row",
-      align: "center",
-      gap: "m",
-      layerLabel: "Header",
+      sectionTypeKey: "site_header",
+      slotKey: "header",
+      sortOrder: 0,
+      label: "Header",
+      sectionProps: headerConfig,
     },
-    children: [
-      // SINGLE brand slot — the header logo (image when a `logoUrl` is set,
-      // otherwise the display-name wordmark). This is the ONE place the brand
-      // renders. The `nav` node below deliberately carries NO `brand`/`brandHref`
-      // so the brand is not painted twice (the nav renderer would otherwise
-      // render `brand` as a second bolded link beside this logo).
-      input.logoUrl
-        ? ({
-            id: makeId(),
-            kind: "image",
-            props: {
-              src: input.logoUrl,
-              alt: input.displayName,
-              layerLabel: "Logo",
-              priority: true,
-            },
-          } satisfies BuilderNode)
-        : ({
-            id: makeId(),
-            kind: "heading",
-            props: {
-              text: input.displayName,
-              level: 2,
-              layerLabel: "Wordmark",
-            },
-          } satisfies BuilderNode),
-      {
-        id: makeId(),
-        kind: "nav",
-        props: {
-          // No `brand`/`brandHref` — the header logo above is the sole brand.
-          ariaLabel: "Primary",
-          links: [{ id: makeId(), label: "Home", href: homeHref }],
-        },
-      },
-    ],
+    children: [],
   };
 
   const footer: BuilderNode = {

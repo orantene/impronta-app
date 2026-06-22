@@ -25,6 +25,10 @@ import {
   tplTestimonialCard,
   tplTitle,
 } from "./section-template-nodes";
+import {
+  buildHeroSlider,
+  buildStoryHouse,
+} from "./section-templates-freeform";
 
 function buildHeroCentered(): BuilderNode {
   return tplSection("Hero Centered Section", [
@@ -617,6 +621,9 @@ function buildContactForm(): BuilderNode {
   ]);
 }
 
+// `buildHeroSlider` (freeform per-slide carousel hero) and `buildStoryHouse`
+// (editorial origin-story split) live in ./section-templates-freeform to keep
+// this file under the 800-line cap; both are keyed into the map below.
 const SECTION_TEMPLATE_BUILDERS: Readonly<
   Record<string, () => BuilderNode>
 > = {
@@ -624,11 +631,13 @@ const SECTION_TEMPLATE_BUILDERS: Readonly<
   "hero-centered": buildHeroCentered,
   "hero-split": buildHeroSplit,
   "hero-minimal": buildHeroMinimal,
+  "hero-slider": buildHeroSlider,
   "hero-spotlight": buildHeroSpotlight,
   "hero-search": buildHeroSearch,
   about: buildAboutSimple,
   "about-split": buildAboutSplit,
   "about-stats": buildAboutStats,
+  "story-house": buildStoryHouse,
   services: buildServicesGrid,
   "services-list": buildServicesList,
   gallery: buildGalleryGrid,

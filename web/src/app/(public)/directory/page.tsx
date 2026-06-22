@@ -6,7 +6,7 @@ import { DirectoryInquiryUrlSync } from "@/components/directory/directory-inquir
 import { DiscoveryStateBridge } from "@/components/directory/public-discovery-state";
 import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import { PublicHeader } from "@/components/public-header";
-import { PublicCmsFooterNav } from "@/components/public-cms-footer";
+import { PublicFooter } from "@/components/public-footer";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getSavedTalentIds } from "@/lib/public-discovery";
 import { getPublicTenantScope } from "@/lib/saas/scope";
@@ -59,11 +59,7 @@ export default async function DirectoryPage() {
             {t("public.directory.configMissingBody")}
           </p>
         </div>
-        <footer className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
-            <PublicCmsFooterNav locale={locale} />
-          </div>
-        </footer>
+        <PublicFooter className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8" />
       </>
     );
   }
@@ -79,11 +75,7 @@ export default async function DirectoryPage() {
             {t("public.directory.pausedBody")}
           </p>
         </div>
-        <footer className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
-            <PublicCmsFooterNav locale={locale} />
-          </div>
-        </footer>
+        <PublicFooter className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8" />
       </>
     );
   }
@@ -153,11 +145,7 @@ export default async function DirectoryPage() {
           />
         </div>
       )}
-      <footer className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
-          <PublicCmsFooterNav locale={locale} />
-        </div>
-      </footer>
+      <PublicFooter className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8" />
       {/* Floating "Message {agency}" guest-chat launcher — self-gates on the
           tenant's guest-chat settings (enabled + show-on-directory). */}
       <AgencyChatLauncherMount sourcePage="/directory" />

@@ -20,6 +20,15 @@ import {
   createGalleryStripPreset,
   createNewsletterSignupPreset,
 } from "./composition-preset-factories";
+import { createMarqueeTickerPreset } from "./composition-preset-factories-noir";
+import { createFooterEditorialPreset } from "./composition-preset-factories-noir-footer";
+import { createFeaturedFacesBoardPreset } from "./composition-preset-factories-noir-featured";
+import { createTestimonialsTrioPreset } from "./composition-preset-factories-noir-testimonials";
+import { createStatBandEditorialPreset } from "./composition-preset-factories-noir-stats";
+import { createCampaignsLookbookRailPreset } from "./composition-preset-factories-noir-campaigns";
+import { createCtaBannerSpotlightPreset } from "./composition-preset-factories-noir-cta";
+import { createDivisionsRowPreset } from "./composition-preset-factories-noir-divisions";
+import { createImprontaNoirHomePreset } from "./composition-preset-factories-noir-home";
 import {
   createTeamGridPreset,
   createProcessStepsPreset,
@@ -56,7 +65,16 @@ export type BuilderNodeCompositionPresetId =
   | "production-agency"
   | "saas-product"
   | "print-store"
-  | "live-event";
+  | "live-event"
+  | "marquee-ticker"
+  | "footer-editorial"
+  | "featured-faces-board"
+  | "testimonials-trio"
+  | "stat-band-editorial"
+  | "campaigns-lookbook"
+  | "cta-banner-spotlight"
+  | "divisions-row"
+  | "impronta-noir-home";
 
 export interface BuilderNodeCompositionPreset {
   id: BuilderNodeCompositionPresetId;
@@ -300,6 +318,107 @@ export const BUILDER_NODE_COMPOSITION_PRESETS: ReadonlyArray<BuilderNodeComposit
     keywords: ["page", "full page", "template", "event", "festival", "lineup", "schedule", "tickets", "music"],
     sectionCount: 6,
   },
+  {
+    id: "marquee-ticker",
+    label: "Disciplines marquee",
+    description:
+      "Scrolling Noir & Or ticker of discipline words split by gold slashes — pauses on hover, static under reduced-motion. Every word is editable.",
+    rootKind: "container",
+    category: "page",
+    dataMode: "starter",
+    keywords: ["marquee", "ticker", "scroll", "strip", "disciplines", "specialties", "band"],
+    sectionCount: 1,
+  },
+  {
+    id: "footer-editorial",
+    label: "Editorial footer",
+    description:
+      "Noir & Or site-shell footer — oversized champagne wordmark + tagline, three nav columns, social row, gold hairline, and a © / EN-ES toggle / Powered by Tulala bottom bar. Every node editable; EN/ES baked in.",
+    rootKind: "container",
+    category: "page",
+    dataMode: "starter",
+    keywords: ["footer", "site shell", "nav", "social", "bottom", "wordmark", "links", "tulala"],
+    sectionCount: 1,
+  },
+  {
+    id: "featured-faces-board",
+    label: "Featured faces board",
+    description:
+      "Noir & Or roster showcase — split header over an asymmetric 12-col mosaic of 8 editorial face cards (hero + tiles) with champagne indices, name/city captions, hover zoom, and a See-all link. Every node editable; EN/ES baked in.",
+    rootKind: "container",
+    category: "data",
+    dataMode: "starter",
+    keywords: ["featured", "faces", "roster", "talent", "mosaic", "grid", "board", "models"],
+    sectionCount: 1,
+  },
+  // NB: ships MANUAL (8 hand-placed cards, no dataBinding). The live-roster
+  // binding is a flagged owner option, so dataMode is "starter" not "data-ready".
+  {
+    id: "testimonials-trio",
+    label: "Testimonials trio",
+    description:
+      "Dark Noir & Or band — champagne eyebrow, Cormorant headline, and three outline quote cards that lift to a gold border on hover. Manual editorial quotes, EN/ES seeded.",
+    rootKind: "container",
+    category: "trust",
+    dataMode: "starter",
+    keywords: ["testimonials", "quotes", "reviews", "social proof", "trust", "clients"],
+    sectionCount: 1,
+  },
+  {
+    id: "stat-band-editorial",
+    label: "By the numbers",
+    description:
+      "Editorial proof row — four stats split by gold hairlines on the warm ground (no filled card), big Cormorant numbers with italic-champagne accents over tiny uppercase labels. 4-up to 2x2.",
+    rootKind: "container",
+    category: "trust",
+    dataMode: "starter",
+    keywords: ["stats", "numbers", "metrics", "proof", "editorial", "hairline", "kpi"],
+    sectionCount: 4,
+  },
+  {
+    id: "campaigns-lookbook",
+    label: "Campaigns & lookbooks rail",
+    description:
+      "Horizontal-scroll Noir & Or recent-work rail — six 4:5 campaign cards (brand serif / champagne season caption, gold hairline) under a 60-40 section head. Scroll-snap + a 3px gold scrollbar. Every card and caption is editable. Ships manual; live cms_posts binding is a flagged owner option.",
+    rootKind: "container",
+    category: "story",
+    dataMode: "starter",
+    keywords: ["campaigns", "lookbook", "rail", "carousel", "portfolio", "recent work", "scroll", "editorial"],
+    sectionCount: 1,
+  },
+  {
+    id: "cta-banner-spotlight",
+    label: "Leave your imprint CTA",
+    description:
+      "Full-bleed Noir & Or pre-footer conversion banner — cover portrait under a dark scrim + inset champagne hairline, champagne eyebrow, display 'Leave your imprint.' (imprint. italic champagne), copy, and a dual CTA (gold 'Cast Impronta' to /directory + outline 'Get scouted' to /join). Every node editable; EN/ES baked in.",
+    rootKind: "container",
+    category: "conversion",
+    dataMode: "starter",
+    keywords: ["cta", "banner", "conversion", "inquiry", "scout", "imprint", "pre-footer"],
+    sectionCount: 1,
+  },
+  {
+    id: "divisions-row",
+    label: "Divisions row",
+    description:
+      "Noir & Or 'Find your cast.' — eyebrow + serif H2 over a full-bleed 5-up row of tall portrait tiles (Women / Men / New Faces / Influence / Events), each a real editorial portrait under a bottom-up scrim with a serif name + champagne index/arrow, hover zoom/colorize, and an invisible full-tile link into /directory. 5 to 3 to 2 column reflow; every node editable; EN/ES baked in.",
+    rootKind: "container",
+    category: "data",
+    dataMode: "starter",
+    keywords: ["divisions", "categories", "cast", "roster", "directory", "tiles", "grid", "talent"],
+    sectionCount: 1,
+  },
+  {
+    id: "impronta-noir-home",
+    label: "Impronta — Noir homepage",
+    description:
+      "The full Noir & Or homepage as one page — hero slider, disciplines marquee, featured board, divisions, story house, campaigns rail, stats, testimonials, CTA, and footer. Drops the whole design; every section is an editable freeform block.",
+    rootKind: "container",
+    category: "page",
+    dataMode: "starter",
+    keywords: ["page", "full page", "template", "impronta", "noir", "homepage", "editorial", "agency"],
+    sectionCount: 10,
+  },
 ] as const;
 
 export function createBuilderNodeCompositionPreset(
@@ -350,5 +469,23 @@ export function createBuilderNodeCompositionPreset(
       return createPrintStorePreset();
     case "live-event":
       return createLiveEventPreset();
+    case "marquee-ticker":
+      return createMarqueeTickerPreset();
+    case "footer-editorial":
+      return createFooterEditorialPreset();
+    case "featured-faces-board":
+      return createFeaturedFacesBoardPreset();
+    case "testimonials-trio":
+      return createTestimonialsTrioPreset();
+    case "stat-band-editorial":
+      return createStatBandEditorialPreset();
+    case "campaigns-lookbook":
+      return createCampaignsLookbookRailPreset();
+    case "cta-banner-spotlight":
+      return createCtaBannerSpotlightPreset();
+    case "divisions-row":
+      return createDivisionsRowPreset();
+    case "impronta-noir-home":
+      return createImprontaNoirHomePreset();
   }
 }

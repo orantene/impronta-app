@@ -758,6 +758,12 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
       "mesh-noir",
       "mesh-aurora",
       "noise-animated",
+      // Noir & Or program — three swappable palettes for the hero + header
+      // (and the whole shell). `noir-or` is the shipped default + acceptance
+      // target; the same components render all three by swapping the token set.
+      "noir-or",
+      "espresso",
+      "atelier-blanc",
     ]),
     defaultValue: "plain",
     group: "Site shell",

@@ -90,6 +90,20 @@ test("about templates expose intro and description layers", () => {
   ]);
 });
 
+test("story-house template exposes the editorial story layers", () => {
+  // Noir & Or origin-story section (Hero Spotlight pattern) — every layer is a
+  // discrete editable node, so the layer labels are stable for the inspector.
+  assertTemplateLayerLabels("story-house", [
+    "Eyebrow",
+    "Title",
+    "Description",
+    "Pull Quote",
+    "Signature Name",
+    "Signature Role",
+    "Story Image",
+  ]);
+});
+
 test("services templates expose service layers", () => {
   assertTemplateLayerLabels("services", [
     "Title",

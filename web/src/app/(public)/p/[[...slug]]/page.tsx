@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
-import { PublicCmsFooterNav } from "@/components/public-cms-footer";
+import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-header";
 import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
@@ -247,11 +247,7 @@ export default async function CmsPublicPage({
               }),
             })}
           </main>
-          <footer className="border-t border-border px-4 py-8 sm:px-6 lg:px-8">
-            <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
-              <PublicCmsFooterNav locale={locale} />
-            </div>
-          </footer>
+          <PublicFooter />
         </>
       );
     }
@@ -281,11 +277,7 @@ export default async function CmsPublicPage({
             locale={locale}
           />
         </main>
-        <footer className="border-t border-border px-4 py-8 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
-            <PublicCmsFooterNav locale={locale} />
-          </div>
-        </footer>
+        <PublicFooter />
       </>
     );
   }
@@ -323,11 +315,7 @@ export default async function CmsPublicPage({
           </div>
         </article>
       </main>
-      <footer className="border-t border-border px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
-          <PublicCmsFooterNav locale={locale} />
-        </div>
-      </footer>
+      <PublicFooter />
     </>
   );
 }

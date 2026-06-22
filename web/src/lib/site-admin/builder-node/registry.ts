@@ -94,6 +94,10 @@ const sectionPropsSchema = z.object({
   sortOrder: z.number().int().min(0).optional(),
   dataBinding: dataBindingPropsSchema.optional(),
   ejected: z.boolean().optional(),
+  // Inline self-contained section config for shell landmarks (e.g. the talent
+  // site_header). Opaque passthrough here; the render port validates it against
+  // the section's own registered schema before use.
+  sectionProps: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**
@@ -430,6 +434,7 @@ const tabPanelPropsSchema = z.object({
 });
 
 const carouselPropsSchema = z.object({
+  variant: z.enum(["rail", "hero"]).optional(),
   slidesPerView: z
     .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
     .optional(),
@@ -437,6 +442,57 @@ const carouselPropsSchema = z.object({
   loop: z.boolean().optional(),
   showArrows: z.boolean().optional(),
   showDots: z.boolean().optional(),
+  layerLabel: layerLabelSchema,
+  // ── hero-variant levers ────────────────────────────────────────────────
+  heightMode: z.enum(["viewport", "large", "medium", "fixed"]).optional(),
+  minHeightPx: z.number().int().min(120).max(2000).optional(),
+  overlay: z
+    .object({
+      scrim: z.boolean().optional(),
+      tone: z.enum(["dark", "light"]).optional(),
+      vignette: z.boolean().optional(),
+      opacity: z.number().min(0).max(1).optional(),
+    })
+    .optional(),
+  grain: z.boolean().optional(),
+  transition: z.enum(["crossfade", "slide"]).optional(),
+  transitionMs: z.number().int().min(150).max(4000).optional(),
+  kenBurns: z.boolean().optional(),
+  kenBurnsAmount: z.number().min(0).max(0.4).optional(),
+  pauseOnHover: z.boolean().optional(),
+  controls: z
+    .object({
+      dots: z.boolean().optional(),
+      arrows: z.boolean().optional(),
+      progress: z.boolean().optional(),
+      counter: z.boolean().optional(),
+      scrollCue: z.boolean().optional(),
+    })
+    .optional(),
+  contentAlign: z
+    .enum(["tl", "tc", "tr", "cl", "cc", "cr", "bl", "bc", "br"])
+    .optional(),
+  contentMode: z.enum(["per-slide", "shared"]).optional(),
+  sharedContent: z
+    .object({
+      eyebrow: z.string().max(160).optional(),
+      headingLead: z.string().max(240).optional(),
+      headingAccent: z.string().max(120).optional(),
+      sub: z.string().max(400).optional(),
+      primaryCta: z
+        .object({
+          label: z.string().max(80).optional(),
+          href: z.string().max(2048).optional(),
+        })
+        .optional(),
+      secondaryCta: z
+        .object({
+          label: z.string().max(80).optional(),
+          href: z.string().max(2048).optional(),
+        })
+        .optional(),
+    })
+    .optional(),
   style: builderNodeStyleSchema,
 });
 
@@ -952,6 +1008,11 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "container",
           "card",
           "cta_group",
+          // A hero slide can be a full freeform layout — a `split` (columns) or a
+          // `masonry` directly, not only a `container`. Each slide stays a node
+          // tree the editor builds on canvas (no fixed slide fields).
+          "split",
+          "masonry",
         ],
       },
       propsSchema: carouselPropsSchema,
