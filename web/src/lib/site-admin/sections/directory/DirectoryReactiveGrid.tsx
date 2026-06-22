@@ -27,11 +27,9 @@ import type { DirectoryV1 } from "./schema";
  *
  * Path β (per evolution prompts doc): owns its own `useInfiniteQuery`
  * against `/api/directory` (or `/api/ai/search` when the AI strip is
- * driving the URL `q`), with the SAME queryKey shape as the legacy
- * `DirectoryInfiniteGrid` so the React Query cache stays unified if
- * the two ever coexist on the same surface. Renders the canonical
- * `<DirectoryCard>` via `<DirectoryCardAdapter>`, with cool-shimmer
- * skeletons during initial fetch and an editorial empty-state.
+ * driving the URL `q`). Renders the canonical `<TalentCard>` via
+ * `<DirectoryCardAdapter>`, with cool-shimmer skeletons during initial
+ * fetch and an editorial empty-state.
  *
  * No legacy chrome: no preview dialog, no inline save/contact buttons
  * (the canonical card is a pure link to the profile — affordances
@@ -120,8 +118,7 @@ export function DirectoryReactiveGrid({
     isRefetching,
     status,
   } = useInfiniteQuery({
-    // Same queryKey shape as legacy DirectoryInfiniteGrid — keeps the
-    // React Query cache unified if both ever coexist on the same page.
+    // Stable queryKey shape for the directory infinite cache.
     queryKey: [
       "directory",
       directorySearchViaAi ? "ai" : "classic",
@@ -373,8 +370,8 @@ const GRID_COLS_DESKTOP: Record<number, string> = {
   6: "lg:grid-cols-6",
 };
 
-// --- Fetchers — inlined here to keep the legacy directory-infinite.tsx
-//     surface untouched. Logic mirrors the legacy implementation.
+// --- Fetchers for the directory infinite query (`/api/directory` +
+//     `/api/ai/search`).
 
 type FetchArgs = {
   taxKey: string;
