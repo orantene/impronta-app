@@ -20,6 +20,7 @@ import type { SectionComponentProps } from "../types";
 import type { DirectoryV1 } from "./schema";
 import { normalizeDirectoryProps } from "./normalize";
 import { DirectoryReactiveResults } from "./DirectoryReactiveResults";
+import { resolveDirectoryScopeSeed } from "./scope-seed";
 
 function eyebrowSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
   return {
@@ -97,23 +98,29 @@ export async function DirectoryComponent({
   const directoryTenantId = publicScope?.tenantId ?? null;
   const surface = directorySurfaceFromTenantId(publicScope?.tenantId ?? null);
 
-  // Section-scope → seed taxonomy filter (currently only by_talent_type
-  // contributes term ids; by_tag / manual / all leave the seed open). The
-  // engine expects term *ids*, not catalog keys, so we cannot pre-filter
-  // `by_talent_type` without a key→id resolver. Phase B #3 work — for
-  // Phase 1, the seed remains open and the pill bar drives taxonomy
-  // filtering reactively.
-  const seedTaxonomyTermIds: string[] = [];
+  // Resolve scope seed: maps by_talent_type keys → taxonomy term UUIDs for
+  // the SSR first-page pre-filter, surfaces manual codes for client
+  // reconciliation, and sets an honest scopeLimited hint when the requested
+  // scope cannot be fully enforced server-side (by_tag, manual).
+  const scopeSeed = await resolveDirectoryScopeSeed(
+    props,
+    directoryTenantId,
+    loc,
+  );
+  const seedTaxonomyTermIds = scopeSeed.termIds;
 
-  // #6 polish: honest scope-limited hint for `by_tag` with non-empty
-  // tagKeys (no fake filtering — Amendment A2 rule).
-  const scopeLimitedHint =
-    props.scope === "by_tag" && props.tagKeys.length > 0
-      ? pickLocale(loc, {
-          en: "This section shows all talent — tag-scope projection lands with the deferred public Discover listing endpoint.",
-          es: "Esta sección muestra todos los talentos disponibles — el filtro por etiquetas aún no proyecta en este endpoint.",
-        })
-      : undefined;
+  const scopeLimitedHint = scopeSeed.scopeLimited
+    ? pickLocale(loc, {
+        en:
+          props.scope === "by_tag"
+            ? "This section shows all talent. Tag scope projection lands with the deferred public Discover listing endpoint."
+            : "This section shows all talent. Manual pick scope is not yet applied on the public listing.",
+        es:
+          props.scope === "by_tag"
+            ? "Esta sección muestra todos los talentos. El filtro por etiquetas aún no proyecta en este endpoint."
+            : "Esta sección muestra todos los talentos. La selección manual aún no se aplica en el listado público.",
+      })
+    : undefined;
 
   let initialPage: Awaited<ReturnType<typeof getPublicDirectoryFirstPage>> | null =
     null;
@@ -342,6 +349,10 @@ export async function DirectoryComponent({
             showLocation={props.showLocation}
             showAvailability={props.showAvailability}
             showBadges={props.showBadges}
+            showSave={props.showSave}
+            showAddToInquiry={props.showAddToInquiry}
+            cardFieldKeys={props.cardFieldKeys}
+            maxFieldLines={props.maxFieldLines}
             nameFallback={props.nameFallback}
             columnsDesktop={props.columnsDesktop}
             columnsTablet={props.columnsTablet}

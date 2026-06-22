@@ -81,6 +81,10 @@ export function DirectoryReactiveResults({
   showLocation,
   showAvailability,
   showBadges,
+  showSave,
+  showAddToInquiry,
+  cardFieldKeys,
+  maxFieldLines,
   nameFallback,
   columnsDesktop,
   columnsTablet,
@@ -114,6 +118,14 @@ export function DirectoryReactiveResults({
   showLocation: boolean;
   showAvailability: boolean;
   showBadges: boolean;
+  /** Render the per-card favorite (save) affordance. */
+  showSave: boolean;
+  /** Render the per-card "Inquire / Added" cart bar. */
+  showAddToInquiry: boolean;
+  /** Catalog-field allow-list + order for the card trait row. */
+  cardFieldKeys: DirectoryV1["cardFieldKeys"];
+  /** Cap on the card trait lines. */
+  maxFieldLines: DirectoryV1["maxFieldLines"];
   nameFallback: DirectoryV1["nameFallback"];
   columnsDesktop: number;
   columnsTablet: number;
@@ -145,6 +157,10 @@ export function DirectoryReactiveResults({
           showLocation={showLocation}
           showAvailability={showAvailability}
           showBadges={showBadges}
+          showSave={showSave}
+          showAddToInquiry={showAddToInquiry}
+          cardFieldKeys={cardFieldKeys}
+          maxFieldLines={maxFieldLines}
           nameFallback={nameFallback}
           columnsDesktop={columnsDesktop}
           columnsTablet={columnsTablet}
@@ -192,6 +208,10 @@ function DirectoryReactiveResultsInner({
   showLocation,
   showAvailability,
   showBadges,
+  showSave,
+  showAddToInquiry,
+  cardFieldKeys,
+  maxFieldLines,
   nameFallback,
   columnsDesktop,
   columnsTablet,
@@ -219,6 +239,10 @@ function DirectoryReactiveResultsInner({
   showLocation: boolean;
   showAvailability: boolean;
   showBadges: boolean;
+  showSave: boolean;
+  showAddToInquiry: boolean;
+  cardFieldKeys: DirectoryV1["cardFieldKeys"];
+  maxFieldLines: DirectoryV1["maxFieldLines"];
   nameFallback: DirectoryV1["nameFallback"];
   columnsDesktop: number;
   columnsTablet: number;
@@ -421,6 +445,10 @@ function DirectoryReactiveResultsInner({
               showAvailability,
               showBadges,
             }}
+            showSave={showSave}
+            showAddToInquiry={showAddToInquiry}
+            cardFieldKeys={cardFieldKeys}
+            maxFieldLines={maxFieldLines}
             nameFallback={nameFallback}
             columnsDesktop={columnsDesktop}
             columnsTablet={columnsTablet}

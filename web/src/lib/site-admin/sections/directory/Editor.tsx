@@ -15,7 +15,8 @@ import {
   type DirectoryLiveCatalogSnapshot,
 } from "@/lib/site-admin/server/directory-catalogs";
 import { DirectorySidebarItemOrderEditor } from "./DirectorySidebarItemOrderEditor";
-import { KIT } from "@/components/edit-chrome/inspectors/kit";
+import { KIT, PanelSaveChip } from "@/components/edit-chrome/inspectors/kit";
+import { listCardKits } from "@/lib/site-admin/presets/card-kits";
 
 /**
  * The 7-tab control drawer (plan §4). Every section-payload knob the
@@ -111,20 +112,34 @@ function FieldToggle({
   label,
   checked,
   onChange,
+  disabled,
+  note,
 }: {
   label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  /** Honest disable for controls whose render path isn't wired yet. */
+  disabled?: boolean;
+  /** Small reason shown under the row (e.g. "Coming soon"). */
+  note?: string;
 }) {
   return (
-    <label className="flex items-center justify-between gap-3 py-1.5 text-sm text-foreground">
-      <span>{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-      />
-    </label>
+    <div className={disabled ? "opacity-60" : undefined}>
+      <label
+        className={`flex items-center justify-between gap-3 py-1.5 text-sm text-foreground ${
+          disabled ? "cursor-not-allowed" : ""
+        }`}
+      >
+        <span>{label}</span>
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+      </label>
+      {note ? <p className={`${HELP} -mt-1`}>{note}</p> : null}
+    </div>
   );
 }
 
@@ -288,7 +303,7 @@ export function DirectoryEditor({
   const [liveCatalog, setLiveCatalog] =
     useState<DirectoryLiveCatalogSnapshot | null>(null);
   const [liveError, setLiveError] = useState<string | null>(null);
-  const [_isPending, startTransition] = useTransition();
+  const [livePending, startTransition] = useTransition();
 
   useEffect(() => {
     let cancelled = false;
@@ -443,11 +458,15 @@ export function DirectoryEditor({
             options={[
               { value: "recommended", label: "Recommended" },
               { value: "newest", label: "Newest" },
-              { value: "az", label: "A–Z" },
-              { value: "availability", label: "Availability" },
-              { value: "curated", label: "Curated (manual order)" },
+              { value: "az", label: "A to Z (coming soon)", disabled: true },
+              { value: "availability", label: "Availability (coming soon)", disabled: true },
+              { value: "curated", label: "Curated, manual order (coming soon)", disabled: true },
             ]}
           />
+          <p className={HELP}>
+            Recommended and Newest are live. A to Z, Availability, and Curated
+            order are on the way; until then they fall back to Recommended.
+          </p>
           <FieldSelect
             label="Pagination"
             value={p.pagination}
@@ -577,6 +596,28 @@ export function DirectoryEditor({
       {tab === "Card" ? (
         <div className="space-y-3">
           <FieldSelect
+            label="Card kit (this directory only)"
+            value={p.cardKitOverride ?? "__inherit__"}
+            onChange={(v) =>
+              set(
+                "cardKitOverride",
+                v === "__inherit__" ? undefined : v,
+              )
+            }
+            options={[
+              { value: "__inherit__", label: "Inherit workspace card design" },
+              ...listCardKits().map((k) => ({
+                value: k.slug,
+                label: k.label,
+              })),
+            ]}
+          />
+          <p className={HELP}>
+            Repaints just this directory&apos;s cards with a named look. Leave on
+            &quot;Inherit&quot; to follow the workspace-wide card design set in
+            Branding.
+          </p>
+          <FieldSelect
             label="Card style"
             value={p.cardStyle}
             onChange={(v) => set("cardStyle", v as DirectoryV1["cardStyle"])}
@@ -637,13 +678,17 @@ export function DirectoryEditor({
             onChange={(v) => set("showAttributes", v)}
           />
           <FieldToggle
-            label="Show rating"
+            label="Show rating (coming soon)"
             checked={p.showRating}
+            disabled
+            note="Ratings aren't published to cards yet."
             onChange={(v) => set("showRating", v)}
           />
           <FieldToggle
-            label="Show price-from"
+            label="Show price-from (coming soon)"
             checked={p.showPriceFrom}
+            disabled
+            note="Starting price isn't surfaced on cards yet."
             onChange={(v) => set("showPriceFrom", v)}
           />
           <FieldToggle
@@ -697,19 +742,22 @@ export function DirectoryEditor({
             onChange={(v) => set("sidebarShow", v)}
           />
           <FieldSelect
-            label="Sidebar position"
-            value={p.sidebarPosition}
-            onChange={(v) =>
-              set("sidebarPosition", v as DirectoryV1["sidebarPosition"])
-            }
+            label="Sidebar position (coming soon)"
+            value="left"
+            onChange={() => {
+              /* Render path is locked to a left sidebar today — keep the
+                 saved value honest by not letting the operator pick an
+                 option that wouldn't take effect. */
+            }}
             options={[
               { value: "left", label: "Left" },
-              { value: "right", label: "Right" },
+              { value: "right", label: "Right (coming soon)", disabled: true },
             ]}
           />
           <FieldToggle
             label="Sticky sidebar"
             checked={p.sidebarSticky}
+            note="Saved with the section. The live storefront pins the sidebar while scrolling once render wiring lands."
             onChange={(v) => set("sidebarSticky", v)}
           />
           <FieldToggle
@@ -780,9 +828,16 @@ export function DirectoryEditor({
               <h4 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground">
                 Live storefront sidebar
               </h4>
-              <span className="text-[10px] uppercase tracking-[0.12em] text-[var(--impronta-muted)]">
-                Tenant catalog
-              </span>
+              <div className="flex items-center gap-2">
+                <PanelSaveChip
+                  dirty={false}
+                  saving={livePending}
+                  error={liveError}
+                />
+                <span className="text-[10px] uppercase tracking-[0.12em] text-[var(--impronta-muted)]">
+                  Tenant catalog
+                </span>
+              </div>
             </div>
             <p className={HELP}>
               These toggles write directly to your tenant&apos;s live filter
