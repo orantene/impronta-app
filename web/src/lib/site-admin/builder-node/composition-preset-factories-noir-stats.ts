@@ -79,9 +79,15 @@ function createEditorialStat(stat: EditorialStat, isLast: boolean): BuilderNode 
 
   // Right hairline on every cell except the last — single-side border lives in
   // customCss (structured borderWidth is all-sides). Scoped to this cell node.
+  // Mobile (<=768px, the 2-up tier): drop ALL right hairlines (at 2x2 the
+  // right-column cell would otherwise paint a stray gold hairline flush against
+  // the band edge), tighten the lopsided cell padding to the new band gutter,
+  // and trim the desktop-scaled vertical padding.
+  const cellMobileCss =
+    "@media (max-width:768px){ { border-right:0 !important; padding-left:0; padding-right:16px; padding-top:18px; padding-bottom:18px; } }";
   const cellCss = isLast
-    ? undefined
-    : `{ border-right: 1px solid ${GOLD}; }`;
+    ? cellMobileCss
+    : `{ border-right: 1px solid ${GOLD}; } ${cellMobileCss}`;
 
   return {
     id: cellId,
@@ -161,7 +167,17 @@ export function createStatBandEditorialPreset(): Exclude<
 
   const rootId = makeId("container");
   // Top hairline of the whole band — single-side border via customCss.
-  const rootCss = `{ border-top: 1px solid ${GOLD}; }`;
+  // Mobile (<=768px): (1) downscale the display numbers — at 390px the
+  // clamp floor 2.8rem (44.8px) freezes and overflows the ~145px 2-up cell in
+  // the nowrap row; clamp(2rem,9vw,2.6rem) fits 'EN / ES' / '2019'. (2) inset
+  // the whole band from the screen edges so the full-bleed left number no
+  // longer hugs the viewport. Heading nodes are descendants of the root.
+  const rootCss =
+    `{ border-top: 1px solid ${GOLD}; }` +
+    " @media (max-width:768px){" +
+    " { padding-left:16px; padding-right:16px; }" +
+    " .site-builder-node--heading { font-size: clamp(2rem, 9vw, 2.6rem) !important; }" +
+    " }";
 
   return {
     id: rootId,
@@ -170,12 +186,14 @@ export function createStatBandEditorialPreset(): Exclude<
       htmlTag: "section",
       layout: "grid",
       columns: 4,
-      // 4-up desktop → 2-up tablet → 2-up mobile (2x2). props.responsive only
-      // carries layout/gap/columns; the cell hairlines remain correct at 2-up
-      // (last cell still drops its right border).
+      // 4-up desktop → 2-up tablet → 2-up mobile (2x2). The explicit
+      // layout:"grid" per tier emits data-builder-mobile-layout so the grid
+      // survives (columns alone would let the renderer force a flex tower).
+      // At 2-up the per-cell right hairlines are dropped on mobile (see
+      // createEditorialStat) so no stray gold edge appears on the right column.
       responsive: {
-        tablet: { columns: 2 },
-        mobile: { columns: 2 },
+        tablet: { layout: "grid", columns: 2 },
+        mobile: { layout: "grid", columns: 2 },
       },
       style: {
         containerType: "inline-size",

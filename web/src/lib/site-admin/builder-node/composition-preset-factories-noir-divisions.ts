@@ -244,10 +244,16 @@ function divisionTile(d: Division): BuilderNode {
     // aspectRatioFree prop) because the prop's inline path only applies to image
     // nodes — on a container it is dropped and the tile collapses to 0 height.
     `{ aspect-ratio: 3 / 4.4; border: 1px solid transparent; transition: border-color .4s ease; }`,
+    // Mobile: relax the tall 3/4.4 portrait ratio so two stacked rows of 2-up
+    // tiles don't tower at 390px. Selectorless inner rule -> scopes to the card
+    // root ([id] { ... }); aspect-ratio on a CONTAINER must live in customCss.
+    `@media (max-width: 640px) { { aspect-ratio: 3 / 4; } }`,
     `[data-builder-node-id="${image.id}"] { transition: transform 1.1s cubic-bezier(.2,.7,.2,1), filter 1.1s ease; }`,
+    // Hover treatment. Use a leading-pseudo selector (`:hover`) NOT `&:hover`:
+    // the scoper prefixes to [id]:hover (valid flat CSS); `&` -> [id] & is inert.
     `@media (hover: hover) and (prefers-reduced-motion: no-preference) {`,
-    `  &:hover { border-color: ${LINE}; }`,
-    `  &:hover [data-builder-node-id="${image.id}"] { transform: scale(1.06); filter: brightness(1) saturate(1.04); }`,
+    `  :hover { border-color: ${LINE}; }`,
+    `  :hover [data-builder-node-id="${image.id}"] { transform: scale(1.06); filter: brightness(1) saturate(1.04); }`,
     `}`,
   ].join("\n");
 
@@ -325,6 +331,16 @@ export function createDivisionsRowPreset(): Exclude<
     kind: "container",
     props: {
       layout: "grid",
+      // Container-layout responsive map: emits data-builder-{tablet,mobile}-layout
+      // so the grid SURVIVES at <=900/<=640px. Setting only style.responsive
+      // .gridTemplateColumns is inert (the renderer forces flex-column on a
+      // container with no data-builder-mobile-layout attr). The base desktop 5-up
+      // is driven by the inline gridTemplateColumns below (the `columns` prop
+      // enum caps at 4, so the 5-col base stays in style; tablet=3/mobile=2 fit).
+      responsive: {
+        tablet: { layout: "grid", columns: 3 },
+        mobile: { layout: "grid", columns: 2 },
+      },
       style: {
         gridTemplateColumns: "repeat(5,1fr)",
         gap: "12px",
@@ -350,6 +366,11 @@ export function createDivisionsRowPreset(): Exclude<
         paddingLeft: "6vw",
         paddingRight: "6vw",
         containerType: "inline-size",
+        // Mobile: trim the 8vh top/bottom rhythm (vh padding isn't capped/
+        // overridden per-breakpoint by the escapes, so customCss is its home).
+        // Selectorless inner rule -> scopes to the section root.
+        customCss:
+          "@media (max-width: 640px) { { padding-top: 48px; padding-bottom: 48px; } }",
       },
     },
     children: [head, row],

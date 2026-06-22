@@ -40,6 +40,11 @@ export function buildHeroSlider(): BuilderNode {
             fontFamily: "Cormorant Garamond, ui-serif, Georgia, serif",
             fontSize: "clamp(2.6rem, 7vw, 6rem)",
             lineHeight: "1",
+            // Mobile: the 760px hero downscale only hits the SHARED-mode
+            // .site-bn-hero__heading class, not this real heading node, so the
+            // clamp floors at 41.6px on a 390px phone. Force a true shrink +
+            // a hair more line-height to relieve the cramped multi-line wrap.
+            responsive: { mobile: { fontSize: "2rem", lineHeight: "1.05" } },
           }),
           tplLabeledParagraph(
             "A boutique roster of models and creative talent, managed end to end.",
@@ -55,7 +60,9 @@ export function buildHeroSlider(): BuilderNode {
           ),
         ],
         [],
-        { ratio: "60-40", layerLabel: "Slide 1 Columns" },
+        // gap:'s' (0.75rem) so the empty right (media) column doesn't leave a
+        // ~32px dead band below the CTAs once the split collapses on mobile.
+        { ratio: "60-40", gap: "s", layerLabel: "Slide 1 Columns" },
       ),
     ],
     {
@@ -92,6 +99,9 @@ export function buildHeroSlider(): BuilderNode {
             fontFamily: "Cormorant Garamond, ui-serif, Georgia, serif",
             fontSize: "clamp(2.6rem, 7vw, 6rem)",
             lineHeight: "1",
+            // Same per-node mobile downscale as slide 1 (the shared-mode
+            // 760px rule does not reach this heading node).
+            responsive: { mobile: { fontSize: "2rem", lineHeight: "1.05" } },
           }),
           tplCtaGroup([tplButton("Meet them", "/roster", { tone: "primary" })], {
             align: "center",
@@ -161,6 +171,18 @@ export function buildHeroSlider(): BuilderNode {
       },
       contentAlign: "bl",
       contentMode: "per-slide",
+      style: {
+        // Mobile: give the bottom-justified content a touch more room above the
+        // fold (the carousel element's own min-height lives on the node, so it
+        // must come through style.responsive, not customCss).
+        responsive: { mobile: { minHeight: "88svh" } },
+        // The shared hero sheet hides .site-bn-hero__meta (which holds the dots)
+        // at ≤760px, leaving an auto-rotating slider with NO manual controls on
+        // a phone. Re-show just the dots (descendants of this carousel node, so
+        // plain class selectors scope correctly) and drop the counter/progress
+        // that don't suit mobile width. Also pads the dot tap target up to 8px.
+        customCss: `@media (max-width:760px){ .site-bn-hero__meta{ display:flex!important; left:0; right:0; bottom:18px; align-items:center; justify-content:center } .site-bn-hero__count, .site-bn-hero__progress{ display:none } .site-bn-hero__dots{ justify-content:center } .site-bn-hero__dot{ height:8px; width:8px; border-radius:999px } }`,
+      },
     },
     children: [slide1, slide2, slide3],
   };
@@ -262,6 +284,12 @@ export function buildStoryHouse(): BuilderNode {
         lineHeight: "1.05",
         textWrap: "balance",
         textColor: INK,
+        // Mobile: the inline clamp floors at ~35px against a ~336px content
+        // column. The bare-`{}` idiom scopes to this node itself, so override
+        // the clamp to a tighter mobile range. (>32px is fine — it's a clamp
+        // STRING in customCss, not an inline numeric fontSize.)
+        customCss:
+          "@media (max-width:768px){ { font-size: clamp(1.9rem, 8vw, 2.4rem); line-height: 1.08; } }",
       },
     },
     i18n: { es: { text: "Construida sobre el instinto y la memoria." } },
@@ -372,7 +400,14 @@ export function buildStoryHouse(): BuilderNode {
       gap: "l",
       collapseOnMobile: true,
       layerLabel: "Split Layout",
-      style: { alignItems: "center" },
+      style: {
+        alignItems: "center",
+        // Tighten the stacked vertical gap on phones (2rem → 1.25rem) so the
+        // signature doesn't get pushed far down once the columns collapse. The
+        // bare-`{}` idiom scopes to the split node itself; gap is layout-neutral
+        // here (grid gap) and overrides the desktop --bn-gap token at ≤640px.
+        customCss: "@media (max-width:640px){ { gap: 1.25rem; } }",
+      },
     },
     // child[0] = media (image-left), child[1] = copy — built explicitly.
     children: [mediaColumn, copyColumn],

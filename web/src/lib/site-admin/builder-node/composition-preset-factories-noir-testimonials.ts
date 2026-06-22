@@ -80,6 +80,7 @@ function createQuoteCard(seed: QuoteSeed, index: number): BuilderNode {
   const cardCss = [
     `{ transition: background-color .5s ease, transform .5s ease, border-color .5s ease; will-change: transform; }`,
     `@media (prefers-reduced-motion: reduce) { { transition: none; } }`,
+    `@media (max-width:640px){ { padding-left: 22px; padding-right: 22px; } }`,
   ].join("\n");
   return {
     id: cardId,
@@ -142,6 +143,7 @@ function createQuoteCard(seed: QuoteSeed, index: number): BuilderNode {
             lineHeight: "1.42",
             textColor: INK,
             textWrap: "pretty",
+            responsive: { mobile: { fontSize: "1.2rem" } },
           },
         },
         i18n: { es: { text: seed.bodyEs } },
@@ -203,6 +205,7 @@ export function createTestimonialsTrioPreset(): Exclude<
   const eyebrowCss = [
     `{ display: inline-flex; align-items: center; gap: 12px; }`,
     `::before { content: ""; width: 30px; height: 1px; background: ${GOLD}; display: inline-block; }`,
+    `@media (max-width:640px){ { letter-spacing: 0.28em; } }`,
   ].join("\n");
 
   const sectionHead: BuilderNode = {
@@ -272,7 +275,7 @@ export function createTestimonialsTrioPreset(): Exclude<
   // Section vertical padding clamp (clamp(74px,10vw,158px)) exceeds the 16-char
   // paddingTop/Bottom caps → route through customCss. Inner wrap centers a max
   // measure on the warm dark band.
-  const sectionCss = `{ padding-top: clamp(74px,10vw,158px); padding-bottom: clamp(74px,10vw,158px); }`;
+  const sectionCss = `{ padding-top: clamp(74px,10vw,158px); padding-bottom: clamp(74px,10vw,158px); }\n@media (max-width:640px){ { padding-top: 52px; padding-bottom: 52px; } }`;
 
   return {
     id: makeId("container"),

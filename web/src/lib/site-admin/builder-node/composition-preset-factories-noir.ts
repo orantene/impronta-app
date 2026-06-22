@@ -82,6 +82,9 @@ export function createMarqueeTickerPreset(): Exclude<
         flexWrap: "nowrap",
         width: "max-content",
         alignItems: "center",
+        responsive: {
+          mobile: { gap: "24px" },
+        },
       },
     },
     children: [...run(), ...run()],
@@ -92,6 +95,7 @@ export function createMarqueeTickerPreset(): Exclude<
     `[data-builder-node-id="${trackId}"] { animation: ${kf} 38s linear infinite; will-change: transform; }`,
     `[data-builder-node-id="${trackId}"]:hover { animation-play-state: paused; }`,
     `@media (prefers-reduced-motion: reduce) { [data-builder-node-id="${trackId}"] { animation: none; transform: none; } }`,
+    `@media (max-width:640px) { [data-builder-node-id="${trackId}"] { animation-duration: 26s; } }`,
   ].join("\n");
   return {
     id: makeId("container"),
@@ -104,7 +108,6 @@ export function createMarqueeTickerPreset(): Exclude<
         overflow: "hidden",
         paddingTop: "16px",
         paddingBottom: "16px",
-        containerType: "inline-size",
         customCss: css,
       },
     },

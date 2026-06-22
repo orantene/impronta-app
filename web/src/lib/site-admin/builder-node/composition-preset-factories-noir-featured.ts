@@ -142,6 +142,9 @@ export function createFeaturedFacesBoardPreset(): Exclude<
         fontSize: "0.98rem",
         lineHeight: "1.7",
         alignSelf: "end",
+        // When the header stacks on mobile, end-align shoves left-aligned copy
+        // to the right gutter — realign to start so it sits under the headline.
+        responsive: { mobile: { alignSelf: "start" } },
         revealOnView: "fade-up",
         revealDelay: "0.16s",
       },
@@ -291,7 +294,12 @@ export function createFeaturedFacesBoardPreset(): Exclude<
       // The tile itself: overflow hidden, paper ground, transparent→gold border.
       `{ position: relative; overflow: hidden; background: ${PAPER2}; border: 1px solid transparent; transition: border-color .5s ease; aspect-ratio: 4 / 5; }`,
       // Card #1 (the hero) is taller — let it fill its 2-row span instead of 4/5.
+      // On mobile the mosaic stacks/auto-rows differently, so restore a definite
+      // 4:5 ratio (the % min-height resolves to ~0 against an auto-height parent).
       i === 0 ? `{ aspect-ratio: auto; min-height: 100%; }` : "",
+      i === 0
+        ? `@media (max-width: 760px) { aspect-ratio: 4 / 5 !important; min-height: 0 !important; }`
+        : "",
       // Hover: gold border in (gated to fine pointers + reduced-motion safe).
       `@media (hover: hover) { [data-builder-node-id="${cardId}"]:hover { border-color: ${LINE}; } }`,
       // Image resting treatment + hover zoom/colorize.
@@ -339,17 +347,23 @@ export function createFeaturedFacesBoardPreset(): Exclude<
     kind: "container",
     props: {
       layout: "grid",
+      // CONTAINER-level responsive: emits data-builder-{tablet,mobile}-layout so
+      // the grid SURVIVES below 900/640px (without this the renderer forces
+      // display:flex;column and the grid silently becomes a 1-up tower).
+      responsive: {
+        tablet: { layout: "grid", columns: 2 },
+        mobile: { layout: "grid", columns: 2 },
+      },
       style: {
         gridTemplateColumns: "repeat(12,1fr)",
         gap: "14px",
         containerType: "inline-size",
-        responsive: {
-          mobile: { gridTemplateColumns: "repeat(2,1fr)" },
-        },
         customCss: [
           `{ grid-auto-rows: clamp(150px, 19vw, 200px); }`,
-          // ≤760px: 2 cols, the hero spans both + 2 rows; the rest auto-place.
-          `@media (max-width: 760px) { [data-builder-node-id="${mosaicId}"] { grid-template-columns: repeat(2, 1fr) !important; grid-auto-rows: clamp(170px, 42vw, 240px); } }`,
+          // ≤760px: 2 cols + taller auto-rows. Bare rule → scoped to the mosaic
+          // ITSELF (writing the mosaic's own id here would double-prefix to a
+          // self-descendant that never matches).
+          `@media (max-width: 760px) { grid-auto-rows: clamp(170px, 42vw, 240px); }`,
         ].join("\n"),
       },
     },
@@ -357,9 +371,14 @@ export function createFeaturedFacesBoardPreset(): Exclude<
   };
   // On mobile the hero card needs to span both columns + 2 rows; the per-card
   // gridColumn/gridRow are desktop placements, so override card #1 in mobile CSS.
+  // Cards #4/#5 use explicit grid-LINE placement (6/9) that overflows a 2-col
+  // grid, so reset them to auto-place. These reference CHILD ids from the mosaic,
+  // so the scoper resolves them to valid descendant selectors.
   const heroCardId = (mosaic.children[0] as BuilderNode).id;
+  const card4Id = (mosaic.children[3] as BuilderNode).id;
+  const card5Id = (mosaic.children[4] as BuilderNode).id;
   mosaic.props.style!.customCss +=
-    `\n@media (max-width: 760px) { [data-builder-node-id="${heroCardId}"] { grid-column: span 2 !important; grid-row: span 2 !important; } }`;
+    `\n@media (max-width: 760px) { [data-builder-node-id="${heroCardId}"] { grid-column: span 2 !important; grid-row: span 2 !important; } [data-builder-node-id="${card4Id}"], [data-builder-node-id="${card5Id}"] { grid-column: auto !important; grid-row: auto !important; } }`;
 
   // ── See-all link ──────────────────────────────────────────────────────────
   const seeAllId = makeId("button");
@@ -381,6 +400,9 @@ export function createFeaturedFacesBoardPreset(): Exclude<
         borderWidth: "0px",
         paddingLeft: "0px",
         paddingRight: "0px",
+        // Grow the touch target to ~44px without changing the visual look.
+        paddingTop: "12px",
+        paddingBottom: "12px",
         customCss: [
           `[data-builder-node-id="${seeAllId}"]:hover { color: ${CHAMPAGNE}; }`,
         ].join("\n"),

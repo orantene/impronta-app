@@ -120,12 +120,20 @@ export function createFooterEditorialPreset(): Exclude<
       kind: "nav",
       props: {
         ariaLabel: ariaEn,
-        collapseAt: "mobile",
         links: built,
         style: {
           customCss: [
-            `[data-builder-node-id="${navId}"] a { color: ${MUTED}; text-decoration: none; font-size: 0.92rem; line-height: 2.05; transition: color .3s ease; }`,
-            `[data-builder-node-id="${navId}"] a:hover, [data-builder-node-id="${navId}"] a:focus-visible { color: ${CHAMPAGNE}; }`,
+            // Footer columns are always-visible vertical link lists (never a
+            // collapsing disclosure). Force the nav-links row→column at all
+            // widths and neutralize the disclosure toggle on mobile.
+            `.site-builder-node--nav-links { display: flex; flex-direction: column; align-items: flex-start; gap: 0; }`,
+            `.site-builder-node--nav-disclosure { display: none; }`,
+            // Self/descendant styling via plain descendant selectors (the scoper
+            // prefixes these once with this node's id — repeating [data-builder-node-id]
+            // would double-prefix and match nothing).
+            `a { color: ${MUTED}; text-decoration: none; font-size: 0.92rem; line-height: 2.05; transition: color .3s ease; }`,
+            `a:hover, a:focus-visible { color: ${CHAMPAGNE}; }`,
+            `@media (max-width: 640px) { .site-builder-node--nav-links { display: flex !important; flex-direction: column !important; gap: 0 !important; } .site-builder-node--nav-disclosure { display: none !important; } }`,
           ].join("\n"),
         },
       },
@@ -188,8 +196,10 @@ export function createFooterEditorialPreset(): Exclude<
       style: {
         marginBottomFree: "14px",
         customCss: [
-          `[data-builder-node-id="${socialId}"] a { color: ${MUTED}; transition: color .3s ease; }`,
-          `[data-builder-node-id="${socialId}"] a:hover, [data-builder-node-id="${socialId}"] a:focus-visible { color: ${CHAMPAGNE}; }`,
+          `a { color: ${MUTED}; transition: color .3s ease; }`,
+          `a:hover, a:focus-visible { color: ${CHAMPAGNE}; }`,
+          // Bump the bare social targets to a comfortable 44px tap area on phones.
+          `@media (max-width: 640px) { .site-builder-node--social-link { width: 44px !important; height: 44px !important; } }`,
         ].join("\n"),
       },
     },
@@ -220,12 +230,15 @@ export function createFooterEditorialPreset(): Exclude<
         paddingBottom: "44px",
         containerType: "inline-size",
         responsive: {
-          tablet: { gridTemplateColumns: "1fr 1fr" },
-          mobile: { gridTemplateColumns: "1fr" },
+          tablet: { gridTemplateColumns: "1fr 1fr", gap: "l" },
+          mobile: { gridTemplateColumns: "1fr", gap: "m" },
         },
         customCss: [
           // Single-side hairline (single-side borders → customCss per caps rule).
           `{ border-top: 0; border-left: 0; border-right: 0; border-bottom: 1px solid ${LINE}; }`,
+          // Tighten the stacked-column gap on phones (the 40px desktop gap reads
+          // as dead space once the 4 columns become one).
+          `@media (max-width: 640px) { { gap: 28px !important; } }`,
         ].join("\n"),
       },
     },
@@ -260,7 +273,10 @@ export function createFooterEditorialPreset(): Exclude<
       align: "center",
       style: {
         customCss: [
-          `[data-builder-node-id="${langGroupId}"] { display: flex; align-items: center; gap: 8px; }`,
+          `{ display: flex; align-items: center; gap: 8px; }`,
+          // Give EN / ES real ~44px tap targets on phones without inflating the
+          // desktop small-caps look (font-size stays as-is).
+          `@media (max-width: 640px) { .site-builder-node--button { min-height: 44px; padding-top: 11px; padding-bottom: 11px; padding-left: 12px; padding-right: 12px; display: inline-flex; align-items: center; } }`,
         ].join("\n"),
       },
     },
@@ -323,9 +339,7 @@ export function createFooterEditorialPreset(): Exclude<
         textTransform: "uppercase",
         letterSpacing: "0.16em",
         fontSize: "0.68rem",
-        customCss: [`[data-builder-node-id="${poweredId}"] em { color: ${CHAMPAGNE}; font-style: italic; }`].join(
-          "\n",
-        ),
+        customCss: [`em { color: ${CHAMPAGNE}; font-style: italic; }`].join("\n"),
       },
     },
     i18n: { es: { text: "Hecho con {i}Tulala{/i}" } },

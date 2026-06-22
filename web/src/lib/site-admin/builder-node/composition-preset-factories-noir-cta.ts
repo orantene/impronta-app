@@ -113,6 +113,9 @@ export function createCtaBannerSpotlightPreset(): Exclude<
         fontSize: "clamp(2.8rem,6.4vw,5.8rem)",
         lineHeight: "1",
         textColor: "#ffffff",
+        responsive: {
+          mobile: { fontSize: "clamp(2.1rem,8vw,2.8rem)" },
+        },
       },
     },
     i18n: { es: { text: "Deja tu" } },
@@ -130,6 +133,9 @@ export function createCtaBannerSpotlightPreset(): Exclude<
         fontSize: "clamp(2.8rem,6.4vw,5.8rem)",
         lineHeight: "1",
         textColor: CHAMPAGNE,
+        responsive: {
+          mobile: { fontSize: "clamp(2.1rem,8vw,2.8rem)" },
+        },
       },
     },
     i18n: { es: { text: "huella." } },
@@ -148,6 +154,9 @@ export function createCtaBannerSpotlightPreset(): Exclude<
         marginBottomFree: "14px",
         revealOnView: "fade-up",
         revealDelay: "0.08s",
+        responsive: {
+          mobile: { marginTopFree: "16px", marginBottomFree: "10px" },
+        },
       },
     },
     children: [wordOne, wordTwo],
@@ -169,6 +178,9 @@ export function createCtaBannerSpotlightPreset(): Exclude<
         lineHeight: "1.6",
         revealOnView: "fade-up",
         revealDelay: "0.16s",
+        responsive: {
+          mobile: { marginBottomFree: "26px" },
+        },
       },
     },
     i18n: {
@@ -198,6 +210,9 @@ export function createCtaBannerSpotlightPreset(): Exclude<
         paddingRight: "30px",
         hover: { translate: "0 -3px" },
         transition: "transform .35s ease",
+        responsive: {
+          mobile: { width: "100%" },
+        },
       },
     },
     i18n: { es: { label: "Castea Impronta" } },
@@ -226,6 +241,9 @@ export function createCtaBannerSpotlightPreset(): Exclude<
         paddingRight: "30px",
         hover: { backgroundColor: "#ffffff", color: ESPRESSO },
         transition: "background-color .35s ease, color .35s ease",
+        responsive: {
+          mobile: { width: "100%" },
+        },
       },
     },
     i18n: { es: { label: "Ser descubierto" } },
@@ -287,6 +305,9 @@ export function createCtaBannerSpotlightPreset(): Exclude<
         paddingLeft: "24px",
         paddingRight: "24px",
         containerType: "inline-size",
+        responsive: {
+          mobile: { paddingTop: "8vh", paddingBottom: "8vh" },
+        },
       },
     },
     children: [image, scrim, content],

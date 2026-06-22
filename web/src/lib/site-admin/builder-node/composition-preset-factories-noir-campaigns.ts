@@ -159,6 +159,10 @@ function sectionHead(): BuilderNode {
       style: {
         alignItems: "flex-end",
         marginBottomFree: "48px",
+        // Mobile (390px): tighten the head→rail gap so imagery is not pushed far
+        // down the fold. (marginBottomFree drives the desktop look; this only
+        // overrides at the mobile tier.)
+        customCss: "@media (max-width: 640px) { { margin-bottom: 28px; } }",
       },
     },
     children: [
@@ -220,13 +224,18 @@ function campaignCard(c: Campaign, index: number): BuilderNode {
   // container is the right freeform shell.
   const cardId = makeId("container");
   const imageId = makeId("image");
+  const captionBrandId = makeId("paragraph");
   // flexBasis clamp (23 chars) exceeds the 16-cap → live in customCss. Hover
   // zoom + brightness on the media image is also routed here (filter hover is
   // not in the curated hover subset), gated behind hover-capable pointers.
   const css = [
     `{ flex: 0 0 clamp(260px,30vw,380px); scroll-snap-align: start; }`,
     `@media (hover: hover) { [data-builder-node-id="${imageId}"] { transition: transform 1s ease, filter 1s ease; } }`,
-    `@media (hover: hover) { &:hover [data-builder-node-id="${imageId}"] { transform: scale(1.05); filter: brightness(1); } }`,
+    `@media (hover: hover) { :hover [data-builder-node-id="${imageId}"] { transform: scale(1.05); filter: brightness(1); } }`,
+    // Mobile (390px): widen cards to ~304px so the next card peeks and the
+    // horizontal-scroll affordance survives instead of flooring at 260px.
+    `@media (max-width: 640px) { { flex: 0 0 78vw; } }`,
+    `@media (max-width: 640px) { [data-builder-node-id="${captionBrandId}"] { font-size: 1.2rem; } }`,
   ].join("\n");
 
   const mediaId = makeId("container");
@@ -283,7 +292,7 @@ function campaignCard(c: Campaign, index: number): BuilderNode {
     },
     children: [
       {
-        id: makeId("paragraph"),
+        id: captionBrandId,
         kind: "paragraph",
         props: {
           text: c.brandEn,
@@ -338,11 +347,15 @@ export function createCampaignsLookbookRailPreset(): Exclude<
 > {
   const railId = makeId("container");
   // Gold scrollbar + scroll-snap on the track (pseudo-element → customCss).
+  // NOTE: scrollbar pseudo-elements target the RAIL NODE ITSELF, so they must be
+  // bare selectors ({} / ::-webkit-scrollbar). Prefixing them with the rail's own
+  // id double-prefixes ([rail] [rail]::...) and matches NOTHING — that was a dead
+  // rule (the gold scrollbar never rendered). Bare selectors scope to [rail]::...
   const railCss = [
     `{ scroll-snap-type: x mandatory; scrollbar-width: thin; scrollbar-color: ${GOLD} transparent; overscroll-behavior-x: contain; }`,
-    `[data-builder-node-id="${railId}"]::-webkit-scrollbar { height: 3px; }`,
-    `[data-builder-node-id="${railId}"]::-webkit-scrollbar-thumb { background: ${GOLD}; }`,
-    `[data-builder-node-id="${railId}"]::-webkit-scrollbar-track { background: transparent; }`,
+    `::-webkit-scrollbar { height: 3px; }`,
+    `::-webkit-scrollbar-thumb { background: ${GOLD}; }`,
+    `::-webkit-scrollbar-track { background: transparent; }`,
   ].join("\n");
 
   const rail: BuilderNode = {
@@ -375,6 +388,9 @@ export function createCampaignsLookbookRailPreset(): Exclude<
         paddingLeft: "6vw",
         paddingRight: "6vw",
         containerType: "inline-size",
+        // Mobile (390px): trim vertical padding so the section is not over-tall on
+        // a short viewport. Desktop keeps 9vh. (Self-block scopes to this node.)
+        customCss: "@media (max-width: 640px) { { padding-top: 6vh; padding-bottom: 6vh; } }",
       },
     },
     children: [sectionHead(), rail],

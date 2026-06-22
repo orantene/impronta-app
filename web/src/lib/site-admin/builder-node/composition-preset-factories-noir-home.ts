@@ -31,9 +31,10 @@ export function createImprontaNoirHomePreset(): Exclude<
   BuilderNode,
   { kind: "section" }
 > {
-  // story-house is authored as a `section` (tplSection). A root container cannot
-  // hold a `section` child (COMPOSABLE_LAYOUT_CHILD_KINDS has no "section"), so
-  // use its inner container — same content + spacing, page provides the ground.
+  // story-house's tplSection() returns a freeform `container` (tplSection is a
+  // labelled-container helper, NOT a legacy `section` node), wrapped one level.
+  // Unwrap to its inner container so the homepage hosts the content directly —
+  // same content + spacing, with the page providing the surrounding ground.
   const storySection = buildStoryHouse();
   const storyChildren =
     "children" in storySection && Array.isArray(storySection.children)
