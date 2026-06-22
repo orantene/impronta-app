@@ -674,6 +674,48 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     defaultValue: "3",
     group: "Template families",
   },
+
+  // ── Card design (P2) — the unified talent-card palette ────────────────
+  // Consumed by the ONE canonical <TalentCard> (components/talent-cards) via
+  // `var(--token-card-*, var(--token-color-*, …))`. Defaults are EMPTY so an
+  // unset card inherits the tenant's theme colors (an editorial-noir THEME
+  // makes the card dark for free); a tenant tunes the card explicitly only
+  // when they want it to differ from the theme. Empty also avoids the inline
+  // `<html>` var that would otherwise pin a light card on a dark tenant (the
+  // same white-paint trap documented on color.background). Set globally from
+  // the workspace-admin Card Design panel; one publish syncs every surface.
+  "card.surface": {
+    key: "card.surface",
+    label: "Card surface",
+    scope: "color",
+    agencyConfigurable: true,
+    validator: hexColorOrEmpty,
+    defaultValue: "",
+    group: "Card design",
+    description:
+      "Background of the card media / panel. Empty = inherit the theme's raised surface.",
+  },
+  "card.name-color": {
+    key: "card.name-color",
+    label: "Card name color",
+    scope: "color",
+    agencyConfigurable: true,
+    validator: hexColorOrEmpty,
+    defaultValue: "",
+    group: "Card design",
+    description: "Talent name on the card. Empty = inherit the theme ink color.",
+  },
+  "card.muted": {
+    key: "card.muted",
+    label: "Card secondary text",
+    scope: "color",
+    agencyConfigurable: true,
+    validator: hexColorOrEmpty,
+    defaultValue: "",
+    group: "Card design",
+    description:
+      "Type, location, and availability text on the card. Empty = inherit the theme muted color.",
+  },
   "profile.sticky-inquiry-bar": {
     key: "profile.sticky-inquiry-bar",
     label: "Sticky inquiry bar on profile",
@@ -716,11 +758,14 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
       "classic",
       "service-professional",
       "editorial-bridal",
+      "editorial-noir",
+      "magazine",
+      "minimal-portrait",
     ]),
     defaultValue: "classic",
     group: "Template families",
     description:
-      "`classic` = the platform default (name+city+fit chips). `service-professional` = service-first with tags. `editorial-bridal` = portrait-first with specialty chips + destination-ready ribbon.",
+      "`classic` = the platform default (name+city+fit chips). `service-professional` = service-first with tags. `editorial-bridal` = portrait-first with specialty chips + destination-ready ribbon. `editorial-noir` = dark cinematic portrait (Impronta). `magazine` / `minimal-portrait` = editorial variants.",
   },
   "template.profile-layout-family": {
     key: "template.profile-layout-family",

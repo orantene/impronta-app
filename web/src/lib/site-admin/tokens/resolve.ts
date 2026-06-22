@@ -99,6 +99,11 @@ export const COLOR_VAR_NAMES: Readonly<Record<string, string>> = {
   "color.muted": "--token-color-muted",
   "color.line": "--token-color-line",
   "color.surface-raised": "--token-color-surface-raised",
+  // Card design (P2) — the canonical <TalentCard> reads these with a
+  // `var(--token-card-*, var(--token-color-*, …))` fallback chain.
+  "card.surface": "--token-card-surface",
+  "card.name-color": "--token-card-name-color",
+  "card.muted": "--token-card-muted",
   // Phase 13 — free font-family overrides (CSS vars consumed by the
   // storefront stylesheet's `--site-heading-font` / `--site-body-font`
   // resolver chain).

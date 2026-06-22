@@ -60,9 +60,15 @@ test("every agency-configurable token has a validator and a default value", () =
       "string",
       `${spec.key} default must be string`,
     );
+    // Empty default is valid IFF the validator accepts an empty string — the
+    // documented "follow the background mode / inherit the theme" pattern
+    // (color.background, shell.header-*, card.surface/name-color/muted). A
+    // non-empty default would project an inline <html> var that pins the value
+    // for every tenant (the white-paint trap).
+    const emptyDefaultAllowed = spec.validator.safeParse("").success;
     assert.ok(
-      spec.defaultValue.length > 0,
-      `${spec.key} default must be non-empty`,
+      emptyDefaultAllowed || spec.defaultValue.length > 0,
+      `${spec.key} default must be non-empty unless its validator accepts an empty string`,
     );
   }
 });

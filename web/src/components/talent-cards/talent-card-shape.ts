@@ -86,4 +86,6 @@ export const TALENT_CARD_VARS = {
     "var(--token-card-surface,var(--token-color-surface-raised,#f4f4f5))",
   /** Secondary / muted card text. */
   muted: "var(--token-card-muted,var(--token-color-muted,#6b7280))",
+  /** Talent name (editorial style; portrait name stays white over the scrim). */
+  name: "var(--token-card-name-color,var(--token-color-ink,currentColor))",
 } as const;

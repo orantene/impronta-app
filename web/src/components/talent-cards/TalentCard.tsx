@@ -159,7 +159,8 @@ export function TalentCard({
             {displayName ? (
               <h3
                 data-card-name
-                className="font-display text-lg font-medium leading-tight tracking-wide text-foreground"
+                className="font-display text-lg font-medium leading-tight tracking-wide"
+                style={{ color: TALENT_CARD_VARS.name }}
               >
                 {displayName}
               </h3>
