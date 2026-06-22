@@ -198,13 +198,19 @@ export async function HomepageCmsSections({
   onlySectionId,
   onlyUnboundGallery = false,
 }: HomepageCmsSectionsProps) {
+  // `slots` is typed required on HomepageSnapshot, but an edit-mode draft
+  // snapshot (pure builderTree, no legacy slots) can arrive with it undefined —
+  // which crashed the storefront render at `.some(...)`. Normalize to [] so the
+  // render boundary never throws; an empty slot list just means "no legacy
+  // sections to map".
+  const slots = snapshot.slots ?? [];
   // Only pay for the tenant Maps-key resolution when a map-bearing section is
   // actually in the snapshot (today: location_discovery's orbit map). Avoids a
   // service-role round-trip on every storefront render.
-  const needsMapsKey = snapshot.slots.some(
+  const needsMapsKey = slots.some(
     (s) => s.sectionTypeKey === "location_discovery",
   );
-  const needsCaptcha = snapshot.slots.some(
+  const needsCaptcha = slots.some(
     (s) => s.sectionTypeKey === "contact_form",
   );
 
@@ -265,7 +271,7 @@ export async function HomepageCmsSections({
   // 9-section page. A predicate that honors both (and both-present) keeps
   // `onlySlot="hero"` rendering every hero-slot section while making
   // `onlySectionId` render exactly one.
-  const entries = snapshot.slots.filter((s) => {
+  const entries = slots.filter((s) => {
     if (onlySlot && s.slotKey !== onlySlot) return false;
     if (onlySectionId && s.sectionId !== onlySectionId) return false;
     return true;
@@ -305,7 +311,7 @@ export async function HomepageCmsSections({
   // here. Published, preview, AND edit all want the design on the canvas; only
   // a genuinely empty page (no slots and no tree) falls through to the
   // placeholder below.
-  if (entries.length === 0 && snapshot.slots.length === 0) {
+  if (entries.length === 0 && slots.length === 0) {
     const freeform = resolveSnapshotBuilderTree(snapshot);
     if (freeform.tree.length > 0) {
       const freeformDataSources = await loadBuilderNodeDataSources(
