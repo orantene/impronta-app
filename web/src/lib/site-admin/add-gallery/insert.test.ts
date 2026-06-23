@@ -3,10 +3,12 @@ import test from "node:test";
 
 import {
   AddGalleryForbiddenInsertError,
+  addGalleryItemTargetsDirectory,
   applyNativeVariant,
   assertAddGalleryBuilderTreeOnly,
   createDbTemplateNodeForGalleryItem,
   createNativeNodeForGalleryItem,
+  evaluateDirectoryAddCapForTenant,
   resolveAddGalleryInsertAction,
 } from "./insert";
 import type { AddGalleryItem } from "./types";
@@ -449,4 +451,58 @@ test("dataSourceDefaults is a no-op on a node with no dataBinding (static native
   if (action.type === "nativeNode") {
     assert.equal((action.node.props as { dataBinding?: unknown }).dataBinding, undefined);
   }
+});
+
+// ── Directory plan-gating cap (add path) ────────────────────────────────────
+
+test("addGalleryItemTargetsDirectory only matches the directory embed/connected items", () => {
+  assert.equal(
+    addGalleryItemTargetsDirectory({
+      insertMethod: "sectionEmbed",
+      sectionEmbedKey: "directory",
+    }),
+    true,
+  );
+  assert.equal(
+    addGalleryItemTargetsDirectory({
+      insertMethod: "connectedNode",
+      sectionEmbedKey: "directory",
+    }),
+    true,
+  );
+  // Wrong embed key → not a directory add.
+  assert.equal(
+    addGalleryItemTargetsDirectory({
+      insertMethod: "sectionEmbed",
+      sectionEmbedKey: "hero_search",
+    }),
+    false,
+  );
+  // A directory-FLAVORED template (sectionTemplate) is freeform, not the
+  // gated dynamic embed → not capped.
+  assert.equal(
+    addGalleryItemTargetsDirectory({
+      insertMethod: "sectionTemplate",
+      sectionEmbedKey: "directory",
+    }),
+    false,
+  );
+  // Plain native node → never a directory add.
+  assert.equal(
+    addGalleryItemTargetsDirectory({
+      insertMethod: "nativeNode",
+      sectionEmbedKey: undefined,
+    }),
+    false,
+  );
+});
+
+test("evaluateDirectoryAddCapForTenant short-circuits ok for non-directory items (no DB)", async () => {
+  // A non-directory item resolves ok WITHOUT touching Supabase/auth — the guard
+  // returns before any dynamic import, so this is safe to run in the unit env.
+  const result = await evaluateDirectoryAddCapForTenant({
+    insertMethod: "nativeNode",
+    sectionEmbedKey: undefined,
+  });
+  assert.deepEqual(result, { ok: true });
 });

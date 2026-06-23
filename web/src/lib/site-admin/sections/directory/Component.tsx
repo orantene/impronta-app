@@ -12,6 +12,7 @@ import {
 } from "@/lib/directory/field-driven-filters";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { getCardKit } from "@/lib/site-admin/presets/card-kits";
 import { HeroSearch, type HeroSearchCopy } from "@/components/home/hero-search";
 
 import { nodePresentationInlineStyle } from "../shared/node-presentation";
@@ -50,6 +51,40 @@ function paragraphSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
     xl: "1.25rem",
     display: "clamp(2rem, 4vw, 4.5rem)",
   }[size];
+}
+
+/**
+ * P4 — Resolve a per-instance `cardKitOverride` slug to inline `--token-card-*`
+ * CSS vars. The kit's `card.*` registry tokens are projected onto the SAME
+ * cascade vars the canonical `<TalentCard>` reads (`TALENT_CARD_VARS`), so the
+ * cards inside THIS directory instance repaint in the override palette without
+ * touching the tenant-wide published Card Design.
+ *
+ * MUST be inline `style` vars (never a linked class): `publishPageSnapshot`
+ * does not bake classes, so a class-based kit would silently drop on publish.
+ * Returns `undefined` when the slug is unset / unknown so the instance inherits
+ * the tenant's published card palette.
+ */
+const CARD_KIT_TOKEN_TO_CSS_VAR: Record<string, string> = {
+  "card.surface": "--token-card-surface",
+  "card.name-color": "--token-card-name-color",
+  "card.muted": "--token-card-muted",
+};
+
+function resolveCardKitOverrideStyle(
+  slug: string | undefined,
+): CSSProperties | undefined {
+  if (!slug) return undefined;
+  const kit = getCardKit(slug);
+  if (!kit) return undefined;
+  const style: Record<string, string> = {};
+  for (const [tokenKey, value] of Object.entries(kit.tokens)) {
+    const cssVar = CARD_KIT_TOKEN_TO_CSS_VAR[tokenKey];
+    if (cssVar) style[cssVar] = value;
+  }
+  return Object.keys(style).length > 0
+    ? (style as CSSProperties)
+    : undefined;
 }
 
 /**
@@ -199,6 +234,13 @@ export async function DirectoryComponent({
     "--dir-cols-d": props.columnsDesktop,
   } as unknown as CSSProperties;
 
+  // P4 — per-instance card-kit override projected to inline `--token-card-*`
+  // vars on the results wrapper (DirectoryReactiveResults). Undefined → the
+  // instance inherits the tenant's published card palette.
+  const cardKitOverrideStyle = resolveCardKitOverrideStyle(
+    props.cardKitOverride,
+  );
+
   const seedItems = initialPage?.items ?? [];
   const hasResults = seedItems.length > 0;
   const seedFailed = initialPage === null;
@@ -340,6 +382,11 @@ export async function DirectoryComponent({
             showActiveChips={props.showActiveChips}
             aiSearchEnabled={aiEnabled}
             scopeLimitedHint={scopeLimitedHint}
+            cardKitOverrideStyle={cardKitOverrideStyle}
+            sidebarPosition={props.sidebarPosition}
+            sidebarSticky={props.sidebarSticky}
+            scope={props.scope}
+            manualProfileCodes={scopeSeed.manualProfileCodes}
             density={props.density}
             hoverBehavior={props.hoverBehavior}
             cardStyle={props.cardStyle}

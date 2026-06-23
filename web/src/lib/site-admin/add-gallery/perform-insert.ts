@@ -1,6 +1,6 @@
 import { recordTemplateUsage } from "@/lib/site-admin/builder-core/templates/template-usage-actions";
 
-import { resolveAddGalleryInsertAction } from "./insert";
+import { evaluateDirectoryAddCapForTenant, resolveAddGalleryInsertAction } from "./insert";
 import { getAddGalleryItemById } from "./registry";
 import type { AddGalleryItem } from "./types";
 
@@ -42,6 +42,15 @@ export async function performAddGalleryInsert(
   deps: AddGalleryInsertDeps,
   context: AddGalleryInsertContext = {},
 ): Promise<{ ok: boolean; error?: string; nodeId?: string }> {
+  // Directory plan-gating cap — enforced at the add path, before the insert
+  // executes, so a tenant cannot place more directory section instances than its
+  // plan allows. No-op (no DB touched) for every non-directory item; fail-open
+  // on any auth/scope/query error (see evaluateDirectoryAddCapForTenant).
+  const directoryCap = await evaluateDirectoryAddCapForTenant(item);
+  if (!directoryCap.ok) {
+    return { ok: false, error: directoryCap.error };
+  }
+
   const action = resolveAddGalleryInsertAction(item);
   const { parentId, index } = target;
 

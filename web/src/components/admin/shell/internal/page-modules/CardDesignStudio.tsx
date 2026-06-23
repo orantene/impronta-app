@@ -47,7 +47,7 @@ import {
   saveDesignDraftFromEditAction,
 } from "@/lib/site-admin/edit-mode/design-actions";
 import { EmptyState, Icon, SecondaryButton, Toggle } from "../primitives";
-import { COLORS, FONTS, RADIUS, SPACE, TRANSITION, meetsRole, useAdminShell } from "../state";
+import { COLORS, FONTS, RADIUS, SPACE, meetsRole, useAdminShell } from "../state";
 import {
   type CardAppearance,
   type CardAspect,
@@ -58,21 +58,16 @@ import {
   type DesignSaveState,
   type FieldSaveState,
   type HoverBehavior,
-  CARD_COLOR_KNOBS,
   CARD_DESIGN_TOKEN_KEYS,
   CARD_FAMILY_TOKEN_KEY,
-  CardKitChooser,
-  CardLivePreview,
-  ColorKnob,
+  CardDesignPreviewColumn,
+  CardSurfaceTabStrip,
   DEFAULT_APPEARANCE,
-  DesignSaveStatus,
+  DesignLookSection,
   GroupHeader,
   HOVER_LABEL,
-  PreviewCard,
   PublishCluster,
-  RosterBadgePreviewCard,
   Segmented,
-  SURFACE_ORDER,
   SURFACE_RULES,
   ToggleRow,
 } from "./CardDesignStudio-2";
@@ -429,73 +424,12 @@ export function CardDesignStudio() {
         </div>
       </div>
 
-      {/* Surface tab strip */}
-      <div
-        role="tablist"
-        aria-label="Card surface"
-        style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}
-      >
-        {SURFACE_ORDER.map((s) => {
-          const r = SURFACE_RULES[s];
-          const active = s === activeSurface;
-          return (
-            <button
-              key={s}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setActiveSurface(s)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 7,
-                padding: "8px 14px",
-                borderRadius: RADIUS.md,
-                border: `1px solid ${active ? COLORS.ink : COLORS.border}`,
-                background: active ? COLORS.card : "transparent",
-                boxShadow: active ? COLORS.shadow : "none",
-                cursor: "pointer",
-                fontFamily: FONTS.body,
-                fontSize: 13,
-                fontWeight: active ? 600 : 500,
-                color: active ? COLORS.ink : COLORS.inkMuted,
-                transition: `border-color ${TRANSITION.sm}`,
-              }}
-            >
-              {r.label}
-              <span
-                style={{
-                  fontSize: 9.5,
-                  fontWeight: 700,
-                  letterSpacing: 0.4,
-                  textTransform: "uppercase",
-                  color: r.favorite || r.inquiry ? COLORS.accentDeep : COLORS.inkDim,
-                  background: r.favorite || r.inquiry ? COLORS.accentSoft : COLORS.surfaceAlt,
-                  borderRadius: 999,
-                  padding: "2px 6px",
-                }}
-              >
-                {r.tag}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Active surface rationale */}
-      <div
-        style={{
-          fontSize: 12.5,
-          color: COLORS.inkMuted,
-          lineHeight: 1.5,
-          padding: "10px 12px",
-          background: COLORS.surfaceAlt,
-          border: `1px solid ${COLORS.borderSoft}`,
-          borderRadius: RADIUS.md,
-          marginBottom: SPACE.group,
-        }}
-      >
-        {rule.note}
+      {/* Surface tab strip + rationale */}
+      <div style={{ marginBottom: SPACE.group }}>
+        <CardSurfaceTabStrip
+          activeSurface={activeSurface}
+          onSurfaceChange={setActiveSurface}
+        />
       </div>
 
       {/* Two-column workspace: controls (left) + preview (right) */}
@@ -590,70 +524,18 @@ export function CardDesignStudio() {
           ) : (
             <>
           {/* Visual design — REAL persistence (card-family design tokens) */}
-          <section
-            style={{
-              background: COLORS.card,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: RADIUS.lg,
-              padding: 16,
-            }}
-          >
-            <GroupHeader
-              title="Look"
-              hint="A one-click kit repaints every card. You can fine-tune the colors after. Saved to a draft as you edit; Publish makes it live everywhere."
-            />
-            {!designReady ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", fontSize: 13, color: COLORS.inkMuted }}>
-                <span
-                  style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: "50%",
-                    border: `2px solid ${COLORS.borderStrong}`,
-                    borderTopColor: COLORS.accent,
-                    animation: "tulala-spin 0.7s linear infinite",
-                  }}
-                />
-                Loading the current card design…
-                <style>{`@keyframes tulala-spin{to{transform:rotate(360deg)}}`}</style>
-              </div>
-            ) : designLoadError ? (
-              <div style={{ fontSize: 13, color: COLORS.critical, padding: "8px 0" }}>
-                Couldn’t load the card design: {designLoadError}
-              </div>
-            ) : (
-              <>
-                <CardKitChooser
-                  kits={cardKits}
-                  activeSlug={activeFamily}
-                  pendingSlug={pendingKit}
-                  canEdit={canEdit}
-                  onApply={handleApplyKit}
-                />
-                <div style={{ height: 1, background: COLORS.borderSoft, margin: "16px 0 4px" }} />
-                <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 2 }}>
-                  Colors
-                </div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkDim, marginBottom: 6, lineHeight: 1.4 }}>
-                  Leave a swatch empty to inherit that color from your theme.
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {CARD_COLOR_KNOBS.map((knob) => (
-                    <ColorKnob
-                      key={knob.key}
-                      label={knob.label}
-                      hint={knob.hint}
-                      value={draftTokens[knob.key] ?? ""}
-                      disabled={!canEdit}
-                      onChange={(v) => handleKnobChange(knob.key, v)}
-                      onClear={() => handleKnobChange(knob.key, "")}
-                    />
-                  ))}
-                </div>
-                <DesignSaveStatus state={saveState} />
-              </>
-            )}
-          </section>
+          <DesignLookSection
+            designReady={designReady}
+            designLoadError={designLoadError}
+            cardKits={cardKits}
+            activeFamily={activeFamily}
+            pendingKit={pendingKit}
+            canEdit={canEdit}
+            onApply={handleApplyKit}
+            draftTokens={draftTokens}
+            onKnobChange={handleKnobChange}
+            saveState={saveState}
+          />
 
           {/* Actions on this surface */}
           <section
@@ -857,49 +739,19 @@ export function CardDesignStudio() {
         </div>
 
         {/* RIGHT — live preview. The canonical <TalentCard> reflects the
-            working design draft (the ONLY place gold may appear — it's the
+            working design draft (the ONLY place gold may appear — it’s the
             public card). The synthetic action card below shows the per-surface
-            favorite / inquiry affordances the canonical card doesn't render. */}
-        <div style={{ position: "sticky", top: 12, display: "flex", flexDirection: "column", gap: 12, alignItems: "stretch", minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted }}>
-            {rule.label} preview
-          </div>
-          {isRoster ? (
-            <>
-              <div style={{ alignSelf: "center" }}>
-                <RosterBadgePreviewCard badges={rosterCardBadges} />
-              </div>
-              <div style={{ fontSize: 11, color: COLORS.inkDim, textAlign: "center", maxWidth: 260, lineHeight: 1.45, alignSelf: "center" }}>
-                Toggle a badge to see it appear or disappear here — exactly how the overlay stacks on
-                your live roster cards.
-              </div>
-            </>
-          ) : (
-            <>
-              <CardLivePreview draft={draftTokens} />
-              <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.45 }}>
-                This is how your talent card renders on the live site. Look + color edits show here
-                instantly; Publish makes them live everywhere.
-              </div>
-              <div style={{ height: 1, background: COLORS.borderSoft, margin: "2px 0" }} />
-              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted }}>
-                Actions on this surface
-              </div>
-              <div style={{ alignSelf: "center" }}>
-                <PreviewCard
-                  surface={activeSurface}
-                  appearance={appearance}
-                  favoriteIcon={favoriteIcon}
-                  fieldChips={fieldChips}
-                />
-              </div>
-              <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.45 }}>
-                Favorite + inquiry here are interactive so you can see both states. On the live
-                surface they connect to the client’s real favorites and inquiry list.
-              </div>
-            </>
-          )}
-        </div>
+            favorite / inquiry affordances the canonical card doesn’t render. */}
+        <CardDesignPreviewColumn
+          surfaceLabel={rule.label}
+          isRoster={isRoster}
+          rosterCardBadges={rosterCardBadges}
+          draftTokens={draftTokens}
+          activeSurface={activeSurface}
+          appearance={appearance}
+          favoriteIcon={favoriteIcon}
+          fieldChips={fieldChips}
+        />
       </div>
 
       {/* Responsive: stack the preview under the controls on narrow widths */}

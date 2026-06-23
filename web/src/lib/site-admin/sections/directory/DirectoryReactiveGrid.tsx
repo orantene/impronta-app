@@ -20,6 +20,7 @@ import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import type { SearchResult } from "@/lib/ai/search-result";
 
 import { DirectoryCardAdapter } from "./DirectoryCardAdapter";
+import { buildManualCodeOrder, filterToManualCodes } from "./manual-filter";
 import type { DirectoryV1 } from "./schema";
 
 /**
@@ -50,6 +51,7 @@ export function DirectoryReactiveGrid({
   view = "grid",
   ui,
   directorySearchViaAi = false,
+  manualProfileCodes,
   cardStyle,
   cardAspect,
   show,
@@ -77,6 +79,14 @@ export function DirectoryReactiveGrid({
   view?: DirectoryViewMode;
   ui: DirectoryUiCopy;
   directorySearchViaAi?: boolean;
+  /**
+   * P4 — when `scope=manual`, the resolved profile codes (in pick order).
+   * The grid filters the fetched items to these codes and suppresses
+   * infinite-scroll of non-manual talent. Render-level only (the SSR seed +
+   * `/api/directory` still serve the full roster — `scopeLimited` stays the
+   * honest hint). `undefined` → no manual filter.
+   */
+  manualProfileCodes?: string[];
   cardStyle: DirectoryV1["cardStyle"];
   cardAspect: DirectoryV1["cardAspect"];
   show: Pick<
@@ -186,14 +196,25 @@ export function DirectoryReactiveGrid({
     initialDataUpdatedAt: 0,
   });
 
+  // P4 — manual-scope render filter. When `scope=manual`, restrict to the
+  // picked codes (preserving their order) and stop infinite-scroll: fetching
+  // more pages can only surface non-manual talent we'd discard anyway.
+  const manualCodeOrder = useMemo(
+    () => buildManualCodeOrder(manualProfileCodes),
+    [manualProfileCodes],
+  );
+
+  const manualActive = manualCodeOrder !== null;
+  const canFetchMore = hasNextPage && !manualActive;
+
   const onIntersect = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       const [entry] = entries;
-      if (entry?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+      if (entry?.isIntersecting && canFetchMore && !isFetchingNextPage) {
         void fetchNextPage();
       }
     },
-    [fetchNextPage, hasNextPage, isFetchingNextPage],
+    [fetchNextPage, canFetchMore, isFetchingNextPage],
   );
 
   useEffect(() => {
@@ -208,10 +229,10 @@ export function DirectoryReactiveGrid({
     return () => obs.disconnect();
   }, [onIntersect]);
 
-  const items = useMemo(
-    () => data?.pages.flatMap((p) => p.items) ?? initialPage.items,
-    [data?.pages, initialPage.items],
-  );
+  const items = useMemo(() => {
+    const all = data?.pages.flatMap((p) => p.items) ?? initialPage.items;
+    return manualCodeOrder ? filterToManualCodes(all, manualCodeOrder) : all;
+  }, [data?.pages, initialPage.items, manualCodeOrder]);
 
   const gridClass = useMemo(
     () => gridClassFor(columnsMobile, columnsTablet, columnsDesktop),
@@ -313,17 +334,19 @@ export function DirectoryReactiveGrid({
           {ui.loadingMore}
         </p>
       ) : null}
-      <div
-        ref={sentinelRef}
-        className="flex h-12 w-full items-center justify-center"
-        aria-hidden
-      >
-        {isFetchingNextPage ? (
-          <span className="text-sm text-[var(--token-color-muted,var(--impronta-muted))]">
-            {ui.loadingMore}
-          </span>
-        ) : null}
-      </div>
+      {manualActive ? null : (
+        <div
+          ref={sentinelRef}
+          className="flex h-12 w-full items-center justify-center"
+          aria-hidden
+        >
+          {isFetchingNextPage ? (
+            <span className="text-sm text-[var(--token-color-muted,var(--impronta-muted))]">
+              {ui.loadingMore}
+            </span>
+          ) : null}
+        </div>
+      )}
     </>
   );
 }
