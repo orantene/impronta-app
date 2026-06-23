@@ -15,7 +15,7 @@
  * checks pass.
  */
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 
 import {
   runMobileHealthCheck,
@@ -111,6 +111,7 @@ interface Props {
 
 export function MobileHealthPanel({ builderTree }: Props) {
   const [open, setOpen] = useState(false);
+  const bodyId = useId();
 
   const issues = useMemo(
     () => runMobileHealthCheck(builderTree),
@@ -155,6 +156,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
           textAlign: "left",
         }}
         aria-expanded={open}
+        aria-controls={bodyId}
       >
         <span
           style={{
@@ -203,6 +205,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
       {/* ── Body ─────────────────────────────────────────────────────── */}
       {open ? (
         <div
+          id={bodyId}
           style={{
             borderTop: `1px solid ${CHROME.line}`,
             padding: "8px 12px 10px",
