@@ -2449,11 +2449,26 @@ function hasRenderableChildren(
   return "children" in node && Array.isArray(node.children) && node.children.length > 0;
 }
 
+/**
+ * Runtime guard for a builder node's `children`. Container node kinds type
+ * `children` as required, but a malformed / legacy / AI-authored draft tree —
+ * or the live edit-mode canvas bridge, which renders the draft WITHOUT a
+ * `validateBuilderNodeTree` normalization pass — can reach the renderer with
+ * `children` undefined. An unguarded `.filter/.map/.slice/.find` then throws
+ * ("reading 'filter' of undefined") and crashes the whole canvas — the same
+ * class as the snapshot.slots crash (#646). Always read children through this
+ * inside the renderer.
+ */
+function nodeChildren(node: BuilderNode): BuilderNode[] {
+  const kids = (node as { children?: unknown }).children;
+  return Array.isArray(kids) ? (kids as BuilderNode[]) : [];
+}
+
 function renderChildren(
   node: BuilderNode & { children: BuilderNode[] },
   options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
-  return node.children
+  return nodeChildren(node)
     .filter((child) => shouldRenderNode(child, options))
     .map((child) => renderBuilderNode(child, options));
 }
@@ -2462,7 +2477,7 @@ function renderRepeatContainerChildren(
   node: Extract<BuilderNode, { kind: "container" }>,
   options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode | null {
-  const template = node.children.find((child) => shouldRenderNode(child, options));
+  const template = nodeChildren(node).find((child) => shouldRenderNode(child, options));
   if (!template) return renderChildren(node, options);
   const binding = getBuilderNodeDataBinding(node);
   const records = binding
@@ -2627,7 +2642,7 @@ function renderFeaturedTalentChildren(
     return renderChildren(node, options);
   }
 
-  const editableIntroChildren = node.children
+  const editableIntroChildren = nodeChildren(node)
     .slice(0, 2)
     .filter((child) => shouldRenderNode(child, options));
 
@@ -2663,10 +2678,10 @@ function renderTalentLocationChildren(
   const locations = (options.dataSources.talentLocations ?? []).slice(0, limit);
   if (locations.length === 0) return renderChildren(node, options);
 
-  const introChildren = node.children
+  const introChildren = nodeChildren(node)
     .slice(0, 2)
     .filter((child) => shouldRenderNode(child, options));
-  const mapPlaceholder = node.children
+  const mapPlaceholder = nodeChildren(node)
     .slice(3)
     .filter((child) => shouldRenderNode(child, options));
 
@@ -2703,7 +2718,7 @@ function renderDirectorySearchChildren(
   const shortcuts = (options.dataSources.directoryShortcuts ?? []).slice(0, 6);
   if (shortcuts.length === 0) return renderChildren(node, options);
 
-  const introChildren = node.children
+  const introChildren = nodeChildren(node)
     .slice(0, 2)
     .filter((child) => shouldRenderNode(child, options));
 
@@ -3283,7 +3298,7 @@ function renderBuilderNodeElement(
       );
     }
     case "tabs": {
-      const panels = node.children.filter((child) => child.kind === "tab_panel");
+      const panels = nodeChildren(node).filter((child) => child.kind === "tab_panel");
       const activePanel =
         panels.find((panel) => panel.id === node.props.defaultTabId) ?? panels[0] ?? null;
       return (
@@ -3363,7 +3378,7 @@ function renderBuilderNodeElement(
         // carousel-level scrim defaults so shared + per-slide look consistent.
         const scrimTone = overlay.scrim === false ? "none" : overlay.tone ?? "dark";
         const scrimVignette = overlay.vignette !== false ? "true" : undefined;
-        const heroSlides = node.children
+        const heroSlides = nodeChildren(node)
           .filter((child) => shouldRenderNode(child, options))
           .map((child, index) => {
             const activeAttr = index === 0 ? "" : undefined;
@@ -3587,7 +3602,7 @@ function renderBuilderNodeElement(
           </div>
         );
       }
-      const carouselItems = node.children
+      const carouselItems = nodeChildren(node)
         .filter((child) => shouldRenderNode(child, options))
         .map((child, index) => (
           <div
