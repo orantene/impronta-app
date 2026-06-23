@@ -38,7 +38,6 @@ import {
   useState,
 } from "react";
 import { useFormStatus } from "react-dom";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -60,7 +59,7 @@ import {
   type PreviewFrameOverride,
 } from "./edit-context";
 import { flushThenNavigate } from "./page-switch-flush";
-import { CHROME, EDIT_TOPBAR_H, SaveChip } from "./kit";
+import { CHROME, EDIT_TOPBAR_H, PortaledOverlay, SaveChip } from "./kit";
 import { usePagePresence } from "./presence-provider";
 import { RailPresenceStack } from "./chrome-icon-rail";
 import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
@@ -513,7 +512,8 @@ function PagePicker({
         </button>
       )}
 
-      {open && menuPos && typeof document !== "undefined" ? createPortal((
+      {open && menuPos ? (
+        <PortaledOverlay>
         <div
           id={pagePickerMenuId}
           role="menu"
@@ -835,7 +835,8 @@ function PagePicker({
             </svg>
           </Link>
         </div>
-      ), document.body) : null}
+        </PortaledOverlay>
+      ) : null}
     </div>
   );
 }
@@ -1856,7 +1857,8 @@ function PublishSplitButton({
         </button>
       </div>
 
-      {menuOpen && menuPos && typeof document !== "undefined" ? createPortal((
+      {menuOpen && menuPos ? (
+        <PortaledOverlay>
         <div
           id={publishMenuId}
           role="menu"
@@ -1976,7 +1978,8 @@ function PublishSplitButton({
             onClick={() => { onMenuSelect("unpublish"); setMenuOpen(false); }}
           />
         </div>
-      ), document.body) : null}
+        </PortaledOverlay>
+      ) : null}
     </div>
   );
 }
@@ -3110,7 +3113,8 @@ export function TopBar({
           <body>: the topbar's backdrop-filter establishes a containing block for
           fixed-positioned descendants, and its overflow-y-hidden would otherwise
           clip this full-screen overlay to the ~54px bar. */}
-      {namedDraftOpen && typeof document !== "undefined" ? createPortal((
+      {namedDraftOpen ? (
+        <PortaledOverlay>
         <div
           style={{
             position: "fixed",
@@ -3226,7 +3230,8 @@ export function TopBar({
             </div>
           </div>
         </div>
-      ), document.body) : null}
+        </PortaledOverlay>
+      ) : null}
     </div>
   );
 }
