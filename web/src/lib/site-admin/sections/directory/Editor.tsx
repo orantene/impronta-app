@@ -493,15 +493,13 @@ export function DirectoryEditor({
             label="Layout template"
             value={p.template}
             onChange={(v) => set("template", v as DirectoryV1["template"])}
+            // Only shipped templates are listed. Unbuilt layouts (studio,
+            // roster, practice, field, showcase, mosaic, map_first) are NOT
+            // shown as disabled "coming soon" rows — dead options read as a
+            // broken product. They stay in the schema enum (DirectoryV1) so any
+            // older saved value still validates; re-add a row here when built.
             options={[
               { value: "atelier", label: "Atelier — editorial gallery" },
-              { value: "studio", label: "Studio — coming soon", disabled: true },
-              { value: "roster", label: "Roster — coming soon", disabled: true },
-              { value: "practice", label: "Practice — coming soon", disabled: true },
-              { value: "field", label: "Field — coming soon", disabled: true },
-              { value: "showcase", label: "Showcase — coming soon", disabled: true },
-              { value: "mosaic", label: "Mosaic — coming soon", disabled: true },
-              { value: "map_first", label: "Map-first — coming soon", disabled: true },
             ]}
           />
           <FieldToggle
@@ -621,14 +619,12 @@ export function DirectoryEditor({
             label="Card style"
             value={p.cardStyle}
             onChange={(v) => set("cardStyle", v as DirectoryV1["cardStyle"])}
+            // Only shipped card styles are listed; unbuilt ones (portfolio,
+            // profile, stat, service, minimal) are omitted rather than shown as
+            // disabled "coming soon" rows. Schema enum keeps them for back-compat.
             options={[
               { value: "portrait", label: "Portrait (editorial)" },
               { value: "editorial", label: "Editorial (display name)" },
-              { value: "portfolio", label: "Portfolio — coming soon", disabled: true },
-              { value: "profile", label: "Profile — coming soon", disabled: true },
-              { value: "stat", label: "Stat — coming soon", disabled: true },
-              { value: "service", label: "Service — coming soon", disabled: true },
-              { value: "minimal", label: "Minimal — coming soon", disabled: true },
             ]}
           />
           <FieldSelect
