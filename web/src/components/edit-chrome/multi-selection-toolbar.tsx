@@ -56,6 +56,8 @@ function IconButton({
   children,
   tone,
   onClick,
+  ariaExpanded,
+  ariaHasPopup,
 }: {
   disabled: boolean;
   label: string;
@@ -63,6 +65,9 @@ function IconButton({
   children: ReactNode;
   tone?: "danger";
   onClick: () => void;
+  /** Set on a button that toggles a popup (e.g. the "More" overflow menu). */
+  ariaExpanded?: boolean;
+  ariaHasPopup?: boolean;
 }) {
   return (
     <button
@@ -71,6 +76,8 @@ function IconButton({
       onClick={onClick}
       aria-label={label}
       title={label}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHasPopup}
       data-multi-selection-action={action}
       style={{
         width: 30,
@@ -228,6 +235,8 @@ export function MultiSelectionToolbar({
         disabled={disabled}
         label="More layout actions"
         action="more"
+        ariaExpanded={moreOpen}
+        ariaHasPopup
         onClick={() => setMoreOpen((open) => !open)}
       >
         <Ellipsis size={14} aria-hidden />

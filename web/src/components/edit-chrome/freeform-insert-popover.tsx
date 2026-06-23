@@ -41,8 +41,16 @@ export function FreeformInsertPopover({
   return (
     <div
       data-freeform-insert-menu={target.key}
+      role="dialog"
+      aria-label={`Add block to ${target.label}`}
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onDismiss();
+        }
+      }}
       style={{
         marginLeft: indent,
         marginRight: 6,
