@@ -455,18 +455,15 @@ export function DirectoryEditor({
             label="Default sort"
             value={p.defaultSort}
             onChange={(v) => set("defaultSort", v as DirectoryV1["defaultSort"])}
+            // Only shipped sorts are listed; unbuilt ones (az, availability,
+            // curated) are omitted rather than shown as disabled "coming soon"
+            // rows — dead options read as a broken product (matches #649). The
+            // schema enum keeps them for back-compat / a saved older value.
             options={[
               { value: "recommended", label: "Recommended" },
               { value: "newest", label: "Newest" },
-              { value: "az", label: "A to Z (coming soon)", disabled: true },
-              { value: "availability", label: "Availability (coming soon)", disabled: true },
-              { value: "curated", label: "Curated, manual order (coming soon)", disabled: true },
             ]}
           />
-          <p className={HELP}>
-            Recommended and Newest are live. A to Z, Availability, and Curated
-            order are on the way; until then they fall back to Recommended.
-          </p>
           <FieldSelect
             label="Pagination"
             value={p.pagination}
@@ -673,20 +670,10 @@ export function DirectoryEditor({
             checked={p.showAttributes}
             onChange={(v) => set("showAttributes", v)}
           />
-          <FieldToggle
-            label="Show rating (coming soon)"
-            checked={p.showRating}
-            disabled
-            note="Ratings aren't published to cards yet."
-            onChange={(v) => set("showRating", v)}
-          />
-          <FieldToggle
-            label="Show price-from (coming soon)"
-            checked={p.showPriceFrom}
-            disabled
-            note="Starting price isn't surfaced on cards yet."
-            onChange={(v) => set("showPriceFrom", v)}
-          />
+          {/* Show rating / show price-from are intentionally NOT listed:
+              ratings + starting-price aren't published to cards, and a dead
+              toggle reads as a broken product (matches #649). The schema keeps
+              the fields for back-compat; re-add a toggle when the data ships. */}
           <FieldToggle
             label="Show availability"
             checked={p.showAvailability}
@@ -738,22 +725,20 @@ export function DirectoryEditor({
             onChange={(v) => set("sidebarShow", v)}
           />
           <FieldSelect
-            label="Sidebar position (coming soon)"
-            value="left"
-            onChange={() => {
-              /* Render path is locked to a left sidebar today — keep the
-                 saved value honest by not letting the operator pick an
-                 option that wouldn't take effect. */
-            }}
+            label="Sidebar position"
+            value={p.sidebarPosition}
+            onChange={(v) =>
+              set("sidebarPosition", v as DirectoryV1["sidebarPosition"])
+            }
             options={[
               { value: "left", label: "Left" },
-              { value: "right", label: "Right (coming soon)", disabled: true },
+              { value: "right", label: "Right" },
             ]}
           />
           <FieldToggle
             label="Sticky sidebar"
             checked={p.sidebarSticky}
-            note="Saved with the section. The live storefront pins the sidebar while scrolling once render wiring lands."
+            note="Pins the filter sidebar while the results scroll."
             onChange={(v) => set("sidebarSticky", v)}
           />
           <FieldToggle
