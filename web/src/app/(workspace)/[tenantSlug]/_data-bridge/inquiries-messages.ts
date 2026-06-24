@@ -4,6 +4,7 @@ import { cache } from "react";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
+import { loadAgencyInboxHideSet } from "@/lib/inquiry/agency-inbox-visibility";
 export { loadInquiryMessages, loadTotalUnreadMessages } from "./inquiry-thread-messages";
 
 /**
@@ -297,10 +298,20 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
       coordinator_accepted_at: string | null;
       current_offer_id: string | null;
     };
-    const inquiryRows = (inquiryRes.data ?? []) as InquiryRow[];
-    const inquiryIds = inquiryRows.map((row) => row.id);
+    let inquiryRows = (inquiryRes.data ?? []) as InquiryRow[];
+    let inquiryIds = inquiryRows.map((row) => row.id);
 
     if (inquiryIds.length === 0) return [];
+
+    // D5: hide Discover/hub inquiries filed under this tenant but owned by a
+    // self-coordinating talent (no talent lane owned by this agency). Filtered
+    // early so the side queries below skip them. Fails open on any error.
+    const hideSet = await loadAgencyInboxHideSet(supabase, tenantId, inquiryIds);
+    if (hideSet.size > 0) {
+      inquiryRows = inquiryRows.filter((r) => !hideSet.has(r.id));
+      inquiryIds = inquiryRows.map((r) => r.id);
+      if (inquiryIds.length === 0) return [];
+    }
 
     // ── 2. Parallel side queries (8 in flight) ───────────────────────────────
     const coordinatorIds = Array.from(

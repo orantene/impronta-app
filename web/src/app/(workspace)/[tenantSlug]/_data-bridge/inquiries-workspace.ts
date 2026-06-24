@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadAgencyInboxHideSet } from "@/lib/inquiry/agency-inbox-visibility";
 
 /**
  * _data-bridge/inquiries-workspace.ts — workspace-side Work queue listing.
@@ -84,7 +85,11 @@ export const loadWorkspaceInquiries = cache(async function loadWorkspaceInquirie
       return [];
     }
 
-    return (data ?? []) as WorkspaceInquiryRow[];
+    const rows = (data ?? []) as WorkspaceInquiryRow[];
+    // D5: drop Discover/hub inquiries filed under this tenant but owned by a
+    // self-coordinating talent (no talent lane owned by this agency). Fails open.
+    const hide = await loadAgencyInboxHideSet(supabase, tenantId, rows.map((r) => r.id));
+    return hide.size > 0 ? rows.filter((r) => !hide.has(r.id)) : rows;
   } catch (err) {
     logServerError("workspace.loadInquiries", err);
     return [];
