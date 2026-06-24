@@ -30,6 +30,8 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { CHROME, CHROME_SHADOWS } from "./tokens";
+import { PortaledOverlay } from "./portaled-overlay";
+import { useAnchoredPopover } from "./use-anchored-popover";
 
 export type LengthUnit = "px" | "rem" | "em" | "%" | "vw" | "vh";
 
@@ -88,8 +90,19 @@ export function NumberUnit({
   style,
 }: NumberUnitProps) {
   const [unitOpen, setUnitOpen] = useState(false);
-  const unitBtnRef = useRef<HTMLButtonElement | null>(null);
-  const popoverRef = useRef<HTMLDivElement | null>(null);
+  // Portaled to <body> via PortaledOverlay so the unit list isn't clipped by the
+  // inspector dock's overflow scroll container. Positioning + outside-click /
+  // Escape dismissal come from the shared hook (refs kept under the old names).
+  const {
+    triggerRef: unitBtnRef,
+    popoverRef,
+    position: unitMenuPos,
+  } = useAnchoredPopover<HTMLButtonElement, HTMLDivElement>({
+    open: unitOpen,
+    onClose: () => setUnitOpen(false),
+    width: 72,
+    align: "right",
+  });
 
   // Track input as a string so users can clear / mid-type without weird re-renders.
   const [draft, setDraft] = useState<string>(
@@ -190,28 +203,7 @@ export function NumberUnit({
     }
   }
 
-  // Close popover on outside click / escape.
-  useEffect(() => {
-    if (!unitOpen) return;
-    function onDoc(e: MouseEvent) {
-      if (
-        popoverRef.current?.contains(e.target as Node) ||
-        unitBtnRef.current?.contains(e.target as Node)
-      ) {
-        return;
-      }
-      setUnitOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setUnitOpen(false);
-    }
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [unitOpen]);
+  // Outside-click / Escape dismissal is handled by useAnchoredPopover above.
 
   const numericValue = value?.value ?? Number(draft);
   const isNumeric = Number.isFinite(numericValue);
@@ -357,20 +349,24 @@ export function NumberUnit({
         {activeUnit}
       </button>
       {unitOpen ? (
+        <PortaledOverlay>
         <div
           ref={popoverRef}
           role="listbox"
           aria-label="Unit"
-          className="absolute z-[10000]"
+          data-edit-overlay="number-unit-listbox"
           style={{
-            top: "calc(100% + 4px)",
-            right: 0,
+            position: "fixed",
+            top: unitMenuPos?.top ?? -9999,
+            left: unitMenuPos?.left ?? -9999,
+            opacity: unitMenuPos ? 1 : 0,
+            zIndex: 200,
             background: CHROME.paper2,
             border: `1px solid ${CHROME.lineMid}`,
             borderRadius: 8,
             boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
             padding: 4,
-            minWidth: 64,
+            minWidth: 72,
             display: "flex",
             flexDirection: "column",
             gap: 1,
@@ -407,6 +403,7 @@ export function NumberUnit({
             </button>
           ))}
         </div>
+        </PortaledOverlay>
       ) : null}
     </div>
   );

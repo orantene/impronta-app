@@ -19,6 +19,7 @@ import {
   rewriteFieldWithAi,
   type AiRewriteResult,
 } from "@/lib/site-admin/edit-mode/ai-rewrite-action";
+import { PortaledOverlay, useAnchoredPopover } from "../kit";
 
 interface AiRewriteButtonProps {
   sectionTypeKey: string;
@@ -50,6 +51,10 @@ export function AiRewriteButton({
   const [proposed, setProposed] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { triggerRef, popoverRef, position } = useAnchoredPopover<
+    HTMLButtonElement,
+    HTMLDivElement
+  >({ open, onClose: () => setOpen(false), width: 300, align: "right" });
 
   function trigger(text: string) {
     setInstruction(text);
@@ -74,10 +79,13 @@ export function AiRewriteButton({
   return (
     <div className="relative inline-block">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         title="Rewrite with AI"
         aria-label={`Rewrite ${fieldName} with AI`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         className="inline-flex items-center gap-1 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-500 hover:bg-white hover:border-stone-300 transition-colors"
       >
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -87,8 +95,20 @@ export function AiRewriteButton({
         AI
       </button>
       {open ? (
+        <PortaledOverlay>
         <div
-          className="absolute right-0 top-full z-50 mt-1 w-[300px] rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3 text-xs shadow-xl"
+          ref={popoverRef}
+          role="dialog"
+          aria-label={`Rewrite ${fieldName}`}
+          data-edit-overlay="ai-rewrite-popover"
+          className="w-[300px] rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3 text-xs shadow-xl"
+          style={{
+            position: "fixed",
+            top: position?.top ?? -9999,
+            left: position?.left ?? -9999,
+            zIndex: 200,
+            opacity: position ? 1 : 0,
+          }}
           onMouseDown={(e) => e.preventDefault()}
         >
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
@@ -167,6 +187,7 @@ export function AiRewriteButton({
             </div>
           ) : null}
         </div>
+        </PortaledOverlay>
       ) : null}
     </div>
   );
