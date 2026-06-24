@@ -325,6 +325,16 @@ export function HeroSearch({
   const showTypewriter = !directoryUrlSync && !focused;
   const submitLabel = interpreting ? copy.interpreting ?? copy.searchSubmit : copy.searchSubmit;
 
+  // Directory surface uses the tenant brand accent (gold on Impronta) for a
+  // refined, editorial CTA instead of the stark white slab; the home hero
+  // keeps its neutral white button. Keyed off `directoryUrlSync` (directory-only).
+  const accentInput = directoryUrlSync
+    ? "focus:border-[var(--dir-accent)] focus:ring-1 focus:ring-[var(--dir-accent-line)]"
+    : "focus:border-[var(--impronta-foreground)] focus:ring-1 focus:ring-[var(--impronta-foreground)]/30";
+  const submitClass = directoryUrlSync
+    ? "absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--site-radius)] border border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)] hover:border-[var(--impronta-gold-bright)] hover:bg-[var(--dir-accent-line)]"
+    : "absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--site-radius)] bg-white text-black hover:bg-white/90";
+
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full max-w-2xl">
       <div className="relative">
@@ -332,7 +342,7 @@ export function HeroSearch({
         <input
           ref={inputRef}
           type="text"
-          className="h-14 w-full rounded-[var(--site-radius)] border border-white/15 bg-[var(--impronta-surface)] pl-12 pr-14 text-base text-foreground placeholder:text-transparent outline-none transition-colors focus:border-[var(--impronta-foreground)] focus:ring-1 focus:ring-[var(--impronta-foreground)]/30 sm:h-16 sm:pr-28 sm:text-lg"
+          className={`h-14 w-full rounded-[var(--site-radius)] border border-white/15 bg-[var(--impronta-surface)] pl-12 pr-14 text-base text-foreground placeholder:text-transparent outline-none transition-colors sm:h-16 sm:pr-28 sm:text-lg ${accentInput}`}
           placeholder={copy.placeholder}
           aria-label={copy.ariaLabel}
           disabled={interpreting}
@@ -368,7 +378,7 @@ export function HeroSearch({
           type="submit"
           size="lg"
           disabled={interpreting}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--site-radius)] bg-white text-black hover:bg-white/90"
+          className={submitClass}
         >
           {/* Icon-only on mobile, text on sm+ */}
           <Search className="size-5 sm:hidden" />

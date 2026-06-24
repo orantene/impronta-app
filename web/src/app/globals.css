@@ -32,6 +32,16 @@
   --impronta-foreground: #171717;
   --impronta-muted: #6b7280;
 
+  /* Directory accent — the tenant brand accent (falls back to brand gold).
+   * One token drives every "gold moment" on the directory: the active
+   * talent-type pill, card hover ring, the hairline under each name, the
+   * hover-reveal Inquire pill, and the active view toggle. Resolves
+   * per-tenant via --token-color-accent so each agency gets ITS accent,
+   * never a hardcoded gold. -soft = faint fill, -line = hairline rule. */
+  --dir-accent: var(--token-color-accent, var(--impronta-gold, #c8a04a));
+  --dir-accent-soft: color-mix(in srgb, var(--dir-accent) 14%, transparent);
+  --dir-accent-line: color-mix(in srgb, var(--dir-accent) 42%, transparent);
+
   /* shadcn semantic — neutral white/near-black/gray, no brand hue */
   --background: var(--impronta-black);
   --foreground: var(--impronta-foreground);

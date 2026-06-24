@@ -153,8 +153,10 @@ export const FAVORITE_ICON_DATA_ATTR = "data-token-favorite-icon";
  * Visual density.
  *   - `card`    — overlay/stacked controls sized for a grid card.
  *   - `compact` — inline icon row for dense lists / drawers.
+ *   - `pill`    — auto-width accent pill (gold-outlined) used as a
+ *     hover-revealed inquiry affordance over a directory card photo.
  */
-export type TalentCardActionsVariant = "card" | "compact";
+export type TalentCardActionsVariant = "card" | "compact" | "pill";
 
 /**
  * The one component every talent/profile card embeds. Renders the favorite

@@ -34,3 +34,23 @@
   color: var(--token-color-accent, var(--impronta-gold, #c8a04a));
   border-color: var(--token-color-accent, var(--impronta-gold, #c8a04a));
 }
+
+/* Hover-revealed inquiry pill (variant="pill"). A gold-outlined glass pill
+ * over the card photo — the editorial replacement for the old full-width
+ * "Inquire / Added" bar. Colours ride the directory accent token so they
+ * follow each tenant's brand; sits on a dark glass so it reads over any
+ * photo. `data-in-cart="true"` fills the pill to confirm the add. */
+.talent-card-actions__inquiry-pill {
+  border-color: color-mix(in srgb, var(--dir-accent, #c8a04a) 60%, transparent);
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--impronta-gold-bright, var(--dir-accent, #c8a04a));
+}
+.talent-card-actions__inquiry-pill:hover {
+  border-color: var(--dir-accent, #c8a04a);
+  background: rgba(0, 0, 0, 0.68);
+}
+.talent-card-actions__inquiry-pill[data-in-cart="true"] {
+  border-color: var(--dir-accent, #c8a04a);
+  background: color-mix(in srgb, var(--dir-accent, #c8a04a) 26%, rgba(0, 0, 0, 0.55));
+  color: var(--impronta-gold-bright, var(--dir-accent, #c8a04a));
+}

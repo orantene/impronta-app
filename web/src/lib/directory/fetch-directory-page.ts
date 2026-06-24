@@ -58,6 +58,8 @@ type LocationRow = {
   city_slug: string;
   display_name_i18n: Record<string, string | null> | null;
   country_code: string;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 type TalentProfileRow = {
@@ -657,13 +659,17 @@ export async function fetchDirectoryPage(
         id,
         city_slug,
         display_name_i18n,
-        country_code
+        country_code,
+        latitude,
+        longitude
       ),
       legacy_location:locations!location_id (
         id,
         city_slug,
         display_name_i18n,
-        country_code
+        country_code,
+        latitude,
+        longitude
       )
     `,
     )
@@ -1052,6 +1058,9 @@ export async function fetchDirectoryPage(
       location_display_en: location?.display_name_i18n?.en ?? null,
       location_display_es: location?.display_name_i18n?.es ?? null,
       location_country_code: location?.country_code ?? null,
+      location_latitude: typeof location?.latitude === "number" ? location.latitude : null,
+      location_longitude:
+        typeof location?.longitude === "number" ? location.longitude : null,
       fit_labels_jsonb: fitLabels.slice(0, 2).map((label) => ({
         slug: label.slug,
         name_en: label.name_en,

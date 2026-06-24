@@ -4,7 +4,7 @@ import {
   type DirectorySortValue,
 } from "@/lib/directory/types";
 
-export type DirectoryViewMode = "grid" | "list";
+export type DirectoryViewMode = "grid" | "list" | "map";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -58,7 +58,9 @@ export function parseDirectoryView(
 ): DirectoryViewMode {
   const raw = sp.view;
   const value = Array.isArray(raw) ? raw[0] : raw;
-  return value === "list" ? "list" : "grid";
+  if (value === "list") return "list";
+  if (value === "map") return "map";
+  return "grid";
 }
 
 /** Short URL param for AI normalized summary (UTF-8, length-capped by client). */
@@ -209,7 +211,8 @@ export function canonicalizeDirectorySearchParams(params: URLSearchParams): void
   if (!sort || sort === "recommended") {
     params.delete("sort");
   }
-  if (params.get("view") !== "list") {
+  const viewParam = params.get("view");
+  if (viewParam !== "list" && viewParam !== "map") {
     params.delete("view");
   }
   const tax = params.get("tax")?.trim();
@@ -267,7 +270,7 @@ export function serializeCanonicalDirectoryListingParams(opts: {
   for (const seg of serializeDirectoryFieldFacetParams(opts.fieldFacets)) {
     params.append("ff", seg);
   }
-  if (opts.view === "list") params.set("view", "list");
+  if (opts.view === "list" || opts.view === "map") params.set("view", opts.view);
   const sum = opts.aiSummary?.trim() ?? "";
   if (sum) {
     params.set("ai_sum", sum.slice(0, 400));

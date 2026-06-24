@@ -45,7 +45,11 @@ export const fashionDirectoryPreset: DirectoryV1 = {
   showRating: false,
   showPriceFrom: false,
   showAvailability: true,
-  showBadges: true,
+  // Single-agency storefront: every card is this agency's talent, so the
+  // per-card ownership badge ("Impronta Models" stamped on every tile) is
+  // pure repetition. Off by default for the storefront look; cross-agency
+  // surfaces (hub / Discover) use their own configs and keep it on.
+  showBadges: false,
   showSave: true,
   showAddToInquiry: true,
   hoverBehavior: "reveal_traits",

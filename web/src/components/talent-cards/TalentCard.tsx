@@ -41,19 +41,30 @@ function resolveName(
 }
 
 function OwnershipBadge({ data }: { data: CanonicalTalentCardData }) {
-  const label =
-    data.isExclusive && data.agencyName
-      ? `${data.agencyName} · exclusive`
-      : data.agencyName
-        ? data.agencyName
-        : "Independent";
+  // A tenant storefront directory shows ONE agency's roster, so stamping the
+  // agency's own name on every card is pure repetition (it's already the site
+  // brand in the header). Render only a DIFFERENTIATING signal: an exclusive
+  // mark (gold, on-brand) or an independent tag. A bare own-agency name → no
+  // badge at all. Cross-agency surfaces still surface "Exclusive"/"Independent".
+  if (data.isExclusive) {
+    return (
+      <span
+        data-card-ownership
+        data-card-chip
+        className="pointer-events-none inline-flex max-w-full items-center truncate rounded-full border border-[var(--dir-accent)] bg-background/85 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--impronta-gold-bright)] backdrop-blur-sm"
+      >
+        Exclusive
+      </span>
+    );
+  }
+  if (data.agencyName) return null;
   return (
     <span
       data-card-ownership
       data-card-chip
       className="pointer-events-none inline-flex max-w-full items-center truncate rounded-full border border-border bg-background/85 px-2 py-0.5 text-[10px] font-medium tracking-wide text-foreground backdrop-blur-sm"
     >
-      {label}
+      Independent
     </span>
   );
 }
@@ -294,7 +305,7 @@ export function TalentCard({
     <Root
       {...rootProps}
       data-card-style="portrait"
-      className={`${TALENT_CARD_CLASS} group/card relative block overflow-hidden rounded-2xl border border-border outline-none transition-shadow duration-200 hover:shadow-md focus-visible:ring-2 focus-visible:ring-foreground/30 ${
+      className={`${TALENT_CARD_CLASS} group/card relative block overflow-hidden rounded-2xl border border-border outline-none transition-[border-color,box-shadow] duration-200 hover:border-[var(--dir-accent-line)] hover:shadow-[0_14px_36px_-18px_rgba(0,0,0,0.75)] focus-visible:ring-2 focus-visible:ring-foreground/30 ${
         rootMode === "button" ? "cursor-pointer" : ""
       }`}
     >
@@ -341,6 +352,15 @@ export function TalentCard({
           >
             {displayName}
           </h3>
+        ) : null}
+        {displayName ? (
+          // One deliberate accent moment per card: a short gold hairline
+          // under the name (follows the tenant accent via --dir-accent).
+          <span
+            aria-hidden
+            data-card-name-rule
+            className="mt-0.5 mb-0.5 block h-px w-7 bg-[var(--dir-accent)]"
+          />
         ) : null}
         {(show.showTalentType && data.primaryType) ||
         (show.showLocation && data.location) ? (

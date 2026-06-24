@@ -92,19 +92,36 @@ export function DirectoryCardAdapter({
           priority={priority}
           index={index}
         />
-        {/* Favorite affordance overlay — canonical <TalentCardActions>.
-            Heart/bookmark glyph follows the per-tenant favoriteIcon token.
-            Gated on the section's `showSave` knob. */}
-        {showSave ? (
-          <TalentCardActions
-            talentProfileId={card.id}
-            profileCode={card.profileCode ?? ""}
-            displayName={card.displayName}
-            sourcePage={pathname}
-            variant="compact"
-            hideInquiry
-            className="absolute right-2.5 top-2.5 z-[2]"
-          />
+        {/* Top-right affordance cluster: the favorite heart (always visible)
+            and a hover-revealed gold "Inquire" pill. Replaces the old heavy
+            full-width "Inquire / Added" bar that sat under every card. On
+            touch devices (no hover) the pill stays visible so the action is
+            never hidden; on desktop it fades in on card hover / focus. */}
+        {showSave || showAddToInquiry ? (
+          <div className="absolute right-2.5 top-2.5 z-[2] flex items-center gap-2">
+            {showAddToInquiry ? (
+              <div className="pointer-events-none translate-x-1 opacity-0 transition-all duration-200 focus-within:pointer-events-auto focus-within:translate-x-0 focus-within:opacity-100 group-hover/cardwrap:pointer-events-auto group-hover/cardwrap:translate-x-0 group-hover/cardwrap:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:translate-x-0 [@media(hover:none)]:opacity-100">
+                <TalentCardActions
+                  talentProfileId={card.id}
+                  profileCode={card.profileCode ?? ""}
+                  displayName={card.displayName}
+                  sourcePage={pathname}
+                  variant="pill"
+                  hideFavorite
+                />
+              </div>
+            ) : null}
+            {showSave ? (
+              <TalentCardActions
+                talentProfileId={card.id}
+                profileCode={card.profileCode ?? ""}
+                displayName={card.displayName}
+                sourcePage={pathname}
+                variant="compact"
+                hideInquiry
+              />
+            ) : null}
+          </div>
         ) : null}
       </div>
 
@@ -147,18 +164,6 @@ export function DirectoryCardAdapter({
         </div>
       ) : null}
 
-      {/* INQUIRE / ADDED ✓ bar below the card — cart membership.
-          Gated on the section's `showAddToInquiry` knob. */}
-      {showAddToInquiry ? (
-        <TalentCardActions
-          talentProfileId={card.id}
-          profileCode={card.profileCode ?? ""}
-          displayName={card.displayName}
-          sourcePage={pathname}
-          hideFavorite
-          className="mt-2"
-        />
-      ) : null}
     </div>
   );
 }

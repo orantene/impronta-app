@@ -159,7 +159,7 @@ export function DirectoryTalentTypeBar({
     cn(
       "snap-start shrink-0 max-w-[min(100%,14rem)] truncate rounded-full border-0 px-4 py-2 text-[11px] font-semibold tracking-[0.12em] shadow-none",
       on
-        ? "border border-white bg-white !text-black"
+        ? "border border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] !text-[var(--impronta-gold-bright)]"
         : "border border-white/15 bg-transparent text-white/60 hover:border-white/30 hover:!text-zinc-200",
     );
 
@@ -253,7 +253,7 @@ export function DirectoryTalentTypeBar({
                       className={cn(
                         "flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-[12px] tracking-[0.06em] outline-none transition-colors",
                         on
-                          ? "bg-white text-black"
+                          ? "bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
                           : "text-white/70 hover:bg-white/[0.04] hover:text-white focus-visible:bg-white/[0.04] focus-visible:text-white",
                       )}
                     >
@@ -262,7 +262,7 @@ export function DirectoryTalentTypeBar({
                         <span
                           className={cn(
                             "shrink-0 text-[10px] tabular-nums",
-                            on ? "text-black/60" : "text-white/40",
+                            on ? "text-[var(--dir-accent)]" : "text-white/40",
                           )}
                         >
                           {opt.count}
