@@ -32,7 +32,9 @@ import {
   InspectorTypographyRow,
 } from "./kit/inspector-mockup-primitives";
 import {
+  buildPresentationFieldPatch,
   getNodePresentationOverrideDevice,
+  getPresentationFieldForDevice,
   getPresentationOverrideDevice,
 } from "./responsive-field-state";
 
@@ -115,28 +117,23 @@ export function SectionStyleMockupPanel({
   >(null);
 
   const paddingTopOverride = getPresentationOverrideDevice(presentation, "paddingTop");
+  const paddingBottomOverride = getPresentationOverrideDevice(presentation, "paddingBottom");
   const visibilityOverride = getPresentationOverrideDevice(presentation, "visibility");
 
-  /**
-   * Clear a single field from a breakpoint bucket in the section presentation.
-   * Reconstructs the full `breakpoints` entry so `onPresentationPatch` (a shallow
-   * merge at the presentation level) lands correctly without stomping other buckets.
-   */
+  // Per-breakpoint editing. `presentationFieldValue` reads the value effective
+  // for the active device (top-level on desktop, the breakpoints[device] bucket
+  // otherwise); `setPresentationField` writes it back through the reconstruct-safe
+  // patch builder so a shallow onPresentationPatch never stomps sibling buckets.
+  const presentationFieldValue = (field: string): string =>
+    getPresentationFieldForDevice(presentation, device, field) ?? "";
+  const setPresentationField = (field: string, value: string | undefined) => {
+    onPresentationPatch(buildPresentationFieldPatch(presentation, device, field, value));
+  };
+  // Reset an override badge — clears the field from a specific device's bucket.
   function clearPresentationBreakpointField(overrideDevice: string, field: string) {
-    const bp = (presentation.breakpoints as
-      | Partial<Record<string, Record<string, unknown>>>
-      | undefined) ?? {};
-    const bucket = { ...(bp[overrideDevice] ?? {}) };
-    delete bucket[field];
-    const nextBp: Record<string, unknown> = { ...bp };
-    if (Object.keys(bucket).length === 0) {
-      delete nextBp[overrideDevice];
-    } else {
-      nextBp[overrideDevice] = bucket;
-    }
-    onPresentationPatch({
-      breakpoints: Object.keys(nextBp).length > 0 ? nextBp : undefined,
-    });
+    onPresentationPatch(
+      buildPresentationFieldPatch(presentation, overrideDevice, field, undefined),
+    );
   }
 
   const headingOverrideDevice = getNodePresentationOverrideDevice(
@@ -372,70 +369,72 @@ export function SectionStyleMockupPanel({
 
       <InspectorAccordion title="Spacing" defaultOpen={false}>
         {nonDesktop ? (
-          <InspectorPlaceholderField message="Same as desktop" />
-        ) : (
-          <>
-            <InspectorField
-              label="Padding top"
-              overrideDevice={paddingTopOverride}
-              onResetOverride={
-                paddingTopOverride
-                  ? () => clearPresentationBreakpointField(paddingTopOverride, "paddingTop")
-                  : undefined
-              }
-            >
-              <Segmented
-                fullWidth
-                compact
-                value={(presentation.paddingTop as string | undefined) ?? ""}
-                onChange={(next) =>
-                  onPresentationPatch({ paddingTop: next || undefined })
-                }
-                options={PRESENTATION_OPTIONS.paddingTop}
-              />
-            </InspectorField>
-            <InspectorField label="Padding bottom">
-              <Segmented
-                fullWidth
-                compact
-                value={(presentation.paddingBottom as string | undefined) ?? ""}
-                onChange={(next) =>
-                  onPresentationPatch({ paddingBottom: next || undefined })
-                }
-                options={PRESENTATION_OPTIONS.paddingBottom}
-              />
-            </InspectorField>
-          </>
-        )}
+          <div style={{ fontSize: 11, color: CHROME.muted, marginBottom: 8 }}>
+            Editing the {device} override; empty inherits desktop.
+          </div>
+        ) : null}
+        <InspectorField
+          label="Padding top"
+          overrideDevice={paddingTopOverride}
+          onResetOverride={
+            paddingTopOverride
+              ? () => clearPresentationBreakpointField(paddingTopOverride, "paddingTop")
+              : undefined
+          }
+        >
+          <Segmented
+            fullWidth
+            compact
+            value={presentationFieldValue("paddingTop")}
+            onChange={(next) => setPresentationField("paddingTop", next)}
+            options={PRESENTATION_OPTIONS.paddingTop}
+          />
+        </InspectorField>
+        <InspectorField
+          label="Padding bottom"
+          overrideDevice={paddingBottomOverride}
+          onResetOverride={
+            paddingBottomOverride
+              ? () => clearPresentationBreakpointField(paddingBottomOverride, "paddingBottom")
+              : undefined
+          }
+        >
+          <Segmented
+            fullWidth
+            compact
+            value={presentationFieldValue("paddingBottom")}
+            onChange={(next) => setPresentationField("paddingBottom", next)}
+            options={PRESENTATION_OPTIONS.paddingBottom}
+          />
+        </InspectorField>
       </InspectorAccordion>
 
       <InspectorAccordion title="Visibility" defaultOpen={false}>
         {nonDesktop ? (
-          <InspectorPlaceholderField message="Same as desktop" />
-        ) : (
-          <InspectorField
-            label="Section visibility"
-            overrideDevice={visibilityOverride}
-            onResetOverride={
-              visibilityOverride
-                ? () => clearPresentationBreakpointField(visibilityOverride, "visibility")
-                : undefined
-            }
-          >
-            <Segmented
-              fullWidth
-              compact
-              value={(presentation.visibility as string | undefined) ?? ""}
-              onChange={(next) =>
-                onPresentationPatch({ visibility: next || undefined })
-              }
-              options={[
-                { value: "", label: "Visible" },
-                { value: "hidden", label: "Hidden" },
-              ]}
-            />
-          </InspectorField>
-        )}
+          <div style={{ fontSize: 11, color: CHROME.muted, marginBottom: 8 }}>
+            Editing the {device} override; empty inherits desktop.
+          </div>
+        ) : null}
+        <InspectorField
+          label="Section visibility"
+          overrideDevice={visibilityOverride}
+          onResetOverride={
+            visibilityOverride
+              ? () => clearPresentationBreakpointField(visibilityOverride, "visibility")
+              : undefined
+          }
+        >
+          <Segmented
+            fullWidth
+            compact
+            value={presentationFieldValue("visibility")}
+            onChange={(next) => setPresentationField("visibility", next)}
+            options={[
+              { value: "", label: "Visible" },
+              { value: "hidden", label: "Hidden" },
+            ]}
+          />
+        </InspectorField>
       </InspectorAccordion>
 
       <InspectorAccordion title="Reuse Style" defaultOpen={false}>

@@ -135,6 +135,38 @@ export function patchFieldForDevice(
   };
 }
 
+/**
+ * Build a SAFE presentation patch that sets (or, with an empty value, clears)
+ * `field` for `device`, RECONSTRUCTING the full `breakpoints` map so a *shallow*
+ * `onPresentationPatch` merge never stomps sibling buckets or sibling fields
+ * (unlike `patchFieldForDevice`, which only fits a deep-merge caller). Base
+ * device → writes the top-level field. Clearing prunes the field, then the
+ * bucket, then the whole map when emptied. Pure — covered by
+ * responsive-field-state.test.ts.
+ */
+export function buildPresentationFieldPatch(
+  presentation: Record<string, unknown>,
+  device: ViewportDevice,
+  field: string,
+  value: string | undefined,
+): Record<string, unknown> {
+  const v = value && value.length > 0 ? value : undefined;
+  if (isBaseBreakpoint(device)) {
+    return { [field]: v };
+  }
+  const bp: Record<string, Record<string, unknown>> = {
+    ...((presentation.breakpoints as
+      | Record<string, Record<string, unknown>>
+      | undefined) ?? {}),
+  };
+  const bucket = { ...(bp[device] ?? {}) };
+  if (v === undefined) delete bucket[field];
+  else bucket[field] = v;
+  if (Object.keys(bucket).length === 0) delete bp[device];
+  else bp[device] = bucket;
+  return { breakpoints: Object.keys(bp).length > 0 ? bp : undefined };
+}
+
 /** Merge node style patches for the active viewport device. */
 export function patchStyleFieldForDevice(
   device: ViewportDevice,
