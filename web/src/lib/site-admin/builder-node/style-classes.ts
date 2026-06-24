@@ -299,6 +299,37 @@ export function countNodesLinkedToClass(
 }
 
 /**
+ * Single-pass equivalent of calling `countNodesLinkedToClass` once per id —
+ * walks the tree ONCE and tallies counts for all `classIds`, turning the
+ * Class Manager's O(classes × nodes) usage scan into O(nodes). Every node links
+ * to at most one class (`getNodeClassRef`), so each node contributes to exactly
+ * one tally — identical to the per-class counts. Ids with no linked node return
+ * 0 (matching `countNodesLinkedToClass`). Locked equivalent by style-classes.test.ts.
+ */
+export function countNodesLinkedToClasses(
+  tree: BuilderNodeTree,
+  classIds: ReadonlyArray<string>,
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const id of classIds) counts[id] = 0;
+  const visit = (node: BuilderNode) => {
+    const ref = getNodeClassRef(node);
+    // `Object.prototype.hasOwnProperty`, NOT `ref in counts`: a dangling classRef
+    // named like a prototype member ("constructor", "toString", …) would make
+    // `in` true for an id that was never queried, tallying a phantom key — the
+    // per-class `===` reference never does that.
+    if (ref != null && Object.prototype.hasOwnProperty.call(counts, ref)) {
+      counts[ref] += 1;
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  };
+  for (const node of tree) visit(node);
+  return counts;
+}
+
+/**
  * Collect the ids of all nodes in the tree that are linked to the given
  * class id. Used by the Class Manager to show usage counts and to propagate
  * a classRef rename across the tree.

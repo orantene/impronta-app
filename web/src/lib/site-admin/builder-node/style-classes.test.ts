@@ -7,6 +7,7 @@ import { renderBuilderNodes } from "./render";
 import type { BuilderNode, BuilderNodeStyle, BuilderNodeTree } from "./types";
 import {
   countNodesLinkedToClass,
+  countNodesLinkedToClasses,
   getNodeClassRef,
   mergeBuilderNodeStyle,
   resolveBuilderTreeClassRefs,
@@ -188,6 +189,54 @@ describe("style-classes: stripClassRef / getNodeClassRef / countNodesLinkedToCla
     assert.equal(countNodesLinkedToClass(tree, "promo"), 2);
     assert.equal(countNodesLinkedToClass(tree, "other"), 1);
     assert.equal(countNodesLinkedToClass(tree, "none"), 0);
+  });
+
+  it("countNodesLinkedToClasses (single pass) === per-class countNodesLinkedToClass", () => {
+    // Deeper tree: nested children, a class linked at multiple depths, a class
+    // with zero links, and a node whose classRef isn't in the queried set.
+    const tree: BuilderNodeTree = [
+      {
+        id: "root",
+        kind: "container",
+        props: { style: { classRef: "promo" } },
+        children: [
+          { id: "a", kind: "card", props: { style: { classRef: "promo" } }, children: [] },
+          { id: "b", kind: "card", props: { style: { classRef: "other" } }, children: [
+            { id: "b1", kind: "heading", props: { style: { classRef: "promo" } } },
+            { id: "b2", kind: "text", props: {} },
+            { id: "b3", kind: "text", props: { style: { classRef: "untracked" } } },
+          ] },
+        ],
+      },
+      { id: "loose", kind: "card", props: { style: { classRef: "other" } }, children: [] },
+    ];
+    const ids = ["promo", "other", "none"];
+    const batch = countNodesLinkedToClasses(tree, ids);
+    const reference = Object.fromEntries(
+      ids.map((id) => [id, countNodesLinkedToClass(tree, id)]),
+    );
+    assert.deepEqual(batch, reference);
+    // sanity: exact expected values (promo×3, other×2, none×0) + "untracked"
+    // node is ignored because it isn't in the queried id set.
+    assert.deepEqual(batch, { promo: 3, other: 2, none: 0 });
+  });
+
+  it("countNodesLinkedToClasses ignores dangling refs named like prototype members", () => {
+    // A node whose classRef is a deleted class named "constructor"/"toString"
+    // (valid class-id strings) must NOT leak a phantom key — `ref in counts`
+    // would have via the prototype chain.
+    const tree: BuilderNodeTree = [
+      { id: "a", kind: "card", props: { style: { classRef: "constructor" } }, children: [] },
+      { id: "b", kind: "card", props: { style: { classRef: "toString" } }, children: [] },
+      { id: "c", kind: "card", props: { style: { classRef: "promo" } }, children: [] },
+    ];
+    const ids = ["promo"]; // the prototype-named refs are NOT queried
+    const batch = countNodesLinkedToClasses(tree, ids);
+    assert.deepEqual(batch, { promo: 1 });
+    assert.deepEqual(
+      batch,
+      Object.fromEntries(ids.map((id) => [id, countNodesLinkedToClass(tree, id)])),
+    );
   });
 });
 

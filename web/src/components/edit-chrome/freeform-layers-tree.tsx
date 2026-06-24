@@ -128,7 +128,7 @@ interface FlattenedTree {
 }
 
 /** Collect every descendant id of `node` (excluding `node` itself). */
-function collectDescendantIds(node: BuilderNode): Set<string> {
+export function collectDescendantIds(node: BuilderNode): Set<string> {
   const ids = new Set<string>();
   const visit = (n: BuilderNode): void => {
     if ("children" in n && Array.isArray(n.children)) {
@@ -158,19 +158,24 @@ function findFirstContainer(nodes: ReadonlyArray<BuilderNode>): BuilderNode | nu
  * Flatten the tree to indented rows in document order. When the single root is a
  * layout wrapper container, its children start at depth 0 (not nested under it).
  */
-function flattenTree(tree: BuilderNodeTree): FlattenedTree {
+export function flattenTree(tree: BuilderNodeTree): FlattenedTree {
   const rows: LayerRow[] = [];
   const descendantsByNode = new Map<string, Set<string>>();
 
+  // Returns the set of every id at-or-below `nodes`, building descendantsByNode
+  // bottom-up: a node's descendant set is the union of its children's
+  // (id + their descendants). Identical to calling collectDescendantIds(node)
+  // per node — locked by freeform-layers-tree.test.ts — but a single integrated
+  // pass instead of re-walking each node's whole subtree (was O(n²)).
   const walk = (
     nodes: ReadonlyArray<BuilderNode>,
     depth: number,
     parentId: string | null,
     parentKind: BuilderNodeKind | null,
     parentLocked: boolean,
-  ): void => {
+  ): Set<string> => {
+    const subtreeIds = new Set<string>();
     nodes.forEach((node, index) => {
-      descendantsByNode.set(node.id, collectDescendantIds(node));
       rows.push({
         id: node.id,
         kind: node.kind,
@@ -186,10 +191,15 @@ function flattenTree(tree: BuilderNodeTree): FlattenedTree {
         locked: node.locked === true,
         responsive: resolveResponsiveOverrides(node),
       });
-      if ("children" in node && Array.isArray(node.children) && node.children.length > 0) {
-        walk(node.children, depth + 1, node.id, node.kind, node.locked === true);
-      }
+      const childIds =
+        "children" in node && Array.isArray(node.children) && node.children.length > 0
+          ? walk(node.children, depth + 1, node.id, node.kind, node.locked === true)
+          : new Set<string>();
+      descendantsByNode.set(node.id, childIds);
+      subtreeIds.add(node.id);
+      for (const id of childIds) subtreeIds.add(id);
     });
+    return subtreeIds;
   };
 
   // A freeform full-page design is usually a single wrapper container holding
