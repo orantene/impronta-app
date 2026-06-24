@@ -85,6 +85,7 @@ export { Toggle } from "./toggle";
 export { Swatch, ColorRow } from "./swatch";
 export { ColorPickerPopover } from "./color-picker";
 export { PortaledOverlay } from "./portaled-overlay";
+export { useAnchoredPopover, type AnchoredPosition } from "./use-anchored-popover";
 export { SaveChip, type SaveChipStatus } from "./savechip";
 export { Kbd, KbdSequence } from "./kbd";
 export { SectionTypeIcon } from "./section-type-icon";
