@@ -1,0 +1,132 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Builder E2E (Playwright smoke) — MANUAL, owner-gated
+#
+# WHY workflow_dispatch ONLY (not pull_request/push):
+#   The Impronta builder smoke suite (e2e/smoke.spec.ts) drives a LIVE Next.js
+#   dev server + dev-signin, which both read a real Supabase project. CI has no
+#   Supabase by design (see ci.yml gate notes + web/docs), so this suite cannot
+#   run on every PR without owner-provisioned secrets. Wiring it as an auto
+#   PR/push gate would make it red-by-default the moment a secret rotates or the
+#   sandbox throttles — exactly the "trains everyone to merge through red" trap
+#   that builder-fidelity.yml documents at length. Keeping it manual means it
+#   NEVER appears in PR status checks and can never erode the blocking gates.
+#
+#   The regression *class* this suite guards (builder chrome, topbar controls,
+#   edit-mode logic) is already covered on every PR by the deterministic
+#   `test:builder-chrome` node:test lane in ci.yml. This workflow adds the
+#   interaction-level coverage on demand, in a clean pinned-browser environment,
+#   without needing a developer's laptop.
+#
+# ENABLE (one-time, owner):
+#   1. Add these repository secrets (Settings → Secrets and variables → Actions):
+#        E2E_SUPABASE_URL              → your test project's NEXT_PUBLIC_SUPABASE_URL
+#        E2E_SUPABASE_ANON_KEY         → its NEXT_PUBLIC_SUPABASE_ANON_KEY
+#        E2E_SUPABASE_SERVICE_ROLE_KEY → its SUPABASE_SERVICE_ROLE_KEY
+#      Optional (only if you run the password-signin path instead of dev-signin):
+#        E2E_TEST_ADMIN_EMAIL, E2E_TEST_ADMIN_PASSWORD
+#   2. Actions tab → "Builder E2E (Playwright smoke)" → Run workflow.
+#   3. The first run verifies the wiring; the "Verify required secrets" step
+#      fails fast (no fake-green) if a secret is missing.
+#
+# Use a DEDICATED test/sandbox Supabase, never production — the smoke creates and
+# publishes builder drafts. See web/docs/builder-e2e-ci.md for the full rationale.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Builder E2E (Playwright smoke)
+
+on:
+  workflow_dispatch:
+    inputs:
+      grep:
+        description: "Optional Playwright -g title filter (blank = the whole smoke suite)."
+        type: string
+        default: ""
+      spec:
+        description: "Spec file to run."
+        type: string
+        default: "e2e/smoke.spec.ts"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  builder-e2e:
+    name: Builder smoke (dev-signin)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: web
+    env:
+      # Server + client read these at boot / request time. Sourced from repo
+      # secrets so the values never appear in logs or the checked-in tree.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+      TEST_ADMIN_EMAIL: ${{ secrets.E2E_TEST_ADMIN_EMAIL }}
+      TEST_ADMIN_PASSWORD: ${{ secrets.E2E_TEST_ADMIN_PASSWORD }}
+      # Drive the dev-signin path (no password needed) against a CI-started dev
+      # server on localhost:3000 — Playwright auto-starts `npm run dev`.
+      PLAYWRIGHT_USE_DEV_SIGNIN: "1"
+      PLAYWRIGHT_BASE_URL: "http://localhost:3000"
+    steps:
+      # Fail FAST and LOUD if the wiring is incomplete, so a missing secret
+      # reads as "not configured yet" rather than a confusing mid-test crash.
+      # This is what keeps the workflow honest: it can never pass without the
+      # secrets actually being present.
+      - name: Verify required secrets
+        run: |
+          missing=0
+          for v in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY; do
+            if [ -z "${!v}" ]; then
+              echo "::error title=Missing secret::$v is empty. Add the E2E_* repository secrets (see this workflow's header) before running."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then exit 1; fi
+          echo "All required secrets are present."
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      # Playwright auto-starts `npm run dev` (config sees a localhost base URL),
+      # waits up to 180s for it, then runs the smoke. A blank `grep` runs the
+      # whole file; a filter narrows to one scenario. Inputs are passed via env
+      # (not interpolated into the script) to avoid shell-injection.
+      - name: Run builder smoke
+        env:
+          E2E_GREP: ${{ inputs.grep }}
+          E2E_SPEC: ${{ inputs.spec }}
+        run: |
+          if [ -n "$E2E_GREP" ]; then
+            npx playwright test "$E2E_SPEC" --project=chromium -g "$E2E_GREP"
+          else
+            npx playwright test "$E2E_SPEC" --project=chromium
+          fi
+
+      - name: Upload Playwright report + traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: builder-e2e-playwright-report
+          path: |
+            web/playwright-report
+            web/test-results
+          if-no-files-found: ignore
