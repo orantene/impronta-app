@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   filterTaxonomyTermIdsByTenantDirectorySafety,
+  selectDirectoryMatchLeafTermIds,
   type DirectoryTaxonomySafetySetting,
   type DirectoryTaxonomySafetyTerm,
 } from "@/lib/directory/taxonomy-tenant-safety";
@@ -71,4 +72,49 @@ test("directory taxonomy safety hides terms removed from directory but still ena
   });
 
   assert.deepEqual(result, []);
+});
+
+// ── selectDirectoryMatchLeafTermIds — resolve a group filter to its tagged
+//    leaves so a parent_category / category_group filter matches talent (which
+//    are only tagged at the talent_type leaf level). ───────────────────────────
+
+test("leaf resolution expands a parent group to its descendant leaves", () => {
+  // models (parent_category) → fashion-models (category_group) → 2 talent_types.
+  const result = selectDirectoryMatchLeafTermIds({
+    requestedTermIds: ["models"],
+    termsById: terms([
+      { id: "models", parent_id: null },
+      { id: "fashion-models", parent_id: "models" },
+      { id: "fashion-model", parent_id: "fashion-models" },
+      { id: "runway-model", parent_id: "fashion-models" },
+    ]),
+  });
+  assert.deepEqual(result.sort(), ["fashion-model", "runway-model"]);
+});
+
+test("leaf resolution leaves a granular (leaf) request unchanged", () => {
+  // A directory pill requests a single talent_type leaf → matches itself only.
+  const result = selectDirectoryMatchLeafTermIds({
+    requestedTermIds: ["fashion-model"],
+    termsById: terms([
+      { id: "fashion-models", parent_id: "models" },
+      { id: "fashion-model", parent_id: "fashion-models" },
+      { id: "runway-model", parent_id: "fashion-models" },
+    ]),
+  });
+  assert.deepEqual(result, ["fashion-model"]);
+});
+
+test("leaf resolution unions leaves across multiple requested groups", () => {
+  const result = selectDirectoryMatchLeafTermIds({
+    requestedTermIds: ["models", "performers"],
+    termsById: terms([
+      { id: "models", parent_id: null },
+      { id: "fashion-model", parent_id: "models" },
+      { id: "performers", parent_id: null },
+      { id: "dj", parent_id: "performers" },
+      { id: "host", parent_id: "performers" },
+    ]),
+  });
+  assert.deepEqual(result.sort(), ["dj", "fashion-model", "host"]);
 });
