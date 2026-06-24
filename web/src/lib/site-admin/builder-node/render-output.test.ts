@@ -977,6 +977,54 @@ test("container display:slider emits per-breakpoint display attrs + items-per-vi
   );
 });
 
+test("hero carousel: first freeform slide background renders as an eager priority <img>", () => {
+  const node: BuilderNode = {
+    id: "hero-c",
+    kind: "carousel",
+    props: { variant: "hero", heightMode: "fixed", minHeightPx: 400 },
+    children: [
+      {
+        id: "hs0",
+        kind: "container",
+        props: {
+          layout: "stack",
+          style: {
+            backgroundImage:
+              "url('/talent-templates/demo/impronta-2026/lifestyle-1.jpg')",
+            backgroundPosition: "center top",
+          },
+        },
+        children: [
+          { id: "hh0", kind: "heading", props: { text: "Faces with an imprint", level: 1 } },
+        ],
+      },
+      {
+        id: "hs1",
+        kind: "container",
+        props: {
+          layout: "stack",
+          style: {
+            backgroundImage:
+              "url('/talent-templates/demo/impronta-2026/lifestyle-2.jpg')",
+          },
+        },
+        children: [{ id: "hh1", kind: "heading", props: { text: "More faces", level: 2 } }],
+      },
+    ],
+  } as BuilderNode;
+  const html = render([node]);
+  // Slide 0's photo must paint as a real prioritized <img> (LCP + alt), not a
+  // CSS background — the others stay CSS background (no second eager <img>).
+  assert.match(html, /loading="eager"/, "first hero slide ships an eager <img>");
+  assert.match(html, /fetchpriority="high"/i, "first hero slide image is high priority (LCP)");
+  assert.ok(/alt="[^"]*\S[^"]*"/.test(html), "first hero slide image has a non-empty alt");
+  assert.equal(
+    (html.match(/loading="eager"/g) ?? []).length,
+    1,
+    "only the first slide is eager",
+  );
+});
+
 test("repeaters: empty source renders the template once as static fallback", () => {
   const html = render([repeatCard()], {
     dataSources: { collections: { featured_talent_profiles: [] } },

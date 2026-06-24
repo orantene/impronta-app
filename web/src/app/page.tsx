@@ -16,7 +16,10 @@ import {
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
-import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import {
+  loadPublicIdentity,
+  loadPublicShareImageUrl,
+} from "@/lib/site-admin/server/reads";
 import { resolveAgencyHomeSlug } from "@/lib/site-admin/server/page-roles";
 import { isLocale } from "@/lib/site-admin/locales";
 import CmsPublicPage, {
@@ -25,6 +28,36 @@ import CmsPublicPage, {
 
 /** Server reads cookies (Supabase / host-context header); must not be statically prerendered. */
 export const dynamic = "force-dynamic";
+
+/**
+ * Last-resort OG image when neither the homepage nor the tenant's identity
+ * exposes a share image. A static platform asset under `/public`, served on
+ * whatever tenant host is rendering (resolved to absolute below). Replace with
+ * a purpose-built 1200x630 PNG when one is designed (see followups).
+ */
+const PLATFORM_DEFAULT_OG_IMAGE_PATH = "/brand/tulala-wordmark.svg";
+
+/**
+ * Coerce an OG image reference to an ABSOLUTE URL — crawlers (WhatsApp,
+ * iMessage, Instagram, X) reject relative `images`. Already-absolute URLs
+ * (e.g. a Supabase `media-public` public URL) pass through unchanged; a
+ * root-relative path is prefixed with the per-tenant request host so each
+ * brand's card points at its own domain, falling back to the metadataBase
+ * origin when the host header is absent (build / test contexts).
+ */
+function toAbsoluteUrl(
+  value: string | null | undefined,
+  hostname: string | null,
+  metadataBase: string | URL | null | undefined,
+): string | undefined {
+  const raw = value?.trim();
+  if (!raw) return undefined;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const path = raw.startsWith("/") ? raw : `/${raw}`;
+  if (hostname) return `https://${hostname}${path}`;
+  if (metadataBase) return new URL(path, metadataBase).toString();
+  return undefined;
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -62,9 +95,10 @@ export async function generateMetadata(): Promise<Metadata> {
     // seeded in 20260625100000). The only kind branch is render-time
     // dispatch below; data access is unified.
     const cmsLocale = isLocale(locale) ? locale : undefined;
-    const [homepage, identity] = await Promise.all([
+    const [homepage, identity, identityShareImage] = await Promise.all([
       cmsLocale ? loadPublicHomepage(ctx.tenantId, cmsLocale) : Promise.resolve(null),
       loadPublicIdentity(ctx.tenantId),
+      loadPublicShareImageUrl(ctx.tenantId),
     ]);
     const brandName = identity?.public_name?.trim() || PLATFORM_BRAND.name;
     const fallbackTitle =
@@ -78,16 +112,47 @@ export async function generateMetadata(): Promise<Metadata> {
       identity?.seo_default_description?.trim() || t("public.meta.homeDescription");
     const title = homepage?.metaTitle || homepage?.title || fallbackTitle;
     const description = homepage?.metaDescription || fallbackDescription;
-    const ogImage = homepage?.ogImageUrl ?? undefined;
     const localeAlternates = buildPublicLocaleAlternates(locale, "/");
+
+    // OG image: a freeform homepage published by direct snapshot write (no SEO
+    // panel) has `ogImageUrl: null`, so without a fallback NO image is emitted
+    // and the link unfurls bare on WhatsApp / iMessage / Instagram. Fall back —
+    // tenant-aware, NOT hardcoded — to the tenant's own default share image
+    // (identity `seo_default_share_image_media_asset_id`), then a platform
+    // default. Crawlers require an ABSOLUTE URL, so coerce relative paths
+    // against the request host (per-tenant) and absolutize the rest against the
+    // metadataBase.
+    const ogImageRaw =
+      homepage?.ogImageUrl ??
+      identityShareImage ??
+      PLATFORM_DEFAULT_OG_IMAGE_PATH;
+    const ogImage = toAbsoluteUrl(
+      ogImageRaw,
+      ctx.hostname,
+      localeAlternates.metadataBase,
+    );
+    const ogTitle = homepage?.ogTitle || title;
+    const ogDescription = homepage?.ogDescription || description;
+
     return {
       title,
       description,
       robots: homepage?.noindex ? { index: false, follow: false } : undefined,
       openGraph: {
-        title: homepage?.ogTitle || title,
-        description: homepage?.ogDescription || description,
+        title: ogTitle,
+        description: ogDescription,
+        siteName: brandName,
+        url: ctx.hostname ? `https://${ctx.hostname}/` : undefined,
         images: ogImage ? [{ url: ogImage }] : undefined,
+      },
+      twitter: {
+        // Mirror openGraph so X / Twitter and the many apps that read the
+        // twitter:* tags (iMessage, some Slack unfurlers) get a large image
+        // card too — same pattern as the marketing branch below.
+        card: "summary_large_image",
+        title: ogTitle,
+        description: ogDescription,
+        images: ogImage ? [ogImage] : undefined,
       },
       ...localeAlternates,
       alternates: {

@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
 
@@ -93,6 +94,8 @@ function HeroCarousel({
   }, [reduced, paused, autoplayMs, count, loop]);
 
   // Crossfade by toggling data-active on the server-rendered slide nodes.
+  // Also toggle aria-hidden so assistive tech skips the inactive (invisible)
+  // slides (WCAG 4.1.2) and exposes only the one on screen.
   useEffect(() => {
     const el = slidesRef.current;
     if (!el) return;
@@ -100,20 +103,57 @@ function HeroCarousel({
     for (let i = 0; i < kids.length; i += 1) {
       const kid = kids[i];
       if (!(kid instanceof HTMLElement)) continue;
-      if (i === index) kid.setAttribute("data-active", "");
-      else kid.removeAttribute("data-active");
+      if (i === index) {
+        kid.setAttribute("data-active", "");
+        kid.removeAttribute("aria-hidden");
+        kid.removeAttribute("inert");
+      } else {
+        kid.removeAttribute("data-active");
+        kid.setAttribute("aria-hidden", "true");
+        // `inert` also drops any focusable CTA inside the hidden slide out of
+        // the tab order + a11y tree, so aria-hidden never wraps a focusable
+        // descendant (which would itself be a WCAG 4.1.2 violation).
+        kid.setAttribute("inert", "");
+      }
     }
   }, [index]);
+
+  // WCAG 2.4.7 / 2.1.1 — ArrowLeft/ArrowRight move between slides whenever the
+  // carousel (slides container, dots, or arrows) holds keyboard focus.
+  function onKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (count <= 1) return;
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      go(index - 1);
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      go(index + 1);
+    }
+  }
 
   const ctl = controls ?? {};
   const padded = (n: number) => String(n).padStart(2, "0");
   const showMeta = (ctl.counter || ctl.progress || ctl.dots) && count > 1;
 
   return (
-    <>
+    // `display:contents` wrapper — adds focus/keyboard behavior to the whole
+    // carousel WITHOUT introducing a box (the hero's absolute-positioned
+    // slides/arrows/meta keep the carousel root as their containing block, so
+    // layout is unchanged). focusin/focusout bubble here, so autoplay pauses
+    // whenever any control inside takes keyboard focus (WCAG 2.2.2), and
+    // ArrowLeft/Right navigate while focus is within (WCAG 2.1.1).
+    <div
+      style={{ display: "contents" }}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+      onKeyDown={onKeyDown}
+    >
       <div
         className="site-bn-hero__slides"
         ref={slidesRef}
+        role="group"
+        aria-roledescription="carousel"
+        aria-label="Highlights"
         onMouseEnter={pauseOnHover ? () => setPaused(true) : undefined}
         onMouseLeave={pauseOnHover ? () => setPaused(false) : undefined}
       >
@@ -163,6 +203,7 @@ function HeroCarousel({
                   className="site-bn-hero__dot"
                   data-on={i === index ? "" : undefined}
                   aria-label={`Go to slide ${i + 1}`}
+                  aria-current={i === index ? "true" : undefined}
                   onClick={() => go(i)}
                 />
               ))}
@@ -175,7 +216,7 @@ function HeroCarousel({
           <span>Scroll</span>
         </div>
       ) : null}
-    </>
+    </div>
   );
 }
 
