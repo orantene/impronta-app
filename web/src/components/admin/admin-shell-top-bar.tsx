@@ -60,6 +60,7 @@ import { cn } from "@/lib/utils";
 const SUBROUTE_LABELS: Record<string, string> = {
   "site-settings": "Site",
   "card-design": "Card Design",
+  "profile-pages": "Profile Pages",
   structure: "Composer",
   design: "Design",
   sections: "Sections",

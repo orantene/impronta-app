@@ -6,6 +6,9 @@ import { notFound } from "next/navigation";
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 
 import { LightProfileLayout } from "./_light/LightProfileLayout";
+import { NoirProfileLayout } from "./_noir/NoirProfileLayout";
+import { LumenProfileLayout } from "./_lumen/LumenProfileLayout";
+import { AtelierProfileLayout } from "./_atelier/AtelierProfileLayout";
 import { ProfileShareRow } from "./_light/ProfileShareRow";
 import { ProfileHubsIndicator } from "./_light/ProfileHubsIndicator";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
@@ -81,6 +84,7 @@ import {
   loadPublicIdentity,
   loadPublicBranding,
 } from "@/lib/site-admin/server/reads";
+import { designTokensToCssVars } from "@/lib/site-admin/tokens/resolve";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
 import { buildTalentProfileJsonLd, jsonLdToString } from "@/lib/seo/talent-json-ld";
 import {
@@ -1360,7 +1364,7 @@ export default async function PublicTalentProfilePage({
   searchParams,
 }: {
   params: Promise<{ profileCode: string }>;
-  searchParams: Promise<{ preview?: string; locale?: string; lang?: string }>;
+  searchParams: Promise<{ preview?: string; locale?: string; lang?: string; template?: string }>;
 }) {
   const { profileCode } = await params;
   const sp = await searchParams;
@@ -1994,12 +1998,60 @@ export default async function PublicTalentProfilePage({
     affiliationName: hostCtx.kind === "agency" ? tenantBrand : null,
   });
 
+  // ── Profile template dispatch ─────────────────────────────────────────
+  // Per-tenant choice of profile-page template — the exact mirror of the Card
+  // Design chooser. Card Design stores its pick in the
+  // `template.directory-card-family` design token; the profile template uses
+  // the sibling `template.profile-layout-family` token (both live in
+  // agency_branding.theme_json, already loaded above as brandingTheme). A
+  // `?template=noir|classic` query param overrides it for QA/preview. Any
+  // value other than "noir" keeps the classic LightProfileLayout. Both
+  // templates accept identical props.
+  const profileTemplateOverride =
+    sp.template === "noir" ||
+    sp.template === "classic" ||
+    sp.template === "lumen" ||
+    sp.template === "atelier"
+      ? sp.template
+      : null;
+  const profileLayoutFamily =
+    typeof brandingTheme["template.profile-layout-family"] === "string"
+      ? (brandingTheme["template.profile-layout-family"] as string)
+      : "classic";
+  const profileTemplateKey = profileTemplateOverride ?? profileLayoutFamily;
+  const ProfileTemplate =
+    profileTemplateKey === "noir"
+      ? NoirProfileLayout
+      : profileTemplateKey === "lumen"
+        ? LumenProfileLayout
+        : profileTemplateKey === "atelier"
+          ? AtelierProfileLayout
+          : LightProfileLayout;
+
+  // Tenant theme → theme-adaptive templates (Lumen / Atelier). Project the
+  // tenant's color design tokens to --token-color-* vars and derive a
+  // light/dark register from background.mode. Classic + Noir ignore these.
+  const profileThemeVars = designTokensToCssVars(
+    Object.fromEntries(
+      Object.entries(brandingTheme).filter(([, v]) => typeof v === "string"),
+    ) as Record<string, string>,
+  );
+  const profileBackgroundMode =
+    typeof brandingTheme["background.mode"] === "string"
+      ? (brandingTheme["background.mode"] as string)
+      : "";
+  const profileThemeMode: "light" | "dark" = /noir|dark/i.test(
+    profileBackgroundMode,
+  )
+    ? "dark"
+    : "light";
+
   const profileBody = (
     <>
       <DiscoveryStateBridge savedIds={initialSavedIds} favoriteIds={initialFavoriteIds} />
 
-      {/* ── Profile body — rebuilt on the tulala.digital marketing system ── */}
-      <LightProfileLayout
+      {/* ── Profile body — template chosen per-tenant (classic | noir) ── */}
+      <ProfileTemplate
         name={name}
         firstName={firstName}
         profileCode={profile.profile_code}
@@ -2060,6 +2112,8 @@ export default async function PublicTalentProfilePage({
         portalInquiryHref={portalInquiryHref}
         resolvedPreview={resolvedPreview}
         showFooter={!platformChrome}
+        themeMode={profileThemeMode}
+        themeVars={profileThemeVars}
         hostCtxKind={hostCtx.kind as "agency" | "app" | "hub" | "platform"}
         tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
         tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
