@@ -56,7 +56,7 @@ import { revalidateTag } from "next/cache";
 import { z } from "zod";
 
 import { requireStaff } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { getTenantScope, getTenantScopeBySlug } from "@/lib/saas/scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CACHE_TAG_DIRECTORY } from "@/lib/cache-tags";
 import { tagFor } from "@/lib/site-admin/cache-tags";
@@ -105,12 +105,18 @@ type GuardedScope = {
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>;
 };
 
-async function guardCatalogScope(): Promise<
+async function guardCatalogScope(tenantSlug?: string): Promise<
   { ok: true; scope: GuardedScope } | { ok: false; error: string }
 > {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  // URL-authoritative when the workspace-admin studio passes its slug; falls
+  // back to the header/cookie scope for callers without one. A multi-workspace
+  // operator whose active_tenant_id cookie points elsewhere would otherwise
+  // toggle the wrong tenant's fields (or get "Pick an agency workspace").
+  const scope = tenantSlug
+    ? await getTenantScopeBySlug(tenantSlug)
+    : await getTenantScope();
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
   const admin = createServiceRoleClient();
   if (!admin) {
@@ -454,10 +460,12 @@ export type CardDesignFieldCandidate = {
  * card display catalog never emits those keys regardless (it only renders the
  * bridged scalar set), so this matches the rendered reality.
  */
-export async function readCardDesignFieldCandidates(): Promise<
+export async function readCardDesignFieldCandidates(input?: {
+  tenantSlug?: string;
+}): Promise<
   { ok: true; data: CardDesignFieldCandidate[] } | { ok: false; error: string }
 > {
-  const guard = await guardCatalogScope();
+  const guard = await guardCatalogScope(input?.tenantSlug);
   if (!guard.ok) return guard;
   const { admin } = guard.scope;
 
@@ -525,8 +533,9 @@ export async function readCardDesignFieldCandidates(): Promise<
 export async function setFieldCardVisible(
   fieldKey: string,
   cardVisible: boolean,
+  tenantSlug?: string,
 ): Promise<CatalogActionResult> {
-  const guard = await guardCatalogScope();
+  const guard = await guardCatalogScope(tenantSlug);
   if (!guard.ok) return guard;
   const { admin, tenantId } = guard.scope;
 

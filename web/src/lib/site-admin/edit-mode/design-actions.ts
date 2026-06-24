@@ -43,7 +43,7 @@ import {
 } from "@/lib/site-admin/builder-node/component-style-defaults";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
 import { requireStaff } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { getTenantScope, getTenantScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
 
 // ── types ─────────────────────────────────────────────────────────────────
@@ -128,6 +128,26 @@ function withDefaults(
   return out;
 }
 
+/**
+ * Resolve the tenant scope for an edit-mode design action.
+ *
+ * When a `tenantSlug` is supplied — the workspace-admin Card Design studio
+ * passes the URL slug from `/<slug>/admin/...`, which is URL-authoritative —
+ * resolve from the slug via `getTenantScopeBySlug`. This is the fix for a
+ * multi-workspace operator: their `impronta.active_tenant_id` cookie may point
+ * at a DIFFERENT workspace than the one they're viewing, so the cookie-based
+ * `getTenantScope` would load (or fail on) the wrong tenant — leaving the
+ * studio stuck on "Loading…". The slug is unambiguous.
+ *
+ * Without a slug (the storefront edit-chrome ThemeDrawer, where middleware
+ * sets the `x-impronta-tenant-id` header from the verified host) fall back to
+ * the header/cookie-based scope. Both helpers return `null` when no scope can
+ * be proven; callers treat that as "no workspace selected".
+ */
+async function resolveDesignScope(tenantSlug: string | undefined) {
+  return tenantSlug ? getTenantScopeBySlug(tenantSlug) : getTenantScope();
+}
+
 // ── load ──────────────────────────────────────────────────────────────────
 
 /**
@@ -135,10 +155,13 @@ function withDefaults(
  * (live + draft + version + preset slug + last-publish timestamp) in one
  * round-trip — no separate "fetch draft" then "fetch live" paths.
  */
-export async function loadDesignAction(): Promise<DesignLoadResult> {
+export async function loadDesignAction(input?: {
+  /** Workspace URL slug — resolves the tenant from the URL (admin studio). */
+  tenantSlug?: string;
+}): Promise<DesignLoadResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
     return {
       ok: false,
@@ -192,10 +215,11 @@ export async function loadDesignAction(): Promise<DesignLoadResult> {
 export async function saveDesignDraftFromEditAction(input: {
   patch: Record<string, string>;
   expectedVersion: number;
+  tenantSlug?: string;
 }): Promise<DesignSaveResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
     return {
       ok: false,
@@ -291,10 +315,11 @@ export type ComponentStylesSaveResult =
 export async function saveComponentStylesDraftFromEditAction(input: {
   componentStyles: ComponentStyleDefaults;
   expectedVersion: number;
+  tenantSlug?: string;
 }): Promise<ComponentStylesSaveResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
     return {
       ok: false,
@@ -350,10 +375,11 @@ export async function saveComponentStylesDraftFromEditAction(input: {
 export async function applyThemePresetFromEditAction(input: {
   presetSlug: string;
   expectedVersion: number;
+  tenantSlug?: string;
 }): Promise<DesignPresetResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
     return {
       ok: false,
@@ -419,10 +445,11 @@ export async function applyThemePresetFromEditAction(input: {
  */
 export async function applyCardKitFromEditAction(input: {
   kitSlug: string;
+  tenantSlug?: string;
 }): Promise<DesignSaveResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
     return {
       ok: false,
@@ -522,10 +549,11 @@ export async function applyCardKitFromEditAction(input: {
 export async function restoreDesignRevisionFromEditAction(input: {
   revisionId: string;
   expectedVersion: number;
+  tenantSlug?: string;
 }): Promise<DesignSaveResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
     return {
       ok: false,
@@ -592,10 +620,11 @@ export async function restoreDesignRevisionFromEditAction(input: {
  */
 export async function publishDesignFromEditAction(input: {
   expectedVersion: number;
+  tenantSlug?: string;
 }): Promise<DesignPublishResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
     return {
       ok: false,
