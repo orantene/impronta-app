@@ -11,7 +11,7 @@ import {
   getCachedDirectoryFilterSidebarModel,
 } from "@/lib/directory/field-driven-filters";
 import { getPublicTenantScope } from "@/lib/saas/scope";
-import { readGoogleMapsBrowserKey } from "@/lib/env/google-maps-browser-key";
+import { resolveGoogleMapsKeyForClient } from "@/lib/integrations/resolve";
 import { logServerError } from "@/lib/server/safe-error";
 import { getCardKit } from "@/lib/site-admin/presets/card-kits";
 import { HeroSearch, type HeroSearchCopy } from "@/components/home/hero-search";
@@ -133,6 +133,11 @@ export async function DirectoryComponent({
   const publicScope = await getPublicTenantScope();
   const directoryTenantId = publicScope?.tenantId ?? null;
   const surface = directorySurfaceFromTenantId(publicScope?.tenantId ?? null);
+  // Map view key: prefer the TENANT's own Google Maps integration key (admin →
+  // Settings → Integrations, custom mode) so the tenant's own referrer-restricted
+  // key authorizes their custom domain; falls back to the platform key in inherit
+  // mode. null → the map panel shows its graceful "unavailable" box.
+  const mapApiKey = await resolveGoogleMapsKeyForClient(directoryTenantId);
 
   // Resolve scope seed: maps by_talent_type keys → taxonomy term UUIDs for
   // the SSR first-page pre-filter, surfaces manual codes for client
@@ -373,7 +378,7 @@ export async function DirectoryComponent({
             initialPage={initialPage!}
             locale={pickLocale(loc, { en: "en", es: "es" } as const)}
             ui={ui}
-            mapApiKey={readGoogleMapsBrowserKey() ?? null}
+            mapApiKey={mapApiKey}
             topBarFacet={topBarFacet}
             sidebarBlocks={sidebar.blocks}
             defaultSort={props.defaultSort}
