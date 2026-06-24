@@ -382,13 +382,13 @@ export const INQUIRY_STAGES: InquiryStage[] = [
 
 export const INQUIRY_STAGE_META: Record<
   InquiryStage,
-  { label: string; tone: "ink" | "amber" | "green" | "dim" | "red"; description: string }
+  { label: string; tone: "ink" | "amber" | "green" | "dim" | "red" | "indigo"; description: string }
 > = {
   draft: { label: "Draft", tone: "dim", description: "Started — not yet sent." },
   submitted: { label: "Submitted", tone: "amber", description: "Client request received. Needs a coordinator." },
   coordination: { label: "With coordinator", tone: "amber", description: "Coordinator working with client + selecting talent." },
   offer_pending: { label: "Offer pending", tone: "amber", description: "Offer sent — waiting on client + talent approvals." },
-  approved: { label: "Approved", tone: "green", description: "All parties approved. Ready to book." },
+  approved: { label: "Approved", tone: "indigo", description: "All parties approved. Ready to book." },
   booked: { label: "Booked", tone: "green", description: "Converted to a booking. Inquiry is read-only." },
   rejected: { label: "Rejected", tone: "red", description: "Closed without converting." },
   expired: { label: "Expired", tone: "dim", description: "Lapsed past response window." },

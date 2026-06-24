@@ -788,6 +788,8 @@ export function InquiryStatusChip({ inquiry }: { inquiry: RichInquiry }) {
     green: COLORS.successSoft,
     dim: "rgba(11,11,13,0.04)",
     red: COLORS.criticalSoft,
+    // "approved / ready to book" — distinct indigo so it never reads as "booked".
+    indigo: "rgba(43,63,163,0.12)",
   };
   const fgMap: Record<string, string> = {
     ink: COLORS.ink,
@@ -795,6 +797,7 @@ export function InquiryStatusChip({ inquiry }: { inquiry: RichInquiry }) {
     green: COLORS.successDeep,
     dim: COLORS.inkMuted,
     red: "#7A2026",
+    indigo: "#2B3FA3",
   };
   return (
     <span

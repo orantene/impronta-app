@@ -305,11 +305,13 @@ export function DayDetailDrawer() {
                           sm.tone === "green" ? "rgba(46,125,91,0.1)"
                           : sm.tone === "amber" ? "rgba(184,134,11,0.1)"
                           : sm.tone === "red"   ? "rgba(192,57,43,0.08)"
+                          : sm.tone === "indigo" ? "rgba(43,63,163,0.1)"
                           : "rgba(11,11,13,0.06)",
                         color:
                           sm.tone === "green" ? COLORS.green
                           : sm.tone === "amber" ? COLORS.amber
                           : sm.tone === "red"   ? "#c0392b"
+                          : sm.tone === "indigo" ? "#2B3FA3"
                           : COLORS.ink,
                       }}
                     >
