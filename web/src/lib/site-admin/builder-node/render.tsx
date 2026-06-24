@@ -689,8 +689,10 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 .site-bn-hero__dots{display:flex;gap:10px}
 .site-bn-hero__dot{width:34px;height:2px;border:0;padding:0;cursor:pointer;background:rgba(255,255,255,0.3);transition:background .4s}
 .site-bn-hero__dot[data-on]{background:var(--token-color-primary,#c6a14e)}
+.site-bn-hero__dot:focus-visible{outline:2px solid var(--token-color-primary,#c6a14e);outline-offset:6px}
 .site-bn-hero__arrow{position:absolute;z-index:6;top:50%;transform:translateY(-50%);height:48px;width:48px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.35);border-radius:999px;background:rgba(8,7,10,0.25);color:#fff;font-size:1rem;cursor:pointer;backdrop-filter:blur(4px);transition:background .3s,border-color .3s}
 .site-bn-hero__arrow:hover{background:rgba(8,7,10,0.5);border-color:var(--token-color-primary,#c6a14e)}
+.site-bn-hero__arrow:focus-visible{outline:2px solid var(--token-color-primary,#c6a14e);outline-offset:3px}
 .site-bn-hero__arrow--prev{left:clamp(12px,2vw,28px)}
 .site-bn-hero__arrow--next{right:clamp(12px,2vw,28px)}
 .site-bn-hero__cue{position:absolute;z-index:5;left:50%;bottom:30px;transform:translateX(-50%);color:rgba(255,255,255,0.7);font-size:10px;letter-spacing:0.34em;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none}
@@ -3095,6 +3097,46 @@ function builderImageSrcSet(
   return { srcSet, sizes: sizesOverride ?? "(max-width: 768px) 100vw, 50vw" };
 }
 
+// ── Hero LCP: pull the bare URL out of a CSS `background-image` value so the
+// FIRST hero slide can paint it as a real eager <img> (preloadable,
+// fetchpriority="high", alt-bearing) instead of a late CSS background. Returns
+// null for gradients, layered backgrounds (multiple commas), or anything that
+// isn't a single clean `url(...)` — those keep the existing CSS-background path.
+function singleBackgroundImageUrl(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  // Bail on gradients or multi-layer backgrounds — we only lift a lone image.
+  if (/gradient\(/i.test(trimmed)) return null;
+  const match = /^url\(\s*(['"]?)([^'")]+)\1\s*\)$/i.exec(trimmed);
+  if (!match) return null;
+  const url = match[2].trim();
+  return url.length > 0 ? url : null;
+}
+
+// ── Hero LCP: derive a meaningful alt for the eager slide-0 image from the
+// slide's own freeform copy (first eyebrow/heading/paragraph text it can find),
+// falling back to a brand-safe default. Walks a shallow subtree; cheap and
+// purely additive (only ever runs for hero slide 0).
+function deriveHeroSlideAlt(node: BuilderNode, fallback: string): string {
+  let found = "";
+  const visit = (n: BuilderNode, depth: number) => {
+    if (found || depth > 4) return;
+    const text = (n.props as { text?: unknown } | undefined)?.text;
+    if (typeof text === "string" && text.trim().length > 0) {
+      // Strip any inline rich-text markup to a plain string.
+      found = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      return;
+    }
+    for (const child of nodeChildren(n)) {
+      visit(child, depth + 1);
+      if (found) return;
+    }
+  };
+  visit(node, 0);
+  if (!found) return fallback;
+  return found.length > 140 ? `${found.slice(0, 137).trimEnd()}…` : found;
+}
+
 /**
  * Wave 3 · 3B — resolve a node's LINKED STYLE CLASS before rendering. When the
  * node's `style.classRef` names a class in the registry, return a shallow copy
@@ -3485,6 +3527,41 @@ function renderBuilderNodeElement(
                 },
               },
             } as BuilderNode;
+            // Hero LCP: for the FIRST slide only, if its background is a single
+            // url(...) image, paint it as a real eager + fetchpriority="high"
+            // <img> (preloadable, alt-bearing for SEO/AT) instead of a late CSS
+            // background. Slides 2-N keep the CSS-background path untouched.
+            const eagerBgUrl =
+              index === 0
+                ? singleBackgroundImageUrl(childStyle.backgroundImage)
+                : null;
+            const eagerBgImg = eagerBgUrl ? (
+              (() => {
+                const responsive = builderImageSrcSet(eagerBgUrl, "100vw");
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={eagerBgUrl}
+                    alt={deriveHeroSlideAlt(child, "Impronta talent")}
+                    loading="eager"
+                    fetchPriority="high"
+                    decoding="async"
+                    {...(responsive
+                      ? { srcSet: responsive.srcSet, sizes: responsive.sizes }
+                      : {})}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      objectPosition:
+                        (childStyle.backgroundPosition as
+                          | string
+                          | undefined) ?? "center 28%",
+                    }}
+                  />
+                );
+              })()
+            ) : null;
             return (
               <div
                 key={`${node.id}:slide:${child.id}`}
@@ -3493,8 +3570,20 @@ function renderBuilderNodeElement(
               >
                 <div
                   className="site-bn-hero__slide-bg"
-                  style={Object.keys(bgStyle).length > 0 ? bgStyle : undefined}
-                />
+                  style={
+                    eagerBgImg
+                      ? // The <img> carries the photo; keep only a non-image
+                        // backdrop (e.g. backgroundColor) on the layer.
+                        childStyle.backgroundColor
+                        ? { backgroundColor: childStyle.backgroundColor }
+                        : undefined
+                      : Object.keys(bgStyle).length > 0
+                        ? bgStyle
+                        : undefined
+                  }
+                >
+                  {eagerBgImg}
+                </div>
                 <div
                   className="site-bn-hero__slide-scrim"
                   data-tone={scrimTone}

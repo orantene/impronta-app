@@ -185,6 +185,57 @@ export function loadPublicIdentity(
 }
 
 /**
+ * Resolve the tenant's default social-share image (identity
+ * `seo_default_share_image_media_asset_id`) to an ABSOLUTE public URL.
+ *
+ * Used as the OG-image fallback for freeform homepages that never set
+ * `og_image_url` through the SEO panel. The media asset lives in the
+ * `media-public` bucket, so `getPublicUrl` returns a fully-qualified Supabase
+ * URL (already absolute — crawlers require that). Returns `null` when the
+ * tenant has no share image set, the asset row is missing, or Supabase env is
+ * absent. Cached + tagged on the same `identity` tag so a SEO-panel write
+ * busts it instantly.
+ */
+export function loadPublicShareImageUrl(
+  tenantId: string,
+): Promise<string | null> {
+  if (!tenantId) return Promise.resolve(null);
+
+  return unstable_cache(
+    async (): Promise<string | null> => {
+      const supabase = createPublicSupabaseClient();
+      if (!supabase) return null;
+
+      const { data: identity, error: identityError } = await selectIdentityRow(
+        supabase,
+        tenantId,
+      );
+      if (identityError || !identity?.seo_default_share_image_media_asset_id) {
+        return null;
+      }
+
+      const { data: asset, error: assetError } = await supabase
+        .from("media_assets")
+        .select("storage_path, bucket_id")
+        .eq("id", identity.seo_default_share_image_media_asset_id)
+        .is("deleted_at", null)
+        .maybeSingle<{ storage_path: string; bucket_id: string | null }>();
+      if (assetError || !asset?.storage_path) return null;
+
+      const { data: urlData } = supabase.storage
+        .from(asset.bucket_id || "media-public")
+        .getPublicUrl(asset.storage_path);
+      return urlData?.publicUrl ?? null;
+    },
+    ["site-admin:share-image:public", tenantId],
+    {
+      tags: [tagFor(tenantId, "identity")],
+      revalidate: 300,
+    },
+  )();
+}
+
+/**
  * Cached storefront read of the branding row.
  *
  * `agency_branding_public_select` allows unrestricted read so storefront
