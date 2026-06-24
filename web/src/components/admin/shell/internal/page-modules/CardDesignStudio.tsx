@@ -77,7 +77,8 @@ import {
 // ────────────────────────────────────────────────────────────────────────
 
 export function CardDesignStudio() {
-  const { state, toast, rosterCardBadges, setRosterCardBadge } = useAdminShell();
+  const { state, toast, rosterCardBadges, setRosterCardBadge, tenantSlug } =
+    useAdminShell();
   const canEdit = meetsRole(state.role, "admin");
   // Publishing the card design to every live surface is an owner/admin move;
   // the action layer re-checks `agency.site_admin.design.publish` server-side.
@@ -133,7 +134,7 @@ export function CardDesignStudio() {
     setLoading(true);
     setFieldsError(null);
     void (async () => {
-      const res = await readCardDesignFieldCandidates();
+      const res = await readCardDesignFieldCandidates({ tenantSlug });
       if (!res.ok) {
         setFieldsError(res.error);
         setFields(null);
@@ -142,7 +143,7 @@ export function CardDesignStudio() {
       }
       setLoading(false);
     })();
-  }, []);
+  }, [tenantSlug]);
 
   useEffect(() => {
     loadFields();
@@ -161,7 +162,7 @@ export function CardDesignStudio() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const res = await loadDesignAction();
+      const res = await loadDesignAction({ tenantSlug });
       if (cancelled) return;
       if (!res.ok) {
         setDesignLoadError(res.error);
@@ -182,7 +183,7 @@ export function CardDesignStudio() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [tenantSlug]);
 
   // Has the working draft diverged from what's live? Drives the publish hint.
   const designDirty = useMemo(
@@ -195,7 +196,11 @@ export function CardDesignStudio() {
   const saveDesignDraft = useCallback(
     async (next: Record<string, string>, expected: number) => {
       setSaveState({ kind: "saving" });
-      const res = await saveDesignDraftFromEditAction({ patch: next, expectedVersion: expected });
+      const res = await saveDesignDraftFromEditAction({
+        patch: next,
+        expectedVersion: expected,
+        tenantSlug,
+      });
       if (!res.ok) {
         setSaveState({ kind: "error", message: res.error });
         return;
@@ -203,7 +208,7 @@ export function CardDesignStudio() {
       setDesignVersion(res.version);
       setSaveState({ kind: "saved", version: res.version });
     },
-    [],
+    [tenantSlug],
   );
 
   // Knob edits debounce so dragging a native color picker doesn't spam saves.
@@ -232,7 +237,10 @@ export function CardDesignStudio() {
       setPendingKit(kit.slug);
       setSaveState({ kind: "saving" });
       void (async () => {
-        const res = await applyCardKitFromEditAction({ kitSlug: kit.slug });
+        const res = await applyCardKitFromEditAction({
+          kitSlug: kit.slug,
+          tenantSlug,
+        });
         setPendingKit(null);
         if (!res.ok) {
           setSaveState({ kind: "error", message: res.error });
@@ -245,7 +253,7 @@ export function CardDesignStudio() {
         setSaveState({ kind: "saved", version: res.version });
       })();
     },
-    [canEdit, toast],
+    [canEdit, toast, tenantSlug],
   );
 
   // ── Publish (promote draft → live across every card surface) ──────────────
@@ -253,7 +261,10 @@ export function CardDesignStudio() {
     if (!canPublish) return;
     setPublishState({ kind: "publishing" });
     void (async () => {
-      const res = await publishDesignFromEditAction({ expectedVersion: designVersion });
+      const res = await publishDesignFromEditAction({
+        expectedVersion: designVersion,
+        tenantSlug,
+      });
       if (!res.ok) {
         setPublishState({ kind: "error", message: res.error });
         return;
@@ -268,7 +279,7 @@ export function CardDesignStudio() {
         return next;
       });
     })();
-  }, [canPublish, designVersion, draftTokens]);
+  }, [canPublish, designVersion, draftTokens, tenantSlug]);
 
   const handleToggleField = useCallback(
     (key: string, next: boolean) => {
@@ -282,7 +293,7 @@ export function CardDesignStudio() {
       );
       setFieldStatus((prev) => ({ ...prev, [key]: "saving" }));
       void (async () => {
-        const res = await setFieldCardVisible(key, next);
+        const res = await setFieldCardVisible(key, next, tenantSlug);
         if (!res.ok) {
           // Revert.
           setFields((prev) =>
@@ -302,7 +313,7 @@ export function CardDesignStudio() {
         }, 1600);
       })();
     },
-    [canEdit, toast],
+    [canEdit, toast, tenantSlug],
   );
 
   const handleToggleBadge = useCallback(
