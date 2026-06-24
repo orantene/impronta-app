@@ -35,6 +35,14 @@ export type DirectoryCardDTO = {
   displayName: string;
   primaryTalentTypeLabel: string;
   locationLabel: string;
+  /**
+   * City-centroid coordinates (from the talent's structured residence city)
+   * for the directory map view. Null when the talent has only a free-text
+   * location or an unmapped city. NOT precise per-talent — many talents in
+   * one city share the same centroid, which is why the map clusters by city.
+   */
+  latitude?: number | null;
+  longitude?: number | null;
   fitLabels: readonly { slug: string; label: string }[];
   /** Traits to show under fit labels — from `card_visible` definitions (+ height when enabled). */
   cardAttributes: readonly DirectoryCardAttributeDTO[];

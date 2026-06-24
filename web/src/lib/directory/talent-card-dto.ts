@@ -36,6 +36,9 @@ export type ApiDirectoryCardRpcRow = {
   location_display_en: string | null;
   location_display_es: string | null;
   location_country_code: string | null;
+  /** City-centroid coordinates for the map view (null when unmapped). */
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   fit_labels_jsonb: unknown;
   height_cm: number | null;
   /** Serialized `CardAttributeRpc[]` from server */
@@ -166,6 +169,10 @@ export function mapApiDirectoryRpcRowToDirectoryCardDTO(
     displayName: pickDisplayName(row),
     primaryTalentTypeLabel: typeLabel || fallbackPrimaryTalentType,
     locationLabel,
+    latitude:
+      typeof row.location_latitude === "number" ? row.location_latitude : null,
+    longitude:
+      typeof row.location_longitude === "number" ? row.location_longitude : null,
     fitLabels,
     cardAttributes,
     firstName: row.first_name,

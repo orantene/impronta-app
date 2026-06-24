@@ -11,6 +11,7 @@ import {
   getCachedDirectoryFilterSidebarModel,
 } from "@/lib/directory/field-driven-filters";
 import { getPublicTenantScope } from "@/lib/saas/scope";
+import { readGoogleMapsBrowserKey } from "@/lib/env/google-maps-browser-key";
 import { logServerError } from "@/lib/server/safe-error";
 import { getCardKit } from "@/lib/site-admin/presets/card-kits";
 import { HeroSearch, type HeroSearchCopy } from "@/components/home/hero-search";
@@ -372,6 +373,7 @@ export async function DirectoryComponent({
             initialPage={initialPage!}
             locale={pickLocale(loc, { en: "en", es: "es" } as const)}
             ui={ui}
+            mapApiKey={readGoogleMapsBrowserKey() ?? null}
             topBarFacet={topBarFacet}
             sidebarBlocks={sidebar.blocks}
             defaultSort={props.defaultSort}

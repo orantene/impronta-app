@@ -302,6 +302,7 @@
           "resultLayoutAria": "Result layout",
           "gridViewAria": "Grid view",
           "listViewAria": "List view",
+          "mapViewAria": "Map view",
           "resultsOne": "1 talent profile available",
           "resultsMany": "{count} talent profiles available"
         },

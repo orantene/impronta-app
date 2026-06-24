@@ -35,6 +35,7 @@ import { DirectoryQueryProvider } from "@/components/directory/query-provider";
 import { AIInterpretChip } from "./AIInterpretChip";
 import { DirectoryActiveFilterChips } from "./DirectoryActiveFilterChips";
 import { DirectoryReactiveGrid } from "./DirectoryReactiveGrid";
+import { DirectoryMapView } from "./DirectoryMapView";
 import type { DirectoryV1 } from "./schema";
 
 /**
@@ -66,6 +67,7 @@ export type DirectoryTopBarFacetPropShape = {
  */
 export function DirectoryReactiveResults({
   initialPage,
+  mapApiKey,
   locale,
   ui,
   topBarFacet,
@@ -103,6 +105,8 @@ export function DirectoryReactiveResults({
 }: {
   /** Server-fetched first page (unfiltered for the section scope). */
   initialPage: DirectoryPageResponse;
+  /** Google Maps browser key for the map view (null when unconfigured). */
+  mapApiKey?: string | null;
   locale: "en" | "es";
   ui: DirectoryUiCopy;
   /** When set, the pill bar renders this facet. */
@@ -162,6 +166,7 @@ export function DirectoryReactiveResults({
       <Suspense fallback={null}>
         <DirectoryReactiveResultsInner
           initialPage={initialPage}
+          mapApiKey={mapApiKey}
           locale={locale}
           ui={ui}
           topBarFacet={topBarFacet}
@@ -218,6 +223,7 @@ function mapDefaultSort(s: DirectoryV1["defaultSort"]): DirectorySortValue {
 
 function DirectoryReactiveResultsInner({
   initialPage,
+  mapApiKey,
   locale,
   ui,
   topBarFacet,
@@ -254,6 +260,7 @@ function DirectoryReactiveResultsInner({
   columnsMobile,
 }: {
   initialPage: DirectoryPageResponse;
+  mapApiKey?: string | null;
   locale: "en" | "es";
   ui: DirectoryUiCopy;
   topBarFacet?: DirectoryTopBarFacetPropShape;
@@ -469,41 +476,77 @@ function DirectoryReactiveResultsInner({
             />
           ) : null}
 
-          <DirectoryReactiveGrid
-            taxonomyTermIds={taxonomyTermIds}
-            initialPage={initialPage}
-            locale={locale}
-            sort={sort}
-            query={query}
-            locationSlug={locationSlug}
-            heightMinCm={heightMinCm}
-            heightMaxCm={heightMaxCm}
-            ageMin={ageMin}
-            ageMax={ageMax}
-            fieldFacets={fieldFacets}
-            view={view}
-            ui={ui}
-            directorySearchViaAi={aiSearchEnabled && query.trim().length > 0}
-            manualProfileCodes={scope === "manual" ? manualProfileCodes : undefined}
-            cardStyle={cardStyle}
-            cardAspect={cardAspect}
-            onFetchingChange={handleFetchingChange}
-            show={{
-              showName,
-              showTalentType,
-              showLocation,
-              showAvailability,
-              showBadges,
-            }}
-            showSave={showSave}
-            showAddToInquiry={showAddToInquiry}
-            cardFieldKeys={cardFieldKeys}
-            maxFieldLines={maxFieldLines}
-            nameFallback={nameFallback}
-            columnsDesktop={columnsDesktop}
-            columnsTablet={columnsTablet}
-            columnsMobile={columnsMobile}
-          />
+          {view === "map" ? (
+            <DirectoryMapView
+              apiKey={mapApiKey ?? null}
+              locale={locale}
+              ui={ui}
+              taxonomyTermIds={taxonomyTermIds}
+              sort={sort}
+              query={query}
+              locationSlug={locationSlug}
+              heightMinCm={heightMinCm}
+              heightMaxCm={heightMaxCm}
+              ageMin={ageMin}
+              ageMax={ageMax}
+              fieldFacets={fieldFacets}
+              card={{
+                cardStyle,
+                cardAspect,
+                show: {
+                  showName,
+                  showTalentType,
+                  showLocation,
+                  showAvailability,
+                  showBadges,
+                },
+                showSave,
+                showAddToInquiry,
+                cardFieldKeys,
+                maxFieldLines,
+                nameFallback,
+              }}
+              columnsDesktop={columnsDesktop}
+              columnsTablet={columnsTablet}
+              columnsMobile={columnsMobile}
+            />
+          ) : (
+            <DirectoryReactiveGrid
+              taxonomyTermIds={taxonomyTermIds}
+              initialPage={initialPage}
+              locale={locale}
+              sort={sort}
+              query={query}
+              locationSlug={locationSlug}
+              heightMinCm={heightMinCm}
+              heightMaxCm={heightMaxCm}
+              ageMin={ageMin}
+              ageMax={ageMax}
+              fieldFacets={fieldFacets}
+              view={view}
+              ui={ui}
+              directorySearchViaAi={aiSearchEnabled && query.trim().length > 0}
+              manualProfileCodes={scope === "manual" ? manualProfileCodes : undefined}
+              cardStyle={cardStyle}
+              cardAspect={cardAspect}
+              onFetchingChange={handleFetchingChange}
+              show={{
+                showName,
+                showTalentType,
+                showLocation,
+                showAvailability,
+                showBadges,
+              }}
+              showSave={showSave}
+              showAddToInquiry={showAddToInquiry}
+              cardFieldKeys={cardFieldKeys}
+              maxFieldLines={maxFieldLines}
+              nameFallback={nameFallback}
+              columnsDesktop={columnsDesktop}
+              columnsTablet={columnsTablet}
+              columnsMobile={columnsMobile}
+            />
+          )}
         </div>
       </div>
     </>

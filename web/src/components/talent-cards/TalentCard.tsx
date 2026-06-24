@@ -294,7 +294,7 @@ export function TalentCard({
     <Root
       {...rootProps}
       data-card-style="portrait"
-      className={`${TALENT_CARD_CLASS} group/card relative block overflow-hidden rounded-2xl border border-border outline-none transition-shadow duration-200 hover:shadow-md focus-visible:ring-2 focus-visible:ring-foreground/30 ${
+      className={`${TALENT_CARD_CLASS} group/card relative block overflow-hidden rounded-2xl border border-border outline-none transition-[border-color,box-shadow] duration-200 hover:border-[var(--dir-accent-line)] hover:shadow-[0_14px_36px_-18px_rgba(0,0,0,0.75)] focus-visible:ring-2 focus-visible:ring-foreground/30 ${
         rootMode === "button" ? "cursor-pointer" : ""
       }`}
     >
@@ -341,6 +341,15 @@ export function TalentCard({
           >
             {displayName}
           </h3>
+        ) : null}
+        {displayName ? (
+          // One deliberate accent moment per card: a short gold hairline
+          // under the name (follows the tenant accent via --dir-accent).
+          <span
+            aria-hidden
+            data-card-name-rule
+            className="mt-0.5 mb-0.5 block h-px w-7 bg-[var(--dir-accent)]"
+          />
         ) : null}
         {(show.showTalentType && data.primaryType) ||
         (show.showLocation && data.location) ? (

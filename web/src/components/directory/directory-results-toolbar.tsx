@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, List } from "lucide-react";
+import { LayoutGrid, List, Map as MapIcon } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import type { DirectorySortValue } from "@/lib/directory/types";
@@ -33,8 +33,8 @@ export function DirectoryResultsToolbar({
     (next: DirectoryViewMode) => {
       startTransition(() => {
         commitDirectoryListingUrl(router, pathname, searchParams.toString(), (params) => {
-          if (next === "list") params.set("view", "list");
-          else params.delete("view");
+          if (next === "grid") params.delete("view");
+          else params.set("view", next);
         });
       });
     },
@@ -74,7 +74,7 @@ export function DirectoryResultsToolbar({
               className={cn(
                 "rounded-md p-2 transition-colors",
                 view === "grid"
-                  ? "bg-white/15 text-white"
+                  ? "bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
                   : "text-white/60 hover:text-zinc-200",
               )}
               aria-label={ui.toolbar.gridViewAria}
@@ -88,12 +88,26 @@ export function DirectoryResultsToolbar({
               className={cn(
                 "rounded-md p-2 transition-colors",
                 view === "list"
-                  ? "bg-white/15 text-white"
+                  ? "bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
                   : "text-white/60 hover:text-zinc-200",
               )}
               aria-label={ui.toolbar.listViewAria}
             >
               <List className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === "map"}
+              onClick={() => setView("map")}
+              className={cn(
+                "rounded-md p-2 transition-colors",
+                view === "map"
+                  ? "bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
+                  : "text-white/60 hover:text-zinc-200",
+              )}
+              aria-label={ui.toolbar.mapViewAria}
+            >
+              <MapIcon className="size-4" />
             </button>
           </div>
           <DirectorySort current={sort} className="min-w-[10.5rem]" sortCopy={ui.sort} />

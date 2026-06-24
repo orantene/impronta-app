@@ -10,6 +10,7 @@ export type DirectoryUiCopy = {
     resultLayoutAria: string;
     gridViewAria: string;
     listViewAria: string;
+    mapViewAria: string;
     resultsOne: string;
     resultsMany: string;
   };
@@ -277,6 +278,7 @@ export function buildDirectoryUiCopy(t: T, brand?: string | null): DirectoryUiCo
       resultLayoutAria: t("public.directory.ui.toolbar.resultLayoutAria"),
       gridViewAria: t("public.directory.ui.toolbar.gridViewAria"),
       listViewAria: t("public.directory.ui.toolbar.listViewAria"),
+      mapViewAria: t("public.directory.ui.toolbar.mapViewAria"),
       resultsOne: t("public.directory.ui.toolbar.resultsOne"),
       resultsMany: t("public.directory.ui.toolbar.resultsMany"),
     },

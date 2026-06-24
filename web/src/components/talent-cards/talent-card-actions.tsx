@@ -63,6 +63,7 @@ export function TalentCardActions({
   const inCart = cart.isInCart(talentProfileId);
   const cartPending = cart.isPending(talentProfileId);
   const compact = variant === "compact";
+  const isPill = variant === "pill";
   const nameSuffix = displayName ? ` ${displayName}` : "";
 
   const handleFavorite = (event: MouseEvent) => {
@@ -140,13 +141,20 @@ export function TalentCardActions({
               : `Add${nameSuffix} to your inquiry list`
           }
           className={cn(
-            "talent-card-actions__inquiry inline-flex items-center justify-center gap-1.5 rounded-md border font-semibold uppercase outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60",
-            compact
-              ? "size-8 shrink-0"
-              : "h-9 flex-1 px-4 text-[11px] tracking-[0.18em]",
-            inCart
-              ? "border-foreground bg-foreground/10 text-foreground"
-              : "border-border bg-transparent text-foreground/80 hover:border-foreground/40 hover:text-foreground",
+            "talent-card-actions__inquiry inline-flex items-center justify-center gap-1.5 border font-semibold uppercase outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60",
+            isPill
+              ? // Gold-outlined accent pill (colours in talent-card-actions.css,
+                // keyed off data-in-cart). Hover-revealed over the card photo.
+                "talent-card-actions__inquiry-pill h-8 rounded-full px-3 text-[10px] tracking-[0.16em] backdrop-blur-md"
+              : cn(
+                  "rounded-md",
+                  compact
+                    ? "size-8 shrink-0"
+                    : "h-9 flex-1 px-4 text-[11px] tracking-[0.18em]",
+                  inCart
+                    ? "border-foreground bg-foreground/10 text-foreground"
+                    : "border-border bg-transparent text-foreground/80 hover:border-foreground/40 hover:text-foreground",
+                ),
           )}
           data-card-inquiry-toggle=""
           data-in-cart={inCart ? "true" : "false"}
