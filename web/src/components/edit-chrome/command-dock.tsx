@@ -124,7 +124,7 @@ function DockButton({ item }: { item: DockItem }) {
       type="button"
       onClick={item.onClick}
       disabled={disabled}
-      title={disabled ? `${item.title} — coming soon` : item.title}
+      title={item.title}
       aria-label={item.label}
       aria-pressed={active}
       data-dock-item={item.id}
