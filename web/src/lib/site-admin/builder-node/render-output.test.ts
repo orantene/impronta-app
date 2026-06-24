@@ -947,6 +947,36 @@ test("repeaters: maxItems limits resolved collection output", () => {
   assert.ok(!html.includes(">Bea<"));
 });
 
+test("container display:slider emits per-breakpoint display attrs + items-per-view vars", () => {
+  const node: BuilderNode = {
+    id: "slider-c",
+    kind: "container",
+    props: {
+      layout: "grid",
+      columns: 4,
+      itemsPerView: 3,
+      responsive: {
+        mobile: { layout: "grid", columns: 2, display: "slider", itemsPerView: 2 },
+      },
+    },
+    children: [
+      { id: "sa", kind: "heading", props: { text: "A", level: 2 } },
+      { id: "sb", kind: "heading", props: { text: "B", level: 2 } },
+    ],
+  } as BuilderNode;
+  const html = render([node]);
+  assert.ok(
+    html.includes('data-builder-mobile-display="slider"'),
+    "mobile display attr emitted",
+  );
+  assert.match(html, /--bn-items-per-view:\s*3/, "base items-per-view var emitted");
+  assert.match(
+    html,
+    /--bn-mobile-items-per-view:\s*2/,
+    "mobile items-per-view var emitted",
+  );
+});
+
 test("repeaters: empty source renders the template once as static fallback", () => {
   const html = render([repeatCard()], {
     dataSources: { collections: { featured_talent_profiles: [] } },
