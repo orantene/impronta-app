@@ -1717,12 +1717,26 @@ export async function copyPublishedToDraft(
     locale: Locale;
     actorProfileId: string | null;
     correlationId?: string;
+    /**
+     * Internal dependency-injection seam (default-bound to the real impls).
+     * Lets the unit test drive the op without the auth/`after()` request-scope
+     * coupling that `requirePhase5Capability` + `scheduleAuditEvent` carry —
+     * the same seam pattern flagged as missing for `submitInquiry`. Production
+     * call sites never pass this, so runtime behavior is unchanged.
+     */
+    __hooks?: {
+      requireCapability?: typeof requirePhase5Capability;
+      scheduleAudit?: typeof scheduleAuditEvent;
+    };
   },
 ): Promise<Phase5Result<{ id: string; version: number }>> {
   const { tenantId, locale, actorProfileId } = params;
   const correlationId = params.correlationId ?? randomUUID();
+  const requireCapabilityFn =
+    params.__hooks?.requireCapability ?? requirePhase5Capability;
+  const scheduleAuditFn = params.__hooks?.scheduleAudit ?? scheduleAuditEvent;
 
-  await requirePhase5Capability("agency.site_admin.homepage.compose", tenantId);
+  await requireCapabilityFn("agency.site_admin.homepage.compose", tenantId);
 
   // Load current homepage row + CAS check (against the row's own version —
   // "copy from live" has no client expectedVersion; we read-then-write under
@@ -1877,7 +1891,7 @@ export async function copyPublishedToDraft(
     dropped.length > 0
       ? ` (${dropped.length} dropped: ${dropped.join(", ")})`
       : "";
-  scheduleAuditEvent(supabase, {
+  scheduleAuditFn(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.homepage.compose",
