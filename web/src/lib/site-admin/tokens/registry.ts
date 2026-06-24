@@ -776,11 +776,14 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
       "classic",
       "service-professional",
       "editorial-bridal",
+      "noir",
+      "lumen",
+      "atelier",
     ]),
     defaultValue: "classic",
     group: "Template families",
     description:
-      "Controls the profile hero/layout/section-order. `editorial-bridal` = portrait hero + specialties + event styles + travel + packages + testimonials + related.",
+      "Controls the profile hero/layout/section-order. `editorial-bridal` = portrait hero + specialties + event styles + travel + packages + testimonials + related. `noir` = the Noir & Or black-canvas gold-serif editorial profile (Cormorant + Jost, gold accents). `lumen` = modern airy premium profile with a sticky availability/booking rail (adapts to your theme). `atelier` = minimal high-fashion magazine layout with numbered sections (adapts to your theme).",
   },
 
   // ── Page background ─────────────────────────────────────────────────

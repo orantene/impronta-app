@@ -75,7 +75,7 @@ type PackageTeaser = { label: string; detail: string | null };
 /** A profile detail field row, with the resolved group label for card grouping. */
 type DetailRow = { key: string; label: string; value: string; group: string };
 
-type LightProfileLayoutProps = {
+export type LightProfileLayoutProps = {
   // ── Profile ─────────────────────────────────────────────────────────────
   name: string;
   firstName: string;
@@ -168,6 +168,12 @@ type LightProfileLayoutProps = {
   tenantSlug: string;
   /** Platform host renders MarketingFooter outside the layout → suppress the in-layout footer. */
   showFooter: boolean;
+
+  // ── Tenant theme (for theme-adaptive templates: Lumen / Atelier) ─────────
+  /** Light/dark register derived from the tenant's background.mode design token. */
+  themeMode?: "light" | "dark";
+  /** Tenant color design tokens projected as --token-color-* CSS vars. */
+  themeVars?: Record<string, string>;
 
   // ── Component slots (already instantiated by page.tsx) ──────────────────
   inquireButtonHeader: React.ReactNode;
