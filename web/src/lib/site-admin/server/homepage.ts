@@ -1657,3 +1657,217 @@ export async function restoreHomepageRevision(
   // No cache bust — rollback lands as draft.
   return ok({ id: updatedPage.id, version: updatedPage.version });
 }
+
+// ---- copyPublishedToDraft -------------------------------------------------
+
+/**
+ * "Copy from live" — overwrite the homepage editor DRAFT with the currently-
+ * PUBLISHED snapshot, letting a diverged draft reset to match the live site.
+ *
+ * Structurally identical to {@link restoreHomepageRevision} (load current row
+ * + CAS, write fresh is_draft=TRUE composition, CAS-bump version, insert a
+ * draft revision, emit a compose audit event) EXCEPT it sources the
+ * composition from `cms_pages.published_homepage_snapshot` (the frozen publish
+ * snapshot) instead of a `cms_page_revisions.snapshot` row.
+ *
+ * DRAFT-ONLY: it does NOT publish, does NOT touch status / published_at /
+ * published_homepage_snapshot, and does NOT bust the public cache — exactly
+ * like rollback. The operator reviews the reset draft and re-publishes when
+ * ready.
+ *
+ * Gates:
+ *   1. capability: homepage.compose (the DRAFT capability, not publish)
+ *   2. CAS on cms_pages.version
+ *   3. a non-empty published_homepage_snapshot exists (else PUBLISH_NOT_READY
+ *      — nothing has been published yet)
+ *   4. referenced sections still exist + not archived (archived/missing
+ *      sections are dropped from the copied composition; the operator is told
+ *      in the audit summary)
+ *
+ * Freeform homepages (Impronta): the published snapshot's `slots` can be empty
+ * while all real content lives in `builderTree`. We carry the snapshot's
+ * `builderTree` through as the preferred tree so a builderTree-only homepage
+ * resets correctly even with zero curated slots.
+ */
+export async function copyPublishedToDraft(
+  supabase: SupabaseClient,
+  params: {
+    tenantId: string;
+    locale: Locale;
+    actorProfileId: string | null;
+    correlationId?: string;
+  },
+): Promise<Phase5Result<{ id: string; version: number }>> {
+  const { tenantId, locale, actorProfileId } = params;
+  const correlationId = params.correlationId ?? randomUUID();
+
+  await requirePhase5Capability("agency.site_admin.homepage.compose", tenantId);
+
+  // Load current homepage row + CAS check (against the row's own version —
+  // "copy from live" has no client expectedVersion; we read-then-write under
+  // the row's current version, same as ensure/seed paths).
+  const { data: beforeRow, error: pageErr } = await supabase
+    .from("cms_pages")
+    .select(PAGE_COLUMNS)
+    .eq("tenant_id", tenantId)
+    .eq("locale", locale)
+    .eq("is_system_owned", true)
+    .eq("system_template_key", "homepage")
+    .maybeSingle<PageRow>();
+  if (pageErr) return fail("FORBIDDEN", pageErr.message);
+  if (!beforeRow) return fail("NOT_FOUND", "Homepage row not found");
+
+  // Read the frozen publish snapshot. Null / empty → nothing published yet.
+  // `published_homepage_snapshot` is selected in PAGE_COLUMNS but isn't declared
+  // on the PageRow type (only ever written, until now), so read it via a cast.
+  const publishedSnapshot = ((beforeRow as { published_homepage_snapshot?: unknown })
+    .published_homepage_snapshot ?? null) as
+    | (Partial<HomepageSnapshot> & { builderTree?: unknown })
+    | null;
+  const snapComposition = Array.isArray(publishedSnapshot?.slots)
+    ? (publishedSnapshot!.slots as HomepageSnapshotSection[])
+    : [];
+  const snapBuilderTree = publishedSnapshot?.builderTree;
+  const snapHasBuilderTree =
+    Array.isArray(snapBuilderTree) && snapBuilderTree.length > 0;
+  if (!publishedSnapshot || (snapComposition.length === 0 && !snapHasBuilderTree)) {
+    return fail(
+      "PUBLISH_NOT_READY",
+      "Nothing has been published yet — there's no live version to copy from. Publish the homepage first.",
+    );
+  }
+
+  // Page-field rollback values sourced from the published snapshot's fields
+  // (fall back to the current row when the snapshot omits a field).
+  const snapFields = publishedSnapshot.fields;
+  const title = snapFields?.title ?? beforeRow.title;
+  const metaDescription =
+    snapFields?.metaDescription ?? beforeRow.meta_description ?? null;
+  const hero = {
+    ...((beforeRow.hero ?? {}) as Record<string, unknown>),
+    ...(snapFields && "introTagline" in snapFields
+      ? { introTagline: snapFields.introTagline ?? null }
+      : {}),
+  } as Record<string, unknown>;
+
+  // Filter out sections that no longer exist or are archived (mirrors restore).
+  const keptComposition: HomepageSnapshotSection[] = [];
+  const dropped: string[] = [];
+  if (snapComposition.length > 0) {
+    const facts = await loadSectionFactsBulk(
+      supabase,
+      tenantId,
+      snapComposition.map((c) => c.sectionId),
+    );
+    for (const entry of snapComposition) {
+      const f = facts.get(entry.sectionId);
+      if (!f) {
+        dropped.push(`${entry.sectionId} (missing)`);
+        continue;
+      }
+      if (f.status === "archived") {
+        dropped.push(`${f.name} (archived)`);
+        continue;
+      }
+      keptComposition.push(entry);
+    }
+  }
+  // CRITICAL — freeform (builderTree-only) homepages: prefer the snapshot's
+  // builderTree so the reset draft keeps all freeform content even when there
+  // are zero curated slots.
+  const copiedBuilderTree = resolveBuilderTreeForComposition({
+    composition: keptComposition,
+    preferredBuilderTree: snapBuilderTree,
+  });
+
+  // Apply page-field copy + CAS-bump version.
+  const nextVersion = beforeRow.version + 1;
+  const { data: updatedPage, error: updErr } = await supabase
+    .from("cms_pages")
+    .update({
+      title,
+      meta_description: metaDescription,
+      hero,
+      version: nextVersion,
+      updated_by: actorProfileId,
+    })
+    .eq("id", beforeRow.id)
+    .eq("tenant_id", tenantId)
+    .eq("version", beforeRow.version)
+    .select(PAGE_COLUMNS)
+    .maybeSingle<PageRow>();
+  if (updErr) return mapTriggerError(updErr);
+  if (!updatedPage) return versionConflict(beforeRow.version + 1);
+
+  // Replace draft rows with the copied (published) composition.
+  const { error: delErr } = await supabase
+    .from("cms_page_sections")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("page_id", beforeRow.id)
+    .eq("is_draft", true);
+  if (delErr) {
+    void improntaLog("site_admin_homepage.warn", {
+      message: "[site-admin/homepage] copy-from-live draft clear failed",
+      tenantId,
+      pageId: beforeRow.id,
+      error: delErr.message,
+    });
+  }
+  if (keptComposition.length > 0) {
+    const rows = keptComposition.map((entry) => ({
+      tenant_id: tenantId,
+      page_id: beforeRow.id,
+      section_id: entry.sectionId,
+      slot_key: entry.slotKey,
+      sort_order: entry.sortOrder,
+      is_draft: true,
+    }));
+    const { error: insErr } = await supabase
+      .from("cms_page_sections")
+      .insert(rows);
+    if (insErr) {
+      void improntaLog("site_admin_homepage.warn", {
+        message: "[site-admin/homepage] copy-from-live draft insert failed",
+        tenantId,
+        pageId: beforeRow.id,
+        count: rows.length,
+        error: insErr.message,
+      });
+    }
+  }
+
+  await insertHomepageRevision(supabase, {
+    tenantId,
+    pageId: updatedPage.id,
+    kind: "rollback",
+    version: updatedPage.version,
+    templateSchemaVersion: updatedPage.template_schema_version,
+    snapshot: buildRevisionSnapshot({
+      page: updatedPage,
+      composition: keptComposition,
+      builderTree: copiedBuilderTree,
+      kind: "rollback",
+    }),
+    actorProfileId,
+  });
+
+  const diffSuffix =
+    dropped.length > 0
+      ? ` (${dropped.length} dropped: ${dropped.join(", ")})`
+      : "";
+  scheduleAuditEvent(supabase, {
+    tenantId,
+    actorProfileId,
+    action: "agency.site_admin.homepage.compose",
+    entityType: "cms_pages",
+    entityId: updatedPage.id,
+    diffSummary: `homepage draft reset from published snapshot${diffSuffix}`,
+    beforeSnapshot: beforeRow,
+    afterSnapshot: updatedPage,
+    correlationId,
+  });
+
+  // No cache bust — copy-from-live lands as draft only.
+  return ok({ id: updatedPage.id, version: updatedPage.version });
+}

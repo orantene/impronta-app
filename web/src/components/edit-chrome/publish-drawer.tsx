@@ -29,7 +29,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { publishHomepageFromEditModeAction } from "@/lib/site-admin/edit-mode/composition-actions";
+import {
+  copyPublishedHomepageAction,
+  publishHomepageFromEditModeAction,
+} from "@/lib/site-admin/edit-mode/composition-actions";
 import type { BuilderSurfaceKind } from "@/lib/site-admin/builder-core/surface-kind";
 import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import {
@@ -248,6 +251,7 @@ export function PublishDrawer() {
     flushBuilderTreeSave,
     surfaceKind,
     publishViaSurfaceAdapter,
+    reportMutationError,
   } = useEditContext();
   // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
   const builderTree = useBuilderTree();
@@ -255,6 +259,13 @@ export function PublishDrawer() {
   const dirty = useDirty();
 
   const [state, setState] = useState<PublishState>({ kind: "idle" });
+  // "Copy from live" — overwrite the draft with the published snapshot. Local
+  // transient UI state: `busy` disables the button while the action runs;
+  // `successAt` drives a 4s inline success toast. Failures route through the
+  // shared mutation-error toast (reportMutationError).
+  const [copyState, setCopyState] = useState<
+    { kind: "idle" } | { kind: "busy" } | { kind: "success" }
+  >({ kind: "idle" });
   const [showLegacy, setShowLegacy] = useState(false);
   const [host, setHost] = useState("");
   const [preflightLoading, setPreflightLoading] = useState(false);
@@ -288,6 +299,13 @@ export function PublishDrawer() {
     if (typeof window !== "undefined") setHost(window.location.host);
   }, []);
 
+  // Auto-dismiss the "Draft reset to the published version" success toast.
+  useEffect(() => {
+    if (copyState.kind !== "success") return;
+    const t = setTimeout(() => setCopyState({ kind: "idle" }), 4000);
+    return () => clearTimeout(t);
+  }, [copyState.kind]);
+
   useEffect(() => {
     if (publishOpen) {
       setState({ kind: "idle" });
@@ -303,6 +321,7 @@ export function PublishDrawer() {
       setPublishedRowsLoading(false);
       setMiniTitle(pageMetadata?.title ?? "");
       setMiniDesc(pageMetadata?.metaDescription ?? "");
+      setCopyState({ kind: "idle" });
       setBuilderDiffIds(null);
       setBuilderDiffLoading(false);
     }
@@ -509,6 +528,43 @@ export function PublishDrawer() {
       return;
     }
     setState({ kind: "error", message: res.error, code: res.code });
+  }
+
+  async function handleCopyFromLive() {
+    // Discards in-progress draft edits — confirm first.
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(
+        "Reset this draft to the currently published version? This discards your unsaved draft edits.",
+      )
+    ) {
+      return;
+    }
+    setCopyState({ kind: "busy" });
+    // Same safeAction wrapper the publish/other actions use, so a dev-server
+    // restart or dropped network surfaces a graceful error instead of a stuck
+    // pending state + leaked Next.js overlay.
+    const res = await safeAction(
+      () => copyPublishedHomepageAction({ locale }),
+      {
+        name: "copyPublishedHomepage",
+        fallback: {
+          ok: false as const,
+          error:
+            "Network error — couldn't reset the draft. Check your connection and try again.",
+          code: "network",
+        },
+      },
+    );
+    if (res.ok) {
+      // Reload the editor from the server — same composition refresh used after
+      // restore/publish — so the canvas reflects the reset draft.
+      await refreshComposition();
+      setCopyState({ kind: "success" });
+      return;
+    }
+    setCopyState({ kind: "idle" });
+    reportMutationError(res.error);
   }
 
   async function commitMini() {
@@ -1429,32 +1485,89 @@ export function PublishDrawer() {
       {!isSuccess ? (
         <DrawerFoot
           start={
-            <button
-              type="button"
-              title="Save a draft checkpoint without publishing"
-              onClick={() => void saveDraft()}
-              disabled={saving || state.kind === "publishing"}
-              style={{
-                height: 30,
-                padding: "0 12px",
-                fontSize: 12,
-                fontWeight: 500,
-                color:
-                  saving || state.kind === "publishing"
-                    ? CHROME.muted2
-                    : CHROME.text2,
-                background: CHROME.surface,
-                border: `1px solid ${CHROME.lineMid}`,
-                borderRadius: 7,
-                cursor:
-                  saving || state.kind === "publishing"
-                    ? "not-allowed"
-                    : "pointer",
-                opacity: saving || state.kind === "publishing" ? 0.6 : 1,
-              }}
-            >
-              {saving ? "Saving…" : "Save draft"}
-            </button>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <button
+                type="button"
+                title="Save a draft checkpoint without publishing"
+                onClick={() => void saveDraft()}
+                disabled={saving || state.kind === "publishing"}
+                style={{
+                  height: 30,
+                  padding: "0 12px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color:
+                    saving || state.kind === "publishing"
+                      ? CHROME.muted2
+                      : CHROME.text2,
+                  background: CHROME.surface,
+                  border: `1px solid ${CHROME.lineMid}`,
+                  borderRadius: 7,
+                  cursor:
+                    saving || state.kind === "publishing"
+                      ? "not-allowed"
+                      : "pointer",
+                  opacity: saving || state.kind === "publishing" ? 0.6 : 1,
+                }}
+              >
+                {saving ? "Saving…" : "Save draft"}
+              </button>
+              {/* Copy from live — reset the draft to the published version.
+                  Disabled while publishing / saving / dirty so it can't race a
+                  draft write or clobber an unsettled autosave. */}
+              <button
+                type="button"
+                title="Discard your draft edits and reset to the currently published version"
+                onClick={() => void handleCopyFromLive()}
+                disabled={
+                  copyState.kind === "busy" ||
+                  saving ||
+                  dirty ||
+                  state.kind === "publishing"
+                }
+                style={{
+                  height: 30,
+                  padding: "0 12px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color:
+                    copyState.kind === "busy" ||
+                    saving ||
+                    dirty ||
+                    state.kind === "publishing"
+                      ? CHROME.muted2
+                      : CHROME.text2,
+                  background: CHROME.surface,
+                  border: `1px solid ${CHROME.lineMid}`,
+                  borderRadius: 7,
+                  cursor:
+                    copyState.kind === "busy" ||
+                    saving ||
+                    dirty ||
+                    state.kind === "publishing"
+                      ? "not-allowed"
+                      : "pointer",
+                  opacity:
+                    copyState.kind === "busy" ||
+                    saving ||
+                    dirty ||
+                    state.kind === "publishing"
+                      ? 0.6
+                      : 1,
+                }}
+              >
+                {copyState.kind === "busy" ? "Resetting…" : "Copy from live"}
+              </button>
+              {copyState.kind === "success" ? (
+                <span
+                  role="status"
+                  aria-live="polite"
+                  style={{ fontSize: 11.5, color: CHROME.green, fontWeight: 600 }}
+                >
+                  Draft reset to the published version
+                </span>
+              ) : null}
+            </div>
           }
           end={
             <>

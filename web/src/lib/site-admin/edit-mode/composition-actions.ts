@@ -28,6 +28,7 @@ import {
 } from "@/lib/site-admin/forms/homepage";
 import {
   applyHomepageDraftBeacon,
+  copyPublishedToDraft,
   ensureHomepageRow,
   publishHomepage,
   saveHomepageDraftComposition,
@@ -2026,6 +2027,62 @@ export async function publishHomepageFromEditModeAction(input: {
     };
   } catch (error) {
     logServerError("edit-mode/publish-homepage", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+}
+
+// ── copy from live ──────────────────────────────────────────────────────────
+
+export type CopyPublishedResult =
+  | { ok: true; pageVersion: number }
+  | { ok: false; error: string; code?: string };
+
+/**
+ * Edit-chrome "Copy from live" action. Thin typed wrapper over the lib-layer
+ * `copyPublishedToDraft` op — overwrites the homepage editor DRAFT with the
+ * currently-PUBLISHED snapshot so a diverged draft can reset to the live site.
+ *
+ * DRAFT-ONLY: gates on the DRAFT capability (`agency.site_admin.homepage.compose`,
+ * enforced inside the lib op), never publishes, never touches published_at /
+ * published_homepage_snapshot, never busts the public cache. Mirrors
+ * `publishHomepageFromEditModeAction`'s requireStaff + requireTenantScope +
+ * locale gating, but routes through the draft-reset op instead of publish.
+ */
+export async function copyPublishedHomepageAction(input: {
+  locale: string;
+}): Promise<CopyPublishedResult> {
+  const auth = await requireStaff();
+  if (!auth.ok) {
+    return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
+  }
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return {
+      ok: false,
+      error: "Tenant scope required",
+      code: "TENANT_SCOPE",
+    };
+  }
+  if (!isLocale(input.locale)) {
+    return { ok: false, error: "Invalid locale", code: "VALIDATION_FAILED" };
+  }
+
+  try {
+    const result = await copyPublishedToDraft(auth.supabase, {
+      tenantId: scope.tenantId,
+      locale: input.locale,
+      actorProfileId: auth.user.id,
+    });
+    if (!result.ok) {
+      return {
+        ok: false,
+        error: result.message ?? CLIENT_ERROR.update,
+        code: result.code,
+      };
+    }
+    return { ok: true, pageVersion: result.data.version };
+  } catch (error) {
+    logServerError("edit-mode/copy-published-homepage", error);
     return { ok: false, error: CLIENT_ERROR.update };
   }
 }

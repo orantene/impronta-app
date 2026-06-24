@@ -485,6 +485,16 @@ export interface BuilderContainerResponsiveOverride {
   gap?: "s" | "m" | "l";
   columns?: 1 | 2 | 3 | 4;
   align?: "start" | "center" | "end" | "stretch";
+  /**
+   * DISPLAY MODE — per-breakpoint override of the container's grid-vs-slider
+   * presentation. Only meaningful when the effective layout is `grid`.
+   * `"grid"` (default) keeps the static grid; `"slider"` turns the container
+   * into a horizontal scroll-snap rail showing `itemsPerView` tiles at a time.
+   * Optional + back-compat: undefined → inherit the desktop base (default grid).
+   */
+  display?: "grid" | "slider";
+  /** Tiles visible per viewport when display is "slider". Default 3. */
+  itemsPerView?: 1 | 2 | 3 | 4 | 5 | 6;
 }
 
 export interface BuilderContainerNode extends BuilderNodeBase {
@@ -494,6 +504,17 @@ export interface BuilderContainerNode extends BuilderNodeBase {
     gap?: "s" | "m" | "l";
     columns?: 1 | 2 | 3 | 4;
     align?: "start" | "center" | "end" | "stretch";
+    /**
+     * DISPLAY MODE (desktop base) — grid-vs-slider presentation. Only
+     * meaningful when `layout` is `grid`. `"grid"` (default / undefined) is the
+     * static grid; `"slider"` makes the container a horizontal scroll-snap rail
+     * showing `itemsPerView` tiles at a time. Per-breakpoint overrides live in
+     * `responsive[tier].display`. Optional + back-compat: undefined → grid, so
+     * every existing container tree renders byte-identically.
+     */
+    display?: "grid" | "slider";
+    /** Tiles visible per viewport when `display` is "slider" (default 3). */
+    itemsPerView?: 1 | 2 | 3 | 4 | 5 | 6;
     /** Operator-facing layer name in Page Structure (display-only). */
     layerLabel?: string;
     /**

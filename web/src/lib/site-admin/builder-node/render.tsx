@@ -741,6 +741,9 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--container{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:var(--bn-gap,1.25rem);align-items:var(--bn-align,stretch)}
 .site-builder-node--container[data-builder-layout="row"]{flex-direction:row;flex-wrap:wrap}
 .site-builder-node--container[data-builder-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-columns,2),minmax(0,1fr))}
+.site-builder-node--container[data-builder-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-columns,2),minmax(0,1fr))}
+.site-builder-node--container[data-builder-display="slider"]{display:flex;flex-direction:row;flex-wrap:nowrap;gap:var(--bn-slider-gap,var(--bn-gap,16px));overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.site-builder-node--container[data-builder-display="slider"] > *{flex:0 0 calc((100% - (var(--bn-items-per-view,3) - 1) * var(--bn-slider-gap,var(--bn-gap,16px))) / var(--bn-items-per-view,3));min-width:0;scroll-snap-align:start}
 .site-builder-node--split{width:100%;max-width:1120px;margin:0 auto;display:grid;grid-template-columns:var(--bn-split-left,1fr) var(--bn-split-right,1fr);gap:var(--bn-gap,1.25rem);align-items:center}
 .site-builder-node--carousel{width:100%;max-width:1120px;min-width:0;margin:0 auto;display:grid;gap:0.75rem}
 .site-builder-node--carousel-track{width:100%;min-width:0;display:flex;gap:var(--bn-gap,1.25rem);overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:thin}
@@ -929,6 +932,10 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
+  .site-builder-node--container[data-builder-tablet-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr));overflow-x:visible}
+  .site-builder-node--container[data-builder-tablet-display="grid"] > *{flex:initial;scroll-snap-align:none}
+  .site-builder-node--container[data-builder-tablet-display="slider"]{display:flex;flex-direction:row;flex-wrap:nowrap;gap:var(--bn-slider-gap,var(--bn-gap,16px));overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+  .site-builder-node--container[data-builder-tablet-display="slider"] > *{flex:0 0 calc((100% - (var(--bn-tablet-items-per-view,var(--bn-items-per-view,3)) - 1) * var(--bn-slider-gap,var(--bn-gap,16px))) / var(--bn-tablet-items-per-view,var(--bn-items-per-view,3)));min-width:0;scroll-snap-align:start}
   .site-builder-node--live-talent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .site-builder-node--carousel-slide{flex-basis:calc(100% / var(--bn-tablet-slides,2))}
   .site-builder-node--masonry{column-count:var(--bn-tablet-columns,2)}
@@ -1033,6 +1040,10 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-mobile-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-mobile-columns,1),minmax(0,1fr))}
+  .site-builder-node--container[data-builder-mobile-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-mobile-columns,var(--bn-columns,1)),minmax(0,1fr));overflow-x:visible}
+  .site-builder-node--container[data-builder-mobile-display="grid"] > *{flex:initial;scroll-snap-align:none}
+  .site-builder-node--container[data-builder-mobile-display="slider"]{display:flex;flex-direction:row;flex-wrap:nowrap;gap:var(--bn-slider-gap,var(--bn-gap,16px));overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+  .site-builder-node--container[data-builder-mobile-display="slider"] > *{flex:0 0 calc((100% - (var(--bn-mobile-items-per-view,var(--bn-items-per-view,1)) - 1) * var(--bn-slider-gap,var(--bn-gap,16px))) / var(--bn-mobile-items-per-view,var(--bn-items-per-view,1)));min-width:0;scroll-snap-align:start}
   .site-builder-node--live-talent-grid{grid-template-columns:1fr}
   .site-builder-node--live-search-shell{align-items:stretch;flex-direction:column}
   .site-builder-node--split[data-builder-collapse-mobile="true"]{grid-template-columns:1fr}
@@ -2519,7 +2530,9 @@ function collectionRecordsForSource(
     case "tenant_directory_search":
       return (dataSources.directoryShortcuts ?? []).map((shortcut) => ({
         ...shortcut,
-        href: `/directory?type=${encodeURIComponent(shortcut.slug)}`,
+        // Deep-link by taxonomy term UUID (?tax=), which the directory parser
+        // reads; ?type=<slug> was silently ignored → unfiltered roster.
+        href: `/directory?tax=${encodeURIComponent(shortcut.id)}`,
       }));
     case "workspace_social_links":
       return (dataSources.socialLinks ?? []).map((link) => ({ ...link }));
@@ -2741,7 +2754,7 @@ function renderDirectorySearchChildren(
             key={shortcut.id}
             className="site-builder-node--live-chip"
             href={prefixPublicHref(
-              `/directory?type=${encodeURIComponent(shortcut.slug)}`,
+              `/directory?tax=${encodeURIComponent(shortcut.id)}`,
               options.publicPathPrefix,
             )}
           >
@@ -2788,6 +2801,20 @@ function customTierColumnVars(
   return out;
 }
 
+// Emit `--bn-<tier>-items-per-view` for each custom tier so the runtime slider
+// rule can thread the per-tier tile count (mirrors customTierColumnVars).
+function customTierItemsPerViewVars(
+  responsive: Extract<BuilderNode, { kind: "container" }>["props"]["responsive"],
+): Record<string, string | number | undefined> {
+  if (!responsive) return {};
+  const out: Record<string, string | number | undefined> = {};
+  for (const [tierId, bucket] of Object.entries(responsive)) {
+    if (BUILTIN_CONTAINER_TIERS.has(tierId)) continue;
+    if (bucket?.itemsPerView !== undefined) out[`--bn-${tierId}-items-per-view`] = bucket.itemsPerView;
+  }
+  return out;
+}
+
 // Emit `data-builder-<tier>-layout` for each custom tier (mirrors the static
 // data-builder-tablet/mobile-layout attrs). Built-in tiers are emitted inline
 // in the render JSX, so they are skipped here.
@@ -2799,6 +2826,7 @@ function customTierLayoutAttrs(
   for (const [tierId, bucket] of Object.entries(responsive)) {
     if (BUILTIN_CONTAINER_TIERS.has(tierId)) continue;
     if (bucket?.layout) out[`data-builder-${tierId}-layout`] = bucket.layout;
+    if (bucket?.display) out[`data-builder-${tierId}-display`] = bucket.display;
   }
   return out;
 }
@@ -2810,7 +2838,11 @@ function containerStyle(node: Extract<BuilderNode, { kind: "container" }>): CSSP
     "--bn-columns": node.props.columns ?? 2,
     "--bn-tablet-columns": node.props.responsive?.tablet?.columns,
     "--bn-mobile-columns": node.props.responsive?.mobile?.columns,
+    "--bn-items-per-view": node.props.itemsPerView,
+    "--bn-tablet-items-per-view": node.props.responsive?.tablet?.itemsPerView,
+    "--bn-mobile-items-per-view": node.props.responsive?.mobile?.itemsPerView,
     ...customTierColumnVars(node.props.responsive),
+    ...customTierItemsPerViewVars(node.props.responsive),
     }));
 }
 
@@ -3221,6 +3253,9 @@ function renderBuilderNodeElement(
           data-builder-layout={node.props.layout}
           data-builder-tablet-layout={node.props.responsive?.tablet?.layout}
           data-builder-mobile-layout={node.props.responsive?.mobile?.layout}
+          data-builder-display={node.props.display}
+          data-builder-tablet-display={node.props.responsive?.tablet?.display}
+          data-builder-mobile-display={node.props.responsive?.mobile?.display}
           {...customTierLayoutAttrs(node.props.responsive)}
           data-builder-data-source={node.props.dataBinding?.sourceKey}
           data-builder-data-mode={node.props.dataBinding?.mode}
