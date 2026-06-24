@@ -117,22 +117,19 @@ function ProUpsellBanner({ tier }: { tier: "standard" | "pro" | "enterprise" }) 
           Trust gates and contact controls still apply — Pro unlocks tools, not access.
         </div>
       </div>
-      <button
-        type="button"
-        title="Stripe checkout lands with D6 polish — sales-led upgrade in the meantime."
+      <a
+        href="mailto:sales@tulala.digital?subject=Upgrade%20to%20Pro"
+        title="Pro upgrades are sales-led for now. This opens an email to our team."
         style={{
           padding: "8px 14px", borderRadius: 8,
-          background: C.accent, color: "#fff", border: "none",
+          background: C.accent, color: "#fff",
+          textDecoration: "none", display: "inline-block",
           fontFamily: FONT, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
           flexShrink: 0,
         }}
-        onClick={() => {
-          // Placeholder until Stripe Checkout wires up.
-          alert("Pro tier coming soon — contact sales@tulala.digital to enable.");
-        }}
       >
         Talk to sales →
-      </button>
+      </a>
     </div>
   );
 }
