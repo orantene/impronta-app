@@ -15,7 +15,6 @@
 import { makeId } from "./create";
 import type { BuilderNode } from "./types";
 import { createMarqueeTickerPreset } from "./composition-preset-factories-noir";
-import { createFooterEditorialPreset } from "./composition-preset-factories-noir-footer";
 import { createFeaturedFacesBoardPreset } from "./composition-preset-factories-noir-featured";
 import { createTestimonialsTrioPreset } from "./composition-preset-factories-noir-testimonials";
 import { createStatBandEditorialPreset } from "./composition-preset-factories-noir-stats";
@@ -70,7 +69,9 @@ export function createImprontaNoirHomePreset(): Exclude<
       createStatBandEditorialPreset(),
       createTestimonialsTrioPreset(),
       createCtaBannerSpotlightPreset(),
-      createFooterEditorialPreset(),
+      // Footer intentionally omitted: on a real tenant the global Site Shell
+      // footer already renders beneath the page body, so the block's own
+      // footer-editorial would duplicate it. (Also trims the node budget.)
     ],
   };
 }

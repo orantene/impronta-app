@@ -53,7 +53,7 @@ export function buildHeroSlider(): BuilderNode {
           ),
           tplCtaGroup(
             [
-              tplButton("Explore the roster", "/roster", { tone: "primary" }),
+              tplButton("Explore the roster", "/directory", { tone: "primary" }),
               tplButton("Start an inquiry", "/contact", { tone: "secondary" }),
             ],
             { align: "start", layerLabel: "Slide 1 Buttons" },
@@ -103,7 +103,7 @@ export function buildHeroSlider(): BuilderNode {
             // 760px rule does not reach this heading node).
             responsive: { mobile: { fontSize: "2rem", lineHeight: "1.05" } },
           }),
-          tplCtaGroup([tplButton("Meet them", "/roster", { tone: "primary" })], {
+          tplCtaGroup([tplButton("Meet them", "/directory", { tone: "primary" })], {
             align: "center",
             layerLabel: "Slide 2 Button",
           }),
@@ -162,6 +162,11 @@ export function buildHeroSlider(): BuilderNode {
       autoplayMs: 5200,
       loop: true,
       pauseOnHover: true,
+      // Top-level control flags the publish layout-health check reads (it does
+      // not see the nested `controls` map): dots ARE shown (incl. re-shown on
+      // mobile via the customCss below), so advertise that so an autoplay hero
+      // is not flagged as having no manual controls.
+      showDots: true,
       controls: {
         dots: true,
         arrows: false,

@@ -239,10 +239,12 @@ test("impronta-noir-home is a full-page template assembling every Noir section",
   const node = createBuilderNodeCompositionPreset("impronta-noir-home");
   assert.equal(node.kind, "container");
   // Hero → marquee → featured → divisions → story → campaigns → stats →
-  // testimonials → cta → footer = 10 top-level sections, each editable on drop.
+  // testimonials → cta = 9 top-level sections, each editable on drop. The footer
+  // is intentionally omitted — the global Site Shell renders it, so the block's
+  // own footer would duplicate it on a real tenant.
   assert.ok(
-    "children" in node && node.children.length === 10,
-    "ten assembled sections",
+    "children" in node && node.children.length === 9,
+    "nine assembled sections (footer rendered by the global Site Shell)",
   );
   // The whole page must pass the gallery-insert guard as one (deep) tree.
   const valid = validateBuilderNodeTree([node], { maxDepth: 16 });
