@@ -89,15 +89,6 @@ const CAMPAIGNS: readonly Campaign[] = [
     altEs: "Retrato de estilo de vida Riviera Living",
     src: "/talent-templates/demo/impronta-2026/portrait-6.jpg",
   },
-  {
-    brandEn: "Mar Azul",
-    brandEs: "Mar Azul",
-    seasonEn: "Swim SS26",
-    seasonEs: "Baño PV26",
-    altEn: "Mar Azul swimwear campaign — atelier studio detail",
-    altEs: "Campaña de trajes de baño Mar Azul — detalle de estudio atelier",
-    src: "/talent-templates/demo/impronta-2026/atelier-1.jpg",
-  },
 ];
 
 function eyebrowLockup(): BuilderNode {

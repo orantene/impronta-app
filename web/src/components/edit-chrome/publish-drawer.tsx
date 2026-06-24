@@ -535,7 +535,11 @@ export function PublishDrawer() {
     saving ||
     preflightLoading ||
     preflightBlockingErrors > 0 ||
-    summary.missing.length > 0 ||
+    // A freeform homepage (all content in the builder tree, NO curated slots)
+    // has an empty required "Hero" slot by definition — that must not block
+    // publish (a freeform homepage is a valid, publishable state). Only enforce
+    // required curated slots when a curated composition actually exists.
+    (summary.missing.length > 0 && summary.totalSections > 0) ||
     getCompositionCasVersion() === null;
 
   // QA 2026-05-13 — `publishDisabled` was a 7-way `||` with no tooltip

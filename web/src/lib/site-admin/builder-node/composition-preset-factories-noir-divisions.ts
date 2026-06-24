@@ -3,28 +3,40 @@
  *
  * A freeform `BuilderNode` tree (never a fixed-prop block): on drop it explodes
  * into individually editable nodes on the shared Page Builder Core render path.
- * Full-bleed row of 5 tall portrait tiles (Women / Men / New Faces / Influence /
- * Events), each a real editorial portrait under a bottom-up scrim with a serif
- * name + champagne index/arrow row, linking into the public directory.
+ *
+ * LIVE-DATA REPEATER (retrofit 2026-06-22): the row grid no longer mints 5
+ * hardcoded divisions. It carries `props.dataBinding = { sourceKey:
+ * "tenant_directory_search", repeat: true, maxItems: 5 }`. The render path
+ * (render.tsx renderRepeatContainerChildren) resolves that source to the
+ * tenant's real directory categories (roster-held talent_type terms) and CLONES
+ * the container's single child — the `divisionTile()` TEMPLATE — once per
+ * record. {{name}} / {{href}} tokens inside the template resolve per-record via
+ * resolveBuilderFieldTokens. So the container MUST have exactly one child.
+ *
+ * NO PER-CATEGORY PHOTO: `tenant_directory_search` records expose only
+ * { name, slug, href } — there is no portrait per category. So the tile is a
+ * portrait-LESS editorial Noir card: a dark espresso ground, a soft top-gold
+ * gradient + a gold hairline, the category name in the Cormorant display font,
+ * and a champagne index/arrow row, with a full-tile link to the real
+ * `/directory?type=<slug>` href the source emits.
  *
  * Colors/fonts bind to token sentinels with the literal Noir & Or palette as the
  * default (espresso #100e13, ink #ece4d3, gold #c6a14e, champagne #e0c074, line
- * rgba(198,161,78,0.26)). EN/ES seeded per text node via the node-level i18n
- * overlay. Resting/hover image treatment + the 5→3→2 column reflow live in
- * `style.customCss` (8000-char cap) — the only safe home for @keyframes/hover
- * filter / single-side rules that exceed the 16-char escapes.
+ * rgba(198,161,78,0.26)). Resting/hover treatment + the 5→3→1 column reflow live
+ * in `style.customCss` (8000-char cap) — the only safe home for hover
+ * border/gradient / single-side rules that exceed the 16-char escapes.
  *
- * BACKEND: the reference `/roster?div=women` filter is UNIMPLEMENTED (grep
- * "div=" → 0; no division/gender facet in lib/directory/search-params.ts). Tile
- * hrefs default to the public `/directory` route with the `q` free-text param
- * the page ACTUALLY supports (verified in api/directory/route.ts:101 +
- * search-params.ts parseDirectoryQuery). See backendDecision for the new-facet
- * option flagged to the owner.
+ * EMPTY-STATE: render.tsx's empty-collection branch renders the template ONCE
+ * unbound (raw {{tokens}} would show). For impronta this is NOT a risk: the hub
+ * tenant has ~40 roster-held talent_type terms, so tenant_directory_search
+ * always returns >0 records. The template still reads as an intentional
+ * editorial tile with no data because the name is the only token in display
+ * position. See the structured result's empty-state note.
  *
  * Registered + dispatched from `composition-presets.ts`.
  */
 import type { BuilderNode } from "./types";
-import { makeId, createImage } from "./create";
+import { makeId } from "./create";
 
 const DISPLAY_FONT =
   "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)";
@@ -33,88 +45,21 @@ const CHAMPAGNE = "var(--token-color-secondary, #e0c074)";
 const LINE = "var(--token-color-line, rgba(198,161,78,0.26))";
 const ESPRESSO = "var(--token-color-background, #100e13)";
 
-type Division = {
-  en: string;
-  es: string;
-  index: string;
-  /** Free-text directory query the page supports today (?q=). */
-  query: string;
-  imageIndex: number;
-  /** Real impronta-2026 portrait (gender-matched), overrides createImage src. */
-  photo: string;
-};
-
-const DIVISIONS: ReadonlyArray<Division> = [
-  {
-    en: "Women",
-    es: "Mujeres",
-    index: "01",
-    query: "women",
-    imageIndex: 0,
-    photo: "/talent-templates/demo/impronta-2026/portrait-1.jpg",
-  },
-  {
-    en: "Men",
-    es: "Hombres",
-    index: "02",
-    query: "men",
-    imageIndex: 1,
-    photo: "/talent-templates/demo/impronta-2026/portrait-4.jpg",
-  },
-  {
-    en: "New Faces",
-    es: "Caras Nuevas",
-    index: "03",
-    query: "new faces",
-    imageIndex: 2,
-    photo: "/talent-templates/demo/impronta-2026/portrait-6.jpg",
-  },
-  {
-    en: "Influence",
-    es: "Influencia",
-    index: "04",
-    query: "influence",
-    imageIndex: 3,
-    photo: "/talent-templates/demo/impronta-2026/portrait-5.jpg",
-  },
-  {
-    en: "Events",
-    es: "Eventos",
-    index: "05",
-    query: "events",
-    imageIndex: 0,
-    photo: "/talent-templates/demo/impronta-2026/portrait-3.jpg",
-  },
-];
-
-function divisionTile(d: Division): BuilderNode {
+/**
+ * Single repeater TEMPLATE tile. The grid container has exactly ONE child = this
+ * node; render.tsx clones it once per `tenant_directory_search` record and
+ * resolves the {{name}} / {{href}} tokens per-record. Because the source carries
+ * NO per-category image, this tile is portrait-LESS: a dark espresso ground with
+ * a soft top-gold gradient, a gold hairline, the category {{name}} in the
+ * Cormorant display font, and a champagne arrow row, all behind a full-tile link
+ * to the real /directory?type=<slug> {{href}}.
+ */
+function divisionTile(): BuilderNode {
   const cardId = makeId("container");
 
-  // Editorial portrait, filled cover, resting cool/dark treatment. The hover
-  // colorize + zoom + reduced-motion guard go in card-scoped customCss because
-  // `filter`/animation hover are not in the curated hover-style subset.
-  const image: BuilderNode = {
-    ...createImage(d.imageIndex, {
-      objectFit: "cover",
-      position: "absolute",
-      top: "0",
-      right: "0",
-      bottom: "0",
-      left: "0",
-      width: "100%",
-      height: "100%",
-      filter: "brightness(.85) saturate(1.04)",
-    }),
-  };
-  // Repoint to the real gender-matched impronta-2026 portrait (keep the style
-  // overrides from createImage above; only swap the served src + alt).
-  (image as Extract<BuilderNode, { kind: "image" }>).props.src = d.photo;
-  // Localize the alt text for the portrait.
-  (image.props as { alt?: string }).alt = `${d.en} division`;
-  image.i18n = { es: { alt: `División ${d.es}` } };
-
-  // Bottom-up dark scrim so the label stays legible over any portrait.
-  const scrim: BuilderNode = {
+  // Soft gold-wash gradient ground (replaces the portrait). Sits under the
+  // label; gives the otherwise-flat espresso tile editorial depth + a top glow.
+  const wash: BuilderNode = {
     id: makeId("container"),
     kind: "container",
     props: {
@@ -126,7 +71,7 @@ function divisionTile(d: Division): BuilderNode {
         bottom: "0",
         top: "0",
         backgroundImage:
-          "linear-gradient(to top, rgba(16,14,19,0.82) 0%, rgba(16,14,19,0.18) 46%, rgba(16,14,19,0) 72%)",
+          "radial-gradient(120% 80% at 50% 0%, rgba(198,161,78,0.16) 0%, rgba(198,161,78,0.05) 34%, rgba(16,14,19,0) 64%), linear-gradient(to top, rgba(16,14,19,0.92) 0%, rgba(16,14,19,0.40) 52%, rgba(16,14,19,0.18) 100%)",
         pointerEvents: "none",
         zIndex: 1,
       },
@@ -134,29 +79,45 @@ function divisionTile(d: Division): BuilderNode {
     children: [],
   };
 
-  // Name + index/arrow row label block, anchored bottom-left.
+  // Eyebrow above the name — keeps the tile from reading empty without a photo.
+  const eyebrow: BuilderNode = {
+    id: makeId("paragraph"),
+    kind: "paragraph",
+    props: {
+      text: "Division",
+      style: {
+        fontSize: "10px",
+        textColor: CHAMPAGNE,
+        textTransform: "uppercase",
+        letterSpacing: "0.3em",
+        marginBottomFree: "10px",
+      },
+    },
+    i18n: { es: { text: "División" } },
+  };
+
+  // Category name — the live per-record token. Cormorant display font.
   const name: BuilderNode = {
     id: makeId("heading"),
     kind: "heading",
     props: {
-      text: d.en,
+      text: "{{name}}",
       level: 3,
       style: {
         fontFamily: DISPLAY_FONT,
-        fontSize: "1.6rem",
+        fontSize: "1.75rem",
         textColor: INK,
-        lineHeight: "1.05",
-        marginBottomFree: "8px",
+        lineHeight: "1.04",
+        marginBottomFree: "12px",
       },
     },
-    i18n: { es: { text: d.es } },
   };
 
-  const indexLabel: BuilderNode = {
+  const exploreLabel: BuilderNode = {
     id: makeId("paragraph"),
     kind: "paragraph",
     props: {
-      text: d.index,
+      text: "Explore",
       style: {
         fontSize: "10.5px",
         textColor: CHAMPAGNE,
@@ -164,6 +125,7 @@ function divisionTile(d: Division): BuilderNode {
         letterSpacing: "0.24em",
       },
     },
+    i18n: { es: { text: "Explorar" } },
   };
 
   const arrow: BuilderNode = {
@@ -172,17 +134,23 @@ function divisionTile(d: Division): BuilderNode {
     props: {
       text: "→",
       style: {
-        fontSize: "12px",
+        fontSize: "13px",
         textColor: CHAMPAGNE,
       },
     },
   };
 
-  const indexRow: BuilderNode = {
+  const exploreRow: BuilderNode = {
     id: makeId("container"),
     kind: "container",
     props: {
       layout: "row",
+      // Keep "Explore" + arrow on one line (space-between) on mobile too —
+      // otherwise the renderer's <=640px column rule stacks them.
+      responsive: {
+        tablet: { layout: "row" },
+        mobile: { layout: "row" },
+      },
       style: {
         gap: "10px",
         alignItems: "center",
@@ -190,7 +158,7 @@ function divisionTile(d: Division): BuilderNode {
         width: "100%",
       },
     },
-    children: [indexLabel, arrow],
+    children: [exploreLabel, arrow],
   };
 
   const label: BuilderNode = {
@@ -204,24 +172,28 @@ function divisionTile(d: Division): BuilderNode {
         right: "0",
         bottom: "0",
         gap: "6px",
-        paddingTop: "16px",
-        paddingRight: "16px",
-        paddingBottom: "16px",
-        paddingLeft: "16px",
+        paddingTop: "18px",
+        paddingRight: "18px",
+        paddingBottom: "18px",
+        paddingLeft: "18px",
         zIndex: 2,
       },
     },
-    children: [name, indexRow],
+    children: [eyebrow, name, exploreRow],
   };
 
-  // Invisible full-tile link carrying the href. Default to the public directory
-  // with the free-text `q` param the route actually supports.
+  // Full-tile link carrying the per-record directory filter. NOTE: the
+  // tenant_directory_search source's own {{href}} resolves to
+  // /directory?type=<slug>, but the public directory route ONLY parses
+  // ?tax=<term-uuid> (parseDirectoryQuery has no `type` handler), so {{href}}
+  // would land on the UNFILTERED directory. The record also carries {{id}} (the
+  // taxonomy term UUID), so we build the real working filter href directly.
   const link: BuilderNode = {
     id: makeId("button"),
     kind: "button",
     props: {
-      label: `Open ${d.en}`,
-      href: `/directory?q=${encodeURIComponent(d.query)}`,
+      label: "Open {{name}}",
+      href: "/directory?tax={{id}}",
       tone: "secondary",
       style: {
         position: "absolute",
@@ -231,29 +203,24 @@ function divisionTile(d: Division): BuilderNode {
         left: "0",
         opacity: 0,
         zIndex: 3,
-        customCss: '{ display: block; }',
+        customCss: "{ display: block; }",
       },
     },
-    i18n: { es: { label: `Abrir ${d.es}` } },
   };
 
-  // Card-scoped customCss: tile shape, hover zoom + colorize (descendant
-  // selector on the image), gated behind hover + reduced-motion preference.
+  // Card-scoped customCss: tile shape + resting gold hairline + hover reveal.
   const cardCss = [
     // aspect-ratio drives the tile's height. It lives in customCss (not the
     // aspectRatioFree prop) because the prop's inline path only applies to image
     // nodes — on a container it is dropped and the tile collapses to 0 height.
-    `{ aspect-ratio: 3 / 4.4; border: 1px solid transparent; transition: border-color .4s ease; }`,
-    // Mobile: relax the tall 3/4.4 portrait ratio so two stacked rows of 2-up
-    // tiles don't tower at 390px. Selectorless inner rule -> scopes to the card
-    // root ([id] { ... }); aspect-ratio on a CONTAINER must live in customCss.
-    `@media (max-width: 640px) { { aspect-ratio: 3 / 4; } }`,
-    `[data-builder-node-id="${image.id}"] { transition: transform 1.1s cubic-bezier(.2,.7,.2,1), filter 1.1s ease; }`,
-    // Hover treatment. Use a leading-pseudo selector (`:hover`) NOT `&:hover`:
-    // the scoper prefixes to [id]:hover (valid flat CSS); `&` -> [id] & is inert.
+    `{ aspect-ratio: 3 / 4.4; border: 1px solid ${LINE}; transition: border-color .4s ease, transform .5s cubic-bezier(.2,.7,.2,1); }`,
+    // Mobile: relax the tall 3/4.4 portrait ratio so full-width tiles don't
+    // tower at 390px. Selectorless inner rule -> scopes to the card root.
+    `@media (max-width: 640px) { { aspect-ratio: 16 / 9; } }`,
+    // Hover: brighten the hairline to gold + lift slightly. Leading-pseudo
+    // selector (`:hover`) so the scoper prefixes to [id]:hover (valid flat CSS).
     `@media (hover: hover) and (prefers-reduced-motion: no-preference) {`,
-    `  :hover { border-color: ${LINE}; }`,
-    `  :hover [data-builder-node-id="${image.id}"] { transform: scale(1.06); filter: brightness(1) saturate(1.04); }`,
+    `  :hover { border-color: ${CHAMPAGNE}; transform: translateY(-3px); }`,
     `}`,
   ].join("\n");
 
@@ -272,7 +239,7 @@ function divisionTile(d: Division): BuilderNode {
         customCss: cardCss,
       },
     },
-    children: [image, scrim, label, link],
+    children: [wash, label, link],
   };
 }
 
@@ -330,27 +297,40 @@ export function createDivisionsRowPreset(): Exclude<
     id: makeId("container"),
     kind: "container",
     props: {
+      // LIVE-DATA REPEATER: resolve the tenant's real directory categories and
+      // clone the single child template once per record (maxItems caps at 5 to
+      // hold the 5-up desktop grid). The container MUST have exactly one child.
+      dataBinding: {
+        sourceKey: "tenant_directory_search",
+        mode: "bound",
+        repeat: true,
+        maxItems: 5,
+      },
       layout: "grid",
       // Container-layout responsive map: emits data-builder-{tablet,mobile}-layout
       // so the grid SURVIVES at <=900/<=640px. Setting only style.responsive
       // .gridTemplateColumns is inert (the renderer forces flex-column on a
       // container with no data-builder-mobile-layout attr). The base desktop 5-up
       // is driven by the inline gridTemplateColumns below (the `columns` prop
-      // enum caps at 4, so the 5-col base stays in style; tablet=3/mobile=2 fit).
+      // enum caps at 4, so the 5-col base stays in style; tablet=3/mobile=1 fit).
       responsive: {
         tablet: { layout: "grid", columns: 3 },
-        mobile: { layout: "grid", columns: 2 },
+        // One column on phones: the publish layout-health gate requires a
+        // multi-column grid to collapse to a single column (or stack) on mobile,
+        // and full-width division cards read cleaner than a cramped 2-up.
+        mobile: { layout: "grid", columns: 1 },
       },
       style: {
         gridTemplateColumns: "repeat(5,1fr)",
         gap: "12px",
         responsive: {
           tablet: { gridTemplateColumns: "repeat(3,1fr)" },
-          mobile: { gridTemplateColumns: "repeat(2,1fr)" },
+          mobile: { gridTemplateColumns: "repeat(1,1fr)" },
         },
       },
     },
-    children: DIVISIONS.map((d) => divisionTile(d)),
+    // Exactly ONE child = the repeater template. render.tsx clones it per record.
+    children: [divisionTile()],
   };
 
   return {
