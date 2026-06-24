@@ -445,6 +445,18 @@ const GRID_COLUMNS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "3", label: "3" },
   { value: "4", label: "4" },
 ];
+const DISPLAY_MODE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "grid", label: "Grid" },
+  { value: "slider", label: "Slider" },
+];
+const ITEMS_PER_VIEW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "1", label: "1" },
+  { value: "2", label: "2" },
+  { value: "3", label: "3" },
+  { value: "4", label: "4" },
+  { value: "5", label: "5" },
+  { value: "6", label: "6" },
+];
 // REND-1 — HTML landmark tag options for container nodes. Compact short labels
 // fit the chip strip; full descriptions appear in the helper text below.
 // Values mirror BuilderContainerNode.props.htmlTag in types.ts.
@@ -761,6 +773,8 @@ function nodeLayoutResetPatch(
         gap: "m",
         columns: undefined,
         align: "stretch",
+        display: undefined,
+        itemsPerView: undefined,
         responsive: undefined,
       };
     case "split":
@@ -1093,7 +1107,7 @@ function AdvancedNodeLayoutEditor({
 
     const patchResponsive = (
       viewport: ContainerResponsiveViewport,
-      key: "layout" | "gap" | "columns" | "align",
+      key: "layout" | "gap" | "columns" | "align" | "display" | "itemsPerView",
       next: string | number | undefined,
     ) => {
       const nextResponsive: NonNullable<BuilderContainerNode["props"]["responsive"]> = {
@@ -1109,13 +1123,13 @@ function AdvancedNodeLayoutEditor({
     // Per-field reset on this tier: drop the one key from the override bucket,
     // re-inheriting the desktop base. Reuses cleanContainerResponsive so an
     // emptied bucket disappears entirely.
-    const resetField = (key: "layout" | "gap" | "columns" | "align") => {
+    const resetField = (key: "layout" | "gap" | "columns" | "align" | "display" | "itemsPerView") => {
       if (!editingOverride) return;
       patchResponsive(device, key, undefined);
     };
 
     // A field is "modified on this tier" when its override bucket key is set.
-    const isFieldOverridden = (key: "layout" | "gap" | "columns" | "align"): boolean =>
+    const isFieldOverridden = (key: "layout" | "gap" | "columns" | "align" | "display" | "itemsPerView"): boolean =>
       editingOverride && overrideBucket?.[key] !== undefined && overrideBucket?.[key] !== null;
 
     const layoutValue = editingOverride
@@ -1130,7 +1144,7 @@ function AdvancedNodeLayoutEditor({
       : node.props.align ?? "stretch";
 
     const patchLayoutField = (
-      key: "layout" | "gap" | "columns" | "align",
+      key: "layout" | "gap" | "columns" | "align" | "display" | "itemsPerView",
       next: string | number | undefined,
     ) => {
       if (editingOverride) {
@@ -1140,12 +1154,25 @@ function AdvancedNodeLayoutEditor({
       if (key === "layout") onPatch({ layout: next as string });
       else if (key === "gap") onPatch({ gap: next as string });
       else if (key === "columns") onPatch({ columns: next as number | undefined });
+      else if (key === "display") onPatch({ display: next as string | undefined });
+      else if (key === "itemsPerView") onPatch({ itemsPerView: next as number | undefined });
       else onPatch({ align: next as string });
     };
 
     const effectiveLayout = editingOverride
       ? overrideBucket?.layout ?? node.props.layout
       : node.props.layout;
+
+    // Effective display/itemsPerView for the active tier (override wins, then base).
+    const effectiveDisplay = editingOverride
+      ? overrideBucket?.display ?? node.props.display ?? "grid"
+      : node.props.display ?? "grid";
+    const displayValue = editingOverride
+      ? overrideBucket?.display ?? ""
+      : node.props.display ?? "grid";
+    const itemsPerViewValue = editingOverride
+      ? String(overrideBucket?.itemsPerView ?? "")
+      : String(node.props.itemsPerView ?? "3");
 
     return (
       <div className="flex flex-col gap-3" data-builder-node-layout-panel="container">
@@ -1249,6 +1276,45 @@ function AdvancedNodeLayoutEditor({
             />
           </div>
         </div>
+        {/* DISPLAY MODE — grid vs slider. Only meaningful when the effective
+            layout is a grid; for stack/row the grid track concept (and thus a
+            slider built on it) doesn't apply, so the controls stay hidden. */}
+        {effectiveLayout === "grid" ? (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1.5">
+              <ContainerFieldLabel
+                label="Display mode"
+                modified={isFieldOverridden("display")}
+                onReset={() => resetField("display")}
+              />
+              <Segmented
+                fullWidth
+                compact
+                value={displayValue}
+                onChange={(next) => patchLayoutField("display", next === "grid" && !editingOverride ? undefined : next)}
+                options={DISPLAY_MODE_OPTIONS}
+              />
+            </div>
+            {effectiveDisplay === "slider" ? (
+              <div className="flex flex-col gap-1.5">
+                <ContainerFieldLabel
+                  label="Items per view"
+                  modified={isFieldOverridden("itemsPerView")}
+                  onReset={() => resetField("itemsPerView")}
+                />
+                <Segmented
+                  fullWidth
+                  compact
+                  value={itemsPerViewValue}
+                  onChange={(next) =>
+                    patchLayoutField("itemsPerView", next ? Number.parseInt(next, 10) : undefined)
+                  }
+                  options={ITEMS_PER_VIEW_OPTIONS}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {/* REND-1 — Semantic HTML tag picker. Only shown when editing the base
             desktop tier (not a breakpoint override), because htmlTag is a
             document-structure decision not a responsive one. Default (div) is
