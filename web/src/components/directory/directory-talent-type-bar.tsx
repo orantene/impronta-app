@@ -72,6 +72,8 @@ export function DirectoryTalentTypeBar({
   const [pending, startTransition] = useTransition();
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [overflowQuery, setOverflowQuery] = useState("");
+  // Child refine sub-row: a single scroll row by default; expands to show all.
+  const [childrenExpanded, setChildrenExpanded] = useState(false);
   const overflowRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -97,6 +99,19 @@ export function DirectoryTalentTypeBar({
     [selectedIds, siblingIds],
   );
   const activeId = selectedInGroup[0] ?? null;
+
+  // Collapse the "show all types" expansion when the active PARENT changes
+  // (but NOT when refining to a child within the same parent).
+  const activeParentId = useMemo(() => {
+    if (!useHierarchy) return null;
+    const p =
+      parents.find((pp) => pp.id === activeId) ??
+      parents.find((pp) => pp.children.some((c) => c.id === activeId));
+    return p?.id ?? null;
+  }, [useHierarchy, parents, activeId]);
+  useEffect(() => {
+    setChildrenExpanded(false);
+  }, [activeParentId]);
 
   const pushTax = useCallback(
     (nextIds: string[]) => {
@@ -243,38 +258,61 @@ export function DirectoryTalentTypeBar({
           ) : null}
         </FilterChips>
 
-        {/* Inline refine sub-row — the active parent's child types (non-empty). */}
+        {/* Inline refine sub-row — the active parent's child types. ONE clean
+            horizontal-scroll row by default (scroll right for more); a trailing
+            "All N +" toggle expands it to every type at once. */}
         {activeParent && activeParent.children.length > 0 ? (
           <div
             className={cn(
-              "-mt-1 mb-4 flex flex-wrap items-center gap-1.5",
+              "-mt-1 mb-4 flex items-start gap-2",
               pending && "pointer-events-none opacity-60",
             )}
-            role="group"
-            aria-label={`Refine ${activeParent.label}`}
             data-directory-type-children
           >
-            {activeParent.children.map((c) => {
-              const on = activeChildId === c.id;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => onChild(activeParent.id, c.id)}
-                  aria-pressed={on}
-                  title={c.label}
-                  className={cn(
-                    "shrink-0 truncate rounded-full border px-3 py-1 text-[10px] font-medium tracking-[0.08em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                    on
-                      ? "border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
-                      : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/25 hover:text-white/85",
-                  )}
-                >
-                  {pillLabel(c.label)}
-                  <span className="ml-1 text-white/35 tabular-nums">{c.count}</span>
-                </button>
-              );
-            })}
+            <div
+              role="group"
+              aria-label={`Refine ${activeParent.label}`}
+              className={cn(
+                "flex min-w-0 flex-1 items-center gap-1.5",
+                childrenExpanded
+                  ? "flex-wrap"
+                  : "flex-nowrap snap-x snap-proximity overflow-x-auto scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+              )}
+            >
+              {activeParent.children.map((c) => {
+                const on = activeChildId === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => onChild(activeParent.id, c.id)}
+                    aria-pressed={on}
+                    title={c.label}
+                    className={cn(
+                      "snap-start shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-medium tracking-[0.08em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                      on
+                        ? "border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
+                        : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/25 hover:text-white/85",
+                    )}
+                  >
+                    {pillLabel(c.label)}
+                    <span className="ml-1 text-white/35 tabular-nums">{c.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {activeParent.children.length > 6 ? (
+              <button
+                type="button"
+                onClick={() => setChildrenExpanded((v) => !v)}
+                aria-expanded={childrenExpanded}
+                className="shrink-0 rounded-full border border-white/15 bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/60 outline-none transition-colors hover:border-white/30 hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-white/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                {childrenExpanded
+                  ? `Less −`
+                  : `All ${activeParent.children.length} +`}
+              </button>
+            ) : null}
           </div>
         ) : null}
 
