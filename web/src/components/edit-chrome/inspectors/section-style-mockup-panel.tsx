@@ -338,15 +338,14 @@ export function SectionStyleMockupPanel({
       </InspectorSection>
 
       <InspectorSection title="Background & Surface">
+        {/* Surface hex input dropped: it was hardcoded to #F7F8FA with a no-op
+            onChange (no surface-color model to bind), i.e. an inert control. */}
         <InspectorColorHexPair
           background={
             <InspectorColorHexInput
               value={backgroundColorCustom || "#FFFFFF"}
               onChange={(next) => onSetBackgroundCustom(next || undefined)}
             />
-          }
-          surface={
-            <InspectorColorHexInput value="#F7F8FA" onChange={() => {}} />
           }
         />
         <InspectorField label={PRESENTATION_FIELD_LABELS.background}>

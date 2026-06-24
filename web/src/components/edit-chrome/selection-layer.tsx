@@ -424,7 +424,10 @@ function collectCanvasDropCandidates(
     if (!id) continue;
     const node = nodeById.get(id);
     if (!node) continue;
-    if (BUILDER_NODE_REGISTRY[node.kind].children.type === "none") continue;
+    // Guard an unknown/corrupt node.kind (registry entry missing): treat it as a
+    // non-container so it's never offered as a drop target, instead of crashing.
+    const childrenPolicy = BUILDER_NODE_REGISTRY[node.kind]?.children;
+    if (!childrenPolicy || childrenPolicy.type === "none") continue;
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) continue;
     containerEls.push({ el, id, node, rect });

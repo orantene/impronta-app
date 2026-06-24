@@ -131,12 +131,13 @@ export function InspectorColorHexPair({
   surface,
 }: {
   background: ReactNode;
-  surface: ReactNode;
+  /** Optional — omit when there is no real surface-color model to bind. */
+  surface?: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className={surface ? "grid grid-cols-2 gap-3" : undefined}>
       <InspectorField label="Background">{background}</InspectorField>
-      <InspectorField label="Surface">{surface}</InspectorField>
+      {surface ? <InspectorField label="Surface">{surface}</InspectorField> : null}
     </div>
   );
 }

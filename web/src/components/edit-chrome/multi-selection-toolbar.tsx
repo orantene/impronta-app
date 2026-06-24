@@ -161,6 +161,8 @@ export function MultiSelectionToolbar({
     <div
       data-multi-selection-toolbar=""
       data-edit-overlay="multi-selection-toolbar"
+      role="toolbar"
+      aria-label="Selected blocks"
       style={{
         position: "fixed",
         top: toolbarTop,

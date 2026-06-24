@@ -951,8 +951,8 @@ export function NavigatorPanel() {
 
   const allowedChildKindsForParent = useCallback(
     (parentKind: BuilderNodeKind): ReadonlyArray<BuilderNodeKind> => {
-      const policy = BUILDER_NODE_REGISTRY[parentKind].children;
-      return policy.type === "allow_list" ? policy.kinds : [];
+      const policy = BUILDER_NODE_REGISTRY[parentKind]?.children;
+      return policy?.type === "allow_list" ? policy.kinds : [];
     },
     [],
   );
@@ -1089,10 +1089,17 @@ export function NavigatorPanel() {
       }
     >();
     for (const fr of flat) {
+      // Group children by parentId in a single pass (preserves document order,
+      // identical to the previous per-child `.filter(... parentId ...)`), so this
+      // is O(children) instead of O(children²) per section.
+      const siblingIdsByParent = new Map<string, string[]>();
+      for (const node of fr.childNodes) {
+        const arr = siblingIdsByParent.get(node.parentId);
+        if (arr) arr.push(node.id);
+        else siblingIdsByParent.set(node.parentId, [node.id]);
+      }
       for (const child of fr.childNodes) {
-        const siblingIds = fr.childNodes
-          .filter((node) => node.parentId === child.parentId)
-          .map((node) => node.id);
+        const siblingIds = siblingIdsByParent.get(child.parentId) ?? [];
         map.set(child.id, {
           kind: child.kind,
           parentId: child.parentId,
@@ -3317,7 +3324,7 @@ function builderChildMatchesNavigatorSearch(
   child: FlatRow["childNodes"][number],
   query: string,
 ): boolean {
-  const kindLabel = BUILDER_NODE_REGISTRY[child.kind].label.toLowerCase();
+  const kindLabel = (BUILDER_NODE_REGISTRY[child.kind]?.label ?? child.kind).toLowerCase();
   return (
     child.label.toLowerCase().includes(query) ||
     child.kind.toLowerCase().includes(query) ||
