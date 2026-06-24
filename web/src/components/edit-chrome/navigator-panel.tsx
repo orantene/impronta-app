@@ -121,7 +121,7 @@ import {
 } from "@/lib/site-admin/a11y/heading-hierarchy";
 import {
   collectNodeIdsLinkedToClass,
-  countNodesLinkedToClass,
+  countNodesLinkedToClasses,
   getNodeClassRef,
   type BuilderStyleClass,
 } from "@/lib/site-admin/builder-node/style-classes";
@@ -4092,13 +4092,10 @@ function ClassManagerPanel({
   );
 
   // Per-class node usage counts.
-  const usageCounts = useMemo<Record<string, number>>(() => {
-    const counts: Record<string, number> = {};
-    for (const klass of classes) {
-      counts[klass.id] = countNodesLinkedToClass(builderTree, klass.id);
-    }
-    return counts;
-  }, [classes, builderTree]);
+  const usageCounts = useMemo<Record<string, number>>(
+    () => countNodesLinkedToClasses(builderTree, classes.map((c) => c.id)),
+    [classes, builderTree],
+  );
 
   // Filter by search (case-insensitive on the class name).
   const q = search.trim().toLowerCase();
