@@ -4,6 +4,7 @@ import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { createTranslator, getMessageStringArray } from "@/i18n/messages";
 import { buildDirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
+import { loadDirectoryCategoryTree } from "@/lib/directory/directory-category-tree";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getPublicDirectoryFirstPage } from "@/lib/directory/cache";
 import {
@@ -263,6 +264,18 @@ export async function DirectoryComponent({
         }
       : undefined;
 
+  // Two-level parent→child category model for the top bar (parent_category
+  // pills that reveal their talent-type children to refine). Empty when not in
+  // talent_type top-bar mode or when the roster has no mappable categories;
+  // the pill bar falls back to the flat `topBarFacet` options in that case.
+  const categoryTree =
+    props.topBarMode === "talent_type" && directoryTenantId
+      ? await loadDirectoryCategoryTree(
+          directoryTenantId,
+          pickLocale(loc, { en: "en", es: "es" } as const),
+        )
+      : [];
+
   return (
     <section
       data-section="directory"
@@ -380,6 +393,7 @@ export async function DirectoryComponent({
             ui={ui}
             mapApiKey={mapApiKey}
             topBarFacet={topBarFacet}
+            categoryTree={categoryTree}
             sidebarBlocks={sidebar.blocks}
             defaultSort={props.defaultSort}
             showTopBar={props.topBarMode !== "none"}

@@ -11,6 +11,7 @@ import {
 } from "react";
 import { FilterChip, FilterChips } from "@/components/ui/filter-chips";
 import type { DirectoryFilterOption } from "@/lib/directory/field-driven-filters";
+import type { DirectoryCategoryParent } from "@/lib/directory/directory-category-tree";
 import { cn } from "@/lib/utils";
 import { commitDirectoryListingUrl } from "@/lib/directory/directory-url-navigation";
 import { humanizeEnumLabel } from "@/lib/directory/humanize-enum-label";
@@ -23,25 +24,42 @@ function pillLabel(label: string): string {
   return humanizeEnumLabel(t).toUpperCase();
 }
 
+function countSuffix(count: number | undefined): string {
+  return typeof count === "number" && count > 0 ? ` · ${count}` : "";
+}
+
 /**
- * Top-5 by count, with a "More disciplines" disclosure that reveals
- * the rest in a searchable popover (B1 — replaces the 21-pill
- * horizontal scroll with restraint).
+ * Top-N by count, with a "More" disclosure that reveals the rest in a
+ * searchable popover (B1 — replaces the long horizontal scroll with restraint).
  *
- * Selection-aware: if the active facet is NOT in the top-5, it's
- * always rendered visibly so users see what they've selected. The
- * overflow popover dismisses on outside-click and ESC.
+ * TWO MODES:
+ *  - Hierarchical (when `categoryTree` is supplied): PARENT-category pills.
+ *    Clicking a parent filters by it (the `?tax=` resolver expands a parent to
+ *    its talent-type leaves) AND reveals an inline sub-row of that parent's
+ *    child types (only the non-empty ones) to refine further.
+ *  - Flat (fallback): the legacy single-level talent-type pills.
+ *
+ * Selection-aware: an active facet outside the top-N is always rendered so the
+ * user sees their selection. The overflow popover dismisses on outside-click + ESC.
  */
-const VISIBLE_PILL_COUNT = 5;
+const VISIBLE_PILL_COUNT = 6;
+
+const ACTIVE_PILL =
+  "border border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] !text-[var(--impronta-gold-bright)]";
+const INACTIVE_PILL =
+  "border border-white/15 bg-transparent text-white/60 hover:border-white/30 hover:!text-zinc-200";
 
 export function DirectoryTalentTypeBar({
   options,
+  categoryTree,
   selectedIds,
   allLabel,
   barAriaLabel,
   overflowCopy,
 }: {
   options: DirectoryFilterOption[];
+  /** When present + non-empty, the bar renders the two-level parent→child UI. */
+  categoryTree?: DirectoryCategoryParent[];
   selectedIds: string[];
   allLabel: string;
   /** Usually the facet label (e.g. "Talent type", "Skills") for the pill tablist. */
@@ -57,46 +75,28 @@ export function DirectoryTalentTypeBar({
   const overflowRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
-  const siblingIds = useMemo(() => new Set(options.map((o) => o.id)), [options]);
+  const useHierarchy = !!categoryTree && categoryTree.length > 0;
+  const parents = useMemo(() => categoryTree ?? [], [categoryTree]);
+
+  // The full id-universe this facet controls — parent + child ids in
+  // hierarchical mode, else the flat option ids.
+  const siblingIds = useMemo(() => {
+    if (useHierarchy) {
+      const s = new Set<string>();
+      for (const p of parents) {
+        s.add(p.id);
+        for (const c of p.children) s.add(c.id);
+      }
+      return s;
+    }
+    return new Set(options.map((o) => o.id));
+  }, [useHierarchy, parents, options]);
+
   const selectedInGroup = useMemo(
     () => selectedIds.filter((id) => siblingIds.has(id)),
     [selectedIds, siblingIds],
   );
   const activeId = selectedInGroup[0] ?? null;
-
-  // Sort by count desc, then label asc. Picks the top-N most populated
-  // facets to surface as visible pills; the rest hide in the overflow.
-  const sorted = useMemo(() => {
-    return [...options].sort((a, b) => {
-      const ca = a.count ?? 0;
-      const cb = b.count ?? 0;
-      if (cb !== ca) return cb - ca;
-      return byLabel(a, b);
-    });
-  }, [options]);
-
-  // Build the visible set: top-N + (if active is outside top-N) inject it.
-  const { visibleOptions, overflowOptions } = useMemo(() => {
-    const top = sorted.slice(0, VISIBLE_PILL_COUNT);
-    const rest = sorted.slice(VISIBLE_PILL_COUNT);
-    if (activeId && !top.some((o) => o.id === activeId)) {
-      const activeOpt = rest.find((o) => o.id === activeId);
-      if (activeOpt) {
-        return {
-          visibleOptions: [...top, activeOpt],
-          overflowOptions: rest.filter((o) => o.id !== activeId),
-        };
-      }
-    }
-    return { visibleOptions: top, overflowOptions: rest };
-  }, [sorted, activeId]);
-
-  // Overflow popover search filter.
-  const overflowFiltered = useMemo(() => {
-    const q = overflowQuery.trim().toLowerCase();
-    if (!q) return overflowOptions;
-    return overflowOptions.filter((o) => o.label.toLowerCase().includes(q));
-  }, [overflowOptions, overflowQuery]);
 
   const pushTax = useCallback(
     (nextIds: string[]) => {
@@ -118,16 +118,15 @@ export function DirectoryTalentTypeBar({
     [router, pathname, searchParams, startTransition],
   );
 
-  const setActiveTerm = (termId: string | null) => {
-    const rest = selectedIds.filter((id) => !siblingIds.has(id));
-    if (termId) {
-      pushTax([...rest, termId]);
-    } else {
-      pushTax(rest);
-    }
-    setOverflowOpen(false);
-    setOverflowQuery("");
-  };
+  const setActiveTerm = useCallback(
+    (termId: string | null) => {
+      const rest = selectedIds.filter((id) => !siblingIds.has(id));
+      pushTax(termId ? [...rest, termId] : rest);
+      setOverflowOpen(false);
+      setOverflowQuery("");
+    },
+    [selectedIds, siblingIds, pushTax],
+  );
 
   // Outside-click / ESC dismiss the overflow popover.
   useEffect(() => {
@@ -153,20 +152,218 @@ export function DirectoryTalentTypeBar({
     };
   }, [overflowOpen]);
 
-  if (options.length === 0) return null;
-
   const pillClass = (on: boolean) =>
     cn(
       "snap-start shrink-0 max-w-[min(100%,14rem)] truncate rounded-full border-0 px-4 py-2 text-[11px] font-semibold tracking-[0.12em] shadow-none",
-      on
-        ? "border border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] !text-[var(--impronta-gold-bright)]"
-        : "border border-white/15 bg-transparent text-white/60 hover:border-white/30 hover:!text-zinc-200",
+      on ? ACTIVE_PILL : INACTIVE_PILL,
     );
 
   const morePillClass = cn(
     "shrink-0 rounded-full border border-white/15 bg-transparent px-4 py-2 text-[11px] font-semibold tracking-[0.12em] text-white/60 outline-none transition-colors hover:border-white/30 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
     overflowOpen && "border-white/40 text-zinc-100",
   );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // HIERARCHICAL MODE — parent pills + inline child refine sub-row.
+  // ─────────────────────────────────────────────────────────────────────────
+  if (useHierarchy) {
+    const activeParent =
+      parents.find((p) => p.id === activeId) ??
+      parents.find((p) => p.children.some((c) => c.id === activeId)) ??
+      null;
+    const activeChildId =
+      activeParent && activeParent.children.some((c) => c.id === activeId)
+        ? activeId
+        : null;
+
+    // Top-N parents + (inject the active parent if it's outside the top-N).
+    const top = parents.slice(0, VISIBLE_PILL_COUNT);
+    const rest = parents.slice(VISIBLE_PILL_COUNT);
+    let visibleParents = top;
+    let overflowParents = rest;
+    if (activeParent && !top.some((p) => p.id === activeParent.id)) {
+      visibleParents = [...top, activeParent];
+      overflowParents = rest.filter((p) => p.id !== activeParent.id);
+    }
+    const overflowFiltered = overflowQuery.trim()
+      ? overflowParents.filter((p) =>
+          p.label.toLowerCase().includes(overflowQuery.trim().toLowerCase()),
+        )
+      : overflowParents;
+
+    const onParent = (id: string) => setActiveTerm(activeId === id ? null : id);
+    const onChild = (parentId: string, childId: string) =>
+      setActiveTerm(activeId === childId ? parentId : childId);
+
+    return (
+      <div className="relative">
+        <FilterChips
+          className={cn(
+            "mb-3 flex-nowrap snap-x snap-proximity gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            pending && "pointer-events-none opacity-60",
+          )}
+          role="tablist"
+          aria-label={barAriaLabel}
+        >
+          <FilterChip
+            label={allLabel}
+            selected={activeParent == null}
+            onClick={() => setActiveTerm(null)}
+            className={pillClass(activeParent == null)}
+            role="tab"
+            aria-selected={activeParent == null}
+          />
+          {visibleParents.map((p) => {
+            const on = activeParent?.id === p.id;
+            return (
+              <FilterChip
+                key={p.id}
+                label={pillLabel(p.label) + countSuffix(p.count)}
+                selected={on}
+                onClick={() => onParent(p.id)}
+                className={pillClass(on)}
+                title={p.label}
+                role="tab"
+                aria-selected={on}
+              />
+            );
+          })}
+          {overflowParents.length > 0 ? (
+            <button
+              ref={buttonRef}
+              type="button"
+              className={morePillClass}
+              onClick={() => setOverflowOpen((v) => !v)}
+              aria-haspopup="listbox"
+              aria-expanded={overflowOpen}
+              aria-controls="directory-talent-type-overflow"
+            >
+              {overflowCopy.more} · {overflowParents.length}
+            </button>
+          ) : null}
+        </FilterChips>
+
+        {/* Inline refine sub-row — the active parent's child types (non-empty). */}
+        {activeParent && activeParent.children.length > 0 ? (
+          <div
+            className={cn(
+              "-mt-1 mb-4 flex flex-wrap items-center gap-1.5",
+              pending && "pointer-events-none opacity-60",
+            )}
+            role="group"
+            aria-label={`Refine ${activeParent.label}`}
+            data-directory-type-children
+          >
+            {activeParent.children.map((c) => {
+              const on = activeChildId === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onChild(activeParent.id, c.id)}
+                  aria-pressed={on}
+                  title={c.label}
+                  className={cn(
+                    "shrink-0 truncate rounded-full border px-3 py-1 text-[10px] font-medium tracking-[0.08em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                    on
+                      ? "border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
+                      : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/25 hover:text-white/85",
+                  )}
+                >
+                  {pillLabel(c.label)}
+                  <span className="ml-1 text-white/35 tabular-nums">{c.count}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {overflowOpen && overflowParents.length > 0 ? (
+          <div
+            ref={overflowRef}
+            id="directory-talent-type-overflow"
+            role="listbox"
+            aria-label={overflowCopy.moreOptionsAria.replace("{label}", barAriaLabel)}
+            className="absolute right-0 top-full z-30 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-zinc-950/95 p-3 shadow-xl backdrop-blur-md"
+          >
+            <input
+              type="search"
+              value={overflowQuery}
+              onChange={(e) => setOverflowQuery(e.target.value)}
+              placeholder={overflowCopy.searchPlaceholder}
+              aria-label={overflowCopy.searchAria}
+              className="mb-2 w-full rounded-md border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-white placeholder-white/40 outline-none focus:border-white/40 focus:ring-1 focus:ring-white/25"
+              autoFocus
+            />
+            <ul className="max-h-72 overflow-y-auto">
+              {overflowFiltered.length === 0 ? (
+                <li className="px-2 py-2 text-xs text-white/50">{overflowCopy.noMatches}</li>
+              ) : (
+                overflowFiltered.map((p) => {
+                  const on = activeParent?.id === p.id;
+                  return (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={on}
+                        onClick={() => onParent(p.id)}
+                        className={cn(
+                          "flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-[12px] tracking-[0.06em] outline-none transition-colors",
+                          on
+                            ? "bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
+                            : "text-white/70 hover:bg-white/[0.04] hover:text-white focus-visible:bg-white/[0.04] focus-visible:text-white",
+                        )}
+                      >
+                        <span className="truncate">{pillLabel(p.label)}</span>
+                        <span
+                          className={cn(
+                            "shrink-0 text-[10px] tabular-nums",
+                            on ? "text-[var(--dir-accent)]" : "text-white/40",
+                          )}
+                        >
+                          {p.count}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // FLAT MODE (fallback) — single-level talent-type pills.
+  // ─────────────────────────────────────────────────────────────────────────
+  const sorted = [...options].sort((a, b) => {
+    const ca = a.count ?? 0;
+    const cb = b.count ?? 0;
+    if (cb !== ca) return cb - ca;
+    return byLabel(a, b);
+  });
+
+  const top = sorted.slice(0, VISIBLE_PILL_COUNT);
+  const restOpts = sorted.slice(VISIBLE_PILL_COUNT);
+  let visibleOptions = top;
+  let overflowOptions = restOpts;
+  if (activeId && !top.some((o) => o.id === activeId)) {
+    const activeOpt = restOpts.find((o) => o.id === activeId);
+    if (activeOpt) {
+      visibleOptions = [...top, activeOpt];
+      overflowOptions = restOpts.filter((o) => o.id !== activeId);
+    }
+  }
+  const overflowFiltered = overflowQuery.trim()
+    ? overflowOptions.filter((o) =>
+        o.label.toLowerCase().includes(overflowQuery.trim().toLowerCase()),
+      )
+    : overflowOptions;
+
+  if (options.length === 0) return null;
 
   return (
     <div className="relative">
@@ -188,14 +385,10 @@ export function DirectoryTalentTypeBar({
         />
         {visibleOptions.map((opt) => {
           const on = activeId === opt.id;
-          const countSuffix =
-            typeof opt.count === "number" && opt.count > 0
-              ? ` · ${opt.count}`
-              : "";
           return (
             <FilterChip
               key={opt.id}
-              label={pillLabel(opt.label) + countSuffix}
+              label={pillLabel(opt.label) + countSuffix(opt.count)}
               selected={on}
               onClick={() => setActiveTerm(on ? null : opt.id)}
               className={pillClass(on)}
