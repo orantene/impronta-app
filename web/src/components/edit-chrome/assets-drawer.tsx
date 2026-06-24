@@ -16,16 +16,18 @@
  *   - All        — every approved asset for the tenant, newest first
  *   - Images     — rasters + svgs (variantKind "original" with image/* MIME guard
  *                  via storagePath extension)
- *   - Videos     — placeholder until a video upload route lands
- *   - Documents  — placeholder until a doc upload route lands
+ *   - Videos     — `assetKind: "video"` assets (uploaded via the shared
+ *                  /api/admin/media/upload route, rendered as a muted first-frame)
+ *   - Documents  — `assetKind: "document"` assets (PDF/doc, rendered as a typed
+ *                  file icon since PDFs don't thumbnail in-browser)
  *   - Brand      — assets tagged in metadata as `source: "brand"` or owned by
  *                  a brand-kit talent profile (today: empty by default — the
  *                  brand kit story is M11 territory and lights this up later)
  *
- * Today's media_assets table only stores image originals, so Videos /
- * Documents intentionally surface a calm "coming soon" empty state rather
- * than fake their content. The drawer is laid out for the eventual world
- * so the operator's mental model is right; the data just hasn't shipped yet.
+ * Videos + Documents upload through the same route as images (Phase 8, with an
+ * `assetKind` discriminant) and are loaded by `loadAssetsLibraryAction` like any
+ * other asset — so an uploaded clip / PDF now actually appears in its tab
+ * instead of vanishing into an empty "coming soon" state.
  *
  * Data fetch:
  *   - On open, parallel-fires `loadAssetsLibraryAction` + `scanAssetUsageAction`.
@@ -91,20 +93,13 @@ type TabKey = "all" | "images" | "videos" | "documents" | "brand";
 interface TabSpec {
   key: TabKey;
   label: string;
-  /**
-   * Today's media_assets table only carries image originals. Videos and
-   * Documents are laid out for the eventual world so the operator's
-   * mental model lines up; they show an empty state until the upload
-   * routes land.
-   */
-  comingSoon?: boolean;
 }
 
 const TABS: ReadonlyArray<TabSpec> = [
   { key: "all", label: "All" },
   { key: "images", label: "Images" },
-  { key: "videos", label: "Videos", comingSoon: true },
-  { key: "documents", label: "Documents", comingSoon: true },
+  { key: "videos", label: "Videos" },
+  { key: "documents", label: "Documents" },
   { key: "brand", label: "Brand" },
 ];
 
@@ -139,6 +134,14 @@ function isBrandItem(item: MediaLibraryItem): boolean {
   // asset whose source/seeded_by mentions `brand` lands here.
   if (!item.sourceHint) return false;
   return /brand/i.test(item.sourceHint);
+}
+
+function isVideoItem(item: MediaLibraryItem): boolean {
+  return item.assetKind === "video";
+}
+
+function isDocumentItem(item: MediaLibraryItem): boolean {
+  return item.assetKind === "document";
 }
 
 function fileNameOf(item: MediaLibraryItem): string {
@@ -326,8 +329,10 @@ export function AssetsDrawer(): ReactElement | null {
     let pool: MediaLibraryItem[];
     if (tab === "all") pool = items;
     else if (tab === "images") pool = items.filter(isImageItem);
+    else if (tab === "videos") pool = items.filter(isVideoItem);
+    else if (tab === "documents") pool = items.filter(isDocumentItem);
     else if (tab === "brand") pool = items.filter(isBrandItem);
-    else pool = []; // videos / documents — placeholder
+    else pool = [];
 
     const q = query.trim().toLowerCase();
     if (!q) return pool;
@@ -528,8 +533,8 @@ export function AssetsDrawer(): ReactElement | null {
     return {
       all: items.length,
       images: items.filter(isImageItem).length,
-      videos: 0,
-      documents: 0,
+      videos: items.filter(isVideoItem).length,
+      documents: items.filter(isDocumentItem).length,
       brand: items.filter(isBrandItem).length,
     };
   }, [items]);
@@ -595,7 +600,7 @@ export function AssetsDrawer(): ReactElement | null {
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
-                {t.comingSoon ? "—" : count}
+                {count}
               </span>
             </DrawerTab>
           );
@@ -909,19 +914,52 @@ function AssetTile({
           overflow: "hidden",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={item.publicUrl}
-          alt={name}
-          loading="lazy"
-          decoding="async"
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            display: "block",
-          }}
-        />
+        {isVideoItem(item) ? (
+          <video
+            src={item.publicUrl}
+            muted
+            playsInline
+            preload="metadata"
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          />
+        ) : isDocumentItem(item) ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              color: CHROME.muted2,
+              padding: 12,
+            }}
+          >
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6" />
+              <path d="M9 13h6M9 17h6" />
+            </svg>
+            <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              {extensionOf(item.storagePath) ?? "doc"}
+            </span>
+          </div>
+        ) : (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={item.publicUrl}
+              alt={name}
+              loading="lazy"
+              decoding="async"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            />
+          </>
+        )}
       </div>
 
       {/* Crop affordance — raster images only, hidden during multi-select.
