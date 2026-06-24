@@ -123,11 +123,13 @@ function InquiryRow({ inquiry }: { inquiry: RichInquiry }) {
   const stageBg =
     stage.tone === "amber" ? COLORS.amberSoft
     : stage.tone === "green" ? COLORS.successSoft
+    : stage.tone === "indigo" ? "rgba(43,63,163,0.12)"
     : stage.tone === "red" ? "rgba(176,48,58,0.08)"
     : "rgba(11,11,13,0.05)";
   const stageFg =
     stage.tone === "amber" ? COLORS.amberDeep
     : stage.tone === "green" ? COLORS.successDeep
+    : stage.tone === "indigo" ? "#2B3FA3"
     : stage.tone === "red" ? "#7A2026"
     : COLORS.inkMuted;
 

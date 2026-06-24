@@ -80,7 +80,7 @@ export function StatDot({
   tone = "ink",
   size = 6,
 }: {
-  tone?: "ink" | "amber" | "green" | "dim" | "red";
+  tone?: "ink" | "amber" | "green" | "dim" | "red" | "indigo";
   size?: number;
 }) {
   const palette: Record<string, string> = {
@@ -89,6 +89,8 @@ export function StatDot({
     green: COLORS.green,
     dim: COLORS.inkDim,
     red: COLORS.red,
+    // "ready to book" — matches the live thread's stageStyle() approved tone.
+    indigo: "#2B3FA3",
   };
   return (
     <span
