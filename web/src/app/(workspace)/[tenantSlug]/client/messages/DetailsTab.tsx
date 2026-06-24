@@ -464,7 +464,7 @@ export function DetailsTab({
 
       <Section title="Files & references">
         {details.attachments.files.length === 0 && details.attachments.links.length === 0 ? (
-          <EmptyPrompt label="No files yet" hint="Moodboards, briefs, references — upload coming soon." />
+          <EmptyPrompt label="No files yet" hint="Moodboards, briefs, and references shared on this booking will appear here." />
         ) : (
           <>
             {details.attachments.files.map((f, i) => (

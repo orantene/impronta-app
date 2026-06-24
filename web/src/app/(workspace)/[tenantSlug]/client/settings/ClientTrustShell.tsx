@@ -406,12 +406,9 @@ export function ClientTrustShell({
         </div>
       )}
 
-      {/* Stripe not configured */}
-      {!stripeEnabled && trustLevel === "basic" && (
-        <p style={{ fontSize: 12, color: C.inkMuted, margin: 0, fontFamily: FONT }}>
-          Account verification coming soon.
-        </p>
-      )}
+      {/* When Stripe isn't configured the verify/fund actions above are hidden.
+          We intentionally render no "coming soon" placeholder — the tier display
+          stays useful on its own, and a dangling teaser reads as unfinished. */}
     </section>
   );
 }
