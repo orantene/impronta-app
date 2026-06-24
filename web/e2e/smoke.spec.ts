@@ -3289,3 +3289,90 @@ test.describe("smoke: login → builder → publish → share", () => {
     }
   });
 });
+
+// ────────────────────────────────────────────────────────────────────────────
+// Builder CHROME interaction coverage.
+//
+// Two regressions shipped to production undetected because the builder chrome
+// had no e2e coverage (unit tests + the preview tool can't drive its heavy
+// client state):
+//   1. The agency homepage crashed in edit mode — resolveSnapshotBuilderTree did
+//      `snapshot.slots.some(...)` on undefined slots, throwing the canvas into
+//      the "Something went wrong" error boundary (#646).
+//   2. Topbar dropdowns rendered invisible — a `position: fixed` menu nested
+//      inside the topbar's backdrop-filter + overflow:hidden bar got clipped;
+//      the fix portals them to <body> (#645).
+//
+// These tests open the real builder and assert the chrome actually works. The
+// clip bug is subtle: a clipped menu still reports `toBeVisible()` (it has a
+// layout box), so we assert its items are ACTIONABLE via a Playwright trial
+// click — which runs the full "receives pointer events" check without performing
+// the click, and fails iff the menu is clipped/occluded.
+// ────────────────────────────────────────────────────────────────────────────
+test.describe("smoke: builder chrome interactions", () => {
+  test.skip(
+    USE_DEV_SIGNIN ? false : !ADMIN_EMAIL || !ADMIN_PASSWORD,
+    "TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD not set",
+  );
+
+  test("impronta opens in edit mode with no error boundary and a live canvas", async ({ page }) => {
+    test.setTimeout(90_000);
+    await openImprontaBuilderDirect(page);
+    await expect(page.locator("[data-edit-topbar]").first()).toBeVisible({ timeout: 30_000 });
+
+    // REGRESSION #646 — the canvas must NOT fall into the global error boundary.
+    await expect(page.getByText(/something went wrong/i)).toHaveCount(0);
+
+    // The canvas shows real content: rendered sections OR the blank-canvas starter.
+    const content = page
+      .locator("[data-navigator-section-row], [data-builder-node-id], [data-section-id]")
+      .first()
+      .or(page.getByRole("heading", { name: /your homepage is a blank canvas/i }));
+    await expect(content.first()).toBeVisible({ timeout: 30_000 });
+  });
+
+  test("topbar page-picker dropdown opens on click and its items are actionable (not clipped)", async ({ page }) => {
+    test.setTimeout(90_000);
+    await openImprontaBuilderDirect(page);
+    await expect(page.locator("[data-edit-topbar]").first()).toBeVisible({ timeout: 30_000 });
+
+    const trigger = page.locator('[data-page-picker] button[aria-haspopup="menu"]').first();
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+
+    const menu = page.locator('[role="menu"][data-page-picker]').first();
+    await expect(menu).toBeVisible({ timeout: 5_000 });
+    // REGRESSION #645 — a clipped menu reports visible but isn't clickable; the
+    // trial click asserts actionability without side effects.
+    await menu.getByRole("menuitem", { name: /manage pages/i }).click({ trial: true });
+  });
+
+  test("topbar publish split-button menu opens on click and its items are actionable (not clipped)", async ({ page }) => {
+    test.setTimeout(90_000);
+    await openImprontaBuilderDirect(page);
+    await expect(page.locator("[data-edit-topbar]").first()).toBeVisible({ timeout: 30_000 });
+
+    const caret = page.locator('[data-publish-split] button[aria-haspopup="menu"]').first();
+    await expect(caret).toBeVisible();
+    await caret.click();
+
+    const menu = page.locator('[role="menu"][data-publish-split]').first();
+    await expect(menu).toBeVisible({ timeout: 5_000 });
+    await menu.getByRole("menuitem", { name: /save draft/i }).click({ trial: true });
+  });
+
+  test("command dock opens the Add gallery with insertable items", async ({ page }) => {
+    test.setTimeout(90_000);
+    await openImprontaBuilderDirect(page);
+    await expect(page.locator("[data-edit-topbar]").first()).toBeVisible({ timeout: 30_000 });
+    await dismissBuilderTipIfPresent(page);
+
+    const addBtn = page.locator('[data-command-dock] button[aria-label="Add"]').first();
+    await expect(addBtn).toBeVisible();
+    await addBtn.click();
+
+    const firstItem = page.locator("[data-add-gallery-item]").first();
+    await expect(firstItem).toBeVisible({ timeout: 10_000 });
+    await firstItem.click({ trial: true });
+  });
+});

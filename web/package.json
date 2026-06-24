@@ -73,6 +73,7 @@
     "test:e2e:browser-health": "playwright test e2e/browser-health.spec.ts",
     "test:e2e:registered-host": "playwright test e2e/registered-host.spec.ts",
     "test:e2e:impronta-local": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta login next lands on slugged admin and opens builder edit mode'",
+    "test:e2e:builder-chrome": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'builder chrome interactions'",
     "test:e2e:impronta-empty-first-add": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta blank canvas can create the first hero section'",
     "test:e2e:impronta-section-build": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta can build core body sections one by one'",
     "test:e2e:impronta-selection-breadcrumb": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta canvas selection breadcrumb tracks the selected section'",
