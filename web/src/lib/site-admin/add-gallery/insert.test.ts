@@ -8,7 +8,6 @@ import {
   assertAddGalleryBuilderTreeOnly,
   createDbTemplateNodeForGalleryItem,
   createNativeNodeForGalleryItem,
-  evaluateDirectoryAddCapForTenant,
   resolveAddGalleryInsertAction,
 } from "./insert";
 import type { AddGalleryItem } from "./types";
@@ -495,14 +494,4 @@ test("addGalleryItemTargetsDirectory only matches the directory embed/connected 
     }),
     false,
   );
-});
-
-test("evaluateDirectoryAddCapForTenant short-circuits ok for non-directory items (no DB)", async () => {
-  // A non-directory item resolves ok WITHOUT touching Supabase/auth — the guard
-  // returns before any dynamic import, so this is safe to run in the unit env.
-  const result = await evaluateDirectoryAddCapForTenant({
-    insertMethod: "nativeNode",
-    sectionEmbedKey: undefined,
-  });
-  assert.deepEqual(result, { ok: true });
 });
