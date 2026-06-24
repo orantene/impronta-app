@@ -198,13 +198,13 @@ describe("style-classes: stripClassRef / getNodeClassRef / countNodesLinkedToCla
       {
         id: "root",
         kind: "container",
-        props: { style: { classRef: "promo" } },
+        props: { layout: "stack", style: { classRef: "promo" } },
         children: [
           { id: "a", kind: "card", props: { style: { classRef: "promo" } }, children: [] },
           { id: "b", kind: "card", props: { style: { classRef: "other" } }, children: [
-            { id: "b1", kind: "heading", props: { style: { classRef: "promo" } } },
-            { id: "b2", kind: "text", props: {} },
-            { id: "b3", kind: "text", props: { style: { classRef: "untracked" } } },
+            { id: "b1", kind: "heading", props: { text: "b1", level: 3, style: { classRef: "promo" } } },
+            { id: "b2", kind: "paragraph", props: { text: "b2" } },
+            { id: "b3", kind: "paragraph", props: { text: "b3", style: { classRef: "untracked" } } },
           ] },
         ],
       },
