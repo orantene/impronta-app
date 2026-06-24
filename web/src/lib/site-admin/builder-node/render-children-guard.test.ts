@@ -61,7 +61,7 @@ test("renderer tolerates a data-bound container (featured talent) with undefined
             profileCode: "TAL-1",
           },
         ],
-      } as unknown as Parameters<typeof renderBuilderNodes>[1]["dataSources"],
+      } as unknown as NonNullable<Parameters<typeof renderBuilderNodes>[1]>["dataSources"],
     }),
   );
 });

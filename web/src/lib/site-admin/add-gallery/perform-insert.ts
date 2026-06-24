@@ -42,6 +42,12 @@ export async function performAddGalleryInsert(
   deps: AddGalleryInsertDeps,
   context: AddGalleryInsertContext = {},
 ): Promise<{ ok: boolean; error?: string; nodeId?: string }> {
+  // NOTE: the directory plan-gating cap (Free=5 / Studio=1 / Agency=full) is
+  // implemented + tested in sections/directory/meta.ts (evaluateDirectoryInstanceAdd)
+  // but is NOT enforced here — this orchestrator is bundled into client
+  // components, so it must not reach the server-only auth/scope helpers
+  // (next/headers). Re-wire the cap in the server-only deps provider (the
+  // "use server" action that supplies insertBuilderComponent) instead.
   const action = resolveAddGalleryInsertAction(item);
   const { parentId, index } = target;
 

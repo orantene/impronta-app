@@ -1,6 +1,12 @@
 "use client";
 
-import { Suspense, useCallback, useMemo, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import {
@@ -72,6 +78,11 @@ export function DirectoryReactiveResults({
   showActiveChips,
   aiSearchEnabled = false,
   scopeLimitedHint,
+  cardKitOverrideStyle,
+  sidebarPosition,
+  sidebarSticky,
+  scope,
+  manualProfileCodes,
   density,
   hoverBehavior,
   cardStyle,
@@ -81,6 +92,10 @@ export function DirectoryReactiveResults({
   showLocation,
   showAvailability,
   showBadges,
+  showSave,
+  showAddToInquiry,
+  cardFieldKeys,
+  maxFieldLines,
   nameFallback,
   columnsDesktop,
   columnsTablet,
@@ -104,6 +119,21 @@ export function DirectoryReactiveResults({
   aiSearchEnabled?: boolean;
   /** Honest hint when `scope=by_tag` cannot project; rendered above grid. */
   scopeLimitedHint?: string;
+  /**
+   * P4 — inline `--token-card-*` CSS vars from a resolved per-instance card
+   * kit. Set on a wrapper around the grid so THIS instance's canonical cards
+   * paint in the override palette regardless of the tenant default. Inline
+   * vars only (publishPageSnapshot does not bake classes).
+   */
+  cardKitOverrideStyle?: CSSProperties;
+  /** Filter sidebar placement (`left`/`right`) — orders the aside via flex. */
+  sidebarPosition: DirectoryV1["sidebarPosition"];
+  /** Whether the desktop filter aside is sticky. */
+  sidebarSticky: boolean;
+  /** Section scope — drives the render-level manual-pick filter. */
+  scope: DirectoryV1["scope"];
+  /** Resolved manual profile codes (in pick order) when `scope=manual`. */
+  manualProfileCodes: string[];
   density: DirectoryV1["density"];
   hoverBehavior: DirectoryV1["hoverBehavior"];
   // B3 — card-level config threaded through to the new reactive grid.
@@ -114,6 +144,14 @@ export function DirectoryReactiveResults({
   showLocation: boolean;
   showAvailability: boolean;
   showBadges: boolean;
+  /** Render the per-card favorite (save) affordance. */
+  showSave: boolean;
+  /** Render the per-card "Inquire / Added" cart bar. */
+  showAddToInquiry: boolean;
+  /** Catalog-field allow-list + order for the card trait row. */
+  cardFieldKeys: DirectoryV1["cardFieldKeys"];
+  /** Cap on the card trait lines. */
+  maxFieldLines: DirectoryV1["maxFieldLines"];
   nameFallback: DirectoryV1["nameFallback"];
   columnsDesktop: number;
   columnsTablet: number;
@@ -136,6 +174,11 @@ export function DirectoryReactiveResults({
           showActiveChips={showActiveChips}
           aiSearchEnabled={aiSearchEnabled}
           scopeLimitedHint={scopeLimitedHint}
+          cardKitOverrideStyle={cardKitOverrideStyle}
+          sidebarPosition={sidebarPosition}
+          sidebarSticky={sidebarSticky}
+          scope={scope}
+          manualProfileCodes={manualProfileCodes}
           density={density}
           hoverBehavior={hoverBehavior}
           cardStyle={cardStyle}
@@ -145,6 +188,10 @@ export function DirectoryReactiveResults({
           showLocation={showLocation}
           showAvailability={showAvailability}
           showBadges={showBadges}
+          showSave={showSave}
+          showAddToInquiry={showAddToInquiry}
+          cardFieldKeys={cardFieldKeys}
+          maxFieldLines={maxFieldLines}
           nameFallback={nameFallback}
           columnsDesktop={columnsDesktop}
           columnsTablet={columnsTablet}
@@ -183,6 +230,11 @@ function DirectoryReactiveResultsInner({
   showActiveChips,
   aiSearchEnabled,
   scopeLimitedHint,
+  cardKitOverrideStyle,
+  sidebarPosition,
+  sidebarSticky,
+  scope,
+  manualProfileCodes,
   density,
   hoverBehavior,
   cardStyle,
@@ -192,6 +244,10 @@ function DirectoryReactiveResultsInner({
   showLocation,
   showAvailability,
   showBadges,
+  showSave,
+  showAddToInquiry,
+  cardFieldKeys,
+  maxFieldLines,
   nameFallback,
   columnsDesktop,
   columnsTablet,
@@ -210,6 +266,11 @@ function DirectoryReactiveResultsInner({
   showActiveChips: boolean;
   aiSearchEnabled: boolean;
   scopeLimitedHint?: string;
+  cardKitOverrideStyle?: CSSProperties;
+  sidebarPosition: DirectoryV1["sidebarPosition"];
+  sidebarSticky: boolean;
+  scope: DirectoryV1["scope"];
+  manualProfileCodes: string[];
   density: DirectoryV1["density"];
   hoverBehavior: DirectoryV1["hoverBehavior"];
   cardStyle: DirectoryV1["cardStyle"];
@@ -219,6 +280,10 @@ function DirectoryReactiveResultsInner({
   showLocation: boolean;
   showAvailability: boolean;
   showBadges: boolean;
+  showSave: boolean;
+  showAddToInquiry: boolean;
+  cardFieldKeys: DirectoryV1["cardFieldKeys"];
+  maxFieldLines: DirectoryV1["maxFieldLines"];
   nameFallback: DirectoryV1["nameFallback"];
   columnsDesktop: number;
   columnsTablet: number;
@@ -332,8 +397,15 @@ function DirectoryReactiveResultsInner({
       {aiSummary ? <AIInterpretChip summary={aiSummary} /> : null}
       <div className="mt-6 flex gap-8">
         {showSidebar && sidebarBlocks.length > 0 ? (
-          <aside className="hidden w-56 shrink-0 md:block">
-            <div className="sticky top-20">
+          // P4 — `order-last` floats the aside to the right when
+          // `sidebarPosition==='right'`; sticky is gated on `sidebarSticky`.
+          <aside
+            className={`hidden w-56 shrink-0 md:block ${
+              sidebarPosition === "right" ? "order-last" : ""
+            }`}
+            data-sidebar-position={sidebarPosition}
+          >
+            <div className={sidebarSticky ? "sticky top-20" : undefined}>
               <DirectoryFiltersSidebar
                 blocks={sidebarBlocks}
                 selectedIds={taxonomyTermIds}
@@ -353,6 +425,7 @@ function DirectoryReactiveResultsInner({
           className="min-w-0 flex-1"
           data-directory-density={density}
           data-directory-hover={hoverBehavior}
+          style={cardKitOverrideStyle}
         >
           {showSidebar && sidebarBlocks.length > 0 ? (
             <div className="mb-3 flex flex-wrap items-center gap-2 md:mb-0 md:hidden">
@@ -411,6 +484,7 @@ function DirectoryReactiveResultsInner({
             view={view}
             ui={ui}
             directorySearchViaAi={aiSearchEnabled && query.trim().length > 0}
+            manualProfileCodes={scope === "manual" ? manualProfileCodes : undefined}
             cardStyle={cardStyle}
             cardAspect={cardAspect}
             onFetchingChange={handleFetchingChange}
@@ -421,6 +495,10 @@ function DirectoryReactiveResultsInner({
               showAvailability,
               showBadges,
             }}
+            showSave={showSave}
+            showAddToInquiry={showAddToInquiry}
+            cardFieldKeys={cardFieldKeys}
+            maxFieldLines={maxFieldLines}
             nameFallback={nameFallback}
             columnsDesktop={columnsDesktop}
             columnsTablet={columnsTablet}

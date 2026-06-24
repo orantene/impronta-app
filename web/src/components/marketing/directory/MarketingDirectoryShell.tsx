@@ -8,11 +8,11 @@ import { loadMoreDirectoryTalents } from "@/app/(marketing)/global-directory/act
 import {
   FOCUS_RING,
   type DirectoryActiveFilters,
+  type DirectoryCardRow,
   type DirectoryFacets,
   type DirectoryView,
   type DiscoverMapPoint,
   type DiscoverSort,
-  type DiscoverTalentListItem,
 } from "./shared";
 import { DirectorySearch } from "./DirectorySearch";
 import { DirectoryTypeBar } from "./DirectoryTypeBar";
@@ -27,8 +27,11 @@ type Props = {
   sort: DiscoverSort;
   facets: DirectoryFacets;
   activeFilters: DirectoryActiveFilters;
-  // Grid / list data (first SSR page).
-  initialItems: DiscoverTalentListItem[];
+  // Grid / list data (first SSR page). Rows carry an optional per-agency
+  // `design` (attached server-side by the page + the load-more action), so the
+  // shape is `DirectoryCardRow` — not the raw bridge item — to keep that field
+  // type-tracked end to end through the items state.
+  initialItems: DirectoryCardRow[];
   initialTotal: number;
   pageSize: number;
   // Map data (only populated when view === "map").
@@ -44,7 +47,8 @@ export function MarketingDirectoryShell({
   activeFilters,
   initialItems,
   initialTotal,
-  pageSize,
+  // pageSize is part of Props (caller passes it) but the shell now paginates
+  // via the loadMoreDirectoryTalents server action, so it isn't read here.
   mapPoints,
   mapUnmappedCount,
   mapApiKey,

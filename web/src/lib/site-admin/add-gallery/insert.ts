@@ -531,3 +531,31 @@ export function galleryItemSupportsDrag(item: AddGalleryItem): boolean {
     item.insertMethod !== "disabledComingSoon"
   );
 }
+
+// ---------------------------------------------------------------------------
+// Directory plan-gating cap (Directory Section Plan — Free=5 inline /
+// Studio=1 / Agency=full). Enforced HERE, at the add path, so a tenant cannot
+// place more directory SECTION instances than its plan allows.
+// ---------------------------------------------------------------------------
+
+/** The section-type key a directory embed/connected item targets. */
+const DIRECTORY_SECTION_TYPE_KEY = "directory";
+
+/**
+ * PURE — true when this gallery item, if inserted, lands a directory section
+ * instance (the dynamic `directory` embed). The cap applies ONLY to these
+ * items; every other gallery item is unaffected.
+ *
+ * A directory section enters a tenant's tree as a `section_embed` /
+ * `connectedNode` insert carrying `sectionEmbedKey === "directory"`. Native
+ * nodes, freeform templates, and other section embeds never count.
+ */
+export function addGalleryItemTargetsDirectory(
+  item: Pick<AddGalleryItem, "insertMethod" | "sectionEmbedKey">,
+): boolean {
+  return (
+    (item.insertMethod === "sectionEmbed" ||
+      item.insertMethod === "connectedNode") &&
+    item.sectionEmbedKey === DIRECTORY_SECTION_TYPE_KEY
+  );
+}

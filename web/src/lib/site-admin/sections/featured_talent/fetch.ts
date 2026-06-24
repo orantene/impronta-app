@@ -38,6 +38,8 @@ import {
 
 import type { FeaturedTalentV1 } from "./schema";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { AVAILABILITY_UNKNOWN } from "@/lib/site-admin/sections/directory/card-data";
+import type { CanonicalTalentCardData } from "@/components/talent-cards/talent-card-shape";
 
 /**
  * Trimmed card shape consumed by FeaturedTalentCard (the presentational
@@ -79,6 +81,59 @@ export type FeaturedTalentCardDTO = {
   isFeatured: boolean;
   thumbnailUrl: string | null;
 };
+
+/**
+ * P3 — adapter from the featured-section DTO to the canonical
+ * `CanonicalTalentCardData` (= `DirectoryCardData`) shape consumed by the one
+ * shared `<TalentCard>`. Pure / framework-free so both server and client
+ * callers can map without bundling hazards.
+ *
+ * `profileHref` is built the same way the featured card always linked: by
+ * EXACT `profile_code` (a `-<slug>` suffix 404s on the `/t/` route), then
+ * tenant- + locale-prefixed by the caller via `prefixPublicHref` /
+ * `withLocalePath`. We hand back the bare `/t/<code>` and let the caller
+ * prefix, mirroring the prior `FeaturedTalentCard` behaviour.
+ *
+ * Note on fidelity: the canonical card surfaces name / primary type /
+ * location / availability. The featured DTO additionally carries
+ * `secondaryTalentTypeLabel` + `languages`, but the canonical shape has no
+ * field for them (it is the directory shape today; P3+ widens it). They are
+ * intentionally not lost data here — they simply have no slot on the shared
+ * card yet, so featured surfaces that still want that meta line keep their own
+ * overlay markup. `availabilityLabel` is layout-ready but never populated on
+ * this DTO, so we hand back the ratified unknown fallback (the card renders it
+ * only when `showAvailability` is on).
+ */
+export function featuredDtoToCanonicalCard(
+  card: FeaturedTalentCardDTO,
+  hrefPrefixer?: (href: string) => string,
+): CanonicalTalentCardData {
+  const code = card.profileCode?.trim() || null;
+  const bareHref = code ? `/t/${encodeURIComponent(code)}` : "";
+  const profileHref =
+    bareHref && hrefPrefixer ? hrefPrefixer(bareHref) : bareHref;
+
+  const hasAvailability = Boolean(card.availabilityLabel?.trim());
+
+  return {
+    id: card.id,
+    name: card.displayName,
+    profileCode: code,
+    profileHref,
+    primaryType: card.primaryTalentTypeLabel || null,
+    location: card.locationLabel || null,
+    photoUrl: card.thumbnailUrl,
+    // The featured DTO has no agency-ownership data; the directory-style
+    // ownership chip degrades to "Independent" via the card's own fallback.
+    agencyName: null,
+    isExclusive: false,
+    availabilityLabel: hasAvailability
+      ? (card.availabilityLabel as string)
+      : AVAILABILITY_UNKNOWN,
+    availabilityKnown: hasAvailability,
+    availableDaysInNext30: null,
+  };
+}
 
 const FEATURED_LIMIT_MIN = 1;
 const FEATURED_LIMIT_MAX = 12;

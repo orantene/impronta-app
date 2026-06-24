@@ -55,7 +55,7 @@ export default async function DirectoryPage() {
           <h1 className="text-xl font-semibold">
             {t("public.directory.configMissingTitle")}
           </h1>
-          <p className="mt-3 text-m text-[var(--impronta-muted)]">
+          <p className="mt-3 text-m text-[var(--token-color-muted,var(--impronta-muted))]">
             {t("public.directory.configMissingBody")}
           </p>
         </div>
@@ -71,7 +71,7 @@ export default async function DirectoryPage() {
         <PublicHeader />
         <div className="mx-auto max-w-lg flex-1 px-4 py-20 text-center">
           <h1 className="text-xl font-semibold">{t("public.directory.pausedTitle")}</h1>
-          <p className="mt-3 text-m text-[var(--impronta-muted)]">
+          <p className="mt-3 text-m text-[var(--token-color-muted,var(--impronta-muted))]">
             {t("public.directory.pausedBody")}
           </p>
         </div>

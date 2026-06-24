@@ -20,6 +20,7 @@ import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import type { SearchResult } from "@/lib/ai/search-result";
 
 import { DirectoryCardAdapter } from "./DirectoryCardAdapter";
+import { buildManualCodeOrder, filterToManualCodes } from "./manual-filter";
 import type { DirectoryV1 } from "./schema";
 
 /**
@@ -27,11 +28,9 @@ import type { DirectoryV1 } from "./schema";
  *
  * Path β (per evolution prompts doc): owns its own `useInfiniteQuery`
  * against `/api/directory` (or `/api/ai/search` when the AI strip is
- * driving the URL `q`), with the SAME queryKey shape as the legacy
- * `DirectoryInfiniteGrid` so the React Query cache stays unified if
- * the two ever coexist on the same surface. Renders the canonical
- * `<DirectoryCard>` via `<DirectoryCardAdapter>`, with cool-shimmer
- * skeletons during initial fetch and an editorial empty-state.
+ * driving the URL `q`). Renders the canonical `<TalentCard>` via
+ * `<DirectoryCardAdapter>`, with cool-shimmer skeletons during initial
+ * fetch and an editorial empty-state.
  *
  * No legacy chrome: no preview dialog, no inline save/contact buttons
  * (the canonical card is a pure link to the profile — affordances
@@ -52,9 +51,14 @@ export function DirectoryReactiveGrid({
   view = "grid",
   ui,
   directorySearchViaAi = false,
+  manualProfileCodes,
   cardStyle,
   cardAspect,
   show,
+  showSave,
+  showAddToInquiry,
+  cardFieldKeys,
+  maxFieldLines,
   nameFallback,
   columnsDesktop,
   columnsTablet,
@@ -75,6 +79,14 @@ export function DirectoryReactiveGrid({
   view?: DirectoryViewMode;
   ui: DirectoryUiCopy;
   directorySearchViaAi?: boolean;
+  /**
+   * P4 — when `scope=manual`, the resolved profile codes (in pick order).
+   * The grid filters the fetched items to these codes and suppresses
+   * infinite-scroll of non-manual talent. Render-level only (the SSR seed +
+   * `/api/directory` still serve the full roster — `scopeLimited` stays the
+   * honest hint). `undefined` → no manual filter.
+   */
+  manualProfileCodes?: string[];
   cardStyle: DirectoryV1["cardStyle"];
   cardAspect: DirectoryV1["cardAspect"];
   show: Pick<
@@ -85,6 +97,14 @@ export function DirectoryReactiveGrid({
     | "showAvailability"
     | "showBadges"
   >;
+  /** Render the per-card favorite (save) affordance. */
+  showSave: boolean;
+  /** Render the per-card "Inquire / Added" cart bar. */
+  showAddToInquiry: boolean;
+  /** Catalog-field allow-list + order for the card trait row. */
+  cardFieldKeys: DirectoryV1["cardFieldKeys"];
+  /** Cap on the card trait lines. */
+  maxFieldLines: DirectoryV1["maxFieldLines"];
   nameFallback: DirectoryV1["nameFallback"];
   columnsDesktop: number;
   columnsTablet: number;
@@ -120,8 +140,7 @@ export function DirectoryReactiveGrid({
     isRefetching,
     status,
   } = useInfiniteQuery({
-    // Same queryKey shape as legacy DirectoryInfiniteGrid — keeps the
-    // React Query cache unified if both ever coexist on the same page.
+    // Stable queryKey shape for the directory infinite cache.
     queryKey: [
       "directory",
       directorySearchViaAi ? "ai" : "classic",
@@ -177,14 +196,25 @@ export function DirectoryReactiveGrid({
     initialDataUpdatedAt: 0,
   });
 
+  // P4 — manual-scope render filter. When `scope=manual`, restrict to the
+  // picked codes (preserving their order) and stop infinite-scroll: fetching
+  // more pages can only surface non-manual talent we'd discard anyway.
+  const manualCodeOrder = useMemo(
+    () => buildManualCodeOrder(manualProfileCodes),
+    [manualProfileCodes],
+  );
+
+  const manualActive = manualCodeOrder !== null;
+  const canFetchMore = hasNextPage && !manualActive;
+
   const onIntersect = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       const [entry] = entries;
-      if (entry?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+      if (entry?.isIntersecting && canFetchMore && !isFetchingNextPage) {
         void fetchNextPage();
       }
     },
-    [fetchNextPage, hasNextPage, isFetchingNextPage],
+    [fetchNextPage, canFetchMore, isFetchingNextPage],
   );
 
   useEffect(() => {
@@ -199,10 +229,10 @@ export function DirectoryReactiveGrid({
     return () => obs.disconnect();
   }, [onIntersect]);
 
-  const items = useMemo(
-    () => data?.pages.flatMap((p) => p.items) ?? initialPage.items,
-    [data?.pages, initialPage.items],
-  );
+  const items = useMemo(() => {
+    const all = data?.pages.flatMap((p) => p.items) ?? initialPage.items;
+    return manualCodeOrder ? filterToManualCodes(all, manualCodeOrder) : all;
+  }, [data?.pages, initialPage.items, manualCodeOrder]);
 
   const gridClass = useMemo(
     () => gridClassFor(columnsMobile, columnsTablet, columnsDesktop),
@@ -227,7 +257,10 @@ export function DirectoryReactiveGrid({
 
   if (status === "error" && items.length === 0) {
     return (
-      <p className="text-sm text-[var(--impronta-muted)]" role="alert">
+      <p
+        className="text-sm text-[var(--token-color-muted,var(--impronta-muted))]"
+        role="alert"
+      >
         {ui.loadResultsError}
       </p>
     );
@@ -248,11 +281,14 @@ export function DirectoryReactiveGrid({
     // instead of the technical "no matches" wall. The first line is
     // brand-tone (Cinzel display), the second is a gentle next step.
     return (
-      <div className="mx-auto max-w-md rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-16 text-center">
-        <p className="font-display text-xl tracking-wide text-foreground">
+      <div className="mx-auto max-w-md border-y border-[var(--token-color-line,rgba(120,120,120,0.18))] px-6 py-16 text-center">
+        <p
+          className="font-display text-xl tracking-wide text-[var(--token-color-ink,var(--foreground))]"
+          style={{ fontFamily: "var(--site-heading-font, inherit)" }}
+        >
           Nothing in the roster matches that yet.
         </p>
-        <p className="mt-3 text-[13px] leading-relaxed text-white/55">
+        <p className="mt-3 text-[13px] leading-relaxed text-[var(--token-color-muted,var(--impronta-muted))]">
           Try a broader discipline, clear filters, or check back as the
           roster grows.
         </p>
@@ -279,6 +315,10 @@ export function DirectoryReactiveGrid({
               cardStyle={cardStyle}
               cardAspect={cardAspect}
               show={show}
+              showSave={showSave}
+              showAddToInquiry={showAddToInquiry}
+              cardFieldKeys={cardFieldKeys}
+              maxFieldLines={maxFieldLines}
               nameFallback={nameFallback}
               priority={index < 4}
               index={index}
@@ -288,23 +328,25 @@ export function DirectoryReactiveGrid({
       </div>
       {filterRefetchBusy ? (
         <p
-          className="mt-2 text-center text-xs text-[var(--impronta-muted)]"
+          className="mt-2 text-center text-xs text-[var(--token-color-muted,var(--impronta-muted))]"
           role="status"
         >
           {ui.loadingMore}
         </p>
       ) : null}
-      <div
-        ref={sentinelRef}
-        className="flex h-12 w-full items-center justify-center"
-        aria-hidden
-      >
-        {isFetchingNextPage ? (
-          <span className="text-sm text-[var(--impronta-muted)]">
-            {ui.loadingMore}
-          </span>
-        ) : null}
-      </div>
+      {manualActive ? null : (
+        <div
+          ref={sentinelRef}
+          className="flex h-12 w-full items-center justify-center"
+          aria-hidden
+        >
+          {isFetchingNextPage ? (
+            <span className="text-sm text-[var(--token-color-muted,var(--impronta-muted))]">
+              {ui.loadingMore}
+            </span>
+          ) : null}
+        </div>
+      )}
     </>
   );
 }
@@ -323,11 +365,11 @@ function DirectoryCardSkeleton({
 }) {
   return (
     <div
-      className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025]"
+      className="overflow-hidden rounded-2xl border border-[var(--token-color-line,rgba(120,120,120,0.18))] bg-[var(--token-color-surface-raised,rgba(120,120,120,0.05))]"
       data-card-style="skeleton"
     >
       <div
-        className="w-full animate-pulse bg-white/[0.04]"
+        className="w-full animate-pulse bg-[var(--token-color-line,rgba(120,120,120,0.12))]"
         style={{ aspectRatio: ASPECT_RATIO[aspect] }}
         aria-hidden
       />
@@ -373,8 +415,8 @@ const GRID_COLS_DESKTOP: Record<number, string> = {
   6: "lg:grid-cols-6",
 };
 
-// --- Fetchers — inlined here to keep the legacy directory-infinite.tsx
-//     surface untouched. Logic mirrors the legacy implementation.
+// --- Fetchers for the directory infinite query (`/api/directory` +
+//     `/api/ai/search`).
 
 type FetchArgs = {
   taxKey: string;

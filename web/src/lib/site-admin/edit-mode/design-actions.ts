@@ -25,15 +25,18 @@
 
 import {
   designPublishSchema,
+  designRestoreRevisionSchema,
   designSaveDraftSchema,
 } from "@/lib/site-admin/forms/design";
 import {
   applyThemePreset,
   loadDesignForStaff,
   publishDesign,
+  restoreDesignRevision,
   saveComponentStylesDraft,
   saveDesignDraft,
 } from "@/lib/site-admin/server/design";
+import { getCardKit } from "@/lib/site-admin/presets/card-kits";
 import {
   normalizeComponentStyleDefaults,
   type ComponentStyleDefaults,
@@ -389,6 +392,189 @@ export async function applyThemePresetFromEditAction(input: {
   } catch (error) {
     logServerError("edit-mode/apply-theme-preset", error);
     return { ok: false, error: "Could not apply theme preset." };
+  }
+}
+
+// ── apply card kit (P2.2) ───────────────────────────────────────────────────
+
+/**
+ * Apply a one-click talent-card KIT (editorial-noir / magazine /
+ * minimal-portrait) to `theme_json_draft`. A kit is a NAMED SUBSET of
+ * card-family token keys (template.directory-card-family + card.surface /
+ * card.name-color / card.muted) — NOT a full theme — so picking one repaints
+ * every card surface without stomping the tenant's page canvas, fonts, or
+ * accent.
+ *
+ * Reuses the SAME lifecycle as a plain knob edit (`saveDesignDraft` →
+ * `publishDesign`): the kit's tokens are MERGED onto the operator's current
+ * draft (kit wins on its keys only, every orthogonal token is preserved),
+ * then the full merged map is sent through `saveDesignDraft` so validation +
+ * version CAS + audit/revision all apply identically. No new lib op is
+ * invented here.
+ *
+ * Like every other ThemeDrawer move this writes the DRAFT only — the operator
+ * must Publish to promote the kit into `theme_json` (the live card surfaces).
+ * Auth / tenant / capability resolve exactly like
+ * `saveComponentStylesDraftFromEditAction`.
+ */
+export async function applyCardKitFromEditAction(input: {
+  kitSlug: string;
+}): Promise<DesignSaveResult> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return {
+      ok: false,
+      error: "Select an agency workspace before applying a card kit.",
+    };
+  }
+
+  const kit = getCardKit(input.kitSlug);
+  if (!kit) {
+    return {
+      ok: false,
+      error: `Unknown card kit: ${input.kitSlug}`,
+      code: "NOT_FOUND",
+    };
+  }
+
+  try {
+    // Read the operator's current working copy so we can MERGE the kit on top
+    // (kit wins on its keys only) rather than replacing the whole draft — this
+    // preserves any orthogonal card/theme tokens the operator already set.
+    // loadDesignForStaff doubles as the CAS read: its version seeds the save.
+    const row = await loadDesignForStaff(auth.supabase, scope.tenantId);
+    if (!row) {
+      return {
+        ok: false,
+        error: "Branding row missing. Initialise branding before applying a card kit.",
+        code: "NOT_FOUND",
+      };
+    }
+
+    const merged: Record<string, string> = {
+      ...row.theme_json_draft,
+      ...kit.tokens,
+    };
+
+    const parsed = designSaveDraftSchema.safeParse({
+      tenantId: scope.tenantId,
+      expectedVersion: row.version,
+      patch: merged,
+    });
+    if (!parsed.success) {
+      const fieldErrors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const path = issue.path.join(".");
+        if (path && !fieldErrors[path]) {
+          fieldErrors[path] = issue.message;
+        }
+      }
+      return {
+        ok: false,
+        error: "This card kit could not be applied.",
+        code: "VALIDATION_FAILED",
+        fieldErrors,
+      };
+    }
+
+    const result = await saveDesignDraft(auth.supabase, {
+      tenantId: scope.tenantId,
+      values: parsed.data,
+      actorProfileId: auth.user.id,
+    });
+    if (!result.ok) {
+      if (result.code === "VERSION_CONFLICT") {
+        return {
+          ok: false,
+          error: "Theme changed elsewhere; reload and try again.",
+          code: result.code,
+          currentVersion: result.currentVersion,
+        };
+      }
+      return {
+        ok: false,
+        error: result.message ?? "Could not apply card kit.",
+        code: result.code,
+      };
+    }
+    return {
+      ok: true,
+      version: result.data.version,
+      themeDraft: result.data.themeDraft,
+    };
+  } catch (error) {
+    logServerError("edit-mode/apply-card-kit", error);
+    return { ok: false, error: "Could not apply card kit." };
+  }
+}
+
+// ── restore revision (P2.2) ─────────────────────────────────────────────────
+
+/**
+ * Restore a prior design revision back into `theme_json_draft`. Like every
+ * other ThemeDrawer move this lands as a DRAFT (NO cache bust) — the operator
+ * reviews the restored tokens in the live preview, then Publishes to promote
+ * them to the live card surfaces. Delegates to the tested `restoreDesignRevision`
+ * lib op (capability / CAS / audit / revision discipline identical to save).
+ */
+export async function restoreDesignRevisionFromEditAction(input: {
+  revisionId: string;
+  expectedVersion: number;
+}): Promise<DesignSaveResult> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return {
+      ok: false,
+      error: "Select an agency workspace before restoring a revision.",
+    };
+  }
+
+  const parsed = designRestoreRevisionSchema.safeParse({
+    tenantId: scope.tenantId,
+    revisionId: input.revisionId,
+    expectedVersion: input.expectedVersion,
+  });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Restore request was malformed. Reload and try again.",
+      code: "VALIDATION_FAILED",
+    };
+  }
+
+  try {
+    const result = await restoreDesignRevision(auth.supabase, {
+      tenantId: scope.tenantId,
+      values: parsed.data,
+      actorProfileId: auth.user.id,
+    });
+    if (!result.ok) {
+      if (result.code === "VERSION_CONFLICT") {
+        return {
+          ok: false,
+          error: "Theme changed elsewhere; reload and try again.",
+          code: result.code,
+          currentVersion: result.currentVersion,
+        };
+      }
+      return {
+        ok: false,
+        error: result.message ?? "Could not restore that revision.",
+        code: result.code,
+      };
+    }
+    return {
+      ok: true,
+      version: result.data.version,
+      themeDraft: result.data.themeDraft,
+    };
+  } catch (error) {
+    logServerError("edit-mode/restore-design-revision", error);
+    return { ok: false, error: "Could not restore that revision." };
   }
 }
 

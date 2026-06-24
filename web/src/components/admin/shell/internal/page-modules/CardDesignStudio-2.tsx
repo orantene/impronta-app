@@ -1,155 +1,22 @@
 "use client";
 
 /**
- * Card Design studio — presentational parts + the per-surface vocabulary.
- * Split out of `CardDesignStudio.tsx` to keep each file within the shell's
- * max-lines budget. The main file owns state + engine wiring; this file owns
- * the surface rules, the appearance-draft shape, and the pure render helpers
- * (GroupHeader / Segmented / ToggleRow / PreviewCard).
+ * Card Design studio — presentational helpers barrel.
+ *
+ * This file owns `Segmented` and `ToggleRow` (the generic UI atoms used in the
+ * main studio). Everything else — surface/appearance vocabulary, preview cards,
+ * kit/color/publish components, and the two layout-helper compounds
+ * (DesignLookSection / CardDesignPreviewColumn) — lives in
+ * `CardDesignStudio-3.tsx` and is re-exported here so all consumers continue
+ * to import from a single `-2` path.
  */
 
-import { useState } from "react";
-import { Bookmark, Check, Eye, Heart, Send } from "lucide-react";
-
 import { Icon, Toggle } from "../primitives";
-import { COLORS, FONTS, RADIUS, TRANSITION } from "../state";
-import type { RosterCardBadgePrefs } from "@/lib/talent-cards/roster-card-badges";
+import { COLORS, FONTS, TRANSITION } from "../state";
 
 // ────────────────────────────────────────────────────────────────────────
-// Surfaces + per-surface action rules (baked product decision)
+// Segmented — pill-style option group, used for card style / aspect / hover.
 // ────────────────────────────────────────────────────────────────────────
-
-export type CardSurface = "directory" | "pitch" | "roster" | "embedded";
-
-type SurfaceRule = {
-  label: string;
-  tag: string;
-  /** Whether the favorite (save) affordance is available on this surface. */
-  favorite: boolean;
-  /** Whether the client inquiry CTA is available on this surface. */
-  inquiry: boolean;
-  /** One-line rationale shown when the surface is active. */
-  note: string;
-};
-
-export const SURFACE_RULES: Record<CardSurface, SurfaceRule> = {
-  directory: {
-    label: "Directory",
-    tag: "Public",
-    favorite: true,
-    inquiry: true,
-    note: "Public discovery grid. Clients can save a favorite and start an inquiry — both actions are on.",
-  },
-  pitch: {
-    label: "Pitch",
-    tag: "Sent link",
-    favorite: false,
-    inquiry: true,
-    note: "You already curated and sent this shortlist, so a favorite is redundant. The card keeps a direct inquiry / reply action instead.",
-  },
-  roster: {
-    label: "Roster",
-    tag: "Internal",
-    favorite: false,
-    inquiry: false,
-    note: "Your internal team grid. No client-facing favorite or inquiry — these cards are for managing talent, not selling them.",
-  },
-  embedded: {
-    label: "Embedded",
-    tag: "Public",
-    favorite: true,
-    inquiry: true,
-    note: "Cards embedded on an external site behave like the Directory — both favorite and inquiry are available to the public.",
-  },
-};
-
-export const SURFACE_ORDER: CardSurface[] = ["directory", "pitch", "roster", "embedded"];
-
-// ────────────────────────────────────────────────────────────────────────
-// Appearance draft — the card-relevant subset of directorySchemaV1, with the
-// same defaults. Preview-only this release (see banner).
-// ────────────────────────────────────────────────────────────────────────
-
-export type CardStyle = "portrait" | "editorial";
-export type CardAspect = "4:5" | "1:1" | "3:4" | "16:9";
-export type HoverBehavior = "reveal_traits" | "zoom" | "swap" | "none";
-
-export type CardAppearance = {
-  cardStyle: CardStyle;
-  cardAspect: CardAspect;
-  hoverBehavior: HoverBehavior;
-  showName: boolean;
-  showTalentType: boolean;
-  showLocation: boolean;
-  showAttributes: boolean;
-  showAvailability: boolean;
-  showBadges: boolean;
-  showRating: boolean;
-  showPriceFrom: boolean;
-  /** Within an action-allowed surface, the admin can still hide each one. */
-  showSave: boolean;
-  showAddToInquiry: boolean;
-};
-
-export const DEFAULT_APPEARANCE: CardAppearance = {
-  cardStyle: "portrait",
-  cardAspect: "4:5",
-  hoverBehavior: "reveal_traits",
-  showName: true,
-  showTalentType: true,
-  showLocation: true,
-  showAttributes: true,
-  showAvailability: true,
-  showBadges: true,
-  showRating: false,
-  showPriceFrom: false,
-  showSave: true,
-  showAddToInquiry: true,
-};
-
-const ASPECT_RATIO: Record<CardAspect, number> = {
-  "4:5": 4 / 5,
-  "1:1": 1,
-  "3:4": 3 / 4,
-  "16:9": 16 / 9,
-};
-
-export const HOVER_LABEL: Record<HoverBehavior, string> = {
-  reveal_traits: "Reveal traits",
-  zoom: "Zoom image",
-  swap: "Swap photo",
-  none: "None",
-};
-
-export type FieldSaveState = "saving" | "saved" | "error";
-
-// ────────────────────────────────────────────────────────────────────────
-// Small layout helpers (pure presentation)
-// ────────────────────────────────────────────────────────────────────────
-
-export function GroupHeader({ title, hint }: { title: string; hint?: string }) {
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div
-        style={{
-          fontFamily: FONTS.body,
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: 0.5,
-          textTransform: "uppercase",
-          color: COLORS.inkMuted,
-        }}
-      >
-        {title}
-      </div>
-      {hint ? (
-        <div style={{ marginTop: 3, fontSize: 12, color: COLORS.inkDim, lineHeight: 1.45 }}>
-          {hint}
-        </div>
-      ) : null}
-    </div>
-  );
-}
 
 export function Segmented<T extends string>({
   options,
@@ -206,6 +73,10 @@ export function Segmented<T extends string>({
     </div>
   );
 }
+
+// ────────────────────────────────────────────────────────────────────────
+// ToggleRow — label + optional lock badge + toggle, used for show-flags.
+// ────────────────────────────────────────────────────────────────────────
 
 export function ToggleRow({
   label,
@@ -274,516 +145,50 @@ export function ToggleRow({
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Preview card — faithful visual replica of a rendered talent card +
-// <TalentCardActions>. Self-contained (no PublicDiscoveryState provider in
-// the admin shell), so the favorite/inquiry are demo-interactive locally.
-// ────────────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════
+// Everything else — re-exported from CardDesignStudio-3.tsx.
+//
+// Implementations live in -3 so both this file and the main studio stay
+// under the shell's 800-line budget. The public import surface is unchanged.
+// ════════════════════════════════════════════════════════════════════════
 
-export function PreviewCard({
-  surface,
-  appearance,
-  favoriteIcon,
-  fieldChips,
-}: {
-  surface: CardSurface;
-  appearance: CardAppearance;
-  favoriteIcon: "heart" | "bookmark";
-  fieldChips: string[];
-}) {
-  const rule = SURFACE_RULES[surface];
-  const [demoFav, setDemoFav] = useState(false);
-  const [demoInquiry, setDemoInquiry] = useState(false);
+export {
+  // Surface + appearance vocabulary
+  type CardSurface,
+  type CardStyle,
+  type CardAspect,
+  type HoverBehavior,
+  type CardAppearance,
+  type FieldSaveState,
+  SURFACE_RULES,
+  SURFACE_ORDER,
+  DEFAULT_APPEARANCE,
+  HOVER_LABEL,
+  // Preview cards
+  GroupHeader,
+  PreviewCard,
+  // Kit / color / publish vocabulary
+  type CardKitOption,
+  type DesignSaveState,
+  type DesignPublishState,
+  CARD_FAMILY_TOKEN_KEY,
+  CARD_COLOR_KNOBS,
+  CARD_DESIGN_TOKEN_KEYS,
+  CARD_PREVIEW_SAMPLE,
+  isHex,
+  CardKitChooser,
+  ColorKnob,
+  DesignSaveStatus,
+} from "./CardDesignStudio-3";
 
-  const showFavorite = rule.favorite && appearance.showSave;
-  const showInquiry = rule.inquiry && appearance.showAddToInquiry;
-  const editorial = appearance.cardStyle === "editorial";
-
-  const FavGlyph = favoriteIcon === "bookmark" ? Bookmark : Heart;
-
-  const nameBlock = (
-    <>
-      {appearance.showName ? (
-        <div
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 16,
-            fontWeight: 600,
-            color: editorial ? "#fff" : COLORS.ink,
-            lineHeight: 1.2,
-          }}
-        >
-          Tina Rossi
-        </div>
-      ) : null}
-      {appearance.showTalentType ? (
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 500,
-            color: editorial ? "rgba(255,255,255,0.82)" : COLORS.inkMuted,
-            marginTop: 2,
-          }}
-        >
-          Fashion Model
-        </div>
-      ) : null}
-    </>
-  );
-
-  return (
-    <div
-      data-tulala-card-design-preview-card
-      style={{
-        width: 260,
-        maxWidth: "100%",
-        background: COLORS.card,
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: RADIUS.lg,
-        overflow: "hidden",
-        boxShadow: COLORS.shadowHover,
-        fontFamily: FONTS.body,
-      }}
-    >
-      {/* Image area */}
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          aspectRatio: String(ASPECT_RATIO[appearance.cardAspect]),
-          background: `linear-gradient(150deg, ${COLORS.accentSoft}, ${COLORS.indigoSoft})`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <span
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 40,
-            fontWeight: 600,
-            color: "rgba(11,11,13,0.18)",
-          }}
-        >
-          TR
-        </span>
-
-        {/* Availability dot */}
-        {appearance.showAvailability ? (
-          <span
-            style={{
-              position: "absolute",
-              top: 10,
-              left: 10,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              background: "rgba(255,255,255,0.92)",
-              borderRadius: 999,
-              padding: "3px 8px",
-              fontSize: 10.5,
-              fontWeight: 600,
-              color: COLORS.successDeep,
-            }}
-          >
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.success }} />
-            Available
-          </span>
-        ) : null}
-
-        {/* Favorite — top-right overlay, matches TalentCardActions circle */}
-        {showFavorite ? (
-          <button
-            type="button"
-            aria-pressed={demoFav}
-            aria-label={demoFav ? "Remove Tina Rossi from favorites" : "Save Tina Rossi to favorites"}
-            onClick={() => setDemoFav((v) => !v)}
-            style={{
-              position: "absolute",
-              top: 10,
-              right: 10,
-              width: 34,
-              height: 34,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: "50%",
-              border: `1px solid ${COLORS.border}`,
-              background: "rgba(255,255,255,0.85)",
-              backdropFilter: "blur(4px)",
-              color: demoFav ? COLORS.accent : COLORS.inkMuted,
-              cursor: "pointer",
-              transition: `color ${TRANSITION.sm}`,
-            }}
-          >
-            <FavGlyph size={16} fill={demoFav ? "currentColor" : "none"} aria-hidden />
-          </button>
-        ) : null}
-
-        {/* Editorial overlay name */}
-        {editorial && (appearance.showName || appearance.showTalentType) ? (
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              padding: "28px 12px 12px",
-              background: "linear-gradient(to top, rgba(11,11,13,0.72), transparent)",
-            }}
-          >
-            {nameBlock}
-          </div>
-        ) : null}
-      </div>
-
-      {/* Body */}
-      <div style={{ padding: 12 }}>
-        {!editorial ? nameBlock : null}
-
-        {appearance.showLocation ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              marginTop: 6,
-              fontSize: 12,
-              color: COLORS.inkMuted,
-            }}
-          >
-            <Icon name="map-pin" size={12} color={COLORS.inkDim} />
-            Milano, IT
-          </div>
-        ) : null}
-
-        {appearance.showRating ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6, fontSize: 12, color: COLORS.inkMuted }}>
-            <Icon name="star" size={12} color={COLORS.amber} />
-            4.9 · 32 bookings
-          </div>
-        ) : null}
-
-        {appearance.showPriceFrom ? (
-          <div style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: COLORS.ink }}>
-            From €850 / day
-          </div>
-        ) : null}
-
-        {/* Engine fields — the card-visible field_definitions */}
-        {appearance.showAttributes && fieldChips.length > 0 ? (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
-            {fieldChips.map((chip) => (
-              <span
-                key={chip}
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 500,
-                  color: COLORS.inkMuted,
-                  background: COLORS.surfaceAlt,
-                  border: `1px solid ${COLORS.borderSoft}`,
-                  borderRadius: 999,
-                  padding: "3px 8px",
-                }}
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
-        {appearance.showBadges ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 10 }}>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 10.5,
-                fontWeight: 600,
-                color: COLORS.accentDeep,
-                background: COLORS.accentSoft,
-                borderRadius: 999,
-                padding: "3px 8px",
-              }}
-            >
-              <Icon name="check" size={11} color={COLORS.accent} />
-              Verified
-            </span>
-          </div>
-        ) : null}
-
-        {/* Inquiry CTA — matches TalentCardActions inquiry pill */}
-        {showInquiry ? (
-          <button
-            type="button"
-            aria-pressed={demoInquiry}
-            onClick={() => setDemoInquiry((v) => !v)}
-            style={{
-              marginTop: 12,
-              width: "100%",
-              height: 36,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              borderRadius: RADIUS.md,
-              border: `1px solid ${demoInquiry ? COLORS.ink : COLORS.border}`,
-              background: demoInquiry ? "rgba(11,11,13,0.06)" : "transparent",
-              color: COLORS.ink,
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: 1.2,
-              textTransform: "uppercase",
-              cursor: "pointer",
-              transition: `border-color ${TRANSITION.sm}`,
-            }}
-          >
-            {demoInquiry ? <Check size={14} aria-hidden /> : <Send size={14} aria-hidden />}
-            {demoInquiry ? "Added" : "Inquire"}
-          </button>
-        ) : null}
-
-        {!showFavorite && !showInquiry ? (
-          <div
-            style={{
-              marginTop: 12,
-              fontSize: 11,
-              color: COLORS.inkDim,
-              fontStyle: "italic",
-            }}
-          >
-            No client actions on this surface.
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────────
-// Roster badge preview — faithful replica of a real RosterCard's overlay
-// stack, gated by the live badge prefs. The Roster surface in the studio
-// swaps PreviewCard for this so the admin sees exactly which corner each
-// toggle controls. Pill base matches OVERLAY_PILL_BASE in TalentPage-2.
-// ────────────────────────────────────────────────────────────────────────
-
-const PREVIEW_PILL_BASE: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 4,
-  height: 22,
-  padding: "0 8px",
-  borderRadius: 999,
-  background: "rgba(11,11,13,0.62)",
-  border: "1px solid rgba(255,255,255,0.14)",
-  color: "#fff",
-  fontSize: 10,
-  fontWeight: 600,
-  lineHeight: 1,
-  backdropFilter: "blur(8px)",
-  WebkitBackdropFilter: "blur(8px)",
-};
-
-export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePrefs }) {
-  return (
-    <div
-      data-tulala-roster-badge-preview
-      style={{
-        width: 240,
-        maxWidth: "100%",
-        background: "#fff",
-        border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: 14,
-        overflow: "hidden",
-        boxShadow: COLORS.shadowHover,
-        fontFamily: FONTS.body,
-      }}
-    >
-      {/* Photo area — 4:5 like the real roster card */}
-      <div
-        style={{
-          position: "relative",
-          aspectRatio: "4 / 5",
-          background: `linear-gradient(150deg, ${COLORS.accentSoft}, ${COLORS.indigoSoft})`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <span
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 38,
-            fontWeight: 600,
-            color: "rgba(11,11,13,0.18)",
-            userSelect: "none",
-          }}
-        >
-          TR
-        </span>
-
-        {/* Top-right stack: visibility eye + Discover pill */}
-        <div
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-end",
-            gap: 5,
-            zIndex: 2,
-          }}
-        >
-          {badges.visibility ? (
-            <span
-              title="Visibility eye — the live show / hide control for the agency site"
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 999,
-                border: `1px solid ${COLORS.accent}`,
-                background: COLORS.accent,
-                color: "#fff",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 1px 4px rgba(11,11,13,0.16)",
-              }}
-            >
-              <Eye size={15} aria-hidden />
-            </span>
-          ) : null}
-          {badges.discover ? (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                padding: "3px 9px",
-                borderRadius: 999,
-                background: "rgba(46,125,91,0.92)",
-                color: "#fff",
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: 0.3,
-                textTransform: "uppercase",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
-              }}
-            >
-              Discover
-            </span>
-          ) : null}
-        </div>
-
-        {/* Bottom-left stack: completeness % + photo count */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 8,
-            left: 8,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            zIndex: 2,
-          }}
-        >
-          {badges.completeness ? <span style={PREVIEW_PILL_BASE}>82%</span> : null}
-          {badges.photoCount ? (
-            <span style={PREVIEW_PILL_BASE}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="6" width="18" height="14" rx="2" />
-                <circle cx="12" cy="13" r="3.2" />
-                <path d="M8 6l1.5-2h5L16 6" />
-              </svg>
-              12
-            </span>
-          ) : null}
-        </div>
-
-        {/* Bottom-right stack: verified mark + availability pill + canonical
-            TAL-ID — stacked vertically so none overlap (mirrors the real card). */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 8,
-            right: 8,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-end",
-            gap: 4,
-            zIndex: 2,
-          }}
-        >
-          {badges.trust ? (
-            <span
-              title="Tulala Verified"
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: "50%",
-                background: COLORS.success,
-                boxShadow: "0 0 0 2px #fff, 0 1px 3px rgba(11,11,13,0.20)",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#fff",
-              }}
-            >
-              <Check size={11} strokeWidth={3} aria-hidden />
-            </span>
-          ) : null}
-          {badges.availability ? (
-            <span
-              style={{
-                ...PREVIEW_PILL_BASE,
-                background: "rgba(255,255,255,0.92)",
-                border: "1px solid rgba(11,11,13,0.06)",
-                color: COLORS.ink,
-                textTransform: "capitalize",
-                boxShadow: "0 1px 4px rgba(11,11,13,0.10)",
-              }}
-            >
-              <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.green }} />
-              available
-            </span>
-          ) : null}
-          {badges.talentId ? (
-            <span
-              style={{
-                ...PREVIEW_PILL_BASE,
-                fontWeight: 700,
-                letterSpacing: 0.3,
-                fontFamily: FONTS.mono,
-              }}
-            >
-              TAL-00042
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Body — name + type + city always show, like the real roster card */}
-      <div style={{ padding: "10px 12px 12px" }}>
-        <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: -0.1, color: COLORS.ink }}>
-          Tina Rossi
-        </div>
-        <div
-          style={{
-            fontSize: 11.5,
-            color: COLORS.accentDeep,
-            fontWeight: 600,
-            marginTop: 2,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
-          <span aria-hidden style={{ fontSize: 12, opacity: 0.85 }}>📸</span>
-          Fashion Model
-        </div>
-        <div style={{ fontSize: 11, marginTop: 1, color: COLORS.inkMuted }}>📍 Milano, IT</div>
-      </div>
-    </div>
-  );
-}
+// Section-level compounds + roster preview — implemented in -4 (a leaf that
+// imports the atoms above from -3), re-exported here so the public import
+// surface stays a single `-2` path.
+export {
+  RosterBadgePreviewCard,
+  PublishCluster,
+  CardLivePreview,
+  DesignLookSection,
+  CardDesignPreviewColumn,
+  CardSurfaceTabStrip,
+} from "./CardDesignStudio-4";

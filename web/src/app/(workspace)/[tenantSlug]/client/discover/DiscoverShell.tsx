@@ -12,7 +12,7 @@
 // keeps the client on the Discover surface for the swipe-through compare
 // flow that's coming in D4.
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Image from "next/image";
 import type {
@@ -21,6 +21,12 @@ import type {
   DiscoverHub,
 } from "../../_data-bridge/discover";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
+import { TalentCard } from "@/components/talent-cards/TalentCard";
+import type { CanonicalTalentCardData } from "@/components/talent-cards/talent-card-shape";
+import {
+  cardDesignToCssVars,
+  type CardDesign,
+} from "@/lib/site-admin/server/card-design-shape";
 
 /** Local mirror of DiscoverAvailabilityDay (API response shape). */
 type DiscoverAvailabilityDay = {
@@ -74,7 +80,6 @@ const C = {
 } as const;
 
 const FONT = '"Inter", system-ui, sans-serif';
-const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
 type ActiveFilters = {
   country: string | null;
@@ -90,6 +95,7 @@ export function DiscoverShell({
   hubs,
   tenantSlug,
   activeFilters,
+  cardDesign,
 }: {
   initialItems: DiscoverTalentListItem[];
   initialTotal: number;
@@ -97,7 +103,23 @@ export function DiscoverShell({
   hubs: DiscoverHub[];
   tenantSlug: string;
   activeFilters: ActiveFilters;
+  /**
+   * Shell-tenant card palette resolved server-side (load-card-design bridge →
+   * resolveCardDesign(scope.tenantId)). Spread as inline `--token-card-*` vars
+   * on every canonical card root so the cross-tenant grid still paints the
+   * dashboard tenant's palette (it escapes the storefront `<html>` cascade).
+   * Optional — when the page hasn't wired the bridge yet the cards inherit the
+   * theme defaults through the `var(--token-card-*, …)` fallback chain.
+   */
+  cardDesign?: CardDesign;
 }) {
+  // Inline card-token vars from the resolved design (memoized — only the set
+  // colors are emitted; an all-default design yields an empty object so the
+  // cards inherit the theme cascade unchanged).
+  const cardCssVars = useMemo(
+    () => (cardDesign ? cardDesignToCssVars(cardDesign) : undefined),
+    [cardDesign],
+  );
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -107,7 +129,10 @@ export function DiscoverShell({
   const [searchInput, setSearchInput] = useState<string>(activeFilters.q ?? "");
   const [, startNavTransition] = useTransition();
   const [openTalentId, setOpenTalentId] = useState<string | null>(null);
-  const [availabilityByTalent, setAvailabilityByTalent] = useState<Map<string, DiscoverAvailabilityDay[]>>(() => new Map());
+  // Read-only today: nothing populates it (cards render from the matview's
+  // availabilityDots14d — see the D3 note below); kept as a precedence hook
+  // for a future explicit hydration trigger.
+  const [availabilityByTalent] = useState<Map<string, DiscoverAvailabilityDay[]>>(() => new Map());
   const [shortlists, setShortlists] = useState<DiscoverShortlist[]>([]);
   const [autoOpenPicker, setAutoOpenPicker] = useState(false);
 
@@ -361,6 +386,7 @@ export function DiscoverShell({
                 key={t.id}
                 item={t}
                 availability={availabilityByTalent.get(t.id)}
+                cardCssVars={cardCssVars}
                 onOpen={() => { setAutoOpenPicker(false); setOpenTalentId(t.id); }}
                 onAddToShortlist={() => { setAutoOpenPicker(true); setOpenTalentId(t.id); }}
               />
@@ -506,121 +532,150 @@ function FacetChip({
   );
 }
 
+/**
+ * Map a Discover list item to the canonical `<TalentCard>` data shape. The
+ * Discover grid is browse-only and opens an in-app drawer (not the public
+ * profile), so `profileHref` is empty — the card runs in `rootMode="button"`
+ * and navigation is handled by `onActivate`. Availability is rendered by the
+ * `availabilitySlot` (the 14-day strip), so the card's own availability line is
+ * suppressed; `availabilityLabel`/`availableDaysInNext30` are still carried for
+ * completeness.
+ */
+function toDiscoverCardData(item: DiscoverTalentListItem): CanonicalTalentCardData {
+  const known =
+    typeof item.availableDaysInNext30 === "number" &&
+    item.availableDaysInNext30 > 0;
+  return {
+    id: item.id,
+    name: item.displayName,
+    profileCode: item.profileCode,
+    profileHref: "",
+    primaryType: item.primaryTypeLabel,
+    location: [item.homeCity, item.homeCountry].filter(Boolean).join(" · ") || null,
+    photoUrl: item.headshotUrl,
+    agencyName: item.agencyName,
+    isExclusive: item.isExclusive,
+    availabilityLabel: known
+      ? `${item.availableDaysInNext30} of next 30 days open`
+      : "Availability on request",
+    availabilityKnown: known,
+    availableDaysInNext30: item.availableDaysInNext30,
+  };
+}
+
 function DiscoverCard({
   item,
   availability,
+  cardCssVars,
   onAddToShortlist,
   onOpen,
 }: {
   item: DiscoverTalentListItem;
   availability: DiscoverAvailabilityDay[] | undefined;
+  cardCssVars: Record<string, string> | undefined;
   onAddToShortlist: () => void;
   onOpen: () => void;
 }) {
-  const initials = item.displayName
-    .split(/\s+/).filter(Boolean).slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "").join("");
-
-  // Card is a div+role=button (not a <button>) so the favorite-toggle
-  // <button> inside it is valid HTML. Click + Enter/Space both open the
-  // drawer; the favorite button stops propagation to avoid double-fire.
+  // Canonical card, editorial style (photo + info block below — the layout
+  // Discover already used). rootMode="button" + onActivate preserves the
+  // div+role=button drawer-open behavior (so the inner favorite/shortlist
+  // <button>s stay valid HTML). The three escape-hatch slots carry the
+  // Discover-specific affordances the bespoke card had:
+  //   - badgeSlot:           ✓ Tulala mark · favorite control · ownership pill
+  //   - secondaryActionSlot: the shortlist "+" beside the heart
+  //   - availabilitySlot:    the 14-day AvailabilityStrip + footer labels
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onOpen();
-        }
+    <TalentCard
+      data={toDiscoverCardData(item)}
+      style="editorial"
+      rootMode="button"
+      onActivate={onOpen}
+      cssVars={cardCssVars}
+      aspect="4:5"
+      nameFallback="first_name"
+      show={{
+        showName: true,
+        showTalentType: true,
+        showLocation: true,
+        // Ownership + availability are rendered by the slots below so they keep
+        // their Discover-specific styling; suppress the card's built-ins.
+        showBadges: false,
+        showAvailability: false,
       }}
-      style={{
-        display: "flex", flexDirection: "column",
-        background: C.cardBg, border: `1px solid ${C.borderSoft}`,
-        borderRadius: 14, overflow: "hidden",
-        textAlign: "left", color: "inherit", fontFamily: FONT,
-        cursor: "pointer", padding: 0,
-        transition: "border-color 150ms, box-shadow 150ms",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = C.border;
-        e.currentTarget.style.boxShadow = "0 4px 14px -8px rgba(11,11,13,0.18)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = C.borderSoft;
-        e.currentTarget.style.boxShadow = "none";
-      }}
-    >
-      {/* Photo */}
-      <div
-        style={{
-          aspectRatio: "4 / 5", position: "relative",
-          background: C.surface,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          overflow: "hidden",
-        }}
-      >
-        {item.headshotUrl && (
-          <Image
-            src={item.headshotUrl}
-            alt={item.displayName ?? "Talent"}
-            fill
-            sizes="(max-width: 600px) 50vw, (max-width: 1100px) 25vw, 280px"
-            style={{ objectFit: "cover" }}
-            unoptimized
-          />
-        )}
-        {!item.headshotUrl && (
+      badgeSlot={
+        <>
+          {/* Tulala-verified mark. Every discoverable talent has
+              workflow_status ∈ {approved, published} — that's our review pass.
+              Trust LADDER (Basic/Verified/Silver/Gold) is a CLIENT property,
+              not a talent property — see project_client_trust_badges.md §3 —
+              so we don't surface a per-talent ladder badge. */}
           <div
             style={{
-              width: 64, height: 64, borderRadius: "50%",
-              background: C.accentSoft, color: C.accent,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 22, fontWeight: 700, letterSpacing: 0.5,
+              position: "absolute", top: 8, left: 8, pointerEvents: "none",
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "3px 8px", borderRadius: 999,
+              background: "rgba(15,79,62,0.92)", color: "#fff",
+              fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+              backdropFilter: "blur(4px)",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
             }}
+            title="Profile reviewed and approved by Tulala"
           >
-            {initials || "?"}
+            ✓ Tulala
           </div>
-        )}
-        {/* Tulala-verified mark. Every discoverable talent has
-            workflow_status ∈ {approved, published} — that's our
-            review pass. Trust LADDER (Basic/Verified/Silver/Gold)
-            is a CLIENT property, not a talent property — see
-            project_client_trust_badges.md §3 — so we don't surface
-            a per-talent ladder badge. */}
-        <div
-          style={{
-            position: "absolute", top: 8, left: 8,
-            display: "inline-flex", alignItems: "center", gap: 4,
-            padding: "3px 8px", borderRadius: 999,
-            background: "rgba(15,79,62,0.92)", color: "#fff",
-            fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
-            backdropFilter: "blur(4px)",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
-          }}
-          title="Profile reviewed and approved by Tulala"
-        >
-          ✓ Tulala
-        </div>
-        {/* Canonical favorite control — toggles client_favorites through
-            useFavorites(). Sits in a positioned wrapper; its own click
-            handler stops propagation so it doesn't open the detail drawer. */}
-        <div
-          style={{ position: "absolute", top: 8, right: 8, zIndex: 1 }}
-          onKeyDown={(e) => { e.stopPropagation(); }}
-        >
-          <TalentCardActions
-            talentProfileId={item.id}
-            profileCode={item.profileCode ?? ""}
-            displayName={item.displayName}
-            sourcePage="client-dashboard"
-            variant="compact"
-            hideInquiry
-          />
-        </div>
-        {/* Add to shortlist — opens drawer with picker auto-expanded.
-            Sits beside the heart so the two save-affordances live together. */}
+          {/* Canonical favorite control — toggles client_favorites through
+              useFavorites(). Its own click handler stops propagation so it
+              doesn't open the detail drawer. pointerEvents re-enabled (the
+              badgeSlot wrapper is pointer-events:none). */}
+          <div
+            style={{ position: "absolute", top: 8, right: 8, zIndex: 1, pointerEvents: "auto" }}
+            onKeyDown={(e) => { e.stopPropagation(); }}
+          >
+            <TalentCardActions
+              talentProfileId={item.id}
+              profileCode={item.profileCode ?? ""}
+              displayName={item.displayName}
+              sourcePage="client-dashboard"
+              variant="compact"
+              hideInquiry
+            />
+          </div>
+          {/* Ownership badge: agency vs independent */}
+          {item.agencyName ? (
+            <div
+              style={{
+                position: "absolute", bottom: 8, left: 8, pointerEvents: "none",
+                padding: "3px 9px", borderRadius: 999,
+                background: "rgba(255,255,255,0.94)", color: C.ink,
+                fontSize: 10.5, fontWeight: 600,
+                maxWidth: "calc(100% - 16px)",
+                overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
+                backdropFilter: "blur(6px)",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+              }}
+              title={`${item.agencyName}${item.isExclusive ? " · exclusive" : ""}`}
+            >
+              {item.agencyName}
+              {item.isExclusive && <span style={{ marginLeft: 4, color: C.inkMuted, fontSize: 9 }}>· exclusive</span>}
+            </div>
+          ) : (
+            <div
+              style={{
+                position: "absolute", bottom: 8, left: 8, pointerEvents: "none",
+                padding: "3px 9px", borderRadius: 999,
+                background: "rgba(255,255,255,0.85)", color: C.inkMuted,
+                fontSize: 10.5, fontWeight: 600,
+                backdropFilter: "blur(6px)",
+              }}
+            >
+              Independent
+            </div>
+          )}
+        </>
+      }
+      secondaryActionSlot={
+        // Add to shortlist — opens drawer with picker auto-expanded. Sits
+        // beside the heart so the two save-affordances live together.
         <button
           type="button"
           aria-label="Add to shortlist"
@@ -631,7 +686,10 @@ function DiscoverCard({
           onKeyDown={(e) => { e.stopPropagation(); }}
           title="Add to shortlist"
           style={{
-            position: "absolute", top: 8, right: 46,
+            // Positioned to the LEFT of the heart (which the badgeSlot pins at
+            // right:8). The slot wrapper is anchored at right:2.5 (10px), so we
+            // nudge further left to clear the 32px heart.
+            marginRight: 36,
             width: 32, height: 32, borderRadius: "50%",
             background: "rgba(255,255,255,0.88)",
             color: "rgba(11,11,13,0.55)",
@@ -645,60 +703,16 @@ function DiscoverCard({
         >
           ＋
         </button>
-        {/* Ownership badge: agency vs independent */}
-        {item.agencyName ? (
-          <div
-            style={{
-              position: "absolute", bottom: 8, left: 8,
-              padding: "3px 9px", borderRadius: 999,
-              background: "rgba(255,255,255,0.94)", color: C.ink,
-              fontSize: 10.5, fontWeight: 600,
-              maxWidth: "calc(100% - 16px)",
-              overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
-              backdropFilter: "blur(6px)",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
-            }}
-            title={`${item.agencyName}${item.isExclusive ? " · exclusive" : ""}`}
-          >
-            {item.agencyName}
-            {item.isExclusive && <span style={{ marginLeft: 4, color: C.inkMuted, fontSize: 9 }}>· exclusive</span>}
-          </div>
-        ) : (
-          <div
-            style={{
-              position: "absolute", bottom: 8, left: 8,
-              padding: "3px 9px", borderRadius: 999,
-              background: "rgba(255,255,255,0.85)", color: C.inkMuted,
-              fontSize: 10.5, fontWeight: 600,
-              backdropFilter: "blur(6px)",
-            }}
-          >
-            Independent
-          </div>
-        )}
-      </div>
-
-      {/* Info */}
-      <div style={{ padding: "12px 14px 14px", flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
-        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>
-          {item.displayName}
-        </div>
-        {item.primaryTypeLabel && (
-          <div style={{ fontSize: 11.5, color: C.inkMuted }}>{item.primaryTypeLabel}</div>
-        )}
-        {(item.homeCity || item.homeCountry) && (
-          <div style={{ fontSize: 11, color: C.inkDim, marginTop: 1 }}>
-            {[item.homeCity, item.homeCountry].filter(Boolean).join(" · ")}
-          </div>
-        )}
+      }
+      availabilitySlot={
         <AvailabilityStrip
           days={availability}
           inlineDots={item.availabilityDots14d}
           availableDaysInNext30={item.availableDaysInNext30}
           nextAvailableDate={item.nextAvailableDate}
         />
-      </div>
-    </div>
+      }
+    />
   );
 }
 

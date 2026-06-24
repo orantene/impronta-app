@@ -27,7 +27,7 @@
  * `CardDesignStudio-2.tsx`; this file owns state + engine wiring.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   type CardDesignFieldCandidate,
@@ -39,22 +39,35 @@ import {
   ROSTER_CARD_BADGE_META,
   type RosterCardBadgeKey,
 } from "@/lib/talent-cards/roster-card-badges";
+import { listCardKits } from "@/lib/site-admin/presets/card-kits";
+import {
+  applyCardKitFromEditAction,
+  loadDesignAction,
+  publishDesignFromEditAction,
+  saveDesignDraftFromEditAction,
+} from "@/lib/site-admin/edit-mode/design-actions";
 import { EmptyState, Icon, SecondaryButton, Toggle } from "../primitives";
-import { COLORS, FONTS, RADIUS, SPACE, TRANSITION, meetsRole, useAdminShell } from "../state";
+import { COLORS, FONTS, RADIUS, SPACE, meetsRole, useAdminShell } from "../state";
 import {
   type CardAppearance,
   type CardAspect,
+  type CardKitOption,
   type CardStyle,
   type CardSurface,
+  type DesignPublishState,
+  type DesignSaveState,
   type FieldSaveState,
   type HoverBehavior,
+  CARD_DESIGN_TOKEN_KEYS,
+  CARD_FAMILY_TOKEN_KEY,
+  CardDesignPreviewColumn,
+  CardSurfaceTabStrip,
   DEFAULT_APPEARANCE,
+  DesignLookSection,
   GroupHeader,
   HOVER_LABEL,
-  PreviewCard,
-  RosterBadgePreviewCard,
+  PublishCluster,
   Segmented,
-  SURFACE_ORDER,
   SURFACE_RULES,
   ToggleRow,
 } from "./CardDesignStudio-2";
@@ -66,11 +79,40 @@ import {
 export function CardDesignStudio() {
   const { state, toast, rosterCardBadges, setRosterCardBadge } = useAdminShell();
   const canEdit = meetsRole(state.role, "admin");
+  // Publishing the card design to every live surface is an owner/admin move;
+  // the action layer re-checks `agency.site_admin.design.publish` server-side.
+  const canPublish = meetsRole(state.role, "admin");
   const tenantFavoriteIcon = useFavoriteIcon();
 
   const [activeSurface, setActiveSurface] = useState<CardSurface>("directory");
   const [appearance, setAppearance] = useState<CardAppearance>(DEFAULT_APPEARANCE);
   const [favoriteIcon, setFavoriteIcon] = useState<"heart" | "bookmark">("heart");
+
+  // ── Visual design (REAL persistence — card-family design tokens) ──────────
+  // The kit chooser + color knobs + Publish drive the agency design draft via
+  // the edit-mode design actions, then one Publish promotes the draft live so
+  // every canonical <TalentCard> repaints. Seeded by loadDesignAction() on
+  // mount; the working `draft` map repaints the right-hand preview instantly.
+  const cardKits = useMemo<CardKitOption[]>(
+    () =>
+      listCardKits().map((kit) => ({
+        slug: kit.slug,
+        label: kit.label,
+        description: kit.description,
+        tokens: kit.tokens,
+      })),
+    [],
+  );
+  const [draftTokens, setDraftTokens] = useState<Record<string, string>>({});
+  const [liveTokens, setLiveTokens] = useState<Record<string, string>>({});
+  const [designVersion, setDesignVersion] = useState(0);
+  const [designPublishedAt, setDesignPublishedAt] = useState<string | null>(null);
+  const [designReady, setDesignReady] = useState(false);
+  const [designLoadError, setDesignLoadError] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<DesignSaveState>({ kind: "idle" });
+  const [publishState, setPublishState] = useState<DesignPublishState>({ kind: "idle" });
+  const [pendingKit, setPendingKit] = useState<string | null>(null);
+  const knobDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Engine field candidates (REAL — field_definitions).
   const [fields, setFields] = useState<CardDesignFieldCandidate[] | null>(null);
@@ -112,6 +154,121 @@ export function CardDesignStudio() {
     },
     [],
   );
+
+  // ── Load the current card-design tokens once on mount ─────────────────────
+  // Pulls just the card-family slice (kit + 3 color knobs) out of the design
+  // snapshot. The CAS `version` seeds every subsequent save/publish.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await loadDesignAction();
+      if (cancelled) return;
+      if (!res.ok) {
+        setDesignLoadError(res.error);
+        setDesignReady(true);
+        return;
+      }
+      const pick = (src: Record<string, string>): Record<string, string> => {
+        const out: Record<string, string> = {};
+        for (const k of CARD_DESIGN_TOKEN_KEYS) out[k] = src[k] ?? "";
+        return out;
+      };
+      setDraftTokens(pick(res.snapshot.themeDraft));
+      setLiveTokens(pick(res.snapshot.themeLive));
+      setDesignVersion(res.snapshot.version);
+      setDesignPublishedAt(res.snapshot.themePublishedAt);
+      setDesignReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Has the working draft diverged from what's live? Drives the publish hint.
+  const designDirty = useMemo(
+    () => CARD_DESIGN_TOKEN_KEYS.some((k) => (draftTokens[k] ?? "") !== (liveTokens[k] ?? "")),
+    [draftTokens, liveTokens],
+  );
+  const activeFamily = draftTokens[CARD_FAMILY_TOKEN_KEY] ?? "";
+
+  // ── Persist the full working draft via the token-save path ────────────────
+  const saveDesignDraft = useCallback(
+    async (next: Record<string, string>, expected: number) => {
+      setSaveState({ kind: "saving" });
+      const res = await saveDesignDraftFromEditAction({ patch: next, expectedVersion: expected });
+      if (!res.ok) {
+        setSaveState({ kind: "error", message: res.error });
+        return;
+      }
+      setDesignVersion(res.version);
+      setSaveState({ kind: "saved", version: res.version });
+    },
+    [],
+  );
+
+  // Knob edits debounce so dragging a native color picker doesn't spam saves.
+  const handleKnobChange = useCallback(
+    (key: string, value: string) => {
+      if (!canEdit) return;
+      setDraftTokens((prev) => {
+        const next = { ...prev, [key]: value };
+        if (knobDebounceRef.current) clearTimeout(knobDebounceRef.current);
+        knobDebounceRef.current = setTimeout(() => {
+          void saveDesignDraft(next, designVersion);
+        }, 350);
+        return next;
+      });
+    },
+    [canEdit, designVersion, saveDesignDraft],
+  );
+
+  // ── Apply a kit (one-click repaint of the whole card family) ──────────────
+  const handleApplyKit = useCallback(
+    (kit: CardKitOption) => {
+      if (!canEdit) {
+        toast("You need admin access to change the card design.");
+        return;
+      }
+      setPendingKit(kit.slug);
+      setSaveState({ kind: "saving" });
+      void (async () => {
+        const res = await applyCardKitFromEditAction({ kitSlug: kit.slug });
+        setPendingKit(null);
+        if (!res.ok) {
+          setSaveState({ kind: "error", message: res.error });
+          return;
+        }
+        // Reflect the kit's tokens in the working draft so the preview repaints
+        // immediately without a round-trip.
+        setDraftTokens((prev) => ({ ...prev, ...kit.tokens }));
+        setDesignVersion(res.version);
+        setSaveState({ kind: "saved", version: res.version });
+      })();
+    },
+    [canEdit, toast],
+  );
+
+  // ── Publish (promote draft → live across every card surface) ──────────────
+  const handlePublish = useCallback(() => {
+    if (!canPublish) return;
+    setPublishState({ kind: "publishing" });
+    void (async () => {
+      const res = await publishDesignFromEditAction({ expectedVersion: designVersion });
+      if (!res.ok) {
+        setPublishState({ kind: "error", message: res.error });
+        return;
+      }
+      setDesignVersion(res.version);
+      setDesignPublishedAt(new Date().toISOString());
+      setPublishState({ kind: "published", version: res.version });
+      // Re-seed live from the now-published draft so `designDirty` clears.
+      setLiveTokens((prev) => {
+        const next = { ...prev };
+        for (const k of CARD_DESIGN_TOKEN_KEYS) next[k] = draftTokens[k] ?? "";
+        return next;
+      });
+    })();
+  }, [canPublish, designVersion, draftTokens]);
 
   const handleToggleField = useCallback(
     (key: string, next: boolean) => {
@@ -213,14 +370,23 @@ export function CardDesignStudio() {
             </span>
           </div>
           <p style={{ margin: "6px 0 0", fontSize: 13, color: COLORS.inkMuted, maxWidth: 560, lineHeight: 1.5 }}>
-            Control what shows on talent cards and which actions appear, per surface. Card fields come
-            straight from your Tulala engine — turn one on here and it appears on every card.
+            Control what shows on talent cards, which actions appear, and how every card looks. Card
+            fields come straight from your Tulala engine — turn one on here and it appears on every
+            card. Pick a look or tune the colors once, then Publish to sync every surface.
           </p>
         </div>
         {!canEdit ? (
           <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.inkMuted }}>
             Read-only
           </span>
+        ) : !isRoster && designReady && !designLoadError ? (
+          <PublishCluster
+            canPublish={canPublish}
+            dirty={designDirty}
+            publishState={publishState}
+            publishedAt={designPublishedAt}
+            onPublish={handlePublish}
+          />
         ) : null}
       </div>
 
@@ -249,86 +415,27 @@ export function CardDesignStudio() {
           ) : (
             <>
               <strong style={{ fontWeight: 600 }}>Card fields save instantly</strong> to your engine and
-              apply everywhere. <strong style={{ fontWeight: 600 }}>Per-surface styling</strong> below is a
-              live preview — saving distinct styling per surface ships in the next release.
+              apply everywhere. <strong style={{ fontWeight: 600 }}>Visual design</strong> (look + colors)
+              saves to a draft as you edit — Publish promotes it live across every card surface.{" "}
+              <strong style={{ fontWeight: 600 }}>Layout + show-toggles</strong> below are a live preview;
+              saving distinct layout per surface ships in the next release.
             </>
           )}
         </div>
       </div>
 
-      {/* Surface tab strip */}
-      <div
-        role="tablist"
-        aria-label="Card surface"
-        style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}
-      >
-        {SURFACE_ORDER.map((s) => {
-          const r = SURFACE_RULES[s];
-          const active = s === activeSurface;
-          return (
-            <button
-              key={s}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setActiveSurface(s)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 7,
-                padding: "8px 14px",
-                borderRadius: RADIUS.md,
-                border: `1px solid ${active ? COLORS.ink : COLORS.border}`,
-                background: active ? COLORS.card : "transparent",
-                boxShadow: active ? COLORS.shadow : "none",
-                cursor: "pointer",
-                fontFamily: FONTS.body,
-                fontSize: 13,
-                fontWeight: active ? 600 : 500,
-                color: active ? COLORS.ink : COLORS.inkMuted,
-                transition: `border-color ${TRANSITION.sm}`,
-              }}
-            >
-              {r.label}
-              <span
-                style={{
-                  fontSize: 9.5,
-                  fontWeight: 700,
-                  letterSpacing: 0.4,
-                  textTransform: "uppercase",
-                  color: r.favorite || r.inquiry ? COLORS.accentDeep : COLORS.inkDim,
-                  background: r.favorite || r.inquiry ? COLORS.accentSoft : COLORS.surfaceAlt,
-                  borderRadius: 999,
-                  padding: "2px 6px",
-                }}
-              >
-                {r.tag}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Active surface rationale */}
-      <div
-        style={{
-          fontSize: 12.5,
-          color: COLORS.inkMuted,
-          lineHeight: 1.5,
-          padding: "10px 12px",
-          background: COLORS.surfaceAlt,
-          border: `1px solid ${COLORS.borderSoft}`,
-          borderRadius: RADIUS.md,
-          marginBottom: SPACE.group,
-        }}
-      >
-        {rule.note}
+      {/* Surface tab strip + rationale */}
+      <div style={{ marginBottom: SPACE.group }}>
+        <CardSurfaceTabStrip
+          activeSurface={activeSurface}
+          onSurfaceChange={setActiveSurface}
+        />
       </div>
 
       {/* Two-column workspace: controls (left) + preview (right) */}
       <div
         data-tulala-card-design-grid
-        style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: SPACE.section, alignItems: "start" }}
+        style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: SPACE.section, alignItems: "start" }}
       >
         {/* LEFT — controls */}
         <div style={{ display: "flex", flexDirection: "column", gap: SPACE.group, minWidth: 0 }}>
@@ -416,6 +523,20 @@ export function CardDesignStudio() {
             </section>
           ) : (
             <>
+          {/* Visual design — REAL persistence (card-family design tokens) */}
+          <DesignLookSection
+            designReady={designReady}
+            designLoadError={designLoadError}
+            cardKits={cardKits}
+            activeFamily={activeFamily}
+            pendingKit={pendingKit}
+            canEdit={canEdit}
+            onApply={handleApplyKit}
+            draftTokens={draftTokens}
+            onKnobChange={handleKnobChange}
+            saveState={saveState}
+          />
+
           {/* Actions on this surface */}
           <section
             style={{
@@ -473,7 +594,7 @@ export function CardDesignStudio() {
               padding: 16,
             }}
           >
-            <GroupHeader title="Appearance" hint="How the card is laid out. Preview-only this release." />
+            <GroupHeader title="Layout" hint="How the card is laid out and which lines show. Live preview this release; the Look + Colors above save and publish." />
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.inkMuted }}>Card style</span>
@@ -617,27 +738,20 @@ export function CardDesignStudio() {
           )}
         </div>
 
-        {/* RIGHT — live preview */}
-        <div style={{ position: "sticky", top: 12, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, alignSelf: "flex-start" }}>
-            {rule.label} preview
-          </div>
-          {isRoster ? (
-            <RosterBadgePreviewCard badges={rosterCardBadges} />
-          ) : (
-            <PreviewCard
-              surface={activeSurface}
-              appearance={appearance}
-              favoriteIcon={favoriteIcon}
-              fieldChips={fieldChips}
-            />
-          )}
-          <div style={{ fontSize: 11, color: COLORS.inkDim, textAlign: "center", maxWidth: 260, lineHeight: 1.45 }}>
-            {isRoster
-              ? "Toggle a badge to see it appear or disappear here — exactly how the overlay stacks on your live roster cards."
-              : "Favorite + inquiry here are interactive so you can see both states. On the live surface they connect to the client’s real favorites and inquiry list."}
-          </div>
-        </div>
+        {/* RIGHT — live preview. The canonical <TalentCard> reflects the
+            working design draft (the ONLY place gold may appear — it’s the
+            public card). The synthetic action card below shows the per-surface
+            favorite / inquiry affordances the canonical card doesn’t render. */}
+        <CardDesignPreviewColumn
+          surfaceLabel={rule.label}
+          isRoster={isRoster}
+          rosterCardBadges={rosterCardBadges}
+          draftTokens={draftTokens}
+          activeSurface={activeSurface}
+          appearance={appearance}
+          favoriteIcon={favoriteIcon}
+          fieldChips={fieldChips}
+        />
       </div>
 
       {/* Responsive: stack the preview under the controls on narrow widths */}
@@ -648,7 +762,7 @@ export function CardDesignStudio() {
           }
           [data-tulala-card-design-grid] > div:last-child {
             position: static !important;
-            align-items: flex-start !important;
+            width: 100% !important;
           }
         }
       `}</style>

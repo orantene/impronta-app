@@ -34,6 +34,11 @@ export const SITE_ADMIN_SURFACE = [
   "sections-all",
   "homepage",
   "storefront",
+  // Card design (P2) — the per-tenant card palette/kit. Busted by
+  // publishDesign alongside "branding"; consumed by the P3 resolveCardDesign
+  // for the two surfaces the <html> token cascade cannot reach (marketing
+  // cross-tenant grid, client dashboard shells).
+  "card-design",
 ] as const;
 
 export type SiteAdminSurface = (typeof SITE_ADMIN_SURFACE)[number];

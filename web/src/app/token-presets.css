@@ -2042,6 +2042,276 @@ html[data-token-template-directory-card-family="service-professional"] .talent-c
 }
 
 /* ---------------------------------------------------------------------------
+ * editorial-noir — dark cinematic portrait card.
+ *
+ * Design register: near-black ground (#0a0a0a), hairline gold border
+ * (--token-color-line inherits the gold-tinted line from the noir palette),
+ * a deep cinematic scrim on the image, serif-leaning name at tracking-normal,
+ * and ONE restrained gold glint — the hairline border itself + the
+ * availability dot. No gold floods. The card must feel like a film still,
+ * not a jewellery catalogue.
+ *
+ * Token contract: --token-color-* cascade carries the editorial-noir palette
+ * when [data-token-background-mode="editorial-noir"] is also set. When a
+ * tenant uses this card family on a lighter shell the CSS still reads
+ * correctly (falls back to the token defaults gracefully). Zero raw hex
+ * Impronta literals — tenant color cascade drives everything.
+ * ------------------------------------------------------------------------- */
+
+html[data-token-template-directory-card-family="editorial-noir"] .talent-card {
+  /* Forced dark ground beats any Tailwind bg-* on the card root. */
+  background: var(--token-color-background) !important;
+  /* Hairline border — reads gold on the noir palette (token-color-line
+   * resolves to rgba(201,162,39,.18) there), neutral on any other theme. */
+  border: 1px solid var(--token-color-line) !important;
+  border-radius: var(--site-radius-lg);
+  overflow: hidden;
+  color: var(--token-color-ink);
+  /* Softer shadow — cinematic depth without glow. */
+  box-shadow: 0 2px 16px -6px rgba(0, 0, 0, 0.72);
+  transition:
+    transform var(--site-motion-dur-short) var(--site-motion-ease),
+    box-shadow var(--site-motion-dur-short) var(--site-motion-ease);
+}
+
+html[data-token-template-directory-card-family="editorial-noir"] .talent-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px -8px rgba(0, 0, 0, 0.88);
+}
+
+/* Tall portrait ratio — 3:4 gives cinematic stature. */
+html[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-media] {
+  aspect-ratio: 3 / 4;
+  position: relative;
+  overflow: hidden;
+  /* Dark placeholder — reads the surface-raised token (near-black on noir). */
+  background: var(--token-color-surface-raised);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-media] img {
+    transition: transform var(--site-motion-dur-long) var(--site-motion-ease);
+  }
+  html[data-token-template-directory-card-family="editorial-noir"] .talent-card:hover [data-card-media] img {
+    transform: scale(1.03);
+  }
+}
+
+/* Cinematic scrim — heavier at the bottom for name legibility, with a
+ * faint mid-register veil so overexposed images still feel dark. */
+html[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-scrim] {
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.82) 0%,
+    rgba(0, 0, 0, 0.38) 38%,
+    rgba(0, 0, 0, 0.08) 65%,
+    transparent 100%
+  ) !important;
+}
+
+/* Name: lighter weight, serif fallback hierarchy, restrained tracking.
+ * Stays white-on-dark so it reads over the scrim. */
+html[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-name] {
+  font-family:
+    var(--font-playfair-display, "Playfair Display"),
+    var(--site-heading-font),
+    ui-serif,
+    Georgia,
+    serif !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.01em !important;
+  text-transform: none !important;
+  color: var(--token-color-ink) !important;
+}
+
+/* Body area — inherits from portrait base (absolute-positioned overlay). */
+html[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-body] {
+  /* inherit from portrait base — already absolute-positioned overlay */
+}
+
+/* Availability indicator — muted color matches the card's dark register. */
+html[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-availability] {
+  color: var(--token-color-muted) !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * magazine — light warm-paper editorial card.
+ *
+ * Design register: soft warm-white (cream) ground, thin neutral border,
+ * generous body below the image, serif name, refined uppercase kicker with
+ * wide tracking. No decorative accents — the editorial weight comes from
+ * spacing and typography alone. Reads like a well-printed magazine feature.
+ * ------------------------------------------------------------------------- */
+
+html[data-token-template-directory-card-family="magazine"] .talent-card {
+  background: var(--token-color-surface-raised) !important;
+  border: 1px solid var(--token-color-line);
+  border-radius: var(--site-radius-lg);
+  overflow: hidden;
+  color: var(--token-color-ink);
+  box-shadow: var(--site-shadow-soft);
+  transition:
+    transform var(--site-motion-dur-short) var(--site-motion-ease),
+    box-shadow var(--site-motion-dur-short) var(--site-motion-ease);
+}
+
+html[data-token-template-directory-card-family="magazine"] .talent-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--site-shadow-ambient);
+}
+
+/* Landscape-adjacent ratio — 4:3 gives a magazine-spread feel. */
+html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-media] {
+  aspect-ratio: 4 / 3;
+  position: relative;
+  overflow: hidden;
+  background: var(--token-color-secondary);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-media] img {
+    transition: transform var(--site-motion-dur-long) var(--site-motion-ease);
+  }
+  html[data-token-template-directory-card-family="magazine"] .talent-card:hover [data-card-media] img {
+    transform: scale(1.04);
+  }
+}
+
+/* Scrim: very light — name lives in the body panel below image, not
+ * over the image, so the scrim only guards the lower image edge. */
+html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-scrim] {
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.22) 0%,
+    transparent 40%
+  ) !important;
+}
+
+/* Body panel below image — the magazine's pull-quote zone. */
+html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-body] {
+  /* Portrait-style overlay → reposition to static below-image panel. */
+  position: static !important;
+  padding: 20px 20px 22px !important;
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--token-color-surface-raised);
+  border-top: 1px solid var(--token-color-line);
+}
+
+/* Name: editorial serif feel with tighter tracking. */
+html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-name] {
+  font-family:
+    var(--font-fraunces, "Fraunces"),
+    var(--font-playfair-display, "Playfair Display"),
+    ui-serif,
+    Georgia,
+    serif !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.008em !important;
+  text-transform: none !important;
+  color: var(--token-color-ink) !important;
+  /* Drop text-white Tailwind class applied in portrait mode. */
+  text-shadow: none !important;
+}
+
+/* Availability: matches body text register, slightly muted. */
+html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-availability] {
+  color: var(--token-color-muted) !important;
+}
+
+/* Chips/badges — paper surface, no glass effect. */
+html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-chip] {
+  background: var(--token-color-secondary) !important;
+  color: var(--token-color-ink) !important;
+  border: 1px solid var(--token-color-line) !important;
+  border-radius: var(--site-radius-pill) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * minimal-portrait — quiet white portrait-forward card.
+ *
+ * Design register: full-height portrait (3:4), pure white ground, no
+ * visible card border until hover, no body panel below image. All type
+ * overlays the portrait at the bottom behind a minimal translucent strip
+ * (not a heavy scrim). Hover reveals a faint border. The card frame
+ * disappears — only the face matters.
+ * ------------------------------------------------------------------------- */
+
+html[data-token-template-directory-card-family="minimal-portrait"] .talent-card {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--site-radius-lg);
+  overflow: hidden;
+  color: var(--token-color-ink);
+  box-shadow: none;
+  transition:
+    border-color var(--site-motion-dur-short) var(--site-motion-ease),
+    box-shadow var(--site-motion-dur-short) var(--site-motion-ease);
+}
+
+html[data-token-template-directory-card-family="minimal-portrait"] .talent-card:hover {
+  border-color: var(--token-color-line) !important;
+  box-shadow: var(--site-shadow-soft);
+}
+
+/* Tall portrait — image IS the card. */
+html[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-media] {
+  aspect-ratio: 3 / 4;
+  position: relative;
+  overflow: hidden;
+  /* Neutral placeholder — the light surface not a tinted block. */
+  background: var(--token-color-secondary);
+  border-radius: var(--site-radius-lg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-media] img {
+    transition: transform var(--site-motion-dur-long) var(--site-motion-ease);
+  }
+  html[data-token-template-directory-card-family="minimal-portrait"] .talent-card:hover [data-card-media] img {
+    transform: scale(1.025);
+  }
+}
+
+/* Minimal scrim — barely-there gradient, just enough to legibility the
+ * name without killing the portrait. Quiet, not cinematic. */
+html[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-scrim] {
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.44) 0%,
+    rgba(0, 0, 0, 0.10) 32%,
+    transparent 60%
+  ) !important;
+}
+
+/* Name: clean sans, normal weight — pure legibility over the portrait. */
+html[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-name] {
+  font-family: var(--site-heading-font) !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.01em !important;
+  text-transform: none !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Availability: white-toned to match portrait overlay register. */
+html[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-availability] {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+/* Ownership chip — blends into the portrait overlay; glass blur matches
+ * the base component chip but with softer tint. */
+html[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-chip] {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  border-radius: var(--site-radius-pill) !important;
+}
+
+/* ---------------------------------------------------------------------------
  * Profile layout families (M7.1 → M7.2).
  *
  * The profile page component at /t/[profileCode] keeps its existing DOM;

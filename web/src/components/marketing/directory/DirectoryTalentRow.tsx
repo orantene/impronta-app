@@ -1,13 +1,15 @@
 import Link from "next/link";
-import type { DiscoverTalentListItem } from "./shared";
+import type { DirectoryCardRow } from "./shared";
 import { agencyLine, locationLine, FOCUS_RING } from "./shared";
 import { TalentAvatar, TrustBadge, AvailabilityLine } from "./DirectoryAtoms";
 
 /**
  * Compact list row for the directory's list view. Same browse-only contract
- * as the card — links to `/t/<code>`, no buyer affordances.
+ * as the card — links to `/t/<code>`, no buyer affordances. Takes the shared
+ * `DirectoryCardRow` (the exact field set the row reads) so the grid + list
+ * views feed off one row shape.
  */
-export function DirectoryTalentRow({ talent }: { talent: DiscoverTalentListItem }) {
+export function DirectoryTalentRow({ talent }: { talent: DirectoryCardRow }) {
   const loc = locationLine(talent.homeCity, talent.homeCountry);
   const href = talent.profileCode ? `/t/${talent.profileCode}` : null;
 

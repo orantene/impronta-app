@@ -12,17 +12,21 @@
  * Reads ONLY the discoverable set the materialized view exposes (is_discoverable
  * + approved/published). It never widens that set or tenant-scopes it.
  */
+import { loadDiscoverTalents } from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
 import {
-  loadDiscoverTalents,
-  type DiscoverTalentListItem,
-} from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
-import { DIRECTORY_PAGE_SIZE, type DirectoryQuery } from "@/components/marketing/directory/shared";
+  DIRECTORY_PAGE_SIZE,
+  attachCardDesigns,
+  resolveCardDesignsForRows,
+  type DirectoryCardRow,
+  type DirectoryQuery,
+} from "@/components/marketing/directory/shared";
+import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
 
 export async function loadMoreDirectoryTalents(
   query: DirectoryQuery,
   offset: number,
-): Promise<{ items: DiscoverTalentListItem[]; total: number }> {
-  return loadDiscoverTalents({
+): Promise<{ items: DirectoryCardRow[]; total: number }> {
+  const page = await loadDiscoverTalents({
     q: query.q ?? undefined,
     country: query.country ?? undefined,
     city: query.city ?? undefined,
@@ -33,4 +37,18 @@ export async function loadMoreDirectoryTalents(
     limit: DIRECTORY_PAGE_SIZE,
     offset: Math.max(offset, 0),
   });
+
+  // Enrich the incremental rows with their own agency's card design, exactly
+  // like the SSR first page (see global-directory/page.tsx). Without this,
+  // rows past the first page render in the platform-default palette while rows
+  // above the fold carry per-agency palettes — a visible inconsistency the
+  // moment a visitor clicks "Show more".
+  const designByTenant = await resolveCardDesignsForRows(
+    page.items,
+    resolveCardDesign,
+  );
+  return {
+    items: attachCardDesigns(page.items, designByTenant),
+    total: page.total,
+  };
 }

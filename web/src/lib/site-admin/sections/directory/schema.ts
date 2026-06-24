@@ -147,6 +147,24 @@ export const directorySchemaV1 = z.object({
   aiExamplePrompts: z.array(z.string().min(1).max(160)).max(8).default([]),
   aiBehavior: z.enum(["interpret", "rerank"]).default("interpret"),
 
+  /**
+   * Per-instance card kit override (P4). A card-kit slug (e.g.
+   * "editorial-noir" / "magazine" / "minimal-portrait", see
+   * `lib/site-admin/presets/card-kits.ts`). PLAIN data only — this is the
+   * operator's intent for THIS directory instance, decoupled from the
+   * tenant-wide published Card Design.
+   *
+   * APPLICATION (render-side contract): the kit is resolved via
+   * `getCardKit(slug)` and its `card.*` tokens are projected to inline
+   * `--token-card-*` CSS vars set on THIS section's wrapper element (the
+   * cards below inherit them through the `var(--token-card-*, …)` fallback
+   * chain in `TALENT_CARD_VARS`). It MUST be applied as inline `style` vars,
+   * NEVER a linked style class: `publishPageSnapshot` does not bake classes,
+   * so a class-based kit would silently drop on publish. Empty / unset → the
+   * instance inherits the tenant's published card palette.
+   */
+  cardKitOverride: z.string().max(64).optional(),
+
   // — Empty / SEO —
   emptyStateTitle: z.string().max(120).optional(),
   emptyStateText: z.string().max(240).optional(),

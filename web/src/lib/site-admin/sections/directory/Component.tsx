@@ -12,6 +12,7 @@ import {
 } from "@/lib/directory/field-driven-filters";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { getCardKit } from "@/lib/site-admin/presets/card-kits";
 import { HeroSearch, type HeroSearchCopy } from "@/components/home/hero-search";
 
 import { nodePresentationInlineStyle } from "../shared/node-presentation";
@@ -20,6 +21,7 @@ import type { SectionComponentProps } from "../types";
 import type { DirectoryV1 } from "./schema";
 import { normalizeDirectoryProps } from "./normalize";
 import { DirectoryReactiveResults } from "./DirectoryReactiveResults";
+import { resolveDirectoryScopeSeed } from "./scope-seed";
 
 function eyebrowSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
   return {
@@ -49,6 +51,40 @@ function paragraphSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
     xl: "1.25rem",
     display: "clamp(2rem, 4vw, 4.5rem)",
   }[size];
+}
+
+/**
+ * P4 — Resolve a per-instance `cardKitOverride` slug to inline `--token-card-*`
+ * CSS vars. The kit's `card.*` registry tokens are projected onto the SAME
+ * cascade vars the canonical `<TalentCard>` reads (`TALENT_CARD_VARS`), so the
+ * cards inside THIS directory instance repaint in the override palette without
+ * touching the tenant-wide published Card Design.
+ *
+ * MUST be inline `style` vars (never a linked class): `publishPageSnapshot`
+ * does not bake classes, so a class-based kit would silently drop on publish.
+ * Returns `undefined` when the slug is unset / unknown so the instance inherits
+ * the tenant's published card palette.
+ */
+const CARD_KIT_TOKEN_TO_CSS_VAR: Record<string, string> = {
+  "card.surface": "--token-card-surface",
+  "card.name-color": "--token-card-name-color",
+  "card.muted": "--token-card-muted",
+};
+
+function resolveCardKitOverrideStyle(
+  slug: string | undefined,
+): CSSProperties | undefined {
+  if (!slug) return undefined;
+  const kit = getCardKit(slug);
+  if (!kit) return undefined;
+  const style: Record<string, string> = {};
+  for (const [tokenKey, value] of Object.entries(kit.tokens)) {
+    const cssVar = CARD_KIT_TOKEN_TO_CSS_VAR[tokenKey];
+    if (cssVar) style[cssVar] = value;
+  }
+  return Object.keys(style).length > 0
+    ? (style as CSSProperties)
+    : undefined;
 }
 
 /**
@@ -97,23 +133,29 @@ export async function DirectoryComponent({
   const directoryTenantId = publicScope?.tenantId ?? null;
   const surface = directorySurfaceFromTenantId(publicScope?.tenantId ?? null);
 
-  // Section-scope → seed taxonomy filter (currently only by_talent_type
-  // contributes term ids; by_tag / manual / all leave the seed open). The
-  // engine expects term *ids*, not catalog keys, so we cannot pre-filter
-  // `by_talent_type` without a key→id resolver. Phase B #3 work — for
-  // Phase 1, the seed remains open and the pill bar drives taxonomy
-  // filtering reactively.
-  const seedTaxonomyTermIds: string[] = [];
+  // Resolve scope seed: maps by_talent_type keys → taxonomy term UUIDs for
+  // the SSR first-page pre-filter, surfaces manual codes for client
+  // reconciliation, and sets an honest scopeLimited hint when the requested
+  // scope cannot be fully enforced server-side (by_tag, manual).
+  const scopeSeed = await resolveDirectoryScopeSeed(
+    props,
+    directoryTenantId,
+    loc,
+  );
+  const seedTaxonomyTermIds = scopeSeed.termIds;
 
-  // #6 polish: honest scope-limited hint for `by_tag` with non-empty
-  // tagKeys (no fake filtering — Amendment A2 rule).
-  const scopeLimitedHint =
-    props.scope === "by_tag" && props.tagKeys.length > 0
-      ? pickLocale(loc, {
-          en: "This section shows all talent — tag-scope projection lands with the deferred public Discover listing endpoint.",
-          es: "Esta sección muestra todos los talentos disponibles — el filtro por etiquetas aún no proyecta en este endpoint.",
-        })
-      : undefined;
+  const scopeLimitedHint = scopeSeed.scopeLimited
+    ? pickLocale(loc, {
+        en:
+          props.scope === "by_tag"
+            ? "This section shows all talent. Tag scope projection lands with the deferred public Discover listing endpoint."
+            : "This section shows all talent. Manual pick scope is not yet applied on the public listing.",
+        es:
+          props.scope === "by_tag"
+            ? "Esta sección muestra todos los talentos. El filtro por etiquetas aún no proyecta en este endpoint."
+            : "Esta sección muestra todos los talentos. La selección manual aún no se aplica en el listado público.",
+      })
+    : undefined;
 
   let initialPage: Awaited<ReturnType<typeof getPublicDirectoryFirstPage>> | null =
     null;
@@ -192,6 +234,13 @@ export async function DirectoryComponent({
     "--dir-cols-d": props.columnsDesktop,
   } as unknown as CSSProperties;
 
+  // P4 — per-instance card-kit override projected to inline `--token-card-*`
+  // vars on the results wrapper (DirectoryReactiveResults). Undefined → the
+  // instance inherits the tenant's published card palette.
+  const cardKitOverrideStyle = resolveCardKitOverrideStyle(
+    props.cardKitOverride,
+  );
+
   const seedItems = initialPage?.items ?? [];
   const hasResults = seedItems.length > 0;
   const seedFailed = initialPage === null;
@@ -217,10 +266,10 @@ export async function DirectoryComponent({
       data-hover={props.hoverBehavior}
       className={
         props.background === "cool_ground"
-          ? "w-full bg-[var(--impronta-surface)]/25 px-4 py-12 sm:px-6 sm:py-16"
+          ? "w-full bg-[var(--token-color-surface-raised,var(--impronta-surface))]/25 px-4 py-14 sm:px-6 sm:py-20"
           : props.background === "subtle"
-            ? "w-full bg-foreground/[0.015] px-4 py-12 sm:px-6 sm:py-16"
-            : "w-full px-4 py-12 sm:px-6 sm:py-16"
+            ? "w-full bg-foreground/[0.015] px-4 py-14 sm:px-6 sm:py-20"
+            : "w-full px-4 py-14 sm:px-6 sm:py-20"
       }
       style={sectionStyle}
     >
@@ -228,35 +277,41 @@ export async function DirectoryComponent({
         {props.showHeading &&
         (props.eyebrow || props.headline || props.copy) ? (
           <header
-            className={`mb-9 flex max-w-2xl flex-col gap-3 ${headAlign}`}
+            className={`mb-10 flex max-w-2xl flex-col gap-4 border-b border-[var(--token-color-line,rgba(120,120,120,0.18))] pb-7 ${headAlign}`}
           >
             {props.eyebrow ? (
               <span
-                className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--impronta-muted)]"
+                className="text-[0.7rem] font-medium uppercase text-[var(--token-color-muted,var(--impronta-muted))]"
                 data-builder-node-id={nodeIdsByRole?.subheadline}
-                style={nodePresentationInlineStyle(
-                  props.nodePresentation?.subheadline,
-                  eyebrowSize,
-                )}
+                style={{
+                  letterSpacing: "var(--site-label-tracking, 0.22em)",
+                  ...nodePresentationInlineStyle(
+                    props.nodePresentation?.subheadline,
+                    eyebrowSize,
+                  ),
+                }}
               >
                 {renderInlineRich(props.eyebrow)}
               </span>
             ) : null}
             {props.headline ? (
               <h2
-                className="font-display text-3xl font-medium tracking-wide text-foreground sm:text-4xl"
+                className="font-display text-3xl font-medium tracking-wide text-[var(--token-color-ink,var(--foreground))] sm:text-4xl"
                 data-builder-node-id={nodeIdsByRole?.headline}
-                style={nodePresentationInlineStyle(
-                  props.nodePresentation?.headline,
-                  headingSize,
-                )}
+                style={{
+                  fontFamily: "var(--site-heading-font, inherit)",
+                  ...nodePresentationInlineStyle(
+                    props.nodePresentation?.headline,
+                    headingSize,
+                  ),
+                }}
               >
                 {renderInlineRich(props.headline)}
               </h2>
             ) : null}
             {props.copy ? (
               <p
-                className="text-[15px] leading-relaxed text-[var(--impronta-muted)]"
+                className="text-[15px] leading-relaxed text-[var(--token-color-muted,var(--impronta-muted))]"
                 data-builder-node-id={nodeIdsByRole?.copy}
                 style={nodePresentationInlineStyle(
                   props.nodePresentation?.copy,
@@ -277,7 +332,7 @@ export async function DirectoryComponent({
           >
             <Suspense
               fallback={
-                <div className="h-14 w-full rounded-xl border border-border bg-[var(--impronta-surface)]/40 sm:h-16" />
+                <div className="h-14 w-full rounded-xl border border-[var(--token-color-line,var(--border))] bg-[var(--token-color-surface-raised,var(--impronta-surface))]/40 sm:h-16" />
               }
             >
               <HeroSearch
@@ -292,21 +347,24 @@ export async function DirectoryComponent({
         ) : null}
 
         {seedFailed ? (
-          <div className="rounded-2xl border border-border bg-background/50 px-6 py-20 text-center">
-            <p className="mt-2 text-sm text-[var(--impronta-muted)]">
+          <div className="mx-auto max-w-md border-y border-[var(--token-color-line,rgba(120,120,120,0.18))] px-6 py-20 text-center">
+            <p className="text-sm text-[var(--token-color-muted,var(--impronta-muted))]">
               {ui.discoverLoadError}
             </p>
           </div>
         ) : !hasResults ? (
-          <div className="rounded-2xl border border-border bg-background/50 px-6 py-20 text-center">
+          <div className="mx-auto max-w-md border-y border-[var(--token-color-line,rgba(120,120,120,0.18))] px-6 py-20 text-center">
             {props.emptyStateTitle ? (
-              <p className="font-display text-lg text-foreground">
+              <p
+                className="font-display text-lg text-[var(--token-color-ink,var(--foreground))]"
+                style={{ fontFamily: "var(--site-heading-font, inherit)" }}
+              >
                 {props.emptyStateTitle}
               </p>
             ) : null}
-            <p className="mt-2 text-sm text-[var(--impronta-muted)]">
+            <p className="mt-3 text-sm leading-relaxed text-[var(--token-color-muted,var(--impronta-muted))]">
               {props.emptyStateText ||
-                "No one matches yet — check back as the roster grows."}
+                "No one matches yet, check back as the roster grows."}
             </p>
           </div>
         ) : (
@@ -324,6 +382,11 @@ export async function DirectoryComponent({
             showActiveChips={props.showActiveChips}
             aiSearchEnabled={aiEnabled}
             scopeLimitedHint={scopeLimitedHint}
+            cardKitOverrideStyle={cardKitOverrideStyle}
+            sidebarPosition={props.sidebarPosition}
+            sidebarSticky={props.sidebarSticky}
+            scope={props.scope}
+            manualProfileCodes={scopeSeed.manualProfileCodes}
             density={props.density}
             hoverBehavior={props.hoverBehavior}
             cardStyle={props.cardStyle}
@@ -333,6 +396,10 @@ export async function DirectoryComponent({
             showLocation={props.showLocation}
             showAvailability={props.showAvailability}
             showBadges={props.showBadges}
+            showSave={props.showSave}
+            showAddToInquiry={props.showAddToInquiry}
+            cardFieldKeys={props.cardFieldKeys}
+            maxFieldLines={props.maxFieldLines}
             nameFallback={props.nameFallback}
             columnsDesktop={props.columnsDesktop}
             columnsTablet={props.columnsTablet}

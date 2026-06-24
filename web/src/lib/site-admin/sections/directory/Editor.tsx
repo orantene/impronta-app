@@ -15,7 +15,8 @@ import {
   type DirectoryLiveCatalogSnapshot,
 } from "@/lib/site-admin/server/directory-catalogs";
 import { DirectorySidebarItemOrderEditor } from "./DirectorySidebarItemOrderEditor";
-import { KIT } from "@/components/edit-chrome/inspectors/kit";
+import { KIT, PanelSaveChip } from "@/components/edit-chrome/inspectors/kit";
+import { listCardKits } from "@/lib/site-admin/presets/card-kits";
 
 /**
  * The 7-tab control drawer (plan §4). Every section-payload knob the
@@ -111,20 +112,34 @@ function FieldToggle({
   label,
   checked,
   onChange,
+  disabled,
+  note,
 }: {
   label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  /** Honest disable for controls whose render path isn't wired yet. */
+  disabled?: boolean;
+  /** Small reason shown under the row (e.g. "Coming soon"). */
+  note?: string;
 }) {
   return (
-    <label className="flex items-center justify-between gap-3 py-1.5 text-sm text-foreground">
-      <span>{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-      />
-    </label>
+    <div className={disabled ? "opacity-60" : undefined}>
+      <label
+        className={`flex items-center justify-between gap-3 py-1.5 text-sm text-foreground ${
+          disabled ? "cursor-not-allowed" : ""
+        }`}
+      >
+        <span>{label}</span>
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+      </label>
+      {note ? <p className={`${HELP} -mt-1`}>{note}</p> : null}
+    </div>
   );
 }
 
@@ -288,7 +303,7 @@ export function DirectoryEditor({
   const [liveCatalog, setLiveCatalog] =
     useState<DirectoryLiveCatalogSnapshot | null>(null);
   const [liveError, setLiveError] = useState<string | null>(null);
-  const [_isPending, startTransition] = useTransition();
+  const [livePending, startTransition] = useTransition();
 
   useEffect(() => {
     let cancelled = false;
@@ -440,12 +455,13 @@ export function DirectoryEditor({
             label="Default sort"
             value={p.defaultSort}
             onChange={(v) => set("defaultSort", v as DirectoryV1["defaultSort"])}
+            // Only shipped sorts are listed; unbuilt ones (az, availability,
+            // curated) are omitted rather than shown as disabled "coming soon"
+            // rows — dead options read as a broken product (matches #649). The
+            // schema enum keeps them for back-compat / a saved older value.
             options={[
               { value: "recommended", label: "Recommended" },
               { value: "newest", label: "Newest" },
-              { value: "az", label: "A–Z" },
-              { value: "availability", label: "Availability" },
-              { value: "curated", label: "Curated (manual order)" },
             ]}
           />
           <FieldSelect
@@ -575,6 +591,28 @@ export function DirectoryEditor({
       {tab === "Card" ? (
         <div className="space-y-3">
           <FieldSelect
+            label="Card kit (this directory only)"
+            value={p.cardKitOverride ?? "__inherit__"}
+            onChange={(v) =>
+              set(
+                "cardKitOverride",
+                v === "__inherit__" ? undefined : v,
+              )
+            }
+            options={[
+              { value: "__inherit__", label: "Inherit workspace card design" },
+              ...listCardKits().map((k) => ({
+                value: k.slug,
+                label: k.label,
+              })),
+            ]}
+          />
+          <p className={HELP}>
+            Repaints just this directory&apos;s cards with a named look. Leave on
+            &quot;Inherit&quot; to follow the workspace-wide card design set in
+            Branding.
+          </p>
+          <FieldSelect
             label="Card style"
             value={p.cardStyle}
             onChange={(v) => set("cardStyle", v as DirectoryV1["cardStyle"])}
@@ -632,16 +670,10 @@ export function DirectoryEditor({
             checked={p.showAttributes}
             onChange={(v) => set("showAttributes", v)}
           />
-          <FieldToggle
-            label="Show rating"
-            checked={p.showRating}
-            onChange={(v) => set("showRating", v)}
-          />
-          <FieldToggle
-            label="Show price-from"
-            checked={p.showPriceFrom}
-            onChange={(v) => set("showPriceFrom", v)}
-          />
+          {/* Show rating / show price-from are intentionally NOT listed:
+              ratings + starting-price aren't published to cards, and a dead
+              toggle reads as a broken product (matches #649). The schema keeps
+              the fields for back-compat; re-add a toggle when the data ships. */}
           <FieldToggle
             label="Show availability"
             checked={p.showAvailability}
@@ -706,6 +738,7 @@ export function DirectoryEditor({
           <FieldToggle
             label="Sticky sidebar"
             checked={p.sidebarSticky}
+            note="Pins the filter sidebar while the results scroll."
             onChange={(v) => set("sidebarSticky", v)}
           />
           <FieldToggle
@@ -776,9 +809,16 @@ export function DirectoryEditor({
               <h4 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground">
                 Live storefront sidebar
               </h4>
-              <span className="text-[10px] uppercase tracking-[0.12em] text-[var(--impronta-muted)]">
-                Tenant catalog
-              </span>
+              <div className="flex items-center gap-2">
+                <PanelSaveChip
+                  dirty={false}
+                  saving={livePending}
+                  error={liveError}
+                />
+                <span className="text-[10px] uppercase tracking-[0.12em] text-[var(--impronta-muted)]">
+                  Tenant catalog
+                </span>
+              </div>
             </div>
             <p className={HELP}>
               These toggles write directly to your tenant&apos;s live filter
