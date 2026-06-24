@@ -109,6 +109,14 @@ function createEditorialStat(stat: EditorialStat, isLast: boolean): BuilderNode 
         kind: "container",
         props: {
           layout: "row",
+          // Keep the number + italic accent ("120" + "+", "EN" + "/" + "ES")
+          // on ONE line at every breakpoint. Without an explicit per-tier
+          // layout the renderer forces flex-column at <=640px, dropping the
+          // accent glyph onto its own row beneath the number.
+          responsive: {
+            tablet: { layout: "row" },
+            mobile: { layout: "row" },
+          },
           style: { alignItems: "baseline", gap: "2px", flexWrap: "nowrap" },
         },
         children: numberRow,
@@ -193,7 +201,10 @@ export function createStatBandEditorialPreset(): Exclude<
       // createEditorialStat) so no stray gold edge appears on the right column.
       responsive: {
         tablet: { layout: "grid", columns: 2 },
-        mobile: { layout: "grid", columns: 2 },
+        // One column on phones: the publish gate requires multi-column grids to
+        // collapse to a single column on mobile, and a full-width stat per row
+        // reads more impactfully than a cramped 2x2 at 390px.
+        mobile: { layout: "grid", columns: 1 },
       },
       style: {
         containerType: "inline-size",

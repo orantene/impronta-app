@@ -77,6 +77,15 @@ export function createMarqueeTickerPreset(): Exclude<
     kind: "container",
     props: {
       layout: "row",
+      // Keep the ticker HORIZONTAL on every breakpoint. Without an explicit
+      // per-tier layout the renderer's mobile rule (render.tsx: container
+      // :not([data-builder-mobile-layout]) → flex-direction:column) would force
+      // the track into a vertical tower at <=640px, stacking every discipline on
+      // its own line instead of scrolling sideways.
+      responsive: {
+        tablet: { layout: "row" },
+        mobile: { layout: "row" },
+      },
       style: {
         gap: "44px",
         flexWrap: "nowrap",
@@ -103,6 +112,13 @@ export function createMarqueeTickerPreset(): Exclude<
     props: {
       htmlTag: "section",
       layout: "row",
+      // Preserve row at the section level too: the single track child is
+      // width:max-content, and a forced flex-column wrapper would let the
+      // overflow:hidden clip it unpredictably on mobile.
+      responsive: {
+        tablet: { layout: "row" },
+        mobile: { layout: "row" },
+      },
       style: {
         backgroundColor: "var(--token-color-background, #100e13)",
         overflow: "hidden",
