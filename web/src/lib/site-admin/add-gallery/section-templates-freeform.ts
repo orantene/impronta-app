@@ -38,13 +38,13 @@ export function buildHeroSlider(): BuilderNode {
             align: "left",
             textColor: "#ffffff",
             fontFamily: "Cormorant Garamond, ui-serif, Georgia, serif",
-            fontSize: "clamp(2.6rem, 7vw, 6rem)",
+            fontSize: "clamp(1.65rem, 3.6vw, 2.75rem)",
             lineHeight: "1",
             // Mobile: the 760px hero downscale only hits the SHARED-mode
             // .site-bn-hero__heading class, not this real heading node, so the
             // clamp floors at 41.6px on a 390px phone. Force a true shrink +
             // a hair more line-height to relieve the cramped multi-line wrap.
-            responsive: { mobile: { fontSize: "2rem", lineHeight: "1.05" } },
+            responsive: { mobile: { fontSize: "1.5rem", lineHeight: "1.1" } },
           }),
           tplLabeledParagraph(
             "A boutique roster of models and creative talent, managed end to end.",
@@ -54,7 +54,7 @@ export function buildHeroSlider(): BuilderNode {
           tplCtaGroup(
             [
               tplButton("Explore the roster", "/directory", { tone: "primary" }),
-              tplButton("Start an inquiry", "/contact", { tone: "secondary" }),
+              tplButton("Start an inquiry", "/directory", { tone: "secondary" }),
             ],
             { align: "start", layerLabel: "Slide 1 Buttons" },
           ),
@@ -70,80 +70,121 @@ export function buildHeroSlider(): BuilderNode {
       layout: "stack",
       align: "stretch",
       style: {
-        backgroundImage: "url('/talent-templates/demo/impronta-2026/atelier-1.jpg')",
-        backgroundPosition: "center 28%",
+        backgroundImage: "url('/talent-templates/demo/impronta-2026/lifestyle-1.jpg')",
+        backgroundPosition: "center center",
         justifyContent: "flex-end",
         paddingLeft: "7vw",
         paddingRight: "7vw",
-        paddingTop: "14vh",
-        paddingBottom: "12vh",
+        paddingTop: "38px",
+        paddingBottom: "40px",
       },
     },
   );
 
-  // Slide 2 — a STRUCTURALLY different layout: a single centered column.
-  const slide2 = tplContainer(
-    [
-      tplContainer(
-        [
-          tplLabeledParagraph("New Faces · 2026", "Badge", {
-            size: "sm",
+  // Slides 2-5 — one centered statement column over a full-bleed lifestyle
+  // photo. The dark scrim + vignette keep the text legible over any image; the
+  // text is bottom-anchored (justifyContent flex-end) so it sits below the
+  // subject, not across a face. One reusable helper keeps every slide
+  // consistent, so swapping the photo set never drifts the layout.
+  const statementSlide = (
+    layerLabel: string,
+    image: string,
+    eyebrow: string,
+    title: string,
+    cta: BuilderNode | null,
+    focalX: string,
+  ): BuilderNode =>
+    tplContainer(
+      [
+        tplContainer(
+          [
+            tplLabeledParagraph(eyebrow, "Badge", {
+              size: "sm",
+              align: "center",
+              textColor: "var(--token-color-primary)",
+              textTransform: "uppercase",
+              letterSpacing: "0.24em",
+            }),
+            // Level 2: only slide 1's title is the page's single <h1>. The
+            // carousel keeps every slide mounted (opacity toggle), so making
+            // slides 2-5 <h1> shipped 5 competing top-level headings (broken
+            // a11y/SEO outline). Slide 1 stays level 1 above.
+            tplTitle(title, 2, {
+              align: "center",
+              textColor: "#ffffff",
+              fontFamily: "Cormorant Garamond, ui-serif, Georgia, serif",
+              fontSize: "clamp(1.65rem, 3.6vw, 2.75rem)",
+              lineHeight: "1",
+              responsive: { mobile: { fontSize: "1.5rem", lineHeight: "1.1" } },
+            }),
+            ...(cta
+              ? [
+                  tplCtaGroup([cta], {
+                    align: "center",
+                    layerLabel: `${layerLabel} Button`,
+                  }),
+                ]
+              : []),
+          ],
+          {
+            layerLabel: `${layerLabel} Content`,
+            layout: "stack",
             align: "center",
-            textColor: "var(--token-color-primary)",
-            textTransform: "uppercase",
-            letterSpacing: "0.24em",
-          }),
-          tplTitle("The new class.", 1, {
-            align: "center",
-            textColor: "#ffffff",
-            fontFamily: "Cormorant Garamond, ui-serif, Georgia, serif",
-            fontSize: "clamp(2.6rem, 7vw, 6rem)",
-            lineHeight: "1",
-            // Same per-node mobile downscale as slide 1 (the shared-mode
-            // 760px rule does not reach this heading node).
-            responsive: { mobile: { fontSize: "2rem", lineHeight: "1.05" } },
-          }),
-          tplCtaGroup([tplButton("Meet them", "/directory", { tone: "primary" })], {
-            align: "center",
-            layerLabel: "Slide 2 Button",
-          }),
-        ],
-        {
-          layerLabel: "Slide 2 Content",
-          layout: "stack",
-          align: "center",
-          gap: "m",
+            gap: "m",
+          },
+        ),
+      ],
+      {
+        layerLabel,
+        layout: "stack",
+        align: "center",
+        style: {
+          backgroundImage: `url('/talent-templates/demo/impronta-2026/${image}')`,
+          backgroundPosition: `${focalX} center`,
+          justifyContent: "flex-end",
+          paddingLeft: "7vw",
+          paddingRight: "7vw",
+          paddingTop: "38px",
+          paddingBottom: "40px",
         },
-      ),
-    ],
-    {
-      layerLabel: "Slide 2 — Centered",
-      layout: "stack",
-      align: "center",
-      style: {
-        backgroundImage: "url('/talent-templates/demo/impronta-2026/hero-a.jpg')",
-        backgroundPosition: "center 22%",
-        justifyContent: "center",
-        paddingLeft: "7vw",
-        paddingRight: "7vw",
-        paddingTop: "14vh",
-        paddingBottom: "14vh",
       },
-    },
-  );
+    );
 
-  // Slide 3 — image-only (no text). The eager <img> IS the background layer.
-  const slide3: BuilderNode = {
-    id: makeId("image"),
-    kind: "image",
-    props: {
-      src: "/talent-templates/demo/impronta-2026/portrait-2.jpg",
-      alt: "Editorial portrait of an Impronta model in soft natural light",
-      priority: true,
-      layerLabel: "Slide 3 — Image only",
-    },
-    i18n: { es: { alt: "Retrato editorial de una modelo de Impronta con luz natural suave" } },
-  };
+  const slide2 = statementSlide(
+    "Slide 2 — The roster",
+    "lifestyle-3.jpg",
+    "The roster",
+    "Faces you remember.",
+    // No CTA: slide 1 already carries "Explore the roster". Slide 2 is a pure
+    // mood/proof beat, giving the hero an action / mood / action / mood / action
+    // rhythm instead of repeating the same button on adjacent slides.
+    null,
+    "center",
+  );
+  const slide3 = statementSlide(
+    "Slide 3 — Range",
+    "lifestyle-4.jpg",
+    "Range",
+    "Ready for any brief.",
+    tplButton("Start an inquiry", "/directory", { tone: "primary" }),
+    "center",
+  );
+  const slide4 = statementSlide(
+    "Slide 4 — Editorial",
+    "lifestyle-2.jpg",
+    "Editorial",
+    "Light and movement.",
+    null,
+    "center",
+  );
+  const slide5 = statementSlide(
+    "Slide 5 — Become a face",
+    "lifestyle-5.jpg",
+    "Become a face",
+    "Your talent deserves to leave a mark.",
+    tplButton("Apply as talent", "/join", { tone: "primary" }),
+    "center",
+  );
 
   return {
     id: makeId("carousel"),
@@ -151,12 +192,16 @@ export function buildHeroSlider(): BuilderNode {
     props: {
       variant: "hero",
       layerLabel: "Hero Slider",
-      heightMode: "viewport",
-      minHeightPx: 620,
+      // Fixed ~400px banner (per owner direction), not a full-viewport hero.
+      heightMode: "fixed",
+      minHeightPx: 400,
       overlay: { scrim: true, tone: "dark", vignette: true, opacity: 0.6 },
       grain: true,
-      transition: "crossfade",
-      transitionMs: 1600,
+      // "slide" (not a full-opacity crossfade): a subtle translateX + a faster
+      // opacity (0.55x duration) so two text-heavy slides don't sit on top of
+      // each other mid-transition. 900ms keeps the overlap window short.
+      transition: "slide",
+      transitionMs: 900,
       kenBurns: true,
       kenBurnsAmount: 0.1,
       autoplayMs: 5200,
@@ -177,10 +222,8 @@ export function buildHeroSlider(): BuilderNode {
       contentAlign: "bl",
       contentMode: "per-slide",
       style: {
-        // Mobile: give the bottom-justified content a touch more room above the
-        // fold (the carousel element's own min-height lives on the node, so it
-        // must come through style.responsive, not customCss).
-        responsive: { mobile: { minHeight: "88svh" } },
+        // Fixed ~400px banner height (heightMode "fixed" + minHeightPx) applies
+        // on every breakpoint, so there is no per-tier min-height override.
         // The shared hero sheet hides .site-bn-hero__meta (which holds the dots)
         // at ≤760px, leaving an auto-rotating slider with NO manual controls on
         // a phone. Re-show just the dots (descendants of this carousel node, so
@@ -189,7 +232,7 @@ export function buildHeroSlider(): BuilderNode {
         customCss: `@media (max-width:760px){ .site-bn-hero__meta{ display:flex!important; left:0; right:0; bottom:18px; align-items:center; justify-content:center } .site-bn-hero__count, .site-bn-hero__progress{ display:none } .site-bn-hero__dots{ justify-content:center } .site-bn-hero__dot{ height:8px; width:8px; border-radius:999px } }`,
       },
     },
-    children: [slide1, slide2, slide3],
+    children: [slide1, slide2, slide3, slide4, slide5],
   };
 }
 
