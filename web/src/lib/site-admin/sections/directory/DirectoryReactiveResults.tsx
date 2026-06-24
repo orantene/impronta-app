@@ -36,6 +36,7 @@ import { AIInterpretChip } from "./AIInterpretChip";
 import { DirectoryActiveFilterChips } from "./DirectoryActiveFilterChips";
 import { DirectoryReactiveGrid } from "./DirectoryReactiveGrid";
 import { DirectoryMapView } from "./DirectoryMapView";
+import type { DirectoryCategoryParent } from "@/lib/directory/directory-category-tree";
 import type { DirectoryV1 } from "./schema";
 
 /**
@@ -68,6 +69,7 @@ export type DirectoryTopBarFacetPropShape = {
 export function DirectoryReactiveResults({
   initialPage,
   mapApiKey,
+  categoryTree,
   locale,
   ui,
   topBarFacet,
@@ -107,6 +109,8 @@ export function DirectoryReactiveResults({
   initialPage: DirectoryPageResponse;
   /** Google Maps browser key for the map view (null when unconfigured). */
   mapApiKey?: string | null;
+  /** Two-level parent→child category model for the top bar (empty = flat). */
+  categoryTree?: DirectoryCategoryParent[];
   locale: "en" | "es";
   ui: DirectoryUiCopy;
   /** When set, the pill bar renders this facet. */
@@ -167,6 +171,7 @@ export function DirectoryReactiveResults({
         <DirectoryReactiveResultsInner
           initialPage={initialPage}
           mapApiKey={mapApiKey}
+          categoryTree={categoryTree}
           locale={locale}
           ui={ui}
           topBarFacet={topBarFacet}
@@ -224,6 +229,7 @@ function mapDefaultSort(s: DirectoryV1["defaultSort"]): DirectorySortValue {
 function DirectoryReactiveResultsInner({
   initialPage,
   mapApiKey,
+  categoryTree,
   locale,
   ui,
   topBarFacet,
@@ -261,6 +267,7 @@ function DirectoryReactiveResultsInner({
 }: {
   initialPage: DirectoryPageResponse;
   mapApiKey?: string | null;
+  categoryTree?: DirectoryCategoryParent[];
   locale: "en" | "es";
   ui: DirectoryUiCopy;
   topBarFacet?: DirectoryTopBarFacetPropShape;
@@ -356,6 +363,12 @@ function DirectoryReactiveResultsInner({
     for (const opt of topBarFacet?.options ?? []) {
       labels[opt.id] = opt.label;
     }
+    // Parent-category + child-type labels so the active-filter chip resolves a
+    // hierarchical `?tax=` selection (e.g. "Models") instead of the raw term id.
+    for (const parent of categoryTree ?? []) {
+      labels[parent.id] = parent.label;
+      for (const child of parent.children) labels[child.id] = child.label;
+    }
     for (const block of sidebarBlocks) {
       if (block.kind !== "section") continue;
       const section = block.section;
@@ -367,7 +380,7 @@ function DirectoryReactiveResultsInner({
       }
     }
     return { labelById: labels, fieldLabelByKey: fieldLabels };
-  }, [topBarFacet, sidebarBlocks]);
+  }, [topBarFacet, sidebarBlocks, categoryTree]);
 
   // Propagate grid refetch state up to the toolbar so the result count
   // dims while a filter change is in flight (Task 4).
@@ -387,6 +400,7 @@ function DirectoryReactiveResultsInner({
       {showTopBar && topBarFacet ? (
         <DirectoryTalentTypeBar
           options={topBarFacet.options}
+          categoryTree={categoryTree}
           selectedIds={taxonomyTermIds}
           allLabel={ui.topBarPills.all}
           barAriaLabel={topBarFacet.label}
