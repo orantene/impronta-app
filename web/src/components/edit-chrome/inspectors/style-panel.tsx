@@ -8690,6 +8690,48 @@ export function StylePanel({
                 <span className="text-[11px]" style={{ color: CHROME.muted }}>
                   Background position
                 </span>
+                <div className="flex flex-wrap gap-1">
+                  {(
+                    [
+                      { label: "Top", value: "center top" },
+                      { label: "Center", value: "center center" },
+                      { label: "Bottom", value: "center bottom" },
+                      { label: "Left", value: "left center" },
+                      { label: "Right", value: "right center" },
+                    ] as const
+                  ).map((preset) => {
+                    const active =
+                      (
+                        selectedStandaloneViewportStyle?.backgroundPosition ?? ""
+                      ).trim() === preset.value;
+                    return (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        onClick={() =>
+                          patchSelectedStandaloneStyle({
+                            backgroundPosition: preset.value,
+                          })
+                        }
+                        className="cursor-pointer text-[11px]"
+                        style={{
+                          height: 24,
+                          padding: "0 9px",
+                          background: active ? CHROME.accent : CHROME.surface2,
+                          border: `1px solid ${
+                            active ? CHROME.accent : CHROME.controlBorder
+                          }`,
+                          borderRadius: 7,
+                          color: active ? "#ffffff" : CHROME.ink,
+                          fontWeight: active ? 600 : 400,
+                          outline: "none",
+                        }}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
                 <input
                   type="text"
                   className="px-2"

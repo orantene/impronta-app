@@ -1207,21 +1207,55 @@ export async function publishHomepage(
   if (draftErr) return fail("FORBIDDEN", draftErr.message);
   const draftRows = (draftRowsRaw ?? []) as HomepagePageSectionRow[];
 
-  // --- gate 5: required slots ---
-  const bySlot = new Map<string, HomepagePageSectionRow[]>();
-  for (const r of draftRows) {
-    const arr = bySlot.get(r.slot_key) ?? [];
-    arr.push(r);
-    bySlot.set(r.slot_key, arr);
-  }
-  for (const slot of homepageTemplate.meta.slots) {
-    if (!slot.required) continue;
-    const entries = bySlot.get(slot.key);
-    if (!entries || entries.length === 0) {
-      return fail(
-        "PUBLISH_NOT_READY",
-        `Required slot "${slot.label}" is empty. Add at least one section before publishing.`,
-      );
+  // --- load the version-matched builderTree up front ---
+  // Hoisted above gate 5 so we can detect a genuinely-FREEFORM homepage (all
+  // content in builderTree, zero curated slot rows) before the required-slot
+  // check. This load is also consumed below (gate-5-skip + snapshot build), so
+  // it must run exactly once here.
+  const { data: revisionRow } = await supabase
+    .from("cms_page_revisions")
+    .select("snapshot")
+    .eq("tenant_id", tenantId)
+    .eq("page_id", beforeRow.id)
+    .eq("version", beforeRow.version)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
+  const versionMatchedBuilderTree =
+    revisionRow?.snapshot &&
+    typeof revisionRow.snapshot === "object" &&
+    "builderTree" in revisionRow.snapshot
+      ? revisionRow.snapshot.builderTree
+      : undefined;
+
+  // FREEFORM homepage = zero curated draft slot rows AND a non-empty builderTree
+  // (same shape test as copyPublishedToDraft). Such a page carries 100% of its
+  // content in the builder tree and has no `hero` slot row, so the required-slot
+  // gate below would wrongly reject it — and the publish would never reach the
+  // cache-busting revalidateTag, leaving prod stale until the 300s data-cache
+  // TTL. We relax gate 5 ONLY for this case; slot-based homepages are unchanged.
+  const isFreeformHomepage =
+    draftRows.length === 0 &&
+    Array.isArray(versionMatchedBuilderTree) &&
+    versionMatchedBuilderTree.length > 0;
+
+  // --- gate 5: required slots (skipped for genuinely-freeform homepages) ---
+  if (!isFreeformHomepage) {
+    const bySlot = new Map<string, HomepagePageSectionRow[]>();
+    for (const r of draftRows) {
+      const arr = bySlot.get(r.slot_key) ?? [];
+      arr.push(r);
+      bySlot.set(r.slot_key, arr);
+    }
+    for (const slot of homepageTemplate.meta.slots) {
+      if (!slot.required) continue;
+      const entries = bySlot.get(slot.key);
+      if (!entries || entries.length === 0) {
+        return fail(
+          "PUBLISH_NOT_READY",
+          `Required slot "${slot.label}" is empty. Add at least one section before publishing.`,
+        );
+      }
     }
   }
 
@@ -1276,21 +1310,8 @@ export async function publishHomepage(
     slotsForSnapshot[r.slot_key] = arr;
   }
   const compositionSnapshot = buildSnapshotSlots(slotsForSnapshot, factsById);
-  const { data: revisionRow } = await supabase
-    .from("cms_page_revisions")
-    .select("snapshot")
-    .eq("tenant_id", tenantId)
-    .eq("page_id", beforeRow.id)
-    .eq("version", beforeRow.version)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
-  const versionMatchedBuilderTree =
-    revisionRow?.snapshot &&
-    typeof revisionRow.snapshot === "object" &&
-    "builderTree" in revisionRow.snapshot
-      ? revisionRow.snapshot.builderTree
-      : undefined;
+  // `versionMatchedBuilderTree` was loaded up front (above gate 5) so it could
+  // drive freeform detection; reuse it here rather than re-querying.
   // Self-heal guard (homepage draft empty-load incident, 2026-06-11): never
   // freeze an empty homepage at publish if the version pointer drifted onto an
   // empty revision while a recent non-empty draft still exists. See
