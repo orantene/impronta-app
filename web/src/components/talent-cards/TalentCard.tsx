@@ -41,19 +41,30 @@ function resolveName(
 }
 
 function OwnershipBadge({ data }: { data: CanonicalTalentCardData }) {
-  const label =
-    data.isExclusive && data.agencyName
-      ? `${data.agencyName} · exclusive`
-      : data.agencyName
-        ? data.agencyName
-        : "Independent";
+  // A tenant storefront directory shows ONE agency's roster, so stamping the
+  // agency's own name on every card is pure repetition (it's already the site
+  // brand in the header). Render only a DIFFERENTIATING signal: an exclusive
+  // mark (gold, on-brand) or an independent tag. A bare own-agency name → no
+  // badge at all. Cross-agency surfaces still surface "Exclusive"/"Independent".
+  if (data.isExclusive) {
+    return (
+      <span
+        data-card-ownership
+        data-card-chip
+        className="pointer-events-none inline-flex max-w-full items-center truncate rounded-full border border-[var(--dir-accent)] bg-background/85 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--impronta-gold-bright)] backdrop-blur-sm"
+      >
+        Exclusive
+      </span>
+    );
+  }
+  if (data.agencyName) return null;
   return (
     <span
       data-card-ownership
       data-card-chip
       className="pointer-events-none inline-flex max-w-full items-center truncate rounded-full border border-border bg-background/85 px-2 py-0.5 text-[10px] font-medium tracking-wide text-foreground backdrop-blur-sm"
     >
-      {label}
+      Independent
     </span>
   );
 }
