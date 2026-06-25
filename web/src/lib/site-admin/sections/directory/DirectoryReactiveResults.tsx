@@ -389,6 +389,11 @@ function DirectoryReactiveResultsInner({
     setIsGridFetching(fetching);
   }, []);
 
+  // The grid reports the FILTERED total so the toolbar count tracks the active
+  // filters; falls back to the SSR-seeded total until the first client result.
+  const [liveCount, setLiveCount] = useState<number | null>(null);
+  const handleCountChange = useCallback((c: number) => setLiveCount(c), []);
+
   // Side-effect-free: the legacy controls below call `usePathname()`
   // themselves and route through `commitDirectoryListingUrl`, which now
   // auto-detects basePath from pathname (`/p/...` stays on that path).
@@ -482,7 +487,7 @@ function DirectoryReactiveResultsInner({
 
           {showSort || showResultCount ? (
             <DirectoryResultsToolbar
-              totalCount={initialPage.totalCount ?? 0}
+              totalCount={liveCount ?? initialPage.totalCount ?? 0}
               sort={sort}
               view={view}
               ui={ui}
@@ -544,6 +549,7 @@ function DirectoryReactiveResultsInner({
               cardStyle={cardStyle}
               cardAspect={cardAspect}
               onFetchingChange={handleFetchingChange}
+              onCountChange={handleCountChange}
               show={{
                 showName,
                 showTalentType,

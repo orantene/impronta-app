@@ -25,7 +25,8 @@ export function TalentDirectoryListRow({
   aiOverlay = null,
 }: {
   card: DirectoryCardDTO;
-  onQuickPreview: () => void;
+  /** Optional quick-preview handler; the preview button is hidden when absent. */
+  onQuickPreview?: () => void;
   priority?: boolean;
   sourcePage?: string;
   ui: DirectoryUiCopy;
@@ -130,13 +131,15 @@ export function TalentDirectoryListRow({
           >
             <Link href={profileHref}>{lc.view}</Link>
           </Button>
-          <button
-            type="button"
-            className="text-[10px] font-medium uppercase tracking-wide text-[var(--impronta-muted)] underline-offset-4 hover:text-[var(--impronta-gold)] hover:underline"
-            onClick={onQuickPreview}
-          >
-            {lc.preview}
-          </button>
+          {onQuickPreview ? (
+            <button
+              type="button"
+              className="text-[10px] font-medium uppercase tracking-wide text-[var(--impronta-muted)] underline-offset-4 hover:text-[var(--impronta-gold)] hover:underline"
+              onClick={onQuickPreview}
+            >
+              {lc.preview}
+            </button>
+          ) : null}
         </div>
       </div>
     </article>
