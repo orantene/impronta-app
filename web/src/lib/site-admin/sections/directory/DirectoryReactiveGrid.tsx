@@ -20,6 +20,7 @@ import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import type { SearchResult } from "@/lib/ai/search-result";
 
 import { DirectoryCardAdapter } from "./DirectoryCardAdapter";
+import { TalentDirectoryListRow } from "@/components/directory/talent-directory-list-row";
 import { buildManualCodeOrder, filterToManualCodes } from "./manual-filter";
 import type { DirectoryV1 } from "./schema";
 
@@ -64,6 +65,7 @@ export function DirectoryReactiveGrid({
   columnsTablet,
   columnsMobile,
   onFetchingChange,
+  onCountChange,
 }: {
   taxonomyTermIds: string[];
   initialPage: DirectoryPageResponse;
@@ -111,6 +113,8 @@ export function DirectoryReactiveGrid({
   columnsMobile: number;
   /** Called whenever the filter-refetch-in-flight state changes. */
   onFetchingChange?: (isFetching: boolean) => void;
+  /** Called with the filtered total whenever a fresh result set arrives. */
+  onCountChange?: (count: number) => void;
 }) {
   const taxKey = [...taxonomyTermIds].sort().join(",");
   const ffKey = serializeDirectoryFieldFacetParams(fieldFacets).join("|");
@@ -255,6 +259,17 @@ export function DirectoryReactiveGrid({
     onFetchingChange?.(filterRefetchInFlight);
   }, [filterRefetchInFlight, onFetchingChange]);
 
+  // Report the filtered total so the toolbar count tracks the active filters
+  // instead of the SSR-seeded unfiltered total. Skip while placeholder data is
+  // showing (keep the last good count) and for manual scope (client-trimmed).
+  const liveTotalCount =
+    !manualActive && !isPlaceholderData && status === "success"
+      ? data?.pages?.[0]?.totalCount ?? null
+      : null;
+  useEffect(() => {
+    if (liveTotalCount != null) onCountChange?.(liveTotalCount);
+  }, [liveTotalCount, onCountChange]);
+
   if (status === "error" && items.length === 0) {
     return (
       <p
@@ -307,24 +322,37 @@ export function DirectoryReactiveGrid({
             : undefined
         }
       >
-        <div className={gridClass}>
-          {items.map((card, index) => (
-            <DirectoryCardAdapter
-              key={card.id}
-              card={card}
-              cardStyle={cardStyle}
-              cardAspect={cardAspect}
-              show={show}
-              showSave={showSave}
-              showAddToInquiry={showAddToInquiry}
-              cardFieldKeys={cardFieldKeys}
-              maxFieldLines={maxFieldLines}
-              nameFallback={nameFallback}
-              priority={index < 4}
-              index={index}
-            />
-          ))}
-        </div>
+        {view === "list" ? (
+          <div className="flex flex-col gap-3">
+            {items.map((card, index) => (
+              <TalentDirectoryListRow
+                key={card.id}
+                card={card}
+                ui={ui}
+                priority={index < 4}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className={gridClass}>
+            {items.map((card, index) => (
+              <DirectoryCardAdapter
+                key={card.id}
+                card={card}
+                cardStyle={cardStyle}
+                cardAspect={cardAspect}
+                show={show}
+                showSave={showSave}
+                showAddToInquiry={showAddToInquiry}
+                cardFieldKeys={cardFieldKeys}
+                maxFieldLines={maxFieldLines}
+                nameFallback={nameFallback}
+                priority={index < 4}
+                index={index}
+              />
+            ))}
+          </div>
+        )}
       </div>
       {filterRefetchBusy ? (
         <p
