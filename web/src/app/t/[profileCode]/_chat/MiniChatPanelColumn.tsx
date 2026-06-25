@@ -442,12 +442,19 @@ export function MiniChatPanelColumn({
             if (r.ok) onCapturedChipKind(input.kind);
             return r;
           }}
-          onAddMoreDetails={() => {
-            window.open(
-              `/${tenantSlug}/client/messages?new=1&talent=${talentProfileId}`,
-              "_blank",
-            );
-          }}
+          onAddMoreDetails={
+            // /client/messages requires an authenticated client — for guests it
+            // 404s/redirects, so hide the escalation entirely (the chips already
+            // capture the inquiry spine for guests).
+            identity === "guest"
+              ? undefined
+              : () => {
+                  window.open(
+                    `/${tenantSlug}/client/messages?new=1&talent=${talentProfileId}`,
+                    "_blank",
+                  );
+                }
+          }
         />
       )}
 

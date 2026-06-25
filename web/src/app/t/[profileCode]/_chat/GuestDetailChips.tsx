@@ -90,7 +90,9 @@ export type GuestDetailChipsProps = {
    *   B) openInquiryDrawer(prefill) via DirectoryInquiryModalProvider
    * This component is agnostic — it just surfaces the button.
    */
-  onAddMoreDetails: () => void;
+  /** Escalate to the full inquiry form. Omitted (e.g. for guests, whose
+   *  destination would 404) hides the "Add more details" button entirely. */
+  onAddMoreDetails?: () => void;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -328,15 +330,18 @@ export function GuestDetailChips({
       {/* Chip error display */}
       {chipError && <p style={errorStyle}>{chipError}</p>}
 
-      {/* "Add more details" escalation affordance */}
-      <button
-        type="button"
-        style={addMoreStyle}
-        onClick={onAddMoreDetails}
-        aria-label="Add more details in the full inquiry form"
-      >
-        Add more details →
-      </button>
+      {/* "Add more details" escalation affordance — hidden when no handler
+          (guests, whose /client/messages destination would 404). */}
+      {onAddMoreDetails ? (
+        <button
+          type="button"
+          style={addMoreStyle}
+          onClick={onAddMoreDetails}
+          aria-label="Add more details in the full inquiry form"
+        >
+          Add more details →
+        </button>
+      ) : null}
     </div>
   );
 }

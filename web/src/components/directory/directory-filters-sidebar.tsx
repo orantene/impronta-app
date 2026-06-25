@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
@@ -918,14 +917,9 @@ export function DirectoryFiltersSidebar({
           <li className="font-medium text-foreground">{fc.emptyAsideBulletAdmin}</li>
           <li className="text-foreground">{fc.emptyAsideBulletMigration}</li>
         </ul>
-        <p>
-          <Link
-            href="/admin/directory/filters"
-            className="font-medium text-white underline underline-offset-4"
-          >
-            {fc.emptyAsideLink}
-          </Link>
-        </p>
+        {/* The former "{fc.emptyAsideLink}" → /admin/directory/filters link was
+            removed: that route does not exist (a dead 404 leaking admin chrome
+            onto the public directory). Admins manage filters from the admin app. */}
       </aside>
     );
   }
