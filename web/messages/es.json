@@ -566,7 +566,22 @@
     },
     "contact": {
       "title": "Contacto",
-      "body": "Los flujos de consulta y el contacto con la agencia vivirán aquí."
+      "body": "Cuéntanos sobre tu proyecto y la agencia se pondrá en contacto. Comparte qué necesitas, para quién y cuándo, y te responderemos por correo.",
+      "form": {
+        "nameLabel": "Tu nombre",
+        "emailLabel": "Correo",
+        "phoneLabel": "Teléfono (opcional)",
+        "messageLabel": "Tu mensaje",
+        "messagePlaceholder": "Cuéntanos sobre tu proyecto: fechas, lugar, qué estás buscando…",
+        "submit": "Enviar consulta",
+        "submitting": "Enviando…",
+        "privacy": "Al enviar esto, contactas solo con la agencia. Te responderemos por correo.",
+        "successTitle": "Consulta enviada",
+        "successBody": "Gracias, tu mensaje llegó a la agencia. Nos pondremos en contacto por correo.",
+        "successBodyWithEmail": "Gracias, tu mensaje llegó a la agencia. Nos pondremos en contacto por correo a {email}.",
+        "sendAnother": "Enviar otra consulta",
+        "errorMessageRequired": "Agrega un mensaje breve para que la agencia sepa cómo ayudarte."
+      }
     },
     "guestChat": {
       "noMessagesYet": "Aún no hay mensajes. Envía el primero abajo y el equipo te responderá por correo.",

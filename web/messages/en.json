@@ -566,7 +566,22 @@
     },
     "contact": {
       "title": "Contact",
-      "body": "Inquiry flows and agency contact will live here."
+      "body": "Tell us about your project and the agency will be in touch. Share what you need, who it is for, and when, and we will follow up by email.",
+      "form": {
+        "nameLabel": "Your name",
+        "emailLabel": "Email",
+        "phoneLabel": "Phone (optional)",
+        "messageLabel": "Your message",
+        "messagePlaceholder": "Tell us about your project: dates, location, what you are looking for…",
+        "submit": "Send inquiry",
+        "submitting": "Sending…",
+        "privacy": "By sending this, you contact the agency only. We will reply by email.",
+        "successTitle": "Inquiry sent",
+        "successBody": "Thanks — your message reached the agency. We will be in touch by email.",
+        "successBodyWithEmail": "Thanks — your message reached the agency. We will be in touch by email at {email}.",
+        "sendAnother": "Send another inquiry",
+        "errorMessageRequired": "Please add a short message so the agency knows how to help."
+      }
     },
     "guestChat": {
       "noMessagesYet": "No messages yet. Send the first one below and the team will reply by email.",
