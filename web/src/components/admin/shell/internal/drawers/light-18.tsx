@@ -531,9 +531,11 @@ export function InviteFlowDrawer() {
                 {error}
               </div>
             )}
-            {/* Tab */}
+            {/* Tab — only the Talent invite is wired today; Client/Agency invite
+                tabs are hidden (not shown as dead-end tabs) until their server
+                actions exist. The handleSend guard below stays as a safety net. */}
             <div style={{ display: "flex", gap: 4, padding: 3 }} className="bg-admin-surface-alt rounded-admin-md">
-              {(["talent", "client", "agency"] as const).map((t) => (
+              {(["talent"] as const).map((t) => (
                 <button
                   key={t}
                   type="button"

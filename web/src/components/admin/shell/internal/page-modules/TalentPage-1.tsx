@@ -285,7 +285,7 @@ export function TalentPage() {
           onUpgrade={() => {
             const next = nextPlanForRoster(state.plan)!;
             openUpgrade({
-              feature: `${PLAN_META[next].label} — room to grow`,
+              feature: `${PLAN_META[next].label}: room to grow`,
               outcome:
                 roster.length >= rosterCap
                   ? "You're at the limit. Upgrade and add the next talent immediately."

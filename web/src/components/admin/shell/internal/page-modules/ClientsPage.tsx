@@ -74,7 +74,7 @@ export function ClientsPage() {
           />
           <LockedCard
             title="Owned client list"
-            description="With Studio, every inquiry on your domain becomes a client you own. We never share your client list with anyone — including Tulala discovery."
+            description="With Studio, every inquiry on your domain becomes a client you own. We never share your client list with anyone, including Tulala discovery."
             requiredPlan="studio"
             onClick={() =>
               openUpgrade({
@@ -302,7 +302,7 @@ export function ClientsPage() {
             onClick={() =>
               openUpgrade({
                 feature: "Client field catalog",
-                why: "Add the fields your team segments clients by — region, brand tier, preferred talent.",
+                why: "Add the fields your team segments clients by: region, brand tier, preferred talent.",
                 requiredPlan: "agency",
               })
             }
