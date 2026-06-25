@@ -3458,7 +3458,20 @@ function renderBuilderNodeElement(
         const heroSlides = nodeChildren(node)
           .filter((child) => shouldRenderNode(child, options))
           .map((child, index) => {
-            const activeAttr = index === 0 ? "" : undefined;
+            const isActive = index === 0;
+            const activeAttr = isActive ? "" : undefined;
+            // SSR a11y: hide every non-first slide from AT + the tab order at
+            // first paint, exactly matching what the client crossfade effect
+            // converges to (active = slide 0). Without this, the pre-hydration
+            // markup exposes all slides — and their focusable CTAs — to screen
+            // readers / Tab. `inert` (boolean → bare attr in React 19) also drops
+            // focusable descendants out of the a11y tree, so aria-hidden never
+            // wraps a focusable node (WCAG 4.1.2). The client effect mirrors this
+            // (setAttribute("inert","") / aria-hidden="true"), so there is no
+            // hydration mismatch.
+            const inactiveAttrs = isActive
+              ? {}
+              : { "aria-hidden": true as const, inert: true as const };
             // Image-only slide → the eager <img> IS the Ken-Burns background layer.
             if (child.kind === "image") {
               const img = {
@@ -3480,6 +3493,7 @@ function renderBuilderNodeElement(
                   key={`${node.id}:slide:${child.id}`}
                   className="site-bn-hero__slide"
                   data-active={activeAttr}
+                  {...inactiveAttrs}
                 >
                   <div className="site-bn-hero__slide-bg">
                     {renderBuilderNode(img, options)}
@@ -3567,6 +3581,7 @@ function renderBuilderNodeElement(
                 key={`${node.id}:slide:${child.id}`}
                 className="site-bn-hero__slide"
                 data-active={activeAttr}
+                {...inactiveAttrs}
               >
                 <div
                   className="site-bn-hero__slide-bg"

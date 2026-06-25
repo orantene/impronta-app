@@ -34,6 +34,24 @@
     },
     "common": {
       "brand": "Roster"
+    },
+    "contact": {
+      "body": "Parlez-nous de votre projet et l’agence vous recontactera. Indiquez ce dont vous avez besoin, pour qui et quand, et nous vous répondrons par e-mail.",
+      "form": {
+        "nameLabel": "Votre nom",
+        "emailLabel": "E-mail",
+        "phoneLabel": "Téléphone (facultatif)",
+        "messageLabel": "Votre message",
+        "messagePlaceholder": "Parlez-nous de votre projet : dates, lieu, ce que vous recherchez…",
+        "submit": "Envoyer la demande",
+        "submitting": "Envoi…",
+        "privacy": "En envoyant ceci, vous contactez uniquement l’agence. Nous répondrons par e-mail.",
+        "successTitle": "Demande envoyée",
+        "successBody": "Merci, votre message est parvenu à l’agence. Nous vous recontacterons par e-mail.",
+        "successBodyWithEmail": "Merci, votre message est parvenu à l’agence. Nous vous recontacterons par e-mail à {email}.",
+        "sendAnother": "Envoyer une autre demande",
+        "errorMessageRequired": "Ajoutez un court message pour que l’agence sache comment vous aider."
+      }
     }
   },
   "dashboard": {
