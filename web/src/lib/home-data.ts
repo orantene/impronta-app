@@ -128,40 +128,40 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
         .limit(8)
     : Promise.resolve({ data: [], error: null });
 
-  const [featuredRes, fitRes, locationsRes] = await Promise.all([
-    featuredQuery,
+  // Per-division representative-image inputs — fetched in parallel with the
+  // other homepage reads so they add ZERO serial latency on the (uncached,
+  // force-dynamic) homepage path. Consumed by the divisionImageByTermId block
+  // below. Skipped (empty) for a roster-less tenant.
+  const divisionTermsQuery = hasRoster
+    ? supabase.from("taxonomy_terms").select("id, parent_id").is("archived_at", null)
+    : Promise.resolve({ data: [], error: null });
+  const divisionRosterTaxQuery = hasRoster
+    ? supabase
+        .from("talent_profile_taxonomy")
+        .select("talent_profile_id, taxonomy_term_id")
+        .in("talent_profile_id", rosterTalentIds)
+    : Promise.resolve({ data: [], error: null });
 
-    supabase
-      .from("taxonomy_terms")
-      .select("id, slug, name_i18n")
-      .eq("kind", "fit_label")
-      .is("archived_at", null)
-      .order("sort_order"),
+  const [featuredRes, fitRes, locationsRes, divisionTermsRes, divisionRosterTaxRes] =
+    await Promise.all([
+      featuredQuery,
 
-    supabase
-      .from("locations")
-      .select("id, city_slug, display_name_i18n, country_code, latitude, longitude")
-      .is("archived_at", null)
-      .order("display_name_i18n->>en"),
-  ]);
+      supabase
+        .from("taxonomy_terms")
+        .select("id, slug, name_i18n")
+        .eq("kind", "fit_label")
+        .is("archived_at", null)
+        .order("sort_order"),
 
-  const talentTypes = talentTypeRows.map((t) => {
-    const placements = t.promo_placements ?? [];
-    const path = t.promo_image_storage_path;
-    const showPromo =
-      Boolean(path) &&
-      Array.isArray(placements) &&
-      placements.includes(TAXONOMY_PLACEMENT_HOME_BROWSE_BY_TYPE);
-    const imageUrl = showPromo && path
-      ? supabase.storage.from("media-public").getPublicUrl(path).data.publicUrl ?? null
-      : null;
-    return {
-      id: t.id,
-      slug: t.slug,
-      name: t.name_i18n?.en ?? t.slug,
-      imageUrl,
-    };
-  });
+      supabase
+        .from("locations")
+        .select("id, city_slug, display_name_i18n, country_code, latitude, longitude")
+        .is("archived_at", null)
+        .order("display_name_i18n->>en"),
+
+      divisionTermsQuery,
+      divisionRosterTaxQuery,
+    ]);
 
   // Get thumbnail for each featured talent
   const featuredIds = (featuredRes.data ?? []).map((t) => t.id);
@@ -189,6 +189,126 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
       }
     }
   }
+
+  // ── Per-division representative image (TENANT-SCOPED) ───────────────────────
+  // Each homepage "division" card binds {{imageUrl}} to this. The division
+  // taxonomy_terms are GLOBAL (one shared row per category), so writing a
+  // promo_image onto them would leak THIS tenant's talent photo onto every
+  // other tenant's homepage. Instead derive a representative photo from THIS
+  // tenant's own roster talent in each category (featured talent preferred):
+  // every tenant shows its own faces, and a category with no roster talent or
+  // no approved image gracefully falls back to the text-only card. A curated
+  // global promo image (promo_image_storage_path + the home-browse placement),
+  // when an operator sets one, still wins over the derived photo.
+  const divisionImageByTermId: Record<string, string> = {};
+  if (hasRoster && talentTypeRows.length > 0) {
+    // Divisions are parent_category roots; talent are tagged at descendant
+    // leaves. Walk any tagged term UP to its root to find its division. The two
+    // reads were issued in the Promise.all above (zero added serial latency).
+    if (divisionTermsRes.error)
+      logServerError("home/getHomepageData/divisionTaxonomy", divisionTermsRes.error);
+    if (divisionRosterTaxRes.error)
+      logServerError("home/getHomepageData/divisionRosterTax", divisionRosterTaxRes.error);
+    const parentById = new Map<string, string | null>();
+    for (const tr of (divisionTermsRes.data ?? []) as {
+      id: string;
+      parent_id: string | null;
+    }[]) {
+      parentById.set(tr.id, tr.parent_id);
+    }
+    const rootOf = (termId: string): string => {
+      let cur = termId;
+      for (let i = 0; i < 8; i += 1) {
+        const parent = parentById.get(cur);
+        if (!parent) break;
+        cur = parent;
+      }
+      return cur;
+    };
+    const divisionIds = new Set(talentTypeRows.map((t) => t.id));
+
+    const rosterTax = divisionRosterTaxRes.data;
+
+    const featuredSet = new Set(featuredIds);
+    const candidatesByDivision = new Map<string, string[]>();
+    for (const row of (rosterTax ?? []) as {
+      talent_profile_id: string;
+      taxonomy_term_id: string;
+    }[]) {
+      const root = rootOf(row.taxonomy_term_id);
+      if (!divisionIds.has(root)) continue;
+      const arr = candidatesByDivision.get(root) ?? [];
+      if (!arr.includes(row.talent_profile_id)) arr.push(row.talent_profile_id);
+      candidatesByDivision.set(root, arr);
+    }
+
+    // Pick one representative talent per division — already-thumbnailed +
+    // featured first — and note any whose image still needs fetching.
+    const score = (id: string) =>
+      (thumbnailMap[id] ? 2 : 0) + (featuredSet.has(id) ? 1 : 0);
+    const pickByDivision = new Map<string, string>();
+    const needImageFor = new Set<string>();
+    for (const [divisionId, ids] of candidatesByDivision) {
+      const ordered = [...ids].sort((a, b) => score(b) - score(a));
+      const chosen = ordered.find((id) => thumbnailMap[id]) ?? ordered[0];
+      if (!chosen) continue;
+      pickByDivision.set(divisionId, chosen);
+      if (!thumbnailMap[chosen]) needImageFor.add(chosen);
+    }
+
+    if (needImageFor.size > 0) {
+      const { data: divMedia, error: divMediaErr } = await supabase
+        .from("media_assets")
+        .select("owner_talent_profile_id, storage_path, variant_kind")
+        .in("owner_talent_profile_id", [...needImageFor])
+        .eq("approval_state", "approved")
+        .is("deleted_at", null)
+        .in("variant_kind", ["card", "public_watermarked", "gallery"])
+        .order("variant_kind")
+        .order("sort_order");
+      if (divMediaErr)
+        logServerError("home/getHomepageData/divisionMedia", divMediaErr);
+      for (const row of (divMedia ?? []) as {
+        owner_talent_profile_id: string;
+        storage_path: string | null;
+      }[]) {
+        if (!thumbnailMap[row.owner_talent_profile_id] && row.storage_path) {
+          const { data: urlData } = supabase.storage
+            .from("media-public")
+            .getPublicUrl(row.storage_path);
+          if (urlData?.publicUrl) {
+            thumbnailMap[row.owner_talent_profile_id] = urlData.publicUrl;
+          }
+        }
+      }
+    }
+
+    for (const [divisionId, talentId] of pickByDivision) {
+      const url = thumbnailMap[talentId];
+      if (url) divisionImageByTermId[divisionId] = url;
+    }
+  }
+
+  const talentTypes = talentTypeRows.map((t) => {
+    const placements = t.promo_placements ?? [];
+    const path = t.promo_image_storage_path;
+    const showPromo =
+      Boolean(path) &&
+      Array.isArray(placements) &&
+      placements.includes(TAXONOMY_PLACEMENT_HOME_BROWSE_BY_TYPE);
+    const promoUrl =
+      showPromo && path
+        ? supabase.storage.from("media-public").getPublicUrl(path).data.publicUrl ?? null
+        : null;
+    // Curated global promo image wins; else this tenant's own roster photo.
+    const imageUrl = promoUrl ?? divisionImageByTermId[t.id] ?? null;
+    return {
+      id: t.id,
+      slug: t.slug,
+      name: t.name_i18n?.en ?? t.slug,
+      imageUrl,
+    };
+  });
 
   const featuredTalent: FeaturedTalentCard[] = (featuredRes.data ?? []).map(
     (t) => {

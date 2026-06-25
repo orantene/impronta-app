@@ -71,7 +71,7 @@ export function buildHeroSlider(): BuilderNode {
       align: "stretch",
       style: {
         backgroundImage: "url('/talent-templates/demo/impronta-2026/lifestyle-1.jpg')",
-        backgroundPosition: "center center",
+        backgroundPosition: "center top",
         justifyContent: "flex-end",
         paddingLeft: "7vw",
         paddingRight: "7vw",
@@ -140,7 +140,7 @@ export function buildHeroSlider(): BuilderNode {
         align: "center",
         style: {
           backgroundImage: `url('/talent-templates/demo/impronta-2026/${image}')`,
-          backgroundPosition: `${focalX} center`,
+          backgroundPosition: `${focalX} top`,
           justifyContent: "flex-end",
           paddingLeft: "7vw",
           paddingRight: "7vw",
@@ -192,9 +192,9 @@ export function buildHeroSlider(): BuilderNode {
     props: {
       variant: "hero",
       layerLabel: "Hero Slider",
-      // Fixed ~400px banner (per owner direction), not a full-viewport hero.
+      // Fixed 600px band (per owner direction), not a full-viewport hero.
       heightMode: "fixed",
-      minHeightPx: 400,
+      minHeightPx: 600,
       overlay: { scrim: true, tone: "dark", vignette: true, opacity: 0.6 },
       grain: true,
       // "slide" (not a full-opacity crossfade): a subtle translateX + a faster
@@ -469,11 +469,14 @@ export function buildStoryHouse(): BuilderNode {
         maxWidthFree: "1280px",
         marginLeftFree: "auto",
         marginRightFree: "auto",
-        paddingTop: "9vh",
-        paddingBottom: "9vh",
         paddingLeft: "7vw",
         paddingRight: "7vw",
         containerType: "inline-size",
+        // Vertical rhythm: width-relative clamp (was 9vh, which ballooned on tall
+        // screens into ~200px inter-section voids). Clamp exceeds the 16-char
+        // paddingTop/Bottom cap, so it lives in customCss; mobile trims.
+        customCss:
+          "{ padding-top: clamp(48px,6vw,88px); padding-bottom: clamp(48px,6vw,88px); }\n@media (max-width: 640px) { { padding-top: 44px; padding-bottom: 44px; } }",
       },
     }),
   ]);
