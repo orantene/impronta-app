@@ -214,7 +214,7 @@ export function DirectoryTalentTypeBar({
       <div className="relative">
         <FilterChips
           className={cn(
-            "mb-3 flex-nowrap snap-x snap-proximity gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            "mb-3 flex-nowrap snap-x snap-proximity overscroll-x-contain touch-pan-x gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
             pending && "pointer-events-none opacity-60",
           )}
           role="tablist"
@@ -276,7 +276,7 @@ export function DirectoryTalentTypeBar({
                 "flex min-w-0 flex-1 items-center gap-1.5",
                 childrenExpanded
                   ? "flex-wrap"
-                  : "flex-nowrap snap-x snap-proximity overflow-x-auto scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                  : "flex-nowrap snap-x snap-proximity overscroll-x-contain touch-pan-x overflow-x-auto scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
               )}
             >
               {activeParent.children.map((c) => {
@@ -289,7 +289,7 @@ export function DirectoryTalentTypeBar({
                     aria-pressed={on}
                     title={c.label}
                     className={cn(
-                      "snap-start shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-medium tracking-[0.08em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                      "snap-start shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-[10px] font-medium tracking-[0.08em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                       on
                         ? "border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
                         : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/25 hover:text-white/85",
@@ -407,7 +407,7 @@ export function DirectoryTalentTypeBar({
     <div className="relative">
       <FilterChips
         className={cn(
-          "mb-4 flex-nowrap snap-x snap-proximity gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          "mb-4 flex-nowrap snap-x snap-proximity overscroll-x-contain touch-pan-x gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
           pending && "pointer-events-none opacity-60",
         )}
         role="tablist"
