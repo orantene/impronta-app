@@ -297,7 +297,6 @@ export function GlobalPayoutsCustomForm({
               style={{ ...fieldBase, background: C.fieldLocked, color: C.inkMuted, cursor: "not-allowed" }}
             >
               <option value="individual">Individual</option>
-              <option value="company">Company (coming soon)</option>
             </select>
           </div>
 
@@ -404,7 +403,7 @@ export function GlobalPayoutsCustomForm({
             </button>
           </div>
           <p style={{ ...helper, marginTop: 11 }}>
-            Your bank details are never stored on Tulala — only the last 4 digits, for your reference.
+            Your bank details are never stored on Tulala. We keep only the last 4 digits, for your reference.
           </p>
         </>
       )}

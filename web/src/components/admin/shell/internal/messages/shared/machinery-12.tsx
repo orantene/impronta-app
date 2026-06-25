@@ -545,15 +545,8 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
                 Status <strong className="text-admin-ink">awaiting your approval</strong>
               </div>
             ) : (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled
-                  title="Rate requests need a live coordinator workflow."
-                  style={disabledBtn(primaryBtn(COLORS.accent))}
-                >
-                  Ask coordinator
-                </button>
+              <div className="text-admin-ink-muted text-admin-11">
+                No offer yet. Your coordinator will send one when it&apos;s ready.
               </div>
             )}
           </div>

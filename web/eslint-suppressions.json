@@ -993,7 +993,7 @@
   },
   "src/components/admin/shell/internal/talent-drawers/closed-booking.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 35
+      "count": 32
     }
   },
   "src/components/admin/shell/internal/talent-drawers/events.tsx": {
@@ -1016,7 +1016,7 @@
   },
   "src/components/admin/shell/internal/talent-drawers/premium-pages.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 63
+      "count": 62
     }
   },
   "src/components/admin/shell/internal/talent-drawers/profile-essentials.tsx": {

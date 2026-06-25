@@ -51,7 +51,7 @@ export function PayoutNudgeCard({
     : isPending
     ? "You started Stripe onboarding but haven't finished. Open it again to complete."
     : pendingPayouts > 0
-    ? `You have ${pendingPayouts} accepted booking${pendingPayouts === 1 ? "" : "s"} ready to pay out — connect Stripe so we can transfer your earnings.`
+    ? `You have ${pendingPayouts} accepted booking${pendingPayouts === 1 ? "" : "s"} ready to pay out. Connect Stripe so we can transfer your earnings.`
     : "Set up Stripe Express once and we'll auto-transfer your share of every booking. Stripe handles the bank + tax info.";
 
   return (
