@@ -58,7 +58,7 @@ export async function GET(request: Request) {
         const { count: countBefore, error: countError } = await supabase
           .from("saved_talent")
           .select("id", { count: "exact", head: true })
-          .eq("client_user_id", null)
+          .is("client_user_id", null)
           .lt("created_at", thirtyDaysAgo.toISOString());
 
         if (countError) {
@@ -76,7 +76,7 @@ export async function GET(request: Request) {
         const { error: deleteError } = await supabase
           .from("saved_talent")
           .delete()
-          .eq("client_user_id", null)
+          .is("client_user_id", null)
           .lt("created_at", thirtyDaysAgo.toISOString());
 
         if (deleteError) {
