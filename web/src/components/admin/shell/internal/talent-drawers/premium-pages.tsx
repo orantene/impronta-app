@@ -260,27 +260,9 @@ export function TalentTierCompareDrawer() {
             Pro &amp; Max launching soon
           </div>
           <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
-            Join the waitlist and you&apos;ll be first to know — plus an early-access discount when billing opens.
+            We&apos;ll let you know the moment Pro and Max open, with an early-access discount for current talent.
           </div>
         </div>
-        <button
-          onClick={() => undefined}
-          style={{
-            flexShrink: 0,
-            padding: "9px 18px",
-            background: COLORS.indigoSoft,
-            border: `1px solid rgba(91,107,160,0.32)`,
-            borderRadius: 8,
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            fontWeight: 600,
-            color: COLORS.indigoDeep,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          Join waitlist
-        </button>
       </div>
     </DrawerShell>
   );

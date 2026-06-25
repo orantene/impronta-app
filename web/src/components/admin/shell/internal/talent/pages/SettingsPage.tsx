@@ -154,7 +154,7 @@ export function SettingsPage() {
             Distribution decisions live in Reach
           </div>
           <div style={{ fontSize: 11.5, opacity: 0.78, marginTop: 1 }} className="text-admin-indigo-deep">
-            Toggle channels, manage which hubs and studios you&apos;re listed on, set exposure presets — all over there.
+            Toggle channels, manage which hubs and studios you&apos;re listed on, set exposure presets. All over there.
           </div>
         </div>
         <span className="text-admin-indigo-deep text-admin-11h font-semibold">
@@ -204,7 +204,7 @@ export function SettingsPage() {
         ))}
         <SecondaryCard
           title="Add another agency"
-          description="Get invited via email — agencies onboard talent, not the other way around."
+          description="Get invited via email. Agencies onboard talent, not the other way around."
           affordance="Learn more"
           onClick={() => openDrawer("representation")}
         />
@@ -243,7 +243,7 @@ export function SettingsPage() {
       <Grid cols="2">
         <SecondaryCard
           title="Contact preferences"
-          description="Choose which client trust tiers can send you inquiries. Selectivity is opt-in — defaults stay open."
+          description="Choose which client trust tiers can send you inquiries. Selectivity is opt-in; defaults stay open."
           meta={<ContactPolicySummary policy={MY_TALENT_PROFILE.contactPolicy} />}
           affordance="Manage"
           onClick={() => openDrawer("talent-contact-preferences")}
@@ -262,7 +262,7 @@ export function SettingsPage() {
         />
         <SecondaryCard
           title="Payouts"
-          description="Connect a Stripe account to receive payouts on confirmed bookings — set up right inside Tulala."
+          description="Connect a Stripe account to receive payouts on confirmed bookings. Set up right inside Tulala."
           affordance="Set up payouts"
           onClick={() => setTalentPage("payouts")}
         />

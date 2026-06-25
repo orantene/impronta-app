@@ -287,6 +287,14 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   settings:    { label: "Settings" },
 };
 
+/**
+ * EVERY valid TalentPage (superset of the nav-only `TALENT_PAGES`). Use this for
+ * URL/state hydration so in-shell sections reached from Settings — e.g.
+ * `payouts` — survive a hard refresh. `TALENT_PAGES` stays nav-only so those
+ * sections do NOT show up as top-level tabs.
+ */
+export const TALENT_PAGES_ALL = Object.keys(TALENT_PAGE_META) as TalentPage[];
+
 export const CLIENT_PAGE_META: Record<ClientPage, { label: string }> = {
   today: { label: "Today" },
   messages: { label: "Messages" },

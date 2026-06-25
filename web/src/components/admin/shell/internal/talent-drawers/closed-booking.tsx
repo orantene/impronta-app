@@ -276,58 +276,9 @@ export function TalentClosedBookingDrawer() {
             + quoted feedback. Builds the talent's portfolio of validation
             over time. */}
 
-        {/* D4: Contract section. Production: pull signed PDF from
-            booking_contracts table. For prototype: scaffold the link. */}
-        <section>
-          <SectionLabel>Contract</SectionLabel>
-          <button
-            type="button"
-            onClick={() => undefined}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              width: "100%",
-              padding: "12px 14px",
-              marginTop: 8,
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 10,
-              cursor: "pointer",
-              fontFamily: FONTS.body,
-              textAlign: "left",
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                background: COLORS.surfaceAlt,
-                color: COLORS.ink,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                fontFamily: FONTS.display,
-                fontSize: 11,
-                fontWeight: 600,
-              }}
-            >
-              PDF
-            </span>
-            <div className="flex-1 min-w-0">
-              <div className="text-admin-ink text-admin-12h font-medium">
-                Signed booking agreement
-              </div>
-              <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
-                {e.client} · {e.workDate} · counter-signed by both parties
-              </div>
-            </div>
-            <Icon name="external" size={13} color={COLORS.inkDim} />
-          </button>
-        </section>
+        {/* Contract section intentionally not rendered: signed-PDF retrieval
+            from booking_contracts is not wired yet, so a download row here would
+            be a fake CTA. Re-add when contracts are stored + fetchable. */}
 
         {detail.review && (
           <section>
