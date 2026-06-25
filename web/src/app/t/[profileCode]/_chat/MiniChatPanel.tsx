@@ -27,16 +27,29 @@ import { useEffect, useRef, useState } from "react";
 
 import type {
   GuestChipKind,
+  GuestChipValue,
   GuestIdentityTier,
   GuestInquirySummary,
   GuestThreadMessage,
   GuestThreadStatus,
   MiniChatPanelProps,
 } from "@/lib/inquiry/guest-chat-contract";
+import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 
 import { ExpandedChatLayout } from "./ExpandedChatLayout";
 import { MiniChatPanelColumn } from "./MiniChatPanelColumn";
 import { usePresenceChime } from "./usePresenceChime";
+import { useUnifiedInquiry } from "./use-unified-inquiry";
+import { useCartTalentPreload } from "./use-cart-talent-preload";
+import {
+  NOOP_CAPTURE_CHIP,
+  NOOP_ENSURE_INQUIRY,
+  deriveTalentPickState,
+  reconcileCartRemovals,
+  remoteNoteFor,
+} from "./mini-chat-panel-helpers";
+import { useGuestDetailReconcile } from "./use-guest-detail-reconcile";
+import { chipValueToPatch, chipValuesToServerIntent } from "./unified-inquiry-bridge";
 import type { StreamRow } from "./MiniChatMessageBubble";
 import {
   C,
@@ -52,13 +65,24 @@ import {
 
 type Stage = "intro" | "gate" | "thread";
 
-// Local extension of MiniChatPanelProps for the F4 expand/collapse props.
-// NOT added to guest-chat-contract.ts (shared read-only); consumed here + the launcher only.
+// Local extension of MiniChatPanelProps for the F4 expand/collapse props + the
+// Phase 3 launcher-cart wiring. NOT added to guest-chat-contract.ts (shared
+// read-only); consumed here + the launcher only.
 type MiniChatPanelLocalProps = MiniChatPanelProps & {
   /** When true, render 2-pane expanded mode. Owned by TalentProfileChatLauncher. */
   expanded?: boolean;
   /** Toggle handler from TalentProfileChatLauncher's setExpanded. */
   onToggleExpand?: () => void;
+  /** Phase 3: inquiry-cart talent ids (useInquiryCart().cartIds) for preload/empty-state. */
+  cartTalentIds?: readonly string[];
+  /** Best-effort display names aligned with cartTalentIds (picker chips). */
+  cartTalentNames?: string[];
+  /** One-shot: open scrolled to the Talent section (+N chip / a rail avatar). */
+  openToTalentSection?: boolean;
+  /** Clear the openToTalentSection intent once consumed. */
+  onConsumeOpenToTalentSection?: () => void;
+  /** Remove a talent from the cart (mirrors the rail X; single source). */
+  onRemoveCartTalent?: (talentProfileId: string) => void;
 };
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -69,6 +93,7 @@ export function MiniChatPanel({
   open,
   onClose,
   tenantSlug,
+  tenantId = null,
   talentProfileId,
   talentProfileCode,
   sourcePage,
@@ -84,10 +109,18 @@ export function MiniChatPanel({
   openFullHref = null,
   onListGuestInquiries = null,
   onCaptureChip = null,
+  onEnsureInquiry = null,
+  onLoadDetails = null,
+  onListRoster = null,
   soundOnReply = true,
   identity = "guest",
   expanded = false,
   onToggleExpand,
+  cartTalentIds,
+  cartTalentNames,
+  openToTalentSection = false,
+  onConsumeOpenToTalentSection,
+  onRemoveCartTalent,
 }: MiniChatPanelLocalProps) {
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
@@ -130,6 +163,14 @@ export function MiniChatPanel({
   } | null>(null);
 
   const [capturedChipKinds, setCapturedChipKinds] = useState<GuestChipKind[]>([]);
+  // Per-kind captured chip values (for re-edit pre-fill + reconcile display).
+  const [capturedChipValues, setCapturedChipValues] = useState<
+    Partial<Record<GuestChipKind, GuestChipValue>>
+  >({});
+  // P1-T3: the latest server-read details, fed to the unified hook as the
+  // reconcile base. The remote-change flash kinds come back from the reconcile
+  // hook below.
+  const [serverIntent, setServerIntent] = useState<InquiryIntent | null>(null);
 
   // F4: inquiries list for the expanded left pane.
   const [inquiries, setInquiries] = useState<GuestInquirySummary[]>([]);
@@ -138,6 +179,41 @@ export function MiniChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const inCooldown = cooldownSecs > 0;
+
+  // P1-T1/T2/T3: useUnifiedInquiry owns the SINGLE inquiry record behind this
+  // panel (lazy early-row create, debounced patch() writes, per-field sync state,
+  // inbound serverIntent reconcile). NOOP_* fallbacks keep patch() inert when the
+  // injected actions are absent.
+  const unified = useUnifiedInquiry({
+    tenantSlug,
+    tenantId,
+    talentProfileId: talentProfileId || null,
+    talentProfileCode: talentProfileCode || null,
+    sourcePage,
+    existingInquiryId: inquiryId,
+    serverIntent,
+    ensureInquiry: onEnsureInquiry ?? NOOP_ENSURE_INQUIRY,
+    onCaptureChip: onCaptureChip ?? NOOP_CAPTURE_CHIP,
+  });
+
+  // When the hook lazily creates the early row, adopt its id so the thread + gate
+  // target the same inquiry.
+  useEffect(() => {
+    if (unified.inquiryId && unified.inquiryId !== inquiryId) {
+      setInquiryId(unified.inquiryId);
+    }
+  }, [unified.inquiryId, inquiryId]);
+
+  // Phase 3: opening the pill with cart talent preloads them into the inquiry
+  // Talent selection (see use-cart-talent-preload).
+  useCartTalentPreload({
+    open,
+    cartTalentIds,
+    cartTalentNames,
+    enabled: Boolean(onEnsureInquiry),
+    intent: unified.intent,
+    patch: unified.patch,
+  });
 
   // Named switch handler — shared by mini-mode dropdown + expanded left pane.
   function handleSwitchInquiry(id: string) {
@@ -298,6 +374,51 @@ export function MiniChatPanel({
     if (el) el.scrollTop = el.scrollHeight;
   }, [rows.length, stage]);
 
+  // P1-T3: useGuestDetailReconcile re-reads the owned inquiry row on a realtime
+  // refresh, adopts the values (serverIntent base) and flashes + notes remote
+  // changes. Kinds the guest is editing now are skipped (no clobber).
+  const savingKinds = new Set<GuestChipKind>(
+    (Object.keys(unified.fieldState) as GuestChipKind[]).filter(
+      (k) => unified.fieldState[k] === "saving",
+    ),
+  );
+  const { flashKinds: remoteFlashKinds } = useGuestDetailReconcile({
+    open,
+    inquiryId,
+    tenantId,
+    onLoadDetails,
+    savingKinds,
+    onValues: (values, capturedKinds) => {
+      setServerIntent(chipValuesToServerIntent(values));
+      setCapturedChipValues(values);
+      setCapturedChipKinds((prev) => {
+        const merged = new Set(prev);
+        for (const k of capturedKinds) merged.add(k);
+        return Array.from(merged);
+      });
+    },
+    onRemoteNote: (kinds) => {
+      const nowIso = new Date().toISOString();
+      setRows((cur) => [
+        ...cur,
+        ...kinds.map((k, i) => ({
+          id: `remote-${k}-${nowIso}-${i}`,
+          inquiryId: inquiryId ?? "",
+          authorRole: "system" as const,
+          authorLabel: null,
+          authorAvatarUrl: null,
+          body: remoteNoteFor(k),
+          kind: "text" as const,
+          cardPayload: null,
+          createdAt: nowIso,
+          editedAt: null,
+          isDeleted: false,
+          replyToMessageId: null,
+        })),
+      ]);
+    },
+  });
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -421,7 +542,7 @@ export function MiniChatPanel({
     setEmailedTo(res.claimEmailSent ? res.guestEmail : null);
     if (!res.claimEmailSent && res.guestActivation !== "unlinked") {
       setError(
-        "Your message was sent, but we couldn't email a sign-in link. Use “Email me a sign-in link” below to try again.",
+        "Your message was sent, but we couldn't email a sign-in link. Use \"Email me a sign-in link\" below to try again.",
       );
     }
     lastSeenIsoRef.current = null;
@@ -480,6 +601,71 @@ export function MiniChatPanel({
     else void handleFirstSend();
   }
 
+  // P1-T1/T2: a chip edit routes through the unified hook (optimistic local
+  // display, then patch() the single record; micro-status via unified.fieldState).
+  async function handleChipPatch(kind: GuestChipKind, value: GuestChipValue) {
+    setCapturedChipValues((prev) => ({ ...prev, [kind]: value }));
+    setCapturedChipKinds((k) => (k.includes(kind) ? k : [...k, kind]));
+    const patch = chipValueToPatch(kind, value);
+    if (!patch) return;
+    await unified.patch(patch);
+  }
+
+  // Phase 2 / Addendum A: Talent / Brief / Contact editors route through the SAME
+  // useUnifiedInquiry.patch path as the chips (one record, synced thread note).
+  async function handleTalentChange(
+    selectedIds: string[],
+    selectionMode: "i_know_who" | "agency_recommends",
+    selectedNames: string[],
+  ) {
+    // Keep the launcher cart (the rail's single source) in sync: a cart talent
+    // dropped in-chat is also removed from the cart, so rail + form + record agree.
+    reconcileCartRemovals(selectedIds, cartTalentIds, onRemoveCartTalent);
+    await unified.patch({ kind: "talent", selectedIds, selectionMode, selectedNames });
+  }
+
+  async function handleBriefChange(summary: string) {
+    await unified.patch({ kind: "brief", summary });
+  }
+
+  async function handleContactChange(value: {
+    name: string;
+    email: string;
+    phone: string;
+  }) {
+    // Mirror into the gate state so a later first-message send is pre-satisfied.
+    if (value.name) {
+      const parts = splitGuestFullName(value.name);
+      setFirstName(parts.firstName);
+      setLastName(parts.lastName);
+    }
+    if (value.email) setEmail(value.email);
+    await unified.patch({
+      kind: "contact",
+      name: value.name || null,
+      email: value.email || null,
+      phone: value.phone || null,
+    });
+  }
+
+  const selectedTalentIds = unified.intent.talent?.selected_ids ?? [];
+  // Phase 3: empty-state talent-pick-first lead + Talent-section deep-link (§B.1/§B.2).
+  const { talentPickFirst, railOpenToSection } = deriveTalentPickState({
+    enabled: Boolean(onEnsureInquiry),
+    talentProfileId,
+    stage,
+    inquiryId,
+    cartTalentIds,
+    intent: unified.intent,
+    openToTalentSection,
+  });
+  const briefSummary = unified.intent.brief?.summary ?? null;
+  const contactValues = {
+    name: unified.intent.requester?.name ?? null,
+    email: unified.intent.requester?.email ?? null,
+    phone: unified.intent.requester?.phone ?? null,
+  };
+
   if (!open) return null;
 
   const sendDisabled = !draft.trim() || sending || inCooldown;
@@ -536,6 +722,30 @@ export function MiniChatPanel({
     onCaptureChip,
     onCapturedChipKind: (kind: GuestChipKind) =>
       setCapturedChipKinds((k) => (k.includes(kind) ? k : [...k, kind])),
+    // P1-T1/T2/T3: unified-inquiry wiring for the chip row.
+    onPatchChip: onEnsureInquiry ? handleChipPatch : null,
+    capturedChipValues,
+    chipFieldState: unified.fieldState,
+    chipRemoteFlashKinds: remoteFlashKinds,
+    // Phase 2 / Addendum A: the Talent / Brief / Contact editors + details rail.
+    extrasEnabled: Boolean(onEnsureInquiry),
+    onListRoster,
+    selectedTalentIds,
+    briefSummary,
+    contactValues,
+    // Addendum A: the details sidebar reads the full unified draft (filled-state).
+    inquiryIntent: unified.intent,
+    onTalentChange: (
+      ids: string[],
+      mode: "i_know_who" | "agency_recommends",
+      names: string[],
+    ) => void handleTalentChange(ids, mode, names),
+    onBriefChange: (summary: string) => void handleBriefChange(summary),
+    onContactChange: (value: { name: string; email: string; phone: string }) =>
+      void handleContactChange(value),
+    talentPickFirst, // Phase 3: empty-cart lead + +N/avatar deep-link to Talent
+    railOpenToSection,
+    onConsumeRailOpenTo: () => onConsumeOpenToTalentSection?.(),
     prefill,
     openFullHref,
     onListGuestInquiries,

@@ -183,4 +183,18 @@ export interface TalentCardActionsProps {
   hideInquiry?: boolean;
   /** Extra class names merged onto the root wrapper. */
   className?: string;
+  /**
+   * Portrait URL for this talent (the card thumbnail). When provided, adding to
+   * the inquiry cart registers it for the launcher avatar rail and supplies the
+   * face-focus photo the card→pill fly clone uses. Optional — falls back to
+   * initials when absent.
+   */
+  portraitUrl?: string | null;
+  /**
+   * Returns the on-screen photo rect (viewport coords) for the card→pill fly
+   * animation. The card supplies this so the flight starts from the exact photo
+   * the visitor clicked. When omitted, no flight is requested (rail still
+   * updates). Reduced-motion is handled downstream in useFlyToRail.
+   */
+  getInquiryPhotoRect?: () => DOMRect | null;
 }

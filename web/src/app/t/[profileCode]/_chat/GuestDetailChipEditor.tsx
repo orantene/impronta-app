@@ -150,7 +150,13 @@ function DateEditor({
   const [eventDate, setEventDate] = useState<string>(initial?.eventDate ?? "");
   const inputId = useId();
 
+  // "Exact date" needs an actual date before it can commit, otherwise it would
+  // save an empty exact date that renders as "Date TBD". Flexible / Not sure yet
+  // carry no date, so they stay committable.
+  const canConfirm = status !== "exact" || eventDate.trim().length > 0;
+
   function handleConfirm() {
+    if (!canConfirm) return;
     onSubmit({
       dateStatus: status,
       eventDate: status === "exact" && eventDate ? eventDate : null,
@@ -198,7 +204,15 @@ function DateEditor({
         </button>
         <button
           type="button"
-          style={{ ...primaryBtnStyle(accent, accentInk), height: 32, padding: "0 14px", fontSize: 12 }}
+          disabled={!canConfirm}
+          style={{
+            ...primaryBtnStyle(accent, accentInk),
+            height: 32,
+            padding: "0 14px",
+            fontSize: 12,
+            opacity: canConfirm ? 1 : 0.5,
+            cursor: canConfirm ? "pointer" : "not-allowed",
+          }}
           onClick={handleConfirm}
         >
           Confirm

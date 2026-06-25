@@ -49,6 +49,7 @@
 
 import { useState } from "react";
 import type { GuestChipKind, GuestChipValue, GuestChipInput, GuestChipResult } from "@/lib/inquiry/guest-chat-contract";
+import type { UnifiedSyncState } from "./use-unified-inquiry";
 import {
   GuestDetailChipEditor,
 } from "./GuestDetailChipEditor";
@@ -64,6 +65,12 @@ export type GuestDetailChipsProps = {
    * disclosure: an inquiry must exist before chip refinement is available).
    */
   inquiryId: string | null;
+  /**
+   * P1: render the chip row even before an inquiryId exists, so the first
+   * Date/Location commit can lazily create the early-partial row through onPatch.
+   * When false (legacy), chips stay hidden until an inquiry exists.
+   */
+  alwaysShow?: boolean;
   /** Tenant accent color (CSS string). */
   accent: string;
   /** Readable text color on accent background. */
@@ -83,6 +90,22 @@ export type GuestDetailChipsProps = {
    * and, on ok:true, updates capturedKinds + capturedValues.
    */
   onCapture: (input: GuestChipInput) => Promise<GuestChipResult>;
+  /**
+   * P1-T1/T2: route a chip edit through useUnifiedInquiry.patch. When provided
+   * this supersedes onCapture: the panel owns one record, lazily creates the
+   * early row on the first commit, and tracks per-field sync state itself.
+   */
+  onPatch?: (kind: GuestChipKind, value: GuestChipValue) => Promise<void>;
+  /**
+   * P1-T2: per-kind sync status from the unified hook ("saving"|"saved"|...),
+   * driving the field-level micro-status (B.4). Only consulted on the onPatch path.
+   */
+  fieldState?: Record<string, UnifiedSyncState>;
+  /**
+   * P1-T3: kinds a remote edit just changed — those chips get a brief accent
+   * flash (reduced-motion is handled by the caller, which omits these kinds).
+   */
+  remoteFlashKinds?: GuestChipKind[];
   /**
    * Called when "Add more details →" is tapped. The integration agent wires
    * this to either:
@@ -235,11 +258,15 @@ const errorStyle: React.CSSProperties = {
 
 export function GuestDetailChips({
   inquiryId,
+  alwaysShow = false,
   accent = DEFAULT_ACCENT,
   accentInk,
   capturedKinds,
   capturedValues = {},
   onCapture,
+  onPatch,
+  fieldState = {},
+  remoteFlashKinds = [],
   onAddMoreDetails,
 }: GuestDetailChipsProps) {
   const [openKind, setOpenKind] = useState<GuestChipKind | null>(null);
@@ -248,8 +275,10 @@ export function GuestDetailChips({
 
   const resolvedAccentInk = accentInk || readableOn(accent);
 
-  // Chips only render once an inquiry exists (strategy §10 progressive disclosure)
-  if (!inquiryId) return null;
+  // Chips render once an inquiry exists (legacy progressive disclosure), OR
+  // immediately when the unified patch path is active (alwaysShow) — the first
+  // commit then lazily creates the early-partial row (P1-T1).
+  if (!inquiryId && !alwaysShow) return null;
 
   function handleChipClick(kind: GuestChipKind) {
     if (submitting) return; // don't open during a save
@@ -259,10 +288,20 @@ export function GuestDetailChips({
   }
 
   async function handleEditorSubmit(kind: GuestChipKind, value: GuestChipValue) {
-    if (!inquiryId) return;
-    setSubmitting(kind);
     setOpenKind(null);
     setChipError(null);
+
+    // Unified path: route through the hook's patch(). It lazily creates the early
+    // row and tracks per-field sync state, so we don't manage `submitting` or
+    // read a return value here — the micro-status comes from fieldState (B.4).
+    if (onPatch) {
+      await onPatch(kind, value);
+      return;
+    }
+
+    // Legacy direct-capture path (requires an existing inquiry).
+    if (!inquiryId) return;
+    setSubmitting(kind);
     try {
       const result = await onCapture({ inquiryId, kind, value });
       if (!result.ok) {
@@ -278,6 +317,17 @@ export function GuestDetailChips({
     setChipError(null);
   }
 
+  // Roll the per-kind sync states up to a single footer line (B.4): any saving
+  // wins, else any error, else any saved (recently). Drives "Saving…"/"Saved".
+  const fieldStates = Object.values(fieldState);
+  const footerStatus: UnifiedSyncState = fieldStates.includes("saving")
+    ? "saving"
+    : fieldStates.includes("error")
+      ? "error"
+      : fieldStates.includes("saved")
+        ? "saved"
+        : "idle";
+
   return (
     <div style={wrapStyle}>
       {/* Chip scroll row */}
@@ -285,7 +335,12 @@ export function GuestDetailChips({
         {CHIPS.map(({ kind, defaultLabel, capturedLabel }) => {
           const isCaptured = capturedKinds.includes(kind);
           const isOpen = openKind === kind;
-          const isSubmitting = submitting === kind;
+          // Field status: unified path reads fieldState; legacy reads `submitting`.
+          const fState = fieldState[kind];
+          const isSaving = onPatch ? fState === "saving" : submitting === kind;
+          const isSaved = onPatch && fState === "saved";
+          const isErr = onPatch && fState === "error";
+          const isFlashing = remoteFlashKinds.includes(kind);
           const capturedValue = capturedValues[kind];
           const valueLabel = capturedValue ? capturedLabel(capturedValue) : null;
 
@@ -297,17 +352,22 @@ export function GuestDetailChips({
               type="button"
               style={{
                 ...chipStyle(isCaptured || isOpen, accent),
-                opacity: isSubmitting ? 0.6 : 1,
+                opacity: isSaving ? 0.6 : 1,
+                // P1-T3: brief accent flash when a REMOTE edit changed this chip.
+                ...(isFlashing
+                  ? { background: `${accent}14`, borderColor: accent }
+                  : {}),
+                ...(isErr ? { borderColor: C.danger } : {}),
+                transition: "background 600ms ease, border-color 600ms ease, all 120ms",
               }}
               onClick={() => handleChipClick(kind)}
               aria-pressed={isCaptured}
               aria-label={isCaptured ? `Edit ${defaultLabel}: ${label}` : `Add ${defaultLabel}`}
-              disabled={isSubmitting}
+              disabled={isSaving}
             >
-              {isCaptured && (
-                <CheckIcon color={accent} />
-              )}
-              {isSubmitting ? "Saving…" : label}
+              {isCaptured && !isSaving && <CheckIcon color={accent} />}
+              {isSaving ? "Saving…" : label}
+              {isSaved && <CheckIcon color={accent} />}
             </button>
           );
         })}
@@ -325,8 +385,33 @@ export function GuestDetailChips({
         />
       )}
 
-      {/* Chip error display */}
+      {/* Chip error display (legacy path) */}
       {chipError && <p style={errorStyle}>{chipError}</p>}
+
+      {/* P1-T2: panel-level field sync micro-status (unified path). No em dashes. */}
+      {onPatch && footerStatus !== "idle" && (
+        <p
+          aria-live="polite"
+          style={{
+            margin: 0,
+            fontSize: 11,
+            fontWeight: 500,
+            color:
+              footerStatus === "error"
+                ? C.danger
+                : footerStatus === "saved"
+                  ? C.inkMuted
+                  : C.inkDim,
+            padding: "0 2px",
+          }}
+        >
+          {footerStatus === "saving"
+            ? "Saving…"
+            : footerStatus === "saved"
+              ? "Saved"
+              : "Couldn't save. Tap the field to retry."}
+        </p>
+      )}
 
       {/* "Add more details" escalation affordance */}
       <button

@@ -557,13 +557,16 @@ export function DirectoryInfiniteGrid({
               </p>
             ) : null}
             <div className="flex flex-col gap-2">
-              {/* Favorite + inquiry-cart — canonical TalentCardActions. */}
+              {/* Favorite + inquiry-cart — canonical TalentCardActions. Pass the
+                  preview portrait so adding from the quick-preview still gives the
+                  launcher rail a real face-focus avatar (no fly rect from a modal). */}
               <TalentCardActions
                 talentProfileId={preview.id}
                 profileCode={preview.profileCode}
                 displayName={preview.displayName}
                 sourcePage={discoveryState.searchContext?.sourcePage ?? "/directory"}
                 className="w-full"
+                portraitUrl={previewDetails?.image?.url ?? null}
               />
               <Button asChild variant="ghost" className="w-full">
                 <Link

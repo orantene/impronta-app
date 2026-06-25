@@ -21,7 +21,15 @@ import {
 // U2 thread switcher (scopes by tenant + cookie — "all my threads on this brand")
 // + U4 detail chips (per-inquiry). Injected so the client bundle stays backend-free.
 import { listGuestInquiries } from "@/app/t/[profileCode]/_actions/guest-inquiries-actions";
-import { captureGuestChip } from "@/app/t/[profileCode]/_actions/guest-detail-chips-actions";
+import {
+  captureGuestChip,
+  getGuestInquiryDetails,
+} from "@/app/t/[profileCode]/_actions/guest-detail-chips-actions";
+import {
+  listGuestTenantRoster,
+  resolveGuestCartPortraits,
+} from "@/app/t/[profileCode]/_actions/guest-roster-actions";
+import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
@@ -80,6 +88,7 @@ export async function AgencyChatLauncherMount({
   return (
     <TalentProfileChatLauncher
       tenantSlug={tenantSlug}
+      tenantId={tenantId}
       // Agency-level: no specific talent — the action builds a talent-less
       // `agency_site` inquiry when these are empty.
       talentProfileId=""
@@ -93,7 +102,7 @@ export async function AgencyChatLauncherMount({
         logoUrl,
         greeting: settings.greeting,
       }}
-      label={`Message ${agencyName}`}
+      label="Book Now"
       existingInquiryId={null}
       prefill={null}
       onStartInquiry={startGuestChatInquiry}
@@ -103,6 +112,10 @@ export async function AgencyChatLauncherMount({
       onCheckClaimEmail={checkGuestClaimEmail}
       onListGuestInquiries={listGuestInquiries}
       onCaptureChip={captureGuestChip}
+      onEnsureInquiry={ensureGuestChatInquiry}
+      onLoadDetails={getGuestInquiryDetails}
+      onListRoster={listGuestTenantRoster}
+      onResolveCartPortraits={resolveGuestCartPortraits}
       soundOnReply
       openFullHref={null}
     />

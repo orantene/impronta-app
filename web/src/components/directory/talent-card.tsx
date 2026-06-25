@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Share2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -187,6 +187,13 @@ export function TalentCard({
   const pathname = usePathname();
   const { setFlash } = usePublicDiscoveryState();
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // The hero photo element — its rect is the start point for the card→pill fly
+  // animation when the talent is added to the inquiry cart (plan §4.A.5).
+  const mediaRef = useRef<HTMLAnchorElement>(null);
+  const getInquiryPhotoRect = useCallback(
+    () => mediaRef.current?.getBoundingClientRect() ?? null,
+    [],
+  );
 
   useEffect(() => {
     trackProductEvent(PRODUCT_ANALYTICS_EVENTS.view_talent_card, {
@@ -263,6 +270,7 @@ export function TalentCard({
     >
       {/* ── Hero image with overlays ── */}
       <Link
+        ref={mediaRef}
         href={profileHref}
         className="relative block w-full overflow-hidden"
         style={aspectStyle}
@@ -532,13 +540,17 @@ export function TalentCard({
           >
             <Link href={profileHref}>{c.viewPortfolio}</Link>
           </Button>
-          {/* Inquiry-cart toggle — canonical TalentCardActions. */}
+          {/* Inquiry-cart toggle — canonical TalentCardActions. Carries the
+              portrait + photo rect so adding flies a face-focus avatar to the
+              "Message {agency}" launcher pill (plan §4.A.5). */}
           <TalentCardActions
             talentProfileId={card.id}
             profileCode={card.profileCode}
             displayName={card.displayName}
             sourcePage={sourcePage}
             hideFavorite
+            portraitUrl={card.thumbnail.url ?? null}
+            getInquiryPhotoRect={getInquiryPhotoRect}
           />
         </div>
 

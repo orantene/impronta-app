@@ -41,7 +41,15 @@ import {
 // U2 thread switcher + U4 detail chips — injected as callbacks so the client
 // bundle imports no backend module.
 import { listGuestInquiries } from "@/app/t/[profileCode]/_actions/guest-inquiries-actions";
-import { captureGuestChip } from "@/app/t/[profileCode]/_actions/guest-detail-chips-actions";
+import {
+  captureGuestChip,
+  getGuestInquiryDetails,
+} from "@/app/t/[profileCode]/_actions/guest-detail-chips-actions";
+import {
+  listGuestTenantRoster,
+  resolveGuestCartPortraits,
+} from "@/app/t/[profileCode]/_actions/guest-roster-actions";
+import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 
 type TalentProfileChatLauncherMountProps = {
   /** talent_profiles.id — the single talent the guest is messaging (MVP). */
@@ -52,6 +60,8 @@ type TalentProfileChatLauncherMountProps = {
   talentDisplayName: string;
   /** Tenant slug for routing the start action; "" on non-agency surfaces. */
   tenantSlug: string;
+  /** Tenant uuid for the realtime channel filter (P1-T3 inbound reconcile). */
+  tenantId?: string | null;
   /** Agency display name for the header + opener. */
   agencyName: string;
   /** Brand accent color (agency_branding primary/accent). Null → neutral fallback. */
@@ -77,6 +87,7 @@ export async function TalentProfileChatLauncherMount({
   talentProfileCode,
   talentDisplayName,
   tenantSlug,
+  tenantId = null,
   agencyName,
   accentColor = null,
   logoUrl = null,
@@ -96,6 +107,7 @@ export async function TalentProfileChatLauncherMount({
   return (
     <TalentProfileChatLauncher
       tenantSlug={tenantSlug}
+      tenantId={tenantId}
       talentProfileId={talentProfileId}
       talentProfileCode={talentProfileCode}
       sourcePage={sourcePage}
@@ -107,6 +119,7 @@ export async function TalentProfileChatLauncherMount({
         greeting,
         locale,
       }}
+      label="Book Now"
       // Returning guest → reopen the thread + prefill the gate (B1). null → fresh.
       existingInquiryId={active?.inquiryId ?? null}
       prefill={active?.prefill ?? null}
@@ -117,6 +130,10 @@ export async function TalentProfileChatLauncherMount({
       onCheckClaimEmail={checkGuestClaimEmail}
       onListGuestInquiries={listGuestInquiries}
       onCaptureChip={captureGuestChip}
+      onEnsureInquiry={ensureGuestChatInquiry}
+      onLoadDetails={getGuestInquiryDetails}
+      onListRoster={listGuestTenantRoster}
+      onResolveCartPortraits={resolveGuestCartPortraits}
       soundOnReply
       openFullHref={openFullHref}
     />

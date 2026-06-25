@@ -16,11 +16,18 @@
  *     cookie, is resolved server-side inside those actions).
  */
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
+import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 
 import { MiniChatPanel } from "./MiniChatPanel";
+import { LauncherAvatarStack } from "./LauncherAvatarStack";
+import { FlyingAvatar } from "./FlyingAvatar";
+import { useFlyToRail } from "./use-fly-to-rail";
+import { useCartTalents } from "./use-cart-talents";
+import { useCartTalentRegistry } from "./cart-talent-registry";
+import { useResolveCartPortraits } from "./use-resolve-cart-portraits";
 import {
   DEFAULT_ACCENT,
   GUEST_CHAT_LAUNCHER_BOTTOM_PX,
@@ -38,6 +45,7 @@ function useClientMounted(): boolean {
 
 export function TalentProfileChatLauncher({
   tenantSlug,
+  tenantId = null,
   talentProfileId,
   talentProfileCode,
   sourcePage,
@@ -51,6 +59,10 @@ export function TalentProfileChatLauncher({
   onCheckClaimEmail = null,
   onListGuestInquiries = null,
   onCaptureChip = null,
+  onEnsureInquiry = null,
+  onLoadDetails = null,
+  onListRoster = null,
+  onResolveCartPortraits = null,
   soundOnReply = true,
   identity = "guest",
   label,
@@ -61,6 +73,37 @@ export function TalentProfileChatLauncher({
   const [open, setOpen] = useState(false);
   // F4: expanded state — grows the panel into a 2-pane layout in-place.
   const [expanded, setExpanded] = useState(false);
+  // When the +N chip / a rail avatar is tapped, open the panel scrolled to the
+  // Talent section. The panel reads this one-shot intent and clears it.
+  const [openToTalent, setOpenToTalent] = useState(false);
+
+  // ── The launcher pill IS the inquiry cart (plan §4.A) ──────────────────────
+  // The rail's avatars are a pure projection of the single source of truth
+  // (useInquiryCart().cartIds) joined with portrait/name data the directory cards
+  // registered as they were added (cart-talent-registry). No second cart store.
+  const cart = useInquiryCart();
+  const registry = useCartTalentRegistry();
+  const cartTalents = useCartTalents(registry);
+  // Cold-load backfill: cart ids restored from saved_talent aren't in the
+  // (in-session-only) registry, so resolve their name + face once per missing set
+  // and merge into the registry. Membership stays cartIds; this only fills photos
+  // so every rail avatar is a face-focus portrait, not initials (§4.A.1 / §5.5).
+  useResolveCartPortraits(tenantSlug, onResolveCartPortraits);
+  const pillRef = useRef<HTMLButtonElement>(null);
+  // Card → pill fly clone (reduced-motion-safe; no portal under reduce). The
+  // flight is driven by the directory card's animateAdd payload via context.
+  const { flight, onFlightDone } = useFlyToRail(pillRef);
+
+  function handleRemoveTalent(talentProfileId: string) {
+    // Single source: removing here flips saved_talent, which propagates to the
+    // rail + the form + any open panel's Talent selection.
+    cart.setInCart({ talentProfileId, profileCode: "" }, false, sourcePage);
+  }
+
+  function handleOpenToTalent() {
+    setOpenToTalent(true);
+    setOpen(true);
+  }
 
   // Restore the open panel across a refresh (B1) so the conversation doesn't
   // appear to reset. sessionStorage is per-tab → a refresh restores; closing the
@@ -86,6 +129,14 @@ export function TalentProfileChatLauncher({
     }
   }, [open, openStateKey]);
 
+  // Stable names array — cartTalents is already identity-stable (useCartTalents
+  // memoizes on its signature), so this yields a stable reference and avoids
+  // forcing the whole MiniChatPanel subtree to reconcile on every parent render.
+  const cartTalentNames = useMemo(
+    () => cartTalents.map((t) => t.displayName),
+    [cartTalents],
+  );
+
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
   const talentFirst = firstNameOf(brand.talentDisplayName);
@@ -93,47 +144,83 @@ export function TalentProfileChatLauncher({
 
   if (!mounted) return null;
 
+  const hasCart = cartTalents.length > 0;
+
   return (
     <>
-      {/* Floating launcher pill. Bottom-right, above the panel's anchor. */}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label={launcherLabel}
-        aria-expanded={open}
-        className={className}
+      {/* Card → pill fly clone (body portal, very high z). Idle/reduced-motion → null. */}
+      <FlyingAvatar flight={flight} onDone={onFlightDone} />
+
+      {/* Floating launcher pill wrapper. Bottom-right, above the panel's anchor.
+          When the cart is non-empty the avatar rail breaks the TOP edge of the
+          pill, so the wrapper gets a top margin to keep overhanging circles from
+          clipping the viewport (plan §4.A.3). */}
+      <div
         style={{
           position: "fixed",
           right: "max(16px, env(safe-area-inset-right))",
           bottom: `calc(${GUEST_CHAT_LAUNCHER_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
           zIndex: 95,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 9,
-          height: 52,
-          padding: "0 20px 0 18px",
-          borderRadius: 26,
-          border: "none",
-          background: accent,
-          color: accentInk,
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-          fontSize: 14,
-          fontWeight: 600,
-          letterSpacing: 0.1,
-          cursor: "pointer",
-          boxShadow:
-            "0 14px 34px -10px rgba(16,18,29,0.5), 0 4px 12px -4px rgba(16,18,29,0.3)",
-          transition: "transform 140ms ease, box-shadow 140ms ease",
+          marginTop: hasCart ? 18 : 0,
         }}
       >
-        {open ? (
-          <CloseGlyph color={accentInk} />
-        ) : (
-          <ChatGlyph color={accentInk} />
+        {/* The avatar cart — only renders when the cart is non-empty (§4.A.8).
+            Absolutely positioned breaking the pill's top edge; newest rightmost. */}
+        {!open && hasCart && (
+          <div
+            style={{
+              position: "absolute",
+              top: -16,
+              right: 12,
+              zIndex: 1,
+            }}
+          >
+            <LauncherAvatarStack
+              cartTalents={cartTalents}
+              onRemoveTalent={handleRemoveTalent}
+              onOpenToTalentSection={handleOpenToTalent}
+              accent={accent}
+              accentInk={accentInk}
+            />
+          </div>
         )}
-        <span>{open ? "Close" : launcherLabel}</span>
-      </button>
+
+        <button
+          ref={pillRef}
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-label={launcherLabel}
+          aria-expanded={open}
+          className={className}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 9,
+            height: 52,
+            padding: "0 20px 0 18px",
+            borderRadius: 26,
+            border: "none",
+            background: accent,
+            color: accentInk,
+            fontFamily:
+              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: 0.1,
+            cursor: "pointer",
+            boxShadow:
+              "0 14px 34px -10px rgba(16,18,29,0.5), 0 4px 12px -4px rgba(16,18,29,0.3)",
+            transition: "transform 140ms ease, box-shadow 140ms ease",
+          }}
+        >
+          {open ? (
+            <CloseGlyph color={accentInk} />
+          ) : (
+            <ChatGlyph color={accentInk} />
+          )}
+          <span>{open ? "Close" : launcherLabel}</span>
+        </button>
+      </div>
 
       {/* Faint scrim behind the panel when expanded (non-blocking — aria-modal="false") */}
       {open && expanded && (
@@ -158,6 +245,7 @@ export function TalentProfileChatLauncher({
         expanded={expanded}
         onToggleExpand={() => setExpanded((v) => !v)}
         tenantSlug={tenantSlug}
+        tenantId={tenantId}
         talentProfileId={talentProfileId}
         talentProfileCode={talentProfileCode}
         sourcePage={sourcePage}
@@ -171,9 +259,17 @@ export function TalentProfileChatLauncher({
         onCheckClaimEmail={onCheckClaimEmail}
         onListGuestInquiries={onListGuestInquiries}
         onCaptureChip={onCaptureChip}
+        onEnsureInquiry={onEnsureInquiry}
+        onLoadDetails={onLoadDetails}
+        onListRoster={onListRoster}
         soundOnReply={soundOnReply}
         identity={identity}
         openFullHref={openFullHref}
+        cartTalentIds={cart.cartIds}
+        cartTalentNames={cartTalentNames}
+        openToTalentSection={openToTalent}
+        onConsumeOpenToTalentSection={() => setOpenToTalent(false)}
+        onRemoveCartTalent={handleRemoveTalent}
       />
     </>
   );

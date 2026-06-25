@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { AIMatchExplanation } from "@/components/ai/ai-match-explanation";
@@ -36,6 +37,12 @@ export function TalentDirectoryListRow({
   const c = ui.card;
   const brand = ui.common.brand;
   const profileHref = talentProfileHref(pathname, card.profileCode);
+  // Thumbnail rect = start point for the card→pill fly animation on cart-add.
+  const mediaRef = useRef<HTMLAnchorElement>(null);
+  const getInquiryPhotoRect = useCallback(
+    () => mediaRef.current?.getBoundingClientRect() ?? null,
+    [],
+  );
   return (
     <article
       className={cn(
@@ -43,6 +50,7 @@ export function TalentDirectoryListRow({
       )}
     >
       <Link
+        ref={mediaRef}
         href={profileHref}
         className="relative h-28 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-800"
       >
@@ -115,13 +123,16 @@ export function TalentDirectoryListRow({
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Favorite + inquiry — canonical TalentCardActions. */}
+          {/* Favorite + inquiry — canonical TalentCardActions. Carries the
+              portrait + photo rect for the card→pill fly animation on add. */}
           <TalentCardActions
             talentProfileId={card.id}
             profileCode={card.profileCode}
             displayName={card.displayName}
             sourcePage={sourcePage}
             variant="compact"
+            portraitUrl={card.thumbnail.url ?? null}
+            getInquiryPhotoRect={getInquiryPhotoRect}
           />
           <Button
             asChild

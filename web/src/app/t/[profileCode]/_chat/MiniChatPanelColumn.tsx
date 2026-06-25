@@ -20,11 +20,15 @@ import type {
   CheckGuestClaimEmailCallback,
   GuestChipInput,
   GuestChipKind,
+  GuestChipValue,
   GuestIdentityTier,
   GuestThreadStatus,
   ListGuestInquiriesCallback,
+  ListGuestTenantRosterCallback,
   MiniChatBrand,
 } from "@/lib/inquiry/guest-chat-contract";
+import type { UnifiedSyncState } from "./use-unified-inquiry";
+import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 
@@ -33,6 +37,7 @@ import type { StreamRow } from "./MiniChatMessageBubble";
 import { ClaimEmailRecap } from "./ClaimEmailRecap";
 import { GuestAccountToolkit } from "./GuestAccountToolkit";
 import { GuestDetailChips } from "./GuestDetailChips";
+import { InquiryDetailsRail } from "./InquiryDetailsRail";
 import { GuestPanelHeaderExtras } from "./GuestPanelHeaderExtras";
 import { MiniChatComposer } from "./MiniChatComposer";
 import { MiniChatGateForm } from "./MiniChatGateForm";
@@ -107,6 +112,61 @@ export type MiniChatPanelColumnProps = {
   onSwitchInquiry: (id: string) => void;
   onCaptureChip: CaptureGuestChipCallback | null;
   onCapturedChipKind: (kind: GuestChipKind) => void;
+  /**
+   * P1-T1/T2: route a chip edit through useUnifiedInquiry.patch (lazily creates
+   * the early row, writes via captureGuestChip, tracks sync state). When set this
+   * supersedes the direct onCaptureChip path for chip edits.
+   */
+  onPatchChip?: ((kind: GuestChipKind, value: GuestChipValue) => Promise<void>) | null;
+  /** Per-kind captured chip values (re-edit pre-fill + reconcile display). */
+  capturedChipValues?: Partial<Record<GuestChipKind, GuestChipValue>>;
+  /** Per-kind sync status for the field-level micro-status (B.4). */
+  chipFieldState?: Record<string, UnifiedSyncState>;
+  /** Kinds a remote edit just changed, for the accent flash (P1-T3). */
+  chipRemoteFlashKinds?: GuestChipKind[];
+  // ── Phase 2: Talent / Brief / Contact "Add more details" expansion ──────────
+  /** When true the "Add more details" button toggles the extras editors. */
+  extrasEnabled?: boolean;
+  /** Whether the extras editors are currently expanded. */
+  extrasOpen?: boolean;
+  /** Toggle the extras expansion. */
+  onToggleExtras?: () => void;
+  /** Injected guest-safe roster loader for the in-chat talent picker. */
+  onListRoster?: ListGuestTenantRosterCallback | null;
+  /** Current selected talent ids (from the unified draft). */
+  selectedTalentIds?: string[];
+  /** Current brief summary (from the unified draft). */
+  briefSummary?: string | null;
+  /** Current contact values (from the unified draft). */
+  contactValues?: { name: string | null; email: string | null; phone: string | null };
+  /**
+   * Addendum A: the full live unified draft. Drives the collapsible details
+   * sidebar's filled-state. When present (extras enabled) the rail renders as the
+   * primary details affordance.
+   */
+  inquiryIntent?: InquiryIntent | null;
+  /** Commit a new talent selection through useUnifiedInquiry.patch. */
+  onTalentChange?: (
+    selectedIds: string[],
+    selectionMode: "i_know_who" | "agency_recommends",
+    selectedNames: string[],
+  ) => void;
+  /** Commit a brief edit through useUnifiedInquiry.patch. */
+  onBriefChange?: (summary: string) => void;
+  /** Commit a contact edit through useUnifiedInquiry.patch. */
+  onContactChange?: (value: { name: string; email: string; phone: string }) => void;
+  /**
+   * Phase 3: the cart is empty, so lead with the talent-pick step (greeting +
+   * auto-opened Talent section). Drives the empty-state copy + auto-expand.
+   */
+  talentPickFirst?: boolean;
+  /**
+   * Phase 3 one-shot: open the details rail to a specific section (the +N chip /
+   * a rail avatar deep-links to "talent"; the empty cart leads with "talent").
+   */
+  railOpenToSection?: "talent" | null;
+  /** Clear the railOpenToSection one-shot once applied. */
+  onConsumeRailOpenTo?: () => void;
   // Optional
   prefill?: {
     name?: string | null;
@@ -173,6 +233,19 @@ export function MiniChatPanelColumn({
   onSwitchInquiry,
   onCaptureChip,
   onCapturedChipKind,
+  onPatchChip = null,
+  capturedChipValues = {},
+  chipFieldState = {},
+  chipRemoteFlashKinds = [],
+  extrasEnabled = false,
+  onListRoster = null,
+  onTalentChange,
+  onBriefChange,
+  onContactChange,
+  talentPickFirst = false,
+  railOpenToSection = null,
+  onConsumeRailOpenTo,
+  inquiryIntent = null,
   prefill,
   openFullHref,
   onListGuestInquiries,
@@ -285,6 +358,10 @@ export function MiniChatPanelColumn({
         ref={scrollRef}
         style={{
           flex: 1,
+          // minHeight:0 lets the conversation body yield vertical room to the
+          // bounded details rail (compact panel) instead of forcing the column
+          // past its maxHeight and pushing the composer off-screen.
+          minHeight: 0,
           overflowY: "auto",
           padding: "14px 14px 6px",
           display: "flex",
@@ -307,12 +384,21 @@ export function MiniChatPanelColumn({
             lineHeight: 1.5,
           }}
         >
-          {brand.greeting?.trim() ? (
+          {/* Talent-pick-first lead (empty cart, plan §B.2): steer the visitor to
+              pick specific talent OR let the agency recommend. The Talent section
+              auto-opens below (railOpenToSection="talent"), exposing the roster
+              search + "Let the agency recommend". Otherwise the normal opener. */}
+          {talentPickFirst ? (
+            <>
+              Hi, I&rsquo;m here to help you find the right talent. Want someone
+              specific, or should we recommend a fit?
+            </>
+          ) : brand.greeting?.trim() ? (
             brand.greeting.trim()
           ) : (
             <>
-              Hi — I&rsquo;m {talentFirst}&rsquo;s booking assistant. What&rsquo;s the event?
-              Tell me a little and I&rsquo;ll get the right person to reply.
+              Hi, I&rsquo;m {talentFirst}&rsquo;s booking assistant. What&rsquo;s the event?
+              Tell me a little and I&rsquo;ll line up the right talent for you.
             </>
           )}
         </div>
@@ -430,24 +516,71 @@ export function MiniChatPanelColumn({
         </div>
       )}
 
-      {/* ── U4: detail chips ─────────────────────────────────────────────── */}
-      {!showGate && inquiryId && onCaptureChip && (
+      {/* ── U4 / P1: detail chips ────────────────────────────────────────── */}
+      {/* Unified path (onPatchChip): chips are live even BEFORE an inquiryId so
+          the first Date/Location commit lazily creates the early-partial row.
+          Legacy path: chips only after an inquiry exists + a direct capture. */}
+      {!showGate && (onPatchChip || (inquiryId && onCaptureChip)) && (
         <GuestDetailChips
           inquiryId={inquiryId}
+          alwaysShow={Boolean(onPatchChip)}
           accent={accent}
           accentInk={accentInk}
           capturedKinds={capturedChipKinds}
+          capturedValues={capturedChipValues}
+          fieldState={chipFieldState}
+          remoteFlashKinds={chipRemoteFlashKinds}
+          onPatch={onPatchChip ?? undefined}
           onCapture={async (input: GuestChipInput) => {
+            // Legacy direct-capture fallback (only reached when onPatchChip is
+            // absent). The unified path uses onPatch above.
+            if (!onCaptureChip) {
+              return { ok: false as const, code: "engine_error" as const, message: "" };
+            }
             const r = await onCaptureChip(input);
             if (r.ok) onCapturedChipKind(input.kind);
             return r;
           }}
           onAddMoreDetails={() => {
+            // Addendum A: the collapsible details sidebar (InquiryDetailsRail,
+            // below) is now the canonical full-detail surface. The chip row stays
+            // as a compact same-data fallback. When the unified path is unavailable
+            // (legacy), keep the deep-link to the full form.
+            if (extrasEnabled) return;
             window.open(
               `/${tenantSlug}/client/messages?new=1&talent=${talentProfileId}`,
               "_blank",
             );
           }}
+        />
+      )}
+
+      {/* ── Addendum A: collapsible inquiry-details SIDEBAR ──────────────────
+          The canonical "form view": a vertical list of every section (Type,
+          Budget, Headcount, Date, Location, Talent, Brief, Contact) with
+          filled-state checks derived from the live unified draft. Clicking a row
+          opens that section's reusable editor; every commit routes through the
+          SAME patch handlers as the chips, so there is one source of truth.
+          Collapsed (icon-only rail) by default in the compact panel; expanded in
+          the two-pane. SUPERSEDES the slide-up sheet + the old extras editors. */}
+      {!showGate && extrasEnabled && inquiryIntent && (
+        <InquiryDetailsRail
+          intent={inquiryIntent}
+          accent={accent}
+          accentInk={accentInk}
+          tenantSlug={tenantSlug}
+          onListRoster={onListRoster}
+          capturedValues={capturedChipValues}
+          defaultCollapsed={!expanded}
+          bounded={!expanded}
+          openToSection={railOpenToSection}
+          onConsumeOpenTo={onConsumeRailOpenTo}
+          onPatchChip={(kind, value) => {
+            if (onPatchChip) void onPatchChip(kind, value);
+          }}
+          onTalentChange={(ids, mode, names) => onTalentChange?.(ids, mode, names)}
+          onBriefChange={(summary) => onBriefChange?.(summary)}
+          onContactChange={(value) => onContactChange?.(value)}
         />
       )}
 

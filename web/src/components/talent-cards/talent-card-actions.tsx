@@ -27,6 +27,8 @@ import { Bookmark, Check, Heart, Send } from "lucide-react";
 import type { TalentCardActionsProps } from "@/lib/talent-cards/contracts";
 import { useFavorites } from "@/lib/talent-cards/use-favorites";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
+import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
+import { registerCartTalent } from "@/app/t/[profileCode]/_chat/cart-talent-registry";
 import { cn } from "@/lib/utils";
 
 import "./talent-card-actions.css";
@@ -49,10 +51,13 @@ export function TalentCardActions({
   hideFavorite = false,
   hideInquiry = false,
   className,
+  portraitUrl = null,
+  getInquiryPhotoRect,
 }: TalentCardActionsProps) {
   const mounted = useClientMounted();
   const favorites = useFavorites();
   const cart = useInquiryCart();
+  const inquiryModal = useOptionalDirectoryInquiryModal();
 
   // No PublicDiscoveryState provider on this surface → favorites + inquiry
   // stores are unreachable. Render nothing rather than dead controls.
@@ -75,6 +80,18 @@ export function TalentCardActions({
   const handleInquiry = (event: MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    const willAdd = !inCart;
+    // On ADD only: record the portrait/name for the launcher rail (single
+    // source stays cartIds; this only supplies presentation data) and request
+    // the card→pill fly animation from the photo rect. Removal stays a plain
+    // cart toggle. Reduced-motion is handled inside useFlyToRail downstream.
+    if (willAdd) {
+      registerCartTalent(talentProfileId, { displayName, portraitUrl });
+      const rect = getInquiryPhotoRect?.() ?? null;
+      if (rect && inquiryModal) {
+        inquiryModal.animateAdd({ fromRect: rect, portraitUrl, talentProfileId });
+      }
+    }
     cart.toggleInCart({ talentProfileId, profileCode, displayName }, sourcePage);
   };
 
