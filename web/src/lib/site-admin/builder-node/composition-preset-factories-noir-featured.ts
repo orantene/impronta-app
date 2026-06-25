@@ -316,12 +316,14 @@ export function createFeaturedFacesBoardPreset(): Exclude<
         repeat: true,
         maxItems: 8,
       },
-      // CONTAINER-level responsive: emits data-builder-{tablet,mobile}-layout so
-      // the grid SURVIVES below 900/640px (without this the renderer forces
-      // display:flex;column and the grid silently becomes a 1-up tower).
+      // CONTAINER-level responsive: tablet stays a 2-up grid; MOBILE flips to a
+      // swipeable 2-up SLIDER (display:"slider" + itemsPerView:2) so the 8
+      // featured faces become a horizontal scroll-snap rail instead of a tall
+      // stack. layout:"grid" guards the legacy column path; `display` wins for
+      // presentation. Owners can re-tune mode/per-view in the Layout inspector.
       responsive: {
         tablet: { layout: "grid", columns: 2 },
-        mobile: { layout: "grid", columns: 2 },
+        mobile: { layout: "grid", columns: 2, display: "slider", itemsPerView: 2 },
       },
       style: {
         gridTemplateColumns: "repeat(4,1fr)",
@@ -410,7 +412,7 @@ export function createFeaturedFacesBoardPreset(): Exclude<
         backgroundColor: ESPRESSO,
         containerType: "inline-size",
         customCss: [
-          `{ padding-top: clamp(64px, 9vw, 128px); padding-bottom: clamp(64px, 9vw, 128px); }`,
+          `{ padding-top: clamp(48px, 6vw, 88px); padding-bottom: clamp(48px, 6vw, 88px); }`,
         ].join("\n"),
       },
     },

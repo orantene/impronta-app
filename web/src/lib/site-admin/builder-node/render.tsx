@@ -82,6 +82,10 @@ export interface BuilderNodeRenderDataSources {
     id: string;
     slug: string;
     name: string;
+    // Optional per-category image (a curated global promo image, else this
+    // tenant's representative roster photo from home-data.ts). A bound division
+    // tile reads it via the {{imageUrl}} token; absent ⇒ text-only card.
+    imageUrl?: string | null;
   }>;
   // A4 — tenant social/contact links (the `workspace_social_links` source).
   // Injected by the SHELL/server caller from `resolveShellSocialContact`

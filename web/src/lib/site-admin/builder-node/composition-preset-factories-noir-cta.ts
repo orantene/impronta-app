@@ -300,14 +300,15 @@ export function createCtaBannerSpotlightPreset(): Exclude<
         position: "relative",
         overflow: "hidden",
         backgroundColor: ESPRESSO,
-        paddingTop: "16vh",
-        paddingBottom: "16vh",
         paddingLeft: "24px",
         paddingRight: "24px",
         containerType: "inline-size",
-        responsive: {
-          mobile: { paddingTop: "8vh", paddingBottom: "8vh" },
-        },
+        // Closing banner: a touch more presence than a standard section, but the
+        // old 16vh ballooned to ~170px on tall screens (a huge void above the
+        // footer). Width-relative clamp in customCss (exceeds the 16-char
+        // paddingTop/Bottom cap); mobile trims.
+        customCss:
+          "{ padding-top: clamp(64px,8vw,120px); padding-bottom: clamp(64px,8vw,120px); }\n@media (max-width: 640px) { { padding-top: 56px; padding-bottom: 56px; } }",
       },
     },
     children: [image, scrim, content],

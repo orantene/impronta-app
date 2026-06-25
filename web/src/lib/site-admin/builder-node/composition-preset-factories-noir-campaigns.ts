@@ -374,14 +374,14 @@ export function createCampaignsLookbookRailPreset(): Exclude<
       layout: "stack",
       style: {
         backgroundColor: "var(--token-color-background, #f7f4ef)",
-        paddingTop: "9vh",
-        paddingBottom: "9vh",
         paddingLeft: "6vw",
         paddingRight: "6vw",
         containerType: "inline-size",
-        // Mobile (390px): trim vertical padding so the section is not over-tall on
-        // a short viewport. Desktop keeps 9vh. (Self-block scopes to this node.)
-        customCss: "@media (max-width: 640px) { { padding-top: 6vh; padding-bottom: 6vh; } }",
+        // Vertical rhythm: a width-relative clamp (was 9vh, which ballooned on
+        // tall screens into ~200px inter-section voids). Clamp exceeds the
+        // 16-char paddingTop/Bottom cap, so it lives in customCss; mobile trims.
+        customCss:
+          "{ padding-top: clamp(48px,6vw,88px); padding-bottom: clamp(48px,6vw,88px); }\n@media (max-width: 640px) { { padding-top: 44px; padding-bottom: 44px; } }",
       },
     },
     children: [sectionHead(), rail],
