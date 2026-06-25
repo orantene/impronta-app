@@ -35,6 +35,7 @@ import { DirectoryQueryProvider } from "@/components/directory/query-provider";
 import { AIInterpretChip } from "./AIInterpretChip";
 import { DirectoryActiveFilterChips } from "./DirectoryActiveFilterChips";
 import { DirectoryReactiveGrid } from "./DirectoryReactiveGrid";
+import { DirectoryInquiryReviewBar } from "@/components/directory/directory-inquiry-review-bar";
 import { DirectoryMapView } from "./DirectoryMapView";
 import type { DirectoryCategoryParent } from "@/lib/directory/directory-category-tree";
 import type { DirectoryV1 } from "./schema";
@@ -569,6 +570,7 @@ function DirectoryReactiveResultsInner({
           )}
         </div>
       </div>
+      {showAddToInquiry ? <DirectoryInquiryReviewBar ui={ui} /> : null}
     </>
   );
 }
