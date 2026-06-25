@@ -61,11 +61,11 @@ function WhosTurnBanner({
     };
     if (nextActionBy === "coordinator") return {
       text: stage === "inquiry"
-        ? "Your turn — reply to the client to move this forward."
+        ? "Your turn. Reply to the client to move this forward."
         : stage === "hold"
-        ? "Your turn — finalize the offer and send it."
+        ? "Your turn. Finalize the offer and send it."
         : stage === "approved"
-        ? "Ready to book — use 'Move to → Booked' to lock it."
+        ? "Ready to book. Use Move to Booked to lock it."
         : "Your turn.",
       tone: "blue",
     };

@@ -276,26 +276,8 @@ export function AdminMessageStream({
                       <path d="M2 7h6c2 0 4 1 4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                     </svg>
                   </button>
-                  <button
-                    type="button"
-                    aria-label="Message actions"
-                    title="More"
-                    onClick={() => toast("Per-message actions — coming soon")}
-                    style={{
-                      width: 28, height: 28, padding: 0,
-                      background: "transparent", border: "none",
-                      cursor: "pointer",
-                      color: COLORS.inkMuted,
-                      borderRadius: 999,
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                      <circle cx="3" cy="7" r="1.2" fill="currentColor"/>
-                      <circle cx="7" cy="7" r="1.2" fill="currentColor"/>
-                      <circle cx="11" cy="7" r="1.2" fill="currentColor"/>
-                    </svg>
-                  </button>
+                  {/* "More" per-message actions button removed: it was a no-op
+                      ("coming soon" toast). Re-add once message actions exist. */}
                   {/* PIN/STAR PLUG-IN POINT (deferred 2026-05-15):
                       Drop <StarButton messageId={m.id} inquiryId={inquiryId}
                         starred={...} compact onError={(s) => toast(s)} />
