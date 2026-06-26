@@ -296,7 +296,9 @@ describe("renderBuilderNodes", () => {
     assert.match(html, />Find the right talent for your brief</);
     assert.match(html, /Models/);
     assert.match(html, /Hosts/);
-    assert.match(html, /href="\/impronta\/directory\?type=models"/);
+    // Chips link by taxonomy term id (?tax=<id>) — the public directory route
+    // parses ?tax, NOT ?type=<slug> (which lands on the unfiltered directory).
+    assert.match(html, /href="\/impronta\/directory\?tax=tax-1"/);
     assert.doesNotMatch(html, /Fallback type/);
   });
 
