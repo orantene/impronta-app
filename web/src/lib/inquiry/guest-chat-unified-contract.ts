@@ -33,7 +33,19 @@ export type EnsureGuestInquiryInput = {
 };
 
 export type EnsureGuestInquiryResult =
-  | { ok: true; inquiryId: string }
+  | {
+      ok: true;
+      inquiryId: string;
+      /**
+       * True once the row carries a REAL contact (name + email the guest
+       * supplied), false while it still holds the synthetic early-row seed
+       * (`contact_name='Guest'`, `contact_email='pending-…@guest.impronta'`).
+       * The panel uses this to decide whether the ContactCard gate must still
+       * run before a first message can be sent. Computed server-side from the
+       * row, never by string-matching the placeholder on the client.
+       */
+      contactPromoted: boolean;
+    }
   | GuestChatFailure;
 
 export type EnsureGuestChatInquiryCallback = (

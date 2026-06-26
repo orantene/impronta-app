@@ -63,6 +63,8 @@ import type {
   ListGuestTenantRosterCallback,
 } from "@/lib/inquiry/guest-chat-contract";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
+import type { Translator } from "@/i18n/interpolate";
+import { interpolate } from "@/i18n/interpolate";
 
 import { BriefEditor } from "./BriefEditor";
 import { ContactEditor } from "./ContactEditor";
@@ -82,20 +84,20 @@ import { C, FONT, readableOn } from "./mini-chat-styles";
  * Contact. (Files is omitted on purpose — see file header.)
  */
 type RailSection =
-  | { id: GuestChipKind; label: string; icon: LucideIcon; editor: "chip" }
-  | { id: "talent"; label: string; icon: LucideIcon; editor: "talent" }
-  | { id: "brief"; label: string; icon: LucideIcon; editor: "brief" }
-  | { id: "contact"; label: string; icon: LucideIcon; editor: "contact" };
+  | { id: GuestChipKind; labelKey: string; icon: LucideIcon; editor: "chip" }
+  | { id: "talent"; labelKey: string; icon: LucideIcon; editor: "talent" }
+  | { id: "brief"; labelKey: string; icon: LucideIcon; editor: "brief" }
+  | { id: "contact"; labelKey: string; icon: LucideIcon; editor: "contact" };
 
 const SECTIONS: RailSection[] = [
-  { id: "event_type", label: "Type", icon: Tag, editor: "chip" },
-  { id: "budget", label: "Budget", icon: Wallet, editor: "chip" },
-  { id: "headcount", label: "Headcount", icon: Users, editor: "chip" },
-  { id: "date", label: "Date", icon: Calendar, editor: "chip" },
-  { id: "location", label: "Location", icon: MapPin, editor: "chip" },
-  { id: "talent", label: "Talent", icon: Sparkles, editor: "talent" },
-  { id: "brief", label: "Brief", icon: FileText, editor: "brief" },
-  { id: "contact", label: "Contact", icon: UserRound, editor: "contact" },
+  { id: "event_type", labelKey: "public.guestChat.sectionType", icon: Tag, editor: "chip" },
+  { id: "budget", labelKey: "public.guestChat.sectionBudget", icon: Wallet, editor: "chip" },
+  { id: "headcount", labelKey: "public.guestChat.sectionHeadcount", icon: Users, editor: "chip" },
+  { id: "date", labelKey: "public.guestChat.sectionDate", icon: Calendar, editor: "chip" },
+  { id: "location", labelKey: "public.guestChat.sectionLocation", icon: MapPin, editor: "chip" },
+  { id: "talent", labelKey: "public.guestChat.sectionTalent", icon: Sparkles, editor: "talent" },
+  { id: "brief", labelKey: "public.guestChat.sectionBrief", icon: FileText, editor: "brief" },
+  { id: "contact", labelKey: "public.guestChat.sectionContact", icon: UserRound, editor: "contact" },
 ];
 
 type SectionId = RailSection["id"];
@@ -151,6 +153,8 @@ export type InquiryDetailsRailProps = {
   accentInk?: string;
   /** Tenant slug, forwarded to the talent picker's roster loader. */
   tenantSlug: string;
+  /** Guest-locale translator (resolved from brand.locale). */
+  t: Translator;
   /** Injected guest-safe roster loader for the talent picker (null hides search). */
   onListRoster?: ListGuestTenantRosterCallback | null;
 
@@ -208,6 +212,7 @@ export function InquiryDetailsRail({
   accent,
   accentInk,
   tenantSlug,
+  t,
   onListRoster = null,
   capturedValues = {},
   onPatchChip,
@@ -268,7 +273,7 @@ export function InquiryDetailsRail({
   // field re-announces (a live region only fires on a content change).
   function announceSaved(label: string) {
     if (saveAnnounceTimerRef.current) clearTimeout(saveAnnounceTimerRef.current);
-    setSaveAnnounce(`${label} saved.`);
+    setSaveAnnounce(interpolate(t("public.guestChat.fieldSavedAnnounce"), { label }));
     saveAnnounceTimerRef.current = setTimeout(() => setSaveAnnounce(""), 1200);
   }
 
@@ -341,7 +346,7 @@ export function InquiryDetailsRail({
 
   return (
     <nav
-      aria-label="Inquiry details"
+      aria-label={t("public.guestChat.railNavAria")}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -406,15 +411,23 @@ export function InquiryDetailsRail({
                 color: C.inkMuted,
               }}
             >
-              Inquiry details
+              {t("public.guestChat.railTitle")}
             </span>
           )}
           <button
             type="button"
             onClick={toggleCollapsed}
             aria-expanded={!collapsed}
-            aria-label={collapsed ? "Expand inquiry details" : "Collapse inquiry details"}
-            title={collapsed ? "Expand inquiry details" : "Collapse inquiry details"}
+            aria-label={
+              collapsed
+                ? t("public.guestChat.railExpand")
+                : t("public.guestChat.railCollapse")
+            }
+            title={
+              collapsed
+                ? t("public.guestChat.railExpand")
+                : t("public.guestChat.railCollapse")
+            }
             style={{
               width: 28,
               height: 28,
@@ -456,11 +469,13 @@ export function InquiryDetailsRail({
           {SECTIONS.map((section) => {
             const filled = isSectionFilled(section.id, intent);
             const isOpen = openSection === section.id;
+            const sectionLabel = t(section.labelKey);
             return (
               <div key={section.id}>
                 <InquiryDetailRow
                   icon={section.icon}
-                  label={section.label}
+                  label={sectionLabel}
+                  t={t}
                   filled={filled}
                   open={isOpen}
                   collapsed={collapsed}
@@ -478,9 +493,10 @@ export function InquiryDetailsRail({
                         initial={capturedValues[openSectionDef.id as GuestChipKind] ?? null}
                         accent={accent}
                         accentInk={ink}
+                        t={t}
                         onSubmit={(value) => {
                           void onPatchChip(openSectionDef.id as GuestChipKind, value);
-                          announceSaved(openSectionDef.label);
+                          announceSaved(sectionLabel);
                           setOpenSection(null);
                         }}
                         onCancel={() => setOpenSection(null)}
@@ -492,10 +508,11 @@ export function InquiryDetailsRail({
                         selectedIds={intent.talent?.selected_ids ?? []}
                         accent={accent}
                         tenantSlug={tenantSlug}
+                        t={t}
                         onListRoster={onListRoster}
                         onChange={(ids, mode, names) => {
                           onTalentChange(ids, mode, names);
-                          announceSaved(openSectionDef.label);
+                          announceSaved(sectionLabel);
                         }}
                       />
                     )}
@@ -505,9 +522,10 @@ export function InquiryDetailsRail({
                         initialSummary={intent.brief?.summary ?? null}
                         accent={accent}
                         accentInk={ink}
+                        t={t}
                         onSubmit={(summary) => {
                           onBriefChange(summary);
-                          announceSaved(openSectionDef.label);
+                          announceSaved(sectionLabel);
                           setOpenSection(null);
                         }}
                         onCancel={() => setOpenSection(null)}
@@ -523,9 +541,10 @@ export function InquiryDetailsRail({
                         }}
                         accent={accent}
                         accentInk={ink}
+                        t={t}
                         onSubmit={(value) => {
                           onContactChange(value);
-                          announceSaved(openSectionDef.label);
+                          announceSaved(sectionLabel);
                           setOpenSection(null);
                         }}
                         onCancel={() => setOpenSection(null)}

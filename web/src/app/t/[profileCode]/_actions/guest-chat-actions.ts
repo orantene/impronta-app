@@ -79,6 +79,26 @@ import type {
 const GUEST_HEADER = "x-impronta-guest";
 const MAX_BODY = 10_000;
 
+// The synthetic early-row contact seed (see ensureGuestChatInquiry). A row is
+// "contact promoted" once it no longer carries this placeholder, i.e. the guest
+// has supplied real contact details via the ContactCard gate. Centralized here
+// so the seed shape is asserted in exactly ONE place; the client never
+// string-matches the placeholder (it reads the contactPromoted flag instead).
+const SEED_CONTACT_NAME = "Guest";
+function isSeedContact(
+  contactName: string | null | undefined,
+  contactEmail: string | null | undefined,
+): boolean {
+  const email = (contactEmail ?? "").trim().toLowerCase();
+  const name = (contactName ?? "").trim();
+  const looksLikePendingEmail =
+    email.startsWith("pending-") && email.endsWith("@guest.impronta");
+  // The email is the load-bearing signal (always rewritten on promotion); the
+  // name check guards the rare case a real guest is literally named "Guest" yet
+  // already has a real email.
+  return looksLikePendingEmail || (name === SEED_CONTACT_NAME && email.length === 0);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Small failure helper.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1531,10 +1551,13 @@ export async function ensureGuestChatInquiry(
     // IDEMPOTENCY — reuse an existing owned, non-terminal inquiry for this guest
     // + tenant. The guest_session_id filter IS the ownership gate (mirrors
     // loadOwnedInquiry): even via service-role we only ever read this cookie's
-    // own inquiries. Newest first; the funnel never makes many.
+    // own inquiries. Newest first; the funnel never makes many. We also read the
+    // contact columns so the result can expose contactPromoted (real contact vs
+    // the synthetic early-row seed) WITHOUT the client string-matching the
+    // placeholder.
     const { data: existingRows, error: existingErr } = await admin
       .from("inquiries")
-      .select("id, status, created_at")
+      .select("id, status, created_at, contact_name, contact_email")
       .eq("guest_session_id", guestSessionId)
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
@@ -1564,11 +1587,25 @@ export async function ensureGuestChatInquiry(
         const withTalent = new Set((parts ?? []).map((p) => p.inquiry_id as string));
         const match = live.find((r) => withTalent.has(r.id as string));
         if (match) {
-          return { ok: true, inquiryId: match.id as string };
+          return {
+            ok: true,
+            inquiryId: match.id as string,
+            contactPromoted: !isSeedContact(
+              match.contact_name as string | null,
+              match.contact_email as string | null,
+            ),
+          };
         }
       } else {
         // Agency-level partial (no talent): any live owned inquiry is reusable.
-        return { ok: true, inquiryId: live[0].id as string };
+        return {
+          ok: true,
+          inquiryId: live[0].id as string,
+          contactPromoted: !isSeedContact(
+            live[0].contact_name as string | null,
+            live[0].contact_email as string | null,
+          ),
+        };
       }
     }
 
@@ -1620,7 +1657,8 @@ export async function ensureGuestChatInquiry(
       return fail("engine_error", "Couldn't start your inquiry. Please try again.");
     }
 
-    return { ok: true, inquiryId: inserted.id as string };
+    // A freshly inserted early row always carries the synthetic seed contact.
+    return { ok: true, inquiryId: inserted.id as string, contactPromoted: false };
   } catch (err) {
     logServerError("guest-chat-actions.ensureGuestChatInquiry", err);
     return fail("engine_error", "Couldn't start your inquiry. Please try again.");

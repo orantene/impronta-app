@@ -20,6 +20,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 
 import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
+import { createTranslator } from "@/i18n/messages";
 
 import { MiniChatPanel } from "./MiniChatPanel";
 import { LauncherAvatarStack } from "./LauncherAvatarStack";
@@ -94,10 +95,36 @@ export function TalentProfileChatLauncher({
   // flight is driven by the directory card's animateAdd payload via context.
   const { flight, onFlightDone } = useFlyToRail(pillRef);
 
+  // Live inquiry id reported up by the panel (early-row create / resume / switch).
+  // Stays null until a real structured commit creates a row, so a rail X-remove
+  // never spawns a phantom inquiry — it only patches an EXISTING record.
+  const liveInquiryIdRef = useRef<string | null>(existingInquiryId);
+
   function handleRemoveTalent(talentProfileId: string) {
     // Single source: removing here flips saved_talent, which propagates to the
     // rail + the form + any open panel's Talent selection.
     cart.setInCart({ talentProfileId, profileCode: "" }, false, sourcePage);
+
+    // Keep the inquiry RECORD in sync with the cart on removal (finding #3): the
+    // cart alone never patched interpreted_query.talent.selected_ids, so a removed
+    // talent lingered on the inquiry and the agency still saw them. Patch the
+    // record with the REMAINING ids (replace semantics — matches the in-chat path)
+    // ONLY when a row already exists; otherwise removal is a pure cart op.
+    const inquiryId = liveInquiryIdRef.current;
+    if (!inquiryId || !onCaptureChip) return;
+    const remainingIds = cart.cartIds.filter((id) => id !== talentProfileId);
+    const remainingNames = cartTalents
+      .filter((t) => remainingIds.includes(t.talentProfileId))
+      .map((t) => t.displayName);
+    void onCaptureChip({
+      inquiryId,
+      kind: "talent",
+      value: {
+        selectedIds: remainingIds,
+        selectionMode: remainingIds.length > 0 ? "i_know_who" : "agency_recommends",
+        selectedNames: remainingNames,
+      },
+    });
   }
 
   function handleOpenToTalent() {
@@ -140,9 +167,20 @@ export function TalentProfileChatLauncher({
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
   const talentFirst = firstNameOf(brand.talentDisplayName);
+  // Guest UI locale rides along on `brand` (resolved server-side from the
+  // tenant's default_locale, since guests have no LOCALE_COOKIE).
+  const t = createTranslator(brand.locale ?? "en");
   const launcherLabel = label ?? `Message ${talentFirst}`;
 
   if (!mounted) return null;
+
+  // Finding #4: activate the already-coded A.9 mobile geometry (32px avatars,
+  // -11px overlap, max 2, always-visible 18px X) on touch devices. Read once at
+  // render after the mount guard so matchMedia is never touched on the server.
+  const isCoarsePointer =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(pointer:coarse)").matches;
 
   const hasCart = cartTalents.length > 0;
 
@@ -181,6 +219,8 @@ export function TalentProfileChatLauncher({
               onOpenToTalentSection={handleOpenToTalent}
               accent={accent}
               accentInk={accentInk}
+              t={t}
+              compact={isCoarsePointer}
             />
           </div>
         )}
@@ -270,6 +310,9 @@ export function TalentProfileChatLauncher({
         openToTalentSection={openToTalent}
         onConsumeOpenToTalentSection={() => setOpenToTalent(false)}
         onRemoveCartTalent={handleRemoveTalent}
+        onInquiryIdChange={(id) => {
+          liveInquiryIdRef.current = id;
+        }}
       />
     </>
   );

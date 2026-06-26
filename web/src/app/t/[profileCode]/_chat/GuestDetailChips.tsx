@@ -49,11 +49,13 @@
 
 import { useState } from "react";
 import type { GuestChipKind, GuestChipValue, GuestChipInput, GuestChipResult } from "@/lib/inquiry/guest-chat-contract";
+import type { Translator } from "@/i18n/interpolate";
+import { interpolate } from "@/i18n/interpolate";
 import type { UnifiedSyncState } from "./use-unified-inquiry";
 import {
   GuestDetailChipEditor,
 } from "./GuestDetailChipEditor";
-import { C, FONT, DEFAULT_ACCENT, readableOn } from "./mini-chat-styles";
+import { C, FONT, DEFAULT_ACCENT, readableOn, accentText } from "./mini-chat-styles";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props
@@ -75,6 +77,8 @@ export type GuestDetailChipsProps = {
   accent: string;
   /** Readable text color on accent background. */
   accentInk: string;
+  /** Guest-locale translator (resolved from brand.locale). */
+  t: Translator;
   /**
    * Set of chip kinds that have already been captured (drives checkmark +
    * value label display). Owned by the parent (MiniChatPanel).
@@ -122,15 +126,17 @@ export type GuestDetailChipsProps = {
 
 type ChipMeta = {
   kind: GuestChipKind;
-  defaultLabel: string;
-  capturedLabel: (value: GuestChipValue) => string | null;
+  /** i18n key for the default (empty-state) chip label. */
+  defaultLabelKey: string;
+  /** Localized captured-value label; `t` resolves the locale catalog. */
+  capturedLabel: (value: GuestChipValue, t: Translator) => string | null;
 };
 
 const CHIPS: ChipMeta[] = [
   {
     kind: "date",
-    defaultLabel: "Date",
-    capturedLabel: (v) => {
+    defaultLabelKey: "public.guestChat.chipDate",
+    capturedLabel: (v, t) => {
       if (v.eventDate) {
         try {
           return new Date(v.eventDate + "T00:00:00").toLocaleDateString(undefined, {
@@ -141,45 +147,53 @@ const CHIPS: ChipMeta[] = [
           return v.eventDate;
         }
       }
-      if (v.dateStatus === "flexible") return "Flexible";
-      if (v.dateStatus === "not_sure") return "Date TBD";
+      if (v.dateStatus === "flexible") return t("public.guestChat.chipFlexible");
+      if (v.dateStatus === "not_sure") return t("public.guestChat.chipDateTbd");
       return null;
     },
   },
   {
     kind: "location",
-    defaultLabel: "Location",
-    capturedLabel: (v) => {
-      if (v.locationStatus === "online") return "Online";
+    defaultLabelKey: "public.guestChat.chipLocation",
+    capturedLabel: (v, t) => {
+      if (v.locationStatus === "online") return t("public.guestChat.chipOnline");
       if (v.city?.trim()) return v.city.trim();
-      if (v.locationStatus === "not_sure") return "TBD";
+      if (v.locationStatus === "not_sure") return t("public.guestChat.chipTbd");
       return null;
     },
   },
   {
     kind: "headcount",
-    defaultLabel: "Headcount",
-    capturedLabel: (v) => {
+    defaultLabelKey: "public.guestChat.chipHeadcount",
+    capturedLabel: (v, t) => {
       const n = v.headcount;
-      if (n !== null && n !== undefined) return `${n} ${n === 1 ? "guest" : "guests"}`;
+      if (n !== null && n !== undefined) {
+        return interpolate(t("public.guestChat.chipGuestsWithCount"), {
+          count: n,
+          unit:
+            n === 1
+              ? t("public.guestChat.guestOne")
+              : t("public.guestChat.guestOther"),
+        });
+      }
       return null;
     },
   },
   {
     kind: "event_type",
-    defaultLabel: "Type",
+    defaultLabelKey: "public.guestChat.chipType",
     capturedLabel: (v) => v.eventType?.trim() || null,
   },
   {
     kind: "budget",
-    defaultLabel: "Budget",
-    capturedLabel: (v) => {
+    defaultLabelKey: "public.guestChat.chipBudget",
+    capturedLabel: (v, t) => {
       if (v.budgetAmount !== null && v.budgetAmount !== undefined && v.currency) {
         return `${v.currency} ${v.budgetAmount.toLocaleString()}`;
       }
       if (v.budgetPreference && v.budgetPreference !== "not_sure") {
         return v.budgetPreference === "agency_recommends"
-          ? "Agency recommends"
+          ? t("public.guestChat.chipAgencyRecommends")
           : v.budgetPreference.replace(/_/g, " ");
       }
       return null;
@@ -212,6 +226,10 @@ const scrollRowStyle: React.CSSProperties = {
 };
 
 function chipStyle(captured: boolean, accent: string): React.CSSProperties {
+  // a11y: the filled chip paints a pale `${accent}15` tint behind the label, so a
+  // bright tenant accent (Impronta = gold) as label text fails 4.5:1. Use the raw
+  // accent only for border/fill; clamp the LABEL text to an AA-legible variant
+  // (returns the accent unchanged when it already passes, e.g. the slate default).
   return {
     display: "inline-flex",
     alignItems: "center",
@@ -224,7 +242,7 @@ function chipStyle(captured: boolean, accent: string): React.CSSProperties {
     fontFamily: FONT,
     fontSize: 12,
     fontWeight: captured ? 600 : 400,
-    color: captured ? accent : C.ink,
+    color: captured ? accentText(accent) : C.ink,
     cursor: "pointer",
     whiteSpace: "nowrap",
     flexShrink: 0,
@@ -261,6 +279,7 @@ export function GuestDetailChips({
   alwaysShow = false,
   accent = DEFAULT_ACCENT,
   accentInk,
+  t,
   capturedKinds,
   capturedValues = {},
   onCapture,
@@ -332,7 +351,7 @@ export function GuestDetailChips({
     <div style={wrapStyle}>
       {/* Chip scroll row */}
       <div style={scrollRowStyle}>
-        {CHIPS.map(({ kind, defaultLabel, capturedLabel }) => {
+        {CHIPS.map(({ kind, defaultLabelKey, capturedLabel }) => {
           const isCaptured = capturedKinds.includes(kind);
           const isOpen = openKind === kind;
           // Field status: unified path reads fieldState; legacy reads `submitting`.
@@ -342,8 +361,9 @@ export function GuestDetailChips({
           const isErr = onPatch && fState === "error";
           const isFlashing = remoteFlashKinds.includes(kind);
           const capturedValue = capturedValues[kind];
-          const valueLabel = capturedValue ? capturedLabel(capturedValue) : null;
+          const valueLabel = capturedValue ? capturedLabel(capturedValue, t) : null;
 
+          const defaultLabel = t(defaultLabelKey);
           const label = isCaptured && valueLabel ? valueLabel : defaultLabel;
 
           return (
@@ -362,12 +382,19 @@ export function GuestDetailChips({
               }}
               onClick={() => handleChipClick(kind)}
               aria-pressed={isCaptured}
-              aria-label={isCaptured ? `Edit ${defaultLabel}: ${label}` : `Add ${defaultLabel}`}
+              aria-label={
+                isCaptured
+                  ? interpolate(t("public.guestChat.chipEditAria"), {
+                      label: defaultLabel,
+                      value: label,
+                    })
+                  : interpolate(t("public.guestChat.chipAddAria"), { label: defaultLabel })
+              }
               disabled={isSaving}
             >
-              {isCaptured && !isSaving && <CheckIcon color={accent} />}
-              {isSaving ? "Saving…" : label}
-              {isSaved && <CheckIcon color={accent} />}
+              {isCaptured && !isSaving && <CheckIcon color={accentText(accent)} />}
+              {isSaving ? t("public.guestChat.chipSaving") : label}
+              {isSaved && <CheckIcon color={accentText(accent)} />}
             </button>
           );
         })}
@@ -380,6 +407,7 @@ export function GuestDetailChips({
           initial={capturedValues[openKind] ?? null}
           accent={accent}
           accentInk={resolvedAccentInk}
+          t={t}
           onSubmit={(value) => void handleEditorSubmit(openKind, value)}
           onCancel={handleEditorCancel}
         />
@@ -406,10 +434,10 @@ export function GuestDetailChips({
           }}
         >
           {footerStatus === "saving"
-            ? "Saving…"
+            ? t("public.guestChat.chipSaving")
             : footerStatus === "saved"
-              ? "Saved"
-              : "Couldn't save. Tap the field to retry."}
+              ? t("public.guestChat.chipSaved")
+              : t("public.guestChat.chipSaveRetry")}
         </p>
       )}
 
@@ -418,9 +446,9 @@ export function GuestDetailChips({
         type="button"
         style={addMoreStyle}
         onClick={onAddMoreDetails}
-        aria-label="Add more details in the full inquiry form"
+        aria-label={t("public.guestChat.addMoreDetailsAria")}
       >
-        Add more details →
+        {t("public.guestChat.addMoreDetails")}
       </button>
     </div>
   );

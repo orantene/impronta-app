@@ -32,8 +32,26 @@ import {
 import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadGuestChatSettings } from "@/lib/inquiry/guest-chat-settings";
+
+/**
+ * Resolve agencies.slug from a tenant id (service-role read). The hub arm of
+ * PublicHostContext carries no slug, but the guest chat actions are all
+ * slug-based, so we look it up here. Returns null when unavailable (the caller
+ * then null-guards and renders nothing rather than a dead launcher).
+ */
+async function resolveTenantSlugById(tenantId: string): Promise<string | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data } = await admin
+    .from("agencies")
+    .select("slug")
+    .eq("id", tenantId)
+    .maybeSingle();
+  return (data?.slug as string | null) ?? null;
+}
 
 type AgencyChatLauncherMountProps = {
   /** Attribution page for source_context (e.g. "/" or "/directory"). */
@@ -56,9 +74,16 @@ export async function AgencyChatLauncherMount({
   if ((ctx.kind === "agency" || ctx.kind === "hub") && ctx.tenantId) {
     tenantId = ctx.tenantId;
     // Only the agency arm of PublicHostContext carries a slug; the hub arm does
-    // not. Narrow with `in` (default hub → "" — unchanged runtime behavior) so
-    // the access type-checks. (Pre-existing tsc error from #260, surfaced here.)
-    tenantSlug = "tenantSlug" in ctx ? ctx.tenantSlug ?? "" : "";
+    // not, so resolve it from the tenant id (agencies.slug) the same way the
+    // marketing/app branch gets a real slug from getPlatformHubTenant. Every
+    // slug-based guest action (resolveTenantIdBySlug, ensureGuestChatInquiry,
+    // roster/portrait reads) needs a real slug, so a hub launcher with an empty
+    // slug renders dead. Fall back to the null-guard below when it can't resolve.
+    if ("tenantSlug" in ctx && ctx.tenantSlug) {
+      tenantSlug = ctx.tenantSlug;
+    } else {
+      tenantSlug = (await resolveTenantSlugById(tenantId)) ?? "";
+    }
   } else if (ctx.kind === "marketing" || ctx.kind === "app") {
     const hub = await getPlatformHubTenant();
     if (!hub) return null;
@@ -68,6 +93,10 @@ export async function AgencyChatLauncherMount({
   } else {
     return null;
   }
+
+  // Null-guard: every guest action behind this launcher is slug-based, so an
+  // empty slug yields a non-functional launcher. Never render a dead one.
+  if (!tenantSlug.trim()) return null;
 
   const settings = await loadGuestChatSettings(tenantId);
   if (!settings.enabled || !settings.showOnDirectory) return null;

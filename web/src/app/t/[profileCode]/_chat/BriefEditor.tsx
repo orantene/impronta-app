@@ -18,6 +18,7 @@
 
 import { useState } from "react";
 
+import type { Translator } from "@/i18n/interpolate";
 import { C, FONT, inputStyle, primaryBtnStyle, readableOn } from "./mini-chat-styles";
 
 export type BriefEditorProps = {
@@ -27,6 +28,8 @@ export type BriefEditorProps = {
   accent: string;
   /** Readable text color on the accent background. */
   accentInk?: string;
+  /** Guest-locale translator (resolved from brand.locale). */
+  t: Translator;
   onSubmit: (summary: string) => void;
   onCancel: () => void;
 };
@@ -35,6 +38,7 @@ export function BriefEditor({
   initialSummary,
   accent,
   accentInk,
+  t,
   onSubmit,
   onCancel,
 }: BriefEditorProps) {
@@ -62,14 +66,14 @@ export function BriefEditor({
           textTransform: "uppercase",
         }}
       >
-        What you need
+        {t("public.guestChat.briefSectionLabel")}
       </span>
       <textarea
         rows={4}
         value={summary}
         onChange={(e) => setSummary(e.target.value)}
-        placeholder="What are you planning? What kind of talent works for you? Anything already confirmed?"
-        aria-label="Tell us about the project"
+        placeholder={t("public.guestChat.briefPlaceholder")}
+        aria-label={t("public.guestChat.briefAria")}
         style={{
           ...inputStyle,
           height: "auto",
@@ -98,14 +102,14 @@ export function BriefEditor({
             cursor: "pointer",
           }}
         >
-          Cancel
+          {t("public.guestChat.cancel")}
         </button>
         <button
           type="button"
           onClick={() => onSubmit(summary.trim())}
           style={{ ...primaryBtnStyle(accent, ink), height: 32, padding: "0 14px", fontSize: 12 }}
         >
-          Confirm
+          {t("public.guestChat.confirm")}
         </button>
       </div>
     </div>

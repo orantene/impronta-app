@@ -49,6 +49,12 @@ export type GuestDetailReconcileResult = {
 
 const FLASH_MS = 600;
 const NUDGE_DEBOUNCE_MS = 350;
+// Grace window after a local write settles, during which a re-read diff for that
+// kind is treated as the guest's OWN write echoing back (not a remote agency
+// edit). The postgres_changes nudge re-reads ~350ms after the local flush has
+// already cleared the kind out of `savingKinds`, so without this window every
+// self-edit produced a spurious "The agency updated the X" note + accent flash.
+const LOCAL_WRITE_GRACE_MS = 2000;
 
 function prefersReducedMotion(): boolean {
   return (
@@ -74,7 +80,16 @@ export function useGuestDetailReconcile(
   const savingRef = useRef(savingKinds);
   const onValuesRef = useRef(onValues);
   const onRemoteNoteRef = useRef(onRemoteNote);
+  // Per-kind timestamp of the most recent moment the guest was locally saving
+  // that kind. Recorded as each kind LEAVES `savingKinds` (i.e. its local write
+  // just settled), then used as the start of the LOCAL_WRITE_GRACE_MS window.
+  const lastLocalWriteAtRef = useRef<Map<GuestChipKind, number>>(new Map());
   useEffect(() => {
+    const prevSaving = savingRef.current;
+    // A kind present in the previous saving set but absent now just settled.
+    for (const k of prevSaving) {
+      if (!savingKinds.has(k)) lastLocalWriteAtRef.current.set(k, Date.now());
+    }
     savingRef.current = savingKinds;
     onValuesRef.current = onValues;
     onRemoteNoteRef.current = onRemoteNote;
@@ -83,6 +98,7 @@ export function useGuestDetailReconcile(
   // Re-baseline when the active inquiry changes (thread switch / early create).
   useEffect(() => {
     lastJsonRef.current = "";
+    lastLocalWriteAtRef.current.clear();
   }, [inquiryId]);
 
   // The re-read + diff.
@@ -107,8 +123,13 @@ export function useGuestDetailReconcile(
         onValuesRef.current(res.values, res.capturedKinds);
         if (isFirstRead) return;
 
+        const now = Date.now();
         const changed = res.capturedKinds.filter((k) => {
           if (savingRef.current.has(k)) return false;
+          // Ignore the guest's OWN recent write echoing back: a kind whose local
+          // write settled within the grace window is not a remote agency edit.
+          const localAt = lastLocalWriteAtRef.current.get(k);
+          if (localAt != null && now - localAt < LOCAL_WRITE_GRACE_MS) return false;
           return JSON.stringify(res.values[k]) !== JSON.stringify(prev[k]);
         });
         if (changed.length === 0) return;

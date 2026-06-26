@@ -19,7 +19,11 @@ export const FONT =
 export const C = {
   ink: "#16181d",
   inkMuted: "#5b6170",
-  inkDim: "#9aa0ad",
+  // inkDim is used for meaningful text (unsaved hints, retry/error copy, optional
+  // pills). Darkened from the original #9aa0ad (~2.6:1, a WCAG 1.4.3 AA failure)
+  // to clear >=4.5:1 on BOTH #ffffff (4.97:1) and C.surfaceFaint #f6f7f9 (4.64:1),
+  // so every dim text instance is now AA-legible without per-call-site changes.
+  inkDim: "#6a707d",
   surface: "#ffffff",
   surfaceFaint: "#f6f7f9",
   surfaceCool: "#eef1f5",
@@ -66,6 +70,84 @@ export function readableOn(hex: string | null | undefined): string {
   // Relative luminance (sRGB approximation).
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return lum > 0.62 ? "#16181d" : "#ffffff";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Accent-as-text contrast clamp (a11y). `readableOn` only governs ink ON a SOLID
+// accent fill. When the accent itself is used as TEXT/GLYPH on a light surface or
+// a pale accent tint (filled chips, selected-talent chips, rail icons), a bright
+// tenant accent — Impronta ships GOLD — drops well below the 4.5:1 AA floor. These
+// helpers parse the accent, measure its contrast, and DARKEN it until it clears
+// the floor (falling back to C.ink), so no tenant accent can ship sub-4.5:1 text.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type Rgb = { r: number; g: number; b: number };
+
+function parseHex(hex: string | null | undefined): Rgb | null {
+  if (!hex || typeof hex !== "string") return null;
+  const m = hex.trim().replace(/^#/, "");
+  const full =
+    m.length === 3
+      ? m
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : m;
+  if (full.length !== 6) return null;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  if ([r, g, b].some((n) => Number.isNaN(n))) return null;
+  return { r, g, b };
+}
+
+function toHex({ r, g, b }: Rgb): string {
+  const h = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+
+function relLuminance({ r, g, b }: Rgb): number {
+  const lin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+/** WCAG contrast ratio between two parsed colors. */
+function contrastRatio(a: Rgb, b: Rgb): number {
+  const la = relLuminance(a);
+  const lb = relLuminance(b);
+  const hi = Math.max(la, lb);
+  const lo = Math.min(la, lb);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const AA_TEXT = 4.5;
+
+/**
+ * accentText — a guaranteed >=4.5:1 text/glyph color derived from the tenant
+ * accent, for use as foreground on a light background (default white). If the raw
+ * accent already passes against `bg`, it is returned unchanged (the slate default
+ * passes); otherwise it is darkened toward black in small steps until it clears
+ * the AA floor, falling back to C.ink if even near-black would not (never happens
+ * for a 4.5:1 target on a light bg, but the guard keeps the contract total).
+ *
+ * Tints like `${accent}15` composite over the surface, so measuring against the
+ * solid light surface is the conservative (worst-case) bound for chip/rail labels.
+ */
+export function accentText(accent: string, bg: string = C.surface): string {
+  const fg = parseHex(accent);
+  const bgRgb = parseHex(bg) ?? { r: 255, g: 255, b: 255 };
+  if (!fg) return C.ink;
+  if (contrastRatio(fg, bgRgb) >= AA_TEXT) return accent;
+  // Darken toward black, preserving hue, until the floor is met.
+  let cur = { ...fg };
+  for (let i = 0; i < 24; i += 1) {
+    cur = { r: cur.r * 0.9, g: cur.g * 0.9, b: cur.b * 0.9 };
+    if (contrastRatio(cur, bgRgb) >= AA_TEXT) return toHex(cur);
+  }
+  return C.ink;
 }
 
 export function formatTime(iso: string): string {

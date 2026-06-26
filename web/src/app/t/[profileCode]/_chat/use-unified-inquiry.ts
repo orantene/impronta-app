@@ -67,10 +67,30 @@ export type UnifiedSyncState = "idle" | "saving" | "saved" | "error";
 export type UseUnifiedInquiryResult = {
   /** The single inquiry record id, or null until the first structured commit. */
   inquiryId: string | null;
+  /**
+   * Whether the inquiry's contact is REAL (the guest supplied name/email via the
+   * ContactCard gate) vs the synthetic early-row seed
+   * (contact_email like "pending-…@guest.impronta"). Backed by the
+   * `contactPromoted` flag the server returns from ensureGuestChatInquiry — the
+   * client never string-matches the placeholder. False until promotion; flips to
+   * true after a successful contact patch. Drives the send-gate (finding #1).
+   */
+  contactPromoted: boolean;
   /** The reconciled live draft (optimistic local edits merged with server data). */
   intent: InquiryIntent;
   /** Debounced ~350ms; ensures the early row exists first, then writes the field. */
   patch: (p: UnifiedInquiryPatch) => Promise<void>;
+  /**
+   * Promote the synthetic early-row contact to real values (name/email/phone) and
+   * AWAIT the write. Unlike patch() this is not debounced — the caller (ContactCard
+   * gate / first send) needs the contact persisted before sending the first
+   * message. Flips contactPromoted to true on success. Returns ok.
+   */
+  promoteContact: (value: {
+    name: string;
+    email: string;
+    phone?: string | null;
+  }) => Promise<boolean>;
   /** Panel-level sync status for the sync bar (B.4). */
   syncState: UnifiedSyncState;
   /** Per-field status keyed by patch kind, for the field-level micro-status (B.4). */
@@ -274,6 +294,11 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
   const [localIntent, setLocalIntent] = useState<InquiryIntent>(serverIntent ?? EMPTY_INTENT);
   const [syncState, setSyncState] = useState<UnifiedSyncState>("idle");
   const [fieldState, setFieldState] = useState<Record<string, UnifiedSyncState>>({});
+  // Real-contact flag (see UseUnifiedInquiryResult.contactPromoted). A returning
+  // guest resumed with an existing id may already be promoted; ensureGuestChatInquiry
+  // reports the true state, so we treat an injected existingInquiryId as promoted
+  // (it was created through the real start path) and let ensure() correct it.
+  const [contactPromoted, setContactPromoted] = useState<boolean>(Boolean(existingInquiryId));
 
   // Subscribe to the tenant-wide realtime channels so remote edits drive a
   // refresh. Gated: the guest chat surface leaves this OFF and relies on the
@@ -335,6 +360,9 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
       if (result.ok) {
         inquiryIdRef.current = result.inquiryId;
         setInquiryId(result.inquiryId);
+        // Adopt the server's authoritative contact state (resumed rows may
+        // already be promoted; fresh early rows carry the synthetic seed).
+        if (result.contactPromoted) setContactPromoted(true);
         return result.inquiryId;
       }
       return null;
@@ -431,6 +459,57 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
     [debounceMs, flushField, setField],
   );
 
+  /**
+   * promoteContact — overwrite the synthetic early-row contact with REAL values
+   * and await the write (not debounced). Ensures the row exists first, then sends
+   * the contact chip so the flat contact_name/contact_email columns + requester
+   * are patched. Flips contactPromoted on success so the send-gate stops forcing
+   * the ContactCard. This is the guest-safe promotion path (reuses the existing
+   * captureGuestChip kind:"contact").
+   */
+  const promoteContact = useCallback(
+    async (value: { name: string; email: string; phone?: string | null }): Promise<boolean> => {
+      // Optimistic draft so the requester reflects immediately.
+      setLocalIntent((prev) =>
+        mergePatchIntoIntent(prev, {
+          kind: "contact",
+          name: value.name,
+          email: value.email,
+          phone: value.phone ?? null,
+        }),
+      );
+      setField("contact", "saving");
+
+      const id = await ensureInquiryId();
+      if (!id) {
+        setField("contact", "error");
+        return false;
+      }
+
+      const result = await onCaptureChipRef.current({
+        inquiryId: id,
+        kind: "contact",
+        value: {
+          contactName: value.name,
+          contactEmail: value.email,
+          contactPhone: value.phone ?? null,
+        },
+      });
+      if (result.ok) {
+        setContactPromoted(true);
+        setField("contact", "saved");
+        savedTimersRef.current.contact = setTimeout(() => {
+          delete savedTimersRef.current.contact;
+          setField("contact", "idle");
+        }, SAVED_AUTO_HIDE_MS);
+        return true;
+      }
+      setField("contact", "error");
+      return false;
+    },
+    [ensureInquiryId, setField],
+  );
+
   // ── Inbound reconcile ─────────────────────────────────────────────────────
   // When the panel re-supplies server-loaded details (after a realtime refresh),
   // adopt them as the base, but let any field still mid-flight keep its local
@@ -465,5 +544,5 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
 
   const intent = useMemo(() => localIntent, [localIntent]);
 
-  return { inquiryId, intent, patch, syncState, fieldState };
+  return { inquiryId, contactPromoted, intent, patch, promoteContact, syncState, fieldState };
 }

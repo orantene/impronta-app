@@ -24,6 +24,7 @@
 
 import { useState } from "react";
 
+import type { Translator } from "@/i18n/interpolate";
 import {
   C,
   EMAIL_RE,
@@ -46,6 +47,8 @@ export type ContactEditorProps = {
   accent: string;
   /** Readable text color on the accent background. */
   accentInk?: string;
+  /** Guest-locale translator (resolved from brand.locale). */
+  t: Translator;
   onSubmit: (value: ContactEditorValue) => void;
   onCancel: () => void;
 };
@@ -75,6 +78,7 @@ export function ContactEditor({
   initial,
   accent,
   accentInk,
+  t,
   onSubmit,
   onCancel,
 }: ContactEditorProps) {
@@ -110,29 +114,29 @@ export function ContactEditor({
           textTransform: "uppercase",
         }}
       >
-        Your info
+        {t("public.guestChat.contactSectionLabel")}
       </span>
 
       <div>
-        <label style={fieldLabelStyle()}>Name</label>
+        <label style={fieldLabelStyle()}>{t("public.guestChat.contactName")}</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Your name"
-          aria-label="Your name"
+          placeholder={t("public.guestChat.contactNamePlaceholder")}
+          aria-label={t("public.guestChat.contactNameAria")}
           style={smallInputStyle()}
         />
       </div>
 
       <div>
-        <label style={fieldLabelStyle()}>Email</label>
+        <label style={fieldLabelStyle()}>{t("public.guestChat.contactEmail")}</label>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          aria-label="Your email"
+          placeholder={t("public.guestChat.contactEmailPlaceholder")}
+          aria-label={t("public.guestChat.contactEmailAria")}
           style={{
             ...smallInputStyle(),
             borderColor: emailInvalid ? C.danger : undefined,
@@ -140,25 +144,25 @@ export function ContactEditor({
         />
         {emailInvalid && (
           <p style={{ margin: "4px 0 0", fontSize: 11, color: C.danger }}>
-            Enter a valid email so the agency can reach you.
+            {t("public.guestChat.contactEmailInvalid")}
           </p>
         )}
       </div>
 
       <div>
-        <label style={fieldLabelStyle()}>Phone (optional)</label>
+        <label style={fieldLabelStyle()}>{t("public.guestChat.contactPhoneLabel")}</label>
         <input
           type="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          placeholder="Phone"
-          aria-label="Your phone"
+          placeholder={t("public.guestChat.contactPhonePlaceholder")}
+          aria-label={t("public.guestChat.contactPhoneAria")}
           style={smallInputStyle()}
         />
       </div>
 
       <p style={{ margin: 0, fontSize: 11, color: C.inkDim }}>
-        We will only use this to follow up on your inquiry.
+        {t("public.guestChat.contactPrivacy")}
       </p>
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
@@ -178,7 +182,7 @@ export function ContactEditor({
             cursor: "pointer",
           }}
         >
-          Cancel
+          {t("public.guestChat.cancel")}
         </button>
         <button
           type="button"
@@ -195,7 +199,7 @@ export function ContactEditor({
             cursor: canConfirm ? "pointer" : "not-allowed",
           }}
         >
-          Confirm
+          {t("public.guestChat.confirm")}
         </button>
       </div>
     </div>

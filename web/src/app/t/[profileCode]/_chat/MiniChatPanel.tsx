@@ -36,17 +36,21 @@ import type {
 } from "@/lib/inquiry/guest-chat-contract";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 
+import { createTranslator } from "@/i18n/messages";
+
 import { ExpandedChatLayout } from "./ExpandedChatLayout";
 import { MiniChatPanelColumn } from "./MiniChatPanelColumn";
 import { usePresenceChime } from "./usePresenceChime";
 import { useUnifiedInquiry } from "./use-unified-inquiry";
+import type { UnifiedInquiryPatch } from "./use-unified-inquiry";
+import { useMiniChatSend } from "./use-mini-chat-send";
 import { useCartTalentPreload } from "./use-cart-talent-preload";
 import {
   NOOP_CAPTURE_CHIP,
   NOOP_ENSURE_INQUIRY,
   deriveTalentPickState,
+  makeRemoteNoteRows,
   reconcileCartRemovals,
-  remoteNoteFor,
 } from "./mini-chat-panel-helpers";
 import { useGuestDetailReconcile } from "./use-guest-detail-reconcile";
 import { chipValueToPatch, chipValuesToServerIntent } from "./unified-inquiry-bridge";
@@ -58,7 +62,6 @@ import {
   FONT,
   GUEST_CHAT_PANEL_BOTTOM_PX,
   firstNameOf,
-  joinGuestDisplayName,
   readableOn,
   splitGuestFullName,
 } from "./mini-chat-styles";
@@ -83,6 +86,14 @@ type MiniChatPanelLocalProps = MiniChatPanelProps & {
   onConsumeOpenToTalentSection?: () => void;
   /** Remove a talent from the cart (mirrors the rail X; single source). */
   onRemoveCartTalent?: (talentProfileId: string) => void;
+  /**
+   * Report the live inquiry id up to the launcher whenever it resolves (early-row
+   * create / resume / switch). The launcher uses it so a rail X-remove can patch
+   * the inquiry record's talent.selected_ids in sync with the cart, WITHOUT
+   * spawning a fresh row when no inquiry exists yet (id stays null until a real
+   * structured commit creates one).
+   */
+  onInquiryIdChange?: (inquiryId: string | null) => void;
 };
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -121,10 +132,14 @@ export function MiniChatPanel({
   openToTalentSection = false,
   onConsumeOpenToTalentSection,
   onRemoveCartTalent,
+  onInquiryIdChange,
 }: MiniChatPanelLocalProps) {
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
   const talentFirst = firstNameOf(brand.talentDisplayName);
+  // Guest UI locale rides along on `brand` (resolved server-side from the
+  // tenant's default_locale, since guests have no LOCALE_COOKIE).
+  const t = createTranslator(brand.locale ?? "en");
 
   const [inquiryId, setInquiryId] = useState<string | null>(existingInquiryId);
   const [rows, setRows] = useState<StreamRow[]>([]);
@@ -175,6 +190,12 @@ export function MiniChatPanel({
   // F4: inquiries list for the expanded left pane.
   const [inquiries, setInquiries] = useState<GuestInquirySummary[]>([]);
 
+  // Finding #2: post-"Send to agency" success note (one-shot confirmation).
+  const [sentNote, setSentNote] = useState(false);
+  // Finding #3: the last patch sent, so the SyncStatusBar retry can re-run the
+  // exact failed write rather than guessing which field failed.
+  const lastPatchRef = useRef<UnifiedInquiryPatch | null>(null);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -203,6 +224,12 @@ export function MiniChatPanel({
       setInquiryId(unified.inquiryId);
     }
   }, [unified.inquiryId, inquiryId]);
+
+  // Report the resolved inquiry id up so the launcher's rail X-remove can patch
+  // the record in sync with the cart (without ever creating a fresh row).
+  useEffect(() => {
+    onInquiryIdChange?.(inquiryId);
+  }, [inquiryId, onInquiryIdChange]);
 
   // Phase 3: opening the pill with cart talent preloads them into the inquiry
   // Talent selection (see use-cart-talent-preload).
@@ -398,24 +425,7 @@ export function MiniChatPanel({
       });
     },
     onRemoteNote: (kinds) => {
-      const nowIso = new Date().toISOString();
-      setRows((cur) => [
-        ...cur,
-        ...kinds.map((k, i) => ({
-          id: `remote-${k}-${nowIso}-${i}`,
-          inquiryId: inquiryId ?? "",
-          authorRole: "system" as const,
-          authorLabel: null,
-          authorAvatarUrl: null,
-          body: remoteNoteFor(k),
-          kind: "text" as const,
-          cardPayload: null,
-          createdAt: nowIso,
-          editedAt: null,
-          isDeleted: false,
-          replyToMessageId: null,
-        })),
-      ]);
+      setRows((cur) => [...cur, ...makeRemoteNoteRows(kinds, inquiryId)]);
     },
   });
 
@@ -440,7 +450,7 @@ export function MiniChatPanel({
   ) {
     if (code === "rate_limited") {
       setCooldownSecs(Math.max(1, Math.ceil((retryAfterMs ?? 30_000) / 1000)));
-      setError(message || "You're sending a little fast — give it a moment.");
+      setError(message || t("public.guestChat.errRateLimited"));
       return;
     }
     if (code === "captcha_required") {
@@ -478,127 +488,46 @@ export function MiniChatPanel({
     setError(message || "Something went wrong. Please try again.");
   }
 
-  async function handleFirstSend() {
-    const body = draft.trim();
-    if (!body) return;
-    if (!firstName.trim() || !EMAIL_RE.test(email.trim())) {
-      setStage("gate");
-      setError(null);
-      return;
-    }
-    const contactName = joinGuestDisplayName(firstName, lastName);
-    setSending(true);
-    setError(null);
-    setCaptchaRequired(false);
-    const tmpId = `tmp-${Date.now()}`;
-    const nowIso = new Date().toISOString();
-    setRows((cur) => [
-      ...cur,
-      {
-        id: tmpId,
-        inquiryId: "",
-        authorRole: "guest",
-        authorLabel: null,
-        authorAvatarUrl: null,
-        body,
-        kind: "text",
-        cardPayload: null,
-        createdAt: nowIso,
-        editedAt: null,
-        isDeleted: false,
-        replyToMessageId: null,
-        pending: true,
-      },
-    ]);
-    setDraft("");
-    setStage("thread");
-    const res = await onStartInquiry({
-      tenantSlug,
-      talentProfileId,
-      talentProfileCode,
-      contactFirstName: firstName.trim(),
-      contactLastName: lastName.trim() || null,
-      contactName,
-      contactEmail: email.trim(),
-      contactPhone: phone.trim() || null,
-      firstMessage: body,
-      sourcePage,
-      honeypot: honeypot || null,
-    });
-    setSending(false);
-    if (!res.ok) {
-      setRows((cur) =>
-        cur.map((r) => (r.id === tmpId ? { ...r, pending: false, failed: true } : r)),
-      );
-      setDraft(body);
-      applyFailure(res.code, res.message, res.retryAfterMs, {
-        gateTier: res.gateTier,
-        activeCount: res.activeCount,
-        limit: res.limit,
-      });
-      return;
-    }
-    setInquiryId(res.inquiryId);
-    setEmailedTo(res.claimEmailSent ? res.guestEmail : null);
-    if (!res.claimEmailSent && res.guestActivation !== "unlinked") {
-      setError(
-        "Your message was sent, but we couldn't email a sign-in link. Use \"Email me a sign-in link\" below to try again.",
-      );
-    }
-    lastSeenIsoRef.current = null;
-    setRows((cur) => cur.filter((r) => r.id !== tmpId));
-    const seeded: GuestThreadMessage[] = [res.openingMessage];
-    if (res.autoAckMessage) seeded.push(res.autoAckMessage);
-    mergeServer(seeded);
-  }
+  // Send state machine (handleFirstSend / handleReply / submit) extracted to keep
+  // this orchestrator under its line cap. submit() routes on contactPromoted so an
+  // un-promoted early row always passes the ContactCard gate (findings #1 + #5).
+  const { handleFirstSend, submit, sendToAgency } = useMiniChatSend({
+    draft,
+    firstName,
+    lastName,
+    email,
+    phone,
+    honeypot,
+    inquiryId,
+    sending,
+    inCooldown,
+    tenantSlug,
+    talentProfileId,
+    talentProfileCode,
+    sourcePage,
+    contactPromoted: unified.contactPromoted,
+    promoteContact: unified.promoteContact,
+    onStartInquiry,
+    onSendMessage,
+    setRows,
+    setDraft,
+    setStage,
+    setSending,
+    setError,
+    setCaptchaRequired,
+    setInquiryId,
+    setEmailedTo,
+    lastSeenIsoRef,
+    mergeServer,
+    applyFailure,
+    onSent: () => setSentNote(true),
+  });
 
-  async function handleReply() {
-    const body = draft.trim();
-    if (!body || !inquiryId) return;
-    setSending(true);
-    setError(null);
-    const tmpId = `tmp-${Date.now()}`;
-    const nowIso = new Date().toISOString();
-    setRows((cur) => [
-      ...cur,
-      {
-        id: tmpId,
-        inquiryId,
-        authorRole: "guest",
-        authorLabel: null,
-        authorAvatarUrl: null,
-        body,
-        kind: "text",
-        cardPayload: null,
-        createdAt: nowIso,
-        editedAt: null,
-        isDeleted: false,
-        replyToMessageId: null,
-        pending: true,
-      },
-    ]);
-    setDraft("");
-    const res = await onSendMessage({ inquiryId, body, honeypot: honeypot || null });
-    setSending(false);
-    if (!res.ok) {
-      setRows((cur) =>
-        cur.map((r) => (r.id === tmpId ? { ...r, pending: false, failed: true } : r)),
-      );
-      setDraft(body);
-      applyFailure(res.code, res.message, res.retryAfterMs);
-      return;
-    }
-    setRows((cur) => cur.map((r) => (r.id === tmpId ? { ...res.message, pending: false } : r)));
-    const iso = res.message.createdAt;
-    if (!lastSeenIsoRef.current || iso > lastSeenIsoRef.current) {
-      lastSeenIsoRef.current = iso;
-    }
-  }
-
-  function submit() {
-    if (sending || inCooldown) return;
-    if (inquiryId) void handleReply();
-    else void handleFirstSend();
+  // Finding #3: re-run the exact last failed patch when the SyncStatusBar retry
+  // is tapped (no-op when nothing has been patched yet).
+  function handleRetrySync() {
+    const last = lastPatchRef.current;
+    if (last) void unified.patch(last);
   }
 
   // P1-T1/T2: a chip edit routes through the unified hook (optimistic local
@@ -608,6 +537,7 @@ export function MiniChatPanel({
     setCapturedChipKinds((k) => (k.includes(kind) ? k : [...k, kind]));
     const patch = chipValueToPatch(kind, value);
     if (!patch) return;
+    lastPatchRef.current = patch;
     await unified.patch(patch);
   }
 
@@ -621,10 +551,12 @@ export function MiniChatPanel({
     // Keep the launcher cart (the rail's single source) in sync: a cart talent
     // dropped in-chat is also removed from the cart, so rail + form + record agree.
     reconcileCartRemovals(selectedIds, cartTalentIds, onRemoveCartTalent);
+    lastPatchRef.current = { kind: "talent", selectedIds, selectionMode, selectedNames };
     await unified.patch({ kind: "talent", selectedIds, selectionMode, selectedNames });
   }
 
   async function handleBriefChange(summary: string) {
+    lastPatchRef.current = { kind: "brief", summary };
     await unified.patch({ kind: "brief", summary });
   }
 
@@ -640,12 +572,25 @@ export function MiniChatPanel({
       setLastName(parts.lastName);
     }
     if (value.email) setEmail(value.email);
-    await unified.patch({
+    // When the editor supplies a complete, valid contact, PROMOTE the early row
+    // (flips contactPromoted) so a later send continues the thread instead of
+    // re-forcing the gate. Partial edits fall back to a debounced patch.
+    if (value.name.trim() && EMAIL_RE.test(value.email.trim())) {
+      await unified.promoteContact({
+        name: value.name.trim(),
+        email: value.email.trim(),
+        phone: value.phone.trim() || null,
+      });
+      return;
+    }
+    const contactPatch: UnifiedInquiryPatch = {
       kind: "contact",
       name: value.name || null,
       email: value.email || null,
       phone: value.phone || null,
-    });
+    };
+    lastPatchRef.current = contactPatch;
+    await unified.patch(contactPatch);
   }
 
   const selectedTalentIds = unified.intent.talent?.selected_ids ?? [];
@@ -703,7 +648,11 @@ export function MiniChatPanel({
     sendDisabled,
     captchaRequired,
     onClose,
-    onDraftChange: setDraft,
+    onDraftChange: (v: string) => {
+      // Resuming composing clears the one-shot "Sent." note (finding #2).
+      if (sentNote) setSentNote(false);
+      setDraft(v);
+    },
     onFirstNameChange: setFirstName,
     onLastNameChange: setLastName,
     onEmailChange: setEmail,
@@ -727,6 +676,16 @@ export function MiniChatPanel({
     capturedChipValues,
     chipFieldState: unified.fieldState,
     chipRemoteFlashKinds: remoteFlashKinds,
+    // Finding #3: panel-level sync visibility + retry of the last failed patch.
+    syncState: unified.syncState,
+    onRetrySync: handleRetrySync,
+    // Finding #2: the explicit "Send to agency" CTA. Hidden once the thread is a
+    // live, contact-promoted conversation (the composer carries the reply flow).
+    onSendToAgency:
+      onEnsureInquiry && !(inquiryId && unified.contactPromoted)
+        ? () => void sendToAgency()
+        : undefined,
+    sentNote,
     // Phase 2 / Addendum A: the Talent / Brief / Contact editors + details rail.
     extrasEnabled: Boolean(onEnsureInquiry),
     onListRoster,

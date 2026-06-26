@@ -28,13 +28,17 @@
 import type { LucideIcon } from "lucide-react";
 import { Check } from "lucide-react";
 
-import { C, FONT, readableOn } from "./mini-chat-styles";
+import type { Translator } from "@/i18n/interpolate";
+import { interpolate } from "@/i18n/interpolate";
+import { C, FONT, readableOn, accentText } from "./mini-chat-styles";
 
 export type InquiryDetailRowProps = {
   /** Section icon (lucide). */
   icon: LucideIcon;
-  /** Human label ("Budget", "Location", ...). */
+  /** Human (already-localized) label ("Budget", "Location", ...). */
   label: string;
+  /** Guest-locale translator (resolved from brand.locale). */
+  t: Translator;
   /** True when this section has a value in the unified draft. */
   filled: boolean;
   /** True when this row's editor is currently open (one-open-at-a-time). */
@@ -52,6 +56,7 @@ export type InquiryDetailRowProps = {
 export function InquiryDetailRow({
   icon: Icon,
   label,
+  t,
   filled,
   open,
   collapsed,
@@ -60,6 +65,11 @@ export function InquiryDetailRow({
   onToggle,
 }: InquiryDetailRowProps) {
   const ink = accentInk || readableOn(accent);
+  // a11y: the section icon paints the raw accent as a GLYPH on the pale rail
+  // surface (transparent / `${accent}12` over C.surfaceFaint). A bright tenant
+  // accent (gold) fails 4.5:1 there, so clamp the glyph color to an AA-legible
+  // accent variant (unchanged when it already passes, e.g. the slate default).
+  const accentGlyph = accentText(accent, C.surfaceFaint);
 
   return (
     <button
@@ -67,9 +77,13 @@ export function InquiryDetailRow({
       data-uic-detail-row
       onClick={onToggle}
       aria-expanded={open}
-      aria-label={`${label}${filled ? ", added" : ", not added yet"}. ${
-        open ? "Close" : "Open"
-      } editor.`}
+      aria-label={interpolate(
+        t(filled ? "public.guestChat.rowAddedAria" : "public.guestChat.rowNotAddedAria"),
+        {
+          label,
+          action: open ? t("public.guestChat.rowClose") : t("public.guestChat.rowOpen"),
+        },
+      )}
       title={collapsed ? label : undefined}
       style={{
         display: "flex",
@@ -101,7 +115,7 @@ export function InquiryDetailRow({
           width: 24,
           height: 24,
           flexShrink: 0,
-          color: open || filled ? accent : C.inkMuted,
+          color: open || filled ? accentGlyph : C.inkMuted,
         }}
       >
         <Icon size={18} strokeWidth={1.9} aria-hidden />

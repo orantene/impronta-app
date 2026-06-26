@@ -7,6 +7,35 @@
 
 import type { GuestChipKind } from "@/lib/inquiry/guest-chat-contract";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
+import type { StreamRow } from "./MiniChatMessageBubble";
+
+/**
+ * Build the optimistic pending guest StreamRow shown the instant a send starts
+ * (before the server round-trip). Shared by every send handler so the row shape
+ * lives in ONE place.
+ */
+export function makePendingRow(tmpId: string, inquiryId: string, body: string): StreamRow {
+  return {
+    id: tmpId,
+    inquiryId,
+    authorRole: "guest",
+    authorLabel: null,
+    authorAvatarUrl: null,
+    body,
+    kind: "text",
+    cardPayload: null,
+    createdAt: new Date().toISOString(),
+    editedAt: null,
+    isDeleted: false,
+    replyToMessageId: null,
+    pending: true,
+  };
+}
+
+/** Mark the optimistic row (by tmp id) as failed in a rows list (immutable). */
+export function markRowFailed(rows: StreamRow[], tmpId: string): StreamRow[] {
+  return rows.map((r) => (r.id === tmpId ? { ...r, pending: false, failed: true } : r));
+}
 
 /**
  * Derive the Phase 3 empty-state lead + Talent-section deep-link (plan §B.1/§B.2).
@@ -68,6 +97,31 @@ export function reconcileCartRemovals(
   for (const id of cartTalentIds) {
     if (!stillSelected.has(id)) onRemoveCartTalent(id);
   }
+}
+
+/**
+ * Build the centered system-note rows for a batch of remote (agency) changes —
+ * one per changed kind. Pure; the panel appends the result to its rows list.
+ */
+export function makeRemoteNoteRows(
+  kinds: GuestChipKind[],
+  inquiryId: string | null,
+): StreamRow[] {
+  const nowIso = new Date().toISOString();
+  return kinds.map((k, i) => ({
+    id: `remote-${k}-${nowIso}-${i}`,
+    inquiryId: inquiryId ?? "",
+    authorRole: "system" as const,
+    authorLabel: null,
+    authorAvatarUrl: null,
+    body: remoteNoteFor(k),
+    kind: "text" as const,
+    cardPayload: null,
+    createdAt: nowIso,
+    editedAt: null,
+    isDeleted: false,
+    replyToMessageId: null,
+  }));
 }
 
 /** Client-friendly remote-change note copy (B.7). No "buyer", no em dashes. */

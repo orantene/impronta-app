@@ -20,6 +20,7 @@
  */
 
 import { useState, useId } from "react";
+import type { Translator } from "@/i18n/interpolate";
 import { C, FONT, inputStyle, primaryBtnStyle, readableOn } from "./mini-chat-styles";
 import type { GuestChipKind, GuestChipValue } from "@/lib/inquiry/guest-chat-contract";
 
@@ -44,6 +45,8 @@ export type GuestDetailChipEditorProps = {
   accent: string;
   /** Readable text color on accent background. */
   accentInk: string;
+  /** Guest-locale translator (resolved from brand.locale). */
+  t: Translator;
   onSubmit: (value: GuestChipValue) => void;
   onCancel: () => void;
 };
@@ -135,12 +138,14 @@ function DateEditor({
   initial,
   accent,
   accentInk,
+  t,
   onSubmit,
   onCancel,
 }: {
   initial?: Partial<GuestChipValue> | null;
   accent: string;
   accentInk: string;
+  t: Translator;
   onSubmit: (v: GuestChipValue) => void;
   onCancel: () => void;
 }) {
@@ -164,14 +169,14 @@ function DateEditor({
   }
 
   const statusOptions: { value: DateStatus; label: string }[] = [
-    { value: "exact", label: "Exact date" },
-    { value: "flexible", label: "Flexible" },
-    { value: "not_sure", label: "Not sure yet" },
+    { value: "exact", label: t("public.guestChat.dateExact") },
+    { value: "flexible", label: t("public.guestChat.dateFlexible") },
+    { value: "not_sure", label: t("public.guestChat.dateNotSure") },
   ];
 
   return (
     <div style={editorWrap}>
-      <span style={labelStyle}>Event date</span>
+      <span style={labelStyle}>{t("public.guestChat.editorDateLabel")}</span>
       <div style={rowStyle}>
         {statusOptions.map((opt) => (
           <button
@@ -187,7 +192,7 @@ function DateEditor({
       {status === "exact" && (
         <div>
           <label htmlFor={inputId} style={{ display: "none" }}>
-            Event date
+            {t("public.guestChat.editorDateLabel")}
           </label>
           <input
             id={inputId}
@@ -200,7 +205,7 @@ function DateEditor({
       )}
       <div style={footerStyle}>
         <button type="button" style={ghostBtnStyle()} onClick={onCancel}>
-          Cancel
+          {t("public.guestChat.cancel")}
         </button>
         <button
           type="button"
@@ -215,7 +220,7 @@ function DateEditor({
           }}
           onClick={handleConfirm}
         >
-          Confirm
+          {t("public.guestChat.confirm")}
         </button>
       </div>
     </div>
@@ -230,12 +235,14 @@ function LocationEditor({
   initial,
   accent,
   accentInk,
+  t,
   onSubmit,
   onCancel,
 }: {
   initial?: Partial<GuestChipValue> | null;
   accent: string;
   accentInk: string;
+  t: Translator;
   onSubmit: (v: GuestChipValue) => void;
   onCancel: () => void;
 }) {
@@ -246,10 +253,10 @@ function LocationEditor({
   const inputId = useId();
 
   const statusOptions: { value: LocationStatus; label: string }[] = [
-    { value: "confirmed", label: "Confirmed venue" },
-    { value: "unconfirmed", label: "Location TBD" },
-    { value: "online", label: "Online / virtual" },
-    { value: "not_sure", label: "Not sure yet" },
+    { value: "confirmed", label: t("public.guestChat.locationConfirmed") },
+    { value: "unconfirmed", label: t("public.guestChat.locationTbd") },
+    { value: "online", label: t("public.guestChat.locationOnline") },
+    { value: "not_sure", label: t("public.guestChat.locationNotSure") },
   ];
 
   function handleConfirm() {
@@ -261,22 +268,22 @@ function LocationEditor({
 
   return (
     <div style={editorWrap}>
-      <span style={labelStyle}>Event location</span>
+      <span style={labelStyle}>{t("public.guestChat.editorLocationLabel")}</span>
       {locStatus !== "online" && locStatus !== "not_sure" && (
         <div>
           <label htmlFor={inputId} style={{ display: "none" }}>
-            City
+            {t("public.guestChat.locationCityFieldAria")}
           </label>
           <input
             id={inputId}
             type="text"
-            placeholder="City or area (e.g. Mexico City)"
+            placeholder={t("public.guestChat.locationCityPlaceholder")}
             value={city}
             onChange={(e) => setCity(e.target.value)}
             style={smallInputStyle()}
           />
           <p style={{ margin: "4px 0 0", fontSize: 11, color: C.inkDim }}>
-            Full venue address can be added in the details form.
+            {t("public.guestChat.locationCityHelper")}
           </p>
         </div>
       )}
@@ -294,14 +301,14 @@ function LocationEditor({
       </div>
       <div style={footerStyle}>
         <button type="button" style={ghostBtnStyle()} onClick={onCancel}>
-          Cancel
+          {t("public.guestChat.cancel")}
         </button>
         <button
           type="button"
           style={{ ...primaryBtnStyle(accent, accentInk), height: 32, padding: "0 14px", fontSize: 12 }}
           onClick={handleConfirm}
         >
-          Confirm
+          {t("public.guestChat.confirm")}
         </button>
       </div>
     </div>
@@ -314,12 +321,14 @@ function HeadcountEditor({
   initial,
   accent,
   accentInk,
+  t,
   onSubmit,
   onCancel,
 }: {
   initial?: Partial<GuestChipValue> | null;
   accent: string;
   accentInk: string;
+  t: Translator;
   onSubmit: (v: GuestChipValue) => void;
   onCancel: () => void;
 }) {
@@ -332,11 +341,11 @@ function HeadcountEditor({
 
   return (
     <div style={editorWrap}>
-      <span style={labelStyle}>Number of guests / attendees</span>
+      <span style={labelStyle}>{t("public.guestChat.editorHeadcountLabel")}</span>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <button
           type="button"
-          aria-label="Decrease"
+          aria-label={t("public.guestChat.headcountDecreaseAria")}
           style={{
             ...ghostBtnStyle(),
             width: 34,
@@ -350,7 +359,7 @@ function HeadcountEditor({
           −
         </button>
         <label htmlFor={inputId} style={{ display: "none" }}>
-          Guest count
+          {t("public.guestChat.headcountCountAria")}
         </label>
         <input
           id={inputId}
@@ -366,7 +375,7 @@ function HeadcountEditor({
         />
         <button
           type="button"
-          aria-label="Increase"
+          aria-label={t("public.guestChat.headcountIncreaseAria")}
           style={{
             ...ghostBtnStyle(),
             width: 34,
@@ -380,19 +389,21 @@ function HeadcountEditor({
           +
         </button>
         <span style={{ fontSize: 13, color: C.inkMuted }}>
-          {count === 1 ? "guest" : "guests"}
+          {count === 1
+            ? t("public.guestChat.guestOne")
+            : t("public.guestChat.guestOther")}
         </span>
       </div>
       <div style={footerStyle}>
         <button type="button" style={ghostBtnStyle()} onClick={onCancel}>
-          Cancel
+          {t("public.guestChat.cancel")}
         </button>
         <button
           type="button"
           style={{ ...primaryBtnStyle(accent, accentInk), height: 32, padding: "0 14px", fontSize: 12 }}
           onClick={() => onSubmit({ headcount: count })}
         >
-          Confirm
+          {t("public.guestChat.confirm")}
         </button>
       </div>
     </div>
@@ -401,26 +412,34 @@ function HeadcountEditor({
 
 // --- Event Type ---
 
-const EVENT_TYPE_PRESETS = [
-  "Wedding",
-  "Corporate event",
-  "Private dinner",
-  "Brand shoot",
-  "Birthday party",
-  "Product launch",
-  "Other",
+/**
+ * Event-type presets. `value` is the canonical English string PERSISTED into
+ * interpreted_query.source_context.ai_event_type (kept stable across locales so
+ * stored data + reconcile reads stay consistent); `labelKey` is the localized
+ * display label shown on the toggle.
+ */
+const EVENT_TYPE_PRESETS: { value: string; labelKey: string }[] = [
+  { value: "Wedding", labelKey: "public.guestChat.eventTypeWedding" },
+  { value: "Corporate event", labelKey: "public.guestChat.eventTypeCorporate" },
+  { value: "Private dinner", labelKey: "public.guestChat.eventTypePrivateDinner" },
+  { value: "Brand shoot", labelKey: "public.guestChat.eventTypeBrandShoot" },
+  { value: "Birthday party", labelKey: "public.guestChat.eventTypeBirthday" },
+  { value: "Product launch", labelKey: "public.guestChat.eventTypeProductLaunch" },
+  { value: "Other", labelKey: "public.guestChat.eventTypeOther" },
 ];
 
 function EventTypeEditor({
   initial,
   accent,
   accentInk,
+  t,
   onSubmit,
   onCancel,
 }: {
   initial?: Partial<GuestChipValue> | null;
   accent: string;
   accentInk: string;
+  t: Translator;
   onSubmit: (v: GuestChipValue) => void;
   onCancel: () => void;
 }) {
@@ -445,28 +464,28 @@ function EventTypeEditor({
 
   return (
     <div style={editorWrap}>
-      <span style={labelStyle}>Event type</span>
+      <span style={labelStyle}>{t("public.guestChat.editorEventTypeLabel")}</span>
       <div style={rowStyle}>
         {EVENT_TYPE_PRESETS.map((preset) => (
           <button
-            key={preset}
+            key={preset.value}
             type="button"
-            style={toggleStyle(selected === preset, accent)}
-            onClick={() => handlePreset(preset)}
+            style={toggleStyle(selected === preset.value, accent)}
+            onClick={() => handlePreset(preset.value)}
           >
-            {preset}
+            {t(preset.labelKey)}
           </button>
         ))}
       </div>
       {selected === "Other" && (
         <div>
           <label htmlFor={inputId} style={{ display: "none" }}>
-            Describe event type
+            {t("public.guestChat.eventTypeDescribeAria")}
           </label>
           <input
             id={inputId}
             type="text"
-            placeholder="Describe the event…"
+            placeholder={t("public.guestChat.eventTypeDescribePlaceholder")}
             value={custom}
             onChange={(e) => setCustom(e.target.value)}
             style={smallInputStyle()}
@@ -476,14 +495,14 @@ function EventTypeEditor({
       )}
       <div style={footerStyle}>
         <button type="button" style={ghostBtnStyle()} onClick={onCancel}>
-          Cancel
+          {t("public.guestChat.cancel")}
         </button>
         <button
           type="button"
           style={{ ...primaryBtnStyle(accent, accentInk), height: 32, padding: "0 14px", fontSize: 12 }}
           onClick={handleConfirm}
         >
-          Confirm
+          {t("public.guestChat.confirm")}
         </button>
       </div>
     </div>
@@ -508,12 +527,14 @@ function BudgetEditor({
   initial,
   accent,
   accentInk,
+  t,
   onSubmit,
   onCancel,
 }: {
   initial?: Partial<GuestChipValue> | null;
   accent: string;
   accentInk: string;
+  t: Translator;
   onSubmit: (v: GuestChipValue) => void;
   onCancel: () => void;
 }) {
@@ -530,12 +551,12 @@ function BudgetEditor({
   const currencyId = useId();
 
   const preferenceOptions: { value: BudgetPreference; label: string }[] = [
-    { value: "total_budget", label: "Total budget" },
-    { value: "per_hour", label: "Per hour" },
-    { value: "per_day", label: "Per day" },
-    { value: "per_talent", label: "Per talent" },
-    { value: "agency_recommends", label: "Agency recommends" },
-    { value: "not_sure", label: "Not sure yet" },
+    { value: "total_budget", label: t("public.guestChat.budgetTotal") },
+    { value: "per_hour", label: t("public.guestChat.budgetPerHour") },
+    { value: "per_day", label: t("public.guestChat.budgetPerDay") },
+    { value: "per_talent", label: t("public.guestChat.budgetPerTalent") },
+    { value: "agency_recommends", label: t("public.guestChat.budgetAgencyRecommends") },
+    { value: "not_sure", label: t("public.guestChat.budgetNotSure") },
   ];
 
   function handleConfirm() {
@@ -552,7 +573,7 @@ function BudgetEditor({
 
   return (
     <div style={editorWrap}>
-      <span style={labelStyle}>Budget preference</span>
+      <span style={labelStyle}>{t("public.guestChat.editorBudgetLabel")}</span>
       <div style={rowStyle}>
         {preferenceOptions.map((opt) => (
           <button
@@ -569,7 +590,7 @@ function BudgetEditor({
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div>
             <label htmlFor={currencyId} style={{ display: "none" }}>
-              Currency
+              {t("public.guestChat.budgetCurrencyAria")}
             </label>
             <select
               id={currencyId}
@@ -592,13 +613,13 @@ function BudgetEditor({
           </div>
           <div style={{ flex: 1 }}>
             <label htmlFor={amountId} style={{ display: "none" }}>
-              Budget amount
+              {t("public.guestChat.budgetAmountAria")}
             </label>
             <input
               id={amountId}
               type="number"
               min={0}
-              placeholder="Amount"
+              placeholder={t("public.guestChat.budgetAmountPlaceholder")}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               style={{ ...smallInputStyle(), width: "100%" }}
@@ -608,14 +629,14 @@ function BudgetEditor({
       )}
       <div style={footerStyle}>
         <button type="button" style={ghostBtnStyle()} onClick={onCancel}>
-          Cancel
+          {t("public.guestChat.cancel")}
         </button>
         <button
           type="button"
           style={{ ...primaryBtnStyle(accent, accentInk), height: 32, padding: "0 14px", fontSize: 12 }}
           onClick={handleConfirm}
         >
-          Confirm
+          {t("public.guestChat.confirm")}
         </button>
       </div>
     </div>
@@ -631,6 +652,7 @@ export function GuestDetailChipEditor({
   initial,
   accent,
   accentInk,
+  t,
   onSubmit,
   onCancel,
 }: GuestDetailChipEditorProps) {
@@ -643,6 +665,7 @@ export function GuestDetailChipEditor({
           initial={initial}
           accent={accent}
           accentInk={ink}
+          t={t}
           onSubmit={onSubmit}
           onCancel={onCancel}
         />
@@ -653,6 +676,7 @@ export function GuestDetailChipEditor({
           initial={initial}
           accent={accent}
           accentInk={ink}
+          t={t}
           onSubmit={onSubmit}
           onCancel={onCancel}
         />
@@ -663,6 +687,7 @@ export function GuestDetailChipEditor({
           initial={initial}
           accent={accent}
           accentInk={ink}
+          t={t}
           onSubmit={onSubmit}
           onCancel={onCancel}
         />
@@ -673,6 +698,7 @@ export function GuestDetailChipEditor({
           initial={initial}
           accent={accent}
           accentInk={ink}
+          t={t}
           onSubmit={onSubmit}
           onCancel={onCancel}
         />
@@ -683,6 +709,7 @@ export function GuestDetailChipEditor({
           initial={initial}
           accent={accent}
           accentInk={ink}
+          t={t}
           onSubmit={onSubmit}
           onCancel={onCancel}
         />

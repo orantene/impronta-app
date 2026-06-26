@@ -24,6 +24,8 @@
 import { useState } from "react";
 
 import type { ListGuestTenantRosterCallback } from "@/lib/inquiry/guest-chat-contract";
+import type { Translator } from "@/i18n/interpolate";
+import { interpolate } from "@/i18n/interpolate";
 import { BriefEditor } from "./BriefEditor";
 import { ContactEditor } from "./ContactEditor";
 import { TalentPickerEditor } from "./TalentPickerEditor";
@@ -35,6 +37,8 @@ export type GuestExtraDetailEditorsProps = {
   tenantSlug: string;
   accent: string;
   accentInk: string;
+  /** Guest-locale translator (resolved from brand.locale). */
+  t: Translator;
 
   /** Roster loader for the talent picker (injected; null hides search). */
   onListRoster?: ListGuestTenantRosterCallback | null;
@@ -89,6 +93,7 @@ export function GuestExtraDetailEditors({
   tenantSlug,
   accent,
   accentInk,
+  t,
   onListRoster,
   selectedTalentIds,
   briefSummary,
@@ -108,16 +113,20 @@ export function GuestExtraDetailEditors({
   function preview(kind: ExtraKind): string {
     if (kind === "talent") {
       return talentFilled
-        ? `${selectedTalentIds.length} selected`
-        : "Add or let the agency recommend";
+        ? interpolate(t("public.guestChat.extraTalentFilled"), {
+            count: selectedTalentIds.length,
+          })
+        : t("public.guestChat.extraTalentEmpty");
     }
     if (kind === "brief") {
-      if (!briefFilled) return "Tell us about the project";
+      if (!briefFilled) return t("public.guestChat.extraBriefEmpty");
       const s = (briefSummary ?? "").trim();
       return s.length > 40 ? `${s.slice(0, 40)}…` : s;
     }
     // contact
-    return contactFilled ? contact.name || contact.email || "Added" : "Name, email, phone";
+    return contactFilled
+      ? contact.name || contact.email || t("public.guestChat.extraContactAdded")
+      : t("public.guestChat.extraContactPreview");
   }
 
   function toggle(kind: ExtraKind) {
@@ -125,9 +134,9 @@ export function GuestExtraDetailEditors({
   }
 
   const rows: { kind: ExtraKind; label: string; filled: boolean }[] = [
-    { kind: "talent", label: "Talent", filled: talentFilled },
-    { kind: "brief", label: "Brief", filled: briefFilled },
-    { kind: "contact", label: "Your info", filled: contactFilled },
+    { kind: "talent", label: t("public.guestChat.talentLabel"), filled: talentFilled },
+    { kind: "brief", label: t("public.guestChat.sectionBrief"), filled: briefFilled },
+    { kind: "contact", label: t("public.guestChat.extraYourInfo"), filled: contactFilled },
   ];
 
   return (
@@ -204,6 +213,7 @@ export function GuestExtraDetailEditors({
                 selectedIds={selectedTalentIds}
                 accent={accent}
                 tenantSlug={tenantSlug}
+                t={t}
                 onListRoster={onListRoster}
                 onChange={(ids, mode, names) => onTalentChange(ids, mode, names)}
               />
@@ -213,6 +223,7 @@ export function GuestExtraDetailEditors({
                 initialSummary={briefSummary}
                 accent={accent}
                 accentInk={accentInk}
+                t={t}
                 onSubmit={(summary) => {
                   onBriefChange(summary);
                   setOpenKind(null);
@@ -229,6 +240,7 @@ export function GuestExtraDetailEditors({
                 }}
                 accent={accent}
                 accentInk={accentInk}
+                t={t}
                 onSubmit={(value) => {
                   onContactChange(value);
                   setOpenKind(null);

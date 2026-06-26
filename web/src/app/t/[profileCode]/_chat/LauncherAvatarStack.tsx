@@ -24,6 +24,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { AvatarStackItem } from "@/lib/inquiry/guest-chat-contract";
+import type { Translator } from "@/i18n/interpolate";
+import { interpolate } from "@/i18n/interpolate";
 
 import {
   AVATAR_DIAMETER_DESKTOP,
@@ -50,6 +52,8 @@ export type LauncherAvatarStackProps = {
   accent: string;
   /** Readable ink on the accent — the medallion text + the avatar ring color. */
   accentInk: string;
+  /** Guest-locale translator (resolved from brand.locale). */
+  t: Translator;
   /** Compact (mobile) geometry: 32px circles, -11px overlap, max 2. */
   compact?: boolean;
 };
@@ -63,6 +67,7 @@ export function LauncherAvatarStack({
   onOpenToTalentSection,
   accent,
   accentInk,
+  t,
   compact = false,
 }: LauncherAvatarStackProps) {
   useEffect(() => {
@@ -74,29 +79,62 @@ export function LauncherAvatarStack({
   const avatarRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Track the most-recently-added id so ONLY the new avatar plays the landing
-  // bounce (the others must not re-animate when the list grows/shrinks).
+  // bounce (the others must not re-animate when the list grows/shrinks). The
+  // full prev snapshot lets the remove path resolve the removed talent's NAME
+  // (it is gone from cartTalents by the time the effect runs) for the aria-live
+  // announce, giving parity with the add path (finding #7).
   const prevIdsRef = useRef<string[]>([]);
+  const prevTalentsRef = useRef<AvatarStackItem[]>([]);
   const [landingId, setLandingId] = useState<string | null>(null);
   // aria-live announcement (motion substitute for everyone, §4.A.10).
   const [announce, setAnnounce] = useState("");
 
+  // Keep the latest translator in a ref so the announce effect (which fires on
+  // cart membership change, NOT every render) reads the current locale without
+  // listing the per-render `t` identity as a dependency (which would re-fire it).
+  const tRef = useRef(t);
   useEffect(() => {
-    const ids = cartTalents.map((t) => t.talentProfileId);
+    tRef.current = t;
+  }, [t]);
+
+  useEffect(() => {
+    const tt = tRef.current;
+    const ids = cartTalents.map((item) => item.talentProfileId);
     const prev = prevIdsRef.current;
+    const prevTalents = prevTalentsRef.current;
     const added = ids.find((id) => !prev.includes(id));
     const removed = prev.find((id) => !ids.includes(id));
     prevIdsRef.current = ids;
+    prevTalentsRef.current = cartTalents;
+
+    const fallbackName = tt("public.guestChat.avatarNameFallback");
 
     if (added) {
       setLandingId(added);
       const name =
-        cartTalents.find((t) => t.talentProfileId === added)?.displayName ?? "Talent";
-      setAnnounce(`${name} added to your inquiry. ${ids.length} selected.`);
-      const t = window.setTimeout(() => setLandingId(null), 420);
-      return () => window.clearTimeout(t);
+        cartTalents.find((item) => item.talentProfileId === added)?.displayName ??
+        fallbackName;
+      setAnnounce(
+        interpolate(tt("public.guestChat.avatarAddedAnnounce"), {
+          name,
+          count: ids.length,
+        }),
+      );
+      const timer = window.setTimeout(() => setLandingId(null), 420);
+      return () => window.clearTimeout(timer);
     }
     if (removed) {
-      setAnnounce(`Removed. ${ids.length} selected.`);
+      // Finding #7: name the removed talent (resolved from the prev snapshot) for
+      // parity with the add announce.
+      const name =
+        prevTalents.find((item) => item.talentProfileId === removed)?.displayName ??
+        fallbackName;
+      setAnnounce(
+        interpolate(tt("public.guestChat.avatarRemovedAnnounce"), {
+          name,
+          count: ids.length,
+        }),
+      );
     }
     return undefined;
   }, [cartTalents]);
@@ -160,7 +198,7 @@ export function LauncherAvatarStack({
     <>
     <ul
       role="list"
-      aria-label="Selected talent for your inquiry"
+      aria-label={t("public.guestChat.avatarStackAria")}
       style={{
         display: "flex",
         flexDirection: "row-reverse",
@@ -195,7 +233,9 @@ export function LauncherAvatarStack({
                 focusAt(chipIndex); // clamp — stays put
               }
             }}
-            aria-label={`Show all ${cartTalents.length} selected talent`}
+            aria-label={interpolate(t("public.guestChat.avatarShowAllAria"), {
+              count: cartTalents.length,
+            })}
             style={{
               width: diameter,
               height: diameter,
@@ -239,6 +279,7 @@ export function LauncherAvatarStack({
               diameter={diameter}
               accent={accent}
               accentInk={accentInk}
+              t={t}
               landing={isLanding}
               compact={compact}
               isActive={i === activeIndex}
@@ -289,6 +330,7 @@ type AvatarCircleProps = {
   diameter: number;
   accent: string;
   accentInk: string;
+  t: Translator;
   landing: boolean;
   compact: boolean;
   isActive: boolean;
@@ -304,6 +346,7 @@ function AvatarCircle({
   diameter,
   accent,
   accentInk,
+  t,
   landing,
   compact,
   isActive,
@@ -345,7 +388,9 @@ function AvatarCircle({
             onRemove();
           }
         }}
-        aria-label={`${talent.displayName}, selected. Open inquiry.`}
+        aria-label={interpolate(t("public.guestChat.avatarOpenInquiryAria"), {
+          name: talent.displayName,
+        })}
         className={xClass}
         style={{
           width: diameter,
@@ -393,6 +438,7 @@ function AvatarCircle({
         size={xVisible}
         coarse={compact}
         active={isActive}
+        t={t}
         onRemove={onRemove}
       />
     </span>
@@ -411,6 +457,7 @@ type RemoveAvatarButtonProps = {
   coarse: boolean;
   /** Part of the roving group: keep the X in Tab order only when its avatar is active. */
   active: boolean;
+  t: Translator;
   onRemove: () => void;
 };
 
@@ -419,6 +466,7 @@ function RemoveAvatarButton({
   size,
   coarse,
   active: inTabOrder,
+  t,
   onRemove,
 }: RemoveAvatarButtonProps) {
   const [hovered, setHovered] = useState(false);
@@ -430,7 +478,9 @@ function RemoveAvatarButton({
     <button
       type="button"
       tabIndex={inTabOrder ? 0 : -1}
-      aria-label={`Remove ${displayName} from your inquiry`}
+      aria-label={interpolate(t("public.guestChat.avatarRemoveAria"), {
+        name: displayName,
+      })}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => {
         setHovered(false);

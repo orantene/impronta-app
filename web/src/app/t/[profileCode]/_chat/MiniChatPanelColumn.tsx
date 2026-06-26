@@ -44,6 +44,8 @@ import { MiniChatGateForm } from "./MiniChatGateForm";
 import { MiniChatMessageBubble } from "./MiniChatMessageBubble";
 import { NewMessagePulse } from "./NewMessagePulse";
 import { OpenFullConversationLink } from "./OpenFullConversationLink";
+import { SendToAgencyBar } from "./SendToAgencyBar";
+import { SyncStatusBar } from "./SyncStatusBar";
 import { TrustGateNudge } from "./TrustGateNudge";
 import {
   C,
@@ -124,6 +126,21 @@ export type MiniChatPanelColumnProps = {
   chipFieldState?: Record<string, UnifiedSyncState>;
   /** Kinds a remote edit just changed, for the accent flash (P1-T3). */
   chipRemoteFlashKinds?: GuestChipKind[];
+  /**
+   * Finding #3: the panel-level sync state, rendered as a SyncStatusBar near the
+   * composer so failed Talent / Brief / Contact writes are visible (the rail
+   * editors close on submit, so a swallowed failure had no home).
+   */
+  syncState?: UnifiedSyncState;
+  /** Re-run the last failed patch (the SyncStatusBar's retry action). */
+  onRetrySync?: () => void;
+  /**
+   * Finding #2: the explicit "Send to agency" submit. Forces the ContactCard gate
+   * when contact is still the placeholder seed, then confirms via `sentNote`.
+   */
+  onSendToAgency?: () => void;
+  /** Whether to show the post-send success confirmation note. */
+  sentNote?: boolean;
   // ── Phase 2: Talent / Brief / Contact "Add more details" expansion ──────────
   /** When true the "Add more details" button toggles the extras editors. */
   extrasEnabled?: boolean;
@@ -237,6 +254,10 @@ export function MiniChatPanelColumn({
   capturedChipValues = {},
   chipFieldState = {},
   chipRemoteFlashKinds = [],
+  syncState = "idle",
+  onRetrySync,
+  onSendToAgency,
+  sentNote = false,
   extrasEnabled = false,
   onListRoster = null,
   onTalentChange,
@@ -320,7 +341,7 @@ export function MiniChatPanelColumn({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t("public.guestChat.closeAria")}
           style={{
             width: 30,
             height: 30,
@@ -388,19 +409,13 @@ export function MiniChatPanelColumn({
               pick specific talent OR let the agency recommend. The Talent section
               auto-opens below (railOpenToSection="talent"), exposing the roster
               search + "Let the agency recommend". Otherwise the normal opener. */}
-          {talentPickFirst ? (
-            <>
-              Hi, I&rsquo;m here to help you find the right talent. Want someone
-              specific, or should we recommend a fit?
-            </>
-          ) : brand.greeting?.trim() ? (
-            brand.greeting.trim()
-          ) : (
-            <>
-              Hi, I&rsquo;m {talentFirst}&rsquo;s booking assistant. What&rsquo;s the event?
-              Tell me a little and I&rsquo;ll line up the right talent for you.
-            </>
-          )}
+          {talentPickFirst
+            ? t("public.guestChat.greetingTalentPickFirst")
+            : brand.greeting?.trim()
+              ? brand.greeting.trim()
+              : interpolate(t("public.guestChat.greetingDefault"), {
+                  name: talentFirst,
+                })}
         </div>
 
         {rows.map((m) => (
@@ -496,7 +511,7 @@ export function MiniChatPanelColumn({
             color: C.inkMuted,
           }}
         >
-          Quick human check required to continue. (Verification widget loads here.)
+          {t("public.guestChat.captchaNotice")}
         </div>
       )}
 
@@ -512,20 +527,28 @@ export function MiniChatPanelColumn({
           }}
         >
           {error}
-          {inCooldown ? ` Try again in ${cooldownSecs}s.` : ""}
+          {inCooldown
+            ? ` ${interpolate(t("public.guestChat.tryAgainIn"), { secs: cooldownSecs })}`
+            : ""}
         </div>
       )}
 
       {/* ── U4 / P1: detail chips ────────────────────────────────────────── */}
       {/* Unified path (onPatchChip): chips are live even BEFORE an inquiryId so
           the first Date/Location commit lazily creates the early-partial row.
-          Legacy path: chips only after an inquiry exists + a direct capture. */}
-      {!showGate && (onPatchChip || (inquiryId && onCaptureChip)) && (
+          Legacy path: chips only after an inquiry exists + a direct capture.
+          Finding #1: when extrasEnabled the InquiryDetailsRail (below) is the
+          SINGLE detail surface — it re-exposes the same 5 kinds with its own
+          editor, so rendering the chip row too would duplicate every editor in a
+          380px panel. Suppress the chips there; show them only as the compact
+          quick-edit on the legacy (no-rail) path. */}
+      {!showGate && !extrasEnabled && (onPatchChip || (inquiryId && onCaptureChip)) && (
         <GuestDetailChips
           inquiryId={inquiryId}
           alwaysShow={Boolean(onPatchChip)}
           accent={accent}
           accentInk={accentInk}
+          t={t}
           capturedKinds={capturedChipKinds}
           capturedValues={capturedChipValues}
           fieldState={chipFieldState}
@@ -569,6 +592,7 @@ export function MiniChatPanelColumn({
           accent={accent}
           accentInk={accentInk}
           tenantSlug={tenantSlug}
+          t={t}
           onListRoster={onListRoster}
           capturedValues={capturedChipValues}
           defaultCollapsed={!expanded}
@@ -584,6 +608,11 @@ export function MiniChatPanelColumn({
         />
       )}
 
+      {/* ── Sync status (finding #3): make swallowed save failures visible ── */}
+      {!showGate && extrasEnabled && (
+        <SyncStatusBar state={syncState} t={t} onRetry={onRetrySync} />
+      )}
+
       {/* ── Composer ─────────────────────────────────────────────────────── */}
       {!showGate && (
         <MiniChatComposer
@@ -592,13 +621,29 @@ export function MiniChatPanelColumn({
           honeypot={honeypot}
           onHoneypotChange={onHoneypotChange}
           onSubmit={onSubmit}
-          placeholder={inquiryId ? "Write a reply…" : "Type your message…"}
+          placeholder={
+            inquiryId
+              ? t("public.guestChat.composerReply")
+              : t("public.guestChat.composerFirst")
+          }
           sending={sending}
           inCooldown={inCooldown}
           sendDisabled={sendDisabled}
           accent={accent}
           accentInk={accentInk}
           textareaRef={textareaRef}
+        />
+      )}
+
+      {/* ── Send to agency (finding #2): explicit submit + success note ───── */}
+      {!showGate && extrasEnabled && onSendToAgency && (
+        <SendToAgencyBar
+          accent={accent}
+          accentInk={accentInk}
+          t={t}
+          disabled={sending || inCooldown}
+          sent={sentNote}
+          onSend={onSendToAgency}
         />
       )}
 

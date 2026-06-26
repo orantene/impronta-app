@@ -23,7 +23,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { ListGuestTenantRosterCallback } from "@/lib/inquiry/guest-chat-contract";
 import type { RosterLiteItem } from "@/components/inquiry/InquiryDrawer";
 import { SearchTalentField } from "@/components/inquiry/SearchTalentField";
-import { C, FONT } from "./mini-chat-styles";
+import type { Translator } from "@/i18n/interpolate";
+import { interpolate } from "@/i18n/interpolate";
+import { C, FONT, accentText } from "./mini-chat-styles";
 
 export type TalentPickerEditorProps = {
   /** Currently-selected talent profile ids on the inquiry. */
@@ -32,6 +34,8 @@ export type TalentPickerEditorProps = {
   accent: string;
   /** The tenant slug, passed to the injected roster loader. */
   tenantSlug: string;
+  /** Guest-locale translator (resolved from brand.locale). */
+  t: Translator;
   /**
    * Injected guest-safe roster loader (public name/thumb/category). Null hides
    * the search and leaves only the remove-existing affordance. The panel injects
@@ -53,6 +57,7 @@ export function TalentPickerEditor({
   selectedIds,
   accent,
   tenantSlug,
+  t,
   onListRoster,
   onChange,
 }: TalentPickerEditorProps) {
@@ -102,7 +107,7 @@ export function TalentPickerEditor({
   }, [roster]);
 
   function nameFor(id: string): string {
-    return byId.get(id)?.name ?? "Selected talent";
+    return byId.get(id)?.name ?? t("public.guestChat.talentSelectedFallback");
   }
 
   function namesFor(ids: string[]): string[] {
@@ -149,7 +154,7 @@ export function TalentPickerEditor({
           textTransform: "uppercase",
         }}
       >
-        Talent
+        {t("public.guestChat.talentLabel")}
       </span>
 
       {/* Selected talent as removable chips (always available). */}
@@ -201,7 +206,9 @@ export function TalentPickerEditor({
                   style={{
                     fontSize: 12,
                     fontWeight: 600,
-                    color: accent,
+                    // a11y: name text sits on a pale `${accent}14` tint — clamp a
+                    // bright tenant accent (gold) to an AA-legible variant.
+                    color: accentText(accent),
                     maxWidth: 120,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -213,7 +220,9 @@ export function TalentPickerEditor({
                 <button
                   type="button"
                   onClick={() => handleRemove(id)}
-                  aria-label={`Remove ${nameFor(id)} from your inquiry`}
+                  aria-label={interpolate(t("public.guestChat.talentRemoveAria"), {
+                    name: nameFor(id),
+                  })}
                   style={{
                     width: 18,
                     height: 18,
@@ -248,10 +257,14 @@ export function TalentPickerEditor({
             onAdd={handleAdd}
           />
         ) : rosterState === "loading" ? (
-          <p style={{ margin: 0, fontSize: 12, color: C.inkDim }}>Loading roster…</p>
+          <p style={{ margin: 0, fontSize: 12, color: C.inkMuted }}>
+            {t("public.guestChat.talentRosterLoading")}
+          </p>
         ) : rosterState === "error" ? (
-          <p style={{ margin: 0, fontSize: 12, color: C.inkDim }}>
-            Couldn&rsquo;t load the roster. You can still let the agency recommend.
+          // a11y: roster loading + error copy routed through C.inkMuted (~6:1)
+          // instead of the dim token (finding #6 — error text is the worst case).
+          <p style={{ margin: 0, fontSize: 12, color: C.inkMuted }}>
+            {t("public.guestChat.talentRosterError")}
           </p>
         ) : null
       ) : null}
@@ -274,7 +287,7 @@ export function TalentPickerEditor({
           textUnderlineOffset: 2,
         }}
       >
-        Let the agency recommend
+        {t("public.guestChat.talentLetAgencyRecommend")}
       </button>
     </div>
   );
