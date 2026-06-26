@@ -15,6 +15,7 @@ export type FilterChipProps = {
   title?: string;
   role?: AriaRole;
   "aria-selected"?: boolean;
+  "aria-pressed"?: boolean;
 };
 
 /** Directory / taxonomy filter chips — flat, minimal (not AI suggestion pills). */
@@ -28,6 +29,7 @@ export function FilterChip({
   title,
   role,
   "aria-selected": ariaSelected,
+  "aria-pressed": ariaPressed,
 }: FilterChipProps) {
   return (
     <button
@@ -37,6 +39,7 @@ export function FilterChip({
       title={title}
       role={role}
       aria-selected={ariaSelected}
+      aria-pressed={ariaPressed}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium outline-none transition-colors",
         // B3 polish — cool-not-warm focus ring. Was `--impronta-gold/50`
