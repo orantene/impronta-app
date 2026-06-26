@@ -30,6 +30,7 @@ type Row = {
   currency: string;
   attempts: number;
   status: string;
+  payout_rail?: string | null;
 };
 
 type Update = { id: string; patch: Record<string, unknown> };
@@ -156,6 +157,38 @@ test("workspace held leg releases on its own tenant account", async () => {
   assert.equal(out[0].result, "released");
   assert.equal(calls[0].key, payoutIdempotencyKey("bk_1", "p9", "workspace"));
   assert.equal(calls[0].params.destination, "acct_tn1");
+});
+
+test("still_held: a global_payouts leg is NOT released via the Connect rail (no transfer)", async () => {
+  // The double-pay guard: releaseHeldPayouts only does Connect transfers. A GP leg
+  // released here would pay twice (Connect now + the GP outbound-payment retry).
+  const rows = [heldRow({ id: "L1", party: "talent", payout_rail: "global_payouts" })];
+  const updates: Update[] = [];
+  const { calls, stripe } = makeStripe();
+
+  const out = await releaseHeldPayouts(
+    { talentProfileId: "tp1" },
+    { sb: makeSupabase(rows, updates), stripe, resolveTalentAccount: async () => "acct_talent_tp1" },
+  );
+
+  assert.equal(out[0].result, "still_held");
+  assert.match(String(out[0].detail ?? ""), /global_payouts/);
+  assert.equal(calls.length, 0, "GP leg must NOT be released via a Connect transfer");
+  assert.equal(rows[0].status, "held", "stays held for the GP release path");
+});
+
+test("released: an explicit connect_transfer leg still releases via Connect", async () => {
+  const rows = [heldRow({ id: "L1", party: "talent", payout_rail: "connect_transfer" })];
+  const updates: Update[] = [];
+  const { calls, stripe } = makeStripe();
+
+  const out = await releaseHeldPayouts(
+    { talentProfileId: "tp1" },
+    { sb: makeSupabase(rows, updates), stripe, resolveTalentAccount: async () => "acct_talent_tp1" },
+  );
+
+  assert.equal(out[0].result, "released");
+  assert.equal(calls.length, 1, "Connect leg releases normally");
 });
 
 test("idempotent: a re-run reuses the key so Stripe replays — no double-pay", async () => {
