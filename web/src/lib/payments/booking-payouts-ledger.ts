@@ -39,6 +39,9 @@ export type PayoutLeg = {
   status: PayoutStatus;
   stripeTransferId: string | null;
   lastError: string | null;
+  /** Rail this leg was routed on (connect_transfer | global_payouts). NULL =
+   *  legacy/Connect. releaseHeldPayouts uses it to never release a GP leg via Connect. */
+  payoutRail: string | null;
 };
 
 /** Stable per-leg Stripe idempotency key — shared by initial fan-out + release. */
@@ -77,6 +80,7 @@ export async function recordPayoutLeg(sb: SupabaseClient, leg: PayoutLeg): Promi
       currency: leg.currency,
       status: leg.status,
       stripe_transfer_id: leg.stripeTransferId,
+      payout_rail: leg.payoutRail,
       last_error: leg.lastError,
       transferred_at: leg.status === "transferred" ? new Date().toISOString() : null,
     };
@@ -140,6 +144,7 @@ type HeldRow = {
   amount_cents: number;
   currency: string;
   attempts: number;
+  payout_rail: string | null;
 };
 
 export type ReleaseOutcome = {
@@ -192,7 +197,7 @@ export async function releaseHeldPayouts(
   try {
     let query = sb
       .from("booking_payouts")
-      .select("id, booking_id, participant_id, party, talent_profile_id, tenant_id, amount_cents, currency, attempts")
+      .select("id, booking_id, participant_id, party, talent_profile_id, tenant_id, amount_cents, currency, attempts, payout_rail")
       .in("status", ["held", "failed"]);
 
     if (target.talentProfileId) {
@@ -207,6 +212,20 @@ export async function releaseHeldPayouts(
     if (error || !data?.length) return [];
 
     for (const row of data as HeldRow[]) {
+      // Never release a Global Payouts leg via the Connect rail. This path only
+      // does stripe.transfers.create() (Connect); a GP leg released here would
+      // double-pay once the GP retry (its own outbound-payment webhook) also
+      // lands. Leave it held for the GP release path. NULL rail = legacy Connect.
+      if (row.payout_rail === "global_payouts") {
+        outcomes.push({
+          legId: row.id,
+          party: row.party,
+          amountCents: row.amount_cents,
+          result: "still_held",
+          detail: "global_payouts leg is not Connect-releasable",
+        });
+        continue;
+      }
       const accountId =
         row.party === "talent"
           ? row.talent_profile_id

@@ -194,6 +194,12 @@ export async function executeBookingTransfers(
       const isWorkspaceOwned =
         snap.owning_party_type === "agency" || snap.owning_party_type === "workspace";
       const tenantId = isWorkspaceOwned ? snap.owning_party_id : null;
+      // Resolve the talent's rail once per lane so EVERY recorded leg (including a
+      // held one) carries the rail it was routed on. releaseHeldPayouts needs it
+      // to never release a Global Payouts leg via the Connect rail. (Helper returns
+      // connect_transfer when talentProfileId is null.) Workspace legs are always
+      // Connect (the GP rail is talent-only today).
+      const talentRail: PayoutRail = await resolvePayoutRail("talent", talentProfileId);
 
       // Audit #5: never transfer in a currency the platform did NOT settle. The
       // client charge settled in the transaction currency; a snapshot lane in a
@@ -232,6 +238,7 @@ export async function executeBookingTransfers(
             currency,
             status: "held",
             stripeTransferId: null,
+            payoutRail: talentRail,
             lastError: reason,
           });
           // Notify the affected talent their payout is held (in-app bell),
@@ -254,6 +261,7 @@ export async function executeBookingTransfers(
             currency,
             status: "held",
             stripeTransferId: null,
+            payoutRail: "connect_transfer",
             lastError: reason,
           });
         }
@@ -264,9 +272,7 @@ export async function executeBookingTransfers(
       //    Connect transfer by default, or a Global Payouts OutboundPayment when
       //    the talent is provisioned for it (opt-in, off until then).
       if (snap.talent_net_cents > 0) {
-        const rail: PayoutRail = talentProfileId
-          ? await resolvePayoutRail("talent", talentProfileId)
-          : "connect_transfer";
+        const rail: PayoutRail = talentRail;
         let route: DisburseRoute;
         if (rail === "global_payouts" && talentProfileId) {
           const [financialAccountId, recipientAccountId] = await Promise.all([
@@ -309,6 +315,7 @@ export async function executeBookingTransfers(
           currency,
           status: ledgerStatus(outcome.status),
           stripeTransferId: outcome.transferId ?? null,
+          payoutRail: outcome.rail,
           lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
         });
       }
@@ -343,6 +350,7 @@ export async function executeBookingTransfers(
           currency,
           status: ledgerStatus(outcome.status),
           stripeTransferId: outcome.transferId ?? null,
+          payoutRail: "connect_transfer",
           lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
         });
       }
