@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireStaffApi } from "@/lib/server/staff-api-route";
+import { getTenantScope } from "@/lib/saas/scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
 /**
@@ -15,6 +16,26 @@ export async function GET(request: Request) {
   }
 
   const { supabase } = auth;
+
+  // Tenant-scope the lookup. talent_profiles has no tenant_id column and its RLS
+  // permits any agency_staff globally (the is_agency_staff() footgun), so without
+  // this a staffer of one tenant could read ANY tenant's talent by id. Require
+  // the talent to be on THIS caller's tenant roster. (agency_talent_roster RLS is
+  // is_staff_of_tenant-scoped; the explicit tenant_id filter double-guards it.)
+  const scope = await getTenantScope();
+  if (!scope) {
+    return NextResponse.json({ error: "No tenant scope" }, { status: 403 });
+  }
+  const { data: rosterRow } = await supabase
+    .from("agency_talent_roster")
+    .select("talent_profile_id")
+    .eq("tenant_id", scope.tenantId)
+    .eq("talent_profile_id", id)
+    .maybeSingle();
+  if (!rosterRow) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const { data: profile, error: pErr } = await supabase
     .from("talent_profiles")
     .select(
