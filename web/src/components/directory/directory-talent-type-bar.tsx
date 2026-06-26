@@ -217,7 +217,7 @@ export function DirectoryTalentTypeBar({
             "mb-3 flex-nowrap snap-x snap-proximity overscroll-x-contain gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
             pending && "pointer-events-none opacity-60",
           )}
-          role="tablist"
+          role="group"
           aria-label={barAriaLabel}
         >
           <FilterChip
@@ -225,8 +225,7 @@ export function DirectoryTalentTypeBar({
             selected={activeParent == null}
             onClick={() => setActiveTerm(null)}
             className={pillClass(activeParent == null)}
-            role="tab"
-            aria-selected={activeParent == null}
+            aria-pressed={activeParent == null}
           />
           {visibleParents.map((p) => {
             const on = activeParent?.id === p.id;
@@ -238,8 +237,7 @@ export function DirectoryTalentTypeBar({
                 onClick={() => onParent(p.id)}
                 className={pillClass(on)}
                 title={p.label}
-                role="tab"
-                aria-selected={on}
+                aria-pressed={on}
               />
             );
           })}
@@ -410,7 +408,7 @@ export function DirectoryTalentTypeBar({
           "mb-4 flex-nowrap snap-x snap-proximity overscroll-x-contain gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
           pending && "pointer-events-none opacity-60",
         )}
-        role="tablist"
+        role="group"
         aria-label={barAriaLabel}
       >
         <FilterChip
@@ -418,8 +416,7 @@ export function DirectoryTalentTypeBar({
           selected={activeId == null}
           onClick={() => setActiveTerm(null)}
           className={pillClass(activeId == null)}
-          role="tab"
-          aria-selected={activeId == null}
+          aria-pressed={activeId == null}
         />
         {visibleOptions.map((opt) => {
           const on = activeId === opt.id;
@@ -431,8 +428,7 @@ export function DirectoryTalentTypeBar({
               onClick={() => setActiveTerm(on ? null : opt.id)}
               className={pillClass(on)}
               title={opt.label}
-              role="tab"
-              aria-selected={on}
+              aria-pressed={on}
             />
           );
         })}
