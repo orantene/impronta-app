@@ -42,12 +42,17 @@ export function FavoritesDrawer({
   signupHref,
   locale: localeProp,
   initialFavoriteIdsCount = 0,
+  isAuthenticated = false,
 }: {
   signupHref: string;
   /** SSR-resolved locale — avoids pathname/cookie drift on first paint. */
   locale?: string;
   /** SSR favorite count — matches header badge seed until client storage merges. */
   initialFavoriteIdsCount?: number;
+  /** Whether the viewer is a signed-in client. The "Build your portfolio"
+   *  link targets /client/favorites (auth-only) → shown only when authed;
+   *  guests get the sign-up CTA that's already in the footer. */
+  isAuthenticated?: boolean;
 }) {
   const mounted = useClientMounted();
   const drawer = useFavoritesDrawer();
@@ -265,13 +270,17 @@ export function FavoritesDrawer({
                 )}
               </Button>
               <div className="flex items-center justify-between gap-2 text-[12px]">
-                <Link
-                  href={clientLocaleHref(pathname, "/client/favorites")}
-                  onClick={() => drawer.close()}
-                  className="text-white/55 underline-offset-4 hover:text-white hover:underline"
-                >
-                  {t("public.directory.ui.favorites.buildPortfolio")}
-                </Link>
+                {isAuthenticated ? (
+                  <Link
+                    href={clientLocaleHref(pathname, "/client/favorites")}
+                    onClick={() => drawer.close()}
+                    className="text-white/55 underline-offset-4 hover:text-white hover:underline"
+                  >
+                    {t("public.directory.ui.favorites.buildPortfolio")}
+                  </Link>
+                ) : (
+                  <span />
+                )}
                 <button
                   type="button"
                   onClick={clearAll}

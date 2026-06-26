@@ -67,6 +67,7 @@ export default async function PublicLayout({
               signupHref="/login"
               locale={locale}
               initialFavoriteIdsCount={favoriteIds.length}
+              isAuthenticated={Boolean(actor.user)}
             />
           </FavoritesDrawerProvider>
         </DirectoryInquiryModalProvider>
