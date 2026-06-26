@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CapsLabel, EmptyState, PrimaryButton, SecondaryButton } from "../../primitives";
+import { CapsLabel, EmptyState, SecondaryButton } from "../../primitives";
 import { AVAILABILITY_BLOCKS, COLORS, EARNINGS_ROWS, FONTS, MY_TALENT_PROFILE, PAYMENT_METHOD_META, RICH_INQUIRIES, TALENT_BOOKINGS, TALENT_REQUESTS, TRANSITION, useAdminShell } from "../../state";
 import { ICalSubscribeCard } from "../../wave2";
 import { createTalentAvailabilityBlock } from "@/lib/talent-calendar/actions";
@@ -371,14 +371,12 @@ export function CalendarPage() {
         title="Calendar"
         subtitle="Bookings, holds & availability"
         actions={
-          <>
-            <SecondaryButton onClick={() => openDrawer("talent-block-dates")}>
-              Availability
-            </SecondaryButton>
-            <PrimaryButton onClick={() => openDrawer("talent-add-event")}>
-              + Add
-            </PrimaryButton>
-          </>
+          // "+ Add" (the talent-add-event drawer) is hidden until off-platform
+          // work-logging / calendar-blocking is actually built — both drawer modes
+          // are unpersisted "coming soon" stubs, so the button was a dead CTA.
+          <SecondaryButton onClick={() => openDrawer("talent-block-dates")}>
+            Availability
+          </SecondaryButton>
         }
       />
 

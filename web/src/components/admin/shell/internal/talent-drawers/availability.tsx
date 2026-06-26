@@ -4,12 +4,12 @@
 // talent-drawers/availability — Phase 1d body chunk.
 // Owns: TalentProfileSectionDrawer, TalentAvailabilityDrawer,
 // TalentBlockDatesDrawer, TalentPortfolioDrawer.
-// Private helpers: AvailabilityAddAction, AvailabilityToggleRow.
+// Private helpers: AvailabilityToggleRow.
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
 import { useState } from "react";
-import { AVAILABILITY_BLOCKS, COLORS, FONTS, MY_TALENT_PROFILE, TRANSITION, useAdminShell } from "../state";
+import { AVAILABILITY_BLOCKS, COLORS, FONTS, MY_TALENT_PROFILE, useAdminShell } from "../state";
 import {
   DrawerShell,
   FieldRow,
@@ -100,7 +100,7 @@ export function TalentAvailabilityDrawer() {
  * for travel) than blocking specific date ranges.
  */
 export function TalentBlockDatesDrawer() {
-  const { state, closeDrawer, openDrawer } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-block-dates";
   const p = MY_TALENT_PROFILE;
 
@@ -309,121 +309,14 @@ export function TalentBlockDatesDrawer() {
           </section>
         )}
 
-        {/* ─── 4. Add to your calendar ────────────────────────────
-            Two action paths into the full Add Event drawer. Replaces the
-            prior inline From/To/Reason form because the dedicated drawer
-            does it better — reason chips, currency picker, advanced
-            details, source attribution. The Availability drawer now
-            handles the simple state (location + toggles) and hands off
-            to the richer flow when the talent needs to log or block. */}
-        <section>
-          <SubsectionLabel>Add to your calendar</SubsectionLabel>
-          <div style={{ marginTop: 6, fontFamily: FONTS.body, fontSize: 12, marginBottom: 10 }} className="text-admin-ink-muted">
-            Track work you did off-platform, or block dates when you can&apos;t work.
-          </div>
-          <div className="flex flex-col gap-2">
-            <AvailabilityAddAction
-              icon="credit"
-              tone="success"
-              title="Log work"
-              body="Off-platform booking — adds to earnings + calendar."
-              onClick={() => {
-                openDrawer("talent-add-event", { mode: "work" });
-              }}
-            />
-            <AvailabilityAddAction
-              icon="lock"
-              tone="caution"
-              title="Block time"
-              body="Vacation, day job, school, family — anything that means you're not available."
-              onClick={() => {
-                openDrawer("talent-add-event", { mode: "block" });
-              }}
-            />
-          </div>
-        </section>
+        {/* "Add to your calendar" (Log work / Block time) removed: both paths
+            opened the talent-add-event drawer, whose modes are unpersisted
+            "coming soon" stubs — dead CTAs. Re-add once that flow is built. */}
       </div>
     </DrawerShell>
   );
 }
 
-/**
- * Compact action row used inside the Availability drawer's "Add to your
- * calendar" section. Tinted icon chip + title + body + chevron. Click
- * launches the full TalentAddEventDrawer in the appropriate mode.
- */
-function AvailabilityAddAction({
-  icon,
-  tone,
-  title,
-  body,
-  onClick,
-}: {
-  icon: "credit" | "lock";
-  tone: "success" | "caution";
-  title: string;
-  body: string;
-  onClick: () => void;
-}) {
-  const palette = {
-    success: { bg: COLORS.successSoft, fg: COLORS.green },
-    caution: { bg: COLORS.amberSoft, fg: COLORS.amber },
-  }[tone];
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        width: "100%",
-        padding: "12px 14px",
-        background: "#fff",
-        border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: 10,
-        cursor: "pointer",
-        fontFamily: FONTS.body,
-        textAlign: "left",
-        transition: `border-color ${TRANSITION.micro}, transform ${TRANSITION.micro}`,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = COLORS.border;
-        e.currentTarget.style.transform = "translateY(-1px)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = COLORS.borderSoft;
-        e.currentTarget.style.transform = "translateY(0)";
-      }}
-    >
-      <span
-        aria-hidden
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: 7,
-          background: palette.bg,
-          color: palette.fg,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <Icon name={icon} size={13} stroke={1.7} />
-      </span>
-      <div className="flex-1 min-w-0">
-        <div className="text-admin-ink text-admin-13 font-semibold">
-          {title}
-        </div>
-        <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
-          {body}
-        </div>
-      </div>
-      <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
-    </button>
-  );
-}
 
 /**
  * Compact toggle row used inside the Availability drawer's grouped panels.

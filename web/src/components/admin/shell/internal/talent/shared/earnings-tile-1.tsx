@@ -63,7 +63,10 @@ export function EarningsTile({
    *  data (no fabricated sparkline / cycle / demo rows); null = demo mode. */
   earnings?: TalentEarnings | null;
   onSeeAll: () => void;
-  onLogWork: () => void;
+  /** Optional: when omitted, the "Log work" button is hidden. Off-platform
+   *  work-logging is unbuilt (the talent-add-event drawer is an unpersisted
+   *  stub), so callers currently omit this to avoid a dead CTA. */
+  onLogWork?: () => void;
 }) {
   const realMode = earnings != null;
   const [cycle, setCycle] = useState<"month" | "quarter" | "year">("month");
@@ -269,18 +272,20 @@ export function EarningsTile({
         >
           See all earnings →
         </button>
-        <button
-          type="button"
-          onClick={onLogWork}
-          style={{
-            padding: "6px 12px", background: "transparent",
-            border: `1px solid ${COLORS.borderSoft}`, borderRadius: RADIUS.md,
-            fontSize: 12, fontWeight: 600, cursor: "pointer",
-            color: COLORS.inkMuted, fontFamily: FONTS.body,
-          }}
-        >
-          + Log work
-        </button>
+        {onLogWork && (
+          <button
+            type="button"
+            onClick={onLogWork}
+            style={{
+              padding: "6px 12px", background: "transparent",
+              border: `1px solid ${COLORS.borderSoft}`, borderRadius: RADIUS.md,
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              color: COLORS.inkMuted, fontFamily: FONTS.body,
+            }}
+          >
+            + Log work
+          </button>
+        )}
       </div>
     </section>
   );

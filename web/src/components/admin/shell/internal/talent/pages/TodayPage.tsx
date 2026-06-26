@@ -417,8 +417,6 @@ export function TalentTodayPage() {
           }
           actionLabel="See calendar →"
           onAction={() => setTalentPage("calendar")}
-          secondaryActionLabel="+ Add manually"
-          onSecondaryAction={() => openDrawer("talent-add-event")}
         />
         {upcoming.length === 0 ? (
           <EmptyState
@@ -455,7 +453,6 @@ export function TalentTodayPage() {
         monthTotal={paidThisMonthTotal}
         earnings={bridgeTalentEarnings}
         onSeeAll={() => openDrawer("talent-career-analytics")}
-        onLogWork={() => openDrawer("talent-add-event", { mode: "work" })}
       />
 
       {/* W8 — two-sided reviews. The talent's received (client→talent) rating

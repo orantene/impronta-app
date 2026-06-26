@@ -988,7 +988,7 @@
   },
   "src/components/admin/shell/internal/talent-drawers/availability.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 26
+      "count": 22
     }
   },
   "src/components/admin/shell/internal/talent-drawers/closed-booking.tsx": {
