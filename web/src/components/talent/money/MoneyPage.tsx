@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 
 import { useAdminShell } from "@/components/admin/shell/internal/state";
-import { PrimaryButton, SecondaryButton } from "@/components/admin/shell/internal/primitives";
+import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { PageHeader } from "@/components/admin/shell/internal/talent/shared/page-chrome-1";
 import { AdminFinancialsCurrencyTabs } from "@/components/admin/applications/AdminFinancialsCurrencyTabs";
@@ -80,10 +80,9 @@ export function MoneyPage() {
         title="Money"
         subtitle="Your earnings, agency relationships and payout history, one place, every workspace."
         actions={
+          // "+ Log work" hidden until off-platform work-logging is built (the
+          // talent-add-event drawer is an unpersisted stub — was a dead CTA).
           <>
-            <SecondaryButton size="sm" onClick={() => openDrawer("talent-add-event", { mode: "work" })}>
-              + Log work
-            </SecondaryButton>
             <PrimaryButton size="sm" onClick={() => openDrawer("talent-payouts")}>
               Payout settings
             </PrimaryButton>
