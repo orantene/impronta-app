@@ -15,6 +15,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { calculateTransactionAmounts } from "@/lib/bookings/commission";
+import { applyBookingPaymentSync } from "@/lib/bookings/booking-payment-sync";
 import {
   describeTransactionTransitionEvent,
 } from "@/lib/bookings/transaction-events";
@@ -641,23 +642,14 @@ export async function markPaid(
         // charge → 'paid'/'fully_paid'. The lifecycle CHECK allows
         // pending|deposit_paid|fully_paid|refunded|failed; payment_status allows
         // unpaid|partial|paid|cancelled|refunded.
-        const bookingPatch = isDeposit
-          ? {
-              payment_status: "partial",
-              client_revenue_lifecycle: "deposit_paid",
-              deposit_paid_at: new Date().toISOString(),
-              balance_due_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }
-          : {
-              payment_status: "paid",
-              client_revenue_lifecycle: "fully_paid",
-              updated_at: new Date().toISOString(),
-            };
-        const { error: bookingSyncError } = await sbBooking
-          .from("agency_bookings")
-          .update(bookingPatch)
-          .eq("id", result.data.bookingId);
+        // The deposit branch carries an ATOMIC monotonic guard so a late deposit
+        // webhook can't regress an already-paid booking back to 'partial' on a
+        // concurrent deposit+balance race (see booking-payment-sync.ts).
+        const { error: bookingSyncError } = await applyBookingPaymentSync(sbBooking, {
+          bookingId: result.data.bookingId,
+          isDeposit,
+          nowIso: new Date().toISOString(),
+        });
         if (bookingSyncError) logServerError("transactions.markPaid.bookingSync", bookingSyncError);
       }
     }
