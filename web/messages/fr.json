@@ -44,6 +44,7 @@
       "sendingShort": "Envoi…",
       "typicallyReplies": "Répond généralement {when}",
       "leaveMessage": "Parlez-nous de votre événement et nous trouverons le bon talent",
+      "bookNow": "Réserver",
       "aboutTalent": "À propos de {name}",
       "errRateLimited": "Vous envoyez un peu vite. Patientez un instant.",
       "errBlocked": "Cette conversation ne peut pas continuer.",

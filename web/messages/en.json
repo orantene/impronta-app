@@ -576,6 +576,7 @@
       "sendingShort": "Sending…",
       "typicallyReplies": "Typically replies {when}",
       "leaveMessage": "Tell us about your event and we'll line up the right talent",
+      "bookNow": "Book Now",
       "aboutTalent": "About {name}",
       "errRateLimited": "You’re sending a little fast. Give it a moment.",
       "errBlocked": "This conversation can’t continue.",

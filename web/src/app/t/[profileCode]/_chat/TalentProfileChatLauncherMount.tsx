@@ -28,6 +28,7 @@
  */
 
 import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
+import { createTranslator } from "@/i18n/messages";
 // Real Lane A server actions (the build stub was removed at integration). These
 // match the contract callbacks 1:1, so they pass straight into the launcher.
 import {
@@ -99,6 +100,8 @@ export async function TalentProfileChatLauncherMount({
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
 
+  const t = createTranslator(locale ?? "en");
+
   // Returning-guest resume (B1): reopen the live thread from the cookie instead
   // of starting fresh. Always { active } | failure; any failure → fresh start.
   const resume = await getActiveGuestInquiry({ tenantSlug, talentProfileId });
@@ -119,7 +122,7 @@ export async function TalentProfileChatLauncherMount({
         greeting,
         locale,
       }}
-      label="Book Now"
+      label={t("public.guestChat.bookNow")}
       // Returning guest → reopen the thread + prefill the gate (B1). null → fresh.
       existingInquiryId={active?.inquiryId ?? null}
       prefill={active?.prefill ?? null}

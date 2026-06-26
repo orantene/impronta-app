@@ -35,6 +35,8 @@ import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadGuestChatSettings } from "@/lib/inquiry/guest-chat-settings";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 /**
  * Resolve agencies.slug from a tenant id (service-role read). The hub arm of
@@ -62,6 +64,11 @@ export async function AgencyChatLauncherMount({
   sourcePage = "/",
 }: AgencyChatLauncherMountProps) {
   const ctx = await getPublicHostContext();
+  // Resolve the request locale so the client panel renders in the page language
+  // (the talent mount passes brand.locale; the agency mount must too, or the
+  // panel falls back to English on a localized directory).
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
 
   // Resolve the tenant that owns this chat:
   //  - agency / hub host → that tenant
@@ -130,8 +137,9 @@ export async function AgencyChatLauncherMount({
         accentColor,
         logoUrl,
         greeting: settings.greeting,
+        locale,
       }}
-      label="Book Now"
+      label={t("public.guestChat.bookNow")}
       existingInquiryId={null}
       prefill={null}
       onStartInquiry={startGuestChatInquiry}
