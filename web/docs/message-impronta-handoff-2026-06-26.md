@@ -28,27 +28,26 @@ Then we **audited and remediated** it:
 - Realtime reuses `web/src/hooks/use-inquiry-realtime.ts`. The four nouns (all already in data, correctly separated): **lineup** (saved_talent / the draft inquiry roster) · **inquiry** (a conversation) · **projects** (multiple inquiries) · **favorites** (client_favorites, separate).
 
 ### Git state
-- Branch `feat/message-impronta-unified-inquiry`, **PR #690** (base `feat/bl10-p5`). Commits: `255b1da6d` (feature), `b9f879beb` (remediation), `6b8c015a3` (i18n-locale fix). **Not pushed further; not merged.**
+- Branch `feat/message-impronta-unified-inquiry`, **PR #690** (base `feat/bl10-p5`, **MERGEABLE**). Commits: `255b1da6d` (feature), `b9f879beb` (remediation), `6b8c015a3` (i18n-locale fix), `493ee11bc` (these plan/handoff docs). **All pushed; PR open against `feat/bl10-p5`; not yet merged.**
 - The owner's UNRELATED profile-templates WIP is uncommitted in the working tree (`_atelier/_lumen/_noir/_shared/`, `t/[profileCode]/page.tsx`, profile-pages, talent-profile lib, package.json, registry.ts, deleted talent-site templates). **Never commit that — it is not ours.**
 - QA test rows in PROD DB (`c2d933d1`, `2bd87598`, contact_email like `pending-%@guest.impronta`) — purge was blocked by the safety classifier; owner has the scoped SQL. Leave them or owner runs it.
 
-## 2. STEP 0 — integrate onto current main BEFORE building (required)
-The branch is **~49 commits behind origin/main**, which now has directory-redesign PRs (#682/#683/#691/#692) that overlap our chat surface. Build on a fresh base or conflicts compound.
+## 2. STEP 0 — how this branch reaches main (CORRECTED after topology check 2026-06-26)
+**Do NOT `git merge origin/main` into this feature branch.** An earlier draft of this handoff said to — that was wrong. Verified topology:
+- This branch targets **`feat/bl10-p5`** (PR #690 base) and is **0 commits behind it** — already current with its real base. **PR #690 is MERGEABLE into `feat/bl10-p5` with no conflicts.**
+- `feat/bl10-p5` is ~51 commits behind `origin/main` (8 unique commits). That bl10-p5→main integration is **already owned by the existing `origin/ship/bl10-p5-onto-main` branch** — not by this feature.
+- Merging `origin/main` here directly drags in feat/bl10-p5↔main conflicts that are NOT ours: `web/src/components/edit-chrome/topbar.tsx` (+20/−14 builder-topbar portal fix, 6 conflict regions), the `web/package.json` CI test manifests, `snapshot-tree.test.ts`. Don't adjudicate those — the ship branch does.
 
-Procedure:
-1. `git fetch origin`. Ensure a clean tree first: **stash the owner's WIP** — `git stash push -u -m "owner-profile-templates-wip"` (restore at the end). Confirm with the owner before stashing if unsure.
-2. `git merge origin/main` into `feat/message-impronta-unified-inquiry`. Expected conflicts + resolutions (from `git merge-tree` preview):
-   - `web/src/components/directory/directory-infinite.tsx` → **take main's DELETE** (`git rm`). main removed the legacy infinite grid; our Phase-3 edit was to that legacy file.
-   - `web/src/components/directory/talent-card.tsx` → **take main's DELETE** (`git rm`). main removed the legacy card; the directory really renders `DirectoryCardAdapter` (our edit there is the real one).
-   - `web/src/lib/site-admin/sections/directory/DirectoryCardAdapter.tsx` → **merge both**: keep our `portraitUrl={card.thumbnail?.url}` + `getInquiryPhotoRect` wiring AND main's redesign changes.
-   - `web/src/app/t/[profileCode]/_chat/MiniChatPanelColumn.tsx` and `GuestDetailChips.tsx` → **take our rail/unified rewrite**, but honor #683's intent: no dead "Add more details →" link that 404s for guests (our rail/`GuestExtraDetailEditors` IS the chat-native add-details path).
-   - `web/messages/fr.json` → **keep BOTH key sets** (our `bookNow`/`leaveMessage` + main's guestChat additions).
+Correct path to production:
+1. **Merge PR #690 into `feat/bl10-p5`** (clean today).
+2. The directory-redesign reconciliation (main's #682/#683/#691/#692 overlap our chat surface) gets resolved **when bl10-p5 → main runs through `ship/bl10-p5-onto-main`** (or when this work is later rebased onto a main-merged base). Apply these resolutions at that point:
+   - `web/src/components/directory/directory-infinite.tsx`, `web/src/components/directory/talent-card.tsx` → **take main's DELETE** (legacy files; the directory renders `DirectoryCardAdapter`).
+   - `web/src/lib/site-admin/sections/directory/DirectoryCardAdapter.tsx` → **merge both** (our `portraitUrl={card.thumbnail?.url}` + `getInquiryPhotoRect` AND main's editorial trait row — both blocks below the media `<div>`).
+   - `web/src/app/t/[profileCode]/_chat/MiniChatPanelColumn.tsx`, `GuestDetailChips.tsx` → **take our rail/unified rewrite** (`--ours`). Main's only delta there is #683's add-details gating, which our rail / `GuestExtraDetailEditors` already supersedes (no dead "Add more details →" 404 for guests).
+   - `web/messages/fr.json` → **keep BOTH key sets**: our `public.guestChat` block AND main's `public.contact` block are sibling keys — close `guestChat` with `},` then add `contact`.
    - `directory-discovery-header-actions.tsx`, `en.json`, `es.json`, `talent-directory-list-row.tsx` → auto-merge (verify clean).
-3. Inherit + repoint the new directory entry points at the CHAT (this is also 360 Phase 3):
-   - `directory-inquiry-review-bar.tsx` (#682, floating "open inquiry · N") calls `useInquiryCart().openInquiry()` → repoint at the chat launcher.
-   - `directory-inquiry-url-sync.tsx` (#692, `?inquiry=open` → openInquiry + strips param; header Send + review bar fall back to `/directory?inquiry=open` off-surface) → point the fallback at the chat entry.
-   - `directory-inquiry-sheet.tsx` (#691) → retire once chat is the surface (its loading-shell goes with it).
-4. Restore WIP: `git stash pop`. Run `cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit && npm run lint`. Push.
+3. Repoint the new directory entry points at the CHAT — do this as a **code change on top** (also 360 Phase 3), not as merge-conflict resolution: `directory-inquiry-review-bar.tsx` (#682 `openInquiry()`), `directory-inquiry-url-sync.tsx` (#692 `?inquiry=open` fallback) → the chat launcher; retire `directory-inquiry-sheet.tsx` (#691).
+4. Gate every step: `cd web && NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit && npm run lint`.
 
 ## 3. STEP 1+ — build the Jon 360 plan
 **Read `web/docs/jon-inquiry-360-cro-plan-2026-06-26.md` in full.** It has 8 phases, each with goal/files/acceptance/conversion-mechanism. Headline + spine:
