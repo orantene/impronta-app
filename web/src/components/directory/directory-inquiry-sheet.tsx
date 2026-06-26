@@ -130,10 +130,22 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
     );
   }
 
-  // Prefetch in-flight: don't render the auxiliary shell while the payload
-  // is still loading. Only fall through when there's a definite reason
-  // (success, unconfigured, or paused — all require `payload` to be set).
-  if (!success && !payload) return null;
+  // Open but the payload is still prefetching: render the shell with a loading
+  // line rather than `null` (a pre-prefetch click used to paint nothing — the
+  // drawer simply didn't appear until the fetch resolved). We're past the
+  // `if (!open) return null` guard, so the drawer should be visible here.
+  if (!success && !payload) {
+    return (
+      <InquiryDrawerShell
+        label="Inquiry"
+        title={s.titleStartInquiry}
+        subtitle={s.descEmptyShortlist}
+        onClose={() => handleOpenChange(false)}
+      >
+        <p className="text-sm text-muted-foreground">{s.loading}</p>
+      </InquiryDrawerShell>
+    );
+  }
 
   // ── Auxiliary states — InquiryDrawerShell for visual consistency ──
   const auxTitle = success ? s.titleThankYou : s.titleStartInquiry;

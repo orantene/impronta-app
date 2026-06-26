@@ -214,7 +214,7 @@ export function DirectoryTalentTypeBar({
       <div className="relative">
         <FilterChips
           className={cn(
-            "mb-3 flex-nowrap snap-x snap-proximity overscroll-x-contain touch-pan-x gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            "mb-3 flex-nowrap snap-x snap-proximity overscroll-x-contain gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
             pending && "pointer-events-none opacity-60",
           )}
           role="tablist"
@@ -276,7 +276,7 @@ export function DirectoryTalentTypeBar({
                 "flex min-w-0 flex-1 items-center gap-1.5",
                 childrenExpanded
                   ? "flex-wrap"
-                  : "flex-nowrap snap-x snap-proximity overscroll-x-contain touch-pan-x overflow-x-auto scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                  : "flex-nowrap snap-x snap-proximity overscroll-x-contain overflow-x-auto scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
               )}
             >
               {activeParent.children.map((c) => {
@@ -296,7 +296,7 @@ export function DirectoryTalentTypeBar({
                     )}
                   >
                     {pillLabel(c.label)}
-                    <span className="ml-1 text-white/35 tabular-nums">{c.count}</span>
+                    <span className="ml-1 text-white/55 tabular-nums">{c.count}</span>
                   </button>
                 );
               })}
@@ -407,7 +407,7 @@ export function DirectoryTalentTypeBar({
     <div className="relative">
       <FilterChips
         className={cn(
-          "mb-4 flex-nowrap snap-x snap-proximity overscroll-x-contain touch-pan-x gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          "mb-4 flex-nowrap snap-x snap-proximity overscroll-x-contain gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
           pending && "pointer-events-none opacity-60",
         )}
         role="tablist"
