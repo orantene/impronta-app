@@ -498,10 +498,12 @@ const editorialNoirPreset: ThemePreset = {
     "shell.footer-variant": "espresso-column",
     "shell.mobile-nav-variant": "full-screen-fade",
     "background.mode": "editorial-noir",
-    // template families — stay on classic (most neutral) so the noir palette
-    // is what does the heavy lifting, not a bridal-specific card layout.
+    // Directory card layout stays classic (the card KIT applies the noir
+    // card skin); the PROFILE has no kit, so default its layout to noir here
+    // so an editorial-noir tenant's talent profiles stay black/gold/serif on
+    // click-through instead of falling back to the cream/sans classic layout.
     "template.directory-card-family": "classic",
-    "template.profile-layout-family": "classic",
+    "template.profile-layout-family": "noir",
     // polish
     "shell.logo-variant": "wordmark",
     "motion.stagger-preset": "editorial",

@@ -45,6 +45,8 @@ export function TalentDirectoryListRow({
     >
       <Link
         href={profileHref}
+        aria-hidden
+        tabIndex={-1}
         className="relative h-28 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-800"
       >
         {card.thumbnail.url ? (
