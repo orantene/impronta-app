@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Bookmark, Heart, Send } from "lucide-react";
+import { clientDirectoryHref } from "@/i18n/client-directory-href";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { useFavoritesDrawer } from "@/components/directory/favorites-drawer-context";
 import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
@@ -61,6 +63,8 @@ export function DirectoryDiscoveryHeaderActions({
   const inquiryModal = useOptionalDirectoryInquiryModal();
   const saveCue = inquiryModal?.saveCue ?? 0;
   const favoritesDrawer = useFavoritesDrawer();
+  const pathname = usePathname();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [cueRing, setCueRing] = useState(false);
 
@@ -145,7 +149,10 @@ export function DirectoryDiscoveryHeaderActions({
                   inquiryModal.openInquiry();
                   return;
                 }
-                window.location.assign("/directory/cart");
+                // No modal provider on this surface (e.g. a freeform talent
+                // sub-page): route to the directory and auto-open the composer
+                // there, instead of the dead-end /directory/cart redirect.
+                router.push(clientDirectoryHref(pathname, "?inquiry=open"));
               }}
               aria-label={
                 hasCart ? copy.inquiryAriaWithCart : copy.inquiryAriaEmpty
