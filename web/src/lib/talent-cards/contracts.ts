@@ -199,4 +199,11 @@ export interface TalentCardActionsProps {
    * updates). Reduced-motion is handled downstream in useFlyToRail.
    */
   getInquiryPhotoRect?: () => DOMRect | null;
+  /**
+   * Guest UI locale (resolved server-side from the tenant default_locale, since
+   * guests carry no LOCALE_COOKIE). Used only for the "Removed {name}. Undo"
+   * cue copy on a cart removal. Defaults to "en" when the surface does not
+   * supply it.
+   */
+  locale?: string;
 }

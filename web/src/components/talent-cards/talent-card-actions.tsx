@@ -29,7 +29,10 @@ import { useFavorites } from "@/lib/talent-cards/use-favorites";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { resolveInquiryCta } from "@/lib/inquiry/inquiry-context-resolver";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
+import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
 import { registerCartTalent } from "@/app/t/[profileCode]/_chat/cart-talent-registry";
+import { createTranslator } from "@/i18n/messages";
+import { withInterpolation } from "@/i18n/interpolate";
 import { cn } from "@/lib/utils";
 
 import "./talent-card-actions.css";
@@ -54,11 +57,14 @@ export function TalentCardActions({
   className,
   portraitUrl = null,
   getInquiryPhotoRect,
+  locale = "en",
 }: TalentCardActionsProps) {
   const mounted = useClientMounted();
   const favorites = useFavorites();
   const cart = useInquiryCart();
   const inquiryModal = useOptionalDirectoryInquiryModal();
+  // For the reversible-remove cue only (the public flash host owns the toast UI).
+  const discovery = usePublicDiscoveryStateOptional();
 
   // No PublicDiscoveryState provider on this surface → favorites + inquiry
   // stores are unreachable. Render nothing rather than dead controls.
@@ -122,6 +128,30 @@ export function TalentCardActions({
       }
     }
     cart.toggleInCart({ talentProfileId, profileCode, displayName }, sourcePage);
+
+    // Phase 6 — reversibility. A card removal is always a DRAFT-stage cart op
+    // (the card is a pre-send acquisition surface; it carries no sent-inquiry
+    // context), so it is always safe to offer Undo. Restoring the cart id is the
+    // faithful inverse of the card's only mutation: the card never patched the
+    // inquiry record on remove, so re-adding the id replays the exact same path.
+    // The launcher rail X-remove (which DOES patch the record) owns the both
+    // cart+record restore. Reuses the existing public flash host, no new dep.
+    if (!willAdd && discovery) {
+      const t = withInterpolation(createTranslator(locale));
+      const name = displayName?.trim() || t("public.guestChat.sectionTalent");
+      discovery.setFlash({
+        tone: "info",
+        durationMs: 5000,
+        title: t("public.guestChat.removedToast", { name }),
+        action: {
+          label: t("public.guestChat.removedToastUndo"),
+          onAction: () => {
+            registerCartTalent(talentProfileId, { displayName, portraitUrl });
+            cart.setInCart({ talentProfileId, profileCode, displayName }, true, sourcePage);
+          },
+        },
+      });
+    }
   };
 
   const glyphSize = compact ? "size-3.5" : "size-4";

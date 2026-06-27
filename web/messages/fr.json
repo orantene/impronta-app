@@ -251,7 +251,12 @@
       "stripOfferReady": "{agency} vous a envoye une offre. Consultez-la",
       "stripReviewOffer": "Voir l'offre",
       "stripApproved": "Approuve. Confirmation de votre reservation en cours",
-      "stripBooked": "Reserve. Tout est pret"
+      "stripBooked": "Reserve. Tout est pret",
+      "removedToast": "{name} retire.",
+      "removedToastUndo": "Annuler",
+      "removedToastDismissAria": "Fermer",
+      "gateRecapOne": "Nous l'utiliserons pour vous envoyer la reponse de {agency} concernant {names}.",
+      "gateRecapOverflow": "{names}, +{count}"
     }
   },
   "dashboard": {

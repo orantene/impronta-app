@@ -781,7 +781,12 @@
       "stripOfferReady": "{agency} te envio una oferta. Revisala",
       "stripReviewOffer": "Ver oferta",
       "stripApproved": "Aprobado. Estamos confirmando tu reserva",
-      "stripBooked": "Reservado. Ya esta todo listo"
+      "stripBooked": "Reservado. Ya esta todo listo",
+      "removedToast": "Quitaste a {name}.",
+      "removedToastUndo": "Deshacer",
+      "removedToastDismissAria": "Descartar",
+      "gateRecapOne": "Usaremos esto para enviarte la respuesta de {agency} sobre {names}.",
+      "gateRecapOverflow": "{names}, +{count}"
     }
   },
   "dashboard": {

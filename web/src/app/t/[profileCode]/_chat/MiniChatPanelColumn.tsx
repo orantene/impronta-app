@@ -55,9 +55,45 @@ import { TrustGateNudge } from "./TrustGateNudge";
 import {
   EMAIL_RE,
   FONT_DISPLAY,
+  firstNameOf,
   paletteFor,
   type SurfaceMode,
 } from "./mini-chat-styles";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 6 — gate lineup recap
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Build the quiet contact-gate recap line anchoring the value of the ask, e.g.
+ * "We will use this to send you {agency} reply about {Jane, +2}". Lists the
+ * lineup talent FIRST names with a +N overflow (max two named, then +remaining).
+ * Returns null when the lineup is empty so the gate renders without a recap.
+ */
+function buildGateLineupRecap(
+  cartTalentNames: string[],
+  agencyName: string,
+  t: (key: string) => string,
+): string | null {
+  const names = cartTalentNames
+    .map((n) => firstNameOf(n))
+    .filter((n) => n.length > 0);
+  if (names.length === 0) return null;
+
+  const MAX_NAMED = 2;
+  const namedList =
+    names.length > MAX_NAMED
+      ? interpolate(t("public.guestChat.gateRecapOverflow"), {
+          names: names.slice(0, MAX_NAMED).join(", "),
+          count: names.length - MAX_NAMED,
+        })
+      : names.join(", ");
+
+  return interpolate(t("public.guestChat.gateRecapOne"), {
+    agency: agencyName || t("public.guestChat.sectionTalent"),
+    names: namedList,
+  });
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props
@@ -175,6 +211,12 @@ export type MiniChatPanelColumnProps = {
   onListRoster?: ListGuestTenantRosterCallback | null;
   /** Current selected talent ids (from the unified draft). */
   selectedTalentIds?: string[];
+  /**
+   * Phase 6 — live cart talent display names, used only for the gate recap line
+   * ("...send you {agency} reply about {Jane, +2}"). Aligned with the cart, so it
+   * reflects the exact lineup the contact ask is anchoring.
+   */
+  cartTalentNames?: string[];
   /** Current brief summary (from the unified draft). */
   briefSummary?: string | null;
   /** Current contact values (from the unified draft). */
@@ -292,6 +334,7 @@ export function MiniChatPanelColumn({
   onBriefChange,
   onContactChange,
   talentPickFirst = false,
+  cartTalentNames = [],
   railOpenToSection = null,
   onConsumeRailOpenTo,
   inquiryIntent = null,
@@ -518,6 +561,11 @@ export function MiniChatPanelColumn({
       {showGate && (
         <MiniChatGateForm
           talentFirst={talentFirst}
+          lineupRecap={buildGateLineupRecap(
+            cartTalentNames,
+            brand.agencyName,
+            t,
+          )}
           draft={draft}
           firstName={firstName}
           onFirstNameChange={onFirstNameChange}

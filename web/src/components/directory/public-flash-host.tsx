@@ -11,7 +11,7 @@ export function PublicFlashHost({ dismissAria }: { dismissAria: string }) {
 
   useEffect(() => {
     if (!flash) return;
-    const t = window.setTimeout(() => setFlash(null), 4500);
+    const t = window.setTimeout(() => setFlash(null), flash.durationMs ?? 4500);
     return () => window.clearTimeout(t);
   }, [flash, setFlash]);
 
@@ -41,16 +41,32 @@ export function PublicFlashHost({ dismissAria }: { dismissAria: string }) {
             <p className="mt-0.5 text-sm opacity-90">{flash.message}</p>
           ) : null}
         </div>
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8 shrink-0 text-current hover:bg-white/10"
-          onClick={() => setFlash(null)}
-          aria-label={dismissAria}
-        >
-          <X className="size-4" />
-        </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          {flash.action ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-8 px-2 text-current underline-offset-2 hover:bg-white/10 hover:underline"
+              onClick={() => {
+                flash.action?.onAction();
+                setFlash(null);
+              }}
+            >
+              {flash.action.label}
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 text-current hover:bg-white/10"
+            onClick={() => setFlash(null)}
+            aria-label={dismissAria}
+          >
+            <X className="size-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

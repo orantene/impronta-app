@@ -21,7 +21,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
+import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
 import { createTranslator } from "@/i18n/messages";
+import { withInterpolation } from "@/i18n/interpolate";
 import {
   resolveInquiryCta,
   type LastMessageRole,
@@ -142,6 +144,9 @@ export function TalentProfileChatLauncher({
   // (useInquiryCart().cartIds) joined with portrait/name data the directory cards
   // registered as they were added (cart-talent-registry). No second cart store.
   const cart = useInquiryCart();
+  // Phase 6 — the public flash host (reused as the Undo toast surface). Optional:
+  // null when no PublicDiscoveryState provider is mounted on this surface.
+  const discovery = usePublicDiscoveryStateOptional();
   // Phase 3 — the canonical inquiry surface. Directory front doors (review bar,
   // header Send icon, ?inquiry=open) bump `openChatCue` on this shared context
   // to open THIS panel instead of the legacy InquiryDrawer sheet.
@@ -179,6 +184,14 @@ export function TalentProfileChatLauncher({
   >(null);
 
   function handleRemoveTalent(talentProfileId: string) {
+    // Snapshot the pre-remove lineup so an Undo can restore BOTH the cart id and
+    // the record selection exactly (captured before any mutation below).
+    const removed = cartTalents.find((c) => c.talentProfileId === talentProfileId) ?? null;
+    const idsBefore = [...cart.cartIds];
+    const namesBefore = cartTalents
+      .filter((c) => idsBefore.includes(c.talentProfileId))
+      .map((c) => c.displayName);
+
     // Single source: removing here flips saved_talent, which propagates to the
     // rail + the form + any open panel's Talent selection.
     cart.setInCart({ talentProfileId, profileCode: "" }, false, sourcePage);
@@ -192,16 +205,69 @@ export function TalentProfileChatLauncher({
     // exists; otherwise removal is a pure cart op.
     const inquiryId = liveInquiryIdRef.current;
     const runner = removeTalentRunnerRef.current;
-    if (!inquiryId || !runner) return;
-    const remainingIds = cart.cartIds.filter((id) => id !== talentProfileId);
-    const remainingNames = cartTalents
-      .filter((t) => remainingIds.includes(t.talentProfileId))
-      .map((t) => t.displayName);
-    runner(
-      remainingIds,
-      remainingIds.length > 0 ? "i_know_who" : "agency_recommends",
-      remainingNames,
-    );
+    if (inquiryId && runner) {
+      const remainingIds = cart.cartIds.filter((id) => id !== talentProfileId);
+      const remainingNames = cartTalents
+        .filter((c) => remainingIds.includes(c.talentProfileId))
+        .map((c) => c.displayName);
+      runner(
+        remainingIds,
+        remainingIds.length > 0 ? "i_know_who" : "agency_recommends",
+        remainingNames,
+      );
+    }
+
+    offerRemoveUndo(talentProfileId, removed, idsBefore, namesBefore);
+  }
+
+  // Phase 6 — reversible remove. While the inquiry is still a DRAFT (not yet sent
+  // / contact not promoted), show a 5s Undo cue that restores BOTH the cart id
+  // AND the record selection via the SAME unified.patch runner the remove used.
+  // After SEND the removal goes through the conversation, so no Undo is offered
+  // (the resolver's sent/terminal states gate this). Reuses the public flash host
+  // (no new toast dependency).
+  function offerRemoveUndo(
+    removedId: string,
+    removed: { displayName: string } | null,
+    idsBefore: string[],
+    namesBefore: string[],
+  ) {
+    if (!discovery) return;
+    const sentKind =
+      ctaState.kind === "sent_awaiting" ||
+      ctaState.kind === "live_conversation" ||
+      ctaState.kind === "terminal";
+    if (sentKind) return;
+
+    const tFlash = withInterpolation(t);
+    const name = removed?.displayName?.trim() || tFlash("public.guestChat.sectionTalent");
+    discovery.setFlash({
+      tone: "info",
+      durationMs: 5000,
+      title: tFlash("public.guestChat.removedToast", { name }),
+      action: {
+        label: tFlash("public.guestChat.removedToastUndo"),
+        onAction: () => {
+          // Restore the cart id (single source -> rail + form re-mirror).
+          cart.setInCart(
+            { talentProfileId: removedId, profileCode: "", displayName: removed?.displayName },
+            true,
+            sourcePage,
+          );
+          // Restore the record selection through the SAME runner the remove used,
+          // replaying the exact pre-remove id set (no phantom inquiry: the runner
+          // is a no-op when no row exists, matching the remove path).
+          const runner = removeTalentRunnerRef.current;
+          if (liveInquiryIdRef.current && runner) {
+            runner(
+              idsBefore,
+              idsBefore.length > 0 ? "i_know_who" : "agency_recommends",
+              namesBefore,
+            );
+          }
+        },
+      },
+    });
   }
 
   function handleOpenToTalent() {
