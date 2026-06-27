@@ -52,6 +52,10 @@ import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitGuestAutoAck } from "@/lib/inquiry/guest-auto-ack";
 import { sendGuestClaimEmail } from "@/lib/inquiry/guest-claim-link";
 import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
+import {
+  buildInquiryReceipt,
+  isReceiptVisibleStatus,
+} from "@/lib/inquiry/inquiry-receipt-data";
 import { getAppUrl } from "@/lib/auth-flow";
 import type {
   AddGuestClaimEmailInput,
@@ -71,6 +75,7 @@ import type {
   GuestMessageKind,
   GuestThreadMessage,
   GuestThreadStatus,
+  InquiryReceiptData,
   SendGuestMessageInput,
   SendGuestMessageResult,
   StartGuestChatInput,
@@ -519,7 +524,7 @@ async function readGuestVisibleMessages(
   let query = admin
     .from("inquiry_messages")
     .select(
-      "id, inquiry_id, sender_user_id, guest_session_id, body, message_kind, card_payload, created_at, edited_at, deleted_at, reply_to_message_id, thread_type",
+      "id, inquiry_id, sender_user_id, guest_session_id, body, message_kind, card_payload, created_at, edited_at, deleted_at, reply_to_message_id, thread_type, metadata",
     )
     .eq("inquiry_id", inquiry.id)
     .eq("tenant_id", inquiry.tenantId)
@@ -540,11 +545,28 @@ async function readGuestVisibleMessages(
     return [];
   }
 
-  return (data ?? []).map((raw) => {
-    const row = raw as unknown as RawMessageRow;
-    const role = deriveAuthorRole(row, guestSessionId, identityByUserId);
-    return toGuestThreadMessage(row, role, identityByUserId);
-  });
+  // Jon 360 Phase 2: once the inquiry is genuinely sent, the pinned
+  // InquiryReceiptCard upgrades the thin auto-ack bubble — so suppress the
+  // workspace_auto_ack system bubble to avoid doubling up the same "we received
+  // your message" beat. The metadata stamp (set in guest-auto-ack.ts) is the
+  // load-bearing signal; we never string-match the body copy.
+  const suppressAutoAck = isReceiptVisibleStatus(inquiry.status);
+
+  return (data ?? [])
+    .filter((raw) => {
+      if (!suppressAutoAck) return true;
+      const meta = (raw as { metadata?: unknown }).metadata;
+      const eventType =
+        meta && typeof meta === "object" && meta !== null
+          ? (meta as { system_event_type?: unknown }).system_event_type
+          : undefined;
+      return eventType !== "workspace_auto_ack";
+    })
+    .map((raw) => {
+      const row = raw as unknown as RawMessageRow;
+      const role = deriveAuthorRole(row, guestSessionId, identityByUserId);
+      return toGuestThreadMessage(row, role, identityByUserId);
+    });
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1411,6 +1433,9 @@ export async function getGuestThreadMessages(
   // null. Only computed on the FULL load (afterIso null) to avoid re-querying
   // the median on every incremental poll.
   let typicalReplyLabel: string | null = null;
+  // Jon 360 Phase 2: the pinned SENT->RECEIVED receipt. Only on the full load
+  // (afterIso null) and only once the inquiry is genuinely sent. Null otherwise.
+  let receipt: InquiryReceiptData | null = null;
   if (!input.afterIso) {
     const { data: talentRow } = await admin
       .from("inquiry_participants")
@@ -1424,6 +1449,14 @@ export async function getGuestThreadMessages(
       tenantId: owned.inquiry.tenantId,
       talentProfileId: (talentRow?.talent_profile_id as string | null) ?? null,
     });
+    if (isReceiptVisibleStatus(owned.inquiry.status)) {
+      receipt = await buildInquiryReceipt({
+        admin,
+        inquiryId: owned.inquiry.id,
+        tenantId: owned.inquiry.tenantId,
+        status: owned.inquiry.status,
+      });
+    }
   }
 
   return {
@@ -1431,6 +1464,7 @@ export async function getGuestThreadMessages(
     messages,
     threadStatus: toThreadStatus(owned.inquiry.status),
     typicalReplyLabel,
+    receipt,
   };
 }
 

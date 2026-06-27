@@ -7,30 +7,22 @@
  * (no "use server", no supabase, no engine). That is deliberate: the
  * mini-chat UI lane (Lane D) imports ONLY from here, receives the three
  * server actions as INJECTED CALLBACK PROPS, and therefore never bundles
- * a backend module into the client.
- *
- * Lanes:
- *   • Lane A (backend) implements the server actions + engine guest branch
- *     to exactly these signatures.
- *   • Lane D (UI)      codes MiniChatPanel / TalentChatLauncher against the
- *     props here, with the actions passed down from a server component.
- *   • Lane E (trust)   renders GuestTrustChip against GuestTrustChipProps.
- *   • Lane C (safety)  ships user_blocks + inquiry_reports per the migration
- *     contract (see migrationColumns output) — the row shapes referenced by
- *     the action results live here.
+ * a backend module into the client. Lanes: A=backend actions/engine guest
+ * branch; D=MiniChatPanel/TalentChatLauncher UI; E=GuestTrustChip; C=safety
+ * (user_blocks + inquiry_reports row shapes).
  *
  * GROUND TRUTH these types mirror:
  *   • inquiry_messages columns: id, inquiry_id, thread_type, sender_user_id,
  *     body, metadata, edited_at, deleted_at, created_at, message_kind,
  *     card_payload, reply_to_message_id  (+ NEW guest_session_id from M1).
- *   • inquiries columns used for ownership: id, tenant_id, guest_session_id,
- *     client_user_id, status.
- *   • guest_sessions: id (uuid pk), session_key (text unique).
+ *   • inquiries (ownership): id, tenant_id, guest_session_id, client_user_id,
+ *     status. guest_sessions: id (uuid pk), session_key (text unique).
  *   • InquiryIntent / createInquiryFromIntent (inquiry-intent-engine.ts).
  *   • EngineResult discriminants: success | forbidden | rateLimited | error.
  */
 
 import type { EnsureGuestChatInquiryCallback, GetGuestInquiryDetailsCallback, ListGuestTenantRosterCallback, ResolveGuestCartPortraitsCallback } from "./guest-chat-unified-contract"; // imported to annotate props below; also re-exported from this barrel further down
+import type { InquiryReceiptData } from "./inquiry-receipt-contract"; // Jon 360 Phase 2 receipt; annotated on GetGuestThreadResult below + re-exported from this barrel
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 0. Message-kind discriminator — EXACT mirror of the DB CHECK constraint on
@@ -351,6 +343,12 @@ export type GetGuestThreadResult =
        * Null when not computable. Comes from Lane E / P1.
        */
       typicalReplyLabel: string | null;
+      /**
+       * Jon 360 Phase 2 — the SENT->RECEIVED receipt (inquiry-receipt-contract.ts).
+       * Non-null ONLY once the inquiry is genuinely sent and on the FULL load
+       * (null pre-send + on incremental polls). Every field is TIERED BY TRUTH.
+       */
+      receipt: InquiryReceiptData | null;
     }
   | GuestChatFailure;
 
@@ -505,6 +503,8 @@ export type {
   ResolveGuestCartPortraitsResult,
   ResolveGuestCartPortraitsCallback,
 } from "./guest-chat-unified-contract";
+// Jon 360 Phase 2 — the post-send trust-receipt contract slice; re-exported here.
+export type { InquiryReceiptCoordinator, InquiryReceiptLineupFace, InquiryReceiptData } from "./inquiry-receipt-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. MiniChatPanel props — the only substantial new frontend (Lane D / F2).

@@ -23,6 +23,7 @@ import type {
   GuestChipValue,
   GuestIdentityTier,
   GuestThreadStatus,
+  InquiryReceiptData,
   ListGuestInquiriesCallback,
   ListGuestTenantRosterCallback,
   MiniChatBrand,
@@ -40,6 +41,8 @@ import { GuestAccountToolkit } from "./GuestAccountToolkit";
 import { GuestDetailChips } from "./GuestDetailChips";
 import { InquiryDetailsRail } from "./InquiryDetailsRail";
 import { GuestPanelHeaderExtras } from "./GuestPanelHeaderExtras";
+import { InquiryReceiptCard } from "./InquiryReceiptCard";
+import { ReceiptCoordinatorHeader } from "./ReceiptCoordinatorHeader";
 import { MiniChatComposer } from "./MiniChatComposer";
 import { MiniChatGateForm } from "./MiniChatGateForm";
 import { MiniChatMessageBubble } from "./MiniChatMessageBubble";
@@ -77,6 +80,12 @@ export type MiniChatPanelColumnProps = {
   stage: "intro" | "gate" | "thread";
   threadStatus: GuestThreadStatus;
   typicalReply: string | null;
+  /**
+   * Jon 360 Phase 2 — the post-send SENT->RECEIVED receipt. Non-null only once
+   * the inquiry is genuinely sent; drives the pinned InquiryReceiptCard + the
+   * humanized coordinator header. Null pre-send.
+   */
+  receipt?: InquiryReceiptData | null;
   emailedTo: string | null;
   seenAtByInquiry: Record<string, string>;
   pulseActive: boolean;
@@ -229,6 +238,7 @@ export function MiniChatPanelColumn({
   stage,
   threadStatus,
   typicalReply,
+  receipt = null,
   emailedTo,
   seenAtByInquiry,
   pulseActive,
@@ -353,13 +363,26 @@ export function MiniChatPanelColumn({
           >
             {brand.agencyName}
           </div>
-          <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 1 }}>
-            {inquiryId
-              ? statusCopy(threadStatus, t)
-              : typicalReply
-                ? interpolate(t("public.guestChat.typicallyReplies"), { when: typicalReply })
-                : t("public.guestChat.leaveMessage")}
-          </div>
+          {/* Jon 360 Phase 2: once the inquiry is SENT, humanize the subtitle —
+              name the coordinator (+ face) or say a coordinator is being assigned,
+              never a flat status word or a fake "online". Pre-send keeps the
+              greeting/typical-reply hint. */}
+          {receipt ? (
+            <ReceiptCoordinatorHeader
+              receipt={receipt}
+              agencyName={brand.agencyName}
+              accent={accent}
+              t={t}
+            />
+          ) : (
+            <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 1 }}>
+              {inquiryId
+                ? statusCopy(threadStatus, t)
+                : typicalReply
+                  ? interpolate(t("public.guestChat.typicallyReplies"), { when: typicalReply })
+                  : t("public.guestChat.leaveMessage")}
+            </div>
+          )}
         </div>
         <button
           type="button"
@@ -436,30 +459,44 @@ export function MiniChatPanelColumn({
 
         <NewMessagePulse active={pulseActive} accent={accent} />
 
-        <div
-          style={{
-            alignSelf: "flex-start",
-            maxWidth: "88%",
-            background: C.surfaceCool,
-            color: C.ink,
-            borderRadius: "14px 14px 14px 4px",
-            padding: "10px 13px",
-            fontSize: 13.5,
-            lineHeight: 1.5,
-          }}
-        >
-          {/* Talent-pick-first lead (empty cart, plan §B.2): steer the visitor to
-              pick specific talent OR let the agency recommend. The Talent section
-              auto-opens below (railOpenToSection="talent"), exposing the roster
-              search + "Let the agency recommend". Otherwise the normal opener. */}
-          {talentPickFirst
-            ? t("public.guestChat.greetingTalentPickFirst")
-            : brand.greeting?.trim()
-              ? brand.greeting.trim()
-              : interpolate(t("public.guestChat.greetingDefault"), {
-                  name: talentFirst,
-                })}
-        </div>
+        {/* Jon 360 Phase 2: the SENT->RECEIVED receipt, pinned as the FIRST item
+            of the now-shared thread. It replaces the assistant greeting opener
+            once sent (the greeting is a pre-send affordance), and the server has
+            already suppressed the thin auto-ack bubble in its favor. */}
+        {receipt ? (
+          <InquiryReceiptCard
+            receipt={receipt}
+            agencyName={brand.agencyName}
+            accent={accent}
+            t={t}
+            locale={brand.locale ?? "en"}
+          />
+        ) : (
+          <div
+            style={{
+              alignSelf: "flex-start",
+              maxWidth: "88%",
+              background: C.surfaceCool,
+              color: C.ink,
+              borderRadius: "14px 14px 14px 4px",
+              padding: "10px 13px",
+              fontSize: 13.5,
+              lineHeight: 1.5,
+            }}
+          >
+            {/* Talent-pick-first lead (empty cart, plan §B.2): steer the visitor to
+                pick specific talent OR let the agency recommend. The Talent section
+                auto-opens below (railOpenToSection="talent"), exposing the roster
+                search + "Let the agency recommend". Otherwise the normal opener. */}
+            {talentPickFirst
+              ? t("public.guestChat.greetingTalentPickFirst")
+              : brand.greeting?.trim()
+                ? brand.greeting.trim()
+                : interpolate(t("public.guestChat.greetingDefault"), {
+                    name: talentFirst,
+                  })}
+          </div>
+        )}
 
         {rows.map((m) => (
           <MiniChatMessageBubble key={m.id} m={m} accent={accent} locale={brand.locale ?? "en"} />

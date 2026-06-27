@@ -728,7 +728,24 @@
       "sentAirlockSending": "Sent to {agency}.",
       "sentAirlockResolved": "{agency} has your inquiry.",
       "sendNoPayment": "No payment now. Sending starts a conversation, not a booking.",
-      "sendTypicalReply": "They typically reply {when}."
+      "sendTypicalReply": "They typically reply {when}.",
+      "receiptAria": "Inquiry receipt",
+      "receiptReceived": "Inquiry received.",
+      "receiptReceivedAt": "Inquiry received, {when}.",
+      "receiptCrossAgency": "Your inquiry has reached coordinators from {count} teams. They will reach out.",
+      "receiptHasInquiry": "{agency} has your inquiry.",
+      "receiptHasInquiryAbout": "{agency} has your inquiry about {lineup}.",
+      "receiptCoordinator": "{name} is your coordinator.",
+      "receiptTypicallyReplies": "Typically replies {when}.",
+      "receiptAssigning": "We are assigning a coordinator now.",
+      "receiptEmailOnReply": "We will email you at {email} the moment they reply.",
+      "receiptNoPayment": "No payment now. Talent are coordinated by {agency}, never contacted directly.",
+      "receiptNoPaymentNeutral": "No payment now. Talent are coordinated by their teams, never contacted directly.",
+      "receiptLineupAria": "Talent in your inquiry",
+      "receiptLineupMore": "+{count}",
+      "headerCrossAgency": "Coordinators from {count} teams",
+      "headerCoordinator": "{name} . {agency}",
+      "headerAssigning": "{agency} . assigning a coordinator"
     }
   },
   "dashboard": {

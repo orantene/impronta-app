@@ -28,6 +28,7 @@ import type {
   GuestInquirySummary,
   GuestThreadMessage,
   GuestThreadStatus,
+  InquiryReceiptData,
   MiniChatPanelProps,
 } from "@/lib/inquiry/guest-chat-contract";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
@@ -171,7 +172,7 @@ export function MiniChatPanel({
   const [cooldownSecs, setCooldownSecs] = useState(0);
   const [captchaRequired, setCaptchaRequired] = useState(false);
 
-  const [typicalReply, setTypicalReply] = useState<string | null>(null);
+  const [threadMeta, setThreadMeta] = useState<{ typicalReply: string | null; receipt: InquiryReceiptData | null }>({ typicalReply: null, receipt: null });
   const [threadStatus, setThreadStatus] = useState<GuestThreadStatus>("open");
   const [emailedTo, setEmailedTo] = useState<string | null>(null);
   const [gateEmailNotice, setGateEmailNotice] = useState<string | null>(null);
@@ -362,7 +363,7 @@ export function MiniChatPanel({
       lastSeenIsoRef.current = null;
       mergeServer(res.messages);
       setThreadStatus(res.threadStatus);
-      setTypicalReply(res.typicalReplyLabel);
+      setThreadMeta({ typicalReply: res.typicalReplyLabel, receipt: res.receipt });
       setStage("thread");
     })();
     return () => {
@@ -389,7 +390,7 @@ export function MiniChatPanel({
           );
           mergeServer(res.messages);
           setThreadStatus(res.threadStatus);
-          if (res.typicalReplyLabel) setTypicalReply(res.typicalReplyLabel);
+          if (res.typicalReplyLabel) setThreadMeta((m) => ({ ...m, typicalReply: res.typicalReplyLabel }));
           if (inbound.length > 0) {
             notifyInbound(inbound.length);
             setPulseActive(true);
@@ -668,7 +669,8 @@ export function MiniChatPanel({
     scrollRef,
     stage,
     threadStatus,
-    typicalReply,
+    typicalReply: threadMeta.typicalReply,
+    receipt: threadMeta.receipt,
     emailedTo,
     seenAtByInquiry,
     pulseActive,
@@ -708,7 +710,6 @@ export function MiniChatPanel({
     onCaptureChip,
     onCapturedChipKind: (kind: GuestChipKind) =>
       setCapturedChipKinds((k) => (k.includes(kind) ? k : [...k, kind])),
-    // P1-T1/T2/T3: unified-inquiry wiring for the chip row.
     onPatchChip: onEnsureInquiry ? handleChipPatch : null,
     capturedChipValues,
     chipFieldState: unified.fieldState,
@@ -733,7 +734,6 @@ export function MiniChatPanel({
     selectedTalentIds,
     briefSummary,
     contactValues,
-    // Addendum A: the details sidebar reads the full unified draft (filled-state).
     inquiryIntent: unified.intent,
     onTalentChange: (
       ids: string[],

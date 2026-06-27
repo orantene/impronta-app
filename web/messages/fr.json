@@ -196,7 +196,24 @@
       "sentAirlockSending": "Envoye a {agency}.",
       "sentAirlockResolved": "{agency} a votre demande.",
       "sendNoPayment": "Aucun paiement maintenant. Envoyer demarre une conversation, pas une reservation.",
-      "sendTypicalReply": "Repond generalement {when}."
+      "sendTypicalReply": "Repond generalement {when}.",
+      "receiptAria": "Recu de votre demande",
+      "receiptReceived": "Demande recue.",
+      "receiptReceivedAt": "Demande recue, {when}.",
+      "receiptCrossAgency": "Votre demande a atteint des coordinateurs de {count} equipes. Ils vous contacteront.",
+      "receiptHasInquiry": "{agency} a votre demande.",
+      "receiptHasInquiryAbout": "{agency} a votre demande concernant {lineup}.",
+      "receiptCoordinator": "{name} est votre coordinateur.",
+      "receiptTypicallyReplies": "Repond generalement {when}.",
+      "receiptAssigning": "Nous assignons un coordinateur maintenant.",
+      "receiptEmailOnReply": "Nous vous enverrons un courriel a {email} des qu'ils repondront.",
+      "receiptNoPayment": "Aucun paiement maintenant. Les talents sont coordonnes par {agency}, jamais contactes directement.",
+      "receiptNoPaymentNeutral": "Aucun paiement maintenant. Les talents sont coordonnes par leurs equipes, jamais contactes directement.",
+      "receiptLineupAria": "Talents dans votre demande",
+      "receiptLineupMore": "+{count}",
+      "headerCrossAgency": "Coordinateurs de {count} equipes",
+      "headerCoordinator": "{name} . {agency}",
+      "headerAssigning": "{agency} . assignation d'un coordinateur"
     }
   },
   "dashboard": {

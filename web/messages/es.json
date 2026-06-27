@@ -728,7 +728,24 @@
       "sentAirlockSending": "Enviado a {agency}.",
       "sentAirlockResolved": "{agency} tiene tu solicitud.",
       "sendNoPayment": "Sin pago ahora. Enviar inicia una conversacion, no una reserva.",
-      "sendTypicalReply": "Suele responder {when}."
+      "sendTypicalReply": "Suele responder {when}.",
+      "receiptAria": "Recibo de tu solicitud",
+      "receiptReceived": "Solicitud recibida.",
+      "receiptReceivedAt": "Solicitud recibida, {when}.",
+      "receiptCrossAgency": "Tu solicitud llego a coordinadores de {count} equipos. Ellos te contactaran.",
+      "receiptHasInquiry": "{agency} tiene tu solicitud.",
+      "receiptHasInquiryAbout": "{agency} tiene tu solicitud sobre {lineup}.",
+      "receiptCoordinator": "{name} es tu coordinador.",
+      "receiptTypicallyReplies": "Suele responder {when}.",
+      "receiptAssigning": "Estamos asignando un coordinador ahora.",
+      "receiptEmailOnReply": "Te enviaremos un correo a {email} en cuanto respondan.",
+      "receiptNoPayment": "Sin pago ahora. El talento lo coordina {agency}, nunca se contacta directamente.",
+      "receiptNoPaymentNeutral": "Sin pago ahora. El talento lo coordinan sus equipos, nunca se contacta directamente.",
+      "receiptLineupAria": "Talento en tu solicitud",
+      "receiptLineupMore": "+{count}",
+      "headerCrossAgency": "Coordinadores de {count} equipos",
+      "headerCoordinator": "{name} . {agency}",
+      "headerAssigning": "{agency} . asignando un coordinador"
     }
   },
   "dashboard": {
