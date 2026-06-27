@@ -21,7 +21,8 @@
 
 import { useState, useId } from "react";
 import type { Translator } from "@/i18n/interpolate";
-import { C, FONT, inputStyle, primaryBtnStyle, readableOn } from "./mini-chat-styles";
+import { accentText, C, FONT, inputStyle, primaryBtnStyle, readableOn } from "./mini-chat-styles";
+import a11y from "./mini-chat-a11y.module.css";
 import type { GuestChipKind, GuestChipValue } from "@/lib/inquiry/guest-chat-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -111,18 +112,27 @@ function toggleStyle(active: boolean, accent: string): React.CSSProperties {
     fontFamily: FONT,
     fontSize: 12,
     fontWeight: active ? 600 : 400,
-    color: active ? accent : C.ink,
+    // Active toggle text sits on a pale `${accent}18` tint. A bright tenant accent
+    // (Impronta ships GOLD) as raw text drops to ~2.27:1 there — a WCAG 1.4.3 AA
+    // failure. accentText() darkens the accent until it clears >=4.5:1 on a light
+    // surface (the conservative bound for the tint); the tint itself is unchanged.
+    color: active ? accentText(accent) : C.ink,
     cursor: "pointer",
     transition: "all 100ms",
   };
 }
 
-function smallInputStyle(): React.CSSProperties {
+// `accent` is threaded into a CSS custom property so the co-located .focusRing
+// module can paint a keyboard-focus ring in the tenant brand color. The inline
+// `outline: none` (from inputStyle) keeps mouse focus ring-free; :focus-visible
+// re-adds the ring for keyboard users only (WCAG 2.4.7).
+function smallInputStyle(accent?: string): React.CSSProperties {
   return {
     ...inputStyle,
     height: 34,
     padding: "0 10px",
     fontSize: 13,
+    ...(accent ? { ["--chat-focus-accent" as string]: accent } : {}),
   };
 }
 
@@ -199,7 +209,8 @@ function DateEditor({
             type="date"
             value={eventDate}
             onChange={(e) => setEventDate(e.target.value)}
-            style={smallInputStyle()}
+            className={a11y.focusRing}
+            style={smallInputStyle(accent)}
           />
         </div>
       )}
@@ -280,7 +291,8 @@ function LocationEditor({
             placeholder={t("public.guestChat.locationCityPlaceholder")}
             value={city}
             onChange={(e) => setCity(e.target.value)}
-            style={smallInputStyle()}
+            className={a11y.focusRing}
+            style={smallInputStyle(accent)}
           />
           <p style={{ margin: "4px 0 0", fontSize: 11, color: C.inkDim }}>
             {t("public.guestChat.locationCityHelper")}
@@ -371,7 +383,8 @@ function HeadcountEditor({
             const n = parseInt(e.target.value, 10);
             if (!Number.isNaN(n)) setCount(clamp(n));
           }}
-          style={{ ...smallInputStyle(), width: 72, textAlign: "center" }}
+          className={a11y.focusRing}
+          style={{ ...smallInputStyle(accent), width: 72, textAlign: "center" }}
         />
         <button
           type="button"
@@ -488,7 +501,8 @@ function EventTypeEditor({
             placeholder={t("public.guestChat.eventTypeDescribePlaceholder")}
             value={custom}
             onChange={(e) => setCustom(e.target.value)}
-            style={smallInputStyle()}
+            className={a11y.focusRing}
+            style={smallInputStyle(accent)}
             autoFocus
           />
         </div>
@@ -596,8 +610,9 @@ function BudgetEditor({
               id={currencyId}
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
+              className={a11y.focusRing}
               style={{
-                ...smallInputStyle(),
+                ...smallInputStyle(accent),
                 width: 76,
                 cursor: "pointer",
                 appearance: "none",
@@ -622,7 +637,8 @@ function BudgetEditor({
               placeholder={t("public.guestChat.budgetAmountPlaceholder")}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              style={{ ...smallInputStyle(), width: "100%" }}
+              className={a11y.focusRing}
+              style={{ ...smallInputStyle(accent), width: "100%" }}
             />
           </div>
         </div>

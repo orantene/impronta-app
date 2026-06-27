@@ -5,6 +5,7 @@
  * keep that orchestrator under its line cap. No React, no backend import.
  */
 
+import type { Translator } from "@/i18n/interpolate";
 import type { GuestChipKind } from "@/lib/inquiry/guest-chat-contract";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import type { StreamRow } from "./MiniChatMessageBubble";
@@ -106,6 +107,7 @@ export function reconcileCartRemovals(
 export function makeRemoteNoteRows(
   kinds: GuestChipKind[],
   inquiryId: string | null,
+  t: Translator,
 ): StreamRow[] {
   const nowIso = new Date().toISOString();
   return kinds.map((k, i) => ({
@@ -114,7 +116,7 @@ export function makeRemoteNoteRows(
     authorRole: "system" as const,
     authorLabel: null,
     authorAvatarUrl: null,
-    body: remoteNoteFor(k),
+    body: remoteNoteFor(k, t),
     kind: "text" as const,
     cardPayload: null,
     createdAt: nowIso,
@@ -124,26 +126,31 @@ export function makeRemoteNoteRows(
   }));
 }
 
-/** Client-friendly remote-change note copy (B.7). No "buyer", no em dashes. */
-export function remoteNoteFor(kind: GuestChipKind): string {
+/**
+ * Localized client-facing remote-change note copy (B.7). This is the LIVE
+ * client-rendered note (distinct from any server-stored note body). Pass a
+ * `createTranslator(locale)` instance so the note follows the guest locale.
+ * No "buyer", no em dashes.
+ */
+export function remoteNoteFor(kind: GuestChipKind, t: Translator): string {
   switch (kind) {
     case "date":
-      return "The agency updated the event date.";
+      return t("public.guestChat.remoteNoteDate");
     case "location":
-      return "The agency updated the location.";
+      return t("public.guestChat.remoteNoteLocation");
     case "headcount":
-      return "The agency updated the headcount.";
+      return t("public.guestChat.remoteNoteHeadcount");
     case "event_type":
-      return "The agency updated the event type.";
+      return t("public.guestChat.remoteNoteEventType");
     case "budget":
-      return "The agency updated the budget.";
+      return t("public.guestChat.remoteNoteBudget");
     case "talent":
-      return "The agency updated the talent on your inquiry.";
+      return t("public.guestChat.remoteNoteTalent");
     case "brief":
-      return "The agency updated the brief.";
+      return t("public.guestChat.remoteNoteBrief");
     case "contact":
-      return "The agency updated your contact details.";
+      return t("public.guestChat.remoteNoteContact");
     default:
-      return "The agency updated your inquiry.";
+      return t("public.guestChat.remoteNoteGeneric");
   }
 }

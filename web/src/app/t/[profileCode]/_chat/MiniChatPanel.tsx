@@ -439,7 +439,7 @@ export function MiniChatPanel({
       });
     },
     onRemoteNote: (kinds) => {
-      setRows((cur) => [...cur, ...makeRemoteNoteRows(kinds, inquiryId)]);
+      setRows((cur) => [...cur, ...makeRemoteNoteRows(kinds, inquiryId, t)]);
     },
   });
 

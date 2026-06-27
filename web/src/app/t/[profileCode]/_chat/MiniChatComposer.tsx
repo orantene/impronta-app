@@ -14,6 +14,7 @@ import type { RefObject } from "react";
 
 import { C, FONT, primaryBtnStyle } from "./mini-chat-styles";
 import { SendIcon } from "./MiniChatMessageBubble";
+import a11y from "./mini-chat-a11y.module.css";
 
 export type MiniChatComposerProps = {
   draft: string;
@@ -92,6 +93,7 @@ export function MiniChatComposer({
         placeholder={placeholder}
         rows={1}
         disabled={sending || inCooldown}
+        className={a11y.focusRing}
         style={{
           flex: 1,
           minHeight: 40,
@@ -105,7 +107,11 @@ export function MiniChatComposer({
           lineHeight: 1.45,
           color: C.ink,
           resize: "none",
+          // Mouse focus shows no ring (outline:none); the .focusRing module re-adds
+          // a 2px accent ring for KEYBOARD focus only (:focus-visible). The accent
+          // is handed to CSS via the custom property below.
           outline: "none",
+          ["--chat-focus-accent" as string]: accent,
           boxSizing: "border-box",
         }}
       />

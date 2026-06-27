@@ -20,7 +20,10 @@
 import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { loadDefaultStorefrontRoster } from "@/lib/home/default-storefront-roster";
+import {
+  loadDefaultStorefrontRoster,
+  loadRosterPortraitsByIds,
+} from "@/lib/home/default-storefront-roster";
 import type {
   GuestChatErrorCode,
   GuestChatFailure,
@@ -120,10 +123,13 @@ export async function listGuestTenantRoster(input: {
  *
  * On a COLD load the inquiry cart is restored from `saved_talent`, but the client
  * cart-talent-registry is only seeded by in-session adds, so those ids fall back
- * to initials on the launcher rail. This resolves each requested id against the
- * SAME public roster source (`loadDefaultStorefrontRoster`, which ranks card →
- * hero → public_watermarked → gallery → original via `loadTalentCardThumbs`) so
- * the rail avatar is byte-identical to the directory card.
+ * to initials on the launcher rail. This resolves each requested id via a TARGETED,
+ * UNCAPPED by-id roster read (`loadRosterPortraitsByIds`) that shares the storefront
+ * roster's photo rank (card → hero → public_watermarked → gallery → original via
+ * `loadTalentCardThumbs`) so the rail avatar is byte-identical to the directory
+ * card. The by-id read deliberately does NOT reuse the capped storefront roster
+ * (`loadDefaultStorefrontRoster`, .limit(24)) so cart talents beyond the first 24,
+ * or absent from the default storefront slice, still resolve a face.
  *
  * Public information only, scoped to the current public tenant — an id that is
  * not on this tenant's published, active, publicly-visible roster is simply
@@ -145,18 +151,16 @@ export async function resolveGuestCartPortraits(input: {
     );
     if (!tenant.ok) return tenant.failure;
 
-    // Reuse the public roster source so membership + photo rank match the cards.
-    // Filter to the requested cart ids; ids absent from the public roster are
-    // dropped (cross-tenant / non-public talent never resolve here).
-    const wanted = new Set(requested);
-    const rows = await loadDefaultStorefrontRoster(tenant.tenantId);
-    const talents = rows
-      .filter((r) => wanted.has(r.id))
-      .map((r) => ({
-        talentProfileId: r.id,
-        displayName: r.name,
-        portraitUrl: r.thumb,
-      }));
+    // Targeted, UNCAPPED by-id read: resolve exactly the requested cart ids
+    // (membership + photo rank match the cards) without the storefront .limit(24).
+    // Ids absent from this tenant's public roster are simply not returned
+    // (cross-tenant / non-public talent never resolve here).
+    const rows = await loadRosterPortraitsByIds(tenant.tenantId, requested);
+    const talents = rows.map((r) => ({
+      talentProfileId: r.id,
+      displayName: r.name,
+      portraitUrl: r.thumb,
+    }));
 
     return { ok: true, talents };
   } catch (err) {

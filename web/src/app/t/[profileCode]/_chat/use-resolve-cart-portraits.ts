@@ -18,8 +18,10 @@
  * Batching / debounce:
  *   - One request per distinct set of MISSING ids, debounced 250ms so rapid cart
  *     changes (or a burst of restores) collapse into a single round-trip.
- *   - Ids already attempted are remembered so a transient miss (e.g. a talent with
- *     no public photo) is not re-fetched on every render.
+ *   - Ids are remembered as "attempted" only AFTER a real lookup completes (a
+ *     successful round-trip), so a genuinely photo-less id is not re-fetched every
+ *     render while a transient network failure leaves the id un-attempted and
+ *     retryable on the next cart change.
  */
 
 import { useEffect, useRef } from "react";
@@ -62,8 +64,6 @@ export function useResolveCartPortraits(
 
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      // Mark attempted up front so a slow/failed call doesn't loop.
-      for (const id of ids) attempted.current.add(id);
       void onResolveCartPortraits({ tenantSlug, talentProfileIds: ids })
         .then((res) => {
           if (res.ok && res.talents.length > 0) {
@@ -75,9 +75,18 @@ export function useResolveCartPortraits(
               })),
             );
           }
+          // Mark attempted ONLY after a real lookup completes. The action only
+          // returns ok on a successful round-trip; on ok we mark every requested
+          // id tried (resolved ids leave `unresolved` anyway; genuinely photo-less
+          // ids stay marked so they don't refetch every render). A failed/errored
+          // call leaves the ids unmarked so a transient miss can retry next change.
+          if (res.ok) {
+            for (const id of ids) attempted.current.add(id);
+          }
         })
         .catch(() => {
-          /* Best-effort backfill — initials fallback stays on failure. */
+          /* Best-effort backfill — initials fallback stays; ids stay un-attempted
+             so a transient network miss retries on the next cart change. */
         });
     }, 250);
 
