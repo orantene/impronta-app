@@ -12,7 +12,63 @@ import type {
   GuestChatFailure,
   GuestChipKind,
   GuestChipValue,
+  GuestThreadStatus,
 } from "./guest-chat-contract";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// U2 / Phase 5 thread-switcher — list ALL live inquiries this guest session owns
+// on a tenant, reshaped as multi-talent PROJECTS. Lives here (not in the main
+// barrel) so guest-chat-contract.ts stays under its 800-line cap; re-exported
+// from there so consumers keep importing from one place.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type GuestInquirySummary = {
+  inquiryId: string;
+  /**
+   * Phase 5 — the project/job display label. Either the client-supplied job_name
+   * (interpreted_query.client.job_name) or a derived "Lineup of N · Jun 28" when
+   * no job_name is set. The switcher names each row as a multi-talent PROJECT.
+   */
+  projectLabel: string;
+  /**
+   * Phase 5 — the talent faces on this inquiry's lineup. Aggregated from
+   * interpreted_query.talent.selected_ids + a portrait join. Empty when the
+   * inquiry has no talent yet (message-the-agency / recommend-a-fit drafts).
+   */
+  lineup: AvatarStackItem[];
+  /** Phase 5 — lineup.length, surfaced so the switcher need not recount. */
+  lineupCount: number;
+  /**
+   * @deprecated Phase 5 — single-talent fields kept for back-compat. Derived
+   * from the FIRST lineup member (or the agency when empty). New code reads
+   * `lineup` / `projectLabel`.
+   */
+  talentProfileId: string | null;
+  /** @deprecated Phase 5 — see `lineup`. First lineup member's name, or the agency. */
+  talentName: string;
+  /** @deprecated Phase 5 — see `lineup`. First lineup member's portrait, or null. */
+  talentPortraitUrl: string | null;
+  agencyName: string;
+  lastMessagePreview: string | null;
+  lastMessageAt: string | null;
+  unreadHint: boolean;
+  threadStatus: GuestThreadStatus;
+  typicalReplyLabel: string | null;
+  /**
+   * Phase 5 — true while still a private DRAFT (status="draft"), false once SENT.
+   * Drives the draft-vs-"sent · awaiting reply" pill + the picker's default
+   * highlight (most recent draft).
+   */
+  isDraft: boolean;
+};
+
+export type ListGuestInquiriesResult =
+  | { ok: true; inquiries: GuestInquirySummary[] }
+  | GuestChatFailure;
+
+export type ListGuestInquiriesCallback = (input: {
+  tenantSlug: string;
+}) => Promise<ListGuestInquiriesResult>;
 
 // One talent entry on the launcher rail (P0-T1). Derived at the directory page
 // level by joining cartIds with loadTalentCardThumbs() output.

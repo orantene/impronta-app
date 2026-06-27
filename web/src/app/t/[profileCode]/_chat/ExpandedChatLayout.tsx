@@ -28,6 +28,7 @@ import {
   type SurfaceMode,
 } from "./mini-chat-styles";
 import type { GuestInquirySummary } from "@/lib/inquiry/guest-chat-contract";
+import { createTranslator } from "@/i18n/messages";
 import { GuestThreadSwitcher, type GuestThreadSwitcherProps } from "./GuestThreadSwitcher";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,6 +51,11 @@ export type ExpandedChatLayoutProps = {
   onSelect: GuestThreadSwitcherProps["onSelect"];
   /** Jon 360 Phase 7 — dark surface variant when the tenant theme is noir. */
   surfaceMode?: SurfaceMode;
+  /**
+   * Phase 5 — guest UI locale (brand.locale), so the project switcher labels +
+   * draft/sent pills render in the tenant language. Defaults to "en".
+   */
+  locale?: string | null;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,8 +72,10 @@ export function ExpandedChatLayout({
   seenAtByInquiry,
   onSelect,
   surfaceMode = "light",
+  locale,
 }: ExpandedChatLayoutProps) {
   const P = paletteFor(surfaceMode);
+  const t = createTranslator(locale ?? "en");
   return (
     <div
       role="dialog"
@@ -97,7 +105,7 @@ export function ExpandedChatLayout({
                 fontFamily: FONT,
               }}
             >
-              Conversations
+              {t("public.guestChat.switcherPaneTitle")}
             </div>
           </div>
 
@@ -112,7 +120,7 @@ export function ExpandedChatLayout({
                   fontFamily: FONT,
                 }}
               >
-                No conversations yet.
+                {t("public.guestChat.switcherEmpty")}
               </div>
             ) : (
               <GuestThreadSwitcher
@@ -124,6 +132,7 @@ export function ExpandedChatLayout({
                 onSelect={onSelect}
                 layout="list"
                 surfaceMode={surfaceMode}
+                t={t}
               />
             )}
           </div>

@@ -31,7 +31,12 @@ import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
 import { loadTalentCardThumbs } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-card-thumbs";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
+import { deriveProjectLabel, shortDateFragment } from "@/lib/inquiry/project-label";
 
+import type { AvatarStackItem } from "@/lib/inquiry/guest-chat-unified-contract";
 import type {
   GuestChatErrorCode,
   GuestChatFailure,
@@ -122,6 +127,30 @@ function isTerminal(status: string): boolean {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Private: read the Phase 5 PROJECT spine off an inquiry's interpreted_query.
+// The lineup is interpreted_query.talent.selected_ids (replace-semantics set the
+// chip writer maintains); the project name is interpreted_query.client.job_name.
+// Tolerant of any legacy/partial shape — never throws, always returns arrays.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function readSelectedIds(interpretedQuery: unknown): string[] {
+  if (!interpretedQuery || typeof interpretedQuery !== "object") return [];
+  const talent = (interpretedQuery as Record<string, unknown>).talent;
+  if (!talent || typeof talent !== "object") return [];
+  const raw = (talent as Record<string, unknown>).selected_ids;
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(raw.filter((x): x is string => typeof x === "string" && x.length > 0))];
+}
+
+function readJobName(interpretedQuery: unknown): string | null {
+  if (!interpretedQuery || typeof interpretedQuery !== "object") return null;
+  const client = (interpretedQuery as Record<string, unknown>).client;
+  if (!client || typeof client !== "object") return null;
+  const name = (client as Record<string, unknown>).job_name;
+  return typeof name === "string" && name.trim().length > 0 ? name.trim() : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // listGuestInquiries — the exported server action.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -184,7 +213,7 @@ export async function listGuestInquiries(input: {
     "inquiries",
     tenantId,
   )
-    .select("id, status, created_at")
+    .select("id, status, created_at, event_date, interpreted_query")
     .eq("guest_session_id", guestSessionId)
     .order("created_at", { ascending: false })
     .limit(20);
@@ -199,8 +228,14 @@ export async function listGuestInquiries(input: {
   }
 
   // Drop terminal threads — never surface dead conversations in the switcher.
-  const liveRows = (inquiryRows as Array<{ id: string; status: string; created_at: string }>)
-    .filter((r) => !isTerminal(r.status));
+  type InquiryRow = {
+    id: string;
+    status: string;
+    created_at: string;
+    event_date: string | null;
+    interpreted_query: unknown;
+  };
+  const liveRows = (inquiryRows as InquiryRow[]).filter((r) => !isTerminal(r.status));
 
   if (liveRows.length === 0) {
     return { ok: true, inquiries: [] };
@@ -208,42 +243,32 @@ export async function listGuestInquiries(input: {
 
   const inquiryIds = liveRows.map((r) => r.id);
 
-  // ── Resolve the talent participant for each inquiry ─────────────────────────
-  // Each inquiry may have at most one talent participant (the one the guest
-  // was messaging). We fetch inquiry_participants and then talent_profiles
-  // in two batched queries.
-  const { data: participantRows, error: partErr } = await tenantScopedQuery(
-    admin,
-    "inquiry_participants",
-    tenantId,
-  )
-    .select("inquiry_id, talent_profile_id")
-    .in("inquiry_id", inquiryIds)
-    .eq("role", "talent")
-    .not("talent_profile_id", "is", null);
-
-  if (partErr) {
-    logServerError("guest-inquiries-actions.listGuestInquiries/participants", partErr);
-    // Non-fatal: we still return the inquiries, just without talent info.
+  // ── Resolve each inquiry's LINEUP (Phase 5 — multi-talent projects) ─────────
+  // The lineup is the talent SET on interpreted_query.talent.selected_ids — the
+  // same spine the in-chat talent picker maintains with replace-semantics. An
+  // inquiry can carry several talents; the switcher names it as a project and
+  // renders the face-stack. (The old single inquiry_participants talent is the
+  // coordination participant, NOT the client-facing lineup; we read the lineup
+  // off the structured spine so a multi-talent inquiry shows every face.)
+  const lineupIdsByInquiry = new Map<string, string[]>();
+  for (const row of liveRows) {
+    lineupIdsByInquiry.set(row.id, readSelectedIds(row.interpreted_query));
   }
 
-  type PartRow = { inquiry_id: string; talent_profile_id: string };
-  // One talent per inquiry — take the first one for any inquiry with duplicates.
-  const talentIdByInquiry = new Map<string, string>();
-  for (const p of ((participantRows ?? []) as PartRow[])) {
-    if (!talentIdByInquiry.has(p.inquiry_id) && p.talent_profile_id) {
-      talentIdByInquiry.set(p.inquiry_id, p.talent_profile_id);
-    }
-  }
+  // Union of every talent id across all inquiries — resolved name + portrait in
+  // ONE batched pass each (cheap + tenant-scoped via the roster read).
+  const talentIds = [
+    ...new Set([...lineupIdsByInquiry.values()].flat()),
+  ];
 
-  const talentIds = [...new Set(talentIdByInquiry.values())];
-
-  // ── Resolve talent display names ────────────────────────────────────────────
+  // ── Resolve talent display names + portraits ────────────────────────────────
+  // House rule: real portraits, NEVER initials-in-a-box from the server.
+  // Names come from a single batched talent_profiles read; portraits from the
+  // existing loadTalentCardThumbs resolver (signed URLs, the same resolver the
+  // client-inquiry lineup + cart-portrait backfill use). Both run ONCE over the
+  // union of lineup ids across all inquiries, then fan out per inquiry below.
   const talentNameById = new Map<string, string>();
   if (talentIds.length > 0) {
-    // talent_profiles is not tenant-scoped in the same way (talent can span
-    // tenants on hubs), so we read it directly with an in-filter — same
-    // pattern used throughout the existing actions code.
     const { data: talentRows } = await admin
       .from("talent_profiles")
       .select("id, display_name")
@@ -254,11 +279,17 @@ export async function listGuestInquiries(input: {
     }
   }
 
-  // ── Resolve talent portrait URLs ────────────────────────────────────────────
-  // House rule: real portraits, NEVER initials-in-a-box from the server.
-  // We pass the admin client (service-role) so it can read media_assets across
-  // tenants — same pattern as the client-inquiry lineup surface.
   const portraitById = await loadTalentCardThumbs(admin, talentIds);
+
+  // Build the per-id AvatarStackItem once, reused across every inquiry's lineup.
+  const faceById = new Map<string, AvatarStackItem>();
+  for (const id of talentIds) {
+    faceById.set(id, {
+      talentProfileId: id,
+      displayName: talentNameById.get(id) ?? "Talent",
+      portraitUrl: portraitById.get(id) ?? null,
+    });
+  }
 
   // ── Last message per inquiry (preview + timestamp) ─────────────────────────
   // Single batched query: newest PRIVATE-thread message per inquiry.
@@ -304,23 +335,54 @@ export async function listGuestInquiries(input: {
 
   // ── typicalReplyLabel per talent (batched via the cache in guest-reply-latency) ─
   // We compute these concurrently — each is independently cached for 5 minutes.
+  // The switcher shows one reply-time per inquiry, keyed on its FIRST lineup
+  // member (the representative talent), so we only need labels for those.
+  const repTalentIds = [
+    ...new Set(
+      liveRows
+        .map((row) => lineupIdsByInquiry.get(row.id)?.[0])
+        .filter((id): id is string => typeof id === "string"),
+    ),
+  ];
   const typicalLabelByTalent = new Map<string, string | null>();
   await Promise.all(
-    [...talentIds].map(async (talentId) => {
+    repTalentIds.map(async (talentId) => {
       const label = await getTypicalReplyLabel({ tenantId, talentProfileId: talentId });
       typicalLabelByTalent.set(talentId, label);
     }),
   );
 
+  // ── Guest-locale translator for the derived project label ───────────────────
+  // Guests carry no LOCALE_COOKIE; resolve from the tenant default_locale (same
+  // source the email pipeline + full-thread view use). Cached per tenant.
+  const localeSettings = await loadTenantLocaleSettings(tenantId);
+  const locale = localeSettings.defaultLocale;
+  const t = createTranslator(locale);
+
   // ── Assemble the summaries ─────────────────────────────────────────────────
   const inquiries: GuestInquirySummary[] = liveRows.map((row) => {
-    const talentProfileId = talentIdByInquiry.get(row.id) ?? null;
-    const talentName = talentProfileId
-      ? (talentNameById.get(talentProfileId) ?? agencyName)
-      : agencyName;
-    const talentPortraitUrl = talentProfileId
-      ? (portraitById.get(talentProfileId) ?? null)
-      : null;
+    const lineupIds = lineupIdsByInquiry.get(row.id) ?? [];
+    const lineup: AvatarStackItem[] = lineupIds
+      .map((id) => faceById.get(id))
+      .filter((f): f is AvatarStackItem => Boolean(f));
+    const lineupCount = lineup.length;
+
+    // Derived project label: job_name when set, else "{lineup word} · {date}".
+    const jobName = readJobName(row.interpreted_query);
+    const lineupWord =
+      lineupCount === 1
+        ? t("public.guestChat.projectLineupOne")
+        : interpolate(t("public.guestChat.projectLineupOther"), { count: lineupCount });
+    const projectLabel = deriveProjectLabel(jobName, {
+      lineupWord,
+      shortDate: shortDateFragment(row.event_date, locale),
+    });
+
+    // Back-compat single-talent fields = the first lineup face (or the agency).
+    const first = lineup[0] ?? null;
+    const talentProfileId = first?.talentProfileId ?? null;
+    const talentName = first?.displayName ?? agencyName;
+    const talentPortraitUrl = first?.portraitUrl ?? null;
 
     const lastMsg = lastMsgByInquiry.get(row.id) ?? null;
     const lastMessagePreview = lastMsg
@@ -336,6 +398,9 @@ export async function listGuestInquiries(input: {
 
     return {
       inquiryId: row.id,
+      projectLabel,
+      lineup,
+      lineupCount,
       talentProfileId,
       talentName,
       talentPortraitUrl,
@@ -345,6 +410,7 @@ export async function listGuestInquiries(input: {
       unreadHint: false, // panel computes this client-side
       threadStatus: toThreadStatus(row.status),
       typicalReplyLabel,
+      isDraft: row.status === "draft",
     };
   });
 

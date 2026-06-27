@@ -396,6 +396,7 @@ export function MiniChatPanelColumn({
           onListGuestInquiries={onListGuestInquiries}
           onSelect={onSwitchInquiry}
           surfaceMode={surfaceMode}
+          locale={brand.locale ?? "en"}
         />
       )}
 

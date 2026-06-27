@@ -21,7 +21,7 @@
  *   • EngineResult discriminants: success | forbidden | rateLimited | error.
  */
 
-import type { EnsureGuestChatInquiryCallback, GetGuestInquiryDetailsCallback, ListGuestTenantRosterCallback, ResolveGuestCartPortraitsCallback } from "./guest-chat-unified-contract"; // imported to annotate props below; also re-exported from this barrel further down
+import type { EnsureGuestChatInquiryCallback, GetGuestInquiryDetailsCallback, ListGuestInquiriesCallback, ListGuestTenantRosterCallback, ResolveGuestCartPortraitsCallback } from "./guest-chat-unified-contract"; // imported to annotate props below; also re-exported from this barrel further down
 import type { InquiryReceiptData } from "./inquiry-receipt-contract"; // Jon 360 Phase 2 receipt; annotated on GetGuestThreadResult below + re-exported from this barrel
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -411,33 +411,9 @@ export type AddClaimEmailCallback = (
   input: AddGuestClaimEmailInput,
 ) => Promise<AddGuestClaimEmailResult>;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 4b. U2 thread-switcher — list ALL live inquiries this guest session owns on a
-//     tenant, so the panel can show an avatar-rail when a guest has messaged
-//     several talents. Server-resolved by guest cookie; the panel computes the
-//     'new' dot client-side (the server always returns unreadHint:false).
-// ─────────────────────────────────────────────────────────────────────────────
-
-export type GuestInquirySummary = {
-  inquiryId: string;
-  talentProfileId: string | null;
-  talentName: string;
-  talentPortraitUrl: string | null;
-  agencyName: string;
-  lastMessagePreview: string | null;
-  lastMessageAt: string | null;
-  unreadHint: boolean;
-  threadStatus: GuestThreadStatus;
-  typicalReplyLabel: string | null;
-};
-
-export type ListGuestInquiriesResult =
-  | { ok: true; inquiries: GuestInquirySummary[] }
-  | GuestChatFailure;
-
-export type ListGuestInquiriesCallback = (input: {
-  tenantSlug: string;
-}) => Promise<{ ok: true; inquiries: GuestInquirySummary[] } | GuestChatFailure>;
+// 4b. U2 / Phase 5 thread-switcher types (GuestInquirySummary etc.) live in
+//     guest-chat-unified-contract.ts to keep this barrel under the 800-line cap;
+//     they are re-exported from the unified-slice block further down.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4c. U4 guided detail chips — deterministic chips that each map 1:1 to an
@@ -502,6 +478,10 @@ export type {
   ListGuestTenantRosterCallback,
   ResolveGuestCartPortraitsResult,
   ResolveGuestCartPortraitsCallback,
+  // Phase 5 — multi-inquiry PROJECTS switcher types.
+  GuestInquirySummary,
+  ListGuestInquiriesResult,
+  ListGuestInquiriesCallback,
 } from "./guest-chat-unified-contract";
 // Jon 360 Phase 2 — the post-send trust-receipt contract slice; re-exported here.
 export type { InquiryReceiptCoordinator, InquiryReceiptLineupFace, InquiryReceiptData } from "./inquiry-receipt-contract";
