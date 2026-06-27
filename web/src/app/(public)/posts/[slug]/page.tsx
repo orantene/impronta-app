@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { PublicCmsFooterNav } from "@/components/public-cms-footer";
+import { PublicSiteFooter } from "@/components/public-site-footer";
 import { PublicHeader } from "@/components/public-header";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -125,11 +125,7 @@ export default async function CmsPublicPostPage({
           {post.body}
         </div>
       </article>
-      <footer className="border-t border-border px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
-          <PublicCmsFooterNav locale={locale} />
-        </div>
-      </footer>
+      <PublicSiteFooter tenantId={publicScope.tenantId} locale={locale} />
     </>
   );
 }

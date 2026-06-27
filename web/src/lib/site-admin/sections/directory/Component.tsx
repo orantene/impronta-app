@@ -20,6 +20,7 @@ import type { SectionComponentProps } from "../types";
 import type { DirectoryV1 } from "./schema";
 import { normalizeDirectoryProps } from "./normalize";
 import { DirectoryReactiveResults } from "./DirectoryReactiveResults";
+import { resolveDirectoryScopeTermIds } from "./scope-resolver";
 
 function eyebrowSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
   return {
@@ -97,13 +98,11 @@ export async function DirectoryComponent({
   const directoryTenantId = publicScope?.tenantId ?? null;
   const surface = directorySurfaceFromTenantId(publicScope?.tenantId ?? null);
 
-  // Section-scope → seed taxonomy filter (currently only by_talent_type
-  // contributes term ids; by_tag / manual / all leave the seed open). The
-  // engine expects term *ids*, not catalog keys, so we cannot pre-filter
-  // `by_talent_type` without a key→id resolver. Phase B #3 work — for
-  // Phase 1, the seed remains open and the pill bar drives taxonomy
-  // filtering reactively.
-  const seedTaxonomyTermIds: string[] = [];
+  // Section-scope → seed taxonomy filter. `by_talent_type` keys are real
+  // taxonomy_terms slugs, so resolve them to term ids and scope BOTH the SSR
+  // seed (below) and the reactive client (scopeTermIds, locked into the grid
+  // fetch). Empty for scope=all / unresolved (fail-open).
+  const seedTaxonomyTermIds = await resolveDirectoryScopeTermIds(props);
 
   // #6 polish: honest scope-limited hint for `by_tag` with non-empty
   // tagKeys (no fake filtering — Amendment A2 rule).
@@ -243,7 +242,11 @@ export async function DirectoryComponent({
               </span>
             ) : null}
             {props.headline ? (
-              <h2
+              // Directory-as-page surfaces (/directory, /our-fashion-models,
+              // category landings) have no other heading, so this is the page
+              // H1. Multiple directory sections on one page is not a pattern in
+              // use, so a single H1 stays correct.
+              <h1
                 className="font-display text-3xl font-medium tracking-wide text-foreground sm:text-4xl"
                 data-builder-node-id={nodeIdsByRole?.headline}
                 style={nodePresentationInlineStyle(
@@ -252,7 +255,7 @@ export async function DirectoryComponent({
                 )}
               >
                 {renderInlineRich(props.headline)}
-              </h2>
+              </h1>
             ) : null}
             {props.copy ? (
               <p
@@ -312,6 +315,7 @@ export async function DirectoryComponent({
         ) : (
           <DirectoryReactiveResults
             initialPage={initialPage!}
+            scopeTermIds={seedTaxonomyTermIds}
             locale={pickLocale(loc, { en: "en", es: "es" } as const)}
             ui={ui}
             topBarFacet={topBarFacet}

@@ -2755,8 +2755,14 @@ html[data-token-icon-family="geometric"] {
 .site-form[data-variant="card"] .site-form__form {
   padding: 28px;
   border-radius: 12px;
-  background: var(--token-color-surface, #fafafa);
+  /* `--token-color-surface` is not emitted by the token registry (only
+     `--token-color-surface-raised` is), so fall through to the theme-aware
+     raised surface before the hard-coded light default — otherwise the card
+     renders near-white (#fafafa) on dark/noir tenants. */
+  background: var(--token-color-surface, var(--token-color-surface-raised, #fafafa));
   box-shadow: 0 1px 0 color-mix(in srgb, var(--token-color-ink, #111) 5%, transparent);
+  max-width: 600px;
+  margin-inline: auto;
 }
 .site-form[data-variant="inline"] .site-form__form {
   display: grid;

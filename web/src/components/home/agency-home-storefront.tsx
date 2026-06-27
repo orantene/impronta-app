@@ -11,9 +11,8 @@ import {
   PublicDiscoveryStateProvider,
 } from "@/components/directory/public-discovery-state";
 import { PublicFlashHost } from "@/components/directory/public-flash-host";
-import { PublicCmsFooterNav } from "@/components/public-cms-footer";
+import { PublicSiteFooter } from "@/components/public-site-footer";
 import { PublicHeader } from "@/components/public-header";
-import { PoweredByTulala } from "@/components/powered-by-tulala";
 import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import type { Locale } from "@/i18n/config";
 import { createTranslator } from "@/i18n/messages";
@@ -138,8 +137,6 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   // "go to the composer" instruction. Showing both is contradictory.
   const showPreviewBanner = previewActive && !editActive;
   const brandLabel = identity?.public_name?.trim() || PLATFORM_BRAND.name;
-  const footerTagline =
-    identity?.footer_tagline?.trim() || t("public.home.footer.tagline");
   // Default-storefront CTA — prefer the operator's own configured CTA, then a
   // contact email, then the canonical public browse surface (`/directory` is
   // allow-listed on agency hosts).
@@ -236,7 +233,6 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   }
   const shouldRenderDefaultStorefront = defaultStorefrontSnapshot !== null;
 
-  const year = new Date().getFullYear();
 
   // P4-SEO — operator-authored schema.org JSON-LD, emitted as a structured-data
   // script in the page tree (same pattern as the talent profile page). Suppress
@@ -416,21 +412,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
               includeBuilderNodeRendererStyles={false}
             />
           ) : (
-            <footer className="border-t border-border px-4 py-10 sm:px-6 lg:px-8">
-              <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 text-center text-sm text-muted-foreground">
-                <PublicCmsFooterNav locale={locale} />
-                <p className="font-display text-m uppercase tracking-[0.2em] text-foreground">
-                  {brandLabel}
-                </p>
-                <p>{footerTagline}</p>
-                <p>
-                  {t("public.home.footer.copyright")
-                    .replace("{year}", String(year))
-                    .replace("{brand}", brandLabel)}
-                </p>
-                <PoweredByTulala className="mt-2" />
-              </div>
-            </footer>
+            <PublicSiteFooter tenantId={tenantId} locale={locale} />
           )}
         </main>
             <DirectoryInquirySheet ui={directoryUi} locale={locale} />

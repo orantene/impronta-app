@@ -60,6 +60,7 @@ export type DirectoryTopBarFacetPropShape = {
  */
 export function DirectoryReactiveResults({
   initialPage,
+  scopeTermIds = [],
   locale,
   ui,
   topBarFacet,
@@ -86,8 +87,12 @@ export function DirectoryReactiveResults({
   columnsTablet,
   columnsMobile,
 }: {
-  /** Server-fetched first page (unfiltered for the section scope). */
+  /** Server-fetched first page (already scoped for the section scope). */
   initialPage: DirectoryPageResponse;
+  /** Locked taxonomy scope (resolved from `by_talent_type` keys) merged into
+   *  every grid fetch so a scoped page (e.g. Our Fashion Models) never leaks
+   *  the full roster on reactive refetches. Empty = unscoped. */
+  scopeTermIds?: string[];
   locale: "en" | "es";
   ui: DirectoryUiCopy;
   /** When set, the pill bar renders this facet. */
@@ -124,6 +129,7 @@ export function DirectoryReactiveResults({
       <Suspense fallback={null}>
         <DirectoryReactiveResultsInner
           initialPage={initialPage}
+          scopeTermIds={scopeTermIds}
           locale={locale}
           ui={ui}
           topBarFacet={topBarFacet}
@@ -171,6 +177,7 @@ function mapDefaultSort(s: DirectoryV1["defaultSort"]): DirectorySortValue {
 
 function DirectoryReactiveResultsInner({
   initialPage,
+  scopeTermIds = [],
   locale,
   ui,
   topBarFacet,
@@ -198,6 +205,7 @@ function DirectoryReactiveResultsInner({
   columnsMobile,
 }: {
   initialPage: DirectoryPageResponse;
+  scopeTermIds?: string[];
   locale: "en" | "es";
   ui: DirectoryUiCopy;
   topBarFacet?: DirectoryTopBarFacetPropShape;
@@ -245,6 +253,12 @@ function DirectoryReactiveResultsInner({
   }, [sp]);
 
   const taxonomyTermIds = parseTaxonomyParam(record.tax);
+  // Locked section scope (e.g. `by_talent_type`) is always applied to the grid
+  // fetch — merged with any URL-driven taxonomy selection — so reactive
+  // refetches stay scoped and never leak the full roster.
+  const gridTermIds = scopeTermIds.length
+    ? Array.from(new Set([...scopeTermIds, ...taxonomyTermIds]))
+    : taxonomyTermIds;
   // Sort: prefer URL value; else section's defaultSort mapped onto engine.
   // `parseDirectorySort` only returns an engine-valid value, never section
   // values like `az` — so falling back to `mapDefaultSort` is safe.
@@ -312,7 +326,10 @@ function DirectoryReactiveResultsInner({
 
   return (
     <>
-      {showTopBar && topBarFacet ? (
+      {/* A scoped page (by_talent_type) hides the talent-type pill bar — it
+          would otherwise offer to switch away from the very scope that defines
+          the page (e.g. a "Chefs" pill on Our Fashion Models). */}
+      {showTopBar && topBarFacet && scopeTermIds.length === 0 ? (
         <DirectoryTalentTypeBar
           options={topBarFacet.options}
           selectedIds={taxonomyTermIds}
@@ -393,11 +410,14 @@ function DirectoryReactiveResultsInner({
               view={view}
               ui={ui}
               isFetching={isGridFetching}
+              // The portable directory section grid is grid-only (no list
+              // render branch), so don't show a toggle that does nothing.
+              showViewToggle={false}
             />
           ) : null}
 
           <DirectoryReactiveGrid
-            taxonomyTermIds={taxonomyTermIds}
+            taxonomyTermIds={gridTermIds}
             initialPage={initialPage}
             locale={locale}
             sort={sort}

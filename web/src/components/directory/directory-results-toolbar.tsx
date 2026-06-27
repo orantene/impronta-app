@@ -17,12 +17,16 @@ export function DirectoryResultsToolbar({
   view,
   ui,
   isFetching = false,
+  showViewToggle = true,
 }: {
   totalCount: number;
   sort: DirectorySortValue;
   view: DirectoryViewMode;
   ui: DirectoryUiCopy;
   isFetching?: boolean;
+  /** Hide the grid/list toggle where the renderer has no list view (the
+   *  portable directory section is grid-only). Legacy discover keeps it. */
+  showViewToggle?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -62,40 +66,42 @@ export function DirectoryResultsToolbar({
             pending && "pointer-events-none opacity-60",
           )}
         >
-          <div
-            className="inline-flex rounded-lg border border-white/15 bg-white/[0.04] p-0.5"
-            role="group"
-            aria-label={ui.toolbar.resultLayoutAria}
-          >
-            <button
-              type="button"
-              aria-pressed={view === "grid"}
-              onClick={() => setView("grid")}
-              className={cn(
-                "rounded-md p-2 transition-colors",
-                view === "grid"
-                  ? "bg-white/15 text-white"
-                  : "text-white/60 hover:text-zinc-200",
-              )}
-              aria-label={ui.toolbar.gridViewAria}
+          {showViewToggle ? (
+            <div
+              className="inline-flex rounded-lg border border-white/15 bg-white/[0.04] p-0.5"
+              role="group"
+              aria-label={ui.toolbar.resultLayoutAria}
             >
-              <LayoutGrid className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-pressed={view === "list"}
-              onClick={() => setView("list")}
-              className={cn(
-                "rounded-md p-2 transition-colors",
-                view === "list"
-                  ? "bg-white/15 text-white"
-                  : "text-white/60 hover:text-zinc-200",
-              )}
-              aria-label={ui.toolbar.listViewAria}
-            >
-              <List className="size-4" />
-            </button>
-          </div>
+              <button
+                type="button"
+                aria-pressed={view === "grid"}
+                onClick={() => setView("grid")}
+                className={cn(
+                  "rounded-md p-2 transition-colors",
+                  view === "grid"
+                    ? "bg-white/15 text-white"
+                    : "text-white/60 hover:text-zinc-200",
+                )}
+                aria-label={ui.toolbar.gridViewAria}
+              >
+                <LayoutGrid className="size-4" />
+              </button>
+              <button
+                type="button"
+                aria-pressed={view === "list"}
+                onClick={() => setView("list")}
+                className={cn(
+                  "rounded-md p-2 transition-colors",
+                  view === "list"
+                    ? "bg-white/15 text-white"
+                    : "text-white/60 hover:text-zinc-200",
+                )}
+                aria-label={ui.toolbar.listViewAria}
+              >
+                <List className="size-4" />
+              </button>
+            </div>
+          ) : null}
           <DirectorySort current={sort} className="min-w-[10.5rem]" sortCopy={ui.sort} />
         </div>
       </div>

@@ -433,6 +433,13 @@ html[data-public-font-preset="editorial"] {
   margin: 0;
 }
 
+/* Imageless heroes (aurora overlay = no photo) sit on flat ambient ground;
+   the over-image legibility shadow reads as a muddy smudge there, so drop it. */
+.site-hero[data-hero-overlay="aurora"] .site-hero__headline,
+.site-hero[data-hero-overlay="aurora"] .site-hero__subheadline {
+  text-shadow: none;
+}
+
 .site-hero__ctas {
   display: flex;
   flex-wrap: wrap;

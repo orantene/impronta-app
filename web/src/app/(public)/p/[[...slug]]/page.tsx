@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
-import { PublicCmsFooterNav } from "@/components/public-cms-footer";
+import { PublicSiteFooter } from "@/components/public-site-footer";
 import { PublicHeader } from "@/components/public-header";
 import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
@@ -247,11 +247,7 @@ export default async function CmsPublicPage({
               }),
             })}
           </main>
-          <footer className="border-t border-border px-4 py-8 sm:px-6 lg:px-8">
-            <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
-              <PublicCmsFooterNav locale={locale} />
-            </div>
-          </footer>
+          <PublicSiteFooter tenantId={publicScope.tenantId} locale={locale} />
         </>
       );
     }
@@ -260,7 +256,13 @@ export default async function CmsPublicPage({
   // Phase 7 — section-composed snapshot (draft-first while edit/preview).
   // Empty slot arrays still render through HomepageCmsSections so brand-new
   // draft pages do not fall through to `cms_public_pages_for_tenant` (published-only).
-  const sectionPage = await loadPageForRender(publicScope.tenantId, locale as Locale, slugPath);
+  // Locale fallback — a tenant may not have a localized snapshot for every
+  // page yet. Rather than 404 a switched language, fall back to the default
+  // locale's content (the shell/chrome stays in the requested locale).
+  let sectionPage = await loadPageForRender(publicScope.tenantId, locale as Locale, slugPath);
+  if (!sectionPage?.snapshot && locale !== "en") {
+    sectionPage = await loadPageForRender(publicScope.tenantId, "en" as Locale, slugPath);
+  }
   if (sectionPage?.snapshot) {
     return (
       <>
@@ -281,21 +283,27 @@ export default async function CmsPublicPage({
             locale={locale}
           />
         </main>
-        <footer className="border-t border-border px-4 py-8 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
-            <PublicCmsFooterNav locale={locale} />
-          </div>
-        </footer>
+        <PublicSiteFooter tenantId={publicScope.tenantId} locale={locale} />
       </>
     );
   }
 
-  const { data } = await supabase
+  let { data } = await supabase
     .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
     .select("title,body,template_key")
     .eq("locale", locale)
     .eq("slug", slugPath)
     .maybeSingle();
+
+  // Same locale fallback as the section branch above.
+  if (!data && locale !== "en") {
+    ({ data } = await supabase
+      .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
+      .select("title,body,template_key")
+      .eq("locale", "en")
+      .eq("slug", slugPath)
+      .maybeSingle());
+  }
 
   if (!data) notFound();
 
@@ -323,11 +331,7 @@ export default async function CmsPublicPage({
           </div>
         </article>
       </main>
-      <footer className="border-t border-border px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
-          <PublicCmsFooterNav locale={locale} />
-        </div>
-      </footer>
+      <PublicSiteFooter tenantId={publicScope.tenantId} locale={locale} />
     </>
   );
 }

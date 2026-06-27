@@ -113,11 +113,18 @@ function Photo({
           priority={priority}
         />
       ) : (
+        // No photo → an editorial serif monogram, not the full name in a box
+        // (the project's "never placeholder boxes" bar).
         <div
           aria-hidden
-          className="flex h-full items-center justify-center px-4 text-center font-display text-sm tracking-[0.18em] text-[var(--impronta-muted)]"
+          className="flex h-full items-center justify-center bg-[var(--impronta-surface)]/40 font-display text-5xl tracking-[0.12em] text-[var(--impronta-muted)]/45"
         >
-          {data.name}
+          {data.name
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((w) => w[0]?.toUpperCase() ?? "")
+            .join("")}
         </div>
       )}
     </div>
