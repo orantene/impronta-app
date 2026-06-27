@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import {
   FavoritesModalView,
+  TULALA_LIGHT_SURFACE,
   useFavoritesSelection,
   type FavoriteModalTalent,
   type FavoritesModalCopy,
@@ -31,12 +32,8 @@ import {
  * can't reach a body portal here).
  */
 const DASHBOARD_TOKENS: FavoritesModalTokens = {
-  bg: "#ffffff",
-  fg: "#0B0B0D",
-  border: "rgba(24,24,27,0.12)",
-  muted: "rgba(11,11,13,0.55)",
+  ...TULALA_LIGHT_SURFACE,
   accent: "#1D4ED8",
-  tile: "rgba(11,11,13,0.04)",
 };
 
 const COPY: FavoritesModalCopy = {

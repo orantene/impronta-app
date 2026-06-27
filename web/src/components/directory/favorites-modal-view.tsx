@@ -97,6 +97,19 @@ function fill(template: string, vars: Record<string, string | number>): string {
 }
 
 /**
+ * The one shared warm "Tulala lightbox" surface. Both wrappers spread this and
+ * add only their own brand accent (tenant gold on the storefront, blue on the
+ * client dashboard), so the modal is one consistent light surface everywhere.
+ */
+export const TULALA_LIGHT_SURFACE: Omit<FavoritesModalTokens, "accent"> = {
+  bg: "#FBF9F5",
+  fg: "#1A1712",
+  border: "rgba(26,23,18,0.12)",
+  muted: "rgba(26,23,18,0.56)",
+  tile: "rgba(26,23,18,0.05)",
+};
+
+/**
  * Selection state shared by both modal wrappers: default-select every talent
  * when the modal opens, preserve the user's de-selections within the open
  * session, and re-default on the next open. `drop` keeps the set consistent

@@ -15,6 +15,7 @@ import { useOptionalDirectoryInquiryModal } from "@/components/directory/directo
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
 import {
   FavoritesModalView,
+  TULALA_LIGHT_SURFACE,
   useFavoritesSelection,
   type FavoriteModalTalent,
   type FavoritesModalCopy,
@@ -53,12 +54,8 @@ function useClientMounted(): boolean {
  * fallback is a deep gold, never a bright hardcoded one.
  */
 const PUBLIC_TOKENS: FavoritesModalTokens = {
-  bg: "#FBF9F5",
-  fg: "#1A1712",
-  border: "rgba(26,23,18,0.12)",
-  muted: "rgba(26,23,18,0.56)",
+  ...TULALA_LIGHT_SURFACE,
   accent: "var(--dir-accent, var(--token-color-accent, #9a7b1f))",
-  tile: "rgba(26,23,18,0.05)",
 };
 
 export function FavoritesModal({
