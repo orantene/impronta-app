@@ -19,7 +19,14 @@
 import { useState } from "react";
 
 import type { Translator } from "@/i18n/interpolate";
-import { C, FONT, inputStyle, primaryBtnStyle, readableOn } from "./mini-chat-styles";
+import {
+  FONT,
+  inputStyleFor,
+  paletteFor,
+  primaryBtnStyle,
+  readableOn,
+  type SurfaceMode,
+} from "./mini-chat-styles";
 
 export type BriefEditorProps = {
   /** Current brief summary to pre-fill. */
@@ -30,6 +37,8 @@ export type BriefEditorProps = {
   accentInk?: string;
   /** Guest-locale translator (resolved from brand.locale). */
   t: Translator;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
   onSubmit: (summary: string) => void;
   onCancel: () => void;
 };
@@ -39,9 +48,11 @@ export function BriefEditor({
   accent,
   accentInk,
   t,
+  surfaceMode = "light",
   onSubmit,
   onCancel,
 }: BriefEditorProps) {
+  const C = paletteFor(surfaceMode);
   const ink = accentInk || readableOn(accent);
   const [summary, setSummary] = useState<string>(initialSummary ?? "");
 
@@ -75,7 +86,7 @@ export function BriefEditor({
         placeholder={t("public.guestChat.briefPlaceholder")}
         aria-label={t("public.guestChat.briefAria")}
         style={{
-          ...inputStyle,
+          ...inputStyleFor(C),
           height: "auto",
           minHeight: 84,
           padding: "10px 12px",

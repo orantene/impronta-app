@@ -22,7 +22,7 @@
  * manual memo. Brand accent via mini-chat-styles tokens; NO black/gold.
  */
 
-import { C } from "./mini-chat-styles";
+import { paletteFor, type Palette, type SurfaceMode } from "./mini-chat-styles";
 
 /** The tiers that can ever see this nudge (an "account" guest is never gated below their cap here). */
 export type TrustGateNudgeTier = "guest" | "identified" | "email_verified";
@@ -56,6 +56,8 @@ export type TrustGateNudgeProps = {
    * "pay to talk".
    */
   showRefundableHoldNote?: boolean;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
 };
 
 export function TrustGateNudge({
@@ -67,7 +69,9 @@ export function TrustGateNudge({
   onVerifyEmail,
   canVerify = true,
   showRefundableHoldNote = false,
+  surfaceMode = "light",
 }: TrustGateNudgeProps) {
+  const C = paletteFor(surfaceMode);
   // email_verified guests unlock MORE by creating a full account; guest /
   // identified unlock by verifying the email they (may have) already given.
   const isAccountStep = tier === "email_verified";
@@ -83,7 +87,7 @@ export function TrustGateNudge({
   const ctaLabel = isAccountStep ? "Email me a sign-in link" : "Send my verification link";
 
   return (
-    <div style={wrapStyle} role="status">
+    <div style={wrapStyle(C)} role="status">
       <div style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>{headline}</div>
       <div style={{ fontSize: 11.5, lineHeight: 1.45, color: C.inkMuted }}>{body}</div>
 
@@ -130,14 +134,15 @@ function describeCount(activeCount: number, limit: number): string {
 // components; the only warm value is the injected tenant accent.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const wrapStyle = {
-  alignSelf: "stretch",
-  display: "flex",
-  flexDirection: "column",
-  gap: 8,
-  margin: "2px 2px",
-  padding: "12px 13px",
-  borderRadius: 12,
-  background: C.surfaceCool,
-  border: `1px solid ${C.borderSoft}`,
-} as const;
+const wrapStyle = (C: Palette) =>
+  ({
+    alignSelf: "stretch",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    margin: "2px 2px",
+    padding: "12px 13px",
+    borderRadius: 12,
+    background: C.surfaceCool,
+    border: `1px solid ${C.borderSoft}`,
+  }) as const;

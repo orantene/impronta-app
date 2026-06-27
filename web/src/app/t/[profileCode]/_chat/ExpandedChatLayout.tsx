@@ -123,6 +123,7 @@ export function ExpandedChatLayout({
                 seenAtByInquiry={seenAtByInquiry}
                 onSelect={onSelect}
                 layout="list"
+                surfaceMode={surfaceMode}
               />
             )}
           </div>

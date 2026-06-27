@@ -25,7 +25,7 @@ import type { RosterLiteItem } from "@/components/inquiry/InquiryDrawer";
 import { SearchTalentField } from "@/components/inquiry/SearchTalentField";
 import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
-import { C, FONT, accentText } from "./mini-chat-styles";
+import { FONT, accentText, paletteFor, type SurfaceMode } from "./mini-chat-styles";
 
 export type TalentPickerEditorProps = {
   /** Currently-selected talent profile ids on the inquiry. */
@@ -42,6 +42,8 @@ export type TalentPickerEditorProps = {
    * the real server action so this component imports no backend module.
    */
   onListRoster?: ListGuestTenantRosterCallback | null;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
   /**
    * Commit a new selection set. The parent patches the single inquiry record.
    * selectedNames is best-effort (drives a friendlier system note).
@@ -59,8 +61,10 @@ export function TalentPickerEditor({
   tenantSlug,
   t,
   onListRoster,
+  surfaceMode = "light",
   onChange,
 }: TalentPickerEditorProps) {
+  const C = paletteFor(surfaceMode);
   const [roster, setRoster] = useState<RosterLiteItem[]>([]);
   const [rosterState, setRosterState] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",
@@ -206,9 +210,10 @@ export function TalentPickerEditor({
                   style={{
                     fontSize: 12,
                     fontWeight: 600,
-                    // a11y: name text sits on a pale `${accent}14` tint — clamp a
-                    // bright tenant accent (gold) to an AA-legible variant.
-                    color: accentText(accent),
+                    // a11y: name text sits on a pale `${accent}14` tint over the
+                    // active surface — clamp a bright tenant accent (gold) to an
+                    // AA-legible variant against the active surfaceFaint.
+                    color: accentText(accent, C.surfaceFaint),
                     maxWidth: 120,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -228,8 +233,11 @@ export function TalentPickerEditor({
                     height: 18,
                     borderRadius: 999,
                     border: "none",
+                    // The remove glyph rides on a solid C.ink pill; its ink must
+                    // be the OPPOSITE surface tone so it reads in both modes (white
+                    // on dark ink for light tenants, dark on light ink for noir).
                     background: C.ink,
-                    color: "#ffffff",
+                    color: C.surface,
                     cursor: "pointer",
                     display: "inline-flex",
                     alignItems: "center",

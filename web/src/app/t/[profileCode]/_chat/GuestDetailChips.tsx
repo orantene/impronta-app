@@ -55,7 +55,15 @@ import type { UnifiedSyncState } from "./use-unified-inquiry";
 import {
   GuestDetailChipEditor,
 } from "./GuestDetailChipEditor";
-import { C, FONT, DEFAULT_ACCENT, readableOn, accentText } from "./mini-chat-styles";
+import {
+  FONT,
+  DEFAULT_ACCENT,
+  paletteFor,
+  readableOn,
+  accentText,
+  type Palette,
+  type SurfaceMode,
+} from "./mini-chat-styles";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props
@@ -118,6 +126,8 @@ export type GuestDetailChipsProps = {
    * This component is agnostic — it just surfaces the button.
    */
   onAddMoreDetails: () => void;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -205,15 +215,17 @@ const CHIPS: ChipMeta[] = [
 // Style constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-const wrapStyle: React.CSSProperties = {
-  borderTop: `1px solid ${C.borderSoft}`,
-  background: C.surfaceFaint,
-  padding: "8px 12px 6px",
-  display: "flex",
-  flexDirection: "column",
-  gap: 6,
-  fontFamily: FONT,
-};
+function wrapStyle(C: Palette): React.CSSProperties {
+  return {
+    borderTop: `1px solid ${C.borderSoft}`,
+    background: C.surfaceFaint,
+    padding: "8px 12px 6px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    fontFamily: FONT,
+  };
+}
 
 const scrollRowStyle: React.CSSProperties = {
   display: "flex",
@@ -225,11 +237,11 @@ const scrollRowStyle: React.CSSProperties = {
   msOverflowStyle: "none",
 };
 
-function chipStyle(captured: boolean, accent: string): React.CSSProperties {
+function chipStyle(captured: boolean, accent: string, C: Palette): React.CSSProperties {
   // a11y: the filled chip paints a pale `${accent}15` tint behind the label, so a
   // bright tenant accent (Impronta = gold) as label text fails 4.5:1. Use the raw
   // accent only for border/fill; clamp the LABEL text to an AA-legible variant
-  // (returns the accent unchanged when it already passes, e.g. the slate default).
+  // against the ACTIVE surfaceFaint (unchanged when it already passes, e.g. slate).
   return {
     display: "inline-flex",
     alignItems: "center",
@@ -242,7 +254,7 @@ function chipStyle(captured: boolean, accent: string): React.CSSProperties {
     fontFamily: FONT,
     fontSize: 12,
     fontWeight: captured ? 600 : 400,
-    color: captured ? accentText(accent) : C.ink,
+    color: captured ? accentText(accent, C.surfaceFaint) : C.ink,
     cursor: "pointer",
     whiteSpace: "nowrap",
     flexShrink: 0,
@@ -250,25 +262,29 @@ function chipStyle(captured: boolean, accent: string): React.CSSProperties {
   };
 }
 
-const addMoreStyle: React.CSSProperties = {
-  alignSelf: "flex-start",
-  background: "none",
-  border: "none",
-  fontFamily: FONT,
-  fontSize: 11,
-  fontWeight: 500,
-  color: C.inkMuted,
-  cursor: "pointer",
-  padding: "2px 0",
-  textDecoration: "underline",
-  textUnderlineOffset: 2,
-};
+function addMoreStyle(C: Palette): React.CSSProperties {
+  return {
+    alignSelf: "flex-start",
+    background: "none",
+    border: "none",
+    fontFamily: FONT,
+    fontSize: 11,
+    fontWeight: 500,
+    color: C.inkMuted,
+    cursor: "pointer",
+    padding: "2px 0",
+    textDecoration: "underline",
+    textUnderlineOffset: 2,
+  };
+}
 
-const errorStyle: React.CSSProperties = {
-  fontSize: 11,
-  color: C.danger,
-  padding: "0 2px",
-};
+function errorStyle(C: Palette): React.CSSProperties {
+  return {
+    fontSize: 11,
+    color: C.danger,
+    padding: "0 2px",
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
@@ -287,12 +303,16 @@ export function GuestDetailChips({
   fieldState = {},
   remoteFlashKinds = [],
   onAddMoreDetails,
+  surfaceMode = "light",
 }: GuestDetailChipsProps) {
+  const C = paletteFor(surfaceMode);
   const [openKind, setOpenKind] = useState<GuestChipKind | null>(null);
   const [submitting, setSubmitting] = useState<GuestChipKind | null>(null);
   const [chipError, setChipError] = useState<string | null>(null);
 
   const resolvedAccentInk = accentInk || readableOn(accent);
+  // a11y: chip glyphs/labels measured against the active surfaceFaint.
+  const accentGlyph = accentText(accent, C.surfaceFaint);
 
   // Chips render once an inquiry exists (legacy progressive disclosure), OR
   // immediately when the unified patch path is active (alwaysShow) — the first
@@ -348,7 +368,7 @@ export function GuestDetailChips({
         : "idle";
 
   return (
-    <div style={wrapStyle}>
+    <div style={wrapStyle(C)}>
       {/* Chip scroll row */}
       <div style={scrollRowStyle}>
         {CHIPS.map(({ kind, defaultLabelKey, capturedLabel }) => {
@@ -371,7 +391,7 @@ export function GuestDetailChips({
               key={kind}
               type="button"
               style={{
-                ...chipStyle(isCaptured || isOpen, accent),
+                ...chipStyle(isCaptured || isOpen, accent, C),
                 opacity: isSaving ? 0.6 : 1,
                 // P1-T3: brief accent flash when a REMOTE edit changed this chip.
                 ...(isFlashing
@@ -392,9 +412,9 @@ export function GuestDetailChips({
               }
               disabled={isSaving}
             >
-              {isCaptured && !isSaving && <CheckIcon color={accentText(accent)} />}
+              {isCaptured && !isSaving && <CheckIcon color={accentGlyph} />}
               {isSaving ? t("public.guestChat.chipSaving") : label}
-              {isSaved && <CheckIcon color={accentText(accent)} />}
+              {isSaved && <CheckIcon color={accentGlyph} />}
             </button>
           );
         })}
@@ -408,13 +428,14 @@ export function GuestDetailChips({
           accent={accent}
           accentInk={resolvedAccentInk}
           t={t}
+          surfaceMode={surfaceMode}
           onSubmit={(value) => void handleEditorSubmit(openKind, value)}
           onCancel={handleEditorCancel}
         />
       )}
 
       {/* Chip error display (legacy path) */}
-      {chipError && <p style={errorStyle}>{chipError}</p>}
+      {chipError && <p style={errorStyle(C)}>{chipError}</p>}
 
       {/* P1-T2: panel-level field sync micro-status (unified path). No em dashes. */}
       {onPatch && footerStatus !== "idle" && (
@@ -444,7 +465,7 @@ export function GuestDetailChips({
       {/* "Add more details" escalation affordance */}
       <button
         type="button"
-        style={addMoreStyle}
+        style={addMoreStyle(C)}
         onClick={onAddMoreDetails}
         aria-label={t("public.guestChat.addMoreDetailsAria")}
       >

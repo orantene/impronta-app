@@ -26,12 +26,14 @@ import { useState } from "react";
 
 import type { Translator } from "@/i18n/interpolate";
 import {
-  C,
   EMAIL_RE,
   FONT,
-  inputStyle,
+  inputStyleFor,
+  paletteFor,
   primaryBtnStyle,
   readableOn,
+  type Palette,
+  type SurfaceMode,
 } from "./mini-chat-styles";
 
 export type ContactEditorValue = {
@@ -49,11 +51,13 @@ export type ContactEditorProps = {
   accentInk?: string;
   /** Guest-locale translator (resolved from brand.locale). */
   t: Translator;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
   onSubmit: (value: ContactEditorValue) => void;
   onCancel: () => void;
 };
 
-function fieldLabelStyle(): React.CSSProperties {
+function fieldLabelStyle(C: Palette): React.CSSProperties {
   return {
     display: "block",
     fontSize: 11,
@@ -63,9 +67,9 @@ function fieldLabelStyle(): React.CSSProperties {
   };
 }
 
-function smallInputStyle(): React.CSSProperties {
+function smallInputStyle(C: Palette): React.CSSProperties {
   return {
-    ...inputStyle,
+    ...inputStyleFor(C),
     height: 36,
     padding: "0 10px",
     fontSize: 13,
@@ -79,9 +83,11 @@ export function ContactEditor({
   accent,
   accentInk,
   t,
+  surfaceMode = "light",
   onSubmit,
   onCancel,
 }: ContactEditorProps) {
+  const C = paletteFor(surfaceMode);
   const ink = accentInk || readableOn(accent);
   const [name, setName] = useState<string>(initial?.name ?? "");
   const [email, setEmail] = useState<string>(initial?.email ?? "");
@@ -118,19 +124,19 @@ export function ContactEditor({
       </span>
 
       <div>
-        <label style={fieldLabelStyle()}>{t("public.guestChat.contactName")}</label>
+        <label style={fieldLabelStyle(C)}>{t("public.guestChat.contactName")}</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={t("public.guestChat.contactNamePlaceholder")}
           aria-label={t("public.guestChat.contactNameAria")}
-          style={smallInputStyle()}
+          style={smallInputStyle(C)}
         />
       </div>
 
       <div>
-        <label style={fieldLabelStyle()}>{t("public.guestChat.contactEmail")}</label>
+        <label style={fieldLabelStyle(C)}>{t("public.guestChat.contactEmail")}</label>
         <input
           type="email"
           value={email}
@@ -138,7 +144,7 @@ export function ContactEditor({
           placeholder={t("public.guestChat.contactEmailPlaceholder")}
           aria-label={t("public.guestChat.contactEmailAria")}
           style={{
-            ...smallInputStyle(),
+            ...smallInputStyle(C),
             borderColor: emailInvalid ? C.danger : undefined,
           }}
         />
@@ -150,14 +156,14 @@ export function ContactEditor({
       </div>
 
       <div>
-        <label style={fieldLabelStyle()}>{t("public.guestChat.contactPhoneLabel")}</label>
+        <label style={fieldLabelStyle(C)}>{t("public.guestChat.contactPhoneLabel")}</label>
         <input
           type="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           placeholder={t("public.guestChat.contactPhonePlaceholder")}
           aria-label={t("public.guestChat.contactPhoneAria")}
-          style={smallInputStyle()}
+          style={smallInputStyle(C)}
         />
       </div>
 

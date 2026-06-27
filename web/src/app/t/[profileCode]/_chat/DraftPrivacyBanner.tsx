@@ -32,7 +32,7 @@ import { Check, Lock } from "lucide-react";
 import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
 import type { UnifiedSyncState } from "./use-unified-inquiry";
-import { C, FONT } from "./mini-chat-styles";
+import { FONT, paletteFor, type Palette, type SurfaceMode } from "./mini-chat-styles";
 
 export type DraftPrivacyBannerProps = {
   /** Agency display name (interpolated into the resting sub-line). */
@@ -43,9 +43,11 @@ export type DraftPrivacyBannerProps = {
   t: Translator;
   /** Re-run the last failed patch (the error state's retry action). */
   onRetry?: () => void;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
 };
 
-const wrapStyle: CSSProperties = {
+const wrapStyle = (C: Palette): CSSProperties => ({
   display: "flex",
   alignItems: "flex-start",
   gap: 9,
@@ -54,16 +56,18 @@ const wrapStyle: CSSProperties = {
   background: C.surfaceFaint,
   fontFamily: FONT,
   flexShrink: 0,
-};
+});
 
 export function DraftPrivacyBanner({
   agencyName,
   syncState,
   t,
   onRetry,
+  surfaceMode = "light",
 }: DraftPrivacyBannerProps) {
+  const C = paletteFor(surfaceMode);
   return (
-    <div style={wrapStyle}>
+    <div style={wrapStyle(C)}>
       <Lock
         size={14}
         strokeWidth={2.2}
@@ -86,6 +90,7 @@ export function DraftPrivacyBanner({
           syncState={syncState}
           t={t}
           onRetry={onRetry}
+          C={C}
         />
       </div>
     </div>
@@ -102,11 +107,13 @@ function SaveStateLine({
   syncState,
   t,
   onRetry,
+  C,
 }: {
   agencyName: string;
   syncState: UnifiedSyncState;
   t: Translator;
   onRetry?: () => void;
+  C: Palette;
 }) {
   const baseStyle: CSSProperties = {
     marginTop: 2,
@@ -152,7 +159,7 @@ function SaveStateLine({
   if (syncState === "saving") {
     return (
       <div role="status" aria-live="polite" style={{ ...baseStyle, color: C.inkDim }}>
-        <Spinner />
+        <Spinner C={C} />
         <span>{t("public.guestChat.draftSaving")}</span>
       </div>
     );
@@ -177,7 +184,7 @@ function SaveStateLine({
   );
 }
 
-function Spinner() {
+function Spinner({ C }: { C: Palette }) {
   return (
     <>
       <style

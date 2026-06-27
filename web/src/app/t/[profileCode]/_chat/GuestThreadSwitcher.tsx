@@ -22,7 +22,14 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { C, DEFAULT_ACCENT, FONT, readableOn } from "./mini-chat-styles";
+import {
+  DEFAULT_ACCENT,
+  FONT,
+  paletteFor,
+  readableOn,
+  type Palette,
+  type SurfaceMode,
+} from "./mini-chat-styles";
 import type { GuestInquirySummary } from "@/lib/inquiry/guest-chat-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -47,6 +54,8 @@ export type GuestThreadSwitcherProps = {
    * used in the expanded 2-pane left pane regardless of item count.
    */
   layout?: "rail" | "list";
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,6 +113,7 @@ function AvatarCircle({
   accentInk,
   size,
   active,
+  C,
 }: {
   portraitUrl: string | null;
   name: string;
@@ -111,6 +121,7 @@ function AvatarCircle({
   accentInk: string;
   size: number;
   active: boolean;
+  C: Palette;
 }) {
   const border = active ? `2.5px solid ${accent}` : `2px solid transparent`;
 
@@ -204,7 +215,9 @@ function AvatarRail({
   accentInk,
   onSelect,
   seenAtByInquiry,
+  surfaceMode = "light",
 }: GuestThreadSwitcherProps) {
+  const C = paletteFor(surfaceMode);
   return (
     <div
       role="tablist"
@@ -256,6 +269,7 @@ function AvatarRail({
                 accentInk={accentInk}
                 size={36}
                 active={isActive}
+                C={C}
               />
               {showNew && (
                 <span
@@ -303,6 +317,7 @@ function ConversationRow({
   accentInk,
   onSelect,
   seenAtByInquiry,
+  surfaceMode = "light",
 }: {
   inq: GuestInquirySummary;
   isActive: boolean;
@@ -310,7 +325,9 @@ function ConversationRow({
   accentInk: string;
   onSelect: (id: string) => void;
   seenAtByInquiry: Record<string, string>;
+  surfaceMode?: SurfaceMode;
 }) {
+  const C = paletteFor(surfaceMode);
   const showNew = !isActive && hasNewInbound(inq, seenAtByInquiry);
 
   return (
@@ -340,6 +357,7 @@ function ConversationRow({
         accentInk={accentInk}
         size={34}
         active={isActive}
+        C={C}
       />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
@@ -418,6 +436,7 @@ function DropdownSwitcher({
   accentInk,
   onSelect,
   seenAtByInquiry,
+  surfaceMode = "light",
 }: GuestThreadSwitcherProps) {
   const active = inquiries.find((i) => i.inquiryId === activeInquiryId) ?? inquiries[0];
   const accentComputed = accent ?? DEFAULT_ACCENT;
@@ -435,6 +454,7 @@ function DropdownSwitcher({
       accentInk={accentInkComputed}
       onSelect={onSelect}
       seenAtByInquiry={seenAtByInquiry}
+      surfaceMode={surfaceMode}
     />
   );
 }
@@ -447,6 +467,7 @@ function DropdownBody({
   accentInk,
   onSelect,
   seenAtByInquiry,
+  surfaceMode = "light",
 }: {
   inquiries: GuestInquirySummary[];
   active: GuestInquirySummary | undefined;
@@ -455,7 +476,9 @@ function DropdownBody({
   accentInk: string;
   onSelect: (id: string) => void;
   seenAtByInquiry: Record<string, string>;
+  surfaceMode?: SurfaceMode;
 }) {
+  const C = paletteFor(surfaceMode);
   // Simple open/close state — we render all conversations as a collapsed list
   // that expands on click of the trigger button.
   const [open, setOpen] = useState(false);
@@ -513,6 +536,7 @@ function DropdownBody({
             accentInk={accentInk}
             size={28}
             active
+            C={C}
           />
         )}
         <span style={{ fontSize: 12, fontWeight: 600, color: C.ink, flex: 1, textAlign: "left" }}>
@@ -578,6 +602,7 @@ function DropdownBody({
                 setOpen(false);
               }}
               seenAtByInquiry={seenAtByInquiry}
+              surfaceMode={surfaceMode}
             />
           ))}
         </div>
@@ -621,6 +646,7 @@ export function GuestThreadSwitcher(props: GuestThreadSwitcherProps) {
             accentInk={accentInk}
             onSelect={merged.onSelect}
             seenAtByInquiry={merged.seenAtByInquiry}
+            surfaceMode={merged.surfaceMode}
           />
         ))}
       </div>

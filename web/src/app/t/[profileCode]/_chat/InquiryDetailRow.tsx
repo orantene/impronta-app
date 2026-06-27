@@ -30,7 +30,7 @@ import { Check } from "lucide-react";
 
 import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
-import { C, FONT, readableOn, accentText } from "./mini-chat-styles";
+import { FONT, paletteFor, readableOn, accentText, type SurfaceMode } from "./mini-chat-styles";
 
 export type InquiryDetailRowProps = {
   /** Section icon (lucide). */
@@ -49,6 +49,8 @@ export type InquiryDetailRowProps = {
   accent: string;
   /** Readable ink on accent (optional; derived when absent). */
   accentInk?: string;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
   /** Open / close this section's editor. */
   onToggle: () => void;
 };
@@ -62,8 +64,10 @@ export function InquiryDetailRow({
   collapsed,
   accent,
   accentInk,
+  surfaceMode = "light",
   onToggle,
 }: InquiryDetailRowProps) {
+  const C = paletteFor(surfaceMode);
   const ink = accentInk || readableOn(accent);
   // a11y: the section icon paints the raw accent as a GLYPH on the pale rail
   // surface (transparent / `${accent}12` over C.surfaceFaint). A bright tenant

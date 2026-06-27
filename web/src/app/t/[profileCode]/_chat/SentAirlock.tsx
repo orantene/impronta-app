@@ -26,7 +26,7 @@ import { Check } from "lucide-react";
 
 import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
-import { C, FONT, readableOn } from "./mini-chat-styles";
+import { FONT, paletteFor, readableOn, type SurfaceMode } from "./mini-chat-styles";
 
 export type SentAirlockProps = {
   /** Agency display name (interpolated into both beats). */
@@ -35,6 +35,8 @@ export type SentAirlockProps = {
   accent: string;
   /** Guest-locale translator (resolved from brand.locale). */
   t: Translator;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
 };
 
 const SENDING_BEAT_MS = 1200;
@@ -45,7 +47,8 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function SentAirlock({ agencyName, accent, t }: SentAirlockProps) {
+export function SentAirlock({ agencyName, accent, t, surfaceMode = "light" }: SentAirlockProps) {
+  const C = paletteFor(surfaceMode);
   // Start already-resolved under reduced motion (skip the timed "Sent to..." beat
   // and the fade); otherwise begin on the "sending" beat and advance after ~1.2s.
   const [reduced] = useState(prefersReducedMotion);

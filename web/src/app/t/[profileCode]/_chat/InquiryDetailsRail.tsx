@@ -71,7 +71,7 @@ import { ContactEditor } from "./ContactEditor";
 import { GuestDetailChipEditor } from "./GuestDetailChipEditor";
 import { InquiryDetailRow } from "./InquiryDetailRow";
 import { TalentPickerEditor } from "./TalentPickerEditor";
-import { C, FONT, readableOn } from "./mini-chat-styles";
+import { FONT, paletteFor, readableOn, type SurfaceMode } from "./mini-chat-styles";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Section model
@@ -201,6 +201,8 @@ export type InquiryDetailsRailProps = {
   openToSection?: SectionId | null;
   /** Clear the openToSection intent once it has been applied. */
   onConsumeOpenTo?: () => void;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -224,7 +226,9 @@ export function InquiryDetailsRail({
   bounded = true,
   openToSection = null,
   onConsumeOpenTo,
+  surfaceMode = "light",
 }: InquiryDetailsRailProps) {
+  const C = paletteFor(surfaceMode);
   const ink = accentInk || readableOn(accent);
   const [collapsed, setCollapsed] = useState<boolean>(defaultCollapsed);
   // One-open-at-a-time. Collapsing the rail closes any open editor.
@@ -481,6 +485,7 @@ export function InquiryDetailsRail({
                   collapsed={collapsed}
                   accent={accent}
                   accentInk={ink}
+                  surfaceMode={surfaceMode}
                   onToggle={() => toggleSection(section.id)}
                 />
 
@@ -493,6 +498,7 @@ export function InquiryDetailsRail({
                         initial={capturedValues[openSectionDef.id as GuestChipKind] ?? null}
                         accent={accent}
                         accentInk={ink}
+                        surfaceMode={surfaceMode}
                         t={t}
                         onSubmit={(value) => {
                           void onPatchChip(openSectionDef.id as GuestChipKind, value);
@@ -508,6 +514,7 @@ export function InquiryDetailsRail({
                         selectedIds={intent.talent?.selected_ids ?? []}
                         accent={accent}
                         tenantSlug={tenantSlug}
+                        surfaceMode={surfaceMode}
                         t={t}
                         onListRoster={onListRoster}
                         onChange={(ids, mode, names) => {
@@ -522,6 +529,7 @@ export function InquiryDetailsRail({
                         initialSummary={intent.brief?.summary ?? null}
                         accent={accent}
                         accentInk={ink}
+                        surfaceMode={surfaceMode}
                         t={t}
                         onSubmit={(summary) => {
                           onBriefChange(summary);
@@ -541,6 +549,7 @@ export function InquiryDetailsRail({
                         }}
                         accent={accent}
                         accentInk={ink}
+                        surfaceMode={surfaceMode}
                         t={t}
                         onSubmit={(value) => {
                           onContactChange(value);

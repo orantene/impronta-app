@@ -386,6 +386,7 @@ export function MiniChatPanelColumn({
               agencyName={brand.agencyName}
               accent={accent}
               t={t}
+              surfaceMode={surfaceMode}
             />
           ) : (
             <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 1 }}>
@@ -430,6 +431,7 @@ export function MiniChatPanelColumn({
           seenAtByInquiry={seenAtByInquiry}
           onListGuestInquiries={onListGuestInquiries}
           onSelect={onSwitchInquiry}
+          surfaceMode={surfaceMode}
         />
       )}
 
@@ -443,6 +445,7 @@ export function MiniChatPanelColumn({
           syncState={syncState}
           t={t}
           onRetry={onRetrySync}
+          surfaceMode={surfaceMode}
         />
       )}
 
@@ -467,7 +470,12 @@ export function MiniChatPanelColumn({
       >
         {/* Jon 360 Phase 1: SENT airlock — non-blocking overlay on a real send. */}
         {showSentAirlock && (
-          <SentAirlock agencyName={brand.agencyName} accent={accent} t={t} />
+          <SentAirlock
+            agencyName={brand.agencyName}
+            accent={accent}
+            t={t}
+            surfaceMode={surfaceMode}
+          />
         )}
 
         <NewMessagePulse active={pulseActive} accent={accent} />
@@ -533,6 +541,7 @@ export function MiniChatPanelColumn({
             limit={limitNudge.limit}
             accent={accent}
             accentInk={accentInk}
+            surfaceMode={surfaceMode}
             canVerify={
               Boolean(onAddClaimEmail) &&
               Boolean(inquiryId) &&
@@ -554,6 +563,7 @@ export function MiniChatPanelColumn({
             accent={accent}
             accentInk={accentInk}
             onAddClaimEmail={onAddClaimEmail}
+            surfaceMode={surfaceMode}
           />
         )}
 
@@ -573,6 +583,7 @@ export function MiniChatPanelColumn({
             onAddClaimEmail={onAddClaimEmail}
             onCheckClaimEmail={onCheckClaimEmail}
             onGuestEmailUpdated={onGuestEmailUpdated}
+            surfaceMode={surfaceMode}
             deemphasizeButton={
               threadStatus === "offer_pending" ||
               threadStatus === "approved" ||
@@ -654,6 +665,7 @@ export function MiniChatPanelColumn({
           accent={accent}
           accentInk={accentInk}
           t={t}
+          surfaceMode={surfaceMode}
           capturedKinds={capturedChipKinds}
           capturedValues={capturedChipValues}
           fieldState={chipFieldState}
@@ -702,6 +714,7 @@ export function MiniChatPanelColumn({
           capturedValues={capturedChipValues}
           defaultCollapsed={!expanded}
           bounded={!expanded}
+          surfaceMode={surfaceMode}
           openToSection={railOpenToSection}
           onConsumeOpenTo={onConsumeRailOpenTo}
           onPatchChip={(kind, value) => {
@@ -746,6 +759,7 @@ export function MiniChatPanelColumn({
           accent={accent}
           accentInk={accentInk}
           t={t}
+          surfaceMode={surfaceMode}
           disabled={sending || inCooldown}
           sent={sentNote}
           typicalReply={typicalReply}
@@ -765,6 +779,7 @@ export function MiniChatPanelColumn({
           }
           onExpand={onToggleExpand}
           expanded={expanded}
+          surfaceMode={surfaceMode}
         />
       )}
     </>

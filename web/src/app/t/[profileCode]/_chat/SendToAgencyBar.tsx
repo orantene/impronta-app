@@ -23,7 +23,13 @@ import type { CSSProperties } from "react";
 
 import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
-import { C, FONT, primaryBtnStyle } from "./mini-chat-styles";
+import {
+  FONT,
+  paletteFor,
+  primaryBtnStyle,
+  type Palette,
+  type SurfaceMode,
+} from "./mini-chat-styles";
 
 export type SendToAgencyBarProps = {
   /** Tenant accent color (CSS string). */
@@ -42,11 +48,13 @@ export type SendToAgencyBarProps = {
    * is omitted entirely (never invent a duration).
    */
   typicalReply?: string | null;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
   /** Trigger the send-to-agency flow (gate when needed, else submit). */
   onSend: () => void;
 };
 
-const wrapStyle: CSSProperties = {
+const wrapStyle = (C: Palette): CSSProperties => ({
   borderTop: `1px solid ${C.borderSoft}`,
   background: C.surfaceFaint,
   padding: "8px 12px",
@@ -54,7 +62,7 @@ const wrapStyle: CSSProperties = {
   flexDirection: "column",
   gap: 6,
   fontFamily: FONT,
-};
+});
 
 export function SendToAgencyBar({
   accent,
@@ -63,11 +71,13 @@ export function SendToAgencyBar({
   disabled = false,
   sent,
   typicalReply = null,
+  surfaceMode = "light",
   onSend,
 }: SendToAgencyBarProps) {
+  const C = paletteFor(surfaceMode);
   if (sent) {
     return (
-      <div style={wrapStyle}>
+      <div style={wrapStyle(C)}>
         <p
           role="status"
           aria-live="polite"
@@ -86,7 +96,7 @@ export function SendToAgencyBar({
   }
 
   return (
-    <div style={wrapStyle}>
+    <div style={wrapStyle(C)}>
       <button
         type="button"
         onClick={onSend}

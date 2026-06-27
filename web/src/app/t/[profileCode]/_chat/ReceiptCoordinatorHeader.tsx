@@ -23,7 +23,7 @@ import { useState } from "react";
 import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
 import type { InquiryReceiptData } from "@/lib/inquiry/guest-chat-contract";
-import { C, FONT, accentText } from "./mini-chat-styles";
+import { FONT, accentText, paletteFor, type Palette, type SurfaceMode } from "./mini-chat-styles";
 import { AVATAR_GROUND, FACE_OBJECT_POSITION, initialsOf } from "./launcher-avatar-styles";
 
 export type ReceiptCoordinatorHeaderProps = {
@@ -32,6 +32,8 @@ export type ReceiptCoordinatorHeaderProps = {
   agencyName: string;
   accent: string;
   t: Translator;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
 };
 
 export function ReceiptCoordinatorHeader({
@@ -39,7 +41,9 @@ export function ReceiptCoordinatorHeader({
   agencyName,
   accent,
   t,
+  surfaceMode = "light",
 }: ReceiptCoordinatorHeaderProps) {
+  const C = paletteFor(surfaceMode);
   const resolvedAgency = receipt.agencyName?.trim() || agencyName;
   const isCrossAgency = receipt.owningPartyCount > 1;
   const subtitleStyle = {
@@ -70,6 +74,7 @@ export function ReceiptCoordinatorHeader({
         <CoordinatorFace
           coordinator={receipt.coordinator}
           accent={accent}
+          C={C}
         />
         <span style={textStyle}>
           {interpolate(t("public.guestChat.headerCoordinator"), {
@@ -96,9 +101,11 @@ export function ReceiptCoordinatorHeader({
 function CoordinatorFace({
   coordinator,
   accent,
+  C,
 }: {
   coordinator: NonNullable<InquiryReceiptData["coordinator"]>;
   accent: string;
+  C: Palette;
 }) {
   const [failed, setFailed] = useState(false);
   const ink = accentText(accent, C.surfaceFaint);
@@ -118,8 +125,8 @@ function CoordinatorFace({
         color: ink,
         font: "600 9px " + FONT,
         flexShrink: 0,
-        border: "1px solid #ffffff",
-        boxShadow: "0 0 0 1px rgba(20,24,31,0.1)",
+        border: `1px solid ${C.surface}`,
+        boxShadow: `0 0 0 1px ${C.border}`,
       }}
     >
       {showImage ? (
