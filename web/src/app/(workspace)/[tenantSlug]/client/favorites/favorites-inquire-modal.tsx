@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -83,7 +83,7 @@ export function FavoritesInquireModal({
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
-  const talentIds = talents.map((tt) => tt.id);
+  const talentIds = useMemo(() => talents.map((tt) => tt.id), [talents]);
   const { selectedIds, toggle, selectAll, clear, drop } = useFavoritesSelection(
     talentIds,
     open,

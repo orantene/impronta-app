@@ -107,8 +107,11 @@ export function useFavoritesSelection(talentIds: readonly string[], open: boolea
     () => new Set<string>(),
   );
   const didInit = useRef(false);
-  const key = talentIds.join("\0");
 
+  // Default-select all when the modal opens; preserve de-selections within the
+  // open session; re-default on the next open. Callers pass a memoized
+  // `talentIds`, so this effect only re-runs when the list or open state change
+  // (a mid-session list change does not re-default, because didInit is set).
   useEffect(() => {
     if (!open) {
       didInit.current = false;
@@ -118,8 +121,7 @@ export function useFavoritesSelection(talentIds: readonly string[], open: boolea
       setSelectedIds(new Set(talentIds));
       didInit.current = true;
     }
-    // `key` captures the talentIds list identity for the effect.
-  }, [open, key, talentIds]);
+  }, [open, talentIds]);
 
   const toggle = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -132,7 +134,7 @@ export function useFavoritesSelection(talentIds: readonly string[], open: boolea
 
   const selectAll = useCallback(() => {
     setSelectedIds(new Set(talentIds));
-  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [talentIds]);
 
   const clear = useCallback(() => {
     setSelectedIds(new Set<string>());
@@ -273,8 +275,9 @@ export function FavoritesModalView({
             </Dialog.Close>
           </header>
 
-          {/* Select toolbar — only when there's something to select */}
-          {hasFavorites ? (
+          {/* Select toolbar — only once the tiles have resolved (avoids a
+              transient "N of 0 selected" while the lookup is in flight). */}
+          {talents.length > 0 ? (
             <div className="flex items-center justify-between gap-3 border-b border-[var(--fav-border)] px-5 py-2.5 sm:px-6">
               <span className="text-[12px] tabular-nums text-[var(--fav-muted)]">
                 {fill(copy.selectedOfCount, {
@@ -285,7 +288,7 @@ export function FavoritesModalView({
               <button
                 type="button"
                 onClick={allSelected ? onClearSelection : onSelectAll}
-                className="rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--fav-accent)] outline-none transition-colors hover:bg-[var(--fav-accent)]/10 focus-visible:ring-2 focus-visible:ring-[var(--fav-accent)]"
+                className="rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--fav-fg)]/70 outline-none transition-colors hover:bg-[var(--fav-fg)]/[0.06] hover:text-[var(--fav-fg)] focus-visible:ring-2 focus-visible:ring-[var(--fav-accent)]"
               >
                 {allSelected ? copy.clearSelection : copy.selectAll}
               </button>
@@ -438,7 +441,7 @@ function FavoriteTile({
             alt={talent.name}
             fill
             sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 220px"
-            className="object-cover transition-transform duration-500 group-hover/tile:scale-[1.03]"
+            className="object-cover transition-transform duration-500 group-hover/tile:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover/tile:scale-100"
             onError={() => setImgFailed(true)}
           />
         ) : (
@@ -500,7 +503,7 @@ function FavoriteTile({
             href={talent.profileHref}
             target="_blank"
             rel="noreferrer"
-            className="mt-0.5 inline-flex w-fit items-center gap-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--fav-muted)] underline-offset-4 outline-none transition-colors hover:text-[var(--fav-accent)] hover:underline focus-visible:text-[var(--fav-accent)]"
+            className="mt-0.5 inline-flex w-fit items-center gap-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--fav-muted)] underline-offset-4 outline-none transition-colors hover:text-[var(--fav-fg)] hover:underline focus-visible:text-[var(--fav-fg)]"
           >
             {copy.viewProfile}
             <ExternalLink className="size-3" />

@@ -44,18 +44,21 @@ function useClientMounted(): boolean {
  * opens the one canonical inquiry surface via `requestOpenChat()`. It never
  * merges the two stores and never forks a parallel single-talent inquiry.
  *
- * Theme-portable: the panel is portaled to <body>, which carries the
- * `.site-theme-*` class, so the `--fav-*` tokens below resolve to the tenant's
- * palette (dark on a noir tenant). Accent moments run through `--dir-accent` /
- * `--token-color-accent` (the tenant `color.accent`), never a hardcoded gold.
+ * The panel is a warm Tulala "lightbox" — a light surface that floats on the
+ * dark scrim for contrast on a noir tenant (a near-black-on-black panel read
+ * too dark). It is portaled to <body>, so the colors are pinned here via the
+ * inline `--fav-*` tokens rather than inherited. The one accent moment (the
+ * selected ring + check) still runs through the tenant `color.accent`
+ * (`--dir-accent` / `--token-color-accent`), so it reads as Impronta gold; the
+ * fallback is a deep gold, never a bright hardcoded one.
  */
 const PUBLIC_TOKENS: FavoritesModalTokens = {
-  bg: "var(--background, #0a0a0b)",
-  fg: "var(--foreground, #fafafa)",
-  border: "var(--border, rgba(250,250,250,0.14))",
-  muted: "var(--muted-foreground, rgba(250,250,250,0.6))",
-  accent: "var(--dir-accent, var(--token-color-accent, var(--impronta-gold-bright, var(--accent))))",
-  tile: "var(--card, rgba(250,250,250,0.05))",
+  bg: "#FBF9F5",
+  fg: "#1A1712",
+  border: "rgba(26,23,18,0.12)",
+  muted: "rgba(26,23,18,0.56)",
+  accent: "var(--dir-accent, var(--token-color-accent, #9a7b1f))",
+  tile: "rgba(26,23,18,0.05)",
 };
 
 export function FavoritesModal({
