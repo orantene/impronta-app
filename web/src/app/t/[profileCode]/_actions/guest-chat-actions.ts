@@ -37,6 +37,7 @@ import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
 import { sendMessage } from "@/lib/inquiry/inquiry-engine-messages";
+import { promoteEarlyInquiryToSubmitted } from "@/lib/inquiry/promote-early-inquiry";
 import {
   checkGuestInquiryAbuse,
   checkGuestMessageAbuse,
@@ -1015,6 +1016,41 @@ export async function sendGuestMessageAction(
     return fail("engine_error", sent.error ?? "Could not send your message.");
   }
 
+  // Promote a pre-send DRAFT early-row to `submitted` + coordinator on this, its
+  // FIRST real send — mirroring the fresh-create path (submitInquiry). Gated so a
+  // row whose contact is still the synthetic placeholder is NEVER promoted: the
+  // client send-gate already requires a promoted contact, but we re-verify
+  // server-side (the placeholder email is the load-bearing signal, same as
+  // isSeedContact). Idempotent: promoteEarlyInquiryToSubmitted no-ops once the
+  // status is no longer `draft`, so later messages don't re-promote. Best-effort:
+  // a promotion failure must not fail the (already persisted) send.
+  if (owned.inquiry.status === "draft") {
+    const { data: contactRow } = await admin
+      .from("inquiries")
+      .select("contact_name, contact_email")
+      .eq("id", owned.inquiry.id)
+      .eq("tenant_id", owned.inquiry.tenantId)
+      .maybeSingle();
+    const isRealContact =
+      contactRow != null &&
+      !isSeedContact(
+        contactRow.contact_name as string | null,
+        contactRow.contact_email as string | null,
+      );
+    if (isRealContact) {
+      const promoted = await promoteEarlyInquiryToSubmitted(admin, {
+        inquiryId: owned.inquiry.id,
+        tenantId: owned.inquiry.tenantId,
+      });
+      if (!promoted.success) {
+        logServerError(
+          "guest-chat-actions.sendGuestMessageAction/promote",
+          new Error(promoted.error ?? promoted.reason ?? "promote_failed"),
+        );
+      }
+    }
+  }
+
   const messageId = sent.data?.messageId ?? "";
   // Read the created row back in the canonical shape (single-row fetch).
   const { data: rawRow } = await admin
@@ -1636,7 +1672,10 @@ export async function ensureGuestChatInquiry(
         tenant_id: tenantId,
         client_user_id: null,
         guest_session_id: guestSessionId,
-        status: "new",
+        // Canonical pre-send DRAFT: lifecycle's `draft` phase (next_action_by =
+        // 'client'). Promoted to 'submitted' + coordinator on the first real send
+        // (promoteEarlyInquiryToSubmitted). Drafts stay OUT of every agency inbox.
+        status: "draft",
         // Placeholder contact — NOT NULL columns. Overwritten by ContactCard.
         contact_name: "Guest",
         contact_email: `pending-${guestSessionId}@guest.impronta`,

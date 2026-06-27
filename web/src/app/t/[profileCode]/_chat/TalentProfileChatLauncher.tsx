@@ -100,6 +100,20 @@ export function TalentProfileChatLauncher({
   // never spawns a phantom inquiry — it only patches an EXISTING record.
   const liveInquiryIdRef = useRef<string | null>(existingInquiryId);
 
+  // B6: the panel registers its unified talent-patch runner here so the rail
+  // X-remove writes the record through the SAME useUnifiedInquiry.patch path the
+  // in-chat ADD uses — giving remove the same saving-state + LOCAL_WRITE_GRACE_MS
+  // self-echo window + retry guarantee. Calling onCaptureChip directly (the old
+  // path) bypassed all of that and self-echoed every remove back to the guest.
+  const removeTalentRunnerRef = useRef<
+    | ((
+        selectedIds: string[],
+        selectionMode: "i_know_who" | "agency_recommends",
+        selectedNames: string[],
+      ) => void)
+    | null
+  >(null);
+
   function handleRemoveTalent(talentProfileId: string) {
     // Single source: removing here flips saved_talent, which propagates to the
     // rail + the form + any open panel's Talent selection.
@@ -107,24 +121,23 @@ export function TalentProfileChatLauncher({
 
     // Keep the inquiry RECORD in sync with the cart on removal (finding #3): the
     // cart alone never patched interpreted_query.talent.selected_ids, so a removed
-    // talent lingered on the inquiry and the agency still saw them. Patch the
-    // record with the REMAINING ids (replace semantics — matches the in-chat path)
-    // ONLY when a row already exists; otherwise removal is a pure cart op.
+    // talent lingered on the inquiry and the agency still saw them. Route the
+    // record write through the panel's unified.patch runner with the REMAINING ids
+    // (replace semantics — IDENTICAL shape to the in-chat add path, so the grace
+    // window is stamped and the remove never self-echoes). Only when a row already
+    // exists; otherwise removal is a pure cart op.
     const inquiryId = liveInquiryIdRef.current;
-    if (!inquiryId || !onCaptureChip) return;
+    const runner = removeTalentRunnerRef.current;
+    if (!inquiryId || !runner) return;
     const remainingIds = cart.cartIds.filter((id) => id !== talentProfileId);
     const remainingNames = cartTalents
       .filter((t) => remainingIds.includes(t.talentProfileId))
       .map((t) => t.displayName);
-    void onCaptureChip({
-      inquiryId,
-      kind: "talent",
-      value: {
-        selectedIds: remainingIds,
-        selectionMode: remainingIds.length > 0 ? "i_know_who" : "agency_recommends",
-        selectedNames: remainingNames,
-      },
-    });
+    runner(
+      remainingIds,
+      remainingIds.length > 0 ? "i_know_who" : "agency_recommends",
+      remainingNames,
+    );
   }
 
   function handleOpenToTalent() {
@@ -310,6 +323,9 @@ export function TalentProfileChatLauncher({
         openToTalentSection={openToTalent}
         onConsumeOpenToTalentSection={() => setOpenToTalent(false)}
         onRemoveCartTalent={handleRemoveTalent}
+        onRegisterRemoveTalent={(runner) => {
+          removeTalentRunnerRef.current = runner;
+        }}
         onInquiryIdChange={(id) => {
           liveInquiryIdRef.current = id;
         }}

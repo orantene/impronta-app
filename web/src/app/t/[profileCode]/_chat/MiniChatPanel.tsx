@@ -87,6 +87,22 @@ type MiniChatPanelLocalProps = MiniChatPanelProps & {
   /** Remove a talent from the cart (mirrors the rail X; single source). */
   onRemoveCartTalent?: (talentProfileId: string) => void;
   /**
+   * Register the panel's unified talent-patch runner up to the launcher (B6).
+   * The rail X-remove uses it so a remove routes through the SAME
+   * useUnifiedInquiry.patch path as an in-chat talent change — same saving
+   * state, grace window (no self-echo), and retry surface as the add path.
+   * Called with the FULL remaining selected_ids set (replace semantics).
+   */
+  onRegisterRemoveTalent?: (
+    runner:
+      | ((
+          selectedIds: string[],
+          selectionMode: "i_know_who" | "agency_recommends",
+          selectedNames: string[],
+        ) => void)
+      | null,
+  ) => void;
+  /**
    * Report the live inquiry id up to the launcher whenever it resolves (early-row
    * create / resume / switch). The launcher uses it so a rail X-remove can patch
    * the inquiry record's talent.selected_ids in sync with the cart, WITHOUT
@@ -132,6 +148,7 @@ export function MiniChatPanel({
   openToTalentSection = false,
   onConsumeOpenToTalentSection,
   onRemoveCartTalent,
+  onRegisterRemoveTalent,
   onInquiryIdChange,
 }: MiniChatPanelLocalProps) {
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
@@ -554,6 +571,29 @@ export function MiniChatPanel({
     lastPatchRef.current = { kind: "talent", selectedIds, selectionMode, selectedNames };
     await unified.patch({ kind: "talent", selectedIds, selectionMode, selectedNames });
   }
+
+  // B6: register the unified talent-patch runner up to the launcher so the rail
+  // X-remove routes the RECORD write through the SAME useUnifiedInquiry.patch path
+  // as the in-chat change above (same saving state + grace window + retry). The
+  // launcher owns the local cart op, so this runner only does the record write
+  // (it does NOT re-mirror via reconcileCartRemovals, which would recurse back
+  // into the launcher's own cart removal). Add and remove are now symmetric: both
+  // patch { kind:"talent" } with the resulting full selected_ids set.
+  const unifiedPatch = unified.patch;
+  useEffect(() => {
+    if (!onRegisterRemoveTalent) return;
+    onRegisterRemoveTalent(
+      (
+        selectedIds: string[],
+        selectionMode: "i_know_who" | "agency_recommends",
+        selectedNames: string[],
+      ) => {
+        lastPatchRef.current = { kind: "talent", selectedIds, selectionMode, selectedNames };
+        void unifiedPatch({ kind: "talent", selectedIds, selectionMode, selectedNames });
+      },
+    );
+    return () => onRegisterRemoveTalent(null);
+  }, [onRegisterRemoveTalent, unifiedPatch]);
 
   async function handleBriefChange(summary: string) {
     lastPatchRef.current = { kind: "brief", summary };

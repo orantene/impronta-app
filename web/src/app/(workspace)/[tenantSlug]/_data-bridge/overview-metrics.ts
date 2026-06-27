@@ -142,12 +142,17 @@ export async function loadWorkspaceOverviewMetrics(
         .eq("tenant_id", tenantId)
         .eq("next_action_by", "client"),
 
-      // Draft inquiries
+      // Draft inquiries the AGENCY owes a send on. Excludes guest pre-send
+      // early-rows (placeholder contact `pending-...@guest.impronta`): those are
+      // the GUEST's in-progress drafts, not the agency's "to send" work, and must
+      // not light up the "Needs you now" surface until their first real send
+      // promotes them to `submitted`.
       supabase
         .from("inquiries")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
-        .in("status", ["draft"]),
+        .in("status", ["draft"])
+        .not("contact_email", "like", "pending-%@guest.impronta"),
 
       // Oldest coordinator-pending inquiry (for urgency signal in TodaysFocusCard).
       // Exclude terminal statuses. NB: there is no `cancelled` inquiry_status —
