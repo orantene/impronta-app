@@ -40,6 +40,7 @@ import {
 } from "@/lib/analytics/jon360-funnel-events";
 
 import { MiniChatPanel } from "./MiniChatPanel";
+import { LauncherProjectPicker } from "./LauncherProjectPicker";
 import { NewMessagePulse } from "./NewMessagePulse";
 import { LauncherAvatarStack } from "./LauncherAvatarStack";
 import { FlyingAvatar } from "./FlyingAvatar";
@@ -183,6 +184,11 @@ export function TalentProfileChatLauncher({
   // Stays null until a real structured commit creates a row, so a rail X-remove
   // never spawns a phantom inquiry — it only patches an EXISTING record.
   const liveInquiryIdRef = useRef<string | null>(existingInquiryId);
+  // Render-readable mirror of liveInquiryIdRef, so components rendered in the tree
+  // (e.g. the Phase 5 project picker) can read the current inquiry id during render
+  // without touching the ref. The ref stays the source of truth for the imperative
+  // paths (early-row create / remove runner); this just shadows it for render reads.
+  const [liveInquiryId, setLiveInquiryId] = useState<string | null>(existingInquiryId);
 
   // B6: the panel registers its unified talent-patch runner here so the rail
   // X-remove writes the record through the SAME useUnifiedInquiry.patch path the
@@ -504,6 +510,38 @@ export function TalentProfileChatLauncher({
           </div>
         )}
 
+        {/* Phase 5 pick_inquiry — the actionable project picker. Surfaced when the
+            resolver yields pick_inquiry (focused talent + other open inquiries):
+            the pill keeps its add-style label while THIS anchored popover lets the
+            client add {firstName} to an existing inquiry or start a separate one.
+            Only on a closed launcher with a focused talent + the injected actions;
+            the in-chat talent picker owns adds once the panel is open. */}
+        {!open &&
+          ctaState.kind === "pick_inquiry" &&
+          focusTalentId &&
+          onListGuestInquiries &&
+          onCaptureChip &&
+          onEnsureInquiry && (
+            <div style={{ marginBottom: 8, display: "flex", justifyContent: "flex-end" }}>
+              <LauncherProjectPicker
+                focusedTalentId={focusTalentId}
+                focusedTalentCode={talentProfileCode}
+                firstName={talentFirst}
+                displayName={brand.talentDisplayName}
+                otherOpenInquiries={ctaState.otherOpenInquiries}
+                tenantSlug={tenantSlug}
+                sourcePage={sourcePage}
+                currentInquiryId={liveInquiryId}
+                accent={accent}
+                surfaceMode={surfaceMode}
+                t={t}
+                onListGuestInquiries={onListGuestInquiries}
+                onCaptureChip={onCaptureChip}
+                onEnsureInquiry={onEnsureInquiry}
+              />
+            </div>
+          )}
+
         <button
           ref={pillRef}
           type="button"
@@ -651,6 +689,7 @@ export function TalentProfileChatLauncher({
         }}
         onInquiryIdChange={(id) => {
           liveInquiryIdRef.current = id;
+          setLiveInquiryId(id);
         }}
       />
     </>
