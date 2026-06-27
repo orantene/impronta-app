@@ -4288,6 +4288,18 @@ function renderBuilderNodeElement(
     case "form": {
       const formProps = node.props;
       const fields = formProps.fields ?? [];
+      // Theme raw form inputs to the active surface tokens — without this they
+      // render as white browser-default boxes on dark/noir tenant pages.
+      const fieldStyle: CSSProperties = {
+        width: "100%",
+        padding: "0.6rem 0.7rem",
+        border:
+          "1px solid var(--token-color-border, color-mix(in srgb, currentColor 25%, transparent))",
+        borderRadius: "8px",
+        background: "var(--token-color-surface-raised, transparent)",
+        color: "inherit",
+        font: "inherit",
+      };
       const honeypotName = formProps.honeypotName?.trim() || "website";
       const isInternal =
         !formProps.action || formProps.action.trim().toLowerCase() === "internal";
@@ -4369,6 +4381,7 @@ function renderBuilderNodeElement(
                     placeholder={field.placeholder}
                     required={field.required ?? false}
                     rows={4}
+                    style={fieldStyle}
                   />
                 ) : field.type === "select" ? (
                   <select
@@ -4376,6 +4389,7 @@ function renderBuilderNodeElement(
                     name={field.name}
                     required={field.required ?? false}
                     defaultValue=""
+                    style={fieldStyle}
                   >
                     <option value="" disabled>
                       {field.placeholder ?? "Choose…"}
@@ -4421,6 +4435,7 @@ function renderBuilderNodeElement(
                     type={field.type}
                     placeholder={field.placeholder}
                     required={field.required ?? false}
+                    style={fieldStyle}
                   />
                 )}
               </div>
