@@ -28,6 +28,7 @@
  */
 
 import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
+import { surfaceModeFromBackgroundMode } from "./mini-chat-styles";
 import { createTranslator } from "@/i18n/messages";
 // Real Lane A server actions (the build stub was removed at integration). These
 // match the contract callbacks 1:1, so they pass straight into the launcher.
@@ -81,6 +82,12 @@ type TalentProfileChatLauncherMountProps = {
    * the panel's card/status labels render in the tenant's language.
    */
   locale?: string | null;
+  /**
+   * Jon 360 Phase 7 — the tenant's resolved `background.mode` token. The launcher
+   * derives a dark/light chat surface from it so a noir tenant's chat stops
+   * popping a white card on the dark page. Null/undefined → light (safe default).
+   */
+  backgroundMode?: string | null;
 };
 
 export async function TalentProfileChatLauncherMount({
@@ -96,6 +103,7 @@ export async function TalentProfileChatLauncherMount({
   openFullHref = null,
   greeting = null,
   locale = null,
+  backgroundMode = null,
 }: TalentProfileChatLauncherMountProps) {
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
@@ -139,6 +147,7 @@ export async function TalentProfileChatLauncherMount({
       onResolveCartPortraits={resolveGuestCartPortraits}
       soundOnReply
       openFullHref={openFullHref}
+      surfaceMode={surfaceModeFromBackgroundMode(backgroundMode)}
     />
   );
 }

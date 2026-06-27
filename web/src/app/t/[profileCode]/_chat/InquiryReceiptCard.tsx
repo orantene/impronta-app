@@ -33,7 +33,14 @@ import { Check } from "lucide-react";
 import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
 import type { InquiryReceiptData } from "@/lib/inquiry/guest-chat-contract";
-import { C, FONT, accentText } from "./mini-chat-styles";
+import {
+  FONT,
+  FONT_DISPLAY,
+  accentText,
+  paletteFor,
+  type Palette,
+  type SurfaceMode,
+} from "./mini-chat-styles";
 import {
   AVATAR_DIAMETER_DESKTOP,
   AVATAR_GROUND,
@@ -52,6 +59,8 @@ export type InquiryReceiptCardProps = {
   t: Translator;
   /** BCP-47 locale for date/time formatting. */
   locale: string;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
 };
 
 /** Locale-aware "Jun 26, 3:42 PM" style stamp. Empty string on a bad date. */
@@ -75,8 +84,12 @@ export function InquiryReceiptCard({
   accent,
   t,
   locale,
+  surfaceMode = "light",
 }: InquiryReceiptCardProps) {
-  const ink = accentText(accent, C.surfaceFaint);
+  // Jon 360 Phase 7 — active palette; accent ink is measured against the card's
+  // own faint surface so it AA-clamps on whichever surface mode is active.
+  const P = paletteFor(surfaceMode);
+  const ink = accentText(accent, P.surfaceFaint);
   const stamp = formatReceivedAt(receipt.receivedAt, locale);
   const resolvedAgency = receipt.agencyName?.trim() || agencyName;
   const isCrossAgency = receipt.owningPartyCount > 1;
@@ -85,7 +98,7 @@ export function InquiryReceiptCard({
     <section
       aria-label={t("public.guestChat.receiptAria")}
       className="uic-receipt"
-      style={wrapStyle}
+      style={wrapStyle(P)}
     >
       <ReceiptAppearKeyframes />
       {/* Header: the received check + "Inquiry received, {stamp}". */}
@@ -106,7 +119,16 @@ export function InquiryReceiptCard({
         >
           <Check size={13} strokeWidth={3} />
         </span>
-        <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, lineHeight: 1.3 }}>
+        {/* Jon 360 Phase 7 — the receipt TITLE is agency identity → display serif. */}
+        <div
+          style={{
+            fontFamily: FONT_DISPLAY,
+            fontSize: 15,
+            fontWeight: 600,
+            color: P.ink,
+            lineHeight: 1.3,
+          }}
+        >
           {stamp
             ? interpolate(t("public.guestChat.receiptReceivedAt"), { when: stamp })
             : t("public.guestChat.receiptReceived")}
@@ -114,13 +136,14 @@ export function InquiryReceiptCard({
       </div>
 
       {isCrossAgency ? (
-        <CrossAgencyBody count={receipt.owningPartyCount} t={t} />
+        <CrossAgencyBody count={receipt.owningPartyCount} P={P} t={t} />
       ) : (
         <SingleAgencyBody
           receipt={receipt}
           agencyName={resolvedAgency}
           accent={accent}
           ink={ink}
+          P={P}
           t={t}
         />
       )}
@@ -128,7 +151,7 @@ export function InquiryReceiptCard({
       {/* No-payment reassurance — every tier carries it. The single-agency
           variant names the agency as the channel; the neutral variant stays
           generic (no single agency named). */}
-      <div style={noPaymentStyle}>
+      <div style={noPaymentStyle(P)}>
         {isCrossAgency
           ? t("public.guestChat.receiptNoPaymentNeutral")
           : interpolate(t("public.guestChat.receiptNoPayment"), {
@@ -143,9 +166,17 @@ export function InquiryReceiptCard({
 // Cross-agency GATE — neutral card. Never names a single agency or coordinator.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function CrossAgencyBody({ count, t }: { count: number; t: Translator }) {
+function CrossAgencyBody({
+  count,
+  P,
+  t,
+}: {
+  count: number;
+  P: Palette;
+  t: Translator;
+}) {
   return (
-    <p style={bodyTextStyle}>
+    <p style={bodyTextStyle(P)}>
       {interpolate(t("public.guestChat.receiptCrossAgency"), { count })}
     </p>
   );
@@ -160,25 +191,28 @@ function SingleAgencyBody({
   agencyName,
   accent,
   ink,
+  P,
   t,
 }: {
   receipt: InquiryReceiptData;
   agencyName: string;
   accent: string;
   ink: string;
+  P: Palette;
   t: Translator;
 }) {
   const { coordinator, typicalReplyLabel, contactEmail, lineup } = receipt;
 
   // "{agency} has your inquiry about {Talent A, Talent B, +N}".
   const lineupLabel = formatLineupLabel(lineup.map((f) => f.displayName), t);
+  const body = bodyTextStyle(P);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
       {/* Agency + lineup line, with the face-stack. */}
       <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-        {lineup.length > 0 && <LineupFaceStack lineup={lineup} ink={ink} t={t} />}
-        <p style={{ ...bodyTextStyle, margin: 0, flex: 1, minWidth: 0 }}>
+        {lineup.length > 0 && <LineupFaceStack lineup={lineup} ink={ink} P={P} t={t} />}
+        <p style={{ ...body, margin: 0, flex: 1, minWidth: 0 }}>
           {lineupLabel
             ? interpolate(t("public.guestChat.receiptHasInquiryAbout"), {
                 agency: agencyName,
@@ -193,9 +227,9 @@ function SingleAgencyBody({
       {coordinator ? (
         // Tier 1 / Tier 2 — a named coordinator (+ face).
         <div style={coordinatorRowStyle}>
-          <CoordinatorFace coordinator={coordinator} accent={accent} ink={ink} />
-          <p style={{ ...bodyTextStyle, margin: 0, flex: 1, minWidth: 0 }}>
-            <span style={{ fontWeight: 600, color: C.ink }}>
+          <CoordinatorFace coordinator={coordinator} accent={accent} ink={ink} P={P} />
+          <p style={{ ...body, margin: 0, flex: 1, minWidth: 0 }}>
+            <span style={{ fontWeight: 600, color: P.ink }}>
               {interpolate(t("public.guestChat.receiptCoordinator"), {
                 name: coordinator.displayName,
               })}
@@ -204,7 +238,7 @@ function SingleAgencyBody({
               // Tier 1 — the honest reply time. Tier 2 omits this entirely.
               <>
                 {" "}
-                <span style={{ color: C.inkMuted }}>
+                <span style={{ color: P.inkMuted }}>
                   {interpolate(t("public.guestChat.receiptTypicallyReplies"), {
                     when: typicalReplyLabel,
                   })}
@@ -215,14 +249,14 @@ function SingleAgencyBody({
         </div>
       ) : (
         // Tier 3 — no coordinator seated yet. NO face, NO time promise.
-        <p style={{ ...bodyTextStyle, margin: 0, color: C.inkMuted }}>
+        <p style={{ ...body, margin: 0, color: P.inkMuted }}>
           {t("public.guestChat.receiptAssigning")}
         </p>
       )}
 
       {/* The "we will email you" line — only with a real (non-seed) address. */}
       {contactEmail ? (
-        <p style={{ ...bodyTextStyle, margin: 0, color: C.inkMuted }}>
+        <p style={{ ...body, margin: 0, color: P.inkMuted }}>
           {interpolate(t("public.guestChat.receiptEmailOnReply"), {
             email: contactEmail,
           })}
@@ -241,10 +275,12 @@ function SingleAgencyBody({
 function LineupFaceStack({
   lineup,
   ink,
+  P,
   t,
 }: {
   lineup: InquiryReceiptData["lineup"];
   ink: string;
+  P: Palette;
   t: Translator;
 }) {
   const diameter = AVATAR_DIAMETER_DESKTOP;
@@ -295,7 +331,7 @@ function LineupFaceStack({
             zIndex: ordered.length - i,
           }}
         >
-          <Face face={face} diameter={diameter} ink={ink} />
+          <Face face={face} diameter={diameter} ink={ink} P={P} />
         </li>
       ))}
     </ul>
@@ -306,10 +342,12 @@ function Face({
   face,
   diameter,
   ink,
+  P,
 }: {
   face: InquiryReceiptData["lineup"][number];
   diameter: number;
   ink: string;
+  P: Palette;
 }) {
   const [failed, setFailed] = useState(false);
   const showImage = Boolean(face.portraitUrl) && !failed;
@@ -317,7 +355,7 @@ function Face({
     <span
       style={{
         ...faceBaseStyle(diameter),
-        background: showImage ? AVATAR_GROUND : C.surfaceCool,
+        background: showImage ? AVATAR_GROUND : P.surfaceCool,
         color: ink,
         font: "600 13px " + FONT,
       }}
@@ -348,11 +386,16 @@ function CoordinatorFace({
   coordinator,
   accent,
   ink,
+  P,
 }: {
   coordinator: NonNullable<InquiryReceiptData["coordinator"]>;
   accent: string;
   ink: string;
+  P: Palette;
 }) {
+  // Empty-face ground uses an accent tint over the active surface; P keeps the
+  // signature surface-consistent with the other faces.
+  void P;
   const [failed, setFailed] = useState(false);
   const showImage = Boolean(coordinator.avatarUrl) && !failed;
   return (
@@ -418,24 +461,28 @@ function faceBaseStyle(diameter: number): CSSProperties {
   };
 }
 
-const wrapStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 10,
-  padding: "13px 14px",
-  borderRadius: 14,
-  border: `1px solid ${C.borderSoft}`,
-  background: C.surfaceFaint,
-  fontFamily: FONT,
-  alignSelf: "stretch",
-};
+function wrapStyle(p: Palette): CSSProperties {
+  return {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    padding: "13px 14px",
+    borderRadius: 14,
+    border: `1px solid ${p.borderSoft}`,
+    background: p.surfaceFaint,
+    fontFamily: FONT,
+    alignSelf: "stretch",
+  };
+}
 
-const bodyTextStyle: CSSProperties = {
-  margin: 0,
-  fontSize: 12.5,
-  lineHeight: 1.5,
-  color: C.ink,
-};
+function bodyTextStyle(p: Palette): CSSProperties {
+  return {
+    margin: 0,
+    fontSize: 12.5,
+    lineHeight: 1.5,
+    color: p.ink,
+  };
+}
 
 const coordinatorRowStyle: CSSProperties = {
   display: "flex",
@@ -443,13 +490,15 @@ const coordinatorRowStyle: CSSProperties = {
   gap: 9,
 };
 
-const noPaymentStyle: CSSProperties = {
-  fontSize: 11.5,
-  lineHeight: 1.45,
-  color: C.inkMuted,
-  borderTop: `1px solid ${C.borderSoft}`,
-  paddingTop: 9,
-};
+function noPaymentStyle(p: Palette): CSSProperties {
+  return {
+    fontSize: 11.5,
+    lineHeight: 1.45,
+    color: p.inkMuted,
+    borderTop: `1px solid ${p.borderSoft}`,
+    paddingTop: 9,
+  };
+}
 
 /** Reduced-motion-safe appear: a 180ms fade+rise, suppressed under the media query. */
 function ReceiptAppearKeyframes() {

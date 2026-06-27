@@ -58,7 +58,6 @@ export type LauncherAvatarStackProps = {
   compact?: boolean;
 };
 
-const NEUTRAL_INK = "#16181d";
 const NEUTRAL_WHITE = "#ffffff";
 
 export function LauncherAvatarStack({
@@ -240,10 +239,17 @@ export function LauncherAvatarStack({
               width: diameter,
               height: diameter,
               borderRadius: "50%",
-              background: NEUTRAL_INK,
+              // Jon 360 Phase 7 — frosted/translucent +N chip. The old solid
+              // near-black circle (#16181d) read as a harsh dark dot on a light or
+              // gold accent pill. A dark-glass fill + white text keeps the count
+              // legible (white on rgba(20,24,31,0.55) clears AA) while reading as a
+              // soft "+more" affordance rather than a black hole.
+              background: "rgba(20,24,31,0.55)",
+              backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
               color: NEUTRAL_WHITE,
-              border: `1.5px solid ${NEUTRAL_WHITE}`,
-              boxShadow: `0 0 0 2px ${accentInk}`,
+              border: `1.5px solid rgba(255,255,255,0.55)`,
+              boxShadow: "0 2px 6px rgba(20,24,31,0.28)",
               font: "600 12px -apple-system, BlinkMacSystemFont, sans-serif",
               display: "flex",
               alignItems: "center",

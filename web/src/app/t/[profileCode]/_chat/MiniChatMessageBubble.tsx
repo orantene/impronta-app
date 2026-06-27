@@ -10,7 +10,14 @@
 import type { GuestThreadMessage } from "@/lib/inquiry/guest-chat-contract";
 import { createTranslator } from "@/i18n/messages";
 
-import { C, formatTime, labelForKind, readableOn } from "./mini-chat-styles";
+import {
+  accentText,
+  formatTime,
+  labelForKind,
+  paletteFor,
+  readableOn,
+  type SurfaceMode,
+} from "./mini-chat-styles";
 
 /**
  * A row in the visible stream — either a server/persisted message or a local
@@ -22,13 +29,17 @@ export function MiniChatMessageBubble({
   m,
   accent,
   locale = "en",
+  surfaceMode = "light",
 }: {
   m: StreamRow;
   accent: string;
   /** Guest UI locale (tenant default_locale). Falls back to "en". */
   locale?: string;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
 }) {
   const t = createTranslator(locale);
+  const C = paletteFor(surfaceMode);
   const mine = m.authorRole === "guest";
   const system = m.authorRole === "system";
 
@@ -106,7 +117,9 @@ export function MiniChatMessageBubble({
                 fontWeight: 700,
                 letterSpacing: 0.4,
                 textTransform: "uppercase",
-                color: accent,
+                // AA-clamp the accent label against the card's own faint surface
+                // (works on both light + dark surface modes).
+                color: accentText(accent, C.surfaceFaint),
                 marginBottom: 3,
               }}
             >

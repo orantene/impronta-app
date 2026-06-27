@@ -52,10 +52,12 @@ import { SendToAgencyBar } from "./SendToAgencyBar";
 import { SentAirlock } from "./SentAirlock";
 import { TrustGateNudge } from "./TrustGateNudge";
 import {
-  C,
   EMAIL_RE,
   FONT,
+  FONT_DISPLAY,
+  paletteFor,
   statusCopy,
+  type SurfaceMode,
 } from "./mini-chat-styles";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -67,6 +69,8 @@ export type MiniChatPanelColumnProps = {
   brand: MiniChatBrand;
   accent: string;
   accentInk: string;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
   talentFirst: string;
   // Context
   tenantSlug: string;
@@ -227,6 +231,7 @@ export function MiniChatPanelColumn({
   brand,
   accent,
   accentInk,
+  surfaceMode = "light",
   talentFirst,
   tenantSlug,
   talentProfileId,
@@ -301,6 +306,10 @@ export function MiniChatPanelColumn({
   // Guest UI locale rides along on `brand` (resolved server-side from the
   // tenant's default_locale, since guests have no LOCALE_COOKIE).
   const t = createTranslator(brand.locale ?? "en");
+  // Jon 360 Phase 7 — the active C palette. Light by default (byte-identical to
+  // before); dark for noir tenants. Every `C.*` below resolves through this, so a
+  // single binding flips the whole column's surface/ink/borders.
+  const C = paletteFor(surfaceMode);
   const gateReady = Boolean(firstName.trim()) && EMAIL_RE.test(email.trim());
   const guestContactEmail =
     (emailedTo ?? prefill?.email ?? email.trim()) || null;
@@ -353,8 +362,12 @@ export function MiniChatPanelColumn({
         <div style={{ minWidth: 0, flex: 1 }}>
           <div
             style={{
-              fontSize: 13.5,
-              fontWeight: 700,
+              // Jon 360 Phase 7 — the agency IDENTITY gets the editorial serif
+              // (display axis). Body copy below stays system-sans.
+              fontFamily: FONT_DISPLAY,
+              fontSize: 15,
+              fontWeight: 600,
+              letterSpacing: 0.1,
               color: C.ink,
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -470,6 +483,7 @@ export function MiniChatPanelColumn({
             accent={accent}
             t={t}
             locale={brand.locale ?? "en"}
+            surfaceMode={surfaceMode}
           />
         ) : (
           <div
@@ -479,8 +493,12 @@ export function MiniChatPanelColumn({
               background: C.surfaceCool,
               color: C.ink,
               borderRadius: "14px 14px 14px 4px",
-              padding: "10px 13px",
-              fontSize: 13.5,
+              padding: "11px 14px",
+              // Jon 360 Phase 7 — the greeting is agency identity copy, so it
+              // takes the editorial serif (display axis); subsequent thread
+              // bubbles stay system-sans.
+              fontFamily: FONT_DISPLAY,
+              fontSize: 14.5,
               lineHeight: 1.5,
             }}
           >
@@ -499,7 +517,13 @@ export function MiniChatPanelColumn({
         )}
 
         {rows.map((m) => (
-          <MiniChatMessageBubble key={m.id} m={m} accent={accent} locale={brand.locale ?? "en"} />
+          <MiniChatMessageBubble
+            key={m.id}
+            m={m}
+            accent={accent}
+            locale={brand.locale ?? "en"}
+            surfaceMode={surfaceMode}
+          />
         ))}
 
         {limitNudge && limitNudge.tier !== "account" && (
@@ -575,6 +599,7 @@ export function MiniChatPanelColumn({
           emailNotice={gateEmailNotice}
           emailBlocksSubmit={gateEmailBlocksSubmit}
           sending={sending}
+          surfaceMode={surfaceMode}
           onSend={onFirstSend}
         />
       )}
@@ -710,6 +735,7 @@ export function MiniChatPanelColumn({
           sendDisabled={sendDisabled}
           accent={accent}
           accentInk={accentInk}
+          surfaceMode={surfaceMode}
           textareaRef={textareaRef}
         />
       )}

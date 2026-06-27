@@ -12,7 +12,7 @@
 
 import type { RefObject } from "react";
 
-import { C, FONT, primaryBtnStyle } from "./mini-chat-styles";
+import { FONT, paletteFor, primaryBtnStyle, type SurfaceMode } from "./mini-chat-styles";
 import { SendIcon } from "./MiniChatMessageBubble";
 import a11y from "./mini-chat-a11y.module.css";
 
@@ -31,6 +31,8 @@ export type MiniChatComposerProps = {
   sendDisabled: boolean;
   accent: string;
   accentInk: string;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
   /** Focus target owned by the panel (focused when the panel opens). */
   textareaRef: RefObject<HTMLTextAreaElement | null>;
 };
@@ -47,8 +49,10 @@ export function MiniChatComposer({
   sendDisabled,
   accent,
   accentInk,
+  surfaceMode = "light",
   textareaRef,
 }: MiniChatComposerProps) {
+  const C = paletteFor(surfaceMode);
   return (
     <div
       style={{

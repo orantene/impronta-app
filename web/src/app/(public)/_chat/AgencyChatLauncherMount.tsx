@@ -11,6 +11,7 @@
  */
 
 import { TalentProfileChatLauncher } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncher";
+import { surfaceModeFromBackgroundMode } from "@/app/t/[profileCode]/_chat/mini-chat-styles";
 import {
   checkGuestClaimEmail,
   getGuestThreadMessages,
@@ -120,6 +121,13 @@ export async function AgencyChatLauncherMount({
       ? (branding.theme_json as Record<string, unknown>)
       : {};
   const logoUrl = typeof theme.logo_url === "string" ? theme.logo_url : null;
+  // Jon 360 Phase 7 — derive the dark/light chat surface from the tenant's
+  // published `background.mode` token (theme_json holds it directly). A noir
+  // directory then gets a dark chat surface instead of a white floating card.
+  const backgroundMode =
+    typeof theme["background.mode"] === "string"
+      ? (theme["background.mode"] as string)
+      : null;
 
   return (
     <TalentProfileChatLauncher
@@ -155,6 +163,7 @@ export async function AgencyChatLauncherMount({
       onResolveCartPortraits={resolveGuestCartPortraits}
       soundOnReply
       openFullHref={null}
+      surfaceMode={surfaceModeFromBackgroundMode(backgroundMode)}
     />
   );
 }

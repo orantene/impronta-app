@@ -1726,6 +1726,14 @@ export default async function PublicTalentProfilePage({
   // gold/rust is hard-coded (house rule).
   const chatAccentColor =
     tenantBranding?.primary_color ?? tenantBranding?.accent_color ?? null;
+  // Jon 360 Phase 7 — the tenant's resolved page background mode (editorial-noir
+  // etc.). Threaded to the chat launcher so a noir tenant's chat adopts a dark
+  // surface instead of popping a white card on the dark page. theme_json holds the
+  // published token directly under "background.mode"; non-string → undefined → light.
+  const chatBackgroundMode =
+    typeof brandingTheme["background.mode"] === "string"
+      ? (brandingTheme["background.mode"] as string)
+      : null;
   // Resolve the tenant that owns this profile's guest chat:
   //  - agency host → the agency
   //  - platform (marketing/app) host → the in-house Tulala hub (the talent is
@@ -2211,6 +2219,7 @@ export default async function PublicTalentProfilePage({
           sourcePage={profileSourcePage}
           greeting={guestChatSettings.greeting}
           locale={locale}
+          backgroundMode={chatBackgroundMode}
         />
       )}
     </>

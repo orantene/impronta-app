@@ -54,15 +54,16 @@ import { useGuestDetailReconcile } from "./use-guest-detail-reconcile";
 import { chipValueToPatch, chipValuesToServerIntent } from "./unified-inquiry-bridge";
 import type { StreamRow } from "./MiniChatMessageBubble";
 import {
-  C,
   DEFAULT_ACCENT,
   EMAIL_RE,
-  FONT,
-  GUEST_CHAT_PANEL_BOTTOM_PX,
   firstNameOf,
+  paletteFor,
   readableOn,
   splitGuestFullName,
+  type SurfaceMode,
 } from "./mini-chat-styles";
+import { miniPanelContainerStyle } from "./mini-chat-panel-geometry";
+import { useCompactViewport } from "./use-compact-viewport";
 
 type Stage = "intro" | "gate" | "thread";
 
@@ -70,6 +71,13 @@ type Stage = "intro" | "gate" | "thread";
 // Phase 3 launcher-cart wiring. NOT added to guest-chat-contract.ts (shared
 // read-only); consumed here + the launcher only.
 type MiniChatPanelLocalProps = MiniChatPanelProps & {
+  /**
+   * Jon 360 Phase 7 — dark surface variant for noir tenants. Derived from the
+   * tenant's resolved background.mode at the mount and threaded down. A LOCAL
+   * prop (not on the shared read-only contract). Defaults to "light", so light
+   * tenants are byte-identical.
+   */
+  surfaceMode?: SurfaceMode;
   /** When true, render 2-pane expanded mode. Owned by TalentProfileChatLauncher. */
   expanded?: boolean;
   /** Toggle handler from TalentProfileChatLauncher's setExpanded. */
@@ -137,6 +145,7 @@ export function MiniChatPanel({
   onListRoster = null,
   soundOnReply = true,
   identity = "guest",
+  surfaceMode = "light",
   expanded = false,
   onToggleExpand,
   cartTalentIds,
@@ -149,6 +158,10 @@ export function MiniChatPanel({
 }: MiniChatPanelLocalProps) {
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
+  // Jon 360 Phase 7 — active C palette (light default; dark for noir tenants),
+  // threaded to the column + 2-pane shell; + full-screen mobile sheet signal.
+  const P = paletteFor(surfaceMode);
+  const compactSheet = useCompactViewport();
   const talentFirst = firstNameOf(brand.talentDisplayName);
   // Guest UI locale rides along on `brand` (resolved server-side from the
   // tenant's default_locale, since guests have no LOCALE_COOKIE).
@@ -659,6 +672,7 @@ export function MiniChatPanel({
     brand,
     accent,
     accentInk,
+    surfaceMode,
     talentFirst,
     tenantSlug,
     talentProfileId,
@@ -761,6 +775,7 @@ export function MiniChatPanel({
         right={<MiniChatPanelColumn {...columnProps} />}
         accent={accent}
         accentInk={accentInk}
+        surfaceMode={surfaceMode}
         ariaLabel={`Message ${brand.agencyName}`}
         inquiries={inquiries}
         activeInquiryId={inquiryId}
@@ -771,28 +786,13 @@ export function MiniChatPanel({
   }
 
   // ── Mini single-column mode (default) ─────────────────────────────────────
+  // Geometry (desktop card vs. full-screen mobile sheet) lives in geometry.ts.
   return (
     <div
       role="dialog"
       aria-modal="false"
       aria-label={`Message ${brand.agencyName}`}
-      style={{
-        position: "fixed",
-        right: "max(16px, env(safe-area-inset-right))",
-        bottom: `calc(${GUEST_CHAT_PANEL_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
-        zIndex: 90,
-        width: "min(380px, calc(100vw - 32px))",
-        maxHeight: "min(620px, calc(100vh - 140px))",
-        display: "flex",
-        flexDirection: "column",
-        background: C.surface,
-        borderRadius: 18,
-        border: `1px solid ${C.border}`,
-        boxShadow:
-          "0 24px 60px -18px rgba(16,18,29,0.45), 0 6px 18px -8px rgba(16,18,29,0.25)",
-        overflow: "hidden",
-        fontFamily: FONT,
-      }}
+      style={miniPanelContainerStyle(P, compactSheet)}
     >
       <MiniChatPanelColumn {...columnProps} />
     </div>

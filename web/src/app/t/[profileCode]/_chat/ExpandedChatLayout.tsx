@@ -20,11 +20,12 @@
 import type { ReactNode } from "react";
 
 import {
-  C,
   FONT,
   expandedShellStyle,
   leftPaneStyle,
+  paletteFor,
   rightPaneStyle,
+  type SurfaceMode,
 } from "./mini-chat-styles";
 import type { GuestInquirySummary } from "@/lib/inquiry/guest-chat-contract";
 import { GuestThreadSwitcher, type GuestThreadSwitcherProps } from "./GuestThreadSwitcher";
@@ -47,6 +48,8 @@ export type ExpandedChatLayoutProps = {
   activeInquiryId: string | null;
   seenAtByInquiry: Record<string, string>;
   onSelect: GuestThreadSwitcherProps["onSelect"];
+  /** Jon 360 Phase 7 — dark surface variant when the tenant theme is noir. */
+  surfaceMode?: SurfaceMode;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -62,23 +65,25 @@ export function ExpandedChatLayout({
   activeInquiryId,
   seenAtByInquiry,
   onSelect,
+  surfaceMode = "light",
 }: ExpandedChatLayoutProps) {
+  const P = paletteFor(surfaceMode);
   return (
     <div
       role="dialog"
       aria-modal="false"
       aria-label={ariaLabel}
-      style={expandedShellStyle}
+      style={expandedShellStyle(P)}
     >
       {/* Horizontal flex: left list + right thread */}
       <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
         {/* ── Left pane: conversation list ───────────────────────────────── */}
-        <div style={leftPaneStyle}>
+        <div style={leftPaneStyle(P)}>
           {/* Left pane header */}
           <div
             style={{
               padding: "13px 12px 10px",
-              borderBottom: `1px solid ${C.borderSoft}`,
+              borderBottom: `1px solid ${P.borderSoft}`,
               flexShrink: 0,
             }}
           >
@@ -86,7 +91,7 @@ export function ExpandedChatLayout({
               style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: C.inkMuted,
+                color: P.inkMuted,
                 letterSpacing: 0.6,
                 textTransform: "uppercase",
                 fontFamily: FONT,
@@ -103,7 +108,7 @@ export function ExpandedChatLayout({
                 style={{
                   padding: "14px 12px",
                   fontSize: 12,
-                  color: C.inkDim,
+                  color: P.inkDim,
                   fontFamily: FONT,
                 }}
               >

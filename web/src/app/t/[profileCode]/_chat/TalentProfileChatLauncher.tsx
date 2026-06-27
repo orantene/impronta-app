@@ -34,7 +34,15 @@ import {
   GUEST_CHAT_LAUNCHER_BOTTOM_PX,
   firstNameOf,
   readableOn,
+  type SurfaceMode,
 } from "./mini-chat-styles";
+
+// Jon 360 Phase 7 — `surfaceMode` is a LOCAL extension (the dark-surface signal
+// derived from the tenant's resolved background.mode), NOT added to the shared
+// read-only guest-chat-contract. Threaded launcher → panel.
+type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
+  surfaceMode?: SurfaceMode;
+};
 
 function subscribeNoop(): () => void {
   return () => undefined;
@@ -69,9 +77,19 @@ export function TalentProfileChatLauncher({
   label,
   className,
   openFullHref = null,
-}: TalentChatLauncherProps) {
+  surfaceMode = "light",
+}: TalentProfileChatLauncherLocalProps) {
   const mounted = useClientMounted();
   const [open, setOpen] = useState(false);
+  // Jon 360 Phase 7 — wire the pill's (previously dead) transform transition to a
+  // real hover/active lift. Reduced-motion-safe: the transitions/transforms are
+  // suppressed under prefers-reduced-motion below.
+  const [pillHover, setPillHover] = useState(false);
+  const [pillActive, setPillActive] = useState(false);
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // F4: expanded state — grows the panel into a 2-pane layout in-place.
   const [expanded, setExpanded] = useState(false);
   // When the +N chip / a rail avatar is tapped, open the panel scrolled to the
@@ -242,6 +260,13 @@ export function TalentProfileChatLauncher({
           ref={pillRef}
           type="button"
           onClick={() => setOpen((v) => !v)}
+          onMouseEnter={() => setPillHover(true)}
+          onMouseLeave={() => {
+            setPillHover(false);
+            setPillActive(false);
+          }}
+          onMouseDown={() => setPillActive(true)}
+          onMouseUp={() => setPillActive(false)}
           aria-label={launcherLabel}
           aria-expanded={open}
           className={className}
@@ -261,9 +286,21 @@ export function TalentProfileChatLauncher({
             fontWeight: 600,
             letterSpacing: 0.1,
             cursor: "pointer",
-            boxShadow:
-              "0 14px 34px -10px rgba(16,18,29,0.5), 0 4px 12px -4px rgba(16,18,29,0.3)",
-            transition: "transform 140ms ease, box-shadow 140ms ease",
+            // Lift on hover, press in on active. Reduced-motion → no transition +
+            // no transform (the box is static for motion-sensitive visitors).
+            boxShadow: pillHover
+              ? "0 20px 44px -10px rgba(16,18,29,0.55), 0 6px 16px -4px rgba(16,18,29,0.35)"
+              : "0 14px 34px -10px rgba(16,18,29,0.5), 0 4px 12px -4px rgba(16,18,29,0.3)",
+            transform: reduceMotion
+              ? "none"
+              : pillActive
+                ? "translateY(0) scale(0.98)"
+                : pillHover
+                  ? "translateY(-2px)"
+                  : "none",
+            transition: reduceMotion
+              ? "none"
+              : "transform 140ms ease, box-shadow 140ms ease",
           }}
         >
           {open ? (
@@ -272,6 +309,34 @@ export function TalentProfileChatLauncher({
             <ChatGlyph color={accentInk} />
           )}
           <span>{open ? "Close" : launcherLabel}</span>
+          {/* Jon 360 Phase 7 — cart count chip ON the pill. Shows how many talents
+              are in the inquiry cart (only when closed + non-empty). Frosted neutral
+              chip so it reads on any accent without re-clamping. */}
+          {!open && hasCart && (
+            <span
+              aria-hidden
+              style={{
+                minWidth: 20,
+                height: 20,
+                padding: "0 6px",
+                marginLeft: 1,
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.22)",
+                color: accentInk,
+                border: "1px solid rgba(255,255,255,0.4)",
+                fontSize: 12,
+                fontWeight: 700,
+                lineHeight: "18px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backdropFilter: "blur(4px)",
+                WebkitBackdropFilter: "blur(4px)",
+              }}
+            >
+              {cartTalents.length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -303,6 +368,7 @@ export function TalentProfileChatLauncher({
         talentProfileCode={talentProfileCode}
         sourcePage={sourcePage}
         brand={brand}
+        surfaceMode={surfaceMode}
         existingInquiryId={existingInquiryId}
         prefill={prefill}
         onStartInquiry={onStartInquiry}
