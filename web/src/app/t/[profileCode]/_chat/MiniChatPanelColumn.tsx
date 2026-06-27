@@ -35,6 +35,7 @@ import { interpolate } from "@/i18n/interpolate";
 import type { StreamRow } from "./MiniChatMessageBubble";
 
 import { ClaimEmailRecap } from "./ClaimEmailRecap";
+import { DraftPrivacyBanner } from "./DraftPrivacyBanner";
 import { GuestAccountToolkit } from "./GuestAccountToolkit";
 import { GuestDetailChips } from "./GuestDetailChips";
 import { InquiryDetailsRail } from "./InquiryDetailsRail";
@@ -45,7 +46,7 @@ import { MiniChatMessageBubble } from "./MiniChatMessageBubble";
 import { NewMessagePulse } from "./NewMessagePulse";
 import { OpenFullConversationLink } from "./OpenFullConversationLink";
 import { SendToAgencyBar } from "./SendToAgencyBar";
-import { SyncStatusBar } from "./SyncStatusBar";
+import { SentAirlock } from "./SentAirlock";
 import { TrustGateNudge } from "./TrustGateNudge";
 import {
   C,
@@ -127,13 +128,23 @@ export type MiniChatPanelColumnProps = {
   /** Kinds a remote edit just changed, for the accent flash (P1-T3). */
   chipRemoteFlashKinds?: GuestChipKind[];
   /**
-   * Finding #3: the panel-level sync state, rendered as a SyncStatusBar near the
-   * composer so failed Talent / Brief / Contact writes are visible (the rail
-   * editors close on submit, so a swallowed failure had no home).
+   * Finding #3: the panel-level sync state, folded into the DraftPrivacyBanner's
+   * sub-line so failed Talent / Brief / Contact writes are visible while the
+   * inquiry is a private draft (the rail editors close on submit).
    */
   syncState?: UnifiedSyncState;
-  /** Re-run the last failed patch (the SyncStatusBar's retry action). */
+  /** Re-run the last failed patch (the draft banner's retry action). */
   onRetrySync?: () => void;
+  /**
+   * Jon 360 Phase 1: the inquiry is a private draft (an early row exists but the
+   * contact is not yet promoted, so nothing has reached the agency). Drives the
+   * DraftPrivacyBanner, which subsumes the old SyncStatusBar save states.
+   */
+  inquiryRecordExists?: boolean;
+  /** Whether the inquiry's contact has been promoted (real send happened). */
+  contactPromoted?: boolean;
+  /** Play the SENT airlock overlay (a real send just succeeded). */
+  showSentAirlock?: boolean;
   /**
    * Finding #2: the explicit "Send to agency" submit. Forces the ContactCard gate
    * when contact is still the placeholder seed, then confirms via `sentNote`.
@@ -256,6 +267,9 @@ export function MiniChatPanelColumn({
   chipRemoteFlashKinds = [],
   syncState = "idle",
   onRetrySync,
+  inquiryRecordExists = false,
+  contactPromoted = false,
+  showSentAirlock = false,
   onSendToAgency,
   sentNote = false,
   extrasEnabled = false,
@@ -281,6 +295,15 @@ export function MiniChatPanelColumn({
   const guestContactEmail =
     (emailedTo ?? prefill?.email ?? email.trim()) || null;
   const showGate = stage === "gate";
+  // Jon 360 Phase 1: the inquiry is a private draft while its early row exists but
+  // the contact is not yet promoted (nothing has reached the agency). Hidden at the
+  // gate (the gate is its own moment) and once the airlock plays.
+  const isPrivateDraft =
+    extrasEnabled &&
+    inquiryRecordExists &&
+    !contactPromoted &&
+    !showGate &&
+    !showSentAirlock;
 
   return (
     <>
@@ -374,10 +397,25 @@ export function MiniChatPanelColumn({
         />
       )}
 
+      {/* ── Jon 360 Phase 1: draft-privacy banner (above the thread) ───────
+          Shown only while the inquiry is a private draft (early row exists, not
+          yet sent). Subsumes the old SyncStatusBar: the three save states fold
+          into its sub-line. */}
+      {isPrivateDraft && (
+        <DraftPrivacyBanner
+          agencyName={brand.agencyName}
+          syncState={syncState}
+          t={t}
+          onRetry={onRetrySync}
+        />
+      )}
+
       {/* ── Body ──────────────────────────────────────────────────────── */}
       <div
         ref={scrollRef}
         style={{
+          // position:relative anchors the SENT airlock overlay to the body box.
+          position: "relative",
           flex: 1,
           // minHeight:0 lets the conversation body yield vertical room to the
           // bounded details rail (compact panel) instead of forcing the column
@@ -391,6 +429,11 @@ export function MiniChatPanelColumn({
           background: C.surface,
         }}
       >
+        {/* Jon 360 Phase 1: SENT airlock — non-blocking overlay on a real send. */}
+        {showSentAirlock && (
+          <SentAirlock agencyName={brand.agencyName} accent={accent} t={t} />
+        )}
+
         <NewMessagePulse active={pulseActive} accent={accent} />
 
         <div
@@ -608,10 +651,9 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {/* ── Sync status (finding #3): make swallowed save failures visible ── */}
-      {!showGate && extrasEnabled && (
-        <SyncStatusBar state={syncState} t={t} onRetry={onRetrySync} />
-      )}
+      {/* Sync status (finding #3) is now subsumed by the DraftPrivacyBanner above
+          the thread, which folds the saving / saved / error states into its
+          sub-line while the inquiry is a private draft. */}
 
       {/* ── Composer ─────────────────────────────────────────────────────── */}
       {!showGate && (
@@ -643,6 +685,7 @@ export function MiniChatPanelColumn({
           t={t}
           disabled={sending || inCooldown}
           sent={sentNote}
+          typicalReply={typicalReply}
           onSend={onSendToAgency}
         />
       )}

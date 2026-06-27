@@ -22,6 +22,7 @@
 import type { CSSProperties } from "react";
 
 import type { Translator } from "@/i18n/interpolate";
+import { interpolate } from "@/i18n/interpolate";
 import { C, FONT, primaryBtnStyle } from "./mini-chat-styles";
 
 export type SendToAgencyBarProps = {
@@ -35,6 +36,12 @@ export type SendToAgencyBarProps = {
   disabled?: boolean;
   /** Whether to show the post-send success confirmation note. */
   sent: boolean;
+  /**
+   * Jon 360 Phase 1: the agency's typical reply window (e.g. "within a day").
+   * When present it renders a quiet pre-frame line under the button; when null it
+   * is omitted entirely (never invent a duration).
+   */
+  typicalReply?: string | null;
   /** Trigger the send-to-agency flow (gate when needed, else submit). */
   onSend: () => void;
 };
@@ -55,6 +62,7 @@ export function SendToAgencyBar({
   t,
   disabled = false,
   sent,
+  typicalReply = null,
   onSend,
 }: SendToAgencyBarProps) {
   if (sent) {
@@ -92,6 +100,34 @@ export function SendToAgencyBar({
       >
         {t("public.guestChat.sendToAgency")}
       </button>
+
+      {/* Jon 360 Phase 1: trust pre-frame under the Send button. */}
+      <p
+        style={{
+          margin: 0,
+          fontSize: 11,
+          fontWeight: 500,
+          color: C.inkMuted,
+          textAlign: "center",
+          lineHeight: 1.4,
+        }}
+      >
+        {t("public.guestChat.sendNoPayment")}
+      </p>
+      {typicalReply ? (
+        <p
+          style={{
+            margin: 0,
+            fontSize: 11,
+            fontWeight: 500,
+            color: C.inkDim,
+            textAlign: "center",
+            lineHeight: 1.4,
+          }}
+        >
+          {interpolate(t("public.guestChat.sendTypicalReply"), { when: typicalReply })}
+        </p>
+      ) : null}
     </div>
   );
 }

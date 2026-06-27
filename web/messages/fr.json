@@ -187,7 +187,16 @@
       "sendToAgencySent": "Envoyé. L'agence répondra sous peu.",
       "syncSaving": "Enregistrement…",
       "syncSaved": "Enregistré",
-      "syncRetry": "Échec de l'enregistrement, touchez pour réessayer."
+      "syncRetry": "Échec de l'enregistrement, touchez pour réessayer.",
+      "draftTitle": "Brouillon. Vous seul pouvez le voir.",
+      "draftSubline": "Enregistre automatiquement. Envoyez quand vous etes pret et {agency} le recevra.",
+      "draftSaving": "Enregistrement...",
+      "draftSaved": "Enregistre automatiquement.",
+      "draftSaveError": "Impossible d'enregistrer votre derniere modification. Touchez pour reessayer.",
+      "sentAirlockSending": "Envoye a {agency}.",
+      "sentAirlockResolved": "{agency} a votre demande.",
+      "sendNoPayment": "Aucun paiement maintenant. Envoyer demarre une conversation, pas une reservation.",
+      "sendTypicalReply": "Repond generalement {when}."
     }
   },
   "dashboard": {

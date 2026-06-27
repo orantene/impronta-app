@@ -719,7 +719,16 @@
       "sendToAgencySent": "Enviado. La agencia te responderá en breve.",
       "syncSaving": "Guardando…",
       "syncSaved": "Guardado",
-      "syncRetry": "No se pudo guardar, toca para reintentar."
+      "syncRetry": "No se pudo guardar, toca para reintentar.",
+      "draftTitle": "Borrador. Solo tu puedes verlo.",
+      "draftSubline": "Se guarda automaticamente. Envialo cuando estes listo y {agency} lo recibira.",
+      "draftSaving": "Guardando...",
+      "draftSaved": "Se guarda automaticamente.",
+      "draftSaveError": "No pudimos guardar tu ultimo cambio. Toca para reintentar.",
+      "sentAirlockSending": "Enviado a {agency}.",
+      "sentAirlockResolved": "{agency} tiene tu solicitud.",
+      "sendNoPayment": "Sin pago ahora. Enviar inicia una conversacion, no una reserva.",
+      "sendTypicalReply": "Suele responder {when}."
     }
   },
   "dashboard": {

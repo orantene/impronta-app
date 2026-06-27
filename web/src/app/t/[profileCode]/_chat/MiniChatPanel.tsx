@@ -8,19 +8,15 @@
  * fills a one-line name+email gate, and a real inquiry is created. The thread
  * then renders live (initial load + ~4s poll) and the guest keeps chatting.
  *
- * F4 (Lane C): the panel can be expanded in-place into a 2-pane layout via
- * the `expanded` + `onToggleExpand` local props (intersected onto MiniChatPanelProps).
- * When expanded, ExpandedChatLayout wraps MiniChatPanelColumn as the right pane
- * and adds a left conversation-list pane.
+ * F4 (Lane C): the panel can be expanded in-place into a 2-pane layout via the
+ * `expanded` + `onToggleExpand` local props; ExpandedChatLayout wraps
+ * MiniChatPanelColumn as the right pane and adds a left conversation-list pane.
  *
- * Design constraints baked in (strategy §10 + deep-dives Part C):
- *   • Async-first, honest presence — NO fake "online now".
- *   • First message is NEVER blocked — the email gate appears at send time.
- *   • Premium, brand-skinned — NO gold/rust accents hard-coded (house rule).
- *   • The UI imports NO backend module — actions arrive as injected callbacks.
- *
- * Memoization note: this codebase runs under the React Compiler, so this file
- * deliberately uses plain functions (no manual useCallback/useMemo).
+ * Design constraints (strategy §10 + deep-dives Part C): async-first honest
+ * presence (NO fake "online now"); first message NEVER blocked (gate at send
+ * time); NO gold/rust accents hard-coded; the UI imports NO backend module
+ * (actions arrive as injected callbacks). Runs under the React Compiler, so plain
+ * functions are used (no manual useCallback/useMemo).
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -44,6 +40,7 @@ import { usePresenceChime } from "./usePresenceChime";
 import { useUnifiedInquiry } from "./use-unified-inquiry";
 import type { UnifiedInquiryPatch } from "./use-unified-inquiry";
 import { useMiniChatSend } from "./use-mini-chat-send";
+import { useSentAirlock } from "./use-sent-airlock";
 import { useCartTalentPreload } from "./use-cart-talent-preload";
 import {
   NOOP_CAPTURE_CHIP,
@@ -87,11 +84,10 @@ type MiniChatPanelLocalProps = MiniChatPanelProps & {
   /** Remove a talent from the cart (mirrors the rail X; single source). */
   onRemoveCartTalent?: (talentProfileId: string) => void;
   /**
-   * Register the panel's unified talent-patch runner up to the launcher (B6).
-   * The rail X-remove uses it so a remove routes through the SAME
-   * useUnifiedInquiry.patch path as an in-chat talent change — same saving
-   * state, grace window (no self-echo), and retry surface as the add path.
-   * Called with the FULL remaining selected_ids set (replace semantics).
+   * Register the panel's unified talent-patch runner up to the launcher (B6) so a
+   * rail X-remove routes through the SAME useUnifiedInquiry.patch path as an
+   * in-chat change (same saving state, grace window, retry). Called with the FULL
+   * remaining selected_ids set (replace semantics).
    */
   onRegisterRemoveTalent?: (
     runner:
@@ -104,9 +100,8 @@ type MiniChatPanelLocalProps = MiniChatPanelProps & {
   ) => void;
   /**
    * Report the live inquiry id up to the launcher whenever it resolves (early-row
-   * create / resume / switch). The launcher uses it so a rail X-remove can patch
-   * the inquiry record's talent.selected_ids in sync with the cart, WITHOUT
-   * spawning a fresh row when no inquiry exists yet (id stays null until a real
+   * create / resume / switch), so a rail X-remove can patch talent.selected_ids in
+   * sync with the cart WITHOUT spawning a fresh row (id stays null until a real
    * structured commit creates one).
    */
   onInquiryIdChange?: (inquiryId: string | null) => void;
@@ -209,7 +204,9 @@ export function MiniChatPanel({
 
   // Finding #2: post-"Send to agency" success note (one-shot confirmation).
   const [sentNote, setSentNote] = useState(false);
-  // Finding #3: the last patch sent, so the SyncStatusBar retry can re-run the
+  // Jon 360 Phase 1: the SENT airlock beat, played on a REAL send-success only.
+  const { showSentAirlock, trigger: triggerSentAirlock } = useSentAirlock();
+  // Finding #3: the last patch sent, so the draft banner's retry can re-run the
   // exact failed write rather than guessing which field failed.
   const lastPatchRef = useRef<UnifiedInquiryPatch | null>(null);
 
@@ -248,8 +245,7 @@ export function MiniChatPanel({
     onInquiryIdChange?.(inquiryId);
   }, [inquiryId, onInquiryIdChange]);
 
-  // Phase 3: opening the pill with cart talent preloads them into the inquiry
-  // Talent selection (see use-cart-talent-preload).
+  // Phase 3: opening the pill with cart talent preloads them (use-cart-talent-preload).
   useCartTalentPreload({
     open,
     cartTalentIds,
@@ -537,10 +533,13 @@ export function MiniChatPanel({
     lastSeenIsoRef,
     mergeServer,
     applyFailure,
-    onSent: () => setSentNote(true),
+    onSent: () => {
+      setSentNote(true);
+      triggerSentAirlock();
+    },
   });
 
-  // Finding #3: re-run the exact last failed patch when the SyncStatusBar retry
+  // Finding #3: re-run the exact last failed patch when the draft banner's retry
   // is tapped (no-op when nothing has been patched yet).
   function handleRetrySync() {
     const last = lastPatchRef.current;
@@ -575,10 +574,9 @@ export function MiniChatPanel({
   // B6: register the unified talent-patch runner up to the launcher so the rail
   // X-remove routes the RECORD write through the SAME useUnifiedInquiry.patch path
   // as the in-chat change above (same saving state + grace window + retry). The
-  // launcher owns the local cart op, so this runner only does the record write
-  // (it does NOT re-mirror via reconcileCartRemovals, which would recurse back
-  // into the launcher's own cart removal). Add and remove are now symmetric: both
-  // patch { kind:"talent" } with the resulting full selected_ids set.
+  // launcher owns the local cart op, so this runner does only the record write (no
+  // reconcileCartRemovals re-mirror — that would recurse into the launcher's own
+  // cart removal). Add and remove patch { kind:"talent" } with the full id set.
   const unifiedPatch = unified.patch;
   useEffect(() => {
     if (!onRegisterRemoveTalent) return;
@@ -689,8 +687,7 @@ export function MiniChatPanel({
     captchaRequired,
     onClose,
     onDraftChange: (v: string) => {
-      // Resuming composing clears the one-shot "Sent." note (finding #2).
-      if (sentNote) setSentNote(false);
+      if (sentNote) setSentNote(false); // resuming composing clears the Sent note
       setDraft(v);
     },
     onFirstNameChange: setFirstName,
@@ -719,6 +716,10 @@ export function MiniChatPanel({
     // Finding #3: panel-level sync visibility + retry of the last failed patch.
     syncState: unified.syncState,
     onRetrySync: handleRetrySync,
+    // Jon 360 Phase 1: draft = early row exists but contact not yet promoted.
+    inquiryRecordExists: Boolean(inquiryId),
+    contactPromoted: unified.contactPromoted,
+    showSentAirlock,
     // Finding #2: the explicit "Send to agency" CTA. Hidden once the thread is a
     // live, contact-promoted conversation (the composer carries the reply flow).
     onSendToAgency:

@@ -719,7 +719,16 @@
       "sendToAgencySent": "Sent. The agency will reply shortly.",
       "syncSaving": "Saving…",
       "syncSaved": "Saved",
-      "syncRetry": "Couldn't save, tap to retry."
+      "syncRetry": "Couldn't save, tap to retry.",
+      "draftTitle": "Draft. Only you can see this.",
+      "draftSubline": "Saved automatically. Send when you are ready and {agency} will get it.",
+      "draftSaving": "Saving...",
+      "draftSaved": "Saved automatically.",
+      "draftSaveError": "Could not save your last change. Tap to retry.",
+      "sentAirlockSending": "Sent to {agency}.",
+      "sentAirlockResolved": "{agency} has your inquiry.",
+      "sendNoPayment": "No payment now. Sending starts a conversation, not a booking.",
+      "sendTypicalReply": "They typically reply {when}."
     }
   },
   "dashboard": {
