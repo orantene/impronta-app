@@ -30,6 +30,9 @@
 import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
 import { surfaceModeFromBackgroundMode } from "./mini-chat-styles";
 import { createTranslator } from "@/i18n/messages";
+import {
+  resolveLauncherLifecycleInputs,
+} from "./launcher-lifecycle-inputs";
 // Real Lane A server actions (the build stub was removed at integration). These
 // match the contract callbacks 1:1, so they pass straight into the launcher.
 import {
@@ -115,6 +118,14 @@ export async function TalentProfileChatLauncherMount({
   const resume = await getActiveGuestInquiry({ tenantSlug, talentProfileId });
   const active = resume.ok ? resume.active : null;
 
+  // Phase 3 — resolve the resolver-driven label's lifecycle inputs server-side
+  // (phase / coordinator / last-message-role / other-open) from the same guest
+  // actions, so the client launcher stays backend-free.
+  const lifecycle = await resolveLauncherLifecycleInputs({
+    tenantSlug,
+    activeInquiryId: active?.inquiryId ?? null,
+  });
+
   return (
     <TalentProfileChatLauncher
       tenantSlug={tenantSlug}
@@ -148,6 +159,15 @@ export async function TalentProfileChatLauncherMount({
       soundOnReply
       openFullHref={openFullHref}
       surfaceMode={surfaceModeFromBackgroundMode(backgroundMode)}
+      activePhase={lifecycle.activePhase}
+      activeStatus={lifecycle.activeStatus}
+      coordinatorId={lifecycle.coordinatorId}
+      lastMessageRole={lifecycle.lastMessageRole}
+      lastActivityAt={lifecycle.lastActivityAt}
+      hasActiveDraft={lifecycle.hasActiveDraft}
+      draftInquiryId={lifecycle.draftInquiryId}
+      otherOpenInquiries={lifecycle.otherOpenInquiries}
+      ctaIdentity="guest"
     />
   );
 }

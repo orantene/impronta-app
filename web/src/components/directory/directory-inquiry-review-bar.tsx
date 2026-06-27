@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Send } from "lucide-react";
 
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
+import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { clientDirectoryHref } from "@/i18n/client-directory-href";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
@@ -15,30 +16,39 @@ import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
  * composer on the grid was a tiny unlabeled header Send icon, so filled carts
  * quietly became lost revenue (directory audit, top finding). This floats a
  * labeled gold "open inquiry · N" pill bottom-centre whenever the cart has
- * talent, mounting the same `openInquiry()` the header icon uses. Renders
- * nothing when the cart is empty / inquiry can't open on this surface, so it
- * never adds chrome for a visitor who hasn't shortlisted anyone.
+ * talent.
+ *
+ * Phase 3 — the canonical inquiry surface is the floating CHAT launcher, not the
+ * legacy InquiryDrawer sheet. So this bar now asks the chat launcher to open
+ * (preloaded with the lineup) via `requestOpenChat()` on the shared modal
+ * context, falling back to the `?inquiry=open` URL trigger on surfaces without
+ * the provider (no dead-end). Renders nothing when the cart is empty.
  */
 export function DirectoryInquiryReviewBar({ ui }: { ui: DirectoryUiCopy }) {
   const pathname = usePathname();
   const router = useRouter();
   const cart = useInquiryCart();
+  const inquiryModal = useOptionalDirectoryInquiryModal();
 
   // Show whenever the cart has talent (not gated on the modal provider) so the
-  // bar and the header inquiry icon agree across surfaces. When the composer
-  // can open here, open it in place; otherwise route to the directory and
-  // auto-open it there (no dead-end).
+  // bar and the header inquiry icon agree across surfaces. When the chat
+  // launcher is mounted here, open it in place; otherwise route to the directory
+  // and let the launcher open there (no dead-end).
   if (!cart.isReady || cart.cartCount === 0) return null;
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-4">
       <button
         type="button"
-        onClick={() =>
-          cart.canOpenInquiry
-            ? cart.openInquiry({ sourcePage: pathname })
-            : router.push(clientDirectoryHref(pathname, "?inquiry=open"))
-        }
+        onClick={() => {
+          if (inquiryModal) {
+            // Open the canonical chat surface (NOT the legacy drawer). Source
+            // attribution was already seeded when talent were added to the cart.
+            inquiryModal.requestOpenChat();
+            return;
+          }
+          router.push(clientDirectoryHref(pathname, "?inquiry=open"));
+        }}
         className="pointer-events-auto inline-flex items-center gap-2.5 rounded-full border border-[var(--dir-accent)] bg-[color-mix(in_srgb,var(--dir-accent)_22%,rgba(0,0,0,0.82))] px-5 py-3 text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--impronta-gold-bright)] shadow-[0_12px_44px_-12px_rgba(0,0,0,0.85)] backdrop-blur-md transition-colors hover:bg-[color-mix(in_srgb,var(--dir-accent)_32%,rgba(0,0,0,0.82))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--dir-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <Send className="size-4" aria-hidden />

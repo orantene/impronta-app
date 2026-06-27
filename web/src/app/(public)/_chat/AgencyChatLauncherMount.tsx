@@ -12,6 +12,7 @@
 
 import { TalentProfileChatLauncher } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncher";
 import { surfaceModeFromBackgroundMode } from "@/app/t/[profileCode]/_chat/mini-chat-styles";
+import { resolveLauncherLifecycleInputs } from "@/app/t/[profileCode]/_chat/launcher-lifecycle-inputs";
 import {
   checkGuestClaimEmail,
   getGuestThreadMessages,
@@ -129,6 +130,14 @@ export async function AgencyChatLauncherMount({
       ? (theme["background.mode"] as string)
       : null;
 
+  // Phase 3 — talent-less launcher: no resume anchor, so auto-anchor on the
+  // guest's most-recent live inquiry on this tenant for the sent/replied label.
+  const lifecycle = await resolveLauncherLifecycleInputs({
+    tenantSlug,
+    activeInquiryId: null,
+    autoAnchorLatest: true,
+  });
+
   return (
     <TalentProfileChatLauncher
       tenantSlug={tenantSlug}
@@ -164,6 +173,15 @@ export async function AgencyChatLauncherMount({
       soundOnReply
       openFullHref={null}
       surfaceMode={surfaceModeFromBackgroundMode(backgroundMode)}
+      activePhase={lifecycle.activePhase}
+      activeStatus={lifecycle.activeStatus}
+      coordinatorId={lifecycle.coordinatorId}
+      lastMessageRole={lifecycle.lastMessageRole}
+      lastActivityAt={lifecycle.lastActivityAt}
+      hasActiveDraft={lifecycle.hasActiveDraft}
+      draftInquiryId={lifecycle.draftInquiryId}
+      otherOpenInquiries={lifecycle.otherOpenInquiries}
+      ctaIdentity="guest"
     />
   );
 }

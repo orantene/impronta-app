@@ -1,29 +1,32 @@
 "use client";
 
 /**
- * TalentProfileInquireButton — public-talent-profile "Inquire about X" CTA.
+ * TalentProfileInquireButton — public-talent-profile primary inquiry CTA.
  *
- * Phase B-4 (2026-05-14) rewrite: now wraps the canonical InquiryDrawer
- * (web/src/components/inquiry/InquiryDrawer.tsx) per spec
- * web/docs/inquiry-engine-spec-2026-05-14.md. Source =
- * "public_talent_profile". Talent is pre-attached via initialIntent.
+ * Phase 3 collapse (Jon 360): this used to be a PARALLEL front door — it built a
+ * fresh single-talent InquiryIntent (oneTalentRoster, selected_ids:[talentId])
+ * and, for GUESTS, submitted it immediately. That dropped any lineup the visitor
+ * had built and spawned a competing inquiry alongside the chat launcher.
  *
- * Guest path: the drawer renders with name/email/phone fields visible and
- * autosave disabled (no draft for guests — they submit immediately and
- * receive a magic link after the inquiry lands).
- *
- * Logged-in path: prefilled requester info + trust card showing
- * verification + member info.
+ * Locked owner decision 2: remove ONLY the guest instant-submit path. The chat
+ * launcher (TalentProfileChatLauncher) is the ONE canonical inquiry surface, so
+ * the guest CTA now ADDS this talent to the shared lineup and opens the chat
+ * (resolver-driven), never a parallel composer. The InquiryDrawer is KEPT as the
+ * synced expanded form-view for LOGGED-IN CLIENTS only (draft autosave, not an
+ * instant submit) — reachable as a quiet secondary, the same inquiry expanded.
  */
 
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { Mail, X } from "lucide-react";
+import { Mail } from "lucide-react";
 
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { Button } from "@/components/ui/button";
 import { getTalentProfileInquireData } from "./talent-profile-inquire-data";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
+import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
+import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
+import { registerCartTalent } from "@/app/t/[profileCode]/_chat/cart-talent-registry";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,6 +44,8 @@ type TalentProfileInquireButtonProps = {
   agencyName?: string;
   /** Source page for analytics + source attribution (e.g. /t/TA-12345). */
   sourcePage: string;
+  /** Optional portrait for the lineup avatar fly/registry. */
+  portraitUrl?: string | null;
   /** Button className override — caller controls placement context. */
   className?: string;
 };
@@ -66,11 +71,14 @@ export function TalentProfileInquireButton({
   tenantSlug,
   agencyName,
   sourcePage,
+  portraitUrl = null,
   className,
 }: TalentProfileInquireButtonProps) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<InquireData | null>(null);
   const [, startTransition] = useTransition();
+  const cart = useInquiryCart();
+  const inquiryModal = useOptionalDirectoryInquiryModal();
 
   const loadData = useCallback(() => {
     startTransition(async () => {
@@ -86,43 +94,58 @@ export function TalentProfileInquireButton({
     });
   }, []);
 
-  // Pre-load on mount so the drawer opens instantly when clicked.
+  // Pre-load on mount so we know guest-vs-client before the first click (the
+  // guest path never opens the drawer, the client path opens it instantly).
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only prefetch: loadData is a stable useCallback with [] deps; preloads drawer data once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only prefetch: loadData is a stable useCallback with [] deps
   }, []);
-
-  const handleOpen = () => {
-    if (!data) loadData();
-    trackProductEvent(PRODUCT_ANALYTICS_EVENTS.start_inquiry, {
-      talent_id: talentId,
-      source_page: sourcePage,
-    });
-    setOpen(true);
-  };
 
   const firstName = displayName.split(" ")[0] ?? displayName;
   const isLoggedIn = data?.pov === "client";
 
-  // Roster passed to the drawer's talent picker. For the public profile
-  // path we only ship the one talent the visitor is inquiring about —
-  // they can browse the agency's other talent on Discover before deciding
-  // to inquire.
-  const oneTalentRoster = [
-    {
-      id: talentId,
-      name: displayName,
-    },
-  ];
+  const handleClick = () => {
+    trackProductEvent(PRODUCT_ANALYTICS_EVENTS.start_inquiry, {
+      talent_id: talentId,
+      source_page: sourcePage,
+    });
+
+    // GUEST (or pov still resolving): the canonical surface is the chat launcher.
+    // Add this talent to the shared lineup (so the chat opens preloaded + the
+    // rail avatar appears) and ask the launcher to open. NO parallel composer,
+    // NO instant submit, the lineup is preserved.
+    if (!isLoggedIn) {
+      registerCartTalent(talentId, { displayName, portraitUrl });
+      if (!cart.isInCart(talentId)) {
+        cart.setInCart(
+          { talentProfileId: talentId, profileCode: talentProfileCode, displayName },
+          true,
+          sourcePage,
+        );
+      }
+      inquiryModal?.requestOpenChat();
+      return;
+    }
+
+    // LOGGED-IN CLIENT: the InquiryDrawer is the synced form-view (draft
+    // autosave, never an instant submit). Open it as the expanded form.
+    if (!data) loadData();
+    setOpen(true);
+  };
+
+  // Roster passed to the drawer's talent picker (client form-view only).
+  const oneTalentRoster = [{ id: talentId, name: displayName }];
 
   return (
     <>
-      <Button type="button" onClick={handleOpen} className={className}>
+      <Button type="button" onClick={handleClick} className={className}>
         <Mail className="size-4" />
         Inquire about {firstName}
       </Button>
 
-      {open && data && (
+      {/* Client-only synced form-view of the SAME inquiry. Guests never reach
+          this — they use the chat launcher (the one canonical surface). */}
+      {isLoggedIn && open && data && (
         <InquiryDrawer
           source="public_talent_profile"
           initialIntent={{
@@ -130,8 +153,8 @@ export function TalentProfileInquireButton({
               name: data.defaultName ?? "",
               email: data.defaultEmail ?? "",
               phone: data.defaultPhone ?? "",
-              user_id: isLoggedIn ? data.userId ?? null : null,
-              trust_level: isLoggedIn ? "verified" : "basic",
+              user_id: data.userId ?? null,
+              trust_level: "verified",
             },
             client: {
               company: data.defaultCompany ?? "",
@@ -149,41 +172,18 @@ export function TalentProfileInquireButton({
           }}
           tenantSlug={tenantSlug}
           agencyName={agencyName ?? "the agency"}
-          client={
-            isLoggedIn
-              ? {
-                  user_id: data.userId ?? null,
-                  displayName: data.defaultName,
-                  email: data.defaultEmail,
-                  phone: data.defaultPhone,
-                  company: data.defaultCompany,
-                  trust_level: "verified",
-                }
-              : null
-          }
+          client={{
+            user_id: data.userId ?? null,
+            displayName: data.defaultName,
+            email: data.defaultEmail,
+            phone: data.defaultPhone,
+            company: data.defaultCompany,
+            trust_level: "verified",
+          }}
           roster={oneTalentRoster}
-          // Guests submit immediately; logged-in clients can draft.
-          enableDraftAutosave={isLoggedIn}
+          enableDraftAutosave
           onClose={() => setOpen(false)}
         />
-      )}
-
-      {/* When data is still loading and the user clicks fast, we show a
-          minimal fallback so the click isn't lost. Hidden under the
-          backdrop the drawer renders. */}
-      {open && !data && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Loading inquiry form"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40"
-          onClick={() => setOpen(false)}
-        >
-          <div className="rounded-lg bg-white px-6 py-4 text-sm text-foreground shadow-lg">
-            Loading inquiry form…
-            <X className="ml-3 inline size-4 cursor-pointer text-muted-foreground" />
-          </div>
-        </div>
       )}
     </>
   );

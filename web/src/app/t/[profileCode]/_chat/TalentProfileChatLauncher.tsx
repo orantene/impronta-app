@@ -20,7 +20,15 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 
 import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
+import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { createTranslator } from "@/i18n/messages";
+import {
+  resolveInquiryCta,
+  type LastMessageRole,
+  type OtherOpenInquiry,
+} from "@/lib/inquiry/inquiry-context-resolver";
+import type { InquiryWorkflowPhase } from "@/lib/inquiry/inquiry-lifecycle";
+import { launcherLabelForCta } from "@/lib/inquiry/launcher-cta-label";
 
 import { MiniChatPanel } from "./MiniChatPanel";
 import { LauncherAvatarStack } from "./LauncherAvatarStack";
@@ -42,6 +50,22 @@ import {
 // read-only guest-chat-contract. Threaded launcher → panel.
 type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   surfaceMode?: SurfaceMode;
+  /**
+   * Phase 3 — lifecycle inputs for the resolver-driven pill label, resolved
+   * server-side at the Mount seam (from getActiveGuestInquiry +
+   * getGuestThreadMessages + listGuestInquiries) and passed as plain props so
+   * the client bundle stays backend-free. All optional: when none are supplied
+   * the resolver falls back to the lineup-only states (empty -> "Message X").
+   */
+  activePhase?: InquiryWorkflowPhase | null;
+  activeStatus?: string | null;
+  coordinatorId?: string | null;
+  lastMessageRole?: LastMessageRole;
+  lastActivityAt?: string | null;
+  hasActiveDraft?: boolean;
+  draftInquiryId?: string | null;
+  otherOpenInquiries?: OtherOpenInquiry[];
+  ctaIdentity?: "guest" | "client";
 };
 
 function subscribeNoop(): () => void {
@@ -74,10 +98,20 @@ export function TalentProfileChatLauncher({
   onResolveCartPortraits = null,
   soundOnReply = true,
   identity = "guest",
-  label,
+  // `label` (legacy static override) is intentionally NOT destructured: the
+  // lifecycle-aware resolver now owns the pill copy (locked decision 1).
   className,
   openFullHref = null,
   surfaceMode = "light",
+  activePhase = null,
+  activeStatus = null,
+  coordinatorId = null,
+  lastMessageRole = null,
+  lastActivityAt = null,
+  hasActiveDraft = false,
+  draftInquiryId = null,
+  otherOpenInquiries = [],
+  ctaIdentity = "guest",
 }: TalentProfileChatLauncherLocalProps) {
   const mounted = useClientMounted();
   const [open, setOpen] = useState(false);
@@ -101,6 +135,11 @@ export function TalentProfileChatLauncher({
   // (useInquiryCart().cartIds) joined with portrait/name data the directory cards
   // registered as they were added (cart-talent-registry). No second cart store.
   const cart = useInquiryCart();
+  // Phase 3 — the canonical inquiry surface. Directory front doors (review bar,
+  // header Send icon, ?inquiry=open) bump `openChatCue` on this shared context
+  // to open THIS panel instead of the legacy InquiryDrawer sheet.
+  const inquiryModal = useOptionalDirectoryInquiryModal();
+  const openChatCue = inquiryModal?.openChatCue ?? 0;
   const registry = useCartTalentRegistry();
   const cartTalents = useCartTalents(registry);
   // Cold-load backfill: cart ids restored from saved_talent aren't in the
@@ -187,6 +226,27 @@ export function TalentProfileChatLauncher({
     }
   }, [open, openStateKey]);
 
+  // Phase 3 — announce this launcher to the shared modal context so a repointed
+  // front door's requestOpenChat() targets the chat surface (and falls back to
+  // the legacy sheet only when no launcher is mounted).
+  const registerChatLauncher = inquiryModal?.registerChatLauncher;
+  useEffect(() => {
+    if (!registerChatLauncher) return;
+    return registerChatLauncher();
+  }, [registerChatLauncher]);
+
+  // Phase 3 — open this panel when a repointed directory front door asks for it
+  // (the cue is a monotonically-increasing counter; the initial 0 is ignored so
+  // the panel never auto-opens on mount). This is what makes the chat launcher
+  // the single canonical inquiry surface.
+  const lastOpenChatCue = useRef(openChatCue);
+  useEffect(() => {
+    if (openChatCue === 0) return;
+    if (openChatCue === lastOpenChatCue.current) return;
+    lastOpenChatCue.current = openChatCue;
+    setOpen(true);
+  }, [openChatCue]);
+
   // Stable names array — cartTalents is already identity-stable (useCartTalents
   // memoizes on its signature), so this yields a stable reference and avoids
   // forcing the whole MiniChatPanel subtree to reconcile on every parent render.
@@ -201,7 +261,44 @@ export function TalentProfileChatLauncher({
   // Guest UI locale rides along on `brand` (resolved server-side from the
   // tenant's default_locale, since guests have no LOCALE_COOKIE).
   const t = createTranslator(brand.locale ?? "en");
-  const launcherLabel = label ?? `Message ${talentFirst}`;
+
+  // Phase 3 — lifecycle-aware pill label (locked decision 1). The resolver owns
+  // the STATE; launcherLabelForCta owns the launcher copy. Lineup inputs come
+  // from the live cart (cartIds/cartCount); the active-inquiry inputs (phase /
+  // coordinator / last-message-role / drafts / other-open) were resolved
+  // server-side at the Mount and arrive as plain props. A talent-focused
+  // launcher passes its talentProfileId; the agency launcher passes "" -> null
+  // focus, which maps to the lineup-review states.
+  const focusTalentId = talentProfileId && talentProfileId.length > 0 ? talentProfileId : null;
+  const ctaState = resolveInquiryCta({
+    talentProfileId: focusTalentId,
+    isInLineup: focusTalentId ? cart.isInCart(focusTalentId) : false,
+    lineupCount: cart.cartCount,
+    lineupTalentIds: [...cart.cartIds],
+    contactPromoted: false,
+    hasActiveDraft,
+    draftInquiryId,
+    activePhase,
+    activeStatus,
+    otherOpenInquiries,
+    identity: ctaIdentity,
+    lastActivityAt,
+    coordinatorId,
+    lastMessageRole,
+  });
+  // Brand voice for the empty / replied / closed states. The launcher reads as
+  // "Message {agency}" when empty (locked decision 1 — the lifecycle-aware label
+  // OWNS the pill copy now; the legacy static `label` prop no longer overrides
+  // it, so a stale "Book Now" never wins over the resolver state).
+  const brandVoice = brand.agencyName?.trim() || talentFirst;
+  const launcherLabel = launcherLabelForCta(ctaState, t, brandVoice);
+  // When the label already reads "Your lineup (N)" the separate count chip is a
+  // duplicate number on the same pill — suppress it in that case.
+  const labelShowsCount =
+    (ctaState.kind === "in_lineup" ||
+      ctaState.kind === "add_to_lineup" ||
+      ctaState.kind === "review_lineup") &&
+    cart.cartCount > 0;
 
   if (!mounted) return null;
 
@@ -312,7 +409,7 @@ export function TalentProfileChatLauncher({
           {/* Jon 360 Phase 7 — cart count chip ON the pill. Shows how many talents
               are in the inquiry cart (only when closed + non-empty). Frosted neutral
               chip so it reads on any accent without re-clamping. */}
-          {!open && hasCart && (
+          {!open && hasCart && !labelShowsCount && (
             <span
               aria-hidden
               style={{

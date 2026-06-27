@@ -146,12 +146,14 @@ export function DirectoryDiscoveryHeaderActions({
               )}
               onClick={() => {
                 if (inquiryModal) {
-                  inquiryModal.openInquiry();
+                  // Phase 3 — open the canonical CHAT launcher, not the legacy
+                  // InquiryDrawer sheet. The lineup is preloaded from the cart.
+                  inquiryModal.requestOpenChat();
                   return;
                 }
-                // No modal provider on this surface (e.g. a freeform talent
-                // sub-page): route to the directory and auto-open the composer
-                // there, instead of the dead-end /directory/cart redirect.
+                // No provider on this surface (e.g. a freeform talent sub-page):
+                // route to the directory and let the launcher open there,
+                // instead of the dead-end /directory/cart redirect.
                 router.push(clientDirectoryHref(pathname, "?inquiry=open"));
               }}
               aria-label={
