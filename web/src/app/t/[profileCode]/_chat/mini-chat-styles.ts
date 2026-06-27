@@ -95,14 +95,12 @@ export function paletteFor(mode: SurfaceMode | undefined): Palette {
   return mode === "dark" ? C_DARK : C;
 }
 
-// Background-mode token values (background.mode registry enum) that render the
-// public storefront on a DARK canvas. When a tenant's resolved background.mode is
-// one of these, the chat surface adopts the dark variant so it stops popping a
-// white card on a noir directory.
-const DARK_BACKGROUND_MODES = new Set<string>([
-  "editorial-noir",
-  "mesh-noir",
-]);
+// Owner decision 2026-06-27: the chat keeps the LIGHT surface on EVERY tenant
+// (the dark variant read as too harsh on the eyes). This set is intentionally
+// EMPTY so surfaceModeFromBackgroundMode always resolves to "light"; the dark
+// palette (C_DARK) and the surfaceMode threading stay in place, dormant, so a
+// dark option can be re-enabled later just by re-adding the noir mode tokens.
+const DARK_BACKGROUND_MODES = new Set<string>([]);
 
 /**
  * Derive the chat surfaceMode from a tenant's resolved `background.mode` token
