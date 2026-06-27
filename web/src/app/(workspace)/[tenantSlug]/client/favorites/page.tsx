@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../../_data-bridge";
@@ -24,6 +25,7 @@ const FONT = '"Inter", system-ui, sans-serif';
 
 export default async function ClientFavoritesPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
+  const locale = await getRequestLocale();
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
@@ -48,7 +50,7 @@ export default async function ClientFavoritesPage({ params }: { params: PagePara
       />
 
       {favorites.length > 0 ? (
-        <FavoritesShell favorites={favorites} tenantSlug={tenantSlug} cardDesign={cardDesign} />
+        <FavoritesShell favorites={favorites} tenantSlug={tenantSlug} cardDesign={cardDesign} locale={locale} />
       ) : (
         <EmptyState
           icon="♡"

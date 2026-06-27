@@ -11,6 +11,7 @@
 // catalog itself is free for any authenticated client.
 
 import { notFound } from "next/navigation";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../../_data-bridge";
@@ -41,6 +42,7 @@ export default async function ClientDiscoverPage({
 }) {
   const { tenantSlug } = await params;
   const sp = await searchParams;
+  const locale = await getRequestLocale();
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
@@ -102,6 +104,7 @@ export default async function ClientDiscoverPage({
           hubs={hubs}
           tenantSlug={tenantSlug}
           cardDesign={cardDesign}
+          locale={locale}
           activeFilters={{
             country: sp.country ?? null,
             category: sp.category ?? null,

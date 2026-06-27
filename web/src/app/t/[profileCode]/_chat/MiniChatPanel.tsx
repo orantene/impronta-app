@@ -736,6 +736,7 @@ export function MiniChatPanel({
         accent={accent}
         accentInk={accentInk}
         surfaceMode={surfaceMode}
+        locale={brand.locale}
         ariaLabel={`Message ${brand.agencyName}`}
         inquiries={inquiries}
         activeInquiryId={inquiryId}

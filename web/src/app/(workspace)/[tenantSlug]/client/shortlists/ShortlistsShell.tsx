@@ -46,11 +46,14 @@ export function ShortlistsShell({
   tier,
   hasPro,
   cardDesign,
+  locale = "en",
 }: {
   shortlists: DiscoverShortlistWithTalents[];
   tenantSlug: string;
   tier: "standard" | "pro" | "enterprise";
   hasPro: boolean;
+  /** Workspace UI locale (request locale) so the remove-undo toast localizes. */
+  locale?: string;
   /**
    * Shell-tenant card palette (load-card-design bridge → resolveCardDesign).
    * Spread as inline `--token-card-*` vars on each canonical talent tile so the
@@ -74,6 +77,7 @@ export function ShortlistsShell({
           tenantSlug={tenantSlug}
           hasPro={hasPro}
           cardCssVars={cardCssVars}
+          locale={locale}
         />
       ))}
       <div style={{
@@ -139,11 +143,13 @@ function ShortlistCard({
   tenantSlug,
   hasPro,
   cardCssVars,
+  locale = "en",
 }: {
   shortlist: DiscoverShortlistWithTalents;
   tenantSlug: string;
   hasPro: boolean;
   cardCssVars: Record<string, string> | undefined;
+  locale?: string;
 }) {
   void tenantSlug;
   const [inquireOpen, setInquireOpen] = useState(false);
@@ -367,7 +373,7 @@ function ShortlistCard({
           gap: 10,
         }}>
           {shortlist.talents.map((t) => (
-            <ShortlistTalentTile key={t.talentId} talent={t} cardCssVars={cardCssVars} />
+            <ShortlistTalentTile key={t.talentId} talent={t} cardCssVars={cardCssVars} locale={locale} />
           ))}
         </div>
       )}
@@ -538,9 +544,11 @@ function toShortlistTileData(t: DiscoverShortlistTalent): CanonicalTalentCardDat
 function ShortlistTalentTile({
   talent,
   cardCssVars,
+  locale = "en",
 }: {
   talent: DiscoverShortlistTalent;
   cardCssVars: Record<string, string> | undefined;
+  locale?: string;
 }) {
   const router = useRouter();
   const profileHref = talent.profileCode ? `/t/${talent.profileCode}` : "";
@@ -574,6 +582,7 @@ function ShortlistTalentTile({
             displayName={talent.displayName}
             sourcePage="client-dashboard"
             variant="compact"
+            locale={locale}
             hideInquiry
           />
         </div>
