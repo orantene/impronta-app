@@ -284,7 +284,12 @@ export function HeroComponent({
     : null;
 
   const effectiveOverlay = overlay ?? (slides?.length || backgroundMediaAssetId ? "gradient-scrim" : "aurora");
-  const effectiveMood = mood ?? "editorial";
+  // Imageless heroes default to the compact "clean" mood — the editorial
+  // mood's tall min-height (65vh) was designed for over-image legibility and
+  // leaves a large empty void when there is no background photo (Contact /
+  // FAQ / About). An explicit `mood` still wins.
+  const effectiveMood =
+    mood ?? (slides?.length || backgroundMediaAssetId ? "editorial" : "clean");
   const perSlideMs = Math.max(2000, Math.min(20000, autoplayMs ?? 7000));
   const nodePresentation = props.nodePresentation ?? {};
 
