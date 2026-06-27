@@ -36,13 +36,14 @@ import { interpolate } from "@/i18n/interpolate";
 import type { StreamRow } from "./MiniChatMessageBubble";
 
 import { ClaimEmailRecap } from "./ClaimEmailRecap";
+import { ConversationStatusStrip } from "./ConversationStatusStrip";
 import { DraftPrivacyBanner } from "./DraftPrivacyBanner";
 import { GuestAccountToolkit } from "./GuestAccountToolkit";
 import { GuestDetailChips } from "./GuestDetailChips";
 import { InquiryDetailsRail } from "./InquiryDetailsRail";
+import { GuestPanelHeader } from "./GuestPanelHeader";
 import { GuestPanelHeaderExtras } from "./GuestPanelHeaderExtras";
 import { InquiryReceiptCard } from "./InquiryReceiptCard";
-import { ReceiptCoordinatorHeader } from "./ReceiptCoordinatorHeader";
 import { MiniChatComposer } from "./MiniChatComposer";
 import { MiniChatGateForm } from "./MiniChatGateForm";
 import { MiniChatMessageBubble } from "./MiniChatMessageBubble";
@@ -53,10 +54,8 @@ import { SentAirlock } from "./SentAirlock";
 import { TrustGateNudge } from "./TrustGateNudge";
 import {
   EMAIL_RE,
-  FONT,
   FONT_DISPLAY,
   paletteFor,
-  statusCopy,
   type SurfaceMode,
 } from "./mini-chat-styles";
 
@@ -326,99 +325,21 @@ export function MiniChatPanelColumn({
 
   return (
     <>
-      {/* ── Header ────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 11,
-          padding: "13px 14px",
-          borderBottom: `1px solid ${C.borderSoft}`,
-          background: C.surfaceFaint,
-          flexShrink: 0,
-        }}
-      >
-        <div
-          aria-hidden
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: "50%",
-            flexShrink: 0,
-            background: brand.logoUrl
-              ? `center / cover no-repeat url(${brand.logoUrl})`
-              : accent,
-            color: accentInk,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 15,
-            fontWeight: 700,
-            letterSpacing: 0.2,
-          }}
-        >
-          {!brand.logoUrl && (talentFirst[0]?.toUpperCase() ?? "•")}
-        </div>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div
-            style={{
-              // Jon 360 Phase 7 — the agency IDENTITY gets the editorial serif
-              // (display axis). Body copy below stays system-sans.
-              fontFamily: FONT_DISPLAY,
-              fontSize: 15,
-              fontWeight: 600,
-              letterSpacing: 0.1,
-              color: C.ink,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {brand.agencyName}
-          </div>
-          {/* Jon 360 Phase 2: once the inquiry is SENT, humanize the subtitle —
-              name the coordinator (+ face) or say a coordinator is being assigned,
-              never a flat status word or a fake "online". Pre-send keeps the
-              greeting/typical-reply hint. */}
-          {receipt ? (
-            <ReceiptCoordinatorHeader
-              receipt={receipt}
-              agencyName={brand.agencyName}
-              accent={accent}
-              t={t}
-              surfaceMode={surfaceMode}
-            />
-          ) : (
-            <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 1 }}>
-              {inquiryId
-                ? statusCopy(threadStatus, t)
-                : typicalReply
-                  ? interpolate(t("public.guestChat.typicallyReplies"), { when: typicalReply })
-                  : t("public.guestChat.leaveMessage")}
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t("public.guestChat.closeAria")}
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            border: "none",
-            background: "transparent",
-            color: C.inkMuted,
-            cursor: "pointer",
-            fontSize: 19,
-            lineHeight: 1,
-            flexShrink: 0,
-            fontFamily: FONT,
-          }}
-        >
-          ×
-        </button>
-      </div>
+      {/* ── Header (extracted to GuestPanelHeader to hold the 800-line cap) ── */}
+      <GuestPanelHeader
+        brand={brand}
+        accent={accent}
+        accentInk={accentInk}
+        talentFirst={talentFirst}
+        C={C}
+        surfaceMode={surfaceMode}
+        inquiryId={inquiryId}
+        threadStatus={threadStatus}
+        typicalReply={typicalReply}
+        receipt={receipt}
+        t={t}
+        onClose={onClose}
+      />
 
       {/* ── U2: thread switcher (mini mode only; expanded left pane replaces) ─ */}
       {!expanded && onListGuestInquiries && (
@@ -734,6 +655,19 @@ export function MiniChatPanelColumn({
           the thread, which folds the saving / saved / error states into its
           sub-line while the inquiry is a private draft. */}
 
+      {/* Jon 360 CONVERSATION strip: "whose turn / what is next", above the
+          composer; self-gates to the post-send window (see component). */}
+      <ConversationStatusStrip
+        threadStatus={threadStatus}
+        receipt={receipt}
+        agencyName={brand.agencyName}
+        rows={rows}
+        scrollRef={scrollRef}
+        suppressed={showGate || showSentAirlock}
+        accent={accent}
+        t={t}
+        surfaceMode={surfaceMode}
+      />
       {/* ── Composer ─────────────────────────────────────────────────────── */}
       {!showGate && (
         <MiniChatComposer

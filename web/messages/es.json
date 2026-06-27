@@ -775,7 +775,13 @@
       "receiptLineupMore": "+{count}",
       "headerCrossAgency": "Coordinadores de {count} equipos",
       "headerCoordinator": "{name} . {agency}",
-      "headerAssigning": "{agency} . asignando un coordinador"
+      "headerAssigning": "{agency} . asignando un coordinador",
+      "stripInConversation": "En conversacion con {actor}",
+      "stripCoordinatorWorking": "{actor} lo esta viendo",
+      "stripOfferReady": "{agency} te envio una oferta. Revisala",
+      "stripReviewOffer": "Ver oferta",
+      "stripApproved": "Aprobado. Estamos confirmando tu reserva",
+      "stripBooked": "Reservado. Ya esta todo listo"
     }
   },
   "dashboard": {

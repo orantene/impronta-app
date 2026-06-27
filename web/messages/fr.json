@@ -245,7 +245,13 @@
       "receiptLineupMore": "+{count}",
       "headerCrossAgency": "Coordinateurs de {count} equipes",
       "headerCoordinator": "{name} . {agency}",
-      "headerAssigning": "{agency} . assignation d'un coordinateur"
+      "headerAssigning": "{agency} . assignation d'un coordinateur",
+      "stripInConversation": "En conversation avec {actor}",
+      "stripCoordinatorWorking": "{actor} s'en occupe",
+      "stripOfferReady": "{agency} vous a envoye une offre. Consultez-la",
+      "stripReviewOffer": "Voir l'offre",
+      "stripApproved": "Approuve. Confirmation de votre reservation en cours",
+      "stripBooked": "Reserve. Tout est pret"
     }
   },
   "dashboard": {

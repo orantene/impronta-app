@@ -775,7 +775,13 @@
       "receiptLineupMore": "+{count}",
       "headerCrossAgency": "Coordinators from {count} teams",
       "headerCoordinator": "{name} . {agency}",
-      "headerAssigning": "{agency} . assigning a coordinator"
+      "headerAssigning": "{agency} . assigning a coordinator",
+      "stripInConversation": "In conversation with {actor}",
+      "stripCoordinatorWorking": "{actor} is on it",
+      "stripOfferReady": "{agency} sent you an offer. Review it",
+      "stripReviewOffer": "Review offer",
+      "stripApproved": "Approved. Confirming your booking",
+      "stripBooked": "Booked. You are all set"
     }
   },
   "dashboard": {

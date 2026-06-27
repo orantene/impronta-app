@@ -69,6 +69,10 @@ export function MiniChatMessageBubble({
 
   return (
     <div
+      // Jon 360 CONVERSATION strip: a stable anchor so the offer_pending status
+      // strip's "Review it" jump can scroll the offer card into view. Only the
+      // offer card carries it; never a text bubble.
+      data-guest-offer-anchor={m.kind === "offer_event" ? "true" : undefined}
       style={{
         display: "flex",
         flexDirection: "column",
