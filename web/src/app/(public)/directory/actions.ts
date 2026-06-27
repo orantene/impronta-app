@@ -18,6 +18,7 @@ import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
 import { getPublicTenantScope, getPublicHostContext } from "@/lib/saas/scope";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import { loadClientTrustState } from "@/lib/client-trust/evaluator";
+import { projectCartChangeToInquiry } from "@/lib/inquiry/cart-selected-ids-projection";
 
 const GUEST_HEADER = "x-impronta-guest";
 
@@ -194,6 +195,24 @@ export async function setTalentSaved(
           return { ok: false, error: t("public.errors.saveTalent") };
         }
       }
+      // B5 write-through — keep the live inquiry's
+      // interpreted_query.talent.selected_ids in sync with the cart on add AND
+      // remove, idempotently. saved_talent (just written above) stays the source
+      // of truth; this is a best-effort projection so the inquiry row can recover
+      // the cart cross-device. No-op when no live inquiry exists yet.
+      {
+        const projectScope = await getPublicTenantScope();
+        const projectAdmin = createServiceRoleClient();
+        if (projectScope && projectAdmin) {
+          await projectCartChangeToInquiry({
+            admin: projectAdmin,
+            tenantId: projectScope.tenantId,
+            actor: { kind: "client", clientUserId: user.id },
+            talentProfileId,
+            saved,
+          });
+        }
+      }
       // Step 12 telemetry — emit on add only (not unsave). source = "directory"
       // so we can split later by surface (Discover vs public directory vs
       // talent profile). Fire-and-forget; never blocks the action.
@@ -255,6 +274,33 @@ export async function setTalentSaved(
       logServerError("directory/setTalentSaved/guest-remove", error);
       const t = createTranslator(await getRequestLocale());
       return { ok: false, error: t("public.errors.saveTalent") };
+    }
+  }
+
+  // B5 write-through (guest) — mirror the cart change into the live guest
+  // inquiry's interpreted_query.talent.selected_ids on add AND remove. The guest
+  // saved_talent (just written via RPC) remains the source of truth; this keeps
+  // the inquiry row's recovery copy in sync so a later magic-link claim can
+  // rebuild the cart cross-device. Resolve guest_session_id + tenant via the
+  // service role (the public client cannot read guest_sessions). Best-effort.
+  {
+    const projectScope = await getPublicTenantScope();
+    const projectAdmin = createServiceRoleClient();
+    if (projectScope && projectAdmin) {
+      const { data: guestSession } = await projectAdmin
+        .from("guest_sessions")
+        .select("id")
+        .eq("session_key", guestKey)
+        .maybeSingle();
+      if (guestSession?.id) {
+        await projectCartChangeToInquiry({
+          admin: projectAdmin,
+          tenantId: projectScope.tenantId,
+          actor: { kind: "guest", guestSessionId: guestSession.id as string },
+          talentProfileId,
+          saved,
+        });
+      }
     }
   }
 
