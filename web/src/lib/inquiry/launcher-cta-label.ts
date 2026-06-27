@@ -10,9 +10,16 @@
  * Locked label map (decision 1):
  *   empty lineup, no active inquiry          -> "Message {agency}"
  *   draft / lineup non-empty                 -> "Your lineup ({n})"
+ *   stale resumable draft (prior session)    -> "Finish your inquiry ({n})"
  *   sent (submitted / coordination)          -> "Inquiry sent"
  *   replied (coordinator spoke last)         -> "{agency} replied"
  *   terminal (declined/expired/booked/...)   -> closed-state copy (NO forward CTA)
+ *
+ * Phase 8 (returning-visitor nudges): the resume_draft kind now renders a
+ * distinct "Finish your inquiry (N)" label so a STALE draft a returning visitor
+ * left behind reads differently from the fresh "Your lineup (N)" working set.
+ * The resolver already owns WHEN this kind fires (stale lastActivityAt); this
+ * module only owns the resumed-draft COPY.
  *
  * House rules: never "buyer"/"cart" — "lineup" only. No em dashes.
  */
@@ -35,6 +42,14 @@ export function launcherLabelForCta(
   state: InquiryCtaState,
   t: LauncherCtaTranslator,
   agencyName: string,
+  /**
+   * Phase 8 — the live lineup count, used ONLY by the resume_draft label so the
+   * returning-visitor nudge can read "Finish your inquiry (N)". The resume_draft
+   * state itself carries no count (it discriminates on draftInquiryId), so the
+   * caller forwards the cart count. Defaults to 0 -> the count is dropped from
+   * the copy when unknown.
+   */
+  lineupCount = 0,
 ): string {
   switch (state.kind) {
     case "live_conversation":
@@ -54,8 +69,16 @@ export function launcherLabelForCta(
       return state.lineupCount > 0
         ? interpolate(t("public.guestChat.ctaLineup"), { count: state.lineupCount })
         : interpolate(t("public.guestChat.ctaMessage"), { agency: agencyName });
-    case "pick_inquiry":
     case "resume_draft":
+      // Phase 8 returning-visitor nudge: a STALE draft resumed cross-session.
+      // Distinct from the fresh "Your lineup (N)" so it reads as "pick up where
+      // you left off", not a brand-new working set. With a known count we surface
+      // it ("Finish your inquiry (N)"); without one we fall back to the
+      // count-less resume copy rather than print "(0)".
+      return lineupCount > 0
+        ? interpolate(t("public.guestChat.ctaResumeDraft"), { count: lineupCount })
+        : t("public.guestChat.ctaResumeDraftNoCount");
+    case "pick_inquiry":
     case "add_first":
     default:
       return interpolate(t("public.guestChat.ctaMessage"), { agency: agencyName });

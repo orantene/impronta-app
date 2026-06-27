@@ -598,6 +598,8 @@
       "ctaSent": "Inquiry sent",
       "ctaReplied": "{agency} replied",
       "ctaClosed": "Inquiry closed",
+      "ctaResumeDraft": "Finish your inquiry ({count})",
+      "ctaResumeDraftNoCount": "Finish your inquiry",
       "aboutTalent": "About {name}",
       "errRateLimited": "You're sending a little fast. Give it a moment.",
       "errBlocked": "This conversation can't continue.",

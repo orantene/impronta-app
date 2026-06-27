@@ -68,6 +68,8 @@
       "ctaSent": "Demande envoyée",
       "ctaReplied": "{agency} a répondu",
       "ctaClosed": "Demande fermée",
+      "ctaResumeDraft": "Terminez votre demande ({count})",
+      "ctaResumeDraftNoCount": "Terminez votre demande",
       "aboutTalent": "À propos de {name}",
       "errRateLimited": "Vous envoyez un peu vite. Patientez un instant.",
       "errBlocked": "Cette conversation ne peut pas continuer.",

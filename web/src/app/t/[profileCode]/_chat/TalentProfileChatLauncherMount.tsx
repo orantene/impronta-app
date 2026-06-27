@@ -167,6 +167,7 @@ export async function TalentProfileChatLauncherMount({
       hasActiveDraft={lifecycle.hasActiveDraft}
       draftInquiryId={lifecycle.draftInquiryId}
       otherOpenInquiries={lifecycle.otherOpenInquiries}
+      unreadCoordinatorReply={lifecycle.unreadCoordinatorReply}
       ctaIdentity="guest"
     />
   );

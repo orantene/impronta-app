@@ -40,6 +40,7 @@ import {
 } from "@/lib/analytics/jon360-funnel-events";
 
 import { MiniChatPanel } from "./MiniChatPanel";
+import { NewMessagePulse } from "./NewMessagePulse";
 import { LauncherAvatarStack } from "./LauncherAvatarStack";
 import { FlyingAvatar } from "./FlyingAvatar";
 import { useFlyToRail } from "./use-fly-to-rail";
@@ -75,6 +76,13 @@ type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   draftInquiryId?: string | null;
   otherOpenInquiries?: OtherOpenInquiry[];
   ctaIdentity?: "guest" | "client";
+  /**
+   * Phase 8 returning-visitor REPLIED pulse — true when the active SENT inquiry
+   * has an unread coordinator reply as its latest message (derived server-side
+   * in launcher-lifecycle-inputs from the SAME thread read; no client refetch).
+   * Drives the NewMessagePulse dot on the pill alongside "{agency} replied".
+   */
+  unreadCoordinatorReply?: boolean;
 };
 
 function subscribeNoop(): () => void {
@@ -121,6 +129,7 @@ export function TalentProfileChatLauncher({
   draftInquiryId = null,
   otherOpenInquiries = [],
   ctaIdentity = "guest",
+  unreadCoordinatorReply = false,
 }: TalentProfileChatLauncherLocalProps) {
   const mounted = useClientMounted();
   const [open, setOpen] = useState(false);
@@ -138,6 +147,12 @@ export function TalentProfileChatLauncher({
   // When the +N chip / a rail avatar is tapped, open the panel scrolled to the
   // Talent section. The panel reads this one-shot intent and clears it.
   const [openToTalent, setOpenToTalent] = useState(false);
+  // Phase 8 returning-visitor REPLIED pulse — a one-shot rising edge the pill's
+  // NewMessagePulse consumes. Fired ~1.2s after mount when a returning visitor
+  // lands with an unread coordinator reply on a CLOSED launcher, so the pulse
+  // dot draws the eye to "{agency} replied". Cleared once the visitor opens the
+  // panel (they have now seen the reply).
+  const [repliedPulse, setRepliedPulse] = useState(false);
 
   // ── The launcher pill IS the inquiry cart (plan §4.A) ──────────────────────
   // The rail's avatars are a pure projection of the single source of truth
@@ -370,6 +385,25 @@ export function TalentProfileChatLauncher({
     prevOpenRef.current = open;
   }, [open, funnelCtx]);
 
+  // Phase 8 — REPLIED pulse one-shot. When a returning visitor lands with an
+  // unread coordinator reply and the launcher is still closed, fire the pulse
+  // once shortly after mount (a beat so it reads as "new", not a flash on paint).
+  // Opening the panel marks the reply seen and suppresses the pulse. The fired
+  // flag below is reset to false right after so NewMessagePulse only sees a
+  // single false->true->false rising edge. Reduced-motion is handled inside the
+  // pulse (it degrades to a static highlight), so no extra guard here.
+  const repliedPulseFiredRef = useRef(false);
+  useEffect(() => {
+    if (!unreadCoordinatorReply || open || repliedPulseFiredRef.current) return;
+    repliedPulseFiredRef.current = true;
+    const fire = window.setTimeout(() => setRepliedPulse(true), 1200);
+    const settle = window.setTimeout(() => setRepliedPulse(false), 1900);
+    return () => {
+      window.clearTimeout(fire);
+      window.clearTimeout(settle);
+    };
+  }, [unreadCoordinatorReply, open]);
+
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
   const talentFirst = firstNameOf(brand.talentDisplayName);
@@ -406,7 +440,9 @@ export function TalentProfileChatLauncher({
   // OWNS the pill copy now; the legacy static `label` prop no longer overrides
   // it, so a stale "Book Now" never wins over the resolver state).
   const brandVoice = brand.agencyName?.trim() || talentFirst;
-  const launcherLabel = launcherLabelForCta(ctaState, t, brandVoice);
+  // Phase 8 — forward the live lineup count so a resumed STALE draft reads
+  // "Finish your inquiry (N)" (the resume_draft state carries no count itself).
+  const launcherLabel = launcherLabelForCta(ctaState, t, brandVoice, cart.cartCount);
   // When the label already reads "Your lineup (N)" the separate count chip is a
   // duplicate number on the same pill — suppress it in that case.
   const labelShowsCount =
@@ -483,6 +519,7 @@ export function TalentProfileChatLauncher({
           aria-expanded={open}
           className={className}
           style={{
+            position: "relative",
             display: "inline-flex",
             alignItems: "center",
             gap: 9,
@@ -515,6 +552,14 @@ export function TalentProfileChatLauncher({
               : "transform 140ms ease, box-shadow 140ms ease",
           }}
         >
+          {/* Phase 8 — REPLIED pulse. Reuses NewMessagePulse, mounted inside the
+              pill so the accent ring traces the pill's rounded rect (borderRadius
+              inherits). Only meaningful on the closed launcher with an unread
+              coordinator reply; the component self-fires one ring per false->true
+              edge and is reduced-motion-safe (degrades to a static highlight). */}
+          {!open && unreadCoordinatorReply && (
+            <NewMessagePulse active={repliedPulse} accent={accent} />
+          )}
           {open ? (
             <CloseGlyph color={accentInk} />
           ) : (

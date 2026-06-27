@@ -38,6 +38,15 @@ export type LauncherLifecycleInputs = {
   hasActiveDraft: boolean;
   draftInquiryId: string | null;
   otherOpenInquiries: OtherOpenInquiry[];
+  /**
+   * Phase 8 returning-visitor nudge — REPLIED pulse signal. True when the active
+   * inquiry is a SENT thread whose most recent message is from the coordinator
+   * (lastMessageRole === "coordinator"), i.e. an unread reply is waiting for a
+   * returning visitor. Derived here from the SAME thread read the resolver
+   * inputs come from (no extra fetch); the launcher forwards it to
+   * NewMessagePulse so the pill shows the pulse alongside "{agency} replied".
+   */
+  unreadCoordinatorReply: boolean;
 };
 
 const EMPTY: LauncherLifecycleInputs = {
@@ -49,6 +58,7 @@ const EMPTY: LauncherLifecycleInputs = {
   hasActiveDraft: false,
   draftInquiryId: null,
   otherOpenInquiries: [],
+  unreadCoordinatorReply: false,
 };
 
 /**
@@ -138,6 +148,9 @@ export async function resolveLauncherLifecycleInputs(args: {
     let coordinatorId: string | null = null;
     let lastMessageRole: LastMessageRole = null;
     let lastActivityAt: string | null = null;
+    let hasActiveDraft = false;
+    let draftInquiryId: string | null = null;
+    let unreadCoordinatorReply = false;
 
     if (threadRes && threadRes.ok) {
       activePhase = threadStatusToPhase(threadRes.threadStatus);
@@ -157,6 +170,31 @@ export async function resolveLauncherLifecycleInputs(args: {
       // leak), so we pass a non-PII "assigned" sentinel — the launcher label
       // never renders the value, only branches on its presence.
       coordinatorId = threadRes.receipt?.coordinator ? "assigned" : null;
+
+      // ── Phase 8 (1): cross-session RESUME draft signal ──────────────────────
+      // A thread that the guest has NOT yet truly sent reads as a resumable
+      // draft. The guest contract collapses the raw status to a coarse 5-value
+      // status, so "draft" surfaces as the `open` thread status (-> coordination
+      // phase here). We treat the anchored thread as a resumable draft when it is
+      // still pre-send: the receipt is null (an inquiry only mints a SENT->
+      // RECEIVED receipt once genuinely sent) AND no coordinator is seated. The
+      // resolver's own STALE_DRAFT_MS gate (driven by lastActivityAt) then
+      // decides whether it yields resume_draft; when the timestamp is missing the
+      // resolver keeps the lineup/empty label, so this never over-fires.
+      const isPreSend = !threadRes.receipt && coordinatorId === null;
+      if (isPreSend && anchoredInquiryId) {
+        hasActiveDraft = true;
+        draftInquiryId = anchoredInquiryId;
+      }
+
+      // ── Phase 8 (2): REPLIED pulse signal ───────────────────────────────────
+      // The pulse fires for a returning visitor whose SENT inquiry has an unread
+      // coordinator reply as the latest message. Reuse the SAME last-message read
+      // (no refetch) and gate on a seated coordinator so a system/talent line
+      // never spuriously pulses. The resolver independently maps this to the
+      // live_conversation kind ("{agency} replied"); the pulse rides alongside.
+      unreadCoordinatorReply =
+        coordinatorId != null && lastMessageRole === "coordinator";
     }
 
     const otherOpenInquiries: OtherOpenInquiry[] =
@@ -176,10 +214,10 @@ export async function resolveLauncherLifecycleInputs(args: {
       coordinatorId,
       lastMessageRole,
       lastActivityAt,
-      // A live thread is not a draft; the guest contract has no draft state.
-      hasActiveDraft: false,
-      draftInquiryId: null,
+      hasActiveDraft,
+      draftInquiryId,
       otherOpenInquiries,
+      unreadCoordinatorReply,
     };
   } catch {
     return EMPTY;

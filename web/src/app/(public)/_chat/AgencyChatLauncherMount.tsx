@@ -181,6 +181,7 @@ export async function AgencyChatLauncherMount({
       hasActiveDraft={lifecycle.hasActiveDraft}
       draftInquiryId={lifecycle.draftInquiryId}
       otherOpenInquiries={lifecycle.otherOpenInquiries}
+      unreadCoordinatorReply={lifecycle.unreadCoordinatorReply}
       ctaIdentity="guest"
     />
   );
