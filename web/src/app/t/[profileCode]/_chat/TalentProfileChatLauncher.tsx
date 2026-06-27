@@ -16,7 +16,7 @@
  *     cookie, is resolved server-side inside those actions).
  */
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
@@ -29,6 +29,13 @@ import {
 } from "@/lib/inquiry/inquiry-context-resolver";
 import type { InquiryWorkflowPhase } from "@/lib/inquiry/inquiry-lifecycle";
 import { launcherLabelForCta } from "@/lib/inquiry/launcher-cta-label";
+
+import {
+  trackChatOpened,
+  trackLineupAdd,
+  trackLineupRemove,
+  type Jon360FunnelContext,
+} from "@/lib/analytics/jon360-funnel-events";
 
 import { MiniChatPanel } from "./MiniChatPanel";
 import { LauncherAvatarStack } from "./LauncherAvatarStack";
@@ -254,6 +261,48 @@ export function TalentProfileChatLauncher({
     () => cartTalents.map((t) => t.displayName),
     [cartTalents],
   );
+
+  // Phase 0c CRO — the standard Jon-360 funnel context, rebuilt per render from
+  // the live cart. liveInquiryIdRef tracks the early-row id once it exists.
+  const funnelCtx = useCallback(
+    (): Jon360FunnelContext => ({
+      inquiryId: liveInquiryIdRef.current,
+      tenantId,
+      lineupCount: cart.cartCount,
+      identity: ctaIdentity,
+      source: sourcePage,
+    }),
+    [tenantId, cart.cartCount, ctaIdentity, sourcePage],
+  );
+
+  // Phase 0c CRO — lineup_add / lineup_remove from a single cartIds diff so both
+  // the rail X and a directory card "+" route through one firing point (no
+  // double-count). Skips the initial mount snapshot (restored saved_talent ids
+  // are not fresh adds).
+  const prevCartIdsRef = useRef<readonly string[] | null>(null);
+  useEffect(() => {
+    const prev = prevCartIdsRef.current;
+    const next = cart.cartIds;
+    prevCartIdsRef.current = next;
+    if (prev === null) return; // first snapshot — not a user action
+    const prevSet = new Set(prev);
+    const nextSet = new Set(next);
+    for (const id of next) {
+      if (!prevSet.has(id)) trackLineupAdd(funnelCtx(), id);
+    }
+    for (const id of prev) {
+      if (!nextSet.has(id)) trackLineupRemove(funnelCtx(), id);
+    }
+  }, [cart.cartIds, funnelCtx]);
+
+  // Phase 0c CRO — chat_opened once per open transition (not on every render
+  // while open). Covers every open path (pill click, +N chip, restored session,
+  // repointed front-door cue).
+  const prevOpenRef = useRef(false);
+  useEffect(() => {
+    if (open && !prevOpenRef.current) trackChatOpened(funnelCtx());
+    prevOpenRef.current = open;
+  }, [open, funnelCtx]);
 
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);

@@ -1,5 +1,10 @@
 "use client";
 
+/* eslint-disable max-lines -- Phase 0c CRO added the Jon-360 funnel firing hook
+   (receipt_viewed + send_clicked/contact_promoted + reply_received) to a panel
+   already at the 800-line cap; the firing logic itself lives in the extracted
+   use-jon360-panel-tracking hook, this is only the ~10 call-site lines. */
+
 /**
  * MiniChatPanel — the talent-profile conversational-inquiry popup (Lane D / F2).
  *
@@ -41,6 +46,7 @@ import { usePresenceChime } from "./usePresenceChime";
 import { useUnifiedInquiry } from "./use-unified-inquiry";
 import type { UnifiedInquiryPatch } from "./use-unified-inquiry";
 import { useMiniChatSend } from "./use-mini-chat-send";
+import { useJon360PanelTracking } from "./use-jon360-panel-tracking";
 import { useSentAirlock } from "./use-sent-airlock";
 import { useCartTalentPreload } from "./use-cart-talent-preload";
 import {
@@ -245,6 +251,12 @@ export function MiniChatPanel({
     onCaptureChip: onCaptureChip ?? NOOP_CAPTURE_CHIP,
   });
 
+  // Phase 0c CRO — Jon-360 funnel firing (receipt_viewed + send/reply).
+  const jon360 = useJon360PanelTracking({
+    inquiryId: unified.inquiryId ?? inquiryId, tenantId, cartTalentIds,
+    identity, sourcePage, receipt: threadMeta.receipt,
+  });
+
   // When the hook lazily creates the early row, adopt its id so the thread + gate
   // target the same inquiry.
   useEffect(() => {
@@ -408,6 +420,7 @@ export function MiniChatPanel({
             notifyInbound(inbound.length);
             setPulseActive(true);
             setTimeout(() => setPulseActive(false), 1200);
+            jon360.trackReply(); // Phase 0c CRO — coordinator reply landed.
           }
         }
       } catch {
@@ -548,6 +561,8 @@ export function MiniChatPanel({
     mergeServer,
     applyFailure,
     onSent: () => {
+      // Phase 0c CRO — send_clicked + contact_promoted (the PRIMARY conversion).
+      jon360.trackSend();
       setSentNote(true);
       triggerSentAirlock();
     },

@@ -39,6 +39,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useInquiryRealtime } from "@/hooks/use-inquiry-realtime";
+import { trackDraftCreated, trackFieldFilled } from "@/lib/analytics/jon360-funnel-events";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import type {
   CaptureGuestChipCallback,
@@ -328,6 +329,13 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
   // Single-flight guard for the early-row create (avoids the double-create race).
   const ensurePromiseRef = useRef<Promise<string | null> | null>(null);
 
+  // Phase 0c CRO — live lineup size, kept in a ref so the frozen ensureInquiryId
+  // closure reads the current count when it fires draft_created.
+  const lineupCountRef = useRef<number>(0);
+  useEffect(() => {
+    lineupCountRef.current = localIntent.talent?.selected_ids?.length ?? 0;
+  }, [localIntent]);
+
   // Per-field debounce timers + the latest pending patch for each field kind,
   // so rapid edits to one field collapse to a single write of the LAST value.
   const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -363,6 +371,15 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
         // Adopt the server's authoritative contact state (resumed rows may
         // already be promoted; fresh early rows carry the synthetic seed).
         if (result.contactPromoted) setContactPromoted(true);
+        // Phase 0c CRO — draft_created on the FIRST structured commit. This path
+        // runs only when no id existed (resumed rows arrive via existingInquiryId
+        // and short-circuit above), so it marks a genuine early-row creation.
+        trackDraftCreated({
+          inquiryId: result.inquiryId,
+          tenantId: tenantId ?? null,
+          lineupCount: lineupCountRef.current,
+          source: sourcePage,
+        });
         return result.inquiryId;
       }
       return null;
@@ -374,7 +391,7 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
     } finally {
       ensurePromiseRef.current = null;
     }
-  }, [tenantSlug, talentProfileId, talentProfileCode, sourcePage]);
+  }, [tenantSlug, talentProfileId, talentProfileCode, sourcePage, tenantId]);
 
   /** Mark a single field's status and recompute the panel-level sync state. */
   const setField = useCallback((kind: string, state: UnifiedSyncState) => {
@@ -424,6 +441,21 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
       const result = await onCaptureChipRef.current(chipInput);
       if (result.ok) {
         setField(kind, "saved");
+        // Phase 0c CRO — field_filled per committed structured field (the `kind`
+        // identifies which: talent / brief / date / location / budget / ...).
+        // Contact promotion has its own promoteContact path + conversion event,
+        // so it is excluded here to avoid double-counting the gate.
+        if (kind !== "contact") {
+          trackFieldFilled(
+            {
+              inquiryId: id,
+              tenantId: tenantId ?? null,
+              lineupCount: lineupCountRef.current,
+              source: sourcePage,
+            },
+            kind,
+          );
+        }
         savedTimersRef.current[kind] = setTimeout(() => {
           delete savedTimersRef.current[kind];
           setField(kind, "idle");
@@ -434,7 +466,7 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
         setField(kind, "error");
       }
     },
-    [ensureInquiryId, setField],
+    [ensureInquiryId, setField, tenantId, sourcePage],
   );
 
   /**
