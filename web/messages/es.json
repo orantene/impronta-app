@@ -457,7 +457,18 @@
           "listFollows": "y tu lista te acompaña.",
           "removeTalent": "Quitar {name}",
           "emptyTitle": "Aún no tienes favoritos",
-          "emptyDescription": "Toca el marcador en cualquier tarjeta de talento para guardarlo aquí. Tu lista se mantiene entre sesiones."
+          "emptyDescription": "Toca el marcador en cualquier tarjeta de talento para guardarlo aquí. Tu lista se mantiene entre sesiones.",
+          "subtitle": "Elige sobre quién quieres consultar y envía.",
+          "selectAll": "Seleccionar todo",
+          "clearSelection": "Quitar selección",
+          "selectedOfCount": "{selected} de {total} seleccionados",
+          "inquireZero": "Selecciona talento para consultar",
+          "inquireOne": "Consultar sobre 1 seleccionado",
+          "inquireMany": "Consultar sobre los {count} seleccionados",
+          "inquirePending": "Agregando a tu consulta...",
+          "viewProfile": "Ver perfil",
+          "selectAria": "Seleccionar a {name}",
+          "deselectAria": "Quitar a {name} de la selección"
         }
       }
     },
