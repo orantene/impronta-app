@@ -16,10 +16,31 @@ import type { GuestMessageKind, GuestThreadStatus } from "@/lib/inquiry/guest-ch
 export const FONT =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
+// Jon 360 Phase 7 — a tiny two-axis type scale. Body copy stays system-sans
+// (FONT, above). The DISPLAY axis is the editorial serif the public directory
+// (editorial-noir) heading vocabulary already loads at the app root
+// (`--font-fraunces` / `--font-playfair-display`, see web/src/app/layout.tsx).
+// Used ONLY for the agency identity + headings (header name, greeting, receipt
+// title), never for body text. Falls back to a system serif when the vars are
+// absent (non-storefront hosts), so it degrades to a clean serif, never a box.
+export const FONT_DISPLAY =
+  'var(--font-fraunces, var(--font-playfair-display, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif))';
+
+/** Two-axis type scale. `body` = the existing system-sans string; `display`
+ *  = the editorial serif for agency identity + headings. */
+export const TYPE = {
+  body: FONT,
+  display: FONT_DISPLAY,
+} as const;
+
 export const C = {
   ink: "#16181d",
   inkMuted: "#5b6170",
-  inkDim: "#9aa0ad",
+  // inkDim is used for meaningful text (unsaved hints, retry/error copy, optional
+  // pills). Darkened from the original #9aa0ad (~2.6:1, a WCAG 1.4.3 AA failure)
+  // to clear >=4.5:1 on BOTH #ffffff (4.97:1) and C.surfaceFaint #f6f7f9 (4.64:1),
+  // so every dim text instance is now AA-legible without per-call-site changes.
+  inkDim: "#6a707d",
   surface: "#ffffff",
   surfaceFaint: "#f6f7f9",
   surfaceCool: "#eef1f5",
@@ -30,6 +51,69 @@ export const C = {
   systemInk: "#6b7280",
   danger: "#a13a3a",
 } as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Jon 360 Phase 7 — DARK surface variant. The public directory ships an
+// editorial-NOIR theme for the Impronta tenant, yet the chat panel rendered as a
+// bright near-white card on that black canvas (a visual mismatch + a launcher
+// that pops a white box on a dark page). C_DARK mirrors C key-for-key with values
+// that read on a near-black surface: every `ink*` clears >=4.5:1 on `surface`
+// (verified below), tints/borders use light-alpha so they composite on dark.
+// The LIGHT `C` above is left BYTE-IDENTICAL so light tenants are unchanged.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type SurfaceMode = "light" | "dark";
+
+/** The shape both the light (`C`) and dark (`C_DARK`) palettes satisfy. Use this
+ *  (not `typeof C`) for palette params so the two palettes are interchangeable. */
+export type Palette = { readonly [K in keyof typeof C]: string };
+
+export const C_DARK: Palette = {
+  // #ededf0 on #15161a ≈ 13.8:1; #aeb3bf on #15161a ≈ 7.1:1 — both clear AA.
+  ink: "#ededf0",
+  inkMuted: "#aeb3bf",
+  // inkDim carries meaningful text (save hints, optional pills). #9aa1ad on the
+  // base surface #15161a ≈ 5.6:1 and on surfaceFaint #1d1f25 ≈ 5.0:1 — AA on both.
+  inkDim: "#9aa1ad",
+  surface: "#15161a",
+  surfaceFaint: "#1d1f25",
+  surfaceCool: "#23262e",
+  border: "rgba(255,255,255,0.14)",
+  borderSoft: "rgba(255,255,255,0.09)",
+  // The guest's own bubble keeps a saturated slate that reads on dark; ink stays
+  // white. (Accent-driven bubbles still clamp through accentText/readableOn.)
+  guestBubble: "#4d6fa6",
+  guestBubbleInk: "#ffffff",
+  systemInk: "#9aa1ad",
+  // Brighter rust that clears AA on the dark surface (the light #a13a3a does not).
+  danger: "#f08a8a",
+} as const;
+
+/** Resolve the active C palette for a surface mode. Default `light` returns the
+ *  exact same `C` object reference, so the light path is unchanged. */
+export function paletteFor(mode: SurfaceMode | undefined): Palette {
+  return mode === "dark" ? C_DARK : C;
+}
+
+// Background-mode token values (background.mode registry enum) that render the
+// public storefront on a DARK canvas. When a tenant's resolved background.mode is
+// one of these, the chat surface adopts the dark variant so it stops popping a
+// white card on a noir directory.
+const DARK_BACKGROUND_MODES = new Set<string>([
+  "editorial-noir",
+  "mesh-noir",
+]);
+
+/**
+ * Derive the chat surfaceMode from a tenant's resolved `background.mode` token
+ * (resolveDesignTokens(branding)["background.mode"]). Anything not in the dark
+ * set (incl. undefined / plain / ivory) → "light", so the default is safe.
+ */
+export function surfaceModeFromBackgroundMode(
+  backgroundMode: string | null | undefined,
+): SurfaceMode {
+  return backgroundMode && DARK_BACKGROUND_MODES.has(backgroundMode) ? "dark" : "light";
+}
 
 // Default accent (used for the launcher, send button, and the guest's own
 // message bubble when a tenant has NOT set a brand color). House rule: NEVER
@@ -66,6 +150,84 @@ export function readableOn(hex: string | null | undefined): string {
   // Relative luminance (sRGB approximation).
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return lum > 0.62 ? "#16181d" : "#ffffff";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Accent-as-text contrast clamp (a11y). `readableOn` only governs ink ON a SOLID
+// accent fill. When the accent itself is used as TEXT/GLYPH on a light surface or
+// a pale accent tint (filled chips, selected-talent chips, rail icons), a bright
+// tenant accent — Impronta ships GOLD — drops well below the 4.5:1 AA floor. These
+// helpers parse the accent, measure its contrast, and DARKEN it until it clears
+// the floor (falling back to C.ink), so no tenant accent can ship sub-4.5:1 text.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type Rgb = { r: number; g: number; b: number };
+
+function parseHex(hex: string | null | undefined): Rgb | null {
+  if (!hex || typeof hex !== "string") return null;
+  const m = hex.trim().replace(/^#/, "");
+  const full =
+    m.length === 3
+      ? m
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : m;
+  if (full.length !== 6) return null;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  if ([r, g, b].some((n) => Number.isNaN(n))) return null;
+  return { r, g, b };
+}
+
+function toHex({ r, g, b }: Rgb): string {
+  const h = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+
+function relLuminance({ r, g, b }: Rgb): number {
+  const lin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+/** WCAG contrast ratio between two parsed colors. */
+function contrastRatio(a: Rgb, b: Rgb): number {
+  const la = relLuminance(a);
+  const lb = relLuminance(b);
+  const hi = Math.max(la, lb);
+  const lo = Math.min(la, lb);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const AA_TEXT = 4.5;
+
+/**
+ * accentText — a guaranteed >=4.5:1 text/glyph color derived from the tenant
+ * accent, for use as foreground on a light background (default white). If the raw
+ * accent already passes against `bg`, it is returned unchanged (the slate default
+ * passes); otherwise it is darkened toward black in small steps until it clears
+ * the AA floor, falling back to C.ink if even near-black would not (never happens
+ * for a 4.5:1 target on a light bg, but the guard keeps the contract total).
+ *
+ * Tints like `${accent}15` composite over the surface, so measuring against the
+ * solid light surface is the conservative (worst-case) bound for chip/rail labels.
+ */
+export function accentText(accent: string, bg: string = C.surface): string {
+  const fg = parseHex(accent);
+  const bgRgb = parseHex(bg) ?? { r: 255, g: 255, b: 255 };
+  if (!fg) return C.ink;
+  if (contrastRatio(fg, bgRgb) >= AA_TEXT) return accent;
+  // Darken toward black, preserving hue, until the floor is met.
+  let cur = { ...fg };
+  for (let i = 0; i < 24; i += 1) {
+    cur = { r: cur.r * 0.9, g: cur.g * 0.9, b: cur.b * 0.9 };
+    if (contrastRatio(cur, bgRgb) >= AA_TEXT) return toHex(cur);
+  }
+  return C.ink;
 }
 
 export function formatTime(iso: string): string {
@@ -168,35 +330,41 @@ export const EXPANDED_MAX_HEIGHT = "min(680px, calc(100vh - 100px))";
 /** Fixed width of the left conversation-list pane when expanded. */
 export const LEFT_PANE_WIDTH = 232;
 
-/** Shared shell style for the 2-pane outer container. Applied by ExpandedChatLayout. */
-export const expandedShellStyle: CSSProperties = {
-  position: "fixed",
-  right: "max(16px, env(safe-area-inset-right))",
-  bottom: `calc(${GUEST_CHAT_PANEL_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
-  zIndex: 90,
-  width: EXPANDED_WIDTH,
-  maxHeight: EXPANDED_MAX_HEIGHT,
-  display: "flex",
-  flexDirection: "column",
-  background: C.surface,
-  borderRadius: 18,
-  border: `1px solid ${C.border}`,
-  boxShadow:
-    "0 24px 60px -18px rgba(16,18,29,0.45), 0 6px 18px -8px rgba(16,18,29,0.25)",
-  overflow: "hidden",
-  fontFamily: FONT,
-};
+/** Shared shell style for the 2-pane outer container. Applied by ExpandedChatLayout.
+ *  Pass a palette (paletteFor(surfaceMode)) for the dark variant; defaults to light
+ *  so existing call sites are unchanged. */
+export function expandedShellStyle(p: Palette = C): CSSProperties {
+  return {
+    position: "fixed",
+    right: "max(16px, env(safe-area-inset-right))",
+    bottom: `calc(${GUEST_CHAT_PANEL_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
+    zIndex: 90,
+    width: EXPANDED_WIDTH,
+    maxHeight: EXPANDED_MAX_HEIGHT,
+    display: "flex",
+    flexDirection: "column",
+    background: p.surface,
+    borderRadius: 18,
+    border: `1px solid ${p.border}`,
+    boxShadow:
+      "0 24px 60px -18px rgba(16,18,29,0.45), 0 6px 18px -8px rgba(16,18,29,0.25)",
+    overflow: "hidden",
+    fontFamily: FONT,
+  };
+}
 
 /** Style for the left conversation-list pane in expanded mode. */
-export const leftPaneStyle: CSSProperties = {
-  width: LEFT_PANE_WIDTH,
-  flexShrink: 0,
-  borderRight: `1px solid ${C.borderSoft}`,
-  display: "flex",
-  flexDirection: "column",
-  overflowY: "auto",
-  background: C.surfaceFaint,
-};
+export function leftPaneStyle(p: Palette = C): CSSProperties {
+  return {
+    width: LEFT_PANE_WIDTH,
+    flexShrink: 0,
+    borderRight: `1px solid ${p.borderSoft}`,
+    display: "flex",
+    flexDirection: "column",
+    overflowY: "auto",
+    background: p.surfaceFaint,
+  };
+}
 
 /** Style for the right thread pane in expanded mode. */
 export const rightPaneStyle: CSSProperties = {
@@ -220,6 +388,24 @@ export const inputStyle: CSSProperties = {
   outline: "none",
   boxSizing: "border-box",
 };
+
+/** Palette-aware input style (Jon 360 Phase 7). Default returns the byte-identical
+ *  light `inputStyle`; pass a dark palette for noir tenants. */
+export function inputStyleFor(p: Palette = C): CSSProperties {
+  return {
+    flex: 1,
+    minWidth: 0,
+    padding: "9px 11px",
+    borderRadius: 9,
+    border: `1px solid ${p.borderSoft}`,
+    background: p.surfaceCool,
+    fontFamily: FONT,
+    fontSize: 13,
+    color: p.ink,
+    outline: "none",
+    boxSizing: "border-box",
+  };
+}
 
 export function primaryBtnStyle(accent: string, ink: string): CSSProperties {
   return {

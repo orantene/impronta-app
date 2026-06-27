@@ -20,7 +20,7 @@
  * — never black/gold. readableOn keeps labels legible on any accent.
  */
 
-import { C, FONT, readableOn } from "./mini-chat-styles";
+import { FONT, paletteFor, readableOn, type SurfaceMode } from "./mini-chat-styles";
 
 export type OpenFullConversationLinkProps = {
   /**
@@ -44,6 +44,8 @@ export type OpenFullConversationLinkProps = {
    * Drives label: "Expand ⤢" vs "Collapse".
    */
   expanded?: boolean;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
 };
 
 export function OpenFullConversationLink({
@@ -52,7 +54,9 @@ export function OpenFullConversationLink({
   emphasize = false,
   onExpand,
   expanded = false,
+  surfaceMode = "light",
 }: OpenFullConversationLinkProps) {
+  const C = paletteFor(surfaceMode);
   // ── In-place expand/collapse toggle (F4 primary path) ────────────────────
   if (onExpand) {
     const label = expanded ? "Collapse ✕" : "Expand ⤢";

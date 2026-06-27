@@ -12,7 +12,12 @@
  * (strategy §3.1 / §10). House rule: the only warm color is the tenant accent.
  */
 
-import { C, inputStyle, primaryBtnStyle } from "./mini-chat-styles";
+import {
+  inputStyleFor,
+  paletteFor,
+  primaryBtnStyle,
+  type SurfaceMode,
+} from "./mini-chat-styles";
 
 export type MiniChatGateFormProps = {
   /** Talent first name for the "Where should {name} reach you?" prompt. */
@@ -34,6 +39,8 @@ export type MiniChatGateFormProps = {
   /** When true, emailNotice is an error and send stays disabled. */
   emailBlocksSubmit?: boolean;
   sending: boolean;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
   /** Fire the first-send (the panel's handleFirstSend). */
   onSend: () => void;
 };
@@ -53,9 +60,12 @@ export function MiniChatGateForm({
   emailNotice = null,
   emailBlocksSubmit = false,
   sending,
+  surfaceMode = "light",
   onSend,
 }: MiniChatGateFormProps) {
   const canSend = gateReady && !emailBlocksSubmit && !sending;
+  const C = paletteFor(surfaceMode);
+  const inputStyle = inputStyleFor(C);
 
   return (
     <div

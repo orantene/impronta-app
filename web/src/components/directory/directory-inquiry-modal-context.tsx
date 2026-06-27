@@ -14,13 +14,24 @@ export type InquirySuccessParams = {
   activation: string | null;
 };
 
+/** Payload for the card-to-pill fly animation (§5.3). */
+export type AnimateAddPayload = {
+  fromRect: DOMRect;
+  portraitUrl: string | null;
+  talentProfileId: string;
+};
+
 type DirectoryInquiryModalContextValue = {
   open: boolean;
   setOpen: (open: boolean) => void;
   openInquiry: () => void;
-  /** Bump to play a short “you have something to send” cue on the inquiry control. */
+  /** Bump to play a short "you have something to send" cue on the inquiry control. */
   saveCue: number;
   bumpSaveCue: () => void;
+  /** Trigger the card-to-pill fly animation; kept alongside bumpSaveCue for back-compat. */
+  animateAdd: (payload: AnimateAddPayload) => void;
+  /** The most-recent animateAdd payload, consumed by the FlyingAvatar host. Null when idle. */
+  lastAnimateAdd: AnimateAddPayload | null;
   success: InquirySuccessParams | null;
   showSuccess: (params: InquirySuccessParams) => void;
   clearSuccess: () => void;
@@ -32,10 +43,15 @@ const DirectoryInquiryModalContext =
 export function DirectoryInquiryModalProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [saveCue, setSaveCue] = useState(0);
+  const [lastAnimateAdd, setLastAnimateAdd] = useState<AnimateAddPayload | null>(null);
   const [success, setSuccess] = useState<InquirySuccessParams | null>(null);
 
   const bumpSaveCue = useCallback(() => {
     setSaveCue((n) => n + 1);
+  }, []);
+
+  const animateAdd = useCallback((payload: AnimateAddPayload) => {
+    setLastAnimateAdd(payload);
   }, []);
 
   const openInquiry = useCallback(() => {
@@ -59,11 +75,13 @@ export function DirectoryInquiryModalProvider({ children }: { children: ReactNod
       openInquiry,
       saveCue,
       bumpSaveCue,
+      animateAdd,
+      lastAnimateAdd,
       success,
       showSuccess,
       clearSuccess,
     }),
-    [open, openInquiry, saveCue, bumpSaveCue, success, showSuccess, clearSuccess],
+    [open, openInquiry, saveCue, bumpSaveCue, animateAdd, lastAnimateAdd, success, showSuccess, clearSuccess],
   );
 
   return (

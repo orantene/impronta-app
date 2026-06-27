@@ -16,17 +16,33 @@
  *     cookie, is resolved server-side inside those actions).
  */
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
+import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
+import { createTranslator } from "@/i18n/messages";
 
 import { MiniChatPanel } from "./MiniChatPanel";
+import { LauncherAvatarStack } from "./LauncherAvatarStack";
+import { FlyingAvatar } from "./FlyingAvatar";
+import { useFlyToRail } from "./use-fly-to-rail";
+import { useCartTalents } from "./use-cart-talents";
+import { useCartTalentRegistry } from "./cart-talent-registry";
+import { useResolveCartPortraits } from "./use-resolve-cart-portraits";
 import {
   DEFAULT_ACCENT,
   GUEST_CHAT_LAUNCHER_BOTTOM_PX,
   firstNameOf,
   readableOn,
+  type SurfaceMode,
 } from "./mini-chat-styles";
+
+// Jon 360 Phase 7 — `surfaceMode` is a LOCAL extension (the dark-surface signal
+// derived from the tenant's resolved background.mode), NOT added to the shared
+// read-only guest-chat-contract. Threaded launcher → panel.
+type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
+  surfaceMode?: SurfaceMode;
+};
 
 function subscribeNoop(): () => void {
   return () => undefined;
@@ -38,6 +54,7 @@ function useClientMounted(): boolean {
 
 export function TalentProfileChatLauncher({
   tenantSlug,
+  tenantId = null,
   talentProfileId,
   talentProfileCode,
   sourcePage,
@@ -51,16 +68,100 @@ export function TalentProfileChatLauncher({
   onCheckClaimEmail = null,
   onListGuestInquiries = null,
   onCaptureChip = null,
+  onEnsureInquiry = null,
+  onLoadDetails = null,
+  onListRoster = null,
+  onResolveCartPortraits = null,
   soundOnReply = true,
   identity = "guest",
   label,
   className,
   openFullHref = null,
-}: TalentChatLauncherProps) {
+  surfaceMode = "light",
+}: TalentProfileChatLauncherLocalProps) {
   const mounted = useClientMounted();
   const [open, setOpen] = useState(false);
+  // Jon 360 Phase 7 — wire the pill's (previously dead) transform transition to a
+  // real hover/active lift. Reduced-motion-safe: the transitions/transforms are
+  // suppressed under prefers-reduced-motion below.
+  const [pillHover, setPillHover] = useState(false);
+  const [pillActive, setPillActive] = useState(false);
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // F4: expanded state — grows the panel into a 2-pane layout in-place.
   const [expanded, setExpanded] = useState(false);
+  // When the +N chip / a rail avatar is tapped, open the panel scrolled to the
+  // Talent section. The panel reads this one-shot intent and clears it.
+  const [openToTalent, setOpenToTalent] = useState(false);
+
+  // ── The launcher pill IS the inquiry cart (plan §4.A) ──────────────────────
+  // The rail's avatars are a pure projection of the single source of truth
+  // (useInquiryCart().cartIds) joined with portrait/name data the directory cards
+  // registered as they were added (cart-talent-registry). No second cart store.
+  const cart = useInquiryCart();
+  const registry = useCartTalentRegistry();
+  const cartTalents = useCartTalents(registry);
+  // Cold-load backfill: cart ids restored from saved_talent aren't in the
+  // (in-session-only) registry, so resolve their name + face once per missing set
+  // and merge into the registry. Membership stays cartIds; this only fills photos
+  // so every rail avatar is a face-focus portrait, not initials (§4.A.1 / §5.5).
+  useResolveCartPortraits(tenantSlug, onResolveCartPortraits);
+  const pillRef = useRef<HTMLButtonElement>(null);
+  // Card → pill fly clone (reduced-motion-safe; no portal under reduce). The
+  // flight is driven by the directory card's animateAdd payload via context.
+  const { flight, onFlightDone } = useFlyToRail(pillRef);
+
+  // Live inquiry id reported up by the panel (early-row create / resume / switch).
+  // Stays null until a real structured commit creates a row, so a rail X-remove
+  // never spawns a phantom inquiry — it only patches an EXISTING record.
+  const liveInquiryIdRef = useRef<string | null>(existingInquiryId);
+
+  // B6: the panel registers its unified talent-patch runner here so the rail
+  // X-remove writes the record through the SAME useUnifiedInquiry.patch path the
+  // in-chat ADD uses — giving remove the same saving-state + LOCAL_WRITE_GRACE_MS
+  // self-echo window + retry guarantee. Calling onCaptureChip directly (the old
+  // path) bypassed all of that and self-echoed every remove back to the guest.
+  const removeTalentRunnerRef = useRef<
+    | ((
+        selectedIds: string[],
+        selectionMode: "i_know_who" | "agency_recommends",
+        selectedNames: string[],
+      ) => void)
+    | null
+  >(null);
+
+  function handleRemoveTalent(talentProfileId: string) {
+    // Single source: removing here flips saved_talent, which propagates to the
+    // rail + the form + any open panel's Talent selection.
+    cart.setInCart({ talentProfileId, profileCode: "" }, false, sourcePage);
+
+    // Keep the inquiry RECORD in sync with the cart on removal (finding #3): the
+    // cart alone never patched interpreted_query.talent.selected_ids, so a removed
+    // talent lingered on the inquiry and the agency still saw them. Route the
+    // record write through the panel's unified.patch runner with the REMAINING ids
+    // (replace semantics — IDENTICAL shape to the in-chat add path, so the grace
+    // window is stamped and the remove never self-echoes). Only when a row already
+    // exists; otherwise removal is a pure cart op.
+    const inquiryId = liveInquiryIdRef.current;
+    const runner = removeTalentRunnerRef.current;
+    if (!inquiryId || !runner) return;
+    const remainingIds = cart.cartIds.filter((id) => id !== talentProfileId);
+    const remainingNames = cartTalents
+      .filter((t) => remainingIds.includes(t.talentProfileId))
+      .map((t) => t.displayName);
+    runner(
+      remainingIds,
+      remainingIds.length > 0 ? "i_know_who" : "agency_recommends",
+      remainingNames,
+    );
+  }
+
+  function handleOpenToTalent() {
+    setOpenToTalent(true);
+    setOpen(true);
+  }
 
   // Restore the open panel across a refresh (B1) so the conversation doesn't
   // appear to reset. sessionStorage is per-tab → a refresh restores; closing the
@@ -86,54 +187,158 @@ export function TalentProfileChatLauncher({
     }
   }, [open, openStateKey]);
 
+  // Stable names array — cartTalents is already identity-stable (useCartTalents
+  // memoizes on its signature), so this yields a stable reference and avoids
+  // forcing the whole MiniChatPanel subtree to reconcile on every parent render.
+  const cartTalentNames = useMemo(
+    () => cartTalents.map((t) => t.displayName),
+    [cartTalents],
+  );
+
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
   const talentFirst = firstNameOf(brand.talentDisplayName);
+  // Guest UI locale rides along on `brand` (resolved server-side from the
+  // tenant's default_locale, since guests have no LOCALE_COOKIE).
+  const t = createTranslator(brand.locale ?? "en");
   const launcherLabel = label ?? `Message ${talentFirst}`;
 
   if (!mounted) return null;
 
+  // Finding #4: activate the already-coded A.9 mobile geometry (32px avatars,
+  // -11px overlap, max 2, always-visible 18px X) on touch devices. Read once at
+  // render after the mount guard so matchMedia is never touched on the server.
+  const isCoarsePointer =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(pointer:coarse)").matches;
+
+  const hasCart = cartTalents.length > 0;
+
   return (
     <>
-      {/* Floating launcher pill. Bottom-right, above the panel's anchor. */}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label={launcherLabel}
-        aria-expanded={open}
-        className={className}
+      {/* Card → pill fly clone (body portal, very high z). Idle/reduced-motion → null. */}
+      <FlyingAvatar flight={flight} onDone={onFlightDone} />
+
+      {/* Floating launcher pill wrapper. Bottom-right, above the panel's anchor.
+          When the cart is non-empty the avatar rail breaks the TOP edge of the
+          pill, so the wrapper gets a top margin to keep overhanging circles from
+          clipping the viewport (plan §4.A.3). */}
+      <div
         style={{
           position: "fixed",
           right: "max(16px, env(safe-area-inset-right))",
           bottom: `calc(${GUEST_CHAT_LAUNCHER_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
           zIndex: 95,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 9,
-          height: 52,
-          padding: "0 20px 0 18px",
-          borderRadius: 26,
-          border: "none",
-          background: accent,
-          color: accentInk,
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-          fontSize: 14,
-          fontWeight: 600,
-          letterSpacing: 0.1,
-          cursor: "pointer",
-          boxShadow:
-            "0 14px 34px -10px rgba(16,18,29,0.5), 0 4px 12px -4px rgba(16,18,29,0.3)",
-          transition: "transform 140ms ease, box-shadow 140ms ease",
+          marginTop: hasCart ? 18 : 0,
         }}
       >
-        {open ? (
-          <CloseGlyph color={accentInk} />
-        ) : (
-          <ChatGlyph color={accentInk} />
+        {/* The avatar cart — only renders when the cart is non-empty (§4.A.8).
+            Absolutely positioned breaking the pill's top edge; newest rightmost. */}
+        {!open && hasCart && (
+          <div
+            style={{
+              position: "absolute",
+              top: -16,
+              right: 12,
+              zIndex: 1,
+            }}
+          >
+            <LauncherAvatarStack
+              cartTalents={cartTalents}
+              onRemoveTalent={handleRemoveTalent}
+              onOpenToTalentSection={handleOpenToTalent}
+              accent={accent}
+              accentInk={accentInk}
+              t={t}
+              compact={isCoarsePointer}
+            />
+          </div>
         )}
-        <span>{open ? "Close" : launcherLabel}</span>
-      </button>
+
+        <button
+          ref={pillRef}
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          onMouseEnter={() => setPillHover(true)}
+          onMouseLeave={() => {
+            setPillHover(false);
+            setPillActive(false);
+          }}
+          onMouseDown={() => setPillActive(true)}
+          onMouseUp={() => setPillActive(false)}
+          aria-label={launcherLabel}
+          aria-expanded={open}
+          className={className}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 9,
+            height: 52,
+            padding: "0 20px 0 18px",
+            borderRadius: 26,
+            border: "none",
+            background: accent,
+            color: accentInk,
+            fontFamily:
+              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: 0.1,
+            cursor: "pointer",
+            // Lift on hover, press in on active. Reduced-motion → no transition +
+            // no transform (the box is static for motion-sensitive visitors).
+            boxShadow: pillHover
+              ? "0 20px 44px -10px rgba(16,18,29,0.55), 0 6px 16px -4px rgba(16,18,29,0.35)"
+              : "0 14px 34px -10px rgba(16,18,29,0.5), 0 4px 12px -4px rgba(16,18,29,0.3)",
+            transform: reduceMotion
+              ? "none"
+              : pillActive
+                ? "translateY(0) scale(0.98)"
+                : pillHover
+                  ? "translateY(-2px)"
+                  : "none",
+            transition: reduceMotion
+              ? "none"
+              : "transform 140ms ease, box-shadow 140ms ease",
+          }}
+        >
+          {open ? (
+            <CloseGlyph color={accentInk} />
+          ) : (
+            <ChatGlyph color={accentInk} />
+          )}
+          <span>{open ? "Close" : launcherLabel}</span>
+          {/* Jon 360 Phase 7 — cart count chip ON the pill. Shows how many talents
+              are in the inquiry cart (only when closed + non-empty). Frosted neutral
+              chip so it reads on any accent without re-clamping. */}
+          {!open && hasCart && (
+            <span
+              aria-hidden
+              style={{
+                minWidth: 20,
+                height: 20,
+                padding: "0 6px",
+                marginLeft: 1,
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.22)",
+                color: accentInk,
+                border: "1px solid rgba(255,255,255,0.4)",
+                fontSize: 12,
+                fontWeight: 700,
+                lineHeight: "18px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backdropFilter: "blur(4px)",
+                WebkitBackdropFilter: "blur(4px)",
+              }}
+            >
+              {cartTalents.length}
+            </span>
+          )}
+        </button>
+      </div>
 
       {/* Faint scrim behind the panel when expanded (non-blocking — aria-modal="false") */}
       {open && expanded && (
@@ -158,10 +363,12 @@ export function TalentProfileChatLauncher({
         expanded={expanded}
         onToggleExpand={() => setExpanded((v) => !v)}
         tenantSlug={tenantSlug}
+        tenantId={tenantId}
         talentProfileId={talentProfileId}
         talentProfileCode={talentProfileCode}
         sourcePage={sourcePage}
         brand={brand}
+        surfaceMode={surfaceMode}
         existingInquiryId={existingInquiryId}
         prefill={prefill}
         onStartInquiry={onStartInquiry}
@@ -171,9 +378,23 @@ export function TalentProfileChatLauncher({
         onCheckClaimEmail={onCheckClaimEmail}
         onListGuestInquiries={onListGuestInquiries}
         onCaptureChip={onCaptureChip}
+        onEnsureInquiry={onEnsureInquiry}
+        onLoadDetails={onLoadDetails}
+        onListRoster={onListRoster}
         soundOnReply={soundOnReply}
         identity={identity}
         openFullHref={openFullHref}
+        cartTalentIds={cart.cartIds}
+        cartTalentNames={cartTalentNames}
+        openToTalentSection={openToTalent}
+        onConsumeOpenToTalentSection={() => setOpenToTalent(false)}
+        onRemoveCartTalent={handleRemoveTalent}
+        onRegisterRemoveTalent={(runner) => {
+          removeTalentRunnerRef.current = runner;
+        }}
+        onInquiryIdChange={(id) => {
+          liveInquiryIdRef.current = id;
+        }}
       />
     </>
   );

@@ -21,6 +21,7 @@ import type {
   ListGuestInquiriesCallback,
 } from "@/lib/inquiry/guest-chat-contract";
 
+import type { SurfaceMode } from "./mini-chat-styles";
 import { GuestThreadSwitcher } from "./GuestThreadSwitcher";
 
 export type GuestPanelHeaderExtrasProps = {
@@ -38,6 +39,8 @@ export type GuestPanelHeaderExtrasProps = {
   onListGuestInquiries: ListGuestInquiriesCallback;
   /** Switch the panel to another owned inquiry. */
   onSelect: (inquiryId: string) => void;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
 };
 
 export function GuestPanelHeaderExtras({
@@ -49,6 +52,7 @@ export function GuestPanelHeaderExtras({
   seenAtByInquiry,
   onListGuestInquiries,
   onSelect,
+  surfaceMode = "light",
 }: GuestPanelHeaderExtrasProps) {
   const [inquiries, setInquiries] = useState<GuestInquirySummary[]>([]);
 
@@ -86,6 +90,7 @@ export function GuestPanelHeaderExtras({
       accentInk={accentInk}
       seenAtByInquiry={seenAtByInquiry}
       onSelect={onSelect}
+      surfaceMode={surfaceMode}
     />
   );
 }

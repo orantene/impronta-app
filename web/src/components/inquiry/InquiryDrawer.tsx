@@ -42,6 +42,7 @@ import {
   type InquiryIntentActionState,
 } from "@/app/(workspace)/[tenantSlug]/client/_actions/inquiry-intent-actions";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
+import { SearchTalentField } from "./SearchTalentField";
 
 const INQUIRY_DRAFT_AUTOSAVE_MS = 10_000;
 
@@ -542,7 +543,7 @@ function Compose(props: {
 // Section: Requester (spec §3)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function RequesterSection({
+export function RequesterSection({
   value, onChange, client,
 }: {
   value: InquiryRequester;
@@ -602,7 +603,7 @@ function TrustCard({ isLoggedIn, client }: { isLoggedIn: boolean; client: Inquir
 // Section: Client / company / job (spec §4)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ClientSection({
+export function ClientSection({
   requester, value, onChange,
 }: {
   requester: InquiryRequester;
@@ -679,7 +680,7 @@ type CitySuggestion = {
   subtitle?: string | null;
 };
 
-function CityAutocomplete({
+export function CityAutocomplete({
   value,
   onSelect,
 }: {
@@ -785,7 +786,7 @@ function CityAutocomplete({
   );
 }
 
-function LocationSection({
+export function LocationSection({
   value, onChange,
 }: { value: InquiryLocation; onChange: (v: InquiryLocation) => void }) {
   return (
@@ -852,7 +853,7 @@ function LocationSection({
 // Section: Date / Time (spec §6)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DateSection({
+export function DateSection({
   value, onChange,
 }: { value: InquiryDate; onChange: (v: InquiryDate) => void }) {
   return (
@@ -903,7 +904,7 @@ function DateSection({
 // Section: Selected talent (spec §7)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function TalentSection({
+export function TalentSection({
   value, onChange, roster, boundToCart = false, onRemoveTalent, toolsSlot,
 }: {
   value: InquiryTalent;
@@ -1005,22 +1006,13 @@ function TalentSection({
       {!boundToCart && value.selection_mode === "i_know_who" && roster.length > 0 && (
         <FieldRow>
           <Field label="Add talent">
-            <Select
-              value=""
-              onChange={(v) => {
-                if (!v) return;
-                if (selected.includes(v)) return;
-                onChange({ ...value, selected_ids: [...selected, v] });
+            <SearchTalentField
+              roster={roster}
+              selectedIds={selected}
+              onAdd={(r) => {
+                if (selected.includes(r.id)) return;
+                onChange({ ...value, selected_ids: [...selected, r.id] });
               }}
-              options={[
-                { value: "", label: selected.length > 0 ? "Add another…" : "Select talent…" },
-                ...roster
-                  .filter((r) => !selected.includes(r.id))
-                  .map((r) => ({
-                    value: r.id,
-                    label: `${r.name}${r.primaryTypeLabel ? ` · ${r.primaryTypeLabel}` : ""}${r.city ? ` · ${r.city}` : ""}`,
-                  })),
-              ]}
             />
           </Field>
         </FieldRow>
@@ -1058,7 +1050,7 @@ function TalentSection({
 // Section: Budget (spec §8)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function BudgetSection({
+export function BudgetSection({
   value, onChange, talentCount,
 }: {
   value: InquiryBudget;
@@ -1131,7 +1123,7 @@ type BriefContext = {
   talentCount: string;
 };
 
-function BriefSection({
+export function BriefSection({
   value, onChange, context,
 }: {
   value: InquiryBrief;
@@ -1302,7 +1294,7 @@ const FILE_MAX_BYTES = 20 * 1024 * 1024; // 20 MB client-side guard
 const FILE_MAX_COUNT = 10;
 const FILE_ACCEPT = "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip";
 
-function FilesLinksSection({
+export function FilesLinksSection({
   files, links, onFiles, onLinks, stagedFiles, onStagedFiles,
 }: {
   files: InquiryAttachment[];
@@ -1653,7 +1645,7 @@ function SubmittedView({
 // Primitives
 // ─────────────────────────────────────────────────────────────────────────────
 
-function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+export function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
     <section
       style={{
@@ -1672,11 +1664,11 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
   );
 }
 
-function FieldRow({ children }: { children: React.ReactNode }) {
+export function FieldRow({ children }: { children: React.ReactNode }) {
   return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }} className="iq-field-row">{children}</div>;
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 4, fontFamily: FONT, gridColumn: "1 / -1" }}>
       <span style={{ fontSize: 11.5, color: C.inkMuted, fontWeight: 600, letterSpacing: 0.2 }}>{label}</span>
@@ -1686,7 +1678,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-function Input({
+export function Input({
   value, onChange, placeholder, type = "text",
 }: {
   value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
@@ -1702,7 +1694,7 @@ function Input({
   );
 }
 
-function Textarea({
+export function Textarea({
   value, onChange, placeholder, rows = 3,
 }: {
   value: string; onChange: (v: string) => void; placeholder?: string; rows?: number;
@@ -1718,7 +1710,7 @@ function Textarea({
   );
 }
 
-function Select({
+export function Select({
   value, onChange, options,
 }: {
   value: string;
@@ -1736,7 +1728,7 @@ function Select({
   );
 }
 
-function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+export function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       type="button"

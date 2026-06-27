@@ -7,40 +7,30 @@
  * (no "use server", no supabase, no engine). That is deliberate: the
  * mini-chat UI lane (Lane D) imports ONLY from here, receives the three
  * server actions as INJECTED CALLBACK PROPS, and therefore never bundles
- * a backend module into the client.
- *
- * Lanes:
- *   • Lane A (backend) implements the server actions + engine guest branch
- *     to exactly these signatures.
- *   • Lane D (UI)      codes MiniChatPanel / TalentChatLauncher against the
- *     props here, with the actions passed down from a server component.
- *   • Lane E (trust)   renders GuestTrustChip against GuestTrustChipProps.
- *   • Lane C (safety)  ships user_blocks + inquiry_reports per the migration
- *     contract (see migrationColumns output) — the row shapes referenced by
- *     the action results live here.
+ * a backend module into the client. Lanes: A=backend actions/engine guest
+ * branch; D=MiniChatPanel/TalentChatLauncher UI; E=GuestTrustChip; C=safety
+ * (user_blocks + inquiry_reports row shapes).
  *
  * GROUND TRUTH these types mirror:
  *   • inquiry_messages columns: id, inquiry_id, thread_type, sender_user_id,
  *     body, metadata, edited_at, deleted_at, created_at, message_kind,
  *     card_payload, reply_to_message_id  (+ NEW guest_session_id from M1).
- *   • inquiries columns used for ownership: id, tenant_id, guest_session_id,
- *     client_user_id, status.
- *   • guest_sessions: id (uuid pk), session_key (text unique).
+ *   • inquiries (ownership): id, tenant_id, guest_session_id, client_user_id,
+ *     status. guest_sessions: id (uuid pk), session_key (text unique).
  *   • InquiryIntent / createInquiryFromIntent (inquiry-intent-engine.ts).
  *   • EngineResult discriminants: success | forbidden | rateLimited | error.
  */
 
+import type { EnsureGuestChatInquiryCallback, GetGuestInquiryDetailsCallback, ListGuestTenantRosterCallback, ResolveGuestCartPortraitsCallback } from "./guest-chat-unified-contract"; // imported to annotate props below; also re-exported from this barrel further down
+import type { InquiryReceiptData } from "./inquiry-receipt-contract"; // Jon 360 Phase 2 receipt; annotated on GetGuestThreadResult below + re-exported from this barrel
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 0. Message-kind discriminator — EXACT mirror of the DB CHECK constraint on
 //    inquiry_messages.message_kind (migration 20260513214948). Do not add a
-//    value here without an accompanying CHECK migration.
-//
-//    `booking_confirmed` / `balance_due` are already written by the booking
-//    money rail (lib/bookings/transactions.ts) and `voice` by the voice-note
-//    action (lib/server-actions/voice-notes.ts) — they were live in the DB but
-//    missing from this union, so the guest surface downgraded them to a generic
-//    "Update". Adding them here (no new migration: the rows already persist)
-//    lets the guest mini-chat render them as first-class kinds.
+//    value here without an accompanying CHECK migration. `booking_confirmed` /
+//    `balance_due` / `voice` are already written elsewhere (booking money rail,
+//    voice-note action) and persist in the DB, so listing them here (no new
+//    migration) lets the guest mini-chat render them as first-class kinds.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type GuestMessageKind =
@@ -58,19 +48,11 @@ export type GuestMessageKind =
   | "system_event";
 
 /**
- * Who authored a message, as the popup needs to render it. The popup only
- * ever shows the GROUP-thread-equivalent stream a guest is allowed to see;
- * the private staff thread is never sent to a guest.
- *
- *   "guest"  — sent by THIS guest session (sender_user_id null, guest_session_id set). Right-aligned.
- *   "staff"  — agency coordinator/admin reply.        Left-aligned.
- *   "talent" — a talent participant reply.            Left-aligned.
- *   "system" — auto-ack / system_event bubble.        Centered/system style.
- *   "other"  — any other authenticated participant.   Left-aligned (fallback).
- *
- * Lane A derives this server-side (it knows sender_user_id + participant
- * roles + the requesting guest_session_id). The UI must NOT try to recompute
- * authorship from raw ids — it trusts `authorRole`.
+ * Who authored a message, as the popup needs to render it (the guest only ever
+ * sees the group-thread-equivalent stream; the private staff thread is never
+ * sent to a guest). "guest" = right-aligned own message; "staff"/"talent"/
+ * "other" = left-aligned; "system" = centered. Lane A derives this server-side;
+ * the UI trusts `authorRole` and never recomputes authorship from raw ids.
  */
 export type GuestMessageAuthorRole = "guest" | "staff" | "talent" | "system" | "other";
 
@@ -361,6 +343,12 @@ export type GetGuestThreadResult =
        * Null when not computable. Comes from Lane E / P1.
        */
       typicalReplyLabel: string | null;
+      /**
+       * Jon 360 Phase 2 — the SENT->RECEIVED receipt (inquiry-receipt-contract.ts).
+       * Non-null ONLY once the inquiry is genuinely sent and on the FULL load
+       * (null pre-send + on incremental polls). Every field is TIERED BY TRUTH.
+       */
+      receipt: InquiryReceiptData | null;
     }
   | GuestChatFailure;
 
@@ -402,13 +390,9 @@ export type GetActiveGuestInquiryResult =
   | GuestChatFailure;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4. The three injected callback prop types. The UI lane references THESE,
-//    never the concrete action functions. A server component passes the real
-//    actions (which match these shapes) down as props.
-//
-//    NOTE: these are typed to TAKE THE INPUT OBJECTS above. The wrapper that a
-//    server component passes is responsible for currying tenant/talent context
-//    where appropriate; from the UI's perspective it just calls the callback.
+// 4. The injected callback prop types. The UI lane references THESE, never the
+//    concrete action functions; a server component passes the real actions
+//    (which match these shapes) down as props.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type OnStartInquiryCallback = (
@@ -456,14 +440,15 @@ export type ListGuestInquiriesCallback = (input: {
 }) => Promise<{ ok: true; inquiries: GuestInquirySummary[] } | GuestChatFailure>;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4c. U4 guided detail chips — five deterministic chips (Date / Location /
-//     Headcount / Type / Budget) that each map 1:1 to an InquiryIntent field.
-//     captureGuestChip writes interpreted_query + the relevant flat column(s);
-//     it NEVER creates an offer (coordinator-driven). The panel renders the chip
-//     rail above the composer once an inquiry exists (progressive disclosure).
+// 4c. U4 guided detail chips — deterministic chips that each map 1:1 to an
+//     InquiryIntent field. captureGuestChip writes interpreted_query + the
+//     relevant flat column(s); it NEVER creates an offer (coordinator-driven).
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type GuestChipKind = "date" | "location" | "headcount" | "event_type" | "budget";
+export type GuestChipKind =
+  | "date" | "location" | "headcount" | "event_type" | "budget" // existing
+  | "talent" | "brief"                                          // Phase 2
+  | "contact";                                                  // Phase 2 (promotes the early-partial contact placeholders)
 
 export type GuestChipValue = {
   dateStatus?: "exact" | "flexible" | "not_sure";
@@ -483,6 +468,18 @@ export type GuestChipValue = {
     | "not_sure";
   budgetAmount?: number | null;
   currency?: string | null;
+  // talent kind — selected-talent set (replace semantics) + mode; persisted into interpreted_query.talent. selectedNames is optional (friendlier system note).
+  selectedIds?: string[] | null;
+  selectionMode?: "i_know_who" | "agency_recommends" | null;
+  selectedNames?: string[] | null;
+  // brief kind — free-text summary → interpreted_query.brief.summary + flat `message`/`raw_ai_query`.
+  summary?: string | null;
+  // contact kind — promotes the early-partial placeholder contact to the real
+  // values. Writes the flat contact_name/contact_email/contact_phone columns
+  // (and interpreted_query.requester) so the agency can reach the client.
+  contactName?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
 };
 
 export type GuestChipInput = { inquiryId: string; kind: GuestChipKind; value: GuestChipValue };
@@ -490,6 +487,24 @@ export type GuestChipInput = { inquiryId: string; kind: GuestChipKind; value: Gu
 export type GuestChipResult = { ok: true; appliedSummary: string } | GuestChatFailure;
 
 export type CaptureGuestChipCallback = (input: GuestChipInput) => Promise<GuestChipResult>;
+
+// 4d/4e. Unified-inquiry-cart contract slice — split to guest-chat-unified-contract.ts; re-exported here.
+export type {
+  AvatarStackItem,
+  EnsureGuestInquiryInput,
+  EnsureGuestInquiryResult,
+  EnsureGuestChatInquiryCallback,
+  GuestInquiryDetailValues,
+  GetGuestInquiryDetailsResult,
+  GetGuestInquiryDetailsCallback,
+  GuestRosterItem,
+  ListGuestTenantRosterResult,
+  ListGuestTenantRosterCallback,
+  ResolveGuestCartPortraitsResult,
+  ResolveGuestCartPortraitsCallback,
+} from "./guest-chat-unified-contract";
+// Jon 360 Phase 2 — the post-send trust-receipt contract slice; re-exported here.
+export type { InquiryReceiptCoordinator, InquiryReceiptLineupFace, InquiryReceiptData } from "./inquiry-receipt-contract";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. MiniChatPanel props — the only substantial new frontend (Lane D / F2).
@@ -534,6 +549,9 @@ export type MiniChatPanelProps = {
   talentProfileId: string;
   talentProfileCode: string;
   sourcePage: string;
+
+  /** Tenant uuid for the realtime channel filter (P1-T3 inbound reconcile). */
+  tenantId?: string | null;
 
   /** Branding for the skin. */
   brand: MiniChatBrand;
@@ -595,7 +613,12 @@ export type MiniChatPanelProps = {
    * structured spine. Null hides the chip rail.
    */
   onCaptureChip?: CaptureGuestChipCallback | null;
-
+  /** P1-T1: lazily create/resume the early-partial inquiry row on first commit. */
+  onEnsureInquiry?: EnsureGuestChatInquiryCallback | null;
+  /** P1-T3: read structured chip values for an owned inquiry (inbound reconcile). */
+  onLoadDetails?: GetGuestInquiryDetailsCallback | null;
+  /** Phase 2: list the tenant's public roster for the in-chat TALENT picker. */
+  onListRoster?: ListGuestTenantRosterCallback | null;
   /**
    * U2: enable the soft inbound-message chime. Gated by a user gesture inside
    * the hook (only fires once the guest has sent ≥1 message). Default true.
@@ -621,6 +644,8 @@ export type TalentChatLauncherProps = {
   talentProfileId: string;
   talentProfileCode: string;
   sourcePage: string;
+  /** Tenant uuid for the realtime channel filter, forwarded to the panel. */
+  tenantId?: string | null;
   brand: MiniChatBrand;
   existingInquiryId?: string | null;
   prefill?: MiniChatPanelProps["prefill"];
@@ -646,6 +671,19 @@ export type TalentChatLauncherProps = {
   onListGuestInquiries?: ListGuestInquiriesCallback | null;
   /** U4: forwarded to the panel — capture a detail chip. */
   onCaptureChip?: CaptureGuestChipCallback | null;
+  /** P1-T1: forwarded to the panel — create the early-partial inquiry row. */
+  onEnsureInquiry?: EnsureGuestChatInquiryCallback | null;
+  /** P1-T3: forwarded to the panel — read structured chip values for reconcile. */
+  onLoadDetails?: GetGuestInquiryDetailsCallback | null;
+  /** Phase 2: forwarded to the panel — list the tenant roster for the talent picker. */
+  onListRoster?: ListGuestTenantRosterCallback | null;
+  /**
+   * §4.A.1 / §5.5: backfill name + portrait for cart ids restored from
+   * saved_talent on a cold load (not in the client registry). Used by the
+   * launcher to keep every rail avatar a face-focus portrait. Null disables
+   * backfill (in-session adds still resolve via the registry).
+   */
+  onResolveCartPortraits?: ResolveGuestCartPortraitsCallback | null;
   /** U2: forwarded to the panel — enable the inbound chime. Default true. */
   soundOnReply?: boolean;
   /** U3: forwarded to the panel — the guest↔account identity tier. */
@@ -653,9 +691,8 @@ export type TalentChatLauncherProps = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 7. GuestTrustChip props — talent-facing trust chip v1 (Lane E / F3). Renders
-//    atop the talent thread. Reuses the live TrustBadge tier + a per-signal
-//    row. This is a PROPS contract; the data is assembled server-side from
+// 7. GuestTrustChip props — talent-facing trust chip v1 (Lane E / F3), rendered
+//    atop the talent thread. PROPS contract; data is assembled server-side from
 //    client_trust_state + TrustSummary + booking count + block/report status.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -663,13 +700,10 @@ export type TalentChatLauncherProps = {
 export type GuestTrustTier = "basic" | "verified" | "silver" | "gold";
 
 /**
- * The guest↔account spectrum (U3 / strategy §5 trust ladder). This is the
- * IDENTITY axis (how known the person is), distinct from the trust-BADGE tier
- * GuestTrustTier above (basic/verified/silver/gold). Mirrors
- * GuestTrustChipProps.identity. The U3 toolkit + nudge components consume this
- * union; the server-side gate (guest-trust-gate.ts) keeps its OWN local
- * GuestTrustTier of the same spelling for its return value (it is never
- * promoted here to avoid the name collision with the badge tier).
+ * The guest↔account spectrum (U3 / strategy §5 trust ladder). IDENTITY axis
+ * (how known the person is), distinct from the trust-BADGE tier GuestTrustTier
+ * above. Mirrors GuestTrustChipProps.identity; guest-trust-gate.ts keeps its
+ * own local GuestTrustTier (not promoted here, to avoid a name collision).
  */
 export type GuestIdentityTier = "guest" | "identified" | "email_verified" | "account";
 
@@ -715,8 +749,7 @@ export type GuestTrustChipProps = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 8. Recipient-safety enums (Lane C). The report-reason vocabulary is part of
-//    the contract so the chip and the inquiry_reports table agree.
+// 8. Recipient-safety enums (Lane C) — report-reason vocabulary shared so chip + inquiry_reports table agree.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** inquiry_reports.reason allowed values (mirror the DB CHECK in S4). */
