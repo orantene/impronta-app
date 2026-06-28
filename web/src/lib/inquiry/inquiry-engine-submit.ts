@@ -221,6 +221,8 @@ export async function submitInquiry(
     if (!input.tenant_id) {
       return { success: false, error: "tenant_required" };
     }
+    // Phase A (channel invariant): no lead without a known channel.
+    if (!input.source_channel) return { success: false, error: "source_channel_required" };
 
     // Universal-connector P0 — rate-limit per actor identity.
     //   • authenticated user: 5/hour per user (existing)
@@ -370,9 +372,9 @@ export async function submitInquiry(
         interpreted_query: input.interpreted_query ?? null,
         source_page: input.source_page ?? null,
         source_channel: input.source_channel as never,
-        // F3 — source attribution fields (nullable for older / staff submissions)
         origin_domain: input.origin_domain ?? null,
-        source_workspace_id: input.source_workspace_id ?? null,
+        // Phase A (channel invariant): originating channel/workspace, kept distinct from tenant_id, never null.
+        source_workspace_id: input.source_workspace_id ?? input.tenant_id,
         // Phase B-1 (2026-05-14) — rich provenance context paired with
         // source_channel. Spec: web/docs/inquiry-engine-spec-2026-05-14.md §11
         source_context: input.source_context ?? {},
