@@ -366,6 +366,36 @@ export function MiniChatPanelColumn({
     !showGate &&
     !showSentAirlock;
 
+  // Addendum A details rail — the canonical synced "form view". ONE element,
+  // mounted per mode: compact -> FLOATS over the conversation (collapsed icon
+  // strip / expanded overlay) so it never stacks below the thread and pushes it
+  // up; two-pane -> in-flow below the body (rendered further down).
+  const detailsRail =
+    !showGate && extrasEnabled && inquiryIntent ? (
+      <InquiryDetailsRail
+        intent={inquiryIntent}
+        accent={accent}
+        accentInk={accentInk}
+        tenantSlug={tenantSlug}
+        t={t}
+        onListRoster={onListRoster}
+        capturedValues={capturedChipValues}
+        defaultCollapsed={!expanded}
+        bounded={!expanded}
+        floating={!expanded}
+        surfaceMode={surfaceMode}
+        openToSection={railOpenToSection}
+        onConsumeOpenTo={onConsumeRailOpenTo}
+        onPatchChip={(kind, value) => {
+          if (onPatchChip) void onPatchChip(kind, value);
+        }}
+        onTalentChange={(ids, mode, names) => onTalentChange?.(ids, mode, names)}
+        onBriefChange={(summary) => onBriefChange?.(summary)}
+        onContactChange={(value) => onContactChange?.(value)}
+      />
+    ) : null;
+  const compactRailFloating = !expanded && detailsRail !== null;
+
   return (
     <>
       {/* ── Header (extracted to GuestPanelHeader to hold the 800-line cap) ── */}
@@ -414,25 +444,28 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {/* ── Body ──────────────────────────────────────────────────────── */}
-      <div
-        ref={scrollRef}
-        style={{
-          // position:relative anchors the SENT airlock overlay to the body box.
-          position: "relative",
-          flex: 1,
-          // minHeight:0 lets the conversation body yield vertical room to the
-          // bounded details rail (compact panel) instead of forcing the column
-          // past its maxHeight and pushing the composer off-screen.
-          minHeight: 0,
-          overflowY: "auto",
-          padding: "14px 14px 6px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 9,
-          background: C.surface,
-        }}
-      >
+      {/* ── Conversation area: floating details rail (compact) + body ────── */}
+      <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", minWidth: 0 }}>
+        {/* Compact: the rail floats over the conversation (collapsed left strip /
+            expanded overlay) so it never stacks below + pushes the thread up. */}
+        {compactRailFloating && detailsRail}
+        <div
+          ref={scrollRef}
+          style={{
+            // position:relative anchors the SENT airlock overlay to the body box.
+            position: "relative",
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            padding: "14px 14px 6px",
+            // Clear the floating left rail strip (48px) when it is present.
+            paddingLeft: compactRailFloating ? 60 : 14,
+            display: "flex",
+            flexDirection: "column",
+            gap: 9,
+            background: C.surface,
+          }}
+        >
         {/* Jon 360 Phase 1: SENT airlock — non-blocking overlay on a real send. */}
         {showSentAirlock && (
           <SentAirlock
@@ -556,6 +589,7 @@ export function MiniChatPanelColumn({
             }
           />
         )}
+        </div>
       </div>
 
       {/* ── Inline gate ─────────────────────────────────────────────────── */}
@@ -669,36 +703,10 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {/* ── Addendum A: collapsible inquiry-details SIDEBAR ──────────────────
-          The canonical "form view": a vertical list of every section (Type,
-          Budget, Headcount, Date, Location, Talent, Brief, Contact) with
-          filled-state checks derived from the live unified draft. Clicking a row
-          opens that section's reusable editor; every commit routes through the
-          SAME patch handlers as the chips, so there is one source of truth.
-          Collapsed (icon-only rail) by default in the compact panel; expanded in
-          the two-pane. SUPERSEDES the slide-up sheet + the old extras editors. */}
-      {!showGate && extrasEnabled && inquiryIntent && (
-        <InquiryDetailsRail
-          intent={inquiryIntent}
-          accent={accent}
-          accentInk={accentInk}
-          tenantSlug={tenantSlug}
-          t={t}
-          onListRoster={onListRoster}
-          capturedValues={capturedChipValues}
-          defaultCollapsed={!expanded}
-          bounded={!expanded}
-          surfaceMode={surfaceMode}
-          openToSection={railOpenToSection}
-          onConsumeOpenTo={onConsumeRailOpenTo}
-          onPatchChip={(kind, value) => {
-            if (onPatchChip) void onPatchChip(kind, value);
-          }}
-          onTalentChange={(ids, mode, names) => onTalentChange?.(ids, mode, names)}
-          onBriefChange={(summary) => onBriefChange?.(summary)}
-          onContactChange={(value) => onContactChange?.(value)}
-        />
-      )}
+      {/* ── Addendum A: inquiry-details rail. The compact panel floats it over
+          the conversation (rendered above); the two-pane renders it in-flow
+          here below the body. Same element, positioned per mode. ──────────── */}
+      {expanded && detailsRail}
 
       {/* Sync status (finding #3) is now subsumed by the DraftPrivacyBanner above
           the thread, which folds the saving / saved / error states into its
