@@ -152,6 +152,17 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/api/hooks/") ||
     pathname.startsWith("/api/cron/") ||
     pathname === "/api/analytics/events" ||
+    // Public CMS form submission — a cross-domain POST from any tenant
+    // storefront's contact/lead form (the `form` builder node + contact_form
+    // section both target it). Like the Stripe/webhook endpoints above, it must
+    // reach its route handler regardless of Host; without this the host-resolution
+    // rewrite below turns "/api/cms/forms/submit" into a "/p/api/cms/forms/submit"
+    // CMS-page request and EVERY storefront form submission 500s. The route has
+    // its own layered defenses (honeypot + per-IP rate limit + a section id that
+    // must resolve to an active cms_sections row + optional captcha) and derives
+    // the tenant strictly from that section row — never from the Host — so
+    // tenant-host gating is unnecessary and actively harmful here.
+    pathname.startsWith("/api/cms/forms/") ||
     // Branded 404 page for unregistered hosts — must bypass host gating to
     // avoid infinite rewrite loops when the middleware rewrites here.
     pathname === "/_host-unregistered" ||

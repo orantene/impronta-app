@@ -113,10 +113,10 @@ export async function POST(req: Request) {
   // and be active.
   const { data: section } = await admin
     .from("cms_sections")
-    .select("id, tenant_id, name, section_type_key, archived_at, props_jsonb")
+    .select("id, tenant_id, name, section_type_key, status, props_jsonb")
     .eq("id", sectionId)
     .maybeSingle();
-  if (!section || section.archived_at) {
+  if (!section || section.status === "archived") {
     return NextResponse.json(
       { ok: false, error: "Form is no longer accepting submissions." },
       { status: 404 },
