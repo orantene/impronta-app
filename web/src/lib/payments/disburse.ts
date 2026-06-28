@@ -43,8 +43,10 @@ export type DisburseRoute =
       payoutMethodId?: string | null;
     };
 
+export type DisbursePartyKind = "talent" | "workspace" | "channel_referral";
+
 export type DisburseInput = {
-  party: "talent" | "workspace";
+  party: DisbursePartyKind;
   participantId: string;
   bookingId: string;
   amountCents: number;
@@ -53,7 +55,7 @@ export type DisburseInput = {
 };
 
 export type DisburseOutcome = {
-  party: "talent" | "workspace";
+  party: DisbursePartyKind;
   participantId: string;
   amountCents: number;
   currency: string;

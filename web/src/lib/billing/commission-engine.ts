@@ -63,6 +63,12 @@ interface CommissionContext {
   currency_code: string;
   platform_config: PlatformCommissionConfig;
   participants: ParticipantContext[];
+  /** Phase C — the originating channel (inquiries.source_workspace_id). Always
+   *  set post-Phase-A; absent on older RPC revisions (treated as no channel). */
+  source_workspace_id?: string | null;
+  /** Phase C — the referral rate configured for the channel (0 when unconfigured
+   *  or the RPC predates Phase C). */
+  hub_referral_bps?: number | null;
 }
 
 /** Normalize `workspace_plan` strings from the DB into the typed union the
@@ -159,6 +165,16 @@ export async function persistBookingCommissionSnapshot(
     /* even-split default applies */
   }
 
+  // Phase C — hub referral lane. Gated on the HUB_REFERRAL_LANE flag (default
+  // off): when off the rate is forced to 0, so the resolver produces a 0
+  // referral and the result is byte-identical to pre-Phase-C. When on, the
+  // per-channel rate from the RPC drives the lane (still 0 for any unconfigured
+  // channel). The channel party + managing home tenant come from the context.
+  const hubReferralLaneOn = process.env.HUB_REFERRAL_LANE === "1";
+  const hubReferralBps = hubReferralLaneOn ? (ctx.hub_referral_bps ?? 0) : 0;
+  const channelPartyId = ctx.source_workspace_id ?? null;
+  const homeTenantId = ctx.home_tenant_id ?? null;
+
   // 2. Resolve per participant (pure — no IO inside the loop).
   const snapshots: ParticipantSnapshot[] = [];
   try {
@@ -216,6 +232,11 @@ export async function persistBookingCommissionSnapshot(
         platformConfig,
         tenantOverride,
         bookingPlatformTakeBpsOverride,
+        // Phase C — referral applies only to workspace-seller rows; the resolver
+        // itself no-ops the lane for independent talent + when channel === home.
+        hubReferralBps,
+        channelPartyId,
+        homeTenantId,
       });
       snapshots.push({
         ...base,
@@ -274,6 +295,8 @@ export async function persistBookingCommissionSnapshot(
         seller_deduction_cents: s.seller_deduction_cents,
         gross_charged_cents: s.gross_charged_cents,
         seller_shortfall_cents: s.seller_shortfall_cents,
+        channel_referral_cents: s.channel_referral_cents,
+        channel_referral_party_id: s.channel_referral_party_id,
         currency_code: s.currency_code,
         payment_method: s.payment_method,
         off_platform_reason: s.off_platform_reason,

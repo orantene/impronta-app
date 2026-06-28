@@ -290,6 +290,10 @@ describe("persistBookingCommissionSnapshot — success", () => {
           seller_deduction_cents: 2_500,
           gross_charged_cents: 102_500,
           seller_shortfall_cents: 0,
+          // Phase C — hub referral lane. Default no-op (lane off / rate 0):
+          // referral 0, no party. The persist RPC stores these per row.
+          channel_referral_cents: 0,
+          channel_referral_party_id: null,
           currency_code: "MXN",
           payment_method: "card",
           off_platform_reason: null,

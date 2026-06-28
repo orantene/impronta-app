@@ -354,6 +354,49 @@ export async function executeBookingTransfers(
           lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
         });
       }
+      // 3) Phase C — HUB REFERRAL. Carved out of this row's workspace margin and
+      //    owed to the ORIGINATING channel (source_workspace_id). Paid as its own
+      //    Connect leg to the channel's workspace account, keyed distinctly
+      //    ('channel_referral' party) so it never collides with the workspace leg
+      //    and is idempotent on webhook re-delivery. >0 only — at rate 0 / lane
+      //    off this block never runs, so existing payouts are byte-identical.
+      const channelReferralCents = snap.channel_referral_cents ?? 0;
+      const channelReferralPartyId = snap.channel_referral_party_id ?? null;
+      if (channelReferralCents > 0 && channelReferralPartyId) {
+        const accountId = await resolveWorkspaceAccount(channelReferralPartyId);
+        const outcome = await disburse(
+          {
+            party: "channel_referral",
+            participantId: snap.participant_id,
+            bookingId,
+            amountCents: channelReferralCents,
+            currency,
+            route: { rail: "connect_transfer", connectAccountId: accountId },
+          },
+          { stripe },
+        );
+        outcomes.push(outcome);
+        await recordPayoutLeg(sb, {
+          bookingId,
+          transactionId,
+          participantId: snap.participant_id,
+          party: "channel_referral",
+          owningPartyType: snap.owning_party_type,
+          owningPartyId: snap.owning_party_id,
+          talentProfileId: null,
+          // The referral is paid to the CHANNEL workspace, so its tenant_id on
+          // the ledger leg is the channel party (not the managing owner).
+          tenantId: channelReferralPartyId,
+          destinationAccountId: outcome.destination ?? null,
+          amountCents: channelReferralCents,
+          currency,
+          status: ledgerStatus(outcome.status),
+          stripeTransferId: outcome.transferId ?? null,
+          payoutRail: "connect_transfer",
+          lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
+        });
+      }
+
       // Platform retains platform_fee_cents — already on the platform account.
     }
 
