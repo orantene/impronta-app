@@ -344,7 +344,7 @@ export function FavoritesModalView({
 
           {/* Footer */}
           {hasFavorites ? (
-            <footer className="flex flex-col gap-3 border-t border-[var(--fav-border)] px-5 py-4 sm:px-6">
+            <footer className="flex flex-col gap-3 border-t border-[var(--fav-border)] px-6 py-5 sm:px-7">
               <button
                 type="button"
                 onClick={onInquire}
@@ -443,30 +443,41 @@ function FavoriteTile({
         className={cn(
           "relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-[var(--fav-tile)] transition-shadow duration-200",
           selected
-            ? "shadow-[0_0_0_2px_var(--fav-accent)]"
+            ? "shadow-[0_0_0_1.5px_var(--fav-accent)]"
             : "shadow-[inset_0_0_0_1px_var(--fav-border)]",
         )}
       >
-        {/* Real editorial portrait (4:5), never a placeholder box. */}
+        {/* Real editorial portrait (4:5). A missing/failed image degrades to a
+            warm editorial name card, never a blank gray box. Deselected tiles
+            fade so the current selection reads at a glance. */}
         {showPhoto && talent.photoUrl ? (
           <Image
             src={talent.photoUrl}
             alt={talent.name}
             fill
             sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 220px"
-            className="object-cover transition-transform duration-500 group-hover/tile:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover/tile:scale-100"
+            className={cn(
+              "object-cover transition-[transform,opacity] duration-500 group-hover/tile:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover/tile:scale-100",
+              !selected && "opacity-[0.55]",
+            )}
             onError={() => setImgFailed(true)}
           />
         ) : (
           <div
             aria-hidden
-            className="flex h-full items-center justify-center px-3 text-center font-display text-sm tracking-[0.16em] text-[var(--fav-muted)]"
+            className={cn(
+              "flex h-full items-center justify-center px-4 text-center transition-opacity duration-200",
+              !selected && "opacity-70",
+            )}
+            style={{ background: "linear-gradient(155deg, #EDE5D7 0%, #D8CCB5 100%)" }}
           >
-            {talent.name}
+            <span className="font-display text-[17px] leading-snug tracking-[0.03em] text-[var(--fav-fg)]/85">
+              {talent.name}
+            </span>
           </div>
         )}
 
-        {/* Whole-photo select target. */}
+        {/* Whole-tile select target. */}
         <button
           type="button"
           onClick={onToggle}
@@ -474,28 +485,28 @@ function FavoriteTile({
           aria-label={fill(selected ? copy.deselectAria : copy.selectAria, {
             name: talent.name,
           })}
-          className="absolute inset-0 z-[1] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--fav-accent)]"
+          className="absolute inset-0 z-[2] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--fav-accent)]"
         />
 
-        {/* Select indicator (top-left). */}
+        {/* Select indicator (top-left): solid accent check when on, hollow when off. */}
         <span
           aria-hidden
           className={cn(
-            "pointer-events-none absolute left-2 top-2 z-[2] inline-flex size-6 items-center justify-center rounded-full border backdrop-blur-sm transition-colors",
+            "pointer-events-none absolute left-2.5 top-2.5 z-[3] inline-flex size-6 items-center justify-center rounded-full border transition-colors",
             selected
-              ? "border-[var(--fav-accent)] bg-[var(--fav-accent)] text-[var(--fav-bg)]"
-              : "border-white/70 bg-black/30 text-transparent",
+              ? "border-[var(--fav-accent)] bg-[var(--fav-accent)] text-white shadow-sm"
+              : "border-[var(--fav-fg)]/35 bg-[var(--fav-bg)]/85 text-transparent backdrop-blur-sm",
           )}
         >
           <Check className="size-3.5" strokeWidth={3} />
         </span>
 
-        {/* Remove (top-right) — sits above the select target. */}
+        {/* Remove (top-right), revealed on hover/focus — distinct from select. */}
         <button
           type="button"
           onClick={onRemove}
           aria-label={fill(copy.removeAria, { name: talent.name })}
-          className="absolute right-2 top-2 z-[3] inline-flex size-7 items-center justify-center rounded-full bg-black/45 text-white/85 opacity-0 outline-none backdrop-blur-sm transition-opacity duration-150 hover:bg-black/70 hover:text-white focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[var(--fav-accent)] group-hover/tile:opacity-100"
+          className="absolute right-2.5 top-2.5 z-[3] inline-flex size-7 items-center justify-center rounded-full bg-[var(--fav-fg)]/55 text-white opacity-0 outline-none backdrop-blur-sm transition-opacity duration-150 hover:bg-[var(--fav-fg)]/80 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[var(--fav-accent)] group-hover/tile:opacity-100"
         >
           <X className="size-3.5" />
         </button>

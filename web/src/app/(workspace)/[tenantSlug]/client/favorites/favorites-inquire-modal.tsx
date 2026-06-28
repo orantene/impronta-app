@@ -31,9 +31,12 @@ import {
  * `.client-root` token scope, so explicit light tokens are passed (the cascade
  * can't reach a body portal here).
  */
+// On-brand editorial gold (deep enough for AA on the ivory surface). The
+// dashboard portal escapes the cascade, so the accent is set explicitly here;
+// it matches the storefront's resolved tenant gold for one consistent look.
 const DASHBOARD_TOKENS: FavoritesModalTokens = {
   ...TULALA_LIGHT_SURFACE,
-  accent: "#1D4ED8",
+  accent: "#9a7b1f",
 };
 
 const COPY: FavoritesModalCopy = {
