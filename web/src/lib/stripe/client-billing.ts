@@ -25,6 +25,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+import { mapStripeStatus } from "@/lib/stripe/utils";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -288,6 +289,185 @@ export async function createClientBalanceTopupCheckoutSession(opts: {
     logServerError("client-billing.createTopupSession", err);
     return { ok: false, error: "Could not create top-up session." };
   }
+}
+
+// ─── Pro subscription checkout (Phase D) ──────────────────────────────────────
+
+/**
+ * Creates a Stripe Checkout session (subscription mode) for the client Pro tier.
+ *
+ * The price is read from STRIPE_CLIENT_PRO_PRICE_ID — never hardcoded. When the
+ * env var is unset we return a clear "not configured" error so the caller can
+ * surface a precise message instead of a generic Stripe failure.
+ *
+ * On success the Stripe webhook (api/discover/subscriptions/webhook) upserts the
+ * client_subscriptions row to tier='pro'. checkout_type='client_pro_subscription'
+ * keeps this stream distinct from the talent/workspace subscription webhooks.
+ */
+export async function createClientProCheckoutSession(opts: {
+  userId: string;
+  email: string;
+  displayName: string;
+  tenantSlug: string;
+  appBaseUrl: string;
+}): Promise<BillingResult<{ url: string }>> {
+  if (!isStripeConfigured()) {
+    return { ok: false, error: "Stripe is not configured." };
+  }
+  const priceId = process.env.STRIPE_CLIENT_PRO_PRICE_ID?.trim();
+  if (!priceId) {
+    return { ok: false, error: "Client Pro subscription is not configured (missing STRIPE_CLIENT_PRO_PRICE_ID)." };
+  }
+  const stripe = getStripe()!;
+
+  const customerResult = await getOrCreateClientStripeCustomer(
+    opts.userId,
+    opts.email,
+    opts.displayName,
+  );
+  if (!customerResult.ok) return customerResult;
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      customer: customerResult.data,
+      mode: "subscription",
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/client/subscription?billing=success`,
+      cancel_url: `${opts.appBaseUrl}/${opts.tenantSlug}/client/subscription?billing=cancelled`,
+      allow_promotion_codes: true,
+      metadata: {
+        user_id: opts.userId,
+        checkout_type: "client_pro_subscription",
+      },
+      subscription_data: {
+        metadata: {
+          user_id: opts.userId,
+          checkout_type: "client_pro_subscription",
+        },
+      },
+      // Adaptive Pricing: auto-converts to customer's local currency at checkout.
+      adaptive_pricing: { enabled: true },
+    });
+
+    if (!session.url) {
+      return { ok: false, error: "Stripe returned no checkout URL." };
+    }
+    return { ok: true, data: { url: session.url } };
+  } catch (err) {
+    logServerError("client-billing.createProCheckoutSession", err);
+    return { ok: false, error: "Could not create Pro checkout session." };
+  }
+}
+
+// ─── Pro subscription webhook sync (Phase D) ──────────────────────────────────
+
+/** Tier mapping for a client Pro subscription Stripe event. */
+function clientTierFromSubscription(
+  sub: import("stripe").Stripe.Subscription,
+): "pro" | "enterprise" {
+  // Today only Pro is self-serve via Checkout; Enterprise is sales-led. The
+  // metadata escape hatch lets a sales-provisioned subscription declare its tier.
+  const meta = sub.metadata?.client_tier;
+  if (meta === "enterprise") return "enterprise";
+  return "pro";
+}
+
+/**
+ * Pure mapping (Stripe subscription event → client_subscriptions upsert shape).
+ * Extracted so the webhook → DB contract is unit-testable without Stripe or a DB.
+ *
+ *   customer.subscription.deleted → tier downgrades to 'standard', status='canceled'
+ *   created/updated               → tier from metadata (default 'pro'), mapped status
+ */
+export function mapClientSubscriptionUpsert(
+  event: import("stripe").Stripe.Event,
+): {
+  client_user_id: string;
+  tier: "standard" | "pro" | "enterprise";
+  status: "active" | "past_due" | "canceled" | "trialing" | "incomplete";
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+} | null {
+  const sub = event.data.object as import("stripe").Stripe.Subscription;
+  const userId = sub.metadata?.user_id;
+  if (!userId) return null;
+
+  const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id ?? null;
+  const periodEndUnix =
+    (sub.items?.data?.[0] as { current_period_end?: number } | undefined)?.current_period_end ??
+    null;
+  const currentPeriodEnd = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
+
+  if (event.type === "customer.subscription.deleted") {
+    return {
+      client_user_id: userId,
+      tier: "standard",
+      status: "canceled",
+      stripe_customer_id: customerId,
+      stripe_subscription_id: sub.id,
+      current_period_end: currentPeriodEnd,
+      cancel_at_period_end: false,
+    };
+  }
+
+  // mapStripeStatus normalizes to the canonical set; client_subscriptions.status
+  // CHECK accepts active/past_due/canceled/trialing/incomplete. 'cancelled'
+  // (British, from mapStripeStatus) is normalized to 'canceled' here.
+  const mapped = mapStripeStatus(sub.status);
+  const status: "active" | "past_due" | "canceled" | "trialing" | "incomplete" =
+    mapped === "cancelled" ? "canceled"
+    : mapped === "active" || mapped === "past_due" || mapped === "trialing" || mapped === "incomplete"
+      ? mapped
+      : "incomplete";
+
+  // A non-live status downgrades the granted tier to standard so a past_due /
+  // incomplete subscription doesn't leave Pro tools unlocked.
+  const isLive = status === "active" || status === "trialing";
+  const tier: "standard" | "pro" | "enterprise" = isLive
+    ? clientTierFromSubscription(sub)
+    : "standard";
+
+  return {
+    client_user_id: userId,
+    tier,
+    status,
+    stripe_customer_id: customerId,
+    stripe_subscription_id: sub.id,
+    current_period_end: currentPeriodEnd,
+    cancel_at_period_end: sub.cancel_at_period_end ?? false,
+  };
+}
+
+/**
+ * Webhook handler for a client Pro subscription event. Upserts the
+ * client_subscriptions row keyed on client_user_id (UNIQUE). Idempotent —
+ * re-delivery overwrites with the same mapped shape.
+ */
+export async function syncClientProSubscriptionToDb(
+  event: import("stripe").Stripe.Event,
+): Promise<BillingResult<void>> {
+  const mapped = mapClientSubscriptionUpsert(event);
+  if (!mapped) {
+    // No user_id metadata — not a client Pro subscription we provisioned. Ack.
+    return { ok: true, data: undefined };
+  }
+  const sb = createServiceRoleClient();
+  if (!sb) return { ok: false, error: "Database not available." };
+
+  const { error } = await sb.from("client_subscriptions").upsert(
+    {
+      ...mapped,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "client_user_id" },
+  );
+  if (error) {
+    logServerError("client-billing.syncProSubscription", error);
+    return { ok: false, error: "Failed to sync client subscription." };
+  }
+  return { ok: true, data: undefined };
 }
 
 // ─── Webhook sync helpers ─────────────────────────────────────────────────────

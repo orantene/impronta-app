@@ -145,6 +145,10 @@ export async function proxy(request: NextRequest) {
     // host-gating bypass; otherwise this path rewrites to the unregistered-host
     // page and the webhook silently 404s.
     pathname.startsWith("/api/webhooks/") ||
+    // Client Pro subscription webhook (Phase D). Stripe POSTs here with its own
+    // signature auth, so it must bypass tenant host-gating like the other Stripe
+    // endpoints — otherwise it rewrites to the not-found page and silently 404s.
+    pathname === "/api/discover/subscriptions/webhook" ||
     // Supabase auth "Send Email" hook → /api/hooks/auth-email. Supabase POSTs
     // server-to-server with whatever Host it resolves; the route has its own
     // Standard-Webhooks signature auth, so it must bypass tenant host-gating

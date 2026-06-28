@@ -66,7 +66,7 @@ export function ShortlistsShell({
   );
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONT }}>
-      {!hasPro && <ProUpsellBanner tier={tier} />}
+      {!hasPro && <ProUpsellBanner tier={tier} tenantSlug={tenantSlug} />}
       {shortlists.map((s) => (
         <ShortlistCard
           key={s.id}
@@ -87,9 +87,41 @@ export function ShortlistsShell({
   );
 }
 
-/** Inline upsell shown to standard-tier clients on the shortlists page.
- *  Static placeholder — no Stripe checkout wired yet. */
-function ProUpsellBanner({ tier }: { tier: "standard" | "pro" | "enterprise" }) {
+/**
+ * Start the Pro checkout: POST to the subscription checkout route and redirect
+ * to the returned Stripe Checkout URL. When checkout isn't configured yet
+ * (no price id) we fall back to the subscription page, which explains the tiers
+ * and the sales-assisted path. The server-side 402 gate is the real enforcement;
+ * this is just the upgrade entry point.
+ */
+async function startProCheckout(tenantSlug: string): Promise<void> {
+  try {
+    const res = await fetch("/api/discover/subscriptions/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tenantSlug }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { url?: string };
+    if (res.ok && typeof json.url === "string") {
+      window.location.href = json.url;
+      return;
+    }
+  } catch {
+    /* fall through to the subscription page */
+  }
+  // Not configured / error → send them to the tier comparison page.
+  window.location.href = `/${tenantSlug}/client/subscription`;
+}
+
+/** Inline upsell shown to standard-tier clients on the shortlists page. The CTA
+ *  starts a real Pro checkout (Stripe), falling back to the subscription page. */
+function ProUpsellBanner({
+  tier,
+  tenantSlug,
+}: {
+  tier: "standard" | "pro" | "enterprise";
+  tenantSlug: string;
+}) {
   if (tier !== "standard") return null;
   return (
     <div
@@ -117,19 +149,19 @@ function ProUpsellBanner({ tier }: { tier: "standard" | "pro" | "enterprise" }) 
           Trust gates and contact controls still apply — Pro unlocks tools, not access.
         </div>
       </div>
-      <a
-        href="mailto:sales@tulala.digital?subject=Upgrade%20to%20Pro"
-        title="Pro upgrades are sales-led for now. This opens an email to our team."
+      <button
+        type="button"
+        onClick={() => { void startProCheckout(tenantSlug); }}
         style={{
           padding: "8px 14px", borderRadius: 8,
-          background: C.accent, color: "#fff",
-          textDecoration: "none", display: "inline-block",
+          background: C.accent, color: "#fff", border: "none",
+          display: "inline-block",
           fontFamily: FONT, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
           flexShrink: 0,
         }}
       >
-        Talk to sales →
-      </a>
+        Upgrade to Pro →
+      </button>
     </div>
   );
 }
@@ -145,7 +177,6 @@ function ShortlistCard({
   hasPro: boolean;
   cardCssVars: Record<string, string> | undefined;
 }) {
-  void tenantSlug;
   const [inquireOpen, setInquireOpen] = useState(false);
   const [eventDate, setEventDate] = useState("");
   const [eventLocation, setEventLocation] = useState("");
@@ -262,7 +293,10 @@ function ShortlistCard({
             type="button"
             onClick={() => {
               if (!hasPro) {
-                alert("Compare is a Pro feature. Upgrade to compare talent side-by-side.");
+                // Pro gate is enforced server-side for sends; compare is a
+                // client-only view, so route the upgrade here instead of an
+                // alert(). The subscription page starts checkout.
+                window.location.href = `/${tenantSlug}/client/subscription`;
                 return;
               }
               setCompareOpen(true);
@@ -293,7 +327,10 @@ function ShortlistCard({
             onClick={() => {
               const isMultiTalent = shortlist.talents.length > 1 || routableCount > 1;
               if (!hasPro && isMultiTalent) {
-                alert("Multi-talent inquiry send is a Pro feature. Send a single-talent inquiry from the Discover detail drawer instead.");
+                // Multi-talent send is a Pro power tool — enforced server-side
+                // with a 402. Route to the upgrade page instead of the old
+                // alert() pretense.
+                window.location.href = `/${tenantSlug}/client/subscription`;
                 return;
               }
               setInquireOpen((v) => !v);
@@ -456,6 +493,13 @@ function ShortlistCard({
                   }),
                 });
                 const j = await res.json();
+                if (res.status === 402 || j.error === "pro_required") {
+                  setResult({
+                    ok: false,
+                    text: "Multi-talent send is a Pro feature. Upgrade to send one inquiry across your whole shortlist.",
+                  });
+                  return;
+                }
                 if (res.ok && j.inquiries?.length > 0) {
                   const created = j.inquiries.length;
                   const skipped = j.skipped?.length ?? 0;
