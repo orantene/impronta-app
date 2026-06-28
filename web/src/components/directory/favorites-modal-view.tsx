@@ -344,42 +344,44 @@ export function FavoritesModalView({
 
           {/* Footer */}
           {hasFavorites ? (
-            <footer className="flex flex-col gap-3 border-t border-[var(--fav-border)] px-6 py-5 sm:px-7">
-              <button
-                type="button"
-                onClick={onInquire}
-                disabled={inquirePending || selectedCount === 0}
-                className={cn(
-                  "inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl px-5 text-[13px] font-semibold tracking-wide outline-none transition-[opacity,transform] duration-200",
-                  "bg-[var(--fav-fg)] text-[var(--fav-bg)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--fav-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--fav-bg)]",
-                  "disabled:cursor-not-allowed disabled:opacity-40",
-                )}
-              >
-                {inquirePending ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : null}
-                {primaryLabel}
-              </button>
-
-              <div className="flex items-center justify-between gap-3 text-[12px]">
-                {isAuthenticated && favoritesPageHref ? (
-                  <a
-                    href={favoritesPageHref}
-                    onClick={() => onOpenChange(false)}
-                    className="text-[var(--fav-muted)] underline-offset-4 outline-none transition-colors hover:text-[var(--fav-fg)] hover:underline focus-visible:text-[var(--fav-fg)]"
+            <footer className="flex flex-col gap-4 border-t border-[var(--fav-border)] px-6 py-5 sm:px-7">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                {/* Secondary actions — quiet, on the left. */}
+                <div className="flex items-center justify-between gap-5 text-[12px] sm:justify-start">
+                  <button
+                    type="button"
+                    onClick={onClearAll}
+                    className="inline-flex items-center gap-1.5 text-[var(--fav-muted)] outline-none transition-colors hover:text-[var(--fav-fg)] focus-visible:text-[var(--fav-fg)]"
                   >
-                    {copy.favoritesPageLabel}
-                  </a>
-                ) : (
-                  <span />
-                )}
+                    <Trash2 className="size-3.5" />
+                    {copy.clearAll}
+                  </button>
+                  {isAuthenticated && favoritesPageHref ? (
+                    <a
+                      href={favoritesPageHref}
+                      onClick={() => onOpenChange(false)}
+                      className="text-[var(--fav-muted)] underline-offset-4 outline-none transition-colors hover:text-[var(--fav-fg)] hover:underline focus-visible:text-[var(--fav-fg)]"
+                    >
+                      {copy.favoritesPageLabel}
+                    </a>
+                  ) : null}
+                </div>
+
+                {/* Primary CTA — contained gold pill (full-width only on mobile). */}
                 <button
                   type="button"
-                  onClick={onClearAll}
-                  className="inline-flex items-center gap-1.5 text-[var(--fav-muted)] outline-none transition-colors hover:text-[var(--fav-fg)] focus-visible:text-[var(--fav-fg)]"
+                  onClick={onInquire}
+                  disabled={inquirePending || selectedCount === 0}
+                  className={cn(
+                    "inline-flex h-11 w-full items-center justify-center gap-2 rounded-full px-7 text-[13px] font-semibold tracking-wide outline-none transition-[filter,opacity] duration-200 sm:w-auto",
+                    "bg-[var(--fav-accent)] text-[var(--fav-fg)] shadow-[0_1px_2px_rgba(26,23,18,0.2)] hover:brightness-95 focus-visible:ring-2 focus-visible:ring-[var(--fav-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--fav-bg)]",
+                    "disabled:cursor-not-allowed disabled:opacity-40",
+                  )}
                 >
-                  <Trash2 className="size-3.5" />
-                  {copy.clearAll}
+                  {inquirePending ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : null}
+                  {primaryLabel}
                 </button>
               </div>
 
@@ -429,6 +431,7 @@ function FavoriteTile({
   // A non-null photo that FAILS to load degrades to the editorial monogram,
   // never a blank box (house rule: real imagery, never a placeholder box).
   const [imgFailed, setImgFailed] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const showPhoto = Boolean(talent.photoUrl) && !imgFailed;
   const typeLocation = [talent.primaryType, talent.location]
     .filter((s): s is string => Boolean(s && s.trim()))
@@ -441,7 +444,8 @@ function FavoriteTile({
     >
       <div
         className={cn(
-          "relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-[var(--fav-tile)] transition-shadow duration-200",
+          "relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-[#EBE4D6] transition-shadow duration-200",
+          showPhoto && !imgLoaded && "animate-pulse",
           selected
             ? "shadow-[0_0_0_1.5px_var(--fav-accent)]"
             : "shadow-[inset_0_0_0_1px_var(--fav-border)]",
@@ -460,6 +464,7 @@ function FavoriteTile({
               "object-cover transition-[transform,opacity] duration-500 group-hover/tile:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover/tile:scale-100",
               !selected && "opacity-[0.55]",
             )}
+            onLoad={() => setImgLoaded(true)}
             onError={() => setImgFailed(true)}
           />
         ) : (
