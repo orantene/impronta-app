@@ -12,11 +12,22 @@
  * (strategy §3.1 / §10). House rule: the only warm color is the tenant accent.
  */
 
-import { C, inputStyle, primaryBtnStyle } from "./mini-chat-styles";
+import {
+  inputStyleFor,
+  paletteFor,
+  primaryBtnStyle,
+  type SurfaceMode,
+} from "./mini-chat-styles";
 
 export type MiniChatGateFormProps = {
   /** Talent first name for the "Where should {name} reach you?" prompt. */
   talentFirst: string;
+  /**
+   * Phase 6 — a quiet recap line anchoring the contact ask to the lineup, e.g.
+   * "We will use this to send you {agency} reply about Jane, +2". Null when the
+   * lineup is empty (no recap rendered).
+   */
+  lineupRecap?: string | null;
   /** The pending message body (shown as a read-only recap above the fields). */
   draft: string;
   firstName: string;
@@ -34,12 +45,15 @@ export type MiniChatGateFormProps = {
   /** When true, emailNotice is an error and send stays disabled. */
   emailBlocksSubmit?: boolean;
   sending: boolean;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
   /** Fire the first-send (the panel's handleFirstSend). */
   onSend: () => void;
 };
 
 export function MiniChatGateForm({
   talentFirst,
+  lineupRecap = null,
   draft,
   firstName,
   onFirstNameChange,
@@ -53,9 +67,12 @@ export function MiniChatGateForm({
   emailNotice = null,
   emailBlocksSubmit = false,
   sending,
+  surfaceMode = "light",
   onSend,
 }: MiniChatGateFormProps) {
   const canSend = gateReady && !emailBlocksSubmit && !sending;
+  const C = paletteFor(surfaceMode);
+  const inputStyle = inputStyleFor(C);
 
   return (
     <div
@@ -71,6 +88,17 @@ export function MiniChatGateForm({
       <div style={{ fontSize: 12, fontWeight: 600, color: C.inkMuted }}>
         Where should {talentFirst} reach you?
       </div>
+      {lineupRecap ? (
+        <div
+          style={{
+            fontSize: 11,
+            lineHeight: 1.45,
+            color: C.inkDim,
+          }}
+        >
+          {lineupRecap}
+        </div>
+      ) : null}
       {draft.trim() && (
         <div
           style={{

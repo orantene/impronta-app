@@ -300,6 +300,49 @@ export function inquiryReceivedEmail(data: {
   };
 }
 
+/**
+ * Phase 8 (returning-visitor nudges) — abandoned-draft re-engagement email.
+ *
+ * Sent by the abandoned-draft sweep (lib/inquiry/abandoned-draft-nudge.ts) to a
+ * guest who started an inquiry, gave a REAL contact, then left it as a draft for
+ * N+ days. Strictly gated upstream: only a promoted, non-placeholder contact is
+ * ever passed here (the sweep never emails a pending-...@guest.impronta seed).
+ *
+ * `resumeHref` deep-links back to the talent/agency surface so the launcher pill
+ * resolves to the "Finish your inquiry (N)" resume_draft state on return.
+ */
+export function abandonedDraftNudgeEmail(data: {
+  contactName: string | null;
+  agencyName: string;
+  resumeHref: string;
+  lineupCount: number;
+  brand?: EmailBrand;
+}): { subject: string; html: string } {
+  const name = data.contactName?.trim() || "there";
+  const count = Math.max(0, data.lineupCount);
+  const lineupLine =
+    count > 0
+      ? `You had ${count} ${count === 1 ? "name" : "names"} lined up. Pick up right where you left off.`
+      : "Pick up right where you left off.";
+
+  return {
+    subject: `Finish your inquiry with ${data.agencyName}`,
+    html: layout(
+      `
+      <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a1a;">Still planning your event?</h2>
+      <p style="margin:0 0 16px;font-size:15px;color:#444444;line-height:1.6;">
+        Hi ${name}, you started an inquiry with <strong>${data.agencyName}</strong> but did not send it. ${lineupLine}
+      </p>
+      <p style="margin:0;font-size:14px;color:#555555;">
+        Send it whenever you are ready and the team will reply by email.
+      </p>
+      ${button(data.resumeHref, "Finish your inquiry →")}
+    `,
+      data.brand,
+    ),
+  };
+}
+
 /** Step 13 — Sent to coordinator when auto-assigned to a new inquiry on submit. */
 export function coordinatorAssignedEmail(data: {
   coordinatorName: string | null;

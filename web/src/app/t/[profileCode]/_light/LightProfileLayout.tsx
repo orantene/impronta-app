@@ -602,6 +602,7 @@ export function LightProfileLayout({
                     displayName={st.displayName}
                     sourcePage={profileSourcePage}
                     variant="compact"
+                    locale={locale}
                     className="absolute right-2.5 top-2.5 z-[2]"
                   />
                 </div>

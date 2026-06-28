@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../../_data-bridge";
@@ -25,6 +26,7 @@ const FONT = '"Inter", system-ui, sans-serif';
 
 export default async function ClientShortlistsPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
+  const locale = await getRequestLocale();
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
@@ -57,6 +59,7 @@ export default async function ClientShortlistsPage({ params }: { params: PagePar
           tier={subscription.tier}
           hasPro={hasPro}
           cardDesign={cardDesign}
+          locale={locale}
         />
       ) : (
         <EmptyState

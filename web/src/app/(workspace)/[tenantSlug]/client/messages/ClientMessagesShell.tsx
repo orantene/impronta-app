@@ -39,6 +39,7 @@ import { readVoiceMetaFromMessageMetadata } from "@/lib/messages/voice-meta";
 import { renderMessageMarkdown } from "@/lib/messages/markdown";
 import { LinkPreview, firstHttpUrl, TypingRow } from "@/components/messages/thread-enhancements";
 import { useThreadPresence } from "@/lib/realtime/presence";
+import { trackOfferViewed } from "@/lib/analytics/jon360-funnel-events";
 
 const DEFAULT_REACTION_SET = ["👍", "❤️", "🎉", "😂", "😮", "🙏"] as const;
 import { useRouter } from "next/navigation";
@@ -884,6 +885,24 @@ function ThreadPaneWithTabs({
     userId: viewerUserId ?? "",
     displayName: client.displayName,
   });
+  // Jon-360 funnel: offer_viewed. The guest mini-chat has no offer surface
+  // (offers render in the CLIENT/ADMIN shells), so this is the offer's first
+  // anchor for the client. Fire ONCE per inquiry, the first time an offer
+  // becomes visible to this client (details.offer.exists flips true). The
+  // tracked ref resets per inquiry id so each thread's offer counts once.
+  const offerTrackedRef = useRef(false);
+  useEffect(() => { offerTrackedRef.current = false; }, [inq.id]);
+  useEffect(() => {
+    if (!details?.offer?.exists || offerTrackedRef.current) return;
+    offerTrackedRef.current = true;
+    trackOfferViewed({
+      inquiryId: inq.id,
+      tenantId: details.tenant_id,
+      lineupCount: details.talent.selected.length,
+      identity: "client",
+      source: `/${tenantSlug}/client/messages`,
+    });
+  }, [details, inq.id, tenantSlug]);
   return (
     <>
       {/* Thread header — same as before, but tab strip appended below */}

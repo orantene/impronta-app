@@ -14,13 +14,15 @@
  * the action; this component never invents "online"/"typing".
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type {
   GuestInquirySummary,
   ListGuestInquiriesCallback,
 } from "@/lib/inquiry/guest-chat-contract";
+import { createTranslator } from "@/i18n/messages";
 
+import type { SurfaceMode } from "./mini-chat-styles";
 import { GuestThreadSwitcher } from "./GuestThreadSwitcher";
 
 export type GuestPanelHeaderExtrasProps = {
@@ -38,6 +40,13 @@ export type GuestPanelHeaderExtrasProps = {
   onListGuestInquiries: ListGuestInquiriesCallback;
   /** Switch the panel to another owned inquiry. */
   onSelect: (inquiryId: string) => void;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
+  /**
+   * Phase 5 — guest UI locale (brand.locale), so the project switcher labels +
+   * draft/sent pills render in the tenant language. Defaults to "en".
+   */
+  locale?: string | null;
 };
 
 export function GuestPanelHeaderExtras({
@@ -49,8 +58,11 @@ export function GuestPanelHeaderExtras({
   seenAtByInquiry,
   onListGuestInquiries,
   onSelect,
+  surfaceMode = "light",
+  locale,
 }: GuestPanelHeaderExtrasProps) {
   const [inquiries, setInquiries] = useState<GuestInquirySummary[]>([]);
+  const t = useMemo(() => createTranslator(locale ?? "en"), [locale]);
 
   // Load once on open, then refresh on a slow ~30s cadence while open. The
   // switcher is a convenience surface, not the live thread — a slow refresh is
@@ -86,6 +98,8 @@ export function GuestPanelHeaderExtras({
       accentInk={accentInk}
       seenAtByInquiry={seenAtByInquiry}
       onSelect={onSelect}
+      surfaceMode={surfaceMode}
+      t={t}
     />
   );
 }

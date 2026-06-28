@@ -18,7 +18,13 @@ import { useState } from "react";
 
 import type { AddClaimEmailCallback } from "@/lib/inquiry/guest-chat-contract";
 
-import { C, EMAIL_RE, inputStyle, primaryBtnStyle } from "./mini-chat-styles";
+import {
+  EMAIL_RE,
+  inputStyleFor,
+  paletteFor,
+  primaryBtnStyle,
+  type SurfaceMode,
+} from "./mini-chat-styles";
 
 export function ClaimEmailRecap({
   emailedTo,
@@ -26,6 +32,7 @@ export function ClaimEmailRecap({
   accent,
   accentInk,
   onAddClaimEmail,
+  surfaceMode = "light",
 }: {
   /** The email the first link was sent to. */
   emailedTo: string;
@@ -35,7 +42,10 @@ export function ClaimEmailRecap({
   accentInk: string;
   /** Injected add-claim-email action. Null hides "Use a different email". */
   onAddClaimEmail: AddClaimEmailCallback | null;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
 }) {
+  const C = paletteFor(surfaceMode);
   const [showAltEmail, setShowAltEmail] = useState(false);
   const [altEmail, setAltEmail] = useState("");
   const [altSending, setAltSending] = useState(false);
@@ -138,7 +148,7 @@ export function ClaimEmailRecap({
                 placeholder="name@example.com"
                 type="email"
                 autoComplete="email"
-                style={{ ...inputStyle, flex: 1, fontSize: 12 }}
+                style={{ ...inputStyleFor(C), flex: 1, fontSize: 12 }}
               />
               <button
                 type="button"

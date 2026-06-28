@@ -1,0 +1,19 @@
+/*
+ * mini-chat-a11y.module.css — keyboard focus-visible ring for the guest-chat
+ * text inputs (WCAG 2.4.7). The chat is styled with runtime inline styles (the
+ * tenant accent is injected per-render, so it cannot live in a static token),
+ * and inline styles cannot express the :focus-visible pseudo-class. This tiny
+ * scoped module supplies the missing keyboard-focus indicator.
+ *
+ * The inputs keep their inline `outline: none` (so a MOUSE click shows no ring),
+ * and this rule re-adds a 2px accent ring ONLY for keyboard focus. The accent is
+ * read from the `--chat-focus-accent` custom property the input sets inline from
+ * its `accent` prop, falling back to a cool slate (DEFAULT_ACCENT) so the ring is
+ * always visible even if the property is missing. Both fallback and typical brand
+ * accents clear AA non-text contrast (>=3:1) against the white/faint surfaces.
+ */
+
+.focusRing:focus-visible {
+  outline: 2px solid var(--chat-focus-accent, #33507a);
+  outline-offset: 2px;
+}

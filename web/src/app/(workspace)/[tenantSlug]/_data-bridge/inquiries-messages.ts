@@ -148,7 +148,9 @@ const INQUIRY_INBOX_OPEN_STATUSES = [
   "coordination",
   "offer_pending",
   "approved",
-  "draft",
+  // NB: `draft` is intentionally EXCLUDED. A pre-send guest early-row is a
+  // private draft (the guest's move, not the agency's) until its first real
+  // send promotes it to `submitted`; it must never surface in any agency inbox.
   "booked",      // booked stays in Messages until wrapped/closed
   "converted",
 ] as const;

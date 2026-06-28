@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { usePathname } from "next/navigation";
 
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
@@ -67,6 +68,7 @@ export function DirectoryCardAdapter({
   index?: number;
 }) {
   const pathname = usePathname();
+  const mediaRef = useRef<HTMLDivElement>(null);
 
   const data = mapDtoToCardData(card, pathname);
 
@@ -82,7 +84,7 @@ export function DirectoryCardAdapter({
 
   return (
     <div className="group/cardwrap relative flex flex-col">
-      <div className="relative">
+      <div className="relative" ref={mediaRef}>
         <DirectoryCard
           data={data}
           style={style}
@@ -164,6 +166,21 @@ export function DirectoryCardAdapter({
         </div>
       ) : null}
 
+      {/* INQUIRE / ADDED ✓ bar below the card — cart membership. Carries the
+          portrait + photo rect so adding flies a face-focus avatar to the
+          "Message {agency}" launcher pill (plan §4.A.5). */}
+      <TalentCardActions
+        talentProfileId={card.id}
+        profileCode={card.profileCode ?? ""}
+        displayName={card.displayName}
+        sourcePage="/directory"
+        hideFavorite
+        className="mt-2"
+        portraitUrl={card.thumbnail?.url ?? null}
+        getInquiryPhotoRect={() =>
+          mediaRef.current?.querySelector("img")?.getBoundingClientRect() ?? null
+        }
+      />
     </div>
   );
 }

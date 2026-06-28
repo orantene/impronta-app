@@ -203,7 +203,10 @@ export function ContactTalentButton({
               talent_id: talent.id,
               source_page: sourcePage,
             });
-            inquiryModal.openInquiry();
+            // Phase 3 — the canonical inquiry surface is the chat launcher, not
+            // the legacy InquiryDrawer sheet. The talent was just added to the
+            // shared lineup above, so the chat opens preloaded with it.
+            inquiryModal.requestOpenChat();
           } else {
             router.push(clientLocaleHref(pathname, "/directory"));
           }
@@ -242,7 +245,9 @@ export function OpenInquiryCartButton({
           return;
         }
         if (inquiryModal) {
-          inquiryModal.openInquiry();
+          // Phase 3 — open the canonical chat launcher (preloaded with the
+          // lineup), not the legacy InquiryDrawer composer.
+          inquiryModal.requestOpenChat();
         } else {
           router.push(clientLocaleHref(pathname, "/directory"));
         }

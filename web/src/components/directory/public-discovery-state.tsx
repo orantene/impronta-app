@@ -36,6 +36,20 @@ export type PublicFlashMessage = {
   title: string;
   message?: string;
   tone?: "error" | "success" | "info";
+  /**
+   * Optional inline action (e.g. an Undo). When present, the flash host renders
+   * a labelled button that runs `onAction` then clears the flash. Reuses the
+   * existing public toast host rather than adding a toast dependency.
+   */
+  action?: {
+    label: string;
+    onAction: () => void;
+  };
+  /**
+   * Auto-dismiss window in ms. Defaults to the host's 4500ms. An undo cue wants
+   * a tighter 5s window so the action does not linger as stale.
+   */
+  durationMs?: number;
 };
 
 export type DiscoverySearchContext = {
@@ -211,6 +225,12 @@ export function PublicDiscoveryStateProvider({
     });
   }, []);
 
+  // Phase 6 — auto-park safe ordering (pre-emptive guard). `clearSavedIds` wipes
+  // the local lineup; it must ONLY ever be called PATCH-THEN-CLEAR — i.e. await a
+  // successful server park (the lineup written onto a parked/new inquiry record)
+  // BEFORE clearing this local mirror. A failed park must never reach this call,
+  // or the lineup is lost with nowhere to restore it from. There are no call sites
+  // yet; when the separate-inquiry flow is wired, the caller owns that ordering.
   const clearSavedIds = useCallback(() => {
     setSavedIds([]);
     window.localStorage.setItem(SAVED_IDS_KEY, JSON.stringify([]));

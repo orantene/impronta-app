@@ -45,9 +45,12 @@ export function FavoritesShell({
   favorites,
   tenantSlug,
   cardDesign,
+  locale = "en",
 }: {
   favorites: DiscoverShortlistTalent[];
   tenantSlug: string;
+  /** Workspace UI locale (request locale) so the remove-undo toast localizes. */
+  locale?: string;
   /**
    * Shell-tenant card palette (load-card-design bridge → resolveCardDesign).
    * Spread as inline `--token-card-*` vars on each canonical card root so the
@@ -104,6 +107,7 @@ export function FavoritesShell({
             talent={t}
             tenantSlug={tenantSlug}
             cardCssVars={cardCssVars}
+            locale={locale}
           />
         ))}
       </div>
@@ -146,10 +150,13 @@ function FavoriteCard({
   talent,
   tenantSlug,
   cardCssVars,
+  locale = "en",
 }: {
   talent: DiscoverShortlistTalent;
   tenantSlug: string;
   cardCssVars: Record<string, string> | undefined;
+  /** Workspace UI locale (request locale) so the remove-undo toast localizes. */
+  locale?: string;
 }) {
   const router = useRouter();
 
@@ -198,6 +205,7 @@ function FavoriteCard({
             displayName={talent.displayName}
             sourcePage="client-dashboard"
             variant="compact"
+            locale={locale}
             hideInquiry
           />
         </div>

@@ -8,6 +8,7 @@ import { requireClient } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { verifyGuestCookie } from "@/lib/guest-cookie";
+import { backfillCartFromClaimedInquiries } from "@/lib/inquiry/cart-selected-ids-projection";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 
 const GUEST_COOKIE = "impronta_guest";
@@ -138,8 +139,21 @@ export async function mergeGuestActivity(
     p_verified_email: verifiedEmail,
   });
 
+  // B5 cross-device cart durability — the email-gated RPC just relinked any
+  // matching guest inquiries to this account (by contact_email), but on a NEW
+  // device the guest cookie is gone, so the guest-session-keyed saved_talent
+  // merge above found nothing. The relinked inquiry rows still carry the cart
+  // under interpreted_query.talent.selected_ids; rebuild saved_talent from them
+  // so the lineup survives the device switch. Insert-only (never removes talent
+  // added on the new device); best-effort (never blocks the merge). saved_talent
+  // stays authoritative — selected_ids is only the recovery source here.
+  if (admin) {
+    await backfillCartFromClaimedInquiries({ admin, clientUserId: user.id });
+  }
+
   revalidatePath("/client");
   revalidatePath("/client/favorites");
+  revalidatePath("/client/saved");
   revalidatePath("/directory");
   return {
     ok: true,

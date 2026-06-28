@@ -4,6 +4,15 @@ import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { deriveTenantIdFromRequest } from "@/lib/analytics/derive-tenant";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { tryConsumeRateLimit, rateLimitJsonResponse } from "@/lib/rate-limit";
+
+// Edge rate-limit budget for the unauthenticated ingest. A funnel-heavy guest
+// session legitimately fires a handful of events per interaction; 120/min/IP is
+// generous for a real visitor and still caps a fuzzer. Fixed-window, per-IP, in
+// process memory (see rate-limit.ts caveats: per-instance, not a global view) —
+// adequate hardening for this best-effort, no-PII analytics route.
+const RATE_LIMIT_PER_MIN = 120;
+const RATE_LIMIT_WINDOW_MS = 60_000;
 
 const eventNames = new Set<string>(Object.values(PRODUCT_ANALYTICS_EVENTS));
 
@@ -27,6 +36,16 @@ const bodySchema = z.object({
  * Does not require auth; rate limiting should be added at the edge for production scale.
  */
 export async function POST(request: Request) {
+  // Edge rate-limit (per-IP fixed window) before parsing/DB work, so a flood
+  // is rejected cheaply. Vercel sets x-forwarded-for; fall back to "unknown".
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  if (!tryConsumeRateLimit(`analytics:${ip}`, RATE_LIMIT_PER_MIN, RATE_LIMIT_WINDOW_MS)) {
+    return rateLimitJsonResponse();
+  }
+
   let json: unknown;
   try {
     json = await request.json();

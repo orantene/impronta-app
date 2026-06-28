@@ -1,29 +1,44 @@
 "use client";
 
 /**
- * GuestThreadSwitcher — U2 thread-switcher avatar-rail.
+ * GuestThreadSwitcher — Phase 5 multi-inquiry PROJECTS switcher.
  *
  * Rendered in the MiniChatPanel header area by the wiring agent ONLY when the
  * guest has 2 or more live conversations (§10 progressive disclosure).
  * Single-thread guests never see this component.
  *
+ * Phase 5 reshape: each row is a multi-talent PROJECT, not a single talent. It
+ * renders a read-only FACE-STACK of the project's lineup (ReadonlyFaceStack,
+ * mirroring the launcher pill) + the projectLabel (job_name or a derived
+ * "Lineup of N · Jun 28") and visually distinguishes a private DRAFT from a
+ * "Sent · awaiting reply" project via a status pill.
+ *
  * Design rules:
  *   • Brand accent drives the active indicator — NO gold/rust.
- *   • Real portrait when available (talentPortraitUrl). Null → accent circle
- *     with the talent's initial (the sanctioned non-photo fallback, same style
- *     as MiniChatPanel header). NEVER a gray initials box.
+ *   • Real portraits in the face-stack; accent/cool-surface initials fallback
+ *     (house rule: never a gray box).
  *   • 'new' dot appears when lastMessageAt > seenAtByInquiry[inquiryId] AND
  *     the last message is inbound (not a guest message).
  *   • Honest presence: per-row "Replies {typicalReplyLabel}" (real data only).
  *     NEVER "Online now" or "typing…".
- *   • Uses mini-chat-styles tokens for visual consistency.
+ *   • Uses mini-chat-styles tokens for visual consistency. Dark-aware.
  *   • Under 800 lines.
  */
 
 import { useEffect, useRef, useState } from "react";
 
-import { C, DEFAULT_ACCENT, FONT, readableOn } from "./mini-chat-styles";
+import {
+  DEFAULT_ACCENT,
+  FONT,
+  paletteFor,
+  readableOn,
+  type Palette,
+  type SurfaceMode,
+} from "./mini-chat-styles";
+import { ReadonlyFaceStack } from "./ReadonlyFaceStack";
 import type { GuestInquirySummary } from "@/lib/inquiry/guest-chat-contract";
+import type { Translator } from "@/i18n/interpolate";
+import { createTranslator } from "@/i18n/messages";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local types
@@ -47,7 +62,18 @@ export type GuestThreadSwitcherProps = {
    * used in the expanded 2-pane left pane regardless of item count.
    */
   layout?: "rail" | "list";
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
+  /**
+   * Guest-locale translator (resolved from brand.locale). Phase 5 — project
+   * labels + draft/sent pills. Optional for back-compat with callers that have
+   * not been threaded a translator yet; falls back to an English translator.
+   */
+  t?: Translator;
 };
+
+/** Default English translator when a caller has not threaded one through. */
+const FALLBACK_T: Translator = createTranslator("en");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -104,6 +130,7 @@ function AvatarCircle({
   accentInk,
   size,
   active,
+  C,
 }: {
   portraitUrl: string | null;
   name: string;
@@ -111,6 +138,7 @@ function AvatarCircle({
   accentInk: string;
   size: number;
   active: boolean;
+  C: Palette;
 }) {
   const border = active ? `2.5px solid ${accent}` : `2px solid transparent`;
 
@@ -194,6 +222,60 @@ function NewDot({ accent }: { accent: string }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Sub-component: ProjectStatusPill — distinguishes a private DRAFT from a SENT
+// project that is awaiting a reply. Draft = neutral cool pill; sent = accent-tint.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ProjectStatusPill({
+  isDraft,
+  accent,
+  C,
+  t,
+}: {
+  isDraft: boolean;
+  accent: string;
+  C: Palette;
+  t: Translator;
+}) {
+  const label = isDraft
+    ? t("public.guestChat.switcherDraftPill")
+    : t("public.guestChat.switcherSentPill");
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        fontSize: 9.5,
+        fontWeight: 600,
+        lineHeight: 1,
+        padding: "3px 6px",
+        borderRadius: 999,
+        whiteSpace: "nowrap",
+        fontFamily: FONT,
+        background: isDraft ? C.surfaceCool : `${accent}1f`,
+        color: isDraft ? C.inkMuted : accent,
+        border: `1px solid ${isDraft ? C.borderSoft : `${accent}33`}`,
+      }}
+    >
+      {!isDraft && (
+        <span
+          aria-hidden
+          style={{
+            width: 5,
+            height: 5,
+            borderRadius: "50%",
+            background: accent,
+            display: "inline-block",
+          }}
+        />
+      )}
+      {label}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Layouts: rail (≤4) vs dropdown (5+)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -204,11 +286,14 @@ function AvatarRail({
   accentInk,
   onSelect,
   seenAtByInquiry,
+  surfaceMode = "light",
+  t = FALLBACK_T,
 }: GuestThreadSwitcherProps) {
+  const C = paletteFor(surfaceMode);
   return (
     <div
       role="tablist"
-      aria-label="Switch conversation"
+      aria-label={t("public.guestChat.switcherAria")}
       style={{
         display: "flex",
         gap: 6,
@@ -229,7 +314,7 @@ function AvatarRail({
             type="button"
             role="tab"
             aria-selected={isActive}
-            aria-label={`Chat with ${inq.talentName}${showNew ? " — new message" : ""}`}
+            aria-label={`${inq.projectLabel}${showNew ? `, ${t("public.guestChat.switcherNewMessageSuffix")}` : ""}`}
             onClick={() => onSelect(inq.inquiryId)}
             style={{
               display: "flex",
@@ -256,6 +341,7 @@ function AvatarRail({
                 accentInk={accentInk}
                 size={36}
                 active={isActive}
+                C={C}
               />
               {showNew && (
                 <span
@@ -287,7 +373,7 @@ function AvatarRail({
                 lineHeight: 1.2,
               }}
             >
-              {inq.talentName}
+              {inq.projectLabel}
             </span>
           </button>
         );
@@ -303,6 +389,8 @@ function ConversationRow({
   accentInk,
   onSelect,
   seenAtByInquiry,
+  surfaceMode = "light",
+  t,
 }: {
   inq: GuestInquirySummary;
   isActive: boolean;
@@ -310,15 +398,23 @@ function ConversationRow({
   accentInk: string;
   onSelect: (id: string) => void;
   seenAtByInquiry: Record<string, string>;
+  surfaceMode?: SurfaceMode;
+  t: Translator;
 }) {
+  const C = paletteFor(surfaceMode);
   const showNew = !isActive && hasNewInbound(inq, seenAtByInquiry);
+  // Phase 5: the face-stack reuses the launcher pill's lineup faces. When an
+  // inquiry has no lineup yet (recommend-a-fit / message-the-agency draft), fall
+  // back to a single agency-initial avatar so the row never reads empty.
+  const hasLineup = inq.lineupCount > 0;
+  const faceInk = readableOn(accent);
 
   return (
     <button
       type="button"
       role="option"
       aria-selected={isActive}
-      aria-label={`${inq.talentName}${showNew ? " — new message" : ""}`}
+      aria-label={`${inq.projectLabel}${showNew ? `, ${t("public.guestChat.switcherNewMessageSuffix")}` : ""}`}
       onClick={() => onSelect(inq.inquiryId)}
       style={{
         display: "flex",
@@ -333,20 +429,25 @@ function ConversationRow({
         transition: "background 120ms",
       }}
     >
-      <AvatarCircle
-        portraitUrl={inq.talentPortraitUrl}
-        name={inq.talentName}
-        accent={isActive ? accent : C.inkDim}
-        accentInk={accentInk}
-        size={34}
-        active={isActive}
-      />
+      {hasLineup ? (
+        <ReadonlyFaceStack lineup={inq.lineup} ink={faceInk} P={C} t={t} diameter={32} />
+      ) : (
+        <AvatarCircle
+          portraitUrl={inq.talentPortraitUrl}
+          name={inq.talentName}
+          accent={isActive ? accent : C.inkDim}
+          accentInk={accentInk}
+          size={32}
+          active={isActive}
+          C={C}
+        />
+      )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 4,
+            gap: 6,
           }}
         >
           <span
@@ -358,11 +459,14 @@ function ConversationRow({
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
               fontFamily: FONT,
+              flex: "0 1 auto",
+              minWidth: 0,
             }}
           >
-            {inq.talentName}
+            {inq.projectLabel}
           </span>
           {showNew && <NewDot accent={accent} />}
+          <ProjectStatusPill isDraft={inq.isDraft} accent={accent} C={C} t={t} />
         </div>
         {inq.lastMessagePreview && (
           <div
@@ -418,6 +522,8 @@ function DropdownSwitcher({
   accentInk,
   onSelect,
   seenAtByInquiry,
+  surfaceMode = "light",
+  t = FALLBACK_T,
 }: GuestThreadSwitcherProps) {
   const active = inquiries.find((i) => i.inquiryId === activeInquiryId) ?? inquiries[0];
   const accentComputed = accent ?? DEFAULT_ACCENT;
@@ -435,6 +541,8 @@ function DropdownSwitcher({
       accentInk={accentInkComputed}
       onSelect={onSelect}
       seenAtByInquiry={seenAtByInquiry}
+      surfaceMode={surfaceMode}
+      t={t}
     />
   );
 }
@@ -447,6 +555,8 @@ function DropdownBody({
   accentInk,
   onSelect,
   seenAtByInquiry,
+  surfaceMode = "light",
+  t,
 }: {
   inquiries: GuestInquirySummary[];
   active: GuestInquirySummary | undefined;
@@ -455,7 +565,10 @@ function DropdownBody({
   accentInk: string;
   onSelect: (id: string) => void;
   seenAtByInquiry: Record<string, string>;
+  surfaceMode?: SurfaceMode;
+  t: Translator;
 }) {
+  const C = paletteFor(surfaceMode);
   // Simple open/close state — we render all conversations as a collapsed list
   // that expands on click of the trigger button.
   const [open, setOpen] = useState(false);
@@ -513,10 +626,22 @@ function DropdownBody({
             accentInk={accentInk}
             size={28}
             active
+            C={C}
           />
         )}
-        <span style={{ fontSize: 12, fontWeight: 600, color: C.ink, flex: 1, textAlign: "left" }}>
-          {active?.talentName ?? "Select conversation"}
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: C.ink,
+            flex: 1,
+            textAlign: "left",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {active?.projectLabel ?? t("public.guestChat.switcherSelectProject")}
         </span>
         {hasAnyNew && !open && (
           <span
@@ -549,7 +674,7 @@ function DropdownBody({
       {open && (
         <div
           role="listbox"
-          aria-label="Switch conversation"
+          aria-label={t("public.guestChat.switcherAria")}
           style={{
             position: "absolute",
             top: "100%",
@@ -578,6 +703,8 @@ function DropdownBody({
                 setOpen(false);
               }}
               seenAtByInquiry={seenAtByInquiry}
+              surfaceMode={surfaceMode}
+              t={t}
             />
           ))}
         </div>
@@ -605,13 +732,18 @@ export function GuestThreadSwitcher(props: GuestThreadSwitcherProps) {
 
   const accent = props.accent ?? DEFAULT_ACCENT;
   const accentInk = props.accentInk ?? readableOn(accent);
-  const merged = { ...props, accent, accentInk };
+  const t = props.t ?? FALLBACK_T;
+  const merged = { ...props, accent, accentInk, t };
 
   // "list" layout — expanded left pane. Show all conversations as a vertical list.
   // No <2 threshold: the expanded pane always shows whatever we have.
   if (layout === "list") {
     return (
-      <div role="listbox" aria-label="Switch conversation" style={{ display: "flex", flexDirection: "column" }}>
+      <div
+        role="listbox"
+        aria-label={t("public.guestChat.switcherAria")}
+        style={{ display: "flex", flexDirection: "column" }}
+      >
         {inquiries.map((inq) => (
           <ConversationRow
             key={inq.inquiryId}
@@ -621,6 +753,8 @@ export function GuestThreadSwitcher(props: GuestThreadSwitcherProps) {
             accentInk={accentInk}
             onSelect={merged.onSelect}
             seenAtByInquiry={merged.seenAtByInquiry}
+            surfaceMode={merged.surfaceMode}
+            t={t}
           />
         ))}
       </div>

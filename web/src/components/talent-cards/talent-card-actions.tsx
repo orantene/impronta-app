@@ -27,6 +27,12 @@ import { Bookmark, Check, Heart, Send } from "lucide-react";
 import type { TalentCardActionsProps } from "@/lib/talent-cards/contracts";
 import { useFavorites } from "@/lib/talent-cards/use-favorites";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
+import { resolveInquiryCta } from "@/lib/inquiry/inquiry-context-resolver";
+import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
+import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
+import { registerCartTalent } from "@/app/t/[profileCode]/_chat/cart-talent-registry";
+import { createTranslator } from "@/i18n/messages";
+import { withInterpolation } from "@/i18n/interpolate";
 import { cn } from "@/lib/utils";
 
 import "./talent-card-actions.css";
@@ -49,10 +55,16 @@ export function TalentCardActions({
   hideFavorite = false,
   hideInquiry = false,
   className,
+  portraitUrl = null,
+  getInquiryPhotoRect,
+  locale = "en",
 }: TalentCardActionsProps) {
   const mounted = useClientMounted();
   const favorites = useFavorites();
   const cart = useInquiryCart();
+  const inquiryModal = useOptionalDirectoryInquiryModal();
+  // For the reversible-remove cue only (the public flash host owns the toast UI).
+  const discovery = usePublicDiscoveryStateOptional();
 
   // No PublicDiscoveryState provider on this surface → favorites + inquiry
   // stores are unreachable. Render nothing rather than dead controls.
@@ -66,6 +78,33 @@ export function TalentCardActions({
   const isPill = variant === "pill";
   const nameSuffix = displayName ? ` ${displayName}` : "";
 
+  // Phase 3 — the per-card inquiry control is resolver-driven (single source of
+  // truth for CTA state). The card only carries the lineup inputs (it has no
+  // active-inquiry context client-side), so the resolver yields add_first /
+  // add_to_lineup (-> "Inquire") or in_lineup (-> "In lineup, tap to remove").
+  // One tap toggles the shared lineup; never a modal, never drops the lineup.
+  const ctaState = resolveInquiryCta({
+    talentProfileId,
+    isInLineup: inCart,
+    lineupCount: cart.cartCount,
+    lineupTalentIds: [...cart.cartIds],
+    contactPromoted: false,
+    hasActiveDraft: false,
+    draftInquiryId: null,
+    activePhase: null,
+    activeStatus: null,
+    otherOpenInquiries: [],
+    identity: "guest",
+    lastActivityAt: null,
+    coordinatorId: null,
+    lastMessageRole: null,
+  });
+  const inLineupState = ctaState.kind === "in_lineup";
+  const inquiryLabel = inLineupState ? "In lineup" : "Inquire";
+  const inquiryAria = inLineupState
+    ? `${displayName || "Talent"} is in your lineup. Tap to remove.`
+    : `Add${nameSuffix} to your lineup`;
+
   const handleFavorite = (event: MouseEvent) => {
     // Cards are usually wrapped in a <Link> — keep the toggle local.
     event.preventDefault();
@@ -76,7 +115,43 @@ export function TalentCardActions({
   const handleInquiry = (event: MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    const willAdd = !inCart;
+    // On ADD only: record the portrait/name for the launcher rail (single
+    // source stays cartIds; this only supplies presentation data) and request
+    // the card→pill fly animation from the photo rect. Removal stays a plain
+    // cart toggle. Reduced-motion is handled inside useFlyToRail downstream.
+    if (willAdd) {
+      registerCartTalent(talentProfileId, { displayName, portraitUrl });
+      const rect = getInquiryPhotoRect?.() ?? null;
+      if (rect && inquiryModal) {
+        inquiryModal.animateAdd({ fromRect: rect, portraitUrl, talentProfileId });
+      }
+    }
     cart.toggleInCart({ talentProfileId, profileCode, displayName }, sourcePage);
+
+    // Phase 6 — reversibility. A card removal is always a DRAFT-stage cart op
+    // (the card is a pre-send acquisition surface; it carries no sent-inquiry
+    // context), so it is always safe to offer Undo. Restoring the cart id is the
+    // faithful inverse of the card's only mutation: the card never patched the
+    // inquiry record on remove, so re-adding the id replays the exact same path.
+    // The launcher rail X-remove (which DOES patch the record) owns the both
+    // cart+record restore. Reuses the existing public flash host, no new dep.
+    if (!willAdd && discovery) {
+      const t = withInterpolation(createTranslator(locale));
+      const name = displayName?.trim() || t("public.guestChat.sectionTalent");
+      discovery.setFlash({
+        tone: "info",
+        durationMs: 5000,
+        title: t("public.guestChat.removedToast", { name }),
+        action: {
+          label: t("public.guestChat.removedToastUndo"),
+          onAction: () => {
+            registerCartTalent(talentProfileId, { displayName, portraitUrl });
+            cart.setInCart({ talentProfileId, profileCode, displayName }, true, sourcePage);
+          },
+        },
+      });
+    }
   };
 
   const glyphSize = compact ? "size-3.5" : "size-4";
@@ -135,11 +210,7 @@ export function TalentCardActions({
           onClick={handleInquiry}
           disabled={cartPending}
           aria-pressed={inCart}
-          aria-label={
-            inCart
-              ? `Remove${nameSuffix} from your inquiry list`
-              : `Add${nameSuffix} to your inquiry list`
-          }
+          aria-label={inquiryAria}
           className={cn(
             "talent-card-actions__inquiry inline-flex items-center justify-center gap-1.5 border font-semibold uppercase outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60",
             isPill
@@ -164,7 +235,7 @@ export function TalentCardActions({
           ) : (
             <Send className={glyphSize} aria-hidden />
           )}
-          {!compact ? <span>{inCart ? "Added" : "Inquire"}</span> : null}
+          {!compact ? <span>{inquiryLabel}</span> : null}
         </button>
       ) : null}
     </div>

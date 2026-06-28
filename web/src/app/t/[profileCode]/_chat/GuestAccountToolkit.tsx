@@ -34,7 +34,14 @@ import { useEffect, useState } from "react";
 
 import type { AddClaimEmailCallback, CheckGuestClaimEmailCallback } from "@/lib/inquiry/guest-chat-contract";
 
-import { C, EMAIL_RE, inputStyle, primaryBtnStyle } from "./mini-chat-styles";
+import {
+  EMAIL_RE,
+  inputStyleFor,
+  paletteFor,
+  primaryBtnStyle,
+  type Palette,
+  type SurfaceMode,
+} from "./mini-chat-styles";
 
 /** Trust-tier identity union (kept LOCAL to this lane; integration promotes it). */
 export type GuestAccountToolkitIdentity =
@@ -75,6 +82,8 @@ export type GuestAccountToolkitProps = {
    * (the OpenFullConversationLink footer is already the filled accent primary).
    */
   deemphasizeButton?: boolean;
+  /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
 };
 
 export function GuestAccountToolkit({
@@ -87,7 +96,9 @@ export function GuestAccountToolkit({
   onCheckClaimEmail,
   onGuestEmailUpdated,
   deemphasizeButton = false,
+  surfaceMode = "light",
 }: GuestAccountToolkitProps) {
+  const C = paletteFor(surfaceMode);
   const [sending, setSending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -150,7 +161,7 @@ export function GuestAccountToolkit({
   // Already email-verified: a quiet reassurance, no action.
   if (identity === "email_verified") {
     return (
-      <div style={savedWrapStyle}>
+      <div style={savedWrapStyle(C)}>
         <span aria-hidden style={{ color: accent, fontWeight: 700 }}>
           ✓
         </span>
@@ -258,7 +269,7 @@ export function GuestAccountToolkit({
       : "Email me a sign-in link";
 
   return (
-    <div style={cardStyle}>
+    <div style={cardStyle(C)}>
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
         <div style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>
           Save this conversation
@@ -309,7 +320,7 @@ export function GuestAccountToolkit({
                 <button
                   type="button"
                   onClick={openChangeEmail}
-                  style={textLinkStyle}
+                  style={textLinkStyle(C)}
                 >
                   change email
                 </button>
@@ -334,7 +345,7 @@ export function GuestAccountToolkit({
                 placeholder="name@example.com"
                 type="email"
                 autoComplete="email"
-                style={{ ...inputStyle, fontSize: 12 }}
+                style={{ ...inputStyleFor(C), fontSize: 12 }}
               />
               {editSameAsCurrent && !editEmailNotice && (
                 <div
@@ -385,7 +396,7 @@ export function GuestAccountToolkit({
                     setEditEmailNotice(null);
                     setEditEmailBlocksSubmit(false);
                   }}
-                  style={textLinkStyle}
+                  style={textLinkStyle(C)}
                 >
                   Cancel
                 </button>
@@ -413,35 +424,38 @@ export function GuestAccountToolkit({
 // hard-coded black/gold on small components).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const cardStyle = {
-  alignSelf: "stretch",
-  display: "flex",
-  flexDirection: "column",
-  gap: 8,
-  margin: "2px 2px",
-  padding: "11px 12px",
-  borderRadius: 12,
-  background: C.surfaceFaint,
-  border: `1px solid ${C.borderSoft}`,
-} as const;
+const cardStyle = (C: Palette) =>
+  ({
+    alignSelf: "stretch",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    margin: "2px 2px",
+    padding: "11px 12px",
+    borderRadius: 12,
+    background: C.surfaceFaint,
+    border: `1px solid ${C.borderSoft}`,
+  }) as const;
 
-const savedWrapStyle = {
-  alignSelf: "center",
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 6,
-  fontSize: 11.5,
-  color: C.inkMuted,
-  padding: "2px 8px",
-  textAlign: "center",
-} as const;
+const savedWrapStyle = (C: Palette) =>
+  ({
+    alignSelf: "center",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 11.5,
+    color: C.inkMuted,
+    padding: "2px 8px",
+    textAlign: "center",
+  }) as const;
 
-const textLinkStyle = {
-  border: "none",
-  background: "transparent",
-  color: C.inkMuted,
-  fontSize: 11.5,
-  textDecoration: "underline",
-  cursor: "pointer",
-  padding: "1px 2px",
-} as const;
+const textLinkStyle = (C: Palette) =>
+  ({
+    border: "none",
+    background: "transparent",
+    color: C.inkMuted,
+    fontSize: 11.5,
+    textDecoration: "underline",
+    cursor: "pointer",
+    padding: "1px 2px",
+  }) as const;

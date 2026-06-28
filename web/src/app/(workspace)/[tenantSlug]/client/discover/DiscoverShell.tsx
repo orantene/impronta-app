@@ -96,6 +96,7 @@ export function DiscoverShell({
   tenantSlug,
   activeFilters,
   cardDesign,
+  locale = "en",
 }: {
   initialItems: DiscoverTalentListItem[];
   initialTotal: number;
@@ -103,6 +104,8 @@ export function DiscoverShell({
   hubs: DiscoverHub[];
   tenantSlug: string;
   activeFilters: ActiveFilters;
+  /** Workspace UI locale (request locale) so the remove-undo toast localizes. */
+  locale?: string;
   /**
    * Shell-tenant card palette resolved server-side (load-card-design bridge →
    * resolveCardDesign(scope.tenantId)). Spread as inline `--token-card-*` vars
@@ -387,6 +390,7 @@ export function DiscoverShell({
                 item={t}
                 availability={availabilityByTalent.get(t.id)}
                 cardCssVars={cardCssVars}
+                locale={locale}
                 onOpen={() => { setAutoOpenPicker(false); setOpenTalentId(t.id); }}
                 onAddToShortlist={() => { setAutoOpenPicker(true); setOpenTalentId(t.id); }}
               />
@@ -567,12 +571,15 @@ function DiscoverCard({
   item,
   availability,
   cardCssVars,
+  locale = "en",
   onAddToShortlist,
   onOpen,
 }: {
   item: DiscoverTalentListItem;
   availability: DiscoverAvailabilityDay[] | undefined;
   cardCssVars: Record<string, string> | undefined;
+  /** Workspace UI locale (request locale) so the remove-undo toast localizes. */
+  locale?: string;
   onAddToShortlist: () => void;
   onOpen: () => void;
 }) {
@@ -637,6 +644,7 @@ function DiscoverCard({
               displayName={item.displayName}
               sourcePage="client-dashboard"
               variant="compact"
+              locale={locale}
               hideInquiry
             />
           </div>

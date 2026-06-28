@@ -113,6 +113,62 @@ export const PRODUCT_ANALYTICS_EVENTS = {
    * Payload: { experiment_id, variant, node_kind, tenant_id?, surface? }
    */
   experiment_convert: "experiment_convert",
+
+  // ---------------------------------------------------------------------------
+  // Jon 360 inquiry-funnel taxonomy (Phase 0c CRO instrumentation)
+  // The guest acquisition arc on /t/[profileCode]: lineup cart -> early draft
+  // row -> live chat -> the send/airlock contact-promotion (the PRIMARY
+  // conversion) -> the trust receipt -> a coordinator reply -> an offer.
+  //
+  // Every event carries the standard Jon-360 funnel props (see
+  // jon360-funnel-events.ts / buildJon360Props): { inquiry_id?, tenant_id?,
+  // lineup_count, identity ("guest"|"client"), source ("/t/..."), holdout_arm }.
+  // tenant_id is promoted to the analytics_events.tenant_id COLUMN by the
+  // client (track-client.ts) so per-tenant funnel queries return real rows.
+  //
+  // HOLDOUT / MDE NOTE (read before reading the dashboard): the 360 arc is
+  // bucketed on a stable per-visitor seed into "on" | "off" arms (the holdout)
+  // so lift is measured against a true control, not a pre/post guess. Powering
+  // a 1% absolute lift on a ~5% baseline conversion (95% conf, 80% power)
+  // needs ~7.8k visitors PER ARM (~15.6k total). The /t profile surface alone
+  // will not reach that quickly — run the holdout on the higher-traffic
+  // directory surface to read a result inside a sane window.
+  // ---------------------------------------------------------------------------
+
+  /** A talent is added to the inquiry cart (the launcher rail / a card "+"). Payload: standard. */
+  lineup_add: "lineup_add",
+
+  /** A talent is removed from the inquiry cart (rail X / card toggle off). Payload: standard. */
+  lineup_remove: "lineup_remove",
+
+  /** The early-partial inquiry row is lazily created on the first structured commit. Payload: standard. */
+  draft_created: "draft_created",
+
+  /** The chat launcher panel is opened (once per open transition). Payload: standard. */
+  chat_opened: "chat_opened",
+
+  /** A guided-chat structured field is filled (talent / brief / date / budget / ...). Payload: standard + { field }. */
+  field_filled: "field_filled",
+
+  /** The guest pressed send / "Send to agency" (intent to submit, fires before promotion lands). Payload: standard. */
+  send_clicked: "send_clicked",
+
+  /**
+   * PRIMARY CONVERSION. The send/airlock moment: the synthetic early-row contact
+   * is promoted to a real reachable contact and the first message lands. Anchored
+   * on the INTERNAL analytics_events table (guaranteed write), NOT GA4 alone
+   * (consent-gated -> undercounts). Payload: standard.
+   */
+  contact_promoted: "contact_promoted",
+
+  /** The post-send trust receipt card mounts (SENT -> RECEIVED beat). Payload: standard. */
+  receipt_viewed: "receipt_viewed",
+
+  /** A coordinator reply arrives on the guest's thread. Payload: standard. */
+  reply_received: "reply_received",
+
+  /** The guest views an offer on the thread. Payload: standard. */
+  offer_viewed: "offer_viewed",
 } as const;
 
 export type ProductAnalyticsEventName =

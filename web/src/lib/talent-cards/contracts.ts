@@ -185,4 +185,25 @@ export interface TalentCardActionsProps {
   hideInquiry?: boolean;
   /** Extra class names merged onto the root wrapper. */
   className?: string;
+  /**
+   * Portrait URL for this talent (the card thumbnail). When provided, adding to
+   * the inquiry cart registers it for the launcher avatar rail and supplies the
+   * face-focus photo the card→pill fly clone uses. Optional — falls back to
+   * initials when absent.
+   */
+  portraitUrl?: string | null;
+  /**
+   * Returns the on-screen photo rect (viewport coords) for the card→pill fly
+   * animation. The card supplies this so the flight starts from the exact photo
+   * the visitor clicked. When omitted, no flight is requested (rail still
+   * updates). Reduced-motion is handled downstream in useFlyToRail.
+   */
+  getInquiryPhotoRect?: () => DOMRect | null;
+  /**
+   * Guest UI locale (resolved server-side from the tenant default_locale, since
+   * guests carry no LOCALE_COOKIE). Used only for the "Removed {name}. Undo"
+   * cue copy on a cart removal. Defaults to "en" when the surface does not
+   * supply it.
+   */
+  locale?: string;
 }

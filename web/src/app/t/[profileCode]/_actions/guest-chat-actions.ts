@@ -37,6 +37,7 @@ import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
 import { sendMessage } from "@/lib/inquiry/inquiry-engine-messages";
+import { promoteEarlyInquiryToSubmitted } from "@/lib/inquiry/promote-early-inquiry";
 import {
   checkGuestInquiryAbuse,
   checkGuestMessageAbuse,
@@ -51,12 +52,18 @@ import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitGuestAutoAck } from "@/lib/inquiry/guest-auto-ack";
 import { sendGuestClaimEmail } from "@/lib/inquiry/guest-claim-link";
 import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
+import {
+  buildInquiryReceipt,
+  isReceiptVisibleStatus,
+} from "@/lib/inquiry/inquiry-receipt-data";
 import { getAppUrl } from "@/lib/auth-flow";
 import type {
   AddGuestClaimEmailInput,
   AddGuestClaimEmailResult,
   CheckGuestClaimEmailInput,
   CheckGuestClaimEmailResult,
+  EnsureGuestInquiryInput,
+  EnsureGuestInquiryResult,
   GetActiveGuestInquiryResult,
   GetGuestThreadInput,
   GetGuestThreadResult,
@@ -68,6 +75,7 @@ import type {
   GuestMessageKind,
   GuestThreadMessage,
   GuestThreadStatus,
+  InquiryReceiptData,
   SendGuestMessageInput,
   SendGuestMessageResult,
   StartGuestChatInput,
@@ -76,6 +84,26 @@ import type {
 
 const GUEST_HEADER = "x-impronta-guest";
 const MAX_BODY = 10_000;
+
+// The synthetic early-row contact seed (see ensureGuestChatInquiry). A row is
+// "contact promoted" once it no longer carries this placeholder, i.e. the guest
+// has supplied real contact details via the ContactCard gate. Centralized here
+// so the seed shape is asserted in exactly ONE place; the client never
+// string-matches the placeholder (it reads the contactPromoted flag instead).
+const SEED_CONTACT_NAME = "Guest";
+function isSeedContact(
+  contactName: string | null | undefined,
+  contactEmail: string | null | undefined,
+): boolean {
+  const email = (contactEmail ?? "").trim().toLowerCase();
+  const name = (contactName ?? "").trim();
+  const looksLikePendingEmail =
+    email.startsWith("pending-") && email.endsWith("@guest.impronta");
+  // The email is the load-bearing signal (always rewritten on promotion); the
+  // name check guards the rare case a real guest is literally named "Guest" yet
+  // already has a real email.
+  return looksLikePendingEmail || (name === SEED_CONTACT_NAME && email.length === 0);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small failure helper.
@@ -496,7 +524,7 @@ async function readGuestVisibleMessages(
   let query = admin
     .from("inquiry_messages")
     .select(
-      "id, inquiry_id, sender_user_id, guest_session_id, body, message_kind, card_payload, created_at, edited_at, deleted_at, reply_to_message_id, thread_type",
+      "id, inquiry_id, sender_user_id, guest_session_id, body, message_kind, card_payload, created_at, edited_at, deleted_at, reply_to_message_id, thread_type, metadata",
     )
     .eq("inquiry_id", inquiry.id)
     .eq("tenant_id", inquiry.tenantId)
@@ -517,11 +545,28 @@ async function readGuestVisibleMessages(
     return [];
   }
 
-  return (data ?? []).map((raw) => {
-    const row = raw as unknown as RawMessageRow;
-    const role = deriveAuthorRole(row, guestSessionId, identityByUserId);
-    return toGuestThreadMessage(row, role, identityByUserId);
-  });
+  // Jon 360 Phase 2: once the inquiry is genuinely sent, the pinned
+  // InquiryReceiptCard upgrades the thin auto-ack bubble — so suppress the
+  // workspace_auto_ack system bubble to avoid doubling up the same "we received
+  // your message" beat. The metadata stamp (set in guest-auto-ack.ts) is the
+  // load-bearing signal; we never string-match the body copy.
+  const suppressAutoAck = isReceiptVisibleStatus(inquiry.status);
+
+  return (data ?? [])
+    .filter((raw) => {
+      if (!suppressAutoAck) return true;
+      const meta = (raw as { metadata?: unknown }).metadata;
+      const eventType =
+        meta && typeof meta === "object" && meta !== null
+          ? (meta as { system_event_type?: unknown }).system_event_type
+          : undefined;
+      return eventType !== "workspace_auto_ack";
+    })
+    .map((raw) => {
+      const row = raw as unknown as RawMessageRow;
+      const role = deriveAuthorRole(row, guestSessionId, identityByUserId);
+      return toGuestThreadMessage(row, role, identityByUserId);
+    });
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -993,6 +1038,41 @@ export async function sendGuestMessageAction(
     return fail("engine_error", sent.error ?? "Could not send your message.");
   }
 
+  // Promote a pre-send DRAFT early-row to `submitted` + coordinator on this, its
+  // FIRST real send — mirroring the fresh-create path (submitInquiry). Gated so a
+  // row whose contact is still the synthetic placeholder is NEVER promoted: the
+  // client send-gate already requires a promoted contact, but we re-verify
+  // server-side (the placeholder email is the load-bearing signal, same as
+  // isSeedContact). Idempotent: promoteEarlyInquiryToSubmitted no-ops once the
+  // status is no longer `draft`, so later messages don't re-promote. Best-effort:
+  // a promotion failure must not fail the (already persisted) send.
+  if (owned.inquiry.status === "draft") {
+    const { data: contactRow } = await admin
+      .from("inquiries")
+      .select("contact_name, contact_email")
+      .eq("id", owned.inquiry.id)
+      .eq("tenant_id", owned.inquiry.tenantId)
+      .maybeSingle();
+    const isRealContact =
+      contactRow != null &&
+      !isSeedContact(
+        contactRow.contact_name as string | null,
+        contactRow.contact_email as string | null,
+      );
+    if (isRealContact) {
+      const promoted = await promoteEarlyInquiryToSubmitted(admin, {
+        inquiryId: owned.inquiry.id,
+        tenantId: owned.inquiry.tenantId,
+      });
+      if (!promoted.success) {
+        logServerError(
+          "guest-chat-actions.sendGuestMessageAction/promote",
+          new Error(promoted.error ?? promoted.reason ?? "promote_failed"),
+        );
+      }
+    }
+  }
+
   const messageId = sent.data?.messageId ?? "";
   // Read the created row back in the canonical shape (single-row fetch).
   const { data: rawRow } = await admin
@@ -1353,6 +1433,9 @@ export async function getGuestThreadMessages(
   // null. Only computed on the FULL load (afterIso null) to avoid re-querying
   // the median on every incremental poll.
   let typicalReplyLabel: string | null = null;
+  // Jon 360 Phase 2: the pinned SENT->RECEIVED receipt. Only on the full load
+  // (afterIso null) and only once the inquiry is genuinely sent. Null otherwise.
+  let receipt: InquiryReceiptData | null = null;
   if (!input.afterIso) {
     const { data: talentRow } = await admin
       .from("inquiry_participants")
@@ -1366,6 +1449,14 @@ export async function getGuestThreadMessages(
       tenantId: owned.inquiry.tenantId,
       talentProfileId: (talentRow?.talent_profile_id as string | null) ?? null,
     });
+    if (isReceiptVisibleStatus(owned.inquiry.status)) {
+      receipt = await buildInquiryReceipt({
+        admin,
+        inquiryId: owned.inquiry.id,
+        tenantId: owned.inquiry.tenantId,
+        status: owned.inquiry.status,
+      });
+    }
   }
 
   return {
@@ -1373,6 +1464,7 @@ export async function getGuestThreadMessages(
     messages,
     threadStatus: toThreadStatus(owned.inquiry.status),
     typicalReplyLabel,
+    receipt,
   };
 }
 
@@ -1465,5 +1557,183 @@ export async function getActiveGuestInquiry(input: {
   } catch (err) {
     logServerError("guest-chat-actions.getActiveGuestInquiry", err);
     return { ok: true, active: null };
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 3e. ensureGuestChatInquiry — early-partial inquiry creation (§6.2 / P0-T5).
+//
+// The unified inquiry cart needs an `inquiryId` to attach structured chip edits
+// to BEFORE the guest has finished (and before contact details are required).
+// This action is the idempotent "create early" primitive: useUnifiedInquiry calls
+// it lazily on the FIRST structured commit (first talent added OR first chip set),
+// never on a bare panel open, so browsers that only peek never create a row.
+//
+// SECURITY: identical boundary to every other guest action. The guest identity
+// is the x-impronta-guest cookie, resolved SERVER-SIDE; it is NEVER a client
+// argument, and the row is written under guest_session_id ownership.
+//
+// IDEMPOTENCY: if an owned, non-terminal inquiry already exists for this guest +
+// tenant (+ this talent, when one is supplied), its id is returned instead of
+// creating a duplicate — mirrors getActiveGuestInquiry's resume scope.
+//
+// SCHEMA HONESTY: inquiries.contact_name / contact_email are NOT NULL, so a truly
+// empty skeleton cannot be inserted. We seed clearly-synthetic placeholders that
+// the deferred ContactCard overwrites (via the same patch path) once the guest
+// supplies real contact details. This honors "create early" without a migration.
+// It does NOT call createInquiryFromIntent (validation-gated) — it is a direct,
+// ownership-guarded insert mirroring the legacy guest path.
+// ═════════════════════════════════════════════════════════════════════════════
+
+export async function ensureGuestChatInquiry(
+  input: EnsureGuestInquiryInput,
+): Promise<EnsureGuestInquiryResult> {
+  try {
+    const guest = await resolveGuestContext();
+    if (!guest.ok) return guest.failure;
+    const { admin, guestSessionId } = guest.ctx;
+
+    const tenantId = await resolveTenantIdBySlug(admin, input.tenantSlug);
+    if (!tenantId) {
+      return fail("tenant_unavailable", "We couldn't find this workspace.");
+    }
+
+    const talentProfileId = input.talentProfileId?.trim() || null;
+
+    // SECURITY (mirrors startGuestChatInquiry): the talent id is client-supplied
+    // and the insert runs under the service-role client, so verify the talent is
+    // on THIS tenant's publicly visible roster before seeding it into the row.
+    // Talent-less "message the agency" partials (talentProfileId === null) have
+    // nothing to gate.
+    if (talentProfileId) {
+      const rosterCheck = await assertAllTalentOnTenantRoster(admin, tenantId, [
+        talentProfileId,
+      ]);
+      if (!rosterCheck.ok) {
+        logServerError(
+          "guest-chat-actions.ensureGuestChatInquiry/roster",
+          new Error(`talent not on tenant roster: ${rosterCheck.missingIds.join(",")}`),
+        );
+        return fail("tenant_unavailable", "We couldn't find this workspace.");
+      }
+    }
+
+    // IDEMPOTENCY — reuse an existing owned, non-terminal inquiry for this guest
+    // + tenant. The guest_session_id filter IS the ownership gate (mirrors
+    // loadOwnedInquiry): even via service-role we only ever read this cookie's
+    // own inquiries. Newest first; the funnel never makes many. We also read the
+    // contact columns so the result can expose contactPromoted (real contact vs
+    // the synthetic early-row seed) WITHOUT the client string-matching the
+    // placeholder.
+    const { data: existingRows, error: existingErr } = await admin
+      .from("inquiries")
+      .select("id, status, created_at, contact_name, contact_email")
+      .eq("guest_session_id", guestSessionId)
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (existingErr) {
+      logServerError("guest-chat-actions.ensureGuestChatInquiry/existing", existingErr);
+      return fail("engine_error", "Couldn't start your inquiry. Please try again.");
+    }
+
+    const live = (existingRows ?? []).filter((r) => {
+      const s = r.status as string;
+      return s !== "cancelled" && toThreadStatus(s) !== "closed";
+    });
+
+    if (live.length > 0) {
+      if (talentProfileId) {
+        // On a specific talent's page, prefer the newest live inquiry where THIS
+        // talent participates, so we never resurface a different talent's
+        // partial. No match falls through to creating a fresh partial for this
+        // talent (the other thread stays recoverable via the switcher).
+        const ids = live.map((r) => r.id as string);
+        const { data: parts } = await admin
+          .from("inquiry_participants")
+          .select("inquiry_id")
+          .in("inquiry_id", ids)
+          .eq("talent_profile_id", talentProfileId);
+        const withTalent = new Set((parts ?? []).map((p) => p.inquiry_id as string));
+        const match = live.find((r) => withTalent.has(r.id as string));
+        if (match) {
+          return {
+            ok: true,
+            inquiryId: match.id as string,
+            contactPromoted: !isSeedContact(
+              match.contact_name as string | null,
+              match.contact_email as string | null,
+            ),
+          };
+        }
+      } else {
+        // Agency-level partial (no talent): any live owned inquiry is reusable.
+        return {
+          ok: true,
+          inquiryId: live[0].id as string,
+          contactPromoted: !isSeedContact(
+            live[0].contact_name as string | null,
+            live[0].contact_email as string | null,
+          ),
+        };
+      }
+    }
+
+    // No reusable partial — create the minimal early row. Placeholder contact
+    // values satisfy the NOT NULL contract and are clearly synthetic, so the
+    // deferred ContactCard step overwrites them once real details arrive. The
+    // interpreted_query seed carries the schema version + provenance + (when
+    // present) the pre-selected talent, so the very first chip patch has a base
+    // to read-modify-write against.
+    const interpretedSeed: Record<string, unknown> = {
+      schema_version: 1,
+      source: talentProfileId ? "public_talent_profile" : "agency_site",
+      source_context: {
+        ...(talentProfileId && input.talentProfileCode
+          ? { public_profile_code: input.talentProfileCode }
+          : {}),
+        referrer_page: input.sourcePage,
+        tenant_id: tenantId,
+      },
+      talent: talentProfileId
+        ? { selected_ids: [talentProfileId], selection_mode: "i_know_who" }
+        : { selected_ids: [], selection_mode: "agency_recommends" },
+    };
+
+    const { data: inserted, error: insertErr } = await admin
+      .from("inquiries")
+      .insert({
+        tenant_id: tenantId,
+        client_user_id: null,
+        guest_session_id: guestSessionId,
+        // Canonical pre-send DRAFT: lifecycle's `draft` phase (next_action_by =
+        // 'client'). Promoted to 'submitted' + coordinator on the first real send
+        // (promoteEarlyInquiryToSubmitted). Drafts stay OUT of every agency inbox.
+        status: "draft",
+        // Placeholder contact — NOT NULL columns. Overwritten by ContactCard.
+        contact_name: "Guest",
+        contact_email: `pending-${guestSessionId}@guest.impronta`,
+        source_page: input.sourcePage,
+        interpreted_query: interpretedSeed,
+        // Behave like a new-engine inquiry so admin Messages + the realtime
+        // surfaces render it as a live thread once details start arriving.
+        uses_new_engine: true,
+      })
+      .select("id")
+      .single();
+
+    if (insertErr || !inserted) {
+      logServerError(
+        "guest-chat-actions.ensureGuestChatInquiry/insert",
+        insertErr ?? new Error("insert returned no row"),
+      );
+      return fail("engine_error", "Couldn't start your inquiry. Please try again.");
+    }
+
+    // A freshly inserted early row always carries the synthetic seed contact.
+    return { ok: true, inquiryId: inserted.id as string, contactPromoted: false };
+  } catch (err) {
+    logServerError("guest-chat-actions.ensureGuestChatInquiry", err);
+    return fail("engine_error", "Couldn't start your inquiry. Please try again.");
   }
 }
