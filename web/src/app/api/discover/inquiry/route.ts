@@ -168,12 +168,16 @@ export async function POST(req: Request) {
   // produce a talent-direct inquiry. If the host tenant can't be resolved (e.g.
   // an unrecognized host), fall back to the legacy skip so we never file under
   // the wrong tenant.
+  // The CHANNEL = the host the client browsed from (resolved once). Used to fold
+  // no-roster talents into a host group AND to stamp source_workspace_id so the
+  // channel is recorded distinctly from each owning tenant (Phase A + referral lane).
+  const hostTenantId = await resolveHostTenantId();
+
   if (noRosterTalents.length > 0) {
-    const host = await resolveHostTenantId();
-    if (host) {
-      const bucket = groupByTenant.get(host) ?? [];
+    if (hostTenantId) {
+      const bucket = groupByTenant.get(hostTenantId) ?? [];
       bucket.push(...noRosterTalents);
-      groupByTenant.set(host, bucket);
+      groupByTenant.set(hostTenantId, bucket);
     } else {
       for (const tid of noRosterTalents) skipped.push({ talentId: tid, reason: "no_roster" });
     }
@@ -187,7 +191,9 @@ export async function POST(req: Request) {
     .reduce((sum, ids) => sum + ids.length, 0);
   const subscription = await loadClientSubscription(session.user.id);
   const gate = decideProGate({ routableTalentCount, subscription });
-  if (!gate.allowed) {
+  // Flag-gated (DISCOVER_PRO_ENFORCED, default off) so the batch merges dark; the
+  // paywall only enforces once the owner flips it (after Stripe env is configured).
+  if (process.env.DISCOVER_PRO_ENFORCED === "1" && !gate.allowed) {
     return NextResponse.json(
       {
         error: "pro_required",
@@ -252,7 +258,10 @@ export async function POST(req: Request) {
         event_location: body?.eventLocation?.trim() || null,
         message: body?.message?.trim() || null,
         source_channel: sourceChannel,
-        source_workspace_id: null,
+        // F#20 fix — the CHANNEL is the host the client browsed from, NOT the owning
+        // tenant (submitInquiry defaults null -> tenant_id = the receiver here). Pass the
+        // resolved host so the channel is distinct + the referral lane can fire.
+        source_workspace_id: hostTenantId,
         origin_domain: req.headers.get("host") ?? null,
         source_context: {
           origin: "discover",
