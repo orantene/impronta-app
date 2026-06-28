@@ -324,6 +324,12 @@ export function MiniChatPanel({
     return () => clearInterval(id);
   }, [cooldownSecs]);
 
+  // Early-row send keeps the same inquiryId (draft -> submitted), so the full
+  // load effect below won't re-run on its own and the RECEIVED receipt + sent
+  // status (which the send action does not return) never load. Bump this on a
+  // successful send to force exactly one more full load via the proven path.
+  const [reloadTick, setReloadTick] = useState(0);
+
   useEffect(() => {
     if (!open || !inquiryId) return;
     let cancelled = false;
@@ -339,7 +345,7 @@ export function MiniChatPanel({
     return () => {
       cancelled = true;
     };
-  }, [open, inquiryId, fetchMessages]);
+  }, [open, inquiryId, fetchMessages, reloadTick]);
 
   useEffect(() => {
     if (!open || !inquiryId) return;
@@ -510,6 +516,9 @@ export function MiniChatPanel({
       jon360.trackSend();
       setSentNote(true);
       triggerSentAirlock();
+      // Force one full re-load so the receipt card + sent status mount: the send
+      // action returns neither and inquiryId is unchanged on an early-row submit.
+      setReloadTick((n) => n + 1);
     },
   });
 
