@@ -203,6 +203,13 @@ export type InquiryDetailsRailProps = {
   onConsumeOpenTo?: () => void;
   /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
   surfaceMode?: SurfaceMode;
+  /**
+   * Compact panel: float the rail OVER the conversation instead of stacking it
+   * in the column flow. Collapsed = a thin absolute left strip; expanded = a
+   * full body-area overlay. Keeps the thread from being pushed up by a rail
+   * sitting under it. Default false (the two-pane keeps the rail in-flow).
+   */
+  floating?: boolean;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -227,6 +234,7 @@ export function InquiryDetailsRail({
   openToSection = null,
   onConsumeOpenTo,
   surfaceMode = "light",
+  floating = false,
 }: InquiryDetailsRailProps) {
   const C = paletteFor(surfaceMode);
   const ink = accentInk || readableOn(accent);
@@ -357,10 +365,27 @@ export function InquiryDetailsRail({
         flexShrink: 0,
         width: collapsed ? 48 : "100%",
         minHeight: 0,
-        maxHeight: railBounded ? "min(46vh, 320px)" : undefined,
+        maxHeight: floating
+          ? undefined
+          : railBounded
+            ? "min(46vh, 320px)"
+            : undefined,
         background: C.surfaceFaint,
-        borderTop: `1px solid ${C.borderSoft}`,
         fontFamily: FONT,
+        ...(floating
+          ? {
+              // Float over the conversation: a thin left strip (collapsed) or a
+              // full body-area overlay (expanded). Pinned top-to-bottom of the
+              // body box, so it never consumes column flow / pushes the thread.
+              position: "absolute" as const,
+              left: 0,
+              top: 0,
+              bottom: 0,
+              zIndex: 6,
+              borderRight: `1px solid ${C.borderSoft}`,
+              boxShadow: collapsed ? "none" : "4px 0 18px rgba(0,0,0,0.14)",
+            }
+          : { borderTop: `1px solid ${C.borderSoft}` }),
       }}
     >
       {/* Reduced-motion-safe editor reveal animation. */}
