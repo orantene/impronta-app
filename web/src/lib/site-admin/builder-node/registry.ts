@@ -512,6 +512,21 @@ const containerResponsiveSchema = z.object({
     .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
     .optional(),
   align: z.enum(["start", "center", "end", "stretch"]).optional(),
+  // Per-breakpoint grid-vs-slider override. Declared here so the Zod parse in
+  // `validateBuilderNodeTree` does NOT strip them on snapshot read — without
+  // these keys the snapshot render path silently dropped `display`/`itemsPerView`
+  // (the slider on mobile never rendered) while `columns` survived.
+  display: z.enum(["grid", "slider"]).optional(),
+  itemsPerView: z
+    .union([
+      z.literal(1),
+      z.literal(2),
+      z.literal(3),
+      z.literal(4),
+      z.literal(5),
+      z.literal(6),
+    ])
+    .optional(),
 });
 
 const containerPropsSchema = z
@@ -523,6 +538,21 @@ const containerPropsSchema = z
       .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
       .optional(),
     align: z.enum(["start", "center", "end", "stretch"]).optional(),
+    // Desktop-base grid-vs-slider presentation. Declared here so the Zod parse
+    // in `validateBuilderNodeTree` does NOT strip them on snapshot read (mirrors
+    // how `columns` survives); the renderer reads `node.props.itemsPerView` and
+    // `node.props.display` directly.
+    display: z.enum(["grid", "slider"]).optional(),
+    itemsPerView: z
+      .union([
+        z.literal(1),
+        z.literal(2),
+        z.literal(3),
+        z.literal(4),
+        z.literal(5),
+        z.literal(6),
+      ])
+      .optional(),
     responsive: z
       .object({
         tablet: containerResponsiveSchema.optional(),

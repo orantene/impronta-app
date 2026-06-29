@@ -48,17 +48,65 @@ const ESPRESSO = "var(--token-color-background, #100e13)";
 /**
  * Single repeater TEMPLATE tile. The grid container has exactly ONE child = this
  * node; render.tsx clones it once per `tenant_directory_search` record and
- * resolves the {{name}} / {{href}} tokens per-record. Because the source carries
- * NO per-category image, this tile is portrait-LESS: a dark espresso ground with
- * a soft top-gold gradient, a gold hairline, the category {{name}} in the
- * Cormorant display font, and a champagne arrow row, all behind a full-tile link
- * to the real /directory?type=<slug> {{href}}.
+ * resolves the {{name}} / {{id}} / {{imageUrl}} tokens per-record.
+ *
+ * GRACEFUL PHOTO UPGRADE: the `tenant_directory_search` records DO carry an
+ * `imageUrl` (home-data.ts maps each taxonomy term's promo image when it is set
+ * + placed in `home_browse_by_type`). A bound `image` child reads it via the
+ * {{imageUrl}} token: when the category has a promo image the tile shows a real
+ * editorial portrait; when it doesn't, resolveBuilderFieldTokens yields "" and
+ * the image node returns null (render.tsx `if (!src) return null`), so the
+ * gold-wash treatment below is the always-present base. The tile therefore reads
+ * as an intentional editorial card with OR without a photo — and auto-upgrades
+ * the moment someone sets a category promo image in admin, with zero new code.
+ *
+ * Composition anchors content at BOTH the top (a gold tick + "Division" eyebrow)
+ * and the bottom (the {{name}} + an Explore row) so the portrait-less base never
+ * reads as an empty black box. Colors/fonts bind to Noir & Or token sentinels.
  */
 function divisionTile(): BuilderNode {
   const cardId = makeId("container");
 
-  // Soft gold-wash gradient ground (replaces the portrait). Sits under the
-  // label; gives the otherwise-flat espresso tile editorial depth + a top glow.
+  // Per-category portrait — resolved per-record from the taxonomy promo image
+  // via {{imageUrl}}. Wrapped in an absolutely-positioned container so the
+  // image just fills it (cover, faces up). NULL when the category has no promo
+  // image → the wash below is the card's whole treatment.
+  const photo: BuilderNode = {
+    id: makeId("image"),
+    kind: "image",
+    props: {
+      src: "{{imageUrl}}",
+      alt: "{{name}}",
+      style: {
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        objectPosition: "center top",
+      },
+    },
+  };
+  const photoLayer: BuilderNode = {
+    id: makeId("container"),
+    kind: "container",
+    props: {
+      layout: "stack",
+      style: {
+        position: "absolute",
+        left: "0",
+        right: "0",
+        top: "0",
+        bottom: "0",
+        overflow: "hidden",
+        pointerEvents: "none",
+        zIndex: 0,
+      },
+    },
+    children: [photo],
+  };
+
+  // Material — a PRESENT gold halo at the top + a strong dark scrim at the
+  // bottom. Doubles as the legibility scrim over a photo AND as the card's
+  // entire treatment when there is none (stronger gold than the old 0.16 wash).
   const wash: BuilderNode = {
     id: makeId("container"),
     kind: "container",
@@ -71,7 +119,7 @@ function divisionTile(): BuilderNode {
         bottom: "0",
         top: "0",
         backgroundImage:
-          "radial-gradient(120% 80% at 50% 0%, rgba(198,161,78,0.16) 0%, rgba(198,161,78,0.05) 34%, rgba(16,14,19,0) 64%), linear-gradient(to top, rgba(16,14,19,0.92) 0%, rgba(16,14,19,0.40) 52%, rgba(16,14,19,0.18) 100%)",
+          "radial-gradient(130% 100% at 50% 6%, rgba(198,161,78,0.24) 0%, rgba(198,161,78,0.07) 38%, rgba(16,14,19,0) 68%), linear-gradient(180deg, rgba(16,14,19,0) 28%, rgba(16,14,19,0.46) 66%, rgba(16,14,19,0.88) 100%)",
         pointerEvents: "none",
         zIndex: 1,
       },
@@ -79,7 +127,22 @@ function divisionTile(): BuilderNode {
     children: [],
   };
 
-  // Eyebrow above the name — keeps the tile from reading empty without a photo.
+  // Top marker — a short gold hairline tick + the "Division" eyebrow. Anchoring
+  // content at the TOP as well as the bottom keeps the tile from reading empty.
+  const topTick: BuilderNode = {
+    id: makeId("container"),
+    kind: "container",
+    props: {
+      layout: "stack",
+      style: {
+        width: "30px",
+        height: "1px",
+        backgroundColor: CHAMPAGNE,
+        marginBottomFree: "12px",
+      },
+    },
+    children: [],
+  };
   const eyebrow: BuilderNode = {
     id: makeId("paragraph"),
     kind: "paragraph",
@@ -89,14 +152,30 @@ function divisionTile(): BuilderNode {
         fontSize: "10px",
         textColor: CHAMPAGNE,
         textTransform: "uppercase",
-        letterSpacing: "0.3em",
-        marginBottomFree: "10px",
+        letterSpacing: "0.32em",
       },
     },
     i18n: { es: { text: "División" } },
   };
+  const topMark: BuilderNode = {
+    id: makeId("container"),
+    kind: "container",
+    props: {
+      layout: "stack",
+      style: {
+        position: "absolute",
+        top: "0",
+        left: "0",
+        paddingTop: "18px",
+        paddingLeft: "18px",
+        paddingRight: "18px",
+        zIndex: 2,
+      },
+    },
+    children: [topTick, eyebrow],
+  };
 
-  // Category name — the live per-record token. Cormorant display font.
+  // Category name — the live per-record token. Cormorant display font, larger.
   const name: BuilderNode = {
     id: makeId("heading"),
     kind: "heading",
@@ -105,12 +184,29 @@ function divisionTile(): BuilderNode {
       level: 3,
       style: {
         fontFamily: DISPLAY_FONT,
-        fontSize: "1.75rem",
+        fontSize: "2rem",
         textColor: INK,
-        lineHeight: "1.04",
+        lineHeight: "1.02",
+        marginBottomFree: "14px",
+      },
+    },
+  };
+
+  // Hairline divider above the Explore row — a thin champagne rule that gives the
+  // label block editorial structure.
+  const divider: BuilderNode = {
+    id: makeId("container"),
+    kind: "container",
+    props: {
+      layout: "stack",
+      style: {
+        width: "100%",
+        height: "1px",
+        backgroundColor: LINE,
         marginBottomFree: "12px",
       },
     },
+    children: [],
   };
 
   const exploreLabel: BuilderNode = {
@@ -171,7 +267,7 @@ function divisionTile(): BuilderNode {
         left: "0",
         right: "0",
         bottom: "0",
-        gap: "6px",
+        gap: "0px",
         paddingTop: "18px",
         paddingRight: "18px",
         paddingBottom: "18px",
@@ -179,7 +275,7 @@ function divisionTile(): BuilderNode {
         zIndex: 2,
       },
     },
-    children: [eyebrow, name, exploreRow],
+    children: [name, divider, exploreRow],
   };
 
   // Full-tile link carrying the per-record directory filter. NOTE: the
@@ -213,9 +309,11 @@ function divisionTile(): BuilderNode {
     // aspect-ratio drives the tile's height. It lives in customCss (not the
     // aspectRatioFree prop) because the prop's inline path only applies to image
     // nodes — on a container it is dropped and the tile collapses to 0 height.
-    `{ aspect-ratio: 3 / 4.4; border: 1px solid ${LINE}; transition: border-color .4s ease, transform .5s cubic-bezier(.2,.7,.2,1); }`,
-    // Mobile: relax the tall 3/4.4 portrait ratio so full-width tiles don't
-    // tower at 390px. Selectorless inner rule -> scopes to the card root.
+    // 4/5 (was 3/4.4) is less towering, so the portrait-less base feels composed
+    // rather than empty.
+    `{ aspect-ratio: 4 / 5; border: 1px solid ${LINE}; transition: border-color .4s ease, transform .5s cubic-bezier(.2,.7,.2,1); }`,
+    // Mobile: relax the portrait ratio so full-width tiles don't tower at 390px.
+    // Selectorless inner rule -> scopes to the card root.
     `@media (max-width: 640px) { { aspect-ratio: 16 / 9; } }`,
     // Hover: brighten the hairline to gold + lift slightly. Leading-pseudo
     // selector (`:hover`) so the scoper prefixes to [id]:hover (valid flat CSS).
@@ -232,14 +330,14 @@ function divisionTile(): BuilderNode {
       style: {
         position: "relative",
         overflow: "hidden",
-        aspectRatioFree: "3 / 4.4",
+        aspectRatioFree: "4 / 5",
         justifyContent: "flex-end",
         backgroundColor: ESPRESSO,
         revealOnView: "fade-up",
         customCss: cardCss,
       },
     },
-    children: [wash, label, link],
+    children: [photoLayer, wash, topMark, label, link],
   };
 }
 
@@ -341,16 +439,16 @@ export function createDivisionsRowPreset(): Exclude<
       layout: "stack",
       style: {
         backgroundColor: ESPRESSO,
-        paddingTop: "8vh",
-        paddingBottom: "8vh",
         paddingLeft: "6vw",
         paddingRight: "6vw",
         containerType: "inline-size",
-        // Mobile: trim the 8vh top/bottom rhythm (vh padding isn't capped/
-        // overridden per-breakpoint by the escapes, so customCss is its home).
-        // Selectorless inner rule -> scopes to the section root.
+        // Vertical rhythm: a width-relative clamp (was 8vh, which ballooned on
+        // tall screens and stacked into ~200px inter-section voids). The clamp
+        // exceeds the 16-char paddingTop/Bottom escape cap, so it lives in
+        // customCss (selectorless inner rule -> scopes to the section root).
+        // Mobile trims it further.
         customCss:
-          "@media (max-width: 640px) { { padding-top: 48px; padding-bottom: 48px; } }",
+          "{ padding-top: clamp(48px,6vw,88px); padding-bottom: clamp(48px,6vw,88px); }\n@media (max-width: 640px) { { padding-top: 44px; padding-bottom: 44px; } }",
       },
     },
     children: [head, row],

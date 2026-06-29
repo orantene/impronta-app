@@ -275,7 +275,7 @@ export function createTestimonialsTrioPreset(): Exclude<
   // Section vertical padding clamp (clamp(74px,10vw,158px)) exceeds the 16-char
   // paddingTop/Bottom caps → route through customCss. Inner wrap centers a max
   // measure on the warm dark band.
-  const sectionCss = `{ padding-top: clamp(74px,10vw,158px); padding-bottom: clamp(74px,10vw,158px); }\n@media (max-width:640px){ { padding-top: 52px; padding-bottom: 52px; } }`;
+  const sectionCss = `{ padding-top: clamp(52px,7vw,100px); padding-bottom: clamp(52px,7vw,100px); }\n@media (max-width:640px){ { padding-top: 46px; padding-bottom: 46px; } }`;
 
   return {
     id: makeId("container"),
