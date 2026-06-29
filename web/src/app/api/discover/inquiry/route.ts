@@ -171,13 +171,13 @@ export async function POST(req: Request) {
   // The CHANNEL = the host the client browsed from (resolved once). Used to fold
   // no-roster talents into a host group AND to stamp source_workspace_id so the
   // channel is recorded distinctly from each owning tenant (Phase A + referral lane).
-  const hostTenantId = await resolveHostTenantId();
+  const channelTenantId = await resolveHostTenantId();
 
   if (noRosterTalents.length > 0) {
-    if (hostTenantId) {
-      const bucket = groupByTenant.get(hostTenantId) ?? [];
+    if (channelTenantId) {
+      const bucket = groupByTenant.get(channelTenantId) ?? [];
       bucket.push(...noRosterTalents);
-      groupByTenant.set(hostTenantId, bucket);
+      groupByTenant.set(channelTenantId, bucket);
     } else {
       for (const tid of noRosterTalents) skipped.push({ talentId: tid, reason: "no_roster" });
     }
@@ -261,7 +261,7 @@ export async function POST(req: Request) {
         // F#20 fix — the CHANNEL is the host the client browsed from, NOT the owning
         // tenant (submitInquiry defaults null -> tenant_id = the receiver here). Pass the
         // resolved host so the channel is distinct + the referral lane can fire.
-        source_workspace_id: hostTenantId,
+        source_workspace_id: channelTenantId,
         origin_domain: req.headers.get("host") ?? null,
         source_context: {
           origin: "discover",
