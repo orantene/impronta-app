@@ -15,6 +15,7 @@ import { surfaceModeFromBackgroundMode } from "@/app/t/[profileCode]/_chat/mini-
 import { resolveLauncherLifecycleInputs } from "@/app/t/[profileCode]/_chat/launcher-lifecycle-inputs";
 import {
   checkGuestClaimEmail,
+  getActiveGuestInquiry,
   getGuestThreadMessages,
   sendGuestClaimToEmail,
   sendGuestMessageAction,
@@ -130,11 +131,18 @@ export async function AgencyChatLauncherMount({
       ? (theme["background.mode"] as string)
       : null;
 
-  // Phase 3 — talent-less launcher: no resume anchor, so auto-anchor on the
-  // guest's most-recent live inquiry on this tenant for the sent/replied label.
+  // Returning-guest resume (B1): reopen the guest's most-recent live inquiry on
+  // this tenant. Use the talent-LESS form of getActiveGuestInquiry — passing a
+  // talentProfileId requires a talent participant and would miss agency-level
+  // ("message the agency") inquiries. The same id seeds the panel below
+  // (existingInquiryId + prefill), so clicking an "Inquiry sent" pill reopens
+  // that conversation + receipt instead of a fresh re-draftable draft, and it
+  // feeds the lifecycle label. autoAnchorLatest stays as the no-resume fallback.
+  const resume = await getActiveGuestInquiry({ tenantSlug });
+  const active = resume.ok ? resume.active : null;
   const lifecycle = await resolveLauncherLifecycleInputs({
     tenantSlug,
-    activeInquiryId: null,
+    activeInquiryId: active?.inquiryId ?? null,
     autoAnchorLatest: true,
   });
 
@@ -157,8 +165,8 @@ export async function AgencyChatLauncherMount({
         locale,
       }}
       label={t("public.guestChat.bookNow")}
-      existingInquiryId={null}
-      prefill={null}
+      existingInquiryId={active?.inquiryId ?? null}
+      prefill={active?.prefill ?? null}
       onStartInquiry={startGuestChatInquiry}
       onSendMessage={sendGuestMessageAction}
       fetchMessages={getGuestThreadMessages}
