@@ -29,6 +29,9 @@ import { NextResponse } from "next/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { submitInquiry } from "@/lib/inquiry/inquiry-engine-submit";
+import { loadClientSubscription } from "@/lib/discover/client-subscription";
+import { decideProGate } from "@/lib/discover/pro-gate";
+import { loadClientTrustState } from "@/lib/client-trust/evaluator";
 import { logServerError } from "@/lib/server/safe-error";
 
 export const dynamic = "force-dynamic";
@@ -100,10 +103,34 @@ export async function POST(req: Request) {
   const rows = (profiles ?? []) as unknown as ProfileRow[];
   const byId = new Map(rows.map((r) => [r.id, r] as const));
 
-  // Group by owning tenant; skip whatever doesn't have a primary roster
-  // on a discoverable + approved talent.
+  // Phase D §5 — resolve the host/hub tenant the request entered through, so
+  // no-roster (independent) talents can route to a talent-direct inbox instead
+  // of being silently dropped. The inquiry files under the host tenant and the
+  // owning-party resolver inside submitInquiry freezes owning_party='talent'
+  // for them (no roster → independent). Resolved lazily — only no-roster talents
+  // need it, and only once.
+  let hostTenantId: string | null | undefined;
+  async function resolveHostTenantId(): Promise<string | null> {
+    if (hostTenantId !== undefined) return hostTenantId;
+    const host = (req.headers.get("host") ?? "").split(":")[0].toLowerCase();
+    if (!host) { hostTenantId = null; return hostTenantId; }
+    const { data: domain } = await admin!
+      .from("agency_domains")
+      .select("tenant_id")
+      .eq("hostname", host)
+      .maybeSingle();
+    hostTenantId = (domain as { tenant_id?: string } | null)?.tenant_id ?? null;
+    return hostTenantId;
+  }
+
+  // Group by owning tenant. Discoverable + approved talents with a roster route
+  // to their owning tenant; independent (no-roster) talents route to the host
+  // tenant as talent-direct. Only genuinely non-discoverable talents are skipped.
   const groupByTenant = new Map<string, string[]>();
   const skipped: DiscoverInquirySkip[] = [];
+  // Talents that are valid but have no roster — routed talent-direct once the
+  // host tenant is resolved (below).
+  const noRosterTalents: string[] = [];
 
   for (const tid of talentIds) {
     const p = byId.get(tid);
@@ -119,7 +146,7 @@ export async function POST(req: Request) {
     // D5 slice 3 — fallback ladder for routing:
     //   1. primary roster on a paid-plan workspace → that tenant (commission lane)
     //   2. else: any active/pending roster → that tenant (no commission, FYI route)
-    //   3. else: skip with reason="no_roster"
+    //   3. else (Phase D §5): independent talent → talent-direct inbox on the host
     // Talents on Free workspaces fall to (2) — the inquiry still routes,
     // commission resolves at 0% per the exclusivity model.
     const activeRoster = (p.agency_talent_roster ?? []).filter(
@@ -128,13 +155,52 @@ export async function POST(req: Request) {
     const primary = activeRoster.find((r) => r.is_primary);
     const chosen = primary ?? activeRoster[0];
     if (!chosen) {
-      skipped.push({ talentId: tid, reason: "no_roster" });
+      noRosterTalents.push(tid);
       continue;
     }
     const tenantId = chosen.tenant_id;
     const bucket = groupByTenant.get(tenantId) ?? [];
     bucket.push(tid);
     groupByTenant.set(tenantId, bucket);
+  }
+
+  // Phase D §5 — fold the independent talents into a host-tenant group so they
+  // produce a talent-direct inquiry. If the host tenant can't be resolved (e.g.
+  // an unrecognized host), fall back to the legacy skip so we never file under
+  // the wrong tenant.
+  // The CHANNEL = the host the client browsed from (resolved once). Used to fold
+  // no-roster talents into a host group AND to stamp source_workspace_id so the
+  // channel is recorded distinctly from each owning tenant (Phase A + referral lane).
+  const hostTenantId = await resolveHostTenantId();
+
+  if (noRosterTalents.length > 0) {
+    if (hostTenantId) {
+      const bucket = groupByTenant.get(hostTenantId) ?? [];
+      bucket.push(...noRosterTalents);
+      groupByTenant.set(hostTenantId, bucket);
+    } else {
+      for (const tid of noRosterTalents) skipped.push({ talentId: tid, reason: "no_roster" });
+    }
+  }
+
+  // Phase D §1 — server-enforce the Pro gate. The routable count is the number
+  // of talents that will actually fan out to an inquiry. Multi-talent send is a
+  // Pro power tool; single-talent send stays free. The client-side alert() is no
+  // longer the gate — this 402 is the source of truth.
+  const routableTalentCount = Array.from(groupByTenant.values())
+    .reduce((sum, ids) => sum + ids.length, 0);
+  const subscription = await loadClientSubscription(session.user.id);
+  const gate = decideProGate({ routableTalentCount, subscription });
+  // Flag-gated (DISCOVER_PRO_ENFORCED, default off) so the batch merges dark; the
+  // paywall only enforces once the owner flips it (after Stripe env is configured).
+  if (process.env.DISCOVER_PRO_ENFORCED === "1" && !gate.allowed) {
+    return NextResponse.json(
+      {
+        error: "pro_required",
+        message: "Multi-talent inquiry send requires a Pro subscription.",
+      },
+      { status: 402 },
+    );
   }
 
   if (groupByTenant.size === 0) {
@@ -176,6 +242,12 @@ export async function POST(req: Request) {
 
   for (const [tenantId, ids] of groupByTenant) {
     try {
+      // Phase D §4 — snapshot the client's REAL trust level for THIS tenant so
+      // the talent contact-policy gate inside submitInquiry enforces against the
+      // client's actual tier (was hardcoded null → treated as "basic" for every
+      // send). Trust state is per (user, tenant); resolve per fan-out group.
+      // Missing row → null, which submitInquiry safely defaults to "basic".
+      const trust = await loadClientTrustState(session.user.id, tenantId, admin);
       const res = await submitInquiry(admin, {
         tenant_id: tenantId,
         client_user_id: session.user.id,
@@ -186,13 +258,16 @@ export async function POST(req: Request) {
         event_location: body?.eventLocation?.trim() || null,
         message: body?.message?.trim() || null,
         source_channel: sourceChannel,
-        source_workspace_id: null,
+        // F#20 fix — the CHANNEL is the host the client browsed from, NOT the owning
+        // tenant (submitInquiry defaults null -> tenant_id = the receiver here). Pass the
+        // resolved host so the channel is distinct + the referral lane can fire.
+        source_workspace_id: hostTenantId,
         origin_domain: req.headers.get("host") ?? null,
         source_context: {
           origin: "discover",
           shortlist_id: body?.sourceShortlistId ?? null,
         },
-        trust_level_at_submission: null,
+        trust_level_at_submission: trust?.trustLevel ?? null,
         initiator_role: "client",
         initiator_user_id: session.user.id,
         actorUserId: session.user.id,

@@ -20,7 +20,7 @@ import { getConnectedAccountSnapshotById } from "@/lib/payments/stripe-connect";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 
-export type PayoutParty = "talent" | "workspace";
+export type PayoutParty = "talent" | "workspace" | "channel_referral";
 export type PayoutStatus = "transferred" | "held" | "failed" | "reversed";
 
 /** A payout leg to record. `accountId` null ⇒ held (no enabled account yet). */

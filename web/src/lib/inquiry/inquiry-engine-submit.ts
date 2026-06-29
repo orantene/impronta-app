@@ -4,6 +4,7 @@ import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { resolveInquiryCoordination, seedOwningAgencyCoordinators } from "./coordinator-assignment";
 import { resolveOwningPartiesForTalents, isHubSourcedChannel } from "./owning-party-resolver";
+import { resolveInquiryHome } from "./inquiry-rehome";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
@@ -221,6 +222,8 @@ export async function submitInquiry(
     if (!input.tenant_id) {
       return { success: false, error: "tenant_required" };
     }
+    // Phase A (channel invariant): no lead without a known channel.
+    if (!input.source_channel) return { success: false, error: "source_channel_required" };
 
     // Universal-connector P0 — rate-limit per actor identity.
     //   • authenticated user: 5/hour per user (existing)
@@ -330,6 +333,9 @@ export async function submitInquiry(
       }
     }
 
+    // Phase B (XTENANT_REHOME, default off): re-home onto the single managing agency (inbox + RLS key off tenant_id).
+    const homeTenantId = resolveInquiryHome(owningParties, input.talent_profile_ids, input.tenant_id);
+
     // Resolve coordinator-of-record + (talent-direct only) the secondary platform
     // oversight officer + the stored source_type ('hub' for talent-direct, so a
     // later auto-reassign/timeout resolves the officer; else 'agency').
@@ -338,7 +344,7 @@ export async function submitInquiry(
       oversightOfficerId,
       sourceType: inquirySourceType,
     } = await resolveInquiryCoordination(supabase, {
-      tenantId: input.tenant_id,
+      tenantId: homeTenantId,
       selfCoordPrimaryUserId,
     });
     let coordinatorOfRecordId = resolvedCoordinatorId;
@@ -352,7 +358,7 @@ export async function submitInquiry(
     const { data: row, error } = await supabase
       .from("inquiries")
       .insert({
-        tenant_id: input.tenant_id,
+        tenant_id: homeTenantId,
         client_user_id: input.client_user_id,
         // Guest path — `guest_sessions.id` carries the unauthenticated
         // visitor's identity across requests. Nullable for non-guest.
@@ -370,9 +376,9 @@ export async function submitInquiry(
         interpreted_query: input.interpreted_query ?? null,
         source_page: input.source_page ?? null,
         source_channel: input.source_channel as never,
-        // F3 — source attribution fields (nullable for older / staff submissions)
         origin_domain: input.origin_domain ?? null,
-        source_workspace_id: input.source_workspace_id ?? null,
+        // Phase A (channel invariant): originating channel/workspace, kept distinct from tenant_id, never null.
+        source_workspace_id: input.source_workspace_id ?? input.tenant_id,
         // Phase B-1 (2026-05-14) — rich provenance context paired with
         // source_channel. Spec: web/docs/inquiry-engine-spec-2026-05-14.md §11
         source_context: input.source_context ?? {},
@@ -409,7 +415,7 @@ export async function submitInquiry(
       .from("inquiry_requirement_groups")
       .insert({
         inquiry_id: inquiryId,
-        tenant_id: input.tenant_id,
+        tenant_id: homeTenantId,
         role_key: "talent",
         quantity_required: Math.max(input.talent_profile_ids.length, 1),
         sort_order: 0,
@@ -422,18 +428,18 @@ export async function submitInquiry(
     if (input.client_user_id) {
       await supabase.from("inquiry_participants").insert({
         inquiry_id: inquiryId,
-        tenant_id: input.tenant_id,
+        tenant_id: homeTenantId,
         user_id: input.client_user_id,
         role: "client",
         status: "active",
       });
 
       await ensureClientRelationshipForInquiry(supabase, {
-        tenantId: input.tenant_id,
+        tenantId: homeTenantId,
         clientUserId: input.client_user_id,
         inquiryId,
         originDomain: input.origin_domain ?? null,
-        sourceWorkspaceId: input.source_workspace_id ?? null,
+        sourceWorkspaceId: input.source_workspace_id ?? input.tenant_id, // channel (host), not re-homed tenant
       });
     }
 
@@ -444,7 +450,7 @@ export async function submitInquiry(
       coordSeen.add(coordinatorOfRecordId);
       await supabase.from("inquiry_participants").insert({
         inquiry_id: inquiryId,
-        tenant_id: input.tenant_id,
+        tenant_id: homeTenantId,
         user_id: coordinatorOfRecordId,
         role: "coordinator",
         status: selfCoordPrimaryUserId ? "active" : "invited",
@@ -457,27 +463,22 @@ export async function submitInquiry(
       coordSeen.add(oversightOfficerId);
       await supabase.from("inquiry_participants").insert({
         inquiry_id: inquiryId,
-        tenant_id: input.tenant_id,
+        tenant_id: homeTenantId,
         user_id: oversightOfficerId,
         role: "coordinator",
         status: "invited",
       });
     }
 
-    // Phase 5 — multi-coordinator fan-out. Every roster talent the
-    // workspace designated a default inquiry coordinator
-    // (agency_inquiry_coordinators) also joins the thread as a
-    // `coordinator` participant, so they can manage the inquiry → booking
-    // flow alongside the primary coordinator resolved above. Deduped
-    // against the primary; talent without a claimed account (no user_id)
-    // are skipped — a participant needs a user. Best-effort: the inquiry
-    // is already persisted, so a failure here must never block submission.
+    // Phase 5 — multi-coordinator fan-out: every roster talent the workspace set
+    // as a default inquiry coordinator joins as a `coordinator` participant
+    // (deduped; unclaimed-account talent skipped). Best-effort — never blocks.
     if (input.tenant_id) {
       try {
         const { data: coordRows } = await supabase
           .from("agency_inquiry_coordinators")
           .select("talent_profile_id")
-          .eq("tenant_id", input.tenant_id);
+          .eq("tenant_id", homeTenantId);
         const coordTalentIds = (
           (coordRows ?? []) as Array<{ talent_profile_id: string }>
         ).map((r) => r.talent_profile_id);
@@ -492,7 +493,7 @@ export async function submitInquiry(
             coordSeen.add(uid);
             await supabase.from("inquiry_participants").insert({
               inquiry_id: inquiryId,
-              tenant_id: input.tenant_id,
+              tenant_id: homeTenantId,
               user_id: uid,
               role: "coordinator",
               status: "invited",
@@ -517,11 +518,11 @@ export async function submitInquiry(
       // + this inquiry's tenant_id (matches trigger default) on miss.
       const owning = owningParties.get(tid) ?? {
         type: "workspace" as const,
-        id: input.tenant_id,
+        id: homeTenantId,
       };
       await supabase.from("inquiry_participants").insert({
         inquiry_id: inquiryId,
-        tenant_id: input.tenant_id,
+        tenant_id: homeTenantId,
         user_id: talentUserIdByProfile.get(tid) ?? null,
         talent_profile_id: tid,
         role: "talent",
@@ -552,7 +553,7 @@ export async function submitInquiry(
         coordSeen.add(uid);
         await supabase.from("inquiry_participants").insert({
           inquiry_id: inquiryId,
-          tenant_id: input.tenant_id,
+          tenant_id: homeTenantId,
           user_id: uid,
           role: "coordinator",
           status: "active",
@@ -571,7 +572,7 @@ export async function submitInquiry(
     // (possibly newly-promoted) coordinator of record for the engine event below.
     coordinatorOfRecordId = await seedOwningAgencyCoordinators(supabase, {
       inquiryId,
-      inquiryTenantId: input.tenant_id,
+      inquiryTenantId: homeTenantId,
       talentProfileIds: input.talent_profile_ids,
       owningParties,
       existingCoordinatorId: coordinatorOfRecordId,
@@ -587,7 +588,7 @@ export async function submitInquiry(
     const submitBells = [
       ...(await buildInquiryBells({
         inquiryId,
-        tenantId: input.tenant_id,
+        tenantId: homeTenantId,
         audiences: ["workspaceAdmins"],
         title: "New inquiry received",
         body: "A new inquiry just came in and needs coordination.",
@@ -595,7 +596,7 @@ export async function submitInquiry(
       })),
       ...(await buildInquiryBells({
         inquiryId,
-        tenantId: input.tenant_id,
+        tenantId: homeTenantId,
         audiences: ["talent"],
         title: "You've been invited to an inquiry",
         body: "A client requested you for a new inquiry. Review the details to respond.",
@@ -626,7 +627,7 @@ export async function submitInquiry(
         const { data: agencyRow } = await supabase
           .from("agencies")
           .select("auto_ack_enabled, auto_ack_message")
-          .eq("id", input.tenant_id)
+          .eq("id", homeTenantId)
           .maybeSingle();
 
         // a/b/c — client confirmation + coordinator notice + talent invites now

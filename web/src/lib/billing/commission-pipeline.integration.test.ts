@@ -31,13 +31,7 @@ import { describe, it, before, after } from "node:test";
 import { strict as assert } from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
-import { resolveBookingCommissions } from "./commission";
-import type {
-  PlatformCommissionConfig,
-  WorkspaceCommissionOverride,
-  WorkspacePlanTier,
-  PaymentMethod,
-} from "./commission";
+import { persistBookingCommissionSnapshot } from "./commission-engine";
 
 // ── Env resolution ────────────────────────────────────────────────────────────
 
@@ -65,21 +59,6 @@ function loadDotEnvLocal(): Record<string, string> {
 
 function getEnv(key: string, dotenv: Record<string, string>): string | undefined {
   return process.env[key] ?? dotenv[key];
-}
-
-function normalizePlan(raw: string | null | undefined): WorkspacePlanTier {
-  switch (raw) {
-    case "free":
-    case "studio":
-    case "agency":
-    case "network":
-      return raw;
-    case "hub-network":
-    case "hub_network":
-      return "network";
-    default:
-      return "free";
-  }
 }
 
 // ── Load config ────────────────────────────────────────────────────────────────
@@ -396,50 +375,16 @@ describe("commission pipeline — full engine path integration", { skip: SKIP_RE
   it("engine path writes booking_commission_snapshot with lanes summing to gross", async () => {
     assert.ok(testBookingId, "booking not created (previous test failed)");
 
-    // Load commission context (same as persistBookingCommissionSnapshot in commission-engine.ts).
-    const { data: ctxRaw, error: ctxErr } = await sb.rpc("engine_load_commission_context", {
-      p_booking_id: testBookingId,
-    });
-    assert.ifError(ctxErr, `engine_load_commission_context: ${ctxErr?.message}`);
-    assert.ok(ctxRaw, "engine_load_commission_context returned null");
-
-    type CommCtx = {
-      tenant_id: string;
-      workspace_plan: string;
-      platform_config: PlatformCommissionConfig;
-      tenant_override: WorkspaceCommissionOverride | null;
-      currency_code: string;
-      offer_line_items: Array<{ units: number; unit_price_cents: number; talent_cost_cents: number }>;
-    };
-    const ctx = ctxRaw as CommCtx;
-
-    // Resolve snapshot (pure — no I/O).
-    const paymentMethod: PaymentMethod = "card";
-    const snapshot = resolveBookingCommissions({
-      tenantId: ctx.tenant_id,
-      workspacePlan: normalizePlan(ctx.workspace_plan),
-      offerLineItems: ctx.offer_line_items,
-      currencyCode: ctx.currency_code,
-      paymentMethod,
-      platformConfig: ctx.platform_config,
-      tenantOverride: ctx.tenant_override ?? null,
-    });
-
-    // Persist snapshot via the engine RPC.
-    const { error: persistErr } = await sb.rpc("engine_persist_booking_commission_snapshot", {
-      p_booking_id: testBookingId,
-      p_platform_take_bps: snapshot.platform_take_bps,
-      p_platform_take_floor_cents: snapshot.platform_take_floor_cents,
-      p_gross_cents: snapshot.gross_cents,
-      p_platform_fee_cents: snapshot.platform_fee_cents,
-      p_workspace_fee_cents: snapshot.workspace_fee_cents,
-      p_talent_net_cents: snapshot.talent_net_cents,
-      p_currency_code: snapshot.currency_code,
-      p_payment_method: snapshot.payment_method,
-      p_off_platform_reason: snapshot.off_platform_reason ?? null,
-      p_resolved_from: snapshot.resolved_from,
-    });
-    assert.ifError(persistErr, `engine_persist_booking_commission_snapshot: ${persistErr?.message}`);
+    // Drive the REAL engine path — the same per-participant flow production
+    // uses (load context → resolve per participant → persist N snapshot rows).
+    // This keeps the test aligned with the live per-participant RPC shape
+    // automatically, instead of hand-reading a now-stale singleton context.
+    const engineRes = await persistBookingCommissionSnapshot(sb, testBookingId);
+    assert.equal(
+      engineRes.ok,
+      true,
+      `persistBookingCommissionSnapshot failed: ${engineRes.ok ? "" : `${engineRes.reason} (${engineRes.detail ?? ""})`}`,
+    );
 
     // Assert the row was written.
     const { data: snapRow, error: snapErr } = await sb
@@ -450,15 +395,17 @@ describe("commission pipeline — full engine path integration", { skip: SKIP_RE
     assert.ifError(snapErr, `Query booking_commission_snapshot: ${snapErr?.message}`);
     assert.ok(snapRow, "booking_commission_snapshot row missing — engine path did NOT write snapshot");
 
-    // Lane invariant: platform + workspace + talent === gross.
+    // Lane invariant (talent-protected model, 2026-05-29): platform + workspace
+    // + talent === gross_CHARGED (subtotal + client surcharge + base fee), not
+    // the bare subtotal.
     const lanesSum =
       snapRow.platform_fee_cents +
       snapRow.workspace_fee_cents +
       snapRow.talent_net_cents;
     assert.equal(
       lanesSum,
-      snapRow.gross_cents,
-      `lanes_do_not_sum: ${lanesSum} ≠ ${snapRow.gross_cents}`,
+      snapRow.gross_charged_cents,
+      `lanes_do_not_sum: ${lanesSum} ≠ ${snapRow.gross_charged_cents}`,
     );
 
     // Gross should match our line items: 2 units × $500 = $1000 = 100000 cents.

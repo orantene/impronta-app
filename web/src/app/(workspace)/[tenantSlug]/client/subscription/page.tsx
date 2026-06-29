@@ -22,6 +22,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSubscription, type ClientSubscriptionTier }
   from "@/lib/discover/client-subscription";
 import { ClientPageHeader } from "../_components/ClientPageHeader";
+import { ProUpgradeButton } from "./ProUpgradeButton";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -220,6 +221,16 @@ export default async function ClientSubscriptionPage({ params }: { params: PageP
                   }}>
                     Always available
                   </div>
+                ) : t.id === "pro" ? (
+                  // Phase D — real Stripe Checkout (subscription mode). Falls
+                  // back to a sales message if checkout isn't configured.
+                  <ProUpgradeButton
+                    tenantSlug={tenantSlug}
+                    label="Upgrade to Pro"
+                    background={C.accent}
+                    color="#fff"
+                    border="none"
+                  />
                 ) : (
                   <a
                     href={`mailto:sales@tulala.digital?subject=${encodeURIComponent(`Upgrade to ${t.name}`)}`}
@@ -232,7 +243,7 @@ export default async function ClientSubscriptionPage({ params }: { params: PageP
                       textDecoration: "none",
                     }}
                   >
-                    {t.id === "enterprise" ? "Contact sales" : "Talk to us to upgrade"}
+                    Contact sales
                   </a>
                 )}
               </div>

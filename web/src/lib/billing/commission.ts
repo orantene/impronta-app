@@ -137,6 +137,20 @@ export interface ResolveBookingCommissionsInput {
    *  override (rare, requires platform-admin elevation; falls under the
    *  "booking_override" resolved_from bucket). */
   bookingPlatformTakeBpsOverride?: number | null;
+  /** Phase C — hub referral lane. The referral rate (bps) configured for the
+   *  ORIGINATING channel (source_workspace_id). The referral is carved out of
+   *  the managing workspace's margin (workspace_fee). DEFAULT 0 / undefined =
+   *  no referral (byte-identical to pre-Phase-C). Only applied when a workspace
+   *  is the seller of record, the rate is > 0, channelPartyId is set, and the
+   *  channel differs from the managing home tenant. */
+  hubReferralBps?: number | null;
+  /** Phase C — the originating channel (source_workspace_id) that earns the
+   *  referral. NULL/undefined = no referral. */
+  channelPartyId?: string | null;
+  /** Phase C — the managing/home tenant the booking re-homed onto (Phase B).
+   *  When channelPartyId === homeTenantId the lead was sourced + managed by the
+   *  same workspace, so there is no cross-channel referral to pay. */
+  homeTenantId?: string | null;
 }
 
 /** Result — matches the shape of `booking_commission_snapshot` minus the
@@ -175,6 +189,13 @@ export interface BookingCommissionSnapshot {
   base_reservation_fee_cents?: number;
   /** Who bore the seller-side fee on this row. */
   seller_of_record: SellerOfRecord;
+  /** Phase C — the hub referral carved out of this row's workspace_fee and
+   *  owed to the originating channel. 0 when the lane is off / rate 0 / not a
+   *  re-homed cross-channel booking. Already DEDUCTED from workspace_fee_cents. */
+  channel_referral_cents: number;
+  /** Phase C — the originating channel (source_workspace_id) the referral is
+   *  paid to. null when channel_referral_cents is 0. */
+  channel_referral_party_id: string | null;
   currency_code: string;
   payment_method: PaymentMethod;
   off_platform_reason: string | null;
@@ -347,13 +368,50 @@ export function resolveBookingCommissions(
     workspaceFeeCents = marginCents - sellerDeductionCents + baseReservationFeeCents;
   }
 
-  // 6. Sanity — no lane negative; the three lanes sum to what the client is
-  //    charged. Talent-protection makes negatives unreachable for valid
-  //    inputs, but stay paranoid against future regressions.
-  if (talentNetCents < 0 || workspaceFeeCents < 0) {
+  // 5b. Phase C — HUB REFERRAL LANE. A 4th lane carved OUT OF the managing
+  //     workspace's margin (workspace_fee), owed to the originating CHANNEL
+  //     (source_workspace_id) when a re-homed cross-tenant inquiry was sourced
+  //     through a DIFFERENT workspace. It never touches talent pay, the client
+  //     charge, or the platform fee — it only redistributes part of the
+  //     workspace lane. Applied ONLY when:
+  //       • a workspace is the seller of record (independent talent has no
+  //         workspace margin to carve from), AND
+  //       • the rate is > 0, AND
+  //       • a channel party is set, AND
+  //       • the channel differs from the managing home tenant (same workspace
+  //         sourced + managed → no cross-channel referral).
+  //     Capped at the available workspace_fee so the lane can never go negative.
+  //     At rate 0 / lane off this is a pure no-op (referral 0, no deduction),
+  //     so the result is byte-identical to pre-Phase-C.
+  let channelReferralCents = 0;
+  let channelReferralPartyId: string | null = null;
+  const hubReferralBps = input.hubReferralBps ?? 0;
+  if (
+    sellerOfRecord === "workspace" &&
+    hubReferralBps > 0 &&
+    input.channelPartyId != null &&
+    input.channelPartyId !== input.homeTenantId
+  ) {
+    const target = Math.round((subtotalCents * hubReferralBps) / 10000);
+    channelReferralCents = Math.min(Math.max(target, 0), Math.max(workspaceFeeCents, 0));
+    if (channelReferralCents > 0) {
+      workspaceFeeCents -= channelReferralCents;
+      channelReferralPartyId = input.channelPartyId;
+    }
+  }
+
+  // 6. Sanity — no lane negative; the FOUR lanes (talent + workspace + platform
+  //    + channel referral) sum to what the client is charged. Talent-protection
+  //    makes negatives unreachable for valid inputs, but stay paranoid against
+  //    future regressions. The referral is carved from workspace_fee, so the
+  //    total still equals gross_charged.
+  if (talentNetCents < 0 || workspaceFeeCents < 0 || channelReferralCents < 0) {
     throw new CommissionResolutionError("lanes_do_not_sum");
   }
-  if (talentNetCents + workspaceFeeCents + platformFeeCents !== grossChargedCents) {
+  if (
+    talentNetCents + workspaceFeeCents + platformFeeCents + channelReferralCents !==
+    grossChargedCents
+  ) {
     throw new CommissionResolutionError("lanes_do_not_sum");
   }
 
@@ -370,6 +428,8 @@ export function resolveBookingCommissions(
     gross_charged_cents: grossChargedCents,
     seller_shortfall_cents: sellerShortfallCents,
     seller_of_record: sellerOfRecord,
+    channel_referral_cents: channelReferralCents,
+    channel_referral_party_id: channelReferralPartyId,
     currency_code: input.currencyCode,
     payment_method: input.paymentMethod,
     off_platform_reason: input.offPlatformReason ?? null,
@@ -445,6 +505,11 @@ export interface BookingLaneRow {
   workspace_fee_cents: number;
   platform_fee_cents: number;
   gross_charged_cents: number;
+  /** Phase C — the hub referral carved out of workspace_fee for this row. Part
+   *  of the lane total (workspace_fee already excludes it), so it must be added
+   *  back when reconciling against gross_charged. Optional / defaults to 0 so
+   *  pre-Phase-C callers (and rate-0 rows) reconcile exactly as before. */
+  channel_referral_cents?: number;
 }
 
 /** Result of {@link reconcileBookingLanes}. */
@@ -484,7 +549,14 @@ export function reconcileBookingLanes(rows: BookingLaneRow[]): BookingLaneReconc
   let largestGross = -1;
   let adjustParticipantId: string | null = null;
   for (const r of rows) {
-    laneTotalCents += r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents;
+    // The hub referral (Phase C) is carved OUT of workspace_fee, so it must be
+    // added back to keep the lane total whole against gross_charged. Defaults to
+    // 0 → byte-identical reconciliation for pre-Phase-C / rate-0 rows.
+    laneTotalCents +=
+      r.talent_net_cents +
+      r.workspace_fee_cents +
+      r.platform_fee_cents +
+      (r.channel_referral_cents ?? 0);
     grossChargedTotalCents += r.gross_charged_cents;
     if (r.gross_charged_cents > largestGross) {
       largestGross = r.gross_charged_cents;
