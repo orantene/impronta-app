@@ -203,7 +203,11 @@ export async function releaseHeldPayouts(
     if (target.talentProfileId) {
       query = query.eq("party", "talent").eq("talent_profile_id", target.talentProfileId);
     } else if (target.tenantId) {
-      query = query.eq("party", "workspace").eq("tenant_id", target.tenantId);
+      // Phase C — a channel_referral leg is paid to a workspace Connect account
+      // (tenant_id = the channel party), exactly like a workspace leg. Match both
+      // parties for this tenant_id so a held referral leg can auto-release when
+      // the channel's account flips enabled; without this it'd be stuck forever.
+      query = query.in("party", ["workspace", "channel_referral"]).eq("tenant_id", target.tenantId);
     } else {
       return [];
     }
@@ -226,6 +230,9 @@ export async function releaseHeldPayouts(
         });
         continue;
       }
+      // talent → talent Connect account; workspace AND channel_referral → the
+      // workspace Connect account keyed on tenant_id (the channel party for a
+      // referral leg). Both non-talent parties route Connect transfers.
       const accountId =
         row.party === "talent"
           ? row.talent_profile_id
@@ -387,7 +394,10 @@ export async function getHeldPayoutTotals(
   try {
     let query = sb.from("booking_payouts").select("amount_cents, currency").eq("status", "held");
     if (target.talentProfileId) query = query.eq("party", "talent").eq("talent_profile_id", target.talentProfileId);
-    else if (target.tenantId) query = query.eq("party", "workspace").eq("tenant_id", target.tenantId);
+    // Phase C — a tenant's held total includes both its workspace-margin legs and
+    // any channel_referral legs owed to it (tenant_id = channel party), so the
+    // banner reflects the full held amount once the referral lane is live.
+    else if (target.tenantId) query = query.in("party", ["workspace", "channel_referral"]).eq("tenant_id", target.tenantId);
     else return [];
 
     const { data, error } = await query;

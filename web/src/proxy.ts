@@ -156,16 +156,9 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/api/hooks/") ||
     pathname.startsWith("/api/cron/") ||
     pathname === "/api/analytics/events" ||
-    // Public CMS form submission — a cross-domain POST from any tenant
-    // storefront's contact/lead form (the `form` builder node + contact_form
-    // section both target it). Like the Stripe/webhook endpoints above, it must
-    // reach its route handler regardless of Host; without this the host-resolution
-    // rewrite below turns "/api/cms/forms/submit" into a "/p/api/cms/forms/submit"
-    // CMS-page request and EVERY storefront form submission 500s. The route has
-    // its own layered defenses (honeypot + per-IP rate limit + a section id that
-    // must resolve to an active cms_sections row + optional captcha) and derives
-    // the tenant strictly from that section row — never from the Host — so
-    // tenant-host gating is unnecessary and actively harmful here.
+    // Public CMS form submission (cross-domain storefront contact/lead POST). Has
+    // its own defenses + derives tenant from the section row, not Host; must bypass
+    // host gating or the rewrite below 500s every submission.
     pathname.startsWith("/api/cms/forms/") ||
     // Branded 404 page for unregistered hosts — must bypass host gating to
     // avoid infinite rewrite loops when the middleware rewrites here.
@@ -179,15 +172,9 @@ export async function proxy(request: NextRequest) {
     // talent_profile_id from the host header set by the talent_site block.
     pathname === "/_talent-site" ||
     pathname.startsWith("/_talent-site/") ||
-    // Dev sign-in shortcut — host-resolution bypass.
-    //   - NODE_ENV=development: local `npm run dev`, allowed unconditionally
-    //   - VERCEL_ENV=preview: Vercel preview deploys, allowed because previews
-    //     are themselves SSO-gated by the Vercel team-auth wall — anonymous
-    //     visitors hit a 401 long before reaching this middleware. Lets
-    //     agents + manual QA hit /api/dev/signin on staging-funnel previews
-    //     without needing the full Supabase auth flow.
-    //   - VERCEL_ENV=production: NOT allowed; the route handler additionally
-    //     refuses to serve in production as defense-in-depth.
+    // Dev sign-in shortcut — bypass in dev + preview only (previews are SSO-gated
+    // by Vercel team-auth; production is excluded here AND in the route handler as
+    // defense-in-depth).
     ((process.env.NODE_ENV === "development" ||
       process.env.VERCEL_ENV === "preview") &&
       pathname.startsWith("/api/dev/")) ||

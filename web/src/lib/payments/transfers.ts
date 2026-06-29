@@ -265,6 +265,33 @@ export async function executeBookingTransfers(
             lastError: reason,
           });
         }
+        // Phase C — HUB REFERRAL held leg. workspace_fee_cents is already net of
+        // the carved referral, so without this the channel_referral_cents would
+        // be dropped on the platform balance with no row (no way to reconcile)
+        // when a lane hits the currency-mismatch hold. Mirror the workspace held
+        // leg, keyed to the channel party. >0 + party-id only — dark when the
+        // lane is off, so existing currency-mismatch behavior is byte-identical.
+        if ((snap.channel_referral_cents ?? 0) > 0 && snap.channel_referral_party_id) {
+          await recordPayoutLeg(sb, {
+            bookingId,
+            transactionId,
+            participantId: snap.participant_id,
+            party: "channel_referral",
+            owningPartyType: snap.owning_party_type,
+            owningPartyId: snap.owning_party_id,
+            talentProfileId: null,
+            // Paid to the CHANNEL workspace, so the ledger leg's tenant_id is the
+            // channel party (not the managing owner) — matches the fan-out leg.
+            tenantId: snap.channel_referral_party_id,
+            destinationAccountId: null,
+            amountCents: snap.channel_referral_cents,
+            currency,
+            status: "held",
+            stripeTransferId: null,
+            payoutRail: "connect_transfer",
+            lastError: reason,
+          });
+        }
         continue;
       }
 
