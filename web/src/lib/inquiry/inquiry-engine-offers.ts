@@ -1265,11 +1265,11 @@ export async function submitTalentRate(
       if (line.talent_profile_id) {
         const { data: tp } = await supabase
           .from("talent_profiles")
-          .select("display_name, full_name")
+          .select("display_name")
           .eq("id", line.talent_profile_id as string)
           .maybeSingle();
-        const tpRow = tp as { display_name?: string | null; full_name?: string | null } | null;
-        talentName = tpRow?.display_name?.trim() || tpRow?.full_name?.trim() || "Talent";
+        const tpRow = tp as { display_name?: string | null } | null;
+        talentName = tpRow?.display_name?.trim() || "Talent";
       }
       const currency = (offer as { currency_code?: string | null } | null)?.currency_code ?? "";
       const rateLabel = `${ctx.talentCost.toFixed(2)}${currency ? ` ${currency}` : ""}`;
