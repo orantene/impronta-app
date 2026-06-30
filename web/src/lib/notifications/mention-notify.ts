@@ -114,29 +114,25 @@ export async function notifyMentionedParticipants(
     };
 
     const [{ data: profileRows }, { data: talentRows }] = await Promise.all([
-      admin.from("profiles").select("id, display_name, full_name").in("id", candidateIds),
+      admin.from("profiles").select("id, display_name").in("id", candidateIds),
       admin
         .from("talent_profiles")
-        .select("user_id, display_name, full_name")
+        .select("user_id, display_name")
         .in("user_id", candidateIds),
     ]);
 
     for (const p of (profileRows ?? []) as Array<{
       id: string;
       display_name: string | null;
-      full_name: string | null;
     }>) {
       pushName(p.id, p.display_name);
-      pushName(p.id, p.full_name);
     }
     for (const t of (talentRows ?? []) as Array<{
       user_id: string | null;
       display_name: string | null;
-      full_name: string | null;
     }>) {
       if (!t.user_id) continue;
       pushName(t.user_id, t.display_name);
-      pushName(t.user_id, t.full_name);
     }
 
     // Match tokens → users.

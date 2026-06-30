@@ -68,7 +68,7 @@ async function resolveCoordinator(
   if (!coordinatorId) return null;
   const { data, error } = await admin
     .from("profiles")
-    .select("display_name, full_name, avatar_url")
+    .select("display_name, avatar_url")
     .eq("id", coordinatorId)
     .maybeSingle();
   if (error) {
@@ -77,9 +77,7 @@ async function resolveCoordinator(
   }
   if (!data) return null;
   const displayName =
-    ((data.display_name as string | null)?.trim() ||
-      (data.full_name as string | null)?.trim() ||
-      "") || null;
+    ((data.display_name as string | null)?.trim() || "") || null;
   // No usable name = treat as unassigned rather than render an empty face.
   if (!displayName) return null;
   return {
