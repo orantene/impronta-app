@@ -62,7 +62,7 @@ import {
 import { handleTalentStripeSubscriptionEvent } from "@/lib/payments/stripe-talent-subscription";
 import { markPaid } from "@/lib/bookings/transactions";
 import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
-import { releaseHeldPayouts } from "@/lib/payments/booking-payouts-ledger";
+import { releaseHeldPayouts, syncBookingPayoutLifecycle } from "@/lib/payments/booking-payouts-ledger";
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -209,6 +209,73 @@ function extractChargedAmount(event: Stripe.Event): { amountCents: number; curre
     return { amountCents: s.amount_total ?? 0, currency: s.currency ?? "" };
   }
   return null;
+}
+
+/**
+ * Reconcile a failed/reversed Connect transfer into the booking_payouts ledger.
+ *
+ * A Connect leg is written 'transferred' optimistically at create time
+ * (disburse.connectTransfer). For a USDC payout the USD transfer auto-converts to
+ * USDC at Stripe; if that conversion later fails/returns — or the transfer is
+ * reversed for any reason — this flips the matching leg OFF 'transferred' so the
+ * talent isn't shown paid against money that didn't land, and the held/retry
+ * machinery (releaseHeldPayouts) can re-attempt it. Mirrors
+ * `applyOutboundPaymentEvent` (webhook-v2.ts) for the v1 Connect rail.
+ *
+ * Looks the leg up by `stripe_transfer_id` (= the tr_… id). Idempotent: never
+ * downgrades a 'reversed' leg, and a re-delivery of the same failure is a no-op.
+ * Flips the matching leg to 'failed' and re-syncs the booking's payout_lifecycle so
+ * it reflects the now-failed leg (a talent is not shown paid against money that did
+ * not land). Best-effort: a transient DB error throws so Stripe retries; everything else acks.
+ */
+async function applyConnectTransferSettlement(
+  action: Extract<StripeAction, { kind: "transfer_settlement" }>,
+): Promise<void> {
+  if (!action.failed) return; // only act on a non-settlement (reversed/returned)
+  const sb = createServiceRoleClient();
+  if (!sb) throw new TransientWebhookError("service-role client unavailable for transfer_settlement");
+
+  const { data: leg, error: readErr } = await sb
+    .from("booking_payouts")
+    .select("id, booking_id, status, attempts")
+    .eq("stripe_transfer_id", action.transferId)
+    .maybeSingle();
+  if (readErr) {
+    throw new TransientWebhookError(`transfer_settlement read failed: ${readErr.message ?? readErr}`);
+  }
+  if (!leg) {
+    // Not one of our payout legs (or not recorded yet) — log + ack.
+    if (process.env.NODE_ENV !== "production") {
+      void improntaLog("stripe_webhook.info", {
+        message: `[stripe.connect] ${action.eventType} transfer=${action.transferId} no matching booking_payouts leg`,
+      });
+    }
+    return;
+  }
+
+  const legId = leg.id as string;
+  const bookingId = leg.booking_id as string;
+  const current = leg.status as string;
+
+  // Idempotent / safety: a reversed leg (the dispute/refund clawback path already
+  // owns it) is never downgraded; an already-failed leg is a no-op.
+  if (current === "reversed" || current === "failed") return;
+
+  const nowIso = new Date().toISOString();
+  const { error: writeErr } = await sb
+    .from("booking_payouts")
+    .update({
+      status: "failed",
+      attempts: ((leg.attempts as number) ?? 0) + 1,
+      last_error: `connect ${action.eventType}${action.amountReversed ? ` reversed=${action.amountReversed} ${action.currency}` : ""}`,
+      updated_at: nowIso,
+    })
+    .eq("id", legId);
+  if (writeErr) {
+    throw new TransientWebhookError(`transfer_settlement update failed: ${writeErr.message ?? writeErr}`);
+  }
+  // A talent leg coming undone must pull the booking back out of 'paid'.
+  await syncBookingPayoutLifecycle(sb, bookingId);
 }
 
 /**
@@ -451,6 +518,14 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
           message: `[stripe.connect] ${action.eventType} acct=${action.accountId ?? "?"} payout=${action.payoutId} amount=${action.amount} ${action.currency}`,
         });
       }
+      return;
+
+    case "transfer_settlement":
+      // A Connect transfer leg was reversed/returned (e.g. a failed USD→USDC
+      // auto-conversion) — flip the matching booking_payouts leg off 'transferred'
+      // and re-sync the booking so the talent isn't shown paid against money that
+      // didn't land. Idempotent; the held/retry machinery can re-attempt it.
+      await applyConnectTransferSettlement(action);
       return;
 
     case "invoice_payment_succeeded": {

@@ -25,6 +25,7 @@ import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbedded
 import { PAYOUT_COUNTRIES } from "@/lib/payments/payout-countries";
 import { HeldPayoutsBanner } from "@/components/payments/HeldPayoutsBanner";
 import { GlobalPayoutsBankCard } from "./GlobalPayoutsBankCard";
+import { StablecoinPayoutCard } from "./StablecoinPayoutCard";
 import type { TalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
 import type { ActivePayoutSystem } from "@/lib/payments/active-payout-system";
 
@@ -255,7 +256,12 @@ export function PayoutsShell({
 
           {gpPrimary ? (
             // Non-Connect country / already on Global Payouts: GP is the only path.
-            <GlobalPayoutsBankCard />
+            <>
+              <GlobalPayoutsBankCard />
+              {/* USDC opt-in (additive). Self-gates on stablecoin eligibility,
+                  renders nothing when the talent's market isn't eligible. */}
+              <StablecoinPayoutCard />
+            </>
           ) : (
             <>
           {/* PRIMARY: your bank */}
@@ -349,6 +355,11 @@ export function PayoutsShell({
               <GlobalPayoutsBankCard />
             </div>
           )}
+
+          {/* USDC opt-in (additive). Self-gates on stablecoin eligibility and
+              renders nothing when the talent's market isn't eligible. Suppressed
+              while the talent is mid-onboarding or picking a country. */}
+          {!showOnboarding && !needCountry && <StablecoinPayoutCard />}
             </>
           )}
 

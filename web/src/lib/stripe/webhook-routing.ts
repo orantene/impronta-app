@@ -95,6 +95,17 @@ export type StripeAction =
       amount: number;
       currency: string;
     }
+  | {
+      kind: "transfer_settlement";
+      eventType: string;
+      transferId: string;
+      /** True when this event means the Connect transfer leg did NOT settle
+       *  (reversed, or returned). The handler flips the matching booking_payouts
+       *  leg to failed/held + re-syncs the booking. */
+      failed: boolean;
+      amountReversed: number;
+      currency: string;
+    }
   | { kind: "invoice_payment_succeeded"; subscriptionId: string | null; customerId: string | null; amountPaid: number; currency: string }
   | { kind: "invalid"; reason: string }
   | { kind: "ignore" };
@@ -339,6 +350,30 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
         accountId: strOrNull(event.account),
         amount: payout.amount ?? 0,
         currency: payout.currency ?? "usd",
+      };
+    }
+
+    case "transfer.reversed":
+    case "transfer.updated": {
+      // A Connect transfer leg is written 'transferred' optimistically at create
+      // time (disburse.connectTransfer). For USDC, the USD transfer auto-converts
+      // to USDC at Stripe — a failed/reversed conversion (or any reversal) must
+      // flip the leg back so it can re-hold/retry instead of silently staying
+      // 'transferred'. `transfer.reversed` is always a reversal; `transfer.updated`
+      // is a settlement only when it now carries a non-zero `amount_reversed`
+      // (anything else is a no-op metadata touch we ignore).
+      const transfer = event.data.object as Stripe.Transfer;
+      if (!transfer.id) return { kind: "ignore" };
+      const amountReversed = transfer.amount_reversed ?? 0;
+      const failed = event.type === "transfer.reversed" || amountReversed > 0;
+      if (!failed) return { kind: "ignore" };
+      return {
+        kind: "transfer_settlement",
+        eventType: event.type,
+        transferId: transfer.id,
+        failed,
+        amountReversed,
+        currency: transfer.currency ?? "usd",
       };
     }
 
