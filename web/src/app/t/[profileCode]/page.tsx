@@ -20,7 +20,7 @@ import {
 } from "@/components/directory/public-discovery-state";
 import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
 import { DirectoryInquirySheet } from "@/components/directory/directory-inquiry-sheet";
-import { FavoritesDrawer } from "@/components/directory/favorites-drawer";
+import { FavoritesModal } from "@/components/directory/favorites-modal";
 import { FavoritesDrawerProvider } from "@/components/directory/favorites-drawer-context";
 import { ProfileDiscoveryCta } from "@/components/directory/profile-discovery-cta";
 import { PublicHeader } from "@/components/public-header";
@@ -1441,7 +1441,7 @@ export default async function PublicTalentProfilePage({
               {t("public.forms.inquiry.supabaseNotConfigured")}
             </main>
             <DirectoryInquirySheet ui={ui} locale={locale} />
-            <FavoritesDrawer
+            <FavoritesModal
               signupHref="/login"
               locale={locale}
               initialFavoriteIdsCount={initialFavoriteIds.length}
@@ -2339,7 +2339,7 @@ export default async function PublicTalentProfilePage({
           )}
 
           <DirectoryInquirySheet ui={ui} locale={locale} />
-          <FavoritesDrawer
+          <FavoritesModal
             signupHref="/login"
             locale={locale}
             initialFavoriteIdsCount={initialFavoriteIds.length}

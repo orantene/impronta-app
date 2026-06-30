@@ -4,7 +4,7 @@ import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncher
 import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
 import { DirectoryInquirySheet } from "@/components/directory/directory-inquiry-sheet";
-import { FavoritesDrawer } from "@/components/directory/favorites-drawer";
+import { FavoritesModal } from "@/components/directory/favorites-modal";
 import { FavoritesDrawerProvider } from "@/components/directory/favorites-drawer-context";
 import {
   DiscoveryStateBridge,
@@ -434,7 +434,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
           )}
         </main>
             <DirectoryInquirySheet ui={directoryUi} locale={locale} />
-            <FavoritesDrawer
+            <FavoritesModal
               signupHref="/login"
               locale={locale}
               initialFavoriteIdsCount={favoriteIds.length}

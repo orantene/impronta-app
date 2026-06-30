@@ -457,7 +457,18 @@
           "listFollows": "and your list follows you.",
           "removeTalent": "Remove {name}",
           "emptyTitle": "No favorites yet",
-          "emptyDescription": "Tap the bookmark on any talent card to save them here. Your list stays with you across sessions."
+          "emptyDescription": "Tap the bookmark on any talent card to save them here. Your list stays with you across sessions.",
+          "subtitle": "Pick who you want to inquire about, then send.",
+          "selectAll": "Select all",
+          "clearSelection": "Clear selection",
+          "selectedOfCount": "{selected} of {total} selected",
+          "inquireZero": "Select talent to inquire",
+          "inquireOne": "Inquire about 1 selected",
+          "inquireMany": "Inquire about the {count} selected",
+          "inquirePending": "Adding to your inquiry...",
+          "viewProfile": "View profile",
+          "selectAria": "Select {name}",
+          "deselectAria": "Deselect {name}"
         }
       }
     },

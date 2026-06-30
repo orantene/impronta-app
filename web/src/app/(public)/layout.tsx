@@ -1,7 +1,7 @@
 import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
 import { DirectoryInquirySheet } from "@/components/directory/directory-inquiry-sheet";
-import { FavoritesDrawer } from "@/components/directory/favorites-drawer";
+import { FavoritesModal } from "@/components/directory/favorites-modal";
 import { FavoritesDrawerProvider } from "@/components/directory/favorites-drawer-context";
 import { PublicDiscoveryStateProvider } from "@/components/directory/public-discovery-state";
 import { PublicFlashHost } from "@/components/directory/public-flash-host";
@@ -63,7 +63,7 @@ export default async function PublicLayout({
             <PublicFlashHost dismissAria={dismissFlashAria} />
             {children}
             <DirectoryInquirySheet ui={directoryUi} locale={locale} />
-            <FavoritesDrawer
+            <FavoritesModal
               signupHref="/login"
               locale={locale}
               initialFavoriteIdsCount={favoriteIds.length}

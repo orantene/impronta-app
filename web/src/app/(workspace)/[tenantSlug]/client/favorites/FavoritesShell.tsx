@@ -26,6 +26,8 @@ import {
   type CardDesign,
 } from "@/lib/site-admin/server/card-design-shape";
 import { useFavorites } from "@/lib/talent-cards/use-favorites";
+import { FavoritesInquireModal } from "./favorites-inquire-modal";
+import type { FavoriteModalTalent } from "@/components/directory/favorites-modal-view";
 
 const C = {
   ink:        "#0B0B0D",
@@ -60,7 +62,8 @@ export function FavoritesShell({
    */
   cardDesign?: CardDesign;
 }) {
-  const { isFavorited } = useFavorites();
+  const { isFavorited, setFavorite } = useFavorites();
+  const [inquireOpen, setInquireOpen] = useState(false);
   const cardCssVars = useMemo(
     () => (cardDesign ? cardDesignToCssVars(cardDesign) : undefined),
     [cardDesign],
@@ -80,6 +83,16 @@ export function FavoritesShell({
     ? favorites.filter((f) => isFavorited(f.talentId))
     : favorites;
 
+  const modalTalents: FavoriteModalTalent[] = visible.map((t) => ({
+    id: t.talentId,
+    name: t.displayName,
+    profileCode: t.profileCode,
+    photoUrl: t.headshotUrl,
+    primaryType: t.primaryTypeLabel,
+    location: [t.homeCity, t.homeCountry].filter(Boolean).join(" · ") || null,
+    profileHref: t.profileCode ? `/t/${t.profileCode}` : null,
+  }));
+
   if (visible.length === 0) {
     return (
       <div style={{
@@ -94,6 +107,29 @@ export function FavoritesShell({
 
   return (
     <div style={{ fontFamily: FONT }}>
+      <div
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          gap: 12, marginBottom: 16, flexWrap: "wrap",
+        }}
+      >
+        <p style={{ margin: 0, fontSize: 13, color: C.inkMuted }}>
+          {visible.length} saved · pick who to inquire about
+        </p>
+        <button
+          type="button"
+          onClick={() => setInquireOpen(true)}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            height: 38, padding: "0 16px", borderRadius: 10,
+            background: C.accent, color: "#fff",
+            fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer",
+            letterSpacing: -0.1,
+          }}
+        >
+          Select &amp; send an inquiry
+        </button>
+      </div>
       <div
         style={{
           display: "grid",
@@ -118,6 +154,16 @@ export function FavoritesShell({
       }}>
         Want event-bound groups? Build a <Link href={`/${tenantSlug}/client/shortlists`} style={{ color: C.accent, fontWeight: 600 }}>shortlist</Link> and send one inquiry to multiple talents at once.
       </div>
+
+      <FavoritesInquireModal
+        open={inquireOpen}
+        onOpenChange={setInquireOpen}
+        talents={modalTalents}
+        tenantSlug={tenantSlug}
+        onRemove={(id) => setFavorite(id, false)}
+        onClearAll={() => visible.forEach((t) => setFavorite(t.talentId, false))}
+        cardCssVars={cardCssVars}
+      />
     </div>
   );
 }
