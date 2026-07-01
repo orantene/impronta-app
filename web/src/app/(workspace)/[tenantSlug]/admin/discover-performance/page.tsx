@@ -10,7 +10,8 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { userHasCapability } from "@/lib/access";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -329,8 +330,15 @@ export default async function AdminDiscoverPerformancePage({
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
-  const scope = await getTenantPortalScopeBySlug(tenantSlug);
+  const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
+  // SECURITY: this report reads cross-tenant lead + referral data via a
+  // service-role loader, so it must be locked to workspace STAFF
+  // (getTenantScopeBySlug proves an agency_memberships row). A talent/client
+  // portal user gets notFound(), exactly like every other admin page. Mirrors
+  // the same fix applied to channel-performance.
+  const canView = await userHasCapability("agency.workspace.view", scope.tenantId);
+  if (!canView) notFound();
 
   const activeRange: RangeKey = resolveRange(rawRange);
   const rangeMeta = TIME_RANGES.find((r) => r.key === activeRange)!;
