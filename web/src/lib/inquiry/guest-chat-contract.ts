@@ -583,6 +583,14 @@ export type MiniChatPanelProps = {
   openFullHref?: string | null;
 
   /**
+   * Dashboard inbox link (`/{tenantSlug}/client/messages`). Set ONLY when the
+   * viewer is a signed-in CLIENT of this tenant (resolved server-side at the
+   * mount). Drives the quiet "See all your inquiries" link in the footer. Null
+   * for anonymous guests, who cannot reach the client dashboard.
+   */
+  dashboardHref?: string | null;
+
+  /**
    * U2: list ALL live inquiries this guest owns on the tenant (drives the
    * thread-switcher avatar-rail). Null hides the switcher entirely.
    */
@@ -646,6 +654,11 @@ export type TalentChatLauncherProps = {
   /** className passthrough for placement (mirrors TalentProfileInquireButton). */
   className?: string;
   openFullHref?: string | null;
+  /**
+   * Client dashboard inbox link, forwarded to the panel. Set only for a
+   * signed-in client of this tenant (see MiniChatPanelProps.dashboardHref).
+   */
+  dashboardHref?: string | null;
 
   /** U2: forwarded to the panel — list all live inquiries for the switcher. */
   onListGuestInquiries?: ListGuestInquiriesCallback | null;

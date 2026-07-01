@@ -604,6 +604,7 @@
       "typicallyReplies": "Suele responder {when}",
       "leaveMessage": "Cuéntanos sobre tu evento y te conseguimos el talento ideal",
       "bookNow": "Reservar ahora",
+      "viewAllInquiries": "Ver todas tus solicitudes",
       "ctaMessage": "Enviar mensaje a {agency}",
       "ctaLineup": "Tu lista ({count})",
       "ctaSent": "Solicitud enviada",

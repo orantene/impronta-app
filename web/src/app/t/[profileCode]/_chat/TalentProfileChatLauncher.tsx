@@ -120,6 +120,7 @@ export function TalentProfileChatLauncher({
   // lifecycle-aware resolver now owns the pill copy (locked decision 1).
   className,
   openFullHref = null,
+  dashboardHref = null,
   surfaceMode = "light",
   activePhase = null,
   activeStatus = null,
@@ -679,6 +680,7 @@ export function TalentProfileChatLauncher({
         soundOnReply={soundOnReply}
         identity={identity}
         openFullHref={openFullHref}
+        dashboardHref={dashboardHref}
         cartTalentIds={cart.cartIds}
         cartTalentNames={cartTalentNames}
         openToTalentSection={openToTalent}

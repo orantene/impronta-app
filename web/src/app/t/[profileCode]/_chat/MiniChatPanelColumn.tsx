@@ -37,6 +37,7 @@ import type { StreamRow } from "./MiniChatMessageBubble";
 
 import { ClaimEmailRecap } from "./ClaimEmailRecap";
 import { ConversationStatusStrip } from "./ConversationStatusStrip";
+import { DashboardInquiriesLink } from "./DashboardInquiriesLink";
 import { DraftPrivacyBanner } from "./DraftPrivacyBanner";
 import { GuestAccountToolkit } from "./GuestAccountToolkit";
 import { GuestDetailChips } from "./GuestDetailChips";
@@ -258,6 +259,8 @@ export type MiniChatPanelColumnProps = {
     phone?: string | null;
   } | null;
   openFullHref?: string | null;
+  /** Client dashboard inbox link; set only for a signed-in client of this tenant. */
+  dashboardHref?: string | null;
   onListGuestInquiries?: ListGuestInquiriesCallback | null;
   onToggleExpand?: () => void;
   identity: GuestIdentityTier;
@@ -340,6 +343,7 @@ export function MiniChatPanelColumn({
   inquiryIntent = null,
   prefill,
   openFullHref,
+  dashboardHref = null,
   onListGuestInquiries,
   onToggleExpand,
   identity,
@@ -759,6 +763,17 @@ export function MiniChatPanelColumn({
           sent={sentNote}
           typicalReply={typicalReply}
           onSend={onSendToAgency}
+        />
+      )}
+
+      {/* Signed-in client only: quiet "See all your inquiries" link to the
+          dashboard inbox. dashboardHref + "account" identity are resolved
+          server-side at the mount, so this is inert for an anonymous guest. */}
+      {identity === "account" && (
+        <DashboardInquiriesLink
+          dashboardHref={dashboardHref}
+          label={t("public.guestChat.viewAllInquiries")}
+          surfaceMode={surfaceMode}
         />
       )}
 

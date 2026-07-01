@@ -13,6 +13,7 @@
 import { TalentProfileChatLauncher } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncher";
 import { surfaceModeFromBackgroundMode } from "@/app/t/[profileCode]/_chat/mini-chat-styles";
 import { resolveLauncherLifecycleInputs } from "@/app/t/[profileCode]/_chat/launcher-lifecycle-inputs";
+import { resolveChatViewerIdentity } from "@/app/t/[profileCode]/_chat/resolve-chat-viewer-identity";
 import {
   checkGuestClaimEmail,
   getActiveGuestInquiry,
@@ -146,6 +147,12 @@ export async function AgencyChatLauncherMount({
     autoAnchorLatest: true,
   });
 
+  // Returning signed-in client detection (B): resolve whether this viewer is an
+  // ACTIVE client of THIS tenant server-side (auth cookie is present on the
+  // tenant host). A client gets the "account" identity + dashboard inbox link;
+  // everyone else keeps the guest defaults, so a guest is never mis-detected.
+  const viewer = await resolveChatViewerIdentity({ tenantId, tenantSlug });
+
   return (
     <TalentProfileChatLauncher
       tenantSlug={tenantSlug}
@@ -190,7 +197,9 @@ export async function AgencyChatLauncherMount({
       draftInquiryId={lifecycle.draftInquiryId}
       otherOpenInquiries={lifecycle.otherOpenInquiries}
       unreadCoordinatorReply={lifecycle.unreadCoordinatorReply}
-      ctaIdentity="guest"
+      ctaIdentity={viewer.ctaIdentity}
+      identity={viewer.identity}
+      dashboardHref={viewer.dashboardHref}
     />
   );
 }

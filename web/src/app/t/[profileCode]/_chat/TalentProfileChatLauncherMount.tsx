@@ -29,6 +29,7 @@
 
 import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
 import { surfaceModeFromBackgroundMode } from "./mini-chat-styles";
+import { resolveChatViewerIdentity } from "./resolve-chat-viewer-identity";
 import { createTranslator } from "@/i18n/messages";
 import {
   resolveLauncherLifecycleInputs,
@@ -126,6 +127,14 @@ export async function TalentProfileChatLauncherMount({
     activeInquiryId: active?.inquiryId ?? null,
   });
 
+  // Returning signed-in client detection (B): the auth cookie is present on the
+  // tenant host, so we can resolve whether this viewer is an ACTIVE client of
+  // THIS tenant server-side. A client gets the "account" identity (hides the
+  // guest "create your free account" toolkit) + a dashboard inbox link. Anyone
+  // else — an anonymous guest, a client of another tenant — keeps the guest
+  // defaults, so a guest is never mis-detected.
+  const viewer = await resolveChatViewerIdentity({ tenantId, tenantSlug });
+
   return (
     <TalentProfileChatLauncher
       tenantSlug={tenantSlug}
@@ -168,7 +177,9 @@ export async function TalentProfileChatLauncherMount({
       draftInquiryId={lifecycle.draftInquiryId}
       otherOpenInquiries={lifecycle.otherOpenInquiries}
       unreadCoordinatorReply={lifecycle.unreadCoordinatorReply}
-      ctaIdentity="guest"
+      ctaIdentity={viewer.ctaIdentity}
+      identity={viewer.identity}
+      dashboardHref={viewer.dashboardHref}
     />
   );
 }
