@@ -59,6 +59,8 @@ import {
 } from "../_actions/inquiry-message-actions";
 import { uploadInquiryAttachmentAsClient } from "@/lib/server-actions/client-inquiry-attachments";
 import { useT } from "@/i18n/use-t";
+import { withInterpolation } from "@/i18n/interpolate";
+import { inquirySourceLabel } from "@/lib/inquiry/inquiry-source-label";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
@@ -497,7 +499,7 @@ export function ClientMessagesShell({
         renderRow={(item, ctx) => {
           const inq = rowById.get(item.id);
           if (!inq) return null;
-          return <InquiryRow inq={inq} active={ctx.active} onClick={ctx.select} />;
+          return <InquiryRow inq={inq} agencyName={tenantName} active={ctx.active} onClick={ctx.select} />;
         }}
         details={
           active ? (
@@ -644,17 +646,22 @@ type RowChip = {
   padding?: string;
 };
 
-function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: boolean; onClick: () => void }) {
+function InquiryRow({ inq, agencyName, active, onClick }: { inq: ClientInquiryRow; agencyName: string; active: boolean; onClick: () => void }) {
   const t = useT();
+  const tx = withInterpolation(t);
   const stage = stageStyle(inq.status, t);
   const company = inq.company || "Unnamed inquiry";
   const dateLabel = inq.event_date ? formatDate(inq.event_date) : null;
   const location = inq.event_location;
   const needsMe = inq.next_action_by === "client";
   const unread = inq.unreadCount > 0;
-  const isDiscover =
-    inq.source_channel === "discover_single_talent" ||
-    inq.source_channel === "discover_shortlist";
+  // Friendly provenance label covering every source channel (not just
+  // Discover): resolves to "via Discover" / "via the Tulala network" /
+  // "via {agency}" / etc. from the inquiry's captured source fields.
+  const sourceLabel = inquirySourceLabel(
+    { sourceChannel: inq.source_channel, agencyName },
+    "client",
+  );
 
   // Status + state chip stack — same metadata/status treatment as the polished
   // talent inbox (audit #15): an uppercase status pill, an amber "Your turn"
@@ -670,18 +677,16 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
   if (unread) {
     chips.push({ label: `${inq.unreadCount} new`, bg: C.accentSoft, color: C.accent, fontSize: 10, padding: "1px 7px" });
   }
-  if (isDiscover) {
+  if (sourceLabel) {
+    const label = tx(sourceLabel.key, sourceLabel.args);
     chips.push({
-      label: `◎ via ${inq.source_channel === "discover_shortlist" ? "Shortlist" : "Discover"}`,
+      label: `◎ ${label}`,
       bg: C.accentSoft,
       color: C.accent,
       fontSize: 10,
       padding: "1px 7px",
       uppercase: true,
-      title:
-        inq.source_channel === "discover_shortlist"
-          ? "You added talent from a Discover shortlist."
-          : "This inquiry started from Discover.",
+      title: label,
     });
   }
 

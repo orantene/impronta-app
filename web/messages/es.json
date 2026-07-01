@@ -1003,6 +1003,18 @@
       "offerWithdrawn": "Retirada",
       "offerSuperseded": "Reemplazada",
       "offerExpired": "Vencida"
+    },
+    "inquirySource": {
+      "discover": "vía Discover",
+      "network": "vía la red Tulala",
+      "instantBook": "Reserva instantánea",
+      "pitch": "Desde una propuesta",
+      "bookAgain": "Reserva recurrente",
+      "yourSite": "desde tu sitio",
+      "viaAgency": "vía {agency}",
+      "viaAgencyGeneric": "desde un sitio de agencia",
+      "clientAccount": "desde una cuenta de cliente",
+      "addedByTeam": "añadido por tu equipo"
     }
   },
   "admin": {

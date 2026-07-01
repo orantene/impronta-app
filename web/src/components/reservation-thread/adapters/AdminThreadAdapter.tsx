@@ -34,6 +34,9 @@ import ParticipantThreadShell, {
   type ParticipantThreadMessage,
   type ParticipantThreadSendResult,
 } from "@/app/(workspace)/[tenantSlug]/_ParticipantThreadShell";
+import { useT } from "@/i18n/use-t";
+import { withInterpolation } from "@/i18n/interpolate";
+import { inquirySourceLabel } from "@/lib/inquiry/inquiry-source-label";
 
 /* ─── Server-loaded shapes — page hydrates these ─────────────────── */
 
@@ -186,9 +189,17 @@ export function AdminThreadAdapter(props: AdminThreadAdapterProps) {
     return () => { void supabase.removeChannel(channel); };
   }, [inquiry.id, router]);
 
-  const isDiscover =
-    inquiry.sourceChannel === "discover_single_talent" ||
-    inquiry.sourceChannel === "discover_shortlist";
+  // Friendly provenance label, covering every source channel (not just
+  // Discover). Surfaces as a quiet accent chip in the header AND a "Source"
+  // row in the Event sheet, so the admin always sees where the inquiry came
+  // from. Resolved from the real `source_channel` captured on the inquiry,
+  // replacing the prior Discover-only "Source" row.
+  const tx = withInterpolation(useT());
+  const resolvedSource = inquirySourceLabel(
+    { sourceChannel: inquiry.sourceChannel },
+    "agency",
+  );
+  const sourceLabel = resolvedSource ? tx(resolvedSource.key, resolvedSource.args) : null;
 
   const pills: PillDescriptor[] = useMemo(() => {
     const accepted = lineup.filter((l) => l.status === "accepted").length;
@@ -312,12 +323,8 @@ export function AdminThreadAdapter(props: AdminThreadAdapterProps) {
           {inquiry.contactPhone && <Row label="Phone" value={inquiry.contactPhone} palette={palette} />}
           {inquiry.company && <Row label="Company" value={inquiry.company} palette={palette} />}
           {inquiry.trustLevel && <Row label="Trust" value={inquiry.trustLevel} palette={palette} />}
-          {isDiscover && (
-            <Row
-              label="Source"
-              value={inquiry.sourceChannel === "discover_shortlist" ? "Discover · shortlist fan-out" : "Discover · single talent"}
-              palette={palette}
-            />
+          {sourceLabel && (
+            <Row label="Source" value={sourceLabel} palette={palette} />
           )}
           {inquiry.brief && (
             <div className="mt-1">
@@ -374,7 +381,7 @@ export function AdminThreadAdapter(props: AdminThreadAdapterProps) {
         <Link href={classicHref} style={footerLink(palette)}>Reassign coordinator in classic Messages →</Link>
       ),
     },
-  }), [lineup, activeOffer, files, coordinators, inquiry, isDiscover, palette, classicHref]);
+  }), [lineup, activeOffer, files, coordinators, inquiry, sourceLabel, palette, classicHref]);
 
   const stream = (
     <ParticipantThreadShell
@@ -395,6 +402,7 @@ export function AdminThreadAdapter(props: AdminThreadAdapterProps) {
         title: inquiry.title,
         subtitle: inquiry.subtitle,
         stage,
+        sourceLabel: sourceLabel ?? undefined,
         closedReason,
         moveToMenu: [
           {

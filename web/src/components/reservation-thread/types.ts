@@ -131,6 +131,11 @@ export interface ReservationThreadHeader {
   /** Current stage. The header progress strip lights up cells up to and
    *  including this. */
   stage: ReservationStage;
+  /** Optional friendly provenance label ("via Discover", "from your
+   *  site", "via {agency}"…) shown as a quiet accent chip beside the
+   *  title. Already resolved + localised by the adapter; the header just
+   *  paints it. Omit to render no source chip. */
+  sourceLabel?: string;
   /** Soft "closed" overlay when inquiry has ended badly (cancelled /
    *  declined / expired). Stage strip dims, banner says why. */
   closedReason?: string;

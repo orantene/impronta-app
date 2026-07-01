@@ -284,6 +284,18 @@
   },
   "dashboard": {
     "signOut": "Se déconnecter",
-    "exit": "Quitter"
+    "exit": "Quitter",
+    "inquirySource": {
+      "discover": "via Discover",
+      "network": "via le réseau Tulala",
+      "instantBook": "Réservation instantanée",
+      "pitch": "Depuis une proposition",
+      "bookAgain": "Réservation récurrente",
+      "yourSite": "depuis votre site",
+      "viaAgency": "via {agency}",
+      "viaAgencyGeneric": "depuis un site d'agence",
+      "clientAccount": "depuis un compte client",
+      "addedByTeam": "ajouté par votre équipe"
+    }
   }
 }

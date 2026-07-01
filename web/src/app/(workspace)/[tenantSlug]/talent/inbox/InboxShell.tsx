@@ -18,6 +18,9 @@ import {
   type ThreadBadge,
   type ThreadShellListItem,
 } from "@/components/shared/ThreadShell";
+import { useT } from "@/i18n/use-t";
+import { withInterpolation } from "@/i18n/interpolate";
+import { inquirySourceLabel } from "@/lib/inquiry/inquiry-source-label";
 
 const C = {
   ink:        "#0B0B0D",
@@ -117,13 +120,17 @@ function statusTone(status: string): { bg: string; color: string; label: string 
 function toThreadItem(
   inq: TalentInquiryRow,
   tenantSlug: string,
+  tx: (key: string, args?: Record<string, string | number | undefined | null>) => string,
 ): ThreadShellListItem {
   const s = statusTone(inq.status);
   const needsAction =
     inq.participantStatus === "invited" || inq.status === "offer_pending";
-  const isDiscover =
-    inq.sourceChannel === "discover_single_talent" ||
-    inq.sourceChannel === "discover_shortlist";
+  // Friendly provenance label covering every source channel (not just
+  // Discover) so the talent always knows where the inquiry originated.
+  const sourceLabel = inquirySourceLabel(
+    { sourceChannel: inq.sourceChannel },
+    "talent",
+  );
 
   const badges: ThreadBadge[] = [
     { label: s.label, bg: s.bg, color: s.color, uppercase: true },
@@ -146,18 +153,16 @@ function toThreadItem(
       padding: "1px 7px",
     });
   }
-  if (isDiscover) {
+  if (sourceLabel) {
+    const label = tx(sourceLabel.key, sourceLabel.args);
     badges.push({
-      label: `◎ via ${inq.sourceChannel === "discover_shortlist" ? "Shortlist" : "Discover"}`,
-      bg: C.blueSoft,
-      color: C.blueDeep,
+      label: `◎ ${label}`,
+      bg: C.accentSoft,
+      color: C.accent,
       fontSize: 10,
       padding: "1px 7px",
       uppercase: true,
-      title:
-        inq.sourceChannel === "discover_shortlist"
-          ? "Client added you from a Discover shortlist alongside other talents."
-          : "Client found you on Discover and reached out directly.",
+      title: label,
     });
   }
 
@@ -185,6 +190,7 @@ export function InboxShell({
   inquiries: TalentInquiryRow[];
   tenantSlug: string;
 }) {
+  const tx = withInterpolation(useT());
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
 
   const actionCount = inquiries.filter((i) => matchesFilter(i, "action")).length;
@@ -276,7 +282,7 @@ export function InboxShell({
       <div aria-live="polite" aria-label="Inbox thread list">
         <ThreadShell
           role="talent"
-          inquiries={filtered.map((inq) => toThreadItem(inq, tenantSlug))}
+          inquiries={filtered.map((inq) => toThreadItem(inq, tenantSlug, tx))}
           activeId={null}
           actions={{}}
         />

@@ -1003,6 +1003,18 @@
       "offerWithdrawn": "Withdrawn",
       "offerSuperseded": "Superseded",
       "offerExpired": "Expired"
+    },
+    "inquirySource": {
+      "discover": "via Discover",
+      "network": "via the Tulala network",
+      "instantBook": "Instant booking",
+      "pitch": "From a pitch",
+      "bookAgain": "Repeat booking",
+      "yourSite": "from your site",
+      "viaAgency": "via {agency}",
+      "viaAgencyGeneric": "from an agency site",
+      "clientAccount": "from a client account",
+      "addedByTeam": "added by your team"
     }
   },
   "admin": {

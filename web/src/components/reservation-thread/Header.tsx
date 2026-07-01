@@ -83,17 +83,43 @@ export function Header({ pov, data, onBack }: HeaderProps) {
           </button>
         )}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
-          <div
-            style={{
-              fontSize: 14.5,
-              fontWeight: 700,
-              color: palette.ink,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {data.title}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: 14.5,
+                fontWeight: 700,
+                color: palette.ink,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {data.title}
+            </span>
+            {/* Quiet provenance chip — where this inquiry came from. Uses the
+                POV accent token (never a hardcoded colour). */}
+            {data.sourceLabel && (
+              <span
+                aria-label={`Source: ${data.sourceLabel}`}
+                title={`Source: ${data.sourceLabel}`}
+                style={{
+                  flexShrink: 0,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "1px 7px",
+                  borderRadius: 999,
+                  background: palette.accentSoft,
+                  color: palette.accent,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 0.3,
+                  textTransform: "uppercase",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {data.sourceLabel}
+              </span>
+            )}
           </div>
           {data.subtitle && (
             <div
