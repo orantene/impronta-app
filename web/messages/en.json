@@ -1017,6 +1017,28 @@
       "viaAgencyGeneric": "from an agency site",
       "clientAccount": "from a client account",
       "addedByTeam": "added by your team"
+    },
+    "channelPerformance": {
+      "channels": {
+        "discover": "Discover single talent",
+        "discoverShortlist": "Discover shortlist",
+        "savedTalent": "Saved talent lineup",
+        "hubSite": "Tulala network hub",
+        "agencySite": "Your agency site",
+        "talentProfile": "Public talent profile",
+        "directoryGuest": "Directory (guest)",
+        "directoryClient": "Directory (signed-in client)",
+        "clientDashboard": "Client dashboard",
+        "bookAgain": "Repeat booking",
+        "instantBook": "Instant booking",
+        "pitch": "From a pitch",
+        "phone": "Phone",
+        "whatsapp": "WhatsApp",
+        "email": "Email",
+        "manual": "Added by your team",
+        "other": "Other",
+        "unknown": "Unknown channel"
+      }
     }
   },
   "admin": {

@@ -16,9 +16,12 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
-import { getCachedActorSession } from "@/lib/server/request-cache";
+import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { userHasCapability } from "@/lib/access";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 import { loadChannelPerformance } from "@/lib/discover/channel-performance";
+import { channelPerformanceLabel } from "@/lib/discover/channel-performance-labels";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -73,11 +76,23 @@ export default async function AdminChannelPerformancePage({
   params: PageParams;
 }) {
   const { tenantSlug } = await params;
-  const session = await getCachedActorSession();
-  if (!session.user) notFound();
 
-  const scope = await getTenantPortalScopeBySlug(tenantSlug);
+  // ── Access — agency admin/staff ONLY ──────────────────────────────────────
+  // This report reads cross-tenant lead + referral money via the service-role
+  // client, so it must be locked to workspace STAFF. `getTenantScopeBySlug`
+  // proves an `agency_memberships` row (a staff/admin relationship) — unlike
+  // `getTenantPortalScopeBySlug`, which also resolves for talents and clients
+  // and was leaking this report to them. Same guard the admin layout and the
+  // sibling admin pages (bookings, financials) use: prove membership, then the
+  // workspace-view capability. A non-member — or any talent/client with no
+  // membership row — gets `notFound()`, exactly like every other admin page.
+  const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
+  const canView = await userHasCapability("agency.workspace.view", scope.tenantId);
+  if (!canView) notFound();
+
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
 
   const perf = await loadChannelPerformance({ tenantId: scope.tenantId });
 
@@ -228,7 +243,7 @@ export default async function AdminChannelPerformancePage({
             <tbody>
               {perf.byChannel.map((row) => (
                 <tr key={row.channel}>
-                  <td style={TD}>{row.channel}</td>
+                  <td style={TD}>{channelPerformanceLabel(row.channel, t)}</td>
                   <td style={{ ...TD, textAlign: "right" }}>{row.leads}</td>
                   <td style={{ ...TD, textAlign: "right" }}>{row.conversions}</td>
                   <td style={{ ...TD, textAlign: "right", color: C.inkMuted }}>

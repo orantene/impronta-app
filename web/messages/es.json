@@ -1017,6 +1017,28 @@
       "viaAgencyGeneric": "desde un sitio de agencia",
       "clientAccount": "desde una cuenta de cliente",
       "addedByTeam": "añadido por tu equipo"
+    },
+    "channelPerformance": {
+      "channels": {
+        "discover": "Discover talento individual",
+        "discoverShortlist": "Discover lista",
+        "savedTalent": "Selección de talento guardado",
+        "hubSite": "Centro de la red Tulala",
+        "agencySite": "Sitio de tu agencia",
+        "talentProfile": "Perfil público de talento",
+        "directoryGuest": "Directorio (invitado)",
+        "directoryClient": "Directorio (cliente con sesión)",
+        "clientDashboard": "Panel de cliente",
+        "bookAgain": "Reserva recurrente",
+        "instantBook": "Reserva instantánea",
+        "pitch": "Desde una propuesta",
+        "phone": "Teléfono",
+        "whatsapp": "WhatsApp",
+        "email": "Correo",
+        "manual": "Añadido por tu equipo",
+        "other": "Otro",
+        "unknown": "Canal desconocido"
+      }
     }
   },
   "admin": {

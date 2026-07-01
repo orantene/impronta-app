@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import { Icon, SecondaryCard } from "../primitives";
 import { COLORS, FONTS, TRANSITION, useAdminShell } from "../state";
+import { useDashboardText } from "../dashboard-i18n";
 import { Grid, PageHeader } from "./pages-shared";
 
 
@@ -120,9 +121,15 @@ const TI = {
 
 export function OperationsPage() {
   const { openDrawer, tenantSlug } = useAdminShell();
+  const copy = useDashboardText();
   const goFinancials = () => {
     if (typeof window !== "undefined" && tenantSlug) {
       window.location.href = `/${tenantSlug}/admin/financials`;
+    }
+  };
+  const goChannelPerformance = () => {
+    if (typeof window !== "undefined" && tenantSlug) {
+      window.location.href = `/${tenantSlug}/admin/channel-performance`;
     }
   };
 
@@ -136,6 +143,7 @@ export function OperationsPage() {
       <div style={{ maxWidth: 760 }}>
         <PageSection tone={COLORS.indigo} title="Analytics" desc="Revenue, conversion, and team performance.">
           <ToolRow tone={COLORS.indigo} icon={TI.chart}    title="Revenue"           desc="Monthly revenue, top clients, and trend. Opens the live Business financials page." onClick={goFinancials} />
+          <ToolRow tone={COLORS.indigo} icon={TI.pin}      title={copy.t("Channel performance")} desc={copy.t("Leads your workspace sourced, by channel, plus referral money earned as the originating channel.")} onClick={goChannelPerformance} />
           <ToolRow tone={COLORS.indigo} icon={TI.funnel}   title="Conversion funnel" desc="Inquiry → offer → booking conversion."                onClick={() => openDrawer("conversion-funnel")} />
           <ToolRow tone={COLORS.indigo} icon={TI.star}     title="Top performers"    desc="Most-booked talent and best clients."                 onClick={() => openDrawer("top-performers")} />
           <ToolRow tone={COLORS.indigo} icon={TI.team}     title="Team workload"     desc="Per-coordinator queue depth and SLA risk."            onClick={() => openDrawer("coordinator-workload")} />

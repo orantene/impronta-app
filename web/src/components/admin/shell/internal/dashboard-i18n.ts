@@ -19,6 +19,9 @@ const ES_TEXT: Record<string, string> = {
   "Clients": "Clientes",
   "Pitches": "Propuestas",
   "Operations": "Operaciones",
+  "Channel performance": "Rendimiento por canal",
+  "Leads your workspace sourced, by channel, plus referral money earned as the originating channel.":
+    "Clientes potenciales que tu espacio originó, por canal, más el dinero de referido ganado como canal de origen.",
   "Production": "Producción",
   "Website": "Sitio web",
   "Media": "Medios",
