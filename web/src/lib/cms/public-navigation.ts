@@ -69,7 +69,14 @@ function loadCachedNavigation(
       }
       return (data ?? []) as unknown as RawNavRow[];
     },
-    ["cms:public-navigation", tenantId, locale, zone],
+    // Cache-key version suffix (`:v2`). Vercel's Data Cache persists across
+    // deploys and `revalidateTag` can't cross runtimes, so a nav row inserted
+    // directly in the DB (setup scripts, seeds — no `publishNavigationAction`
+    // to fire `revalidateTag`) can leave a STALE cached nav pinned indefinitely
+    // (observed on improntamodels.com: header stuck on an old 2-item nav while
+    // the DB had the full localized menu). Bumping the key orphans every stale
+    // entry so the next request refetches fresh. Bump again if this recurs.
+    ["cms:public-navigation:v2", tenantId, locale, zone],
     {
       tags: [tagFor(tenantId, "navigation")],
       // Defensive 300s safety-net TTL — Vercel's Data Cache persists
