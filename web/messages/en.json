@@ -821,7 +821,8 @@
       "pickerStartNew": "Start a new inquiry with just {name}",
       "pickerStartingNew": "Starting...",
       "pickerTrigger": "Add {name}",
-      "switcherNewMessageSuffix": "new message"
+      "switcherNewMessageSuffix": "new message",
+      "switcherLabel": "Your inquiries"
     }
   },
   "dashboard": {

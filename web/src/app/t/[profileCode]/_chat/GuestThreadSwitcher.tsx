@@ -1,33 +1,28 @@
 "use client";
 
 /**
- * GuestThreadSwitcher — Phase 5 multi-inquiry PROJECTS switcher.
+ * GuestThreadSwitcher — Phase 5 multi-inquiry PROJECTS switcher. Rendered in the
+ * MiniChatPanel header ONLY when the guest has 2+ live conversations (§10
+ * progressive disclosure); single-thread guests never see it.
  *
- * Rendered in the MiniChatPanel header area by the wiring agent ONLY when the
- * guest has 2 or more live conversations (§10 progressive disclosure).
- * Single-thread guests never see this component.
- *
- * Phase 5 reshape: each row is a multi-talent PROJECT, not a single talent. It
- * renders a read-only FACE-STACK of the project's lineup (ReadonlyFaceStack,
- * mirroring the launcher pill) + the projectLabel (job_name or a derived
- * "Lineup of N · Jun 28") and visually distinguishes a private DRAFT from a
- * "Sent · awaiting reply" project via a status pill.
+ * Each row is a multi-talent PROJECT (not a single talent): a read-only
+ * FACE-STACK of the lineup (ReadonlyFaceStack, mirroring the launcher pill) +
+ * the projectLabel, distinguishing a private DRAFT from a "Sent" project via a
+ * status pill. A quiet SwitcherLabel caption fronts the rail/dropdown so guests
+ * realize the tiles are their own separate inquiries to switch between.
  *
  * Design rules:
- *   • Brand accent drives the active indicator — NO gold/rust.
- *   • Real portraits in the face-stack; accent/cool-surface initials fallback
- *     (house rule: never a gray box).
- *   • 'new' dot appears when lastMessageAt > seenAtByInquiry[inquiryId] AND
- *     the last message is inbound (not a guest message).
- *   • Honest presence: per-row "Replies {typicalReplyLabel}" (real data only).
- *     NEVER "Online now" or "typing…".
- *   • Uses mini-chat-styles tokens for visual consistency. Dark-aware.
- *   • Under 800 lines.
+ *   • Brand accent drives active indicators + the caption — NO gold/rust.
+ *   • Real portraits; accent/cool-surface initials fallback (never a gray box).
+ *   • 'new' dot when lastMessageAt > seenAtByInquiry[inquiryId] and inbound.
+ *   • Honest presence: per-row "Replies {typicalReplyLabel}" only; never
+ *     "Online now"/"typing…". mini-chat-styles tokens; dark-aware; <800 lines.
  */
 
 import { useEffect, useRef, useState } from "react";
 
 import {
+  accentText,
   DEFAULT_ACCENT,
   FONT,
   paletteFor,
@@ -106,6 +101,10 @@ function talentInitial(name: string): string {
 /**
  * Returns true when the last message on this inquiry is inbound (not from the
  * guest) AND arrived after the panel's last-seen cursor for that inquiry.
+ *
+ * NOTE (durable-unread gap, out of scope): this 'new' signal is purely
+ * client-side (lastMessageAt vs the in-memory seenAtByInquiry cursor); a
+ * server-backed, authorship-aware unread count is intentionally NOT built here.
  */
 function hasNewInbound(
   summary: GuestInquirySummary,
@@ -221,11 +220,31 @@ function NewDot({ accent }: { accent: string }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-component: ProjectStatusPill — distinguishes a private DRAFT from a SENT
-// project that is awaiting a reply. Draft = neutral cool pill; sent = accent-tint.
-// ─────────────────────────────────────────────────────────────────────────────
+// SwitcherLabel — a quiet, visible caption telling the guest these tiles are
+// their own separate inquiries to switch between. Small small-caps, accent-tinted
+// and contrast-clamped (accentText) so a bright tenant accent stays AA. Mirrors
+// the expanded left-pane header; discoverability only, no behavior change.
+function SwitcherLabel({ accent, C, t }: { accent: string; C: Palette; t: Translator }) {
+  return (
+    <div
+      style={{
+        fontSize: 9.5,
+        fontWeight: 700,
+        color: accentText(accent, C.surfaceFaint),
+        letterSpacing: 0.7,
+        textTransform: "uppercase",
+        fontFamily: FONT,
+        lineHeight: 1,
+        opacity: 0.85,
+      }}
+    >
+      {t("public.guestChat.switcherLabel")}
+    </div>
+  );
+}
 
+// ProjectStatusPill — distinguishes a private DRAFT from a SENT project awaiting
+// a reply. Draft = neutral cool pill; sent = accent-tint.
 function ProjectStatusPill({
   isDraft,
   accent,
@@ -292,19 +311,27 @@ function AvatarRail({
   const C = paletteFor(surfaceMode);
   return (
     <div
-      role="tablist"
-      aria-label={t("public.guestChat.switcherAria")}
       style={{
-        display: "flex",
-        gap: 6,
-        overflowX: "auto",
-        padding: "8px 14px",
+        padding: "7px 14px 8px",
         borderBottom: `1px solid ${C.borderSoft}`,
         background: C.surfaceFaint,
-        scrollbarWidth: "none",
       }}
     >
-      {inquiries.map((inq) => {
+      {/* Quiet visible caption — these tiles are the guest's own inquiries (#5). */}
+      <div style={{ marginBottom: 5 }}>
+        <SwitcherLabel accent={accent} C={C} t={t} />
+      </div>
+      <div
+        role="tablist"
+        aria-label={t("public.guestChat.switcherAria")}
+        style={{
+          display: "flex",
+          gap: 6,
+          overflowX: "auto",
+          scrollbarWidth: "none",
+        }}
+      >
+        {inquiries.map((inq) => {
         const isActive = inq.inquiryId === activeInquiryId;
         const showNew = !isActive && hasNewInbound(inq, seenAtByInquiry);
 
@@ -377,7 +404,8 @@ function AvatarRail({
             </span>
           </button>
         );
-      })}
+        })}
+      </div>
     </div>
   );
 }
@@ -529,9 +557,7 @@ function DropdownSwitcher({
   const accentComputed = accent ?? DEFAULT_ACCENT;
   const accentInkComputed = accentInk ?? readableOn(accentComputed);
 
-  // We render a compact trigger that expands a dropdown list.
-  // Using CSS :hover approach via data-open attribute + inline style toggle
-  // handled by a simple boolean state.
+  // Compact trigger that expands a dropdown list (open/close via boolean state).
   return (
     <DropdownBody
       inquiries={inquiries}
@@ -600,6 +626,10 @@ function DropdownBody({
         position: "relative",
       }}
     >
+      {/* Quiet visible caption — the trigger opens the guest's own inquiries (#5). */}
+      <div style={{ marginBottom: 3 }}>
+        <SwitcherLabel accent={accent} C={C} t={t} />
+      </div>
       {/* Trigger */}
       <button
         type="button"
@@ -718,14 +748,11 @@ function DropdownBody({
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * GuestThreadSwitcher — rendered by the wiring agent in the MiniChatPanel
- * header area. Returns null for single-thread guests (progressive disclosure).
- *
- * When layout="list" (Lane C / F4 expanded left pane), bypasses the rail/dropdown
- * selection and renders the vertical ConversationRow list directly. All entries are
- * shown as a scrollable vertical list (no progressive-disclosure threshold applies
- * in this mode — the host panel controls visiblity via the onListGuestInquiries
- * fetch). Single-item lists still render in list mode (the host decides visibility).
+ * GuestThreadSwitcher — rendered in the MiniChatPanel header. Returns null for
+ * single-thread guests (progressive disclosure). When layout="list" (expanded
+ * left pane) it bypasses the rail/dropdown and renders the vertical
+ * ConversationRow list directly, with no <2 threshold — the host panel controls
+ * visibility via the onListGuestInquiries fetch.
  */
 export function GuestThreadSwitcher(props: GuestThreadSwitcherProps) {
   const { inquiries, layout = "rail" } = props;
