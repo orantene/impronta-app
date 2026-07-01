@@ -417,7 +417,11 @@ export function MiniChatPanel({
       });
     },
     onRemoteNote: (kinds) => {
-      setRows((cur) => [...cur, ...makeRemoteNoteRows(kinds, inquiryId, t)]);
+      // A talent change detected on the owned row can't be proven to be an
+      // agency edit — the inquiry owner's OWN add (favorites → inquire bridge /
+      // client lineup picker) lands here too — so attribute talent to the owner
+      // ("You updated the talent…") rather than mislabeling it as the agency.
+      setRows((cur) => [...cur, ...makeRemoteNoteRows(kinds, inquiryId, t, "owner")]);
     },
   });
 

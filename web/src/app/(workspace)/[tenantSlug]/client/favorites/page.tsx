@@ -45,7 +45,7 @@ export default async function ClientFavoritesPage({ params }: { params: PagePara
       <ClientPageHeader
         eyebrow="Favorites"
         title="Your favorites"
-        subtitle="Talent you ♥ saved on Discover. Quick reference list — open a talent's drawer to inquire or add to a shortlist."
+        subtitle="Talent you ♥ saved on Discover. Quick reference list. Open a talent's drawer to inquire or add to a shortlist."
         badge={favorites.length > 0 ? <HeaderBadge>{favorites.length}</HeaderBadge> : undefined}
       />
 

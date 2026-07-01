@@ -77,8 +77,8 @@ const en = {
     titleLine1: "Your talent and services",
     titleLine2: "worth money.",
     subhead:
-      "Open a free page and start taking requests in minutes. When you're ready, build your own site and business workspace in one click — and take bookings and payments right inside the chat.",
-    ctaTalent: "Sell your work — free",
+      "Open a free page and start taking requests in minutes. When you're ready, build your own site and business workspace in one click, and take bookings and payments right inside the chat.",
+    ctaTalent: "Sell your work, free",
     ctaBusiness: "Start a business",
     trust: ["Free forever", "No code", "Bookings & payments built in"],
   },
@@ -298,7 +298,7 @@ const en = {
     titleLine2: "Run a real business.",
     subhead:
       "Open a free page and start taking requests today. When you're ready, launch your own site, collect inquiries, and run the whole business.",
-    ctaTalent: "Sell your work — free",
+    ctaTalent: "Sell your work, free",
     ctaBusiness: "Start a business",
     trust: [
       "Free subdomain",
@@ -406,8 +406,8 @@ const es: MarketingCopy = {
     titleLine1: "Tu talento y tus servicios",
     titleLine2: "valen dinero.",
     subhead:
-      "Abre una página gratis y empieza a recibir solicitudes en minutos. Cuando estés listo, crea tu propio sitio y tu panel de negocio en un clic — y cobra reservas y pagos desde el mismo chat.",
-    ctaTalent: "Vende tu trabajo — gratis",
+      "Abre una página gratis y empieza a recibir solicitudes en minutos. Cuando estés listo, crea tu propio sitio y tu panel de negocio en un clic, y cobra reservas y pagos desde el mismo chat.",
+    ctaTalent: "Vende tu trabajo, gratis",
     ctaBusiness: "Abre tu negocio",
     trust: ["Gratis para siempre", "Sin código", "Reservas y pagos incluidos"],
   },
@@ -627,7 +627,7 @@ const es: MarketingCopy = {
     titleLine2: "Lleva un negocio de verdad.",
     subhead:
       "Abre una página gratis y empieza a recibir solicitudes hoy. Cuando estés listo, lanza tu propio sitio, recibe tus solicitudes y lleva todo el negocio.",
-    ctaTalent: "Vende tu trabajo — gratis",
+    ctaTalent: "Vende tu trabajo, gratis",
     ctaBusiness: "Abre tu negocio",
     trust: [
       "Subdominio gratis",

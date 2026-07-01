@@ -92,7 +92,7 @@ export function AppLanding() {
             Welcome to {PLATFORM_BRAND.name}
           </h1>
           <p className="mx-auto mt-4 max-w-sm text-base" style={{ color: "var(--plt-muted)" }}>
-            Sign in to your workspace — your admin, client, or talent dashboard.
+            Sign in to your workspace: your admin, client, or talent dashboard.
             Everything past this point is private to your account.
           </p>
 

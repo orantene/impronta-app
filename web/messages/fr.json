@@ -100,6 +100,7 @@
       "remoteNoteEventType": "L'agence a mis à jour le type d'événement.",
       "remoteNoteBudget": "L'agence a mis à jour le budget.",
       "remoteNoteTalent": "L'agence a mis à jour le talent de votre demande.",
+      "remoteNoteTalentOwner": "Vous avez mis à jour le talent de votre demande.",
       "remoteNoteBrief": "L'agence a mis à jour le brief.",
       "remoteNoteContact": "L'agence a mis à jour vos coordonnées.",
       "remoteNoteGeneric": "L'agence a mis à jour votre demande.",

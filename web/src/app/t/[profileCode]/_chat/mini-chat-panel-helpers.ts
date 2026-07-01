@@ -101,13 +101,24 @@ export function reconcileCartRemovals(
 }
 
 /**
- * Build the centered system-note rows for a batch of remote (agency) changes —
- * one per changed kind. Pure; the panel appends the result to its rows list.
+ * Who made the detected change, when it can be attributed. The owned-row
+ * reconcile diff cannot prove agency authorship for a talent change — the
+ * inquiry owner's OWN out-of-band add (favorites → inquire bridge, client
+ * lineup picker) lands on the same row — so that call site attributes talent
+ * changes to the "owner" to avoid the "the agency updated the talent" mislabel.
+ */
+export type RemoteNoteActor = "agency" | "owner";
+
+/**
+ * Build the centered system-note rows for a batch of detected changes — one per
+ * changed kind. Pure; the panel appends the result to its rows list. `talentActor`
+ * controls the voice of the talent note (defaults to the agency wording).
  */
 export function makeRemoteNoteRows(
   kinds: GuestChipKind[],
   inquiryId: string | null,
   t: Translator,
+  talentActor: RemoteNoteActor = "agency",
 ): StreamRow[] {
   const nowIso = new Date().toISOString();
   return kinds.map((k, i) => ({
@@ -116,7 +127,7 @@ export function makeRemoteNoteRows(
     authorRole: "system" as const,
     authorLabel: null,
     authorAvatarUrl: null,
-    body: remoteNoteFor(k, t),
+    body: remoteNoteFor(k, t, talentActor),
     kind: "text" as const,
     cardPayload: null,
     createdAt: nowIso,
@@ -127,12 +138,19 @@ export function makeRemoteNoteRows(
 }
 
 /**
- * Localized client-facing remote-change note copy (B.7). This is the LIVE
+ * Localized client-facing change-note copy (B.7). This is the LIVE
  * client-rendered note (distinct from any server-stored note body). Pass a
  * `createTranslator(locale)` instance so the note follows the guest locale.
- * No "buyer", no em dashes.
+ * `talentActor` picks the talent-note voice: "owner" reads "You updated the
+ * talent…" (the inquiry owner's own out-of-band add), "agency" keeps the
+ * agency wording for changes a coordinator actually made. No "buyer", no em
+ * dashes.
  */
-export function remoteNoteFor(kind: GuestChipKind, t: Translator): string {
+export function remoteNoteFor(
+  kind: GuestChipKind,
+  t: Translator,
+  talentActor: RemoteNoteActor = "agency",
+): string {
   switch (kind) {
     case "date":
       return t("public.guestChat.remoteNoteDate");
@@ -145,7 +163,9 @@ export function remoteNoteFor(kind: GuestChipKind, t: Translator): string {
     case "budget":
       return t("public.guestChat.remoteNoteBudget");
     case "talent":
-      return t("public.guestChat.remoteNoteTalent");
+      return talentActor === "owner"
+        ? t("public.guestChat.remoteNoteTalentOwner")
+        : t("public.guestChat.remoteNoteTalent");
     case "brief":
       return t("public.guestChat.remoteNoteBrief");
     case "contact":

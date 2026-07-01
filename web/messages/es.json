@@ -641,6 +641,7 @@
       "remoteNoteEventType": "La agencia actualizó el tipo de evento.",
       "remoteNoteBudget": "La agencia actualizó el presupuesto.",
       "remoteNoteTalent": "La agencia actualizó el talento de tu consulta.",
+      "remoteNoteTalentOwner": "Actualizaste el talento de tu consulta.",
       "remoteNoteBrief": "La agencia actualizó el brief.",
       "remoteNoteContact": "La agencia actualizó tus datos de contacto.",
       "remoteNoteGeneric": "La agencia actualizó tu consulta.",
