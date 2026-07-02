@@ -34,6 +34,7 @@ import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { evaluateGuestConversationGate } from "@/lib/inquiry/guest-trust-gate";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
+import { getPublicHostContext } from "@/lib/saas/scope";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
 import { sendMessage } from "@/lib/inquiry/inquiry-engine-messages";
@@ -787,11 +788,24 @@ export async function startGuestChatInquiry(
     },
   };
 
+  // Channel attribution (Phase A invariant): stamp the HOST tenant the guest
+  // entered through as source_workspace_id, and the exact hostname as
+  // origin_domain. `tenantId` here is resolved from the storefront/hub slug the
+  // profile page was served under, so it IS the originating host. Without this
+  // the engine defaults source_workspace_id from tenant_id — which, once
+  // XTENANT_REHOME re-homes the inquiry onto the managing agency, would record
+  // the AGENCY as the channel (breaking hub channel-performance + the referral
+  // lane) and would violate the invariant that a re-homed inquiry always has
+  // source_workspace_id != tenant_id. Mirrors contact/actions.ts +
+  // api/discover/inquiry/route.ts. No-op with the flag off (source == tenant).
+  const hostCtx = await getPublicHostContext();
   const created = await createInquiryFromIntent(admin, intent, {
     tenant_id: tenantId,
     actor_user_id: null,
     client_user_id: provisioned.clientUserId,
     guest_session_id: guestSessionId,
+    source_workspace_id: tenantId,
+    origin_domain: hostCtx.hostname ?? null,
   });
 
   if (!created.ok) {
