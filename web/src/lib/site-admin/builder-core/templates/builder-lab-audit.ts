@@ -104,10 +104,10 @@ export async function listBuilderLabAudit(
     if (actorIds.length) {
       const { data: profiles } = await sb
         .from("profiles")
-        .select("id, full_name")
+        .select("id, display_name")
         .in("id", actorIds);
-      for (const p of (profiles as { id: string; full_name: string | null }[] | null) ?? []) {
-        if (p.full_name) nameById.set(p.id, p.full_name);
+      for (const p of (profiles as { id: string; display_name: string | null }[] | null) ?? []) {
+        if (p.display_name) nameById.set(p.id, p.display_name);
       }
     }
 
