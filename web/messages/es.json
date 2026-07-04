@@ -1003,6 +1003,26 @@
       "offerWithdrawn": "Retirada",
       "offerSuperseded": "Reemplazada",
       "offerExpired": "Vencida"
+    },
+    "clientConfirm": {
+      "keep": "Conservar",
+      "cancelInquiryTitle": "¿Cancelar esta consulta?",
+      "cancelInquiryBody": "Se notificará a tu coordinador. Esto no se puede deshacer. Para proyectos ya reservados, escribe a tu coordinador.",
+      "cancelInquiryReasonLabel": "Motivo (opcional)",
+      "cancelInquiryReasonPlaceholder": "Cuéntale a tu coordinador el motivo. Le ayuda a mejorar.",
+      "cancelInquiryConfirm": "Cancelar consulta",
+      "cancelInquiryKeep": "Conservar consulta",
+      "deleteMessageTitle": "¿Eliminar este mensaje?",
+      "deleteMessageBody": "Se eliminará para todas las personas de la conversación.",
+      "deleteMessageConfirm": "Eliminar mensaje",
+      "clearFavoritesTitle": "¿Quitar todos los favoritos?",
+      "clearFavoritesBody": "Esto vacía toda tu selección guardada. Puedes volver a guardar talento cuando quieras desde Descubrir.",
+      "clearFavoritesConfirm": "Quitar todo",
+      "inquiryUnavailableTitle": "Esta consulta no está disponible",
+      "inquiryUnavailableBody": "El enlace que seguiste apunta a una consulta que no pudimos abrir. Puede que se haya archivado o que no tengas acceso. Elige otro proyecto de la lista.",
+      "favoritesEmptyTitle": "Aún no has guardado talento",
+      "favoritesEmptyBody": "El talento que guardes desde Descubrir aparece aquí para que envíes una sola consulta a toda tu selección.",
+      "favoritesEmptyCta": "Explorar Descubrir"
     }
   },
   "admin": {

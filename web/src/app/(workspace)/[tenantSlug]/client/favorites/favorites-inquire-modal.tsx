@@ -12,6 +12,8 @@ import {
   type FavoritesModalCopy,
   type FavoritesModalTokens,
 } from "@/components/directory/favorites-modal-view";
+import { ClientConfirmDialog } from "../_components/ConfirmDialog";
+import { useT } from "@/i18n/use-t";
 
 /**
  * Client-dashboard favorites → inquiry modal. Same redesigned surface as the
@@ -81,7 +83,9 @@ export function FavoritesInquireModal({
   cardCssVars?: Record<string, string>;
 }) {
   const router = useRouter();
+  const t = useT();
   const [pending, setPending] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
   const talentIds = useMemo(() => talents.map((tt) => tt.id), [talents]);
   const { selectedIds, toggle, selectAll, clear, drop } = useFavoritesSelection(
@@ -97,7 +101,14 @@ export function FavoritesInquireModal({
     [onRemove, drop],
   );
 
-  const handleClearAll = useCallback(() => {
+  // Clear-all un-favorites the client's ENTIRE saved lineup — a destructive,
+  // irreversible action. Gate it behind a styled confirm instead of firing it
+  // straight from the footer button.
+  const requestClearAll = useCallback(() => {
+    setClearConfirmOpen(true);
+  }, []);
+  const performClearAll = useCallback(() => {
+    setClearConfirmOpen(false);
     onClearAll();
     clear();
   }, [onClearAll, clear]);
@@ -144,26 +155,40 @@ export function FavoritesInquireModal({
   }, [talents, selectedIds, tenantSlug, router, onOpenChange]);
 
   return (
-    <FavoritesModalView
-      open={open}
-      onOpenChange={onOpenChange}
-      talents={talents}
-      totalCount={talents.length}
-      loading={false}
-      selectedIds={selectedIds}
-      onToggleSelect={toggle}
-      onSelectAll={selectAll}
-      onClearSelection={clear}
-      onRemove={handleRemove}
-      onClearAll={handleClearAll}
-      onInquire={onInquire}
-      inquirePending={pending}
-      isAuthenticated
-      signupHref="#"
-      favoritesPageHref={null}
-      copy={COPY}
-      tokens={DASHBOARD_TOKENS}
-      cardCssVars={cardCssVars}
-    />
+    <>
+      <FavoritesModalView
+        open={open}
+        onOpenChange={onOpenChange}
+        talents={talents}
+        totalCount={talents.length}
+        loading={false}
+        selectedIds={selectedIds}
+        onToggleSelect={toggle}
+        onSelectAll={selectAll}
+        onClearSelection={clear}
+        onRemove={handleRemove}
+        onClearAll={requestClearAll}
+        onInquire={onInquire}
+        inquirePending={pending}
+        isAuthenticated
+        signupHref="#"
+        favoritesPageHref={null}
+        copy={COPY}
+        tokens={DASHBOARD_TOKENS}
+        cardCssVars={cardCssVars}
+      />
+      <ClientConfirmDialog
+        open={clearConfirmOpen}
+        onClose={() => setClearConfirmOpen(false)}
+        onConfirm={performClearAll}
+        destructive
+        // Sits above the favorites Radix dialog (overlay z-[120] / panel z-[121]).
+        zIndex={130}
+        title={t("dashboard.clientConfirm.clearFavoritesTitle")}
+        body={t("dashboard.clientConfirm.clearFavoritesBody")}
+        confirmLabel={t("dashboard.clientConfirm.clearFavoritesConfirm")}
+        cancelLabel={t("dashboard.clientConfirm.keep")}
+      />
+    </>
   );
 }

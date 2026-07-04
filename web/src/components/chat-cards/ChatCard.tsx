@@ -229,17 +229,34 @@ export function PaymentRequestCard(props: {
   amountLabel: string;
   status: "requested" | "paid" | "failed" | "refunded";
   onPayNow?: () => void;
+  /**
+   * STAFF-ONLY reconciliation action ("mark this off-platform payment as
+   * received"). It is honored ONLY when `viewerRole === "staff"`, so it can
+   * never render on the client surface even if a future wire accidentally
+   * passes it there — the client IS the payer and must only ever see Pay-now.
+   */
   onMarkPaid?: () => void;
+  /**
+   * Who is looking at this card. Defaults to "client" so the safe surface is
+   * the fallback: the staff-only Mark-paid action requires an explicit
+   * `viewerRole="staff"` opt-in from the admin renderer.
+   */
+  viewerRole?: "client" | "staff";
   hint?: string;
 }) {
-  const { amountLabel, status, onPayNow, onMarkPaid, hint } = props;
+  const { amountLabel, status, onPayNow, onMarkPaid, viewerRole = "client", hint } = props;
   const tone: CardTone =
     status === "paid" ? "success"
     : status === "failed" ? "alert"
     : "amber";
   const actions: ChatCardShellProps["actions"] = [];
   if (onPayNow && status === "requested") actions.push({ label: "Pay now", onClick: onPayNow, tone: "primary" });
-  if (onMarkPaid && status === "requested") actions.push({ label: "Mark paid manually", onClick: onMarkPaid, tone: "ghost" });
+  // Gate: Mark-paid is a staff reconciliation action. Even if `onMarkPaid` is
+  // wired, it only renders for the staff viewer — the client renderer can never
+  // surface it.
+  if (viewerRole === "staff" && onMarkPaid && status === "requested") {
+    actions.push({ label: "Mark paid manually", onClick: onMarkPaid, tone: "ghost" });
+  }
   return (
     <ChatCardShell
       tone={tone}

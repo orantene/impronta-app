@@ -28,6 +28,8 @@ import {
 import { useFavorites } from "@/lib/talent-cards/use-favorites";
 import { FavoritesInquireModal } from "./favorites-inquire-modal";
 import type { FavoriteModalTalent } from "@/components/directory/favorites-modal-view";
+import { EmptyState } from "../_components/EmptyState";
+import { useT } from "@/i18n/use-t";
 
 const C = {
   ink:        "#0B0B0D",
@@ -62,6 +64,7 @@ export function FavoritesShell({
    */
   cardDesign?: CardDesign;
 }) {
+  const t = useT();
   const { isFavorited, setFavorite } = useFavorites();
   const [inquireOpen, setInquireOpen] = useState(false);
   const cardCssVars = useMemo(
@@ -95,13 +98,25 @@ export function FavoritesShell({
 
   if (visible.length === 0) {
     return (
-      <div style={{
-        padding: 32, textAlign: "center",
-        background: C.surface, border: `1px dashed ${C.borderSoft}`,
-        borderRadius: 14, fontFamily: FONT, color: C.inkMuted, fontSize: 13,
-      }}>
-        All favorites removed in this session. <Link href={`/${tenantSlug}/client/discover`} style={{ color: C.accent, fontWeight: 600 }}>Browse Discover</Link> to save more.
-      </div>
+      <EmptyState
+        icon="♡"
+        title={t("dashboard.clientConfirm.favoritesEmptyTitle")}
+        body={t("dashboard.clientConfirm.favoritesEmptyBody")}
+        actions={
+          <Link
+            href={`/${tenantSlug}/client/discover`}
+            style={{
+              display: "inline-flex", alignItems: "center",
+              height: 38, padding: "0 16px", borderRadius: 10,
+              background: C.accent, color: "#fff",
+              fontSize: 13, fontWeight: 600, textDecoration: "none",
+              letterSpacing: -0.1,
+            }}
+          >
+            {t("dashboard.clientConfirm.favoritesEmptyCta")}
+          </Link>
+        }
+      />
     );
   }
 

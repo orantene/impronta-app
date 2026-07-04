@@ -57,9 +57,20 @@ export default async function ClientMessagesPage({
     loadWorkspaceRosterLite(scope.tenantId),
   ]);
 
-  // Pick the active inquiry: ?inquiry= takes precedence, else first row
+  // Pick the active inquiry: ?inquiry= takes precedence, else first row.
+  //
+  // TRUST GUARD: every "View inquiry / Review your offer" email + notification
+  // deep-links here with ?inquiry=<id>. If that id is NOT in the loaded set
+  // (archived, no permission, or paginated out), we must NOT silently fall back
+  // to the client's first inquiry — that would open an unrelated thread on the
+  // money surface. Instead flag pinnedNotFound so the shell renders an explicit
+  // "this inquiry isn't available" notice while still listing their others.
+  const pinnedMatch = pinnedInquiry
+    ? inquiries.find((i) => i.id === pinnedInquiry)?.id ?? null
+    : null;
+  const pinnedNotFound = Boolean(pinnedInquiry) && pinnedMatch === null;
   const initialActiveId = pinnedInquiry
-    ? inquiries.find((i) => i.id === pinnedInquiry)?.id ?? inquiries[0]?.id ?? null
+    ? pinnedMatch
     : inquiries[0]?.id ?? null;
 
   // Phase C — load Details payload + private-thread messages in parallel for
@@ -93,6 +104,7 @@ export default async function ClientMessagesPage({
       initialMessages={initialMessages}
       initialDetails={initialDetails}
       initialActiveId={initialActiveId}
+      pinnedNotFound={pinnedNotFound}
       initialTab={initialTab as "chat" | "lineup" | "offer" | "details" | "files"}
       autoOpenDrawer={autoOpenDrawer}
       prefilledTalentId={prefilledTalentId}

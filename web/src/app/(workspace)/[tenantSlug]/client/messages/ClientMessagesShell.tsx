@@ -51,6 +51,7 @@ import { ThreadShell } from "@/components/shared/ThreadShell";
 import { clientInquiryMatchesFilter, toClientThreadItems } from "./client-thread-adapter";
 import { DetailsTab } from "./DetailsTab";
 import { OfferTab } from "./OfferTab";
+import { ClientConfirmDialog } from "../_components/ConfirmDialog";
 import {
   sendClientMessageAction,
   markClientThreadReadAction,
@@ -127,6 +128,13 @@ type Props = {
   /** Phase C — pre-loaded Details payload for the initial active inquiry. */
   initialDetails: ClientInquiryDetails | null;
   initialActiveId: string | null;
+  /**
+   * True when the page was deep-linked with ?inquiry=<id> but that id is not
+   * in the loaded set (archived / no permission / paginated out). The shell
+   * shows an explicit "isn't available" notice in the thread pane instead of
+   * opening an unrelated thread — a trust guard on the money surface.
+   */
+  pinnedNotFound?: boolean;
   /** Phase C — which tab to open (chat / lineup / offer / details / files). */
   initialTab: ThreadTab;
   /** Auto-open the inquiry drawer on mount (?new=1). */
@@ -146,6 +154,7 @@ export function ClientMessagesShell({
   initialMessages,
   initialDetails,
   initialActiveId,
+  pinnedNotFound = false,
   initialTab,
   autoOpenDrawer = false,
   prefilledTalentId,
@@ -517,6 +526,8 @@ export function ClientMessagesShell({
               onBack={() => setMobilePane("list")}
               onAfterOfferAction={() => router.refresh()}
             />
+          ) : pinnedNotFound && !activeId ? (
+            <InquiryUnavailableDetail />
           ) : (
             <EmptyDetail onCreate={() => setDrawerOpen(true)} />
           )
@@ -2891,10 +2902,12 @@ function Bubble({
   // Reactions are allowed on any non-optimistic real message — own or others'.
   const canReact = !isOptimistic && tenantSlug && onMessagesChange;
 
+  const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(m.body);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -2935,11 +2948,15 @@ function Bubble({
     });
   }
 
+  function requestDelete() {
+    setMenuOpen(false);
+    setDeleteConfirmOpen(true);
+  }
+
   function commitDelete() {
     if (!tenantSlug || !onMessagesChange) return;
-    if (!confirm("Delete this message? It will be removed for everyone on the thread.")) return;
     setActionError(null);
-    setMenuOpen(false);
+    setDeleteConfirmOpen(false);
     // Optimistic
     onMessagesChange((prev) => prev.filter((mm) => mm.id !== m.id));
     startTransition(async () => {
@@ -3271,7 +3288,7 @@ function Bubble({
                   </button>
                   <button
                     type="button"
-                    onClick={commitDelete}
+                    onClick={requestDelete}
                     role="menuitem"
                     style={{ textAlign: "left", padding: "7px 10px", borderRadius: 6, background: "transparent", border: "none", color: "#991B1B", fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}
                   >
@@ -3322,6 +3339,16 @@ function Bubble({
           )}
         </div>
       </div>
+      <ClientConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={commitDelete}
+        destructive
+        title={t("dashboard.clientConfirm.deleteMessageTitle")}
+        body={t("dashboard.clientConfirm.deleteMessageBody")}
+        confirmLabel={t("dashboard.clientConfirm.deleteMessageConfirm")}
+        cancelLabel={t("dashboard.clientConfirm.keep")}
+      />
     </div>
   );
 }
@@ -3365,6 +3392,9 @@ function renderClientChatCard(
           amountLabel={amountLabel}
           status="requested"
           hint={get<string>("hint", "")}
+          // Client IS the payer — Pay-now only. viewerRole="client" also hard-
+          // gates the staff-only Mark-paid action out of this renderer.
+          viewerRole="client"
           onPayNow={ctx.onPayNow ? () => ctx.onPayNow!(amountLabel) : undefined}
         />
       );
@@ -3469,6 +3499,57 @@ function EmptyDetail({ onCreate }: { onCreate: () => void }) {
       >
         + Start a new inquiry
       </button>
+    </div>
+  );
+}
+
+/**
+ * Shown in the thread pane when the page was deep-linked with ?inquiry=<id>
+ * but that id isn't in the loaded set (archived / no permission / paginated
+ * out). Explicit "not available" state — never a silent fall-through to an
+ * unrelated thread on the money surface. The user's other inquiries stay
+ * listed on the left; picking one clears this notice.
+ */
+function InquiryUnavailableDetail() {
+  const t = useT();
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "column",
+        gap: 12,
+        color: C.inkMuted,
+        fontFamily: FONT,
+        padding: 24,
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 12,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(146,64,14,0.08)",
+          color: "#92400E",
+        }}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 8v4M12 16h.01" />
+        </svg>
+      </div>
+      <div style={{ fontSize: 14, color: C.ink, fontWeight: 600, textAlign: "center" }}>
+        {t("dashboard.clientConfirm.inquiryUnavailableTitle")}
+      </div>
+      <div style={{ fontSize: 12.5, textAlign: "center", maxWidth: 340, lineHeight: 1.55 }}>
+        {t("dashboard.clientConfirm.inquiryUnavailableBody")}
+      </div>
     </div>
   );
 }

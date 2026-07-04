@@ -1003,6 +1003,26 @@
       "offerWithdrawn": "Withdrawn",
       "offerSuperseded": "Superseded",
       "offerExpired": "Expired"
+    },
+    "clientConfirm": {
+      "keep": "Keep it",
+      "cancelInquiryTitle": "Cancel this inquiry?",
+      "cancelInquiryBody": "Your coordinator will be notified. This can't be undone. For booked projects, message your coordinator instead.",
+      "cancelInquiryReasonLabel": "Reason (optional)",
+      "cancelInquiryReasonPlaceholder": "Tell your coordinator why. This helps them improve.",
+      "cancelInquiryConfirm": "Cancel inquiry",
+      "cancelInquiryKeep": "Keep inquiry",
+      "deleteMessageTitle": "Delete this message?",
+      "deleteMessageBody": "It will be removed for everyone on the thread.",
+      "deleteMessageConfirm": "Delete message",
+      "clearFavoritesTitle": "Remove all favorites?",
+      "clearFavoritesBody": "This clears your entire saved lineup. You can save talent again anytime from Discover.",
+      "clearFavoritesConfirm": "Remove all",
+      "inquiryUnavailableTitle": "This inquiry isn't available",
+      "inquiryUnavailableBody": "The link you followed points to an inquiry we couldn't open. It may have been archived, or you may not have access. Pick another project from the list.",
+      "favoritesEmptyTitle": "No saved talent yet",
+      "favoritesEmptyBody": "Talent you save from Discover shows up here so you can send one inquiry to your whole lineup.",
+      "favoritesEmptyCta": "Browse Discover"
     }
   },
   "admin": {
