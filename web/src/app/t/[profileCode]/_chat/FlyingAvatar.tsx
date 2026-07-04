@@ -34,7 +34,7 @@ import {
   FLY_DURATION_MS,
   FLY_EASING,
   FLY_START_DIAMETER,
-  initialsOf,
+  PERSON_SILHOUETTE_SVG,
 } from "./use-fly-to-rail-consts";
 
 export type FlyingAvatarProps = {
@@ -158,7 +158,18 @@ function FlyingClone({
           }}
         />
       ) : (
-        initialsOf(flight.talentProfileId.slice(0, 2))
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            width: "100%",
+            height: "100%",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "rgba(255,255,255,0.85)",
+          }}
+          dangerouslySetInnerHTML={{ __html: PERSON_SILHOUETTE_SVG }}
+        />
       )}
     </div>
   );

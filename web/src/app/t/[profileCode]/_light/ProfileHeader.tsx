@@ -77,14 +77,6 @@ export function ProfileHeader({
   maxSiteUrl,
 }: ProfileHeaderProps) {
   const expLine = primarySkill ? experienceLine(primarySkill) : null;
-  const initials =
-    name
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((w) => w.charAt(0))
-      .join("")
-      .toUpperCase() || "·";
   const compactLangLine =
     languages.length > 0
       ? languages
@@ -107,8 +99,9 @@ export function ProfileHeader({
       <div className="mx-auto max-w-5xl">
         {/* Avatar + info row */}
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8">
-          {/* Avatar — initials sit behind the photo so a missing/slow image
-              never shows as an empty box. */}
+          {/* Avatar — a letter-free line-art silhouette sits behind the photo
+              so a missing/slow image never shows as an empty box (and never a
+              name-in-a-box). The real portrait covers it when present. */}
           <div
             className="relative shrink-0 overflow-hidden rounded-[var(--plt-radius-lg)]"
             style={{
@@ -121,14 +114,22 @@ export function ProfileHeader({
           >
             <div className={hasCover ? "h-28 w-20 sm:h-36 sm:w-28" : "h-24 w-16 sm:h-32 sm:w-24"}>
               <span
-                className="plt-display absolute inset-0 flex items-center justify-center text-2xl font-semibold sm:text-3xl"
-                style={{
-                  background: "var(--plt-bg-deep)",
-                  color: "color-mix(in srgb, var(--plt-forest) 32%, var(--plt-muted-soft))",
-                }}
+                className="absolute inset-0 flex items-center justify-center"
+                style={{ background: "var(--plt-bg-deep)" }}
                 aria-hidden="true"
               >
-                {initials}
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="h-1/2 w-1/2"
+                  style={{ color: "color-mix(in srgb, var(--plt-forest) 30%, var(--plt-muted-soft))" }}
+                >
+                  <circle cx="12" cy="8.2" r="3.6" fill="currentColor" />
+                  <path
+                    d="M4.6 19.4c0-3.7 3.2-6.2 7.4-6.2s7.4 2.5 7.4 6.2c0 .5-.4.8-.9.8H5.5c-.5 0-.9-.3-.9-.8Z"
+                    fill="currentColor"
+                  />
+                </svg>
               </span>
               {profileImageUrl ? (
                 <Image

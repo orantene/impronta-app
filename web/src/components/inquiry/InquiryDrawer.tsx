@@ -328,7 +328,7 @@ export function InquiryDrawer({
                 ? "Inquiry sent"
                 : step === "compose"
                   ? "Start a new project"
-                  : "Looks good — ready to send?"}
+                  : "Looks good, ready to send?"}
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: 12.5, color: C.inkMuted, maxWidth: 520, lineHeight: 1.45 }}>
               {submitted
@@ -413,7 +413,7 @@ export function InquiryDrawer({
         >
           <div style={{ fontSize: 11.5, color: C.inkDim, lineHeight: 1.35, maxWidth: 320 }}>
             {submitted
-              ? <>Thanks — {agencyName} will be in touch.</>
+              ? <>Thanks, {agencyName} will be in touch.</>
               : !canSubmit && step === "compose"
                 ? <>Add at least <strong>your name</strong>, <strong>email or phone</strong>, and a <strong>brief</strong> to send.</>
                 : submitState.kind === "error"
@@ -624,7 +624,7 @@ export function ClientSection({
             ...(e.target.checked ? {} : { name: "", company: "" }),
           })}
         />
-        <span><strong>Same as my profile</strong> — booking for me/my company</span>
+        <span><strong>Same as my profile</strong>, booking for me/my company</span>
       </label>
 
       {!sameAsRequester && (
@@ -892,7 +892,7 @@ export function DateSection({
           <Input
             value={value.duration ?? ""}
             onChange={(v) => onChange({ ...value, duration: v })}
-            placeholder="e.g. 2–4 hours · full day"
+            placeholder="e.g. 2-4 hours · full day"
           />
         </Field>
       </FieldRow>
@@ -1059,7 +1059,7 @@ export function BudgetSection({
 }) {
   const pref = value.preference ?? "agency_recommends";
   return (
-    <Section title="Budget" subtitle="No need to guess — let the agency price it.">
+    <Section title="Budget" subtitle="No need to guess, let the agency price it.">
       <FieldRow>
         <Field label="How would you like the agency to price this?">
           <Select
@@ -1161,7 +1161,7 @@ export function BriefSection({
       onChange({ ...value, summary: data.draft });
       setAiState("idle");
     } catch {
-      setAiError("Network error — try again.");
+      setAiError("Network error. Try again.");
       setAiState("error");
     }
   }, [context, value, onChange]);
@@ -1330,7 +1330,7 @@ export function FilesLinksSection({
   void files; void onFiles; // reserved for post-submit attachment display
 
   return (
-    <Section title="Files & references" subtitle="Optional — moodboards, briefs, reference posts.">
+    <Section title="Files & references" subtitle="Optional. Moodboards, briefs, reference posts.">
       {/* File picker */}
       <div>
         <input
@@ -1359,7 +1359,7 @@ export function FilesLinksSection({
           Attach files
         </button>
         <span style={{ marginLeft: 8, fontSize: 11, color: C.inkDim }}>
-          PDF, images, docs — up to 20 MB each, {FILE_MAX_COUNT} max
+          PDF, images, docs, up to 20 MB each, {FILE_MAX_COUNT} max
         </span>
       </div>
 
@@ -1579,7 +1579,7 @@ function SubmittedView({
         </div>
         <p style={{ margin: "6px auto 0", fontSize: 13, color: C.inkMuted, maxWidth: 380, lineHeight: 1.5 }}>
           {agencyName} has it now. A coordinator will review your brief, match
-          talent, and reply with an offer — no commitment until you approve it.
+          talent, and reply with an offer. No commitment until you approve it.
         </p>
       </div>
 
@@ -1607,21 +1607,21 @@ function SubmittedView({
               <>
                 We started a free account for{" "}
                 {state.guestEmail ? <strong>{state.guestEmail}</strong> : "you"}.
-                Set a password to follow this inquiry — offers, messages, and
+                Set a password to follow this inquiry. Offers, messages, and
                 updates all land in one place.
               </>
             ) : state.guestActivation === "matched" ? (
               <>
                 Sign in
                 {state.guestEmail ? <> with <strong>{state.guestEmail}</strong></> : ""}{" "}
-                to follow this inquiry — offers, messages, and updates all land
+                to follow this inquiry. Offers, messages, and updates all land
                 in one place.
               </>
             ) : (
               <>
                 Create a free account
                 {state.guestEmail ? <> with <strong>{state.guestEmail}</strong></> : ""}{" "}
-                to follow this inquiry — offers, messages, and updates all land
+                to follow this inquiry. Offers, messages, and updates all land
                 in one place.
               </>
             )}

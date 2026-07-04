@@ -9,12 +9,9 @@ export function LogoCloudEditor({ initial, onChange, tenantId }: SectionEditorPr
   const value: LogoCloudV1 = {
     eyebrow: initial.eyebrow ?? "Trusted by",
     headline: initial.headline ?? "",
-    logos: initial.logos ?? [
-      { imageUrl: "https://placehold.co/160x60/png?text=Logo+1", alt: "Logo 1" },
-      { imageUrl: "https://placehold.co/160x60/png?text=Logo+2", alt: "Logo 2" },
-      { imageUrl: "https://placehold.co/160x60/png?text=Logo+3", alt: "Logo 3" },
-      { imageUrl: "https://placehold.co/160x60/png?text=Logo+4", alt: "Logo 4" },
-    ],
+    // Default to no logos — the section renders nothing until the operator adds
+    // real partner logos. No placeholder/stock imagery (placehold.co).
+    logos: initial.logos ?? [],
     columnsDesktop: initial.columnsDesktop ?? 6,
     variant: initial.variant ?? "muted",
     presentation: initial.presentation,

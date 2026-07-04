@@ -17,7 +17,7 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Start free — forever. Upgrade on your schedule. Transparent plans for operators, agencies, and large placement networks.",
+    "Start free, forever. Upgrade on your schedule. Transparent plans for operators, agencies, and large placement networks.",
 };
 
 /**

@@ -10,10 +10,8 @@
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
-import { useState } from "react";
 import { COLORS, FONTS, TRANSITION, useAdminShell } from "../state";
 import {
-  CapsLabel,
   Divider,
   DrawerShell,
   EmptyState,
@@ -46,7 +44,7 @@ export function TalentNetworkDrawer() {
       <EmptyState
         icon="team"
         title="Coming soon"
-        body="The talent network — following peers and one-tap, fully-attributed brief hand-offs — isn't live yet. We'll let you know when it opens."
+        body="The talent network, following peers and one-tap fully-attributed brief hand-offs, isn't live yet. We'll let you know when it opens."
       />
     </DrawerShell>
   );
@@ -62,115 +60,25 @@ export function TalentNetworkDrawer() {
 export function TalentVoiceReplyDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-voice-reply";
-  const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const [done, setDone] = useState(false);
-
+  // Honest stub — the hold-to-talk recorder never submitted (the "Send reply"
+  // button was permanently disabled), so letting a talent record a message
+  // they can't send is a dead end. We hide the recorder and show a clear
+  // "coming soon" until voice replies are wired end-to-end. (Voice notes on
+  // the live composer have their own, real path.)
   return (
     <DrawerShell
       open={open}
-      onClose={() => {
-        closeDrawer();
-        setTimeout(() => { setRecording(false); setSeconds(0); setDone(false); }, 200);
-      }}
+      onClose={closeDrawer}
       title="Voice reply"
-      description="Hold to talk · we transcribe automatically. Both audio + transcript go to the inquiry; you can delete either."
+      description="Reply to an inquiry with a quick voice note instead of typing."
       width={460}
-      footer={
-        done ? (
-          <>
-            <SecondaryButton onClick={() => { setDone(false); setSeconds(0); }}>Re-record</SecondaryButton>
-            <button
-              type="button"
-              disabled
-              style={{
-                padding: "9px 16px",
-                background: "rgba(11,11,13,0.12)",
-                border: "none",
-                borderRadius: 8,
-                fontFamily: FONTS.body,
-                fontSize: 13,
-                fontWeight: 500,
-                color: COLORS.inkMuted,
-                cursor: "not-allowed",
-              }}
-              title="Voice replies coming soon"
-            >
-              Send reply
-            </button>
-          </>
-        ) : (
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-        )
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: "20px 0" }}>
-        {!done ? (
-          <button
-            type="button"
-            onPointerDown={() => { setRecording(true); setSeconds(0); }}
-            onPointerUp={() => {
-              if (recording) {
-                setRecording(false);
-                if (seconds > 0) setDone(true);
-              }
-            }}
-            onPointerLeave={() => {
-              if (recording) {
-                setRecording(false);
-                if (seconds > 0) setDone(true);
-              }
-            }}
-            aria-label={recording ? "Recording — release to stop" : "Hold to record"}
-            style={{
-              width: 96,
-              height: 96,
-              borderRadius: "50%",
-              background: recording ? COLORS.coral : COLORS.accent,
-              border: "none",
-              color: "#fff",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: recording ? `0 0 0 12px rgba(194,106,69,0.18)` : `0 0 0 0 rgba(15,79,62,0)`,
-              transition: `background ${TRANSITION.sm}, box-shadow .25s`,
-            }}
-          >
-            <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <rect x="9" y="3" width="6" height="12" rx="3" />
-              <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-            </svg>
-          </button>
-        ) : (
-          <div
-            style={{
-              width: "100%",
-              padding: "16px",
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 12,
-              fontFamily: FONTS.body,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.green }} />
-              <CapsLabel>Transcript · {Math.max(seconds, 8)}s</CapsLabel>
-            </div>
-            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }} className="text-admin-ink">
-              &quot;Hi Mango — yes, available May 14, day rate is twelve hundred euros. Sending quote now.&quot;
-            </p>
-            <div style={{ marginTop: 12, fontSize: 11.5 }} className="text-admin-ink-muted">
-              Edit transcript before sending if you want — the audio still goes through as-is.
-            </div>
-          </div>
-        )}
-        {!done && (
-          <div style={{ fontFamily: FONTS.body, fontSize: 13, textAlign: "center" }} className="text-admin-ink-muted">
-            {recording ? `Recording · ${seconds}s` : "Hold to record · max 60s"}
-          </div>
-        )}
-      </div>
+      <EmptyState
+        icon="sparkle"
+        title="Coming soon"
+        body="Hold-to-talk voice replies with automatic transcription aren't live yet. We'll let you know when they open."
+      />
     </DrawerShell>
   );
 }
@@ -220,11 +128,11 @@ export function TalentMultiAgencyPickerDrawer() {
  * mock; production reads from `talent_reply_templates` table.
  */
 const REPLY_TEMPLATES = [
-  { id: "rt1", title: "Yes — confirm availability", body: "Hi! Yes — I'm available on the dates you mentioned. Sending availability and rate card. Looking forward to hearing more about the brief." },
-  { id: "rt2", title: "Need more info", body: "Hi — thanks for reaching out. Before I confirm, could you share: usage scope, location, hair/makeup, and call time? Happy to move quickly once I have those." },
-  { id: "rt3", title: "Polite decline — rate", body: "Thank you for thinking of me. Unfortunately the rate offered isn't aligned with my current bookings. Happy to revisit if there's flexibility." },
-  { id: "rt4", title: "Polite decline — schedule", body: "Thank you so much for the offer. Unfortunately I'm already booked on those dates. Hope we can work together soon." },
-  { id: "rt5", title: "Hold response", body: "Got it — happy to hold these dates for 48h. If you need more time, just let me know and I'll see what I can do." },
+  { id: "rt1", title: "Yes, confirm availability", body: "Hi! Yes, I'm available on the dates you mentioned. Sending availability and rate card. Looking forward to hearing more about the brief." },
+  { id: "rt2", title: "Need more info", body: "Hi, thanks for reaching out. Before I confirm, could you share: usage scope, location, hair/makeup, and call time? Happy to move quickly once I have those." },
+  { id: "rt3", title: "Polite decline · rate", body: "Thank you for thinking of me. Unfortunately the rate offered isn't aligned with my current bookings. Happy to revisit if there's flexibility." },
+  { id: "rt4", title: "Polite decline · schedule", body: "Thank you so much for the offer. Unfortunately I'm already booked on those dates. Hope we can work together soon." },
+  { id: "rt5", title: "Hold response", body: "Got it, happy to hold these dates for 48h. If you need more time, just let me know and I'll see what I can do." },
 ];
 
 export function ReplyTemplatesDrawer() {
@@ -285,7 +193,7 @@ export function TalentChatArchiveDrawer() {
       open={open}
       onClose={closeDrawer}
       title="Archive this thread"
-      description="Generate a timestamped PDF with the full message history + attachments index. Yours to keep — outside Tulala."
+      description="Generate a timestamped PDF with the full message history + attachments index. Yours to keep, outside Tulala."
       width={520}
       footer={
         <>
@@ -341,7 +249,7 @@ export function TalentChatArchiveDrawer() {
             fontSize: 11.5,
             color: COLORS.green,
             lineHeight: 1.5, }} className="bg-admin-green">
-          The PDF is generated server-side and signed with a timestamp hash — useful as evidence if there&apos;s a dispute.
+          The PDF is generated server-side and signed with a timestamp hash, useful as evidence if there&apos;s a dispute.
         </div>
       </div>
     </DrawerShell>

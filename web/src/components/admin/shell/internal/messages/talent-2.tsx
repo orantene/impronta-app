@@ -10,6 +10,7 @@ import { ReservationThread, type ReservationStage, type PillDescriptor, type Pil
 import { acceptInquiryInvitation, declineInquiryInvitation, respondToInquiryOffer } from "@/lib/server-actions/talent-pipeline";
 import { sendTalentInquiryMessage, loadTalentInquiryLineupCount } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
 import { useAdminShell, FONTS, COLORS } from "../state";
+import { Avatar } from "../primitives";
 import { MOCK_CONVERSATIONS, MOCK_THREAD, type Conversation } from "../talent";
 import { AdminReservationView } from "./admin-3";
 import { TakeHomeCard } from "./client-1";
@@ -55,7 +56,7 @@ function TalentWhosTurnBanner({
     if (stage === "inquiry") {
       return {
         text: isCoordinator
-          ? "Your turn — brief the client and confirm the shortlist."
+          ? "Your turn. Brief the client and confirm the shortlist."
           : "Waiting for the coordinator to set up your offer.",
         tone: isCoordinator ? "blue" : "muted",
       };
@@ -64,7 +65,7 @@ function TalentWhosTurnBanner({
       // Offer round is open — talent needs to approve.
       if (myApprovalStatus === "accepted") {
         return {
-          text: "You approved — waiting on the other parties before this converts.",
+          text: "You approved. Waiting on the other parties before this converts.",
           tone: "green",
         };
       }
@@ -76,7 +77,7 @@ function TalentWhosTurnBanner({
       }
       // null / pending → talent's turn
       return {
-        text: "Your turn — review the offer in the Offer tab and approve or decline.",
+        text: "Your turn. Review the offer in the Offer tab and approve or decline.",
         tone: "blue",
       };
     }
@@ -125,12 +126,10 @@ function TalentReadOnlyLineup({ conv }: { conv: Conversation }) {
   if (participants.length === 0 && crew.length === 0) {
     return (
       <div style={{ padding: "16px 14px", fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink-muted">
-        Lineup not yet set — the coordinator will add talent and crew as the booking takes shape.
+        Lineup not yet set. The coordinator will add talent and crew as the booking takes shape.
       </div>
     );
   }
-
-  const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map(s => s[0]?.toUpperCase() ?? "").join("");
 
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
@@ -146,14 +145,9 @@ function TalentReadOnlyLineup({ conv }: { conv: Conversation }) {
                 padding: "8px 12px", borderRadius: 10,
                 background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
               }}>
-                <div style={{
-                  width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                  background: COLORS.fill, color: "#fff",
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 12, fontWeight: 700,
-                }}>
-                  {initials(p.name)}
-                </div>
+                {/* No photo on the Participant type → letter-free silhouette
+                    fallback (photoUrl undefined). Never initials-in-a-box. */}
+                <Avatar photoUrl={undefined} size={34} tone="ink" />
                 <div className="flex-1 min-w-0">
                   <div style={{ fontWeight: 600, fontSize: 13 }} className="text-admin-ink">{p.name}</div>
                   <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{p.role}</div>
@@ -175,14 +169,8 @@ function TalentReadOnlyLineup({ conv }: { conv: Conversation }) {
                 padding: "8px 12px", borderRadius: 10,
                 background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
               }}>
-                <div style={{
-                  width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                  background: "rgba(11,11,13,0.12)", color: "rgba(11,11,13,0.60)",
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 12, fontWeight: 700,
-                }}>
-                  {initials(p.name)}
-                </div>
+                {/* Crew have no photo field either → silhouette fallback. */}
+                <Avatar photoUrl={undefined} size={34} tone="neutral" />
                 <div className="flex-1 min-w-0">
                   <div style={{ fontWeight: 500, fontSize: 13 }} className="text-admin-ink">{p.name}</div>
                   <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{p.role}</div>
@@ -609,7 +597,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           if (conv.myApprovalStatus === "accepted") {
             return {
               ...baseAction,
-              hint: "You approved this offer — awaiting the other parties.",
+              hint: "You approved this offer. Awaiting the other parties.",
               primary: undefined,
               secondary: {
                 label: "Decline",
@@ -738,7 +726,7 @@ export function deriveTalentStatusSheetData(
       nextAction:
           offerStatus === "No offer" ? "Waiting for an offer from the coordinator."
         : offerStatus === "Sent" ? "Review the offer details in the Offer tab."
-        : offerStatus === "Accepted" ? "Offer accepted — check the Event tab for details."
+        : offerStatus === "Accepted" ? "Offer accepted. Check the Event tab for details."
         : undefined,
     },
     talents: [{ name: "You", status: "Accepted" }],
@@ -754,7 +742,7 @@ export function deriveTalentStatusSheetData(
     nextStep:
         stage === "Inquiry" ? "Wait for the coordinator to set the offer."
       : stage === "Offer sent" ? "Review the offer and accept or decline."
-      : stage === "Booked" ? "Job is confirmed — check the Event tab."
+      : stage === "Booked" ? "Job is confirmed. Check the Event tab."
       : stage === "Wrapped" ? "Job complete. Payment settled."
       : undefined,
   };

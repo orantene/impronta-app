@@ -26,7 +26,7 @@ import type { Offer } from "./machinery-9";
 function offerStatusInfo(status: string): { label: string; bg: string; tone: string } {
   switch (status) {
     case "draft":
-      return { label: "Draft", bg: "rgba(146,64,14,0.10)", tone: "#92400E" };
+      return { label: "Draft", bg: COLORS.amberSoft, tone: COLORS.amberDeep };
     case "sent":
       return { label: "Sent · awaiting approval", bg: "rgba(29,78,216,0.10)", tone: "#1D4ED8" };
     case "accepted":
@@ -34,7 +34,7 @@ function offerStatusInfo(status: string): { label: string; bg: string; tone: str
     case "rejected":
       return { label: "Declined", bg: "rgba(153,27,27,0.08)", tone: "#991B1B" };
     case "superseded":
-      return { label: "Superseded", bg: "rgba(146,64,14,0.10)", tone: "#92400E" };
+      return { label: "Superseded", bg: COLORS.amberSoft, tone: COLORS.amberDeep };
     default:
       return { label: status, bg: COLORS.borderSoft, tone: COLORS.inkMuted };
   }
@@ -500,10 +500,10 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       const blurb = isBooked
         ? "This job is booked and confirmed. Your take-home below is on its way to your connected payout account."
         : isApproved
-        ? "You've approved this offer — we're just waiting on the other parties before it converts to a booking."
+        ? "You've approved this offer. We're just waiting on the other parties before it converts to a booking."
         : hasOffer
         ? "The coordinator has sent you an offer for this job. Review your take-home below, then use Approve or Decline in the action bar."
-        : "The coordinator is waiting on your number. You'll see the agency fee + platform fee deducted before take-home — quote what you actually need to walk out with, plus a small margin for usage.";
+        : "The coordinator is waiting on your number. You'll see the agency fee + platform fee deducted before take-home, so quote what you actually need to walk out with, plus a small margin for usage.";
       return (
         <div style={{ padding: 18, fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 12 }}>
           {talentPayout && talentPayout.hasProfile && (
@@ -714,7 +714,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
             ? "Talent we're proposing for your booking."
             : isTalent && !pov.isCoordinator
               ? "Your private rate. Other talent rates are not visible to you."
-              : "Per-talent rates. Each talent sets their own — only coordinators see the full lineup."
+              : "Per-talent rates. Each talent sets their own. Only coordinators see the full lineup."
         }
       />
       <div className="flex flex-col gap-2.5">
@@ -767,7 +767,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
           (privacy intact) but the rest is itemized. Builds trust. */}
       {isClient && offer.stage !== "no_offer" && offer.stage !== "client_budget" && (
         <>
-          <SectionHeader title="What you're paying for" subtitle="Transparent breakdown — no surprises." />
+          <SectionHeader title="What you're paying for" subtitle="Transparent breakdown, no surprises." />
           <div style={{
             background: "#fff", borderRadius: 12,
             border: `1px solid ${COLORS.borderSoft}`,
@@ -876,7 +876,7 @@ function talentPayoutLabel(snap: TalentPayoutSnapshot | null): string {
     case "restricted":
       return "payout account needs attention";
     case "disabled":
-      return "payout account disabled — contact support";
+      return "payout account disabled, contact support";
     default:
       return "connect a payout account to get paid";
   }

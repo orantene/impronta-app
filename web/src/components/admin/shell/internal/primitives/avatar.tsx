@@ -6,7 +6,7 @@
 // `hashString` was inlined here from a sibling helper because Avatar is
 // the only consumer.
 
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { COLORS, FONTS } from "../state";
 
 // djb2 hash. Tiny + deterministic — fine for choosing a tint.
@@ -16,47 +16,31 @@ function hashString(s: string): number {
   return Math.abs(h);
 }
 
-// ─── Avatar ──────────────────────────────────────────────────────────
+// ─── No-photo fallback ────────────────────────────────────────────────
 //
-// Real-photo seed: 20+ named talents/coordinators get a stable Pravatar
-// URL keyed off their full name. When `Avatar` is rendered with a
-// `hashSeed` (the convention everywhere — full name as seed), it
-// auto-resolves to a real photo. Falls back to the existing initials +
-// hashed-tone behavior for anyone unknown.
-//
-// Why Pravatar: free, deterministic, no API key, sized at 300px square,
-// served via CDN. Stable img IDs mean the same name always gets the same
-// face — important for QA so the user can tell people apart visually.
-const PHOTO_BY_NAME: Record<string, string> = {
-  // Talent (women)
-  "Marta Reyes":        "https://i.pravatar.cc/300?img=5",
-  "Lina Park":          "https://i.pravatar.cc/300?img=9",
-  "Zara Habib":         "https://i.pravatar.cc/300?img=10",
-  "Zara Hadid":         "https://i.pravatar.cc/300?img=10",
-  "Iris Volpe":         "https://i.pravatar.cc/300?img=16",
-  "Ana Vega":           "https://i.pravatar.cc/300?img=20",
-  "Joana Rivera":       "https://i.pravatar.cc/300?img=23",
-  "Joana R.":           "https://i.pravatar.cc/300?img=23",
-  "Sara Bianchi":       "https://i.pravatar.cc/300?img=25",
-  "Sara Mendez":        "https://i.pravatar.cc/300?img=26",
-  "Sara M.":            "https://i.pravatar.cc/300?img=26",
-  "Francesca Bianchi":  "https://i.pravatar.cc/300?img=29",
-  "Elena Lombardi":     "https://i.pravatar.cc/300?img=32",
-  // Talent (men)
-  "Tomás Navarro":      "https://i.pravatar.cc/300?img=12",
-  "Tomás Núñez":        "https://i.pravatar.cc/300?img=12",
-  "Kai Lin":            "https://i.pravatar.cc/300?img=14",
-  "Mario Rossi":        "https://i.pravatar.cc/300?img=33",
-  "Aaron Park":         "https://i.pravatar.cc/300?img=51",
-  "Daniel Ferrer":      "https://i.pravatar.cc/300?img=52",
-  "Marco Pellegrini":   "https://i.pravatar.cc/300?img=60",
-  "Oran Tene":          "https://i.pravatar.cc/300?img=11",
-  "Orant Tenes":        "https://i.pravatar.cc/300?img=11",
-};
-function photoForName(name: string | undefined): string | undefined {
-  if (!name) return undefined;
-  // Try exact then a normalized lookup (drop trailing punctuation, etc.).
-  return PHOTO_BY_NAME[name] ?? PHOTO_BY_NAME[name.replace(/[.,]+$/g, "")];
+// A person with no photo gets a premium, letter-free silhouette — never
+// initials, never a name-in-a-box. The mark is a quiet line-art bust set
+// at low opacity on a cool tonal ground. Real photos come ONLY from
+// `photoUrl`; there is no synthetic stock-photo registry (removed — the
+// old Pravatar seed was fake external imagery and CSP-fragile).
+function PersonSilhouette({ size, color }: { size: number; color: string }) {
+  return (
+    <svg
+      width={Math.round(size * 0.62)}
+      height={Math.round(size * 0.62)}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {/* Head + shoulders bust. Rounded, editorial, no facial detail. */}
+      <circle cx="12" cy="8.2" r="3.6" fill={color} />
+      <path
+        d="M4.6 19.4c0-3.7 3.2-6.2 7.4-6.2s7.4 2.5 7.4 6.2c0 .5-.4.8-.9.8H5.5c-.5 0-.9-.3-.9-.8Z"
+        fill={color}
+      />
+    </svg>
+  );
 }
 
 export function Avatar({
@@ -80,10 +64,16 @@ export function Avatar({
    */
   hashSeed?: string;
 }) {
+  // A broken/slow photoUrl must degrade to the silhouette, so track load
+  // failure locally (an <img> onError, unlike a background-image, can tell
+  // us the URL is dead).
+  const [imgFailed, setImgFailed] = useState(false);
   // Avatar fallback hierarchy:
-  //   1. Photo (when photoUrl given) — for real people
-  //   2. Initials with deterministic tint per name — also for real people
+  //   1. Photo (when photoUrl given AND it loads) — for real people
+  //   2. Line-art silhouette on a cool tonal ground — the no-photo person
   //   3. Emoji — only for non-person entities (brand, hub, system)
+  // The `initials` prop is still accepted for back-compat but is no longer
+  // rendered as the visible fallback (letters-in-a-box read as unfinished).
   // tone="auto" hashes the seed (full name, ideally) to pick a quiet
   // color. Forest-leaning, no warm gold/rust. Six tones to spread
   // collisions wider than the previous five.
@@ -106,32 +96,40 @@ export function Avatar({
     tone === "auto"
       ? autoTones[hashString(hashSeed ?? initials ?? emoji ?? "x") % autoTones.length]!
       : tones[tone];
-  // Auto-resolve a real photo from the prototype's name registry when
-  // the caller used `hashSeed=<full name>` (the convention everywhere).
-  // This lets every existing Avatar caller pick up real faces with
-  // zero per-call changes.
-  const resolvedPhoto = photoUrl ?? photoForName(hashSeed);
-  if (resolvedPhoto) {
+  // Real photos come ONLY from an explicit `photoUrl` — no synthetic
+  // name→stock-photo registry. Render via <img> (not background-image) so a
+  // dead/slow URL fires onError and degrades to the silhouette below. The
+  // <img> is clipped to a circle directly (no wrapper span).
+  if (photoUrl && !imgFailed) {
     return (
-      <span
-        aria-hidden
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={photoUrl}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        onError={() => setImgFailed(true)}
         style={{
-          // display: inline-block — without this, span collapses to 0x0
-          // because <span> is inline by default, which ignores width/height.
-          // Was rendering empty rings everywhere a photo was supplied.
-          display: "inline-block",
+          display: "block",
           width: size,
           height: size,
           borderRadius: "50%",
-          backgroundImage: `url(${resolvedPhoto})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
+          objectFit: "cover",
+          objectPosition: "center",
           backgroundColor: COLORS.surfaceAlt,
           flexShrink: 0,
         }}
       />
     );
   }
+
+  // Non-person entity explicitly given an emoji (brand / hub / system) →
+  // render the emoji on the resolved tone. Everything else is a person with
+  // no photo → the letter-free silhouette.
+  const fillColor =
+    tone === "ink"
+      ? "rgba(255,255,255,0.82)"
+      : "color-mix(in srgb, currentColor 42%, transparent)";
   return (
     <span
       style={{
@@ -150,7 +148,7 @@ export function Avatar({
         userSelect: "none",
       }}
     >
-      {emoji ?? initials}
+      {emoji ?? <PersonSilhouette size={size} color={fillColor} />}
     </span>
   );
 }

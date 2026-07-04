@@ -37,7 +37,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Talent directory",
   description:
-    "Browse talent from across the entire network — independents and agency rosters alike. Search by craft, location, and availability.",
+    "Browse talent from across the entire network, independents and agency rosters alike. Search by craft, location, and availability.",
 };
 
 type PageSearchParams = Promise<{
@@ -136,7 +136,7 @@ export default async function MarketingDirectoryPage({
               className="mt-5 max-w-xl text-[1.0625rem] leading-[1.6]"
               style={{ color: "var(--plt-muted)" }}
             >
-              Browse talent from across the entire {PLATFORM_BRAND.name} network — independents and
+              Browse talent from across the entire {PLATFORM_BRAND.name} network, independents and
               agency rosters alike. Search by craft, location, and availability; every profile is
               here because the talent chose to be seen.
             </p>

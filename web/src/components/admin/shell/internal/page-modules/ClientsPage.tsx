@@ -267,7 +267,11 @@ export function ClientsPage() {
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-              <Avatar initials={client.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()} size={32} tone="auto" hashSeed={client.name} />
+              {/* Client type carries no photo/logo URL, so photoUrl is left
+                  undefined — the Avatar primitive renders its letter-free
+                  silhouette on a per-client tint (hashSeed only tints; it
+                  never resolves to stock imagery). */}
+              <Avatar photoUrl={undefined} size={32} tone="auto" hashSeed={client.name} />
               <div className="min-w-0">
                 <div className="text-admin-ink text-admin-13h font-semibold">{client.name}</div>
                 <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{client.contact}</div>

@@ -62,11 +62,11 @@ const STARTER_SNIPPETS: { id: string; title: string; body: string }[] = [
     id: "confirming-availability",
     title: "Confirming availability",
     body:
-      "Thanks for the brief — checking with talent now and will come back within the hour with availability + hold options.",
+      "Thanks for the brief. Checking with talent now and will come back within the hour with availability + hold options.",
   },
   {
     id: "offer-sent",
-    title: "Offer sent — awaiting client",
+    title: "Offer sent · awaiting client",
     body:
       "Offer sent to the client side; they have until end-of-day to confirm or counter. I'll ping when it lands.",
   },
@@ -74,7 +74,7 @@ const STARTER_SNIPPETS: { id: string; title: string; body: string }[] = [
     id: "polite-decline",
     title: "Polite decline",
     body:
-      "Thanks so much for thinking of us — talent isn't available for these dates. Would love to be in the loop on the next one.",
+      "Thanks so much for thinking of us. Talent isn't available for these dates. Would love to be in the loop on the next one.",
   },
 ];
 
@@ -147,7 +147,7 @@ export function InboxSnippetsDrawer() {
 
         <section className="flex flex-col gap-2">
           <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 600 }} className="text-admin-ink-muted">
-            Preview library — {snippets.length}
+            Preview library · {snippets.length}
           </div>
           {snippets.map((s) => (
             <div
@@ -206,7 +206,7 @@ const NOTIF_EVENTS: {
   description: string;
   urgency: "high" | "medium" | "low";
 }[] = [
-  { id: "booking-confirmed", label: "Booking confirmed",  description: "All parties accepted — booking is live.",              urgency: "high"   },
+  { id: "booking-confirmed", label: "Booking confirmed",  description: "All parties accepted; booking is live.",                urgency: "high"   },
   { id: "message-received",  label: "Message received",   description: "New message in any thread you're on.",                 urgency: "medium" },
   { id: "offer-received",    label: "Offer / counter",    description: "Client sends an offer or counter-offer.",              urgency: "high"   },
   { id: "payment-received",  label: "Payment received",   description: "Payout processed or client payment cleared.",          urgency: "high"   },
@@ -352,7 +352,7 @@ export function NotificationsPrefsDrawer() {
                 toast("Notification preferences saved");
                 closeDrawer();
               } catch {
-                setSaveError("Failed to save — please try again.");
+                setSaveError("Failed to save. Please try again.");
               } finally {
                 setSaving(false);
               }
@@ -722,7 +722,7 @@ export function DataExportDrawer() {
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={() => toast("Export queue is rolling out next sprint — email your coordinator and they'll spin a one-off CSV in the meantime.")}>
+          <PrimaryButton onClick={() => toast("Export queue is rolling out next sprint. Email your coordinator and they'll spin a one-off CSV in the meantime.")}>
             Request export
           </PrimaryButton>
         </div>
@@ -752,7 +752,7 @@ const MOCK_AUDIT: AuditEvent[] = [
     actor: "Oran Tene",
     actorInitials: "OT",
     action: "confirmed booking",
-    subject: "Mango — Spring lookbook",
+    subject: "Mango · Spring lookbook",
     detail: "All three parties accepted. Total €4,200. Payout receiver: agency.",
   },
   {
@@ -761,7 +761,7 @@ const MOCK_AUDIT: AuditEvent[] = [
     actor: "Marta Reyes",
     actorInitials: "MR",
     action: "approved their line",
-    subject: "Mango — Spring lookbook",
+    subject: "Mango · Spring lookbook",
   },
   {
     id: "a3",
@@ -769,7 +769,7 @@ const MOCK_AUDIT: AuditEvent[] = [
     actor: "Estudio Solé",
     actorInitials: "ES",
     action: "approved offer",
-    subject: "Mango — Spring lookbook",
+    subject: "Mango · Spring lookbook",
     detail: "Offer ID off_412. Client accepted standard terms.",
   },
   {
@@ -778,7 +778,7 @@ const MOCK_AUDIT: AuditEvent[] = [
     actor: "Oran Tene",
     actorInitials: "OT",
     action: "sent offer",
-    subject: "Bvlgari — Editorial campaign",
+    subject: "Bvlgari · Editorial campaign",
     detail: "€6,000 base + travel. Hold expires May 4.",
   },
   {
@@ -982,7 +982,7 @@ export function TenantSwitcherDrawer() {
                 Platform
               </span>
               <span style={PLATFORM_SWITCHER_STYLES.subhead} className="text-admin-ink-dim">
-                Tulala HQ — operate any tenant, users, billing, and network.
+                Tulala HQ · operate any tenant, users, billing, and network.
               </span>
             </header>
             <button
@@ -1218,7 +1218,7 @@ export function TenantSwitcherDrawer() {
                             : pct >= 0.8 ? "#9C6B14"
                             : COLORS.inkMuted;
                           return (
-                            <span title={t.seatsCap === "∞" ? "Network plan — unlimited seats" : `${t.seatsUsed} of ${t.seatsCap} talent seats used`} style={{
+                            <span title={t.seatsCap === "∞" ? "Network plan · unlimited seats" : `${t.seatsUsed} of ${t.seatsCap} talent seats used`} style={{
                               display: "inline-flex", alignItems: "center", gap: 3,
                               color: tone, fontVariantNumeric: "tabular-nums",
                               fontSize: 10.5, fontWeight: 600,
@@ -1273,7 +1273,7 @@ export function TenantSwitcherDrawer() {
                 </span>
               </div>
               <div style={{ fontSize: 11, lineHeight: 1.45, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-                You&apos;ll be its Owner. Pick the tier that fits — you can upgrade later.
+                You&apos;ll be its Owner. Pick the tier that fits; you can upgrade later.
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {(["free", "studio", "agency", "network"] as const).map(tier => {
@@ -1356,7 +1356,7 @@ export function TalentAgencySwitcherDrawer() {
   const others  = agencies.filter(a => !a.isPrimary);
   const groups: Array<{ heading: string; sub: string; rows: typeof agencies }> = [];
   if (primary.length)  groups.push({ heading: "Your primary agency", sub: "Bookings and inquiries default to this agency.", rows: primary });
-  if (others.length)   groups.push({ heading: "Other agencies", sub: "Non-exclusive affiliations — you're on their roster.", rows: others });
+  if (others.length)   groups.push({ heading: "Other agencies", sub: "Non-exclusive affiliations · you're on their roster.", rows: others });
 
   function navigate(slug: string) {
     closeDrawer();
@@ -1626,7 +1626,7 @@ export function WorkspaceProfileDrawer() {
           </div>
           {!canEditIdentity && (
             <div style={{ padding: "8px 10px", borderRadius: 8, background: "rgba(11,11,13,0.05)", fontSize: 11, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-              You&apos;re {myRole.toLowerCase()} on this workspace — identity edits require Owner or Admin role.
+              You&apos;re {myRole.toLowerCase()} on this workspace. Identity edits require Owner or Admin role.
             </div>
           )}
         </section>
@@ -1660,28 +1660,9 @@ export function WorkspaceProfileDrawer() {
               → {previewUrl}
             </div>
           </label>
-          <div className="flex flex-col gap-1">
-            <span style={{ fontSize: 11, fontFamily: FONTS.body }} className="text-admin-ink-muted">Logo</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: `1px dashed ${COLORS.border}` }} className="bg-admin-surface-alt">
-              <Avatar initials={name.slice(0, 2).toUpperCase()} size={36} tone="ink" />
-              <button type="button"
-                disabled
-                title="Logo upload coming soon"
-                style={{
-                  padding: "5px 11px", borderRadius: 999,
-                  border: `1px solid ${COLORS.border}`,
-                  background: "#fff", color: COLORS.inkMuted,
-                  fontSize: 11.5, fontWeight: 600, cursor: "not-allowed",
-                  opacity: 0.5,
-                  fontFamily: FONTS.body,
-                }}>
-                Upload logo
-              </button>
-              <span style={{ fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-                PNG / SVG · square, ≥ 200×200
-              </span>
-            </div>
-          </div>
+          {/* Logo upload hidden — the control was a permanently-disabled
+              "Upload logo" button (no upload path wired). Rather than show a
+              dead field, we hide it until logo upload ships. */}
         </section>
 
         {/* Plan + billing */}
@@ -1746,7 +1727,7 @@ export function WorkspaceProfileDrawer() {
             as the workspace from the composer.
             {tier === "free" && (
               <span style={{ display: "block", marginTop: 6 }} className="text-admin-ink-dim">
-                On Free, you ARE the workspace — System User and your personal
+                On Free, you ARE the workspace. System User and your personal
                 identity are the same. Toggle has no visual effect at this tier.
               </span>
             )}
@@ -1807,30 +1788,10 @@ export function WorkspaceProfileDrawer() {
           </div>
         </section>
 
-        {/* Custom domain — Agency + Network only */}
-        {(tier === "agency" || tier === "network") && (
-          <section style={sectionStyle}>
-            <div style={labelStyle}>Custom domain</div>
-            <div style={{ fontSize: 11.5, lineHeight: 1.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-              Replace your tulala subdomain with a domain you own (e.g.
-              <em> book.atelier-roma.com</em>). DNS config required.
-            </div>
-            <button type="button"
-              disabled
-              title="Custom domain setup coming soon"
-              style={{
-                alignSelf: "flex-start",
-                padding: "6px 12px", borderRadius: 999,
-                border: `1px solid ${COLORS.border}`,
-                background: "transparent", color: COLORS.inkMuted,
-                fontSize: 11.5, fontWeight: 600, cursor: "not-allowed",
-                opacity: 0.5,
-                fontFamily: FONTS.body,
-              }}>
-              Add custom domain
-            </button>
-          </section>
-        )}
+        {/* Custom domain (Agency + Network) hidden — the only control was a
+            permanently-disabled "Add custom domain" button with no setup flow
+            wired. Hidden until custom-domain onboarding ships rather than
+            showing a dead section. */}
 
         {/* Save / Cancel */}
         {canEditIdentity && (
@@ -1943,20 +1904,20 @@ type TalentNotif = {
 
 const MOCK_TALENT_NOTIFS: TalentNotif[] = [
   // Action needed — sticky, coral, your move.
-  { id: "tn1", category: "action", icon: "mail", tone: "coral", title: "Mango — Spring lookbook · new offer", sub: "€1,800 · awaiting your reply", when: "5h", unread: true, sticky: true },
-  { id: "tn2", category: "action", icon: "calendar", tone: "coral", title: "Bvlgari hold expires in 2h", sub: "Editorial · jewelry · May 18–20", when: "2h", unread: true, sticky: true },
+  { id: "tn1", category: "action", icon: "mail", tone: "coral", title: "Mango · Spring lookbook · new offer", sub: "€1,800 · awaiting your reply", when: "5h", unread: true, sticky: true },
+  { id: "tn2", category: "action", icon: "calendar", tone: "coral", title: "Bvlgari hold expires in 2h", sub: "Editorial · jewelry · May 18-20", when: "2h", unread: true, sticky: true },
   // @-mention from coordinator — talent was tagged in a chat thread.
   // Action-needed because someone asked them directly.
-  { id: "tn-m1", category: "action", icon: "mail", tone: "coral", title: "Ana Vega tagged you on Mango thread", sub: "\"@Marta — confirm wardrobe brief by EOD please\"", when: "1h", unread: true, sticky: true, mention: { from: "Ana Vega" } },
+  { id: "tn-m1", category: "action", icon: "mail", tone: "coral", title: "Ana Vega tagged you on Mango thread", sub: "\"@Marta, confirm wardrobe brief by EOD please\"", when: "1h", unread: true, sticky: true, mention: { from: "Ana Vega" } },
   // System / setup — sticky, indigo, has progress.
   { id: "tn3", category: "system", icon: "sparkle", tone: "indigo", title: "4 steps to get booked", sub: "Complete your profile to enter the inquiry pipeline", unread: true, sticky: true, progress: { done: 0, total: 4, label: "0 of 4 steps" } },
-  { id: "tn4", category: "system", icon: "user", tone: "indigo", title: "Profile 84% complete", sub: "3 fields left — polaroids, rate card, showreel", unread: true, sticky: true, progress: { done: 84, total: 100, label: "84%" } },
+  { id: "tn4", category: "system", icon: "user", tone: "indigo", title: "Profile 84% complete", sub: "3 fields left · polaroids, rate card, showreel", unread: true, sticky: true, progress: { done: 84, total: 100, label: "84%" } },
   // Updates — dismissible × on hover.
   { id: "tn5", category: "update", icon: "check", tone: "success", title: "Vogue Italia booking confirmed", sub: "Tue, May 6 · €1,800", when: "1d" },
   { id: "tn6", category: "update", icon: "team", tone: "indigo", title: "Mango site referred 12 new views", sub: "+8 vs prior week", when: "2d" },
   // @-mention as informational — Carla thanked Marta in a closed thread.
   // Not action-needed but the talent should know they were tagged.
-  { id: "tn-m2", category: "update", icon: "mail", tone: "indigo", title: "Carla Vega tagged you on Loewe thread", sub: "\"@Marta — thanks for bringing me on, was a dream day 🙏\"", when: "3d", mention: { from: "Carla Vega" } },
+  { id: "tn-m2", category: "update", icon: "mail", tone: "indigo", title: "Carla Vega tagged you on Loewe thread", sub: "\"@Marta, thanks for bringing me on, was a dream day 🙏\"", when: "3d", mention: { from: "Carla Vega" } },
 ];
 
 const NOTIF_CATEGORY_META: Record<NotifCategory, { label: string; hint: string }> = {
@@ -2543,7 +2504,7 @@ export function TalentShareCardDrawer() {
             <button
               type="button"
               disabled
-              title="Preview only — clients click this on the shared link"
+              title="Preview only · clients click this on the shared link"
               style={{
                 marginTop: 12,
                 padding: "8px 14px",
@@ -3275,7 +3236,7 @@ export function ICalSubscribeCard({ talentName, slug }: { talentName: string; sl
             <SecondaryButton
               onClick={() => {
                 navigator.clipboard?.writeText(`https://${url}`);
-                toast("Calendar URL copied — paste into your calendar app");
+                toast("Calendar URL copied. Paste into your calendar app");
               }}
             >
               Copy URL
@@ -3516,13 +3477,13 @@ export function ClientOnboardingArc() {
   return (
     <OnboardingArc
       storageKey="tulala_onboard_client"
-      title="Welcome — let's get you booking"
+      title="Welcome, let's get you booking"
       subtitle="Three steps to a booked talent. The faster you go, the better the agencies' response time."
       steps={[
         {
           id: "browse",
           label: "Browse the directory",
-          description: "Filter by specialty, region, and availability — bookmark talent you might want.",
+          description: "Filter by specialty, region, and availability, then bookmark talent you might want.",
           onOpen: () => setClientPage("discover"),
         },
         {
@@ -3560,7 +3521,7 @@ export function TalentOnboardingArc() {
         {
           id: "photos",
           label: "Upload 5+ photos",
-          description: "Variety beats polish — headshot, full-length, motion, and a recent unedited iPhone photo.",
+          description: "Variety beats polish. Headshot, full-length, motion, and a recent unedited iPhone photo.",
           onOpen: () => openDrawer("talent-profile-edit", { mode: "edit-self", section: "media" }),
         },
         {
@@ -3572,7 +3533,7 @@ export function TalentOnboardingArc() {
         {
           id: "share",
           label: "Copy your public link",
-          description: "Share with your other agencies and on socials — bookings come from anywhere.",
+          description: "Share with your other agencies and on socials; bookings come from anywhere.",
           onOpen: () => {
             navigator.clipboard?.writeText("https://tulala.digital/t/marta-reyes");
             toast("Public link copied to clipboard");
@@ -3887,7 +3848,7 @@ export function DrawerCopyLink() {
       onClick={() => {
         if (typeof window === "undefined") return;
         navigator.clipboard?.writeText(window.location.href);
-        toast("Link copied — anyone with access lands here.");
+        toast("Link copied. Anyone with access lands here.");
       }}
       style={{
         width: 28,
@@ -4328,7 +4289,7 @@ export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationSt
     : "Go live on your branded URL.";
   const domainStepCta  = isFreePlan ? "Upgrade to Studio" : "Configure";
   const domainStepAction = isFreePlan
-    ? () => openUpgrade({ feature: "Custom domain", why: "Run your storefront at your own brand's domain — not a Tulala subdomain.", unlocks: ["Custom domain (e.g. acme-models.com)", "Auto-renewed SSL", "Verified email-from address"] })
+    ? () => openUpgrade({ feature: "Custom domain", why: "Run your storefront at your own brand's domain, not a Tulala subdomain.", unlocks: ["Custom domain (e.g. acme-models.com)", "Auto-renewed SSL", "Verified email-from address"] })
     : () => setPage("settings");
 
   const steps: ActivationStep[] = [
@@ -4692,7 +4653,7 @@ export function DemoDataBanner({ isEstablishedTenant = false }: DemoDataBannerPr
       if (next) localStorage.setItem(DEMO_DATA_KEY, "true");
       else      localStorage.removeItem(DEMO_DATA_KEY);
     }
-    toast(next ? "Demo data loaded — refresh to apply" : "Demo data cleared — refresh to reset");
+    toast(next ? "Demo data loaded. Refresh to apply" : "Demo data cleared. Refresh to reset");
   }
 
   if (dismissed) return null;

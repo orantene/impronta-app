@@ -78,7 +78,7 @@ export function TalentTierCompareDrawer() {
       open={open}
       onClose={closeDrawer}
       title="Compare talent plans"
-      description="Your Tulala personal page tier. Coexists with whatever agencies and hubs you're on — agency rosters never change."
+      description="Your Tulala personal page tier. Coexists with whatever agencies and hubs you're on. Agency rosters never change."
       width={760}
       footer={
         <>
@@ -88,7 +88,7 @@ export function TalentTierCompareDrawer() {
     >
       {process.env.NODE_ENV !== "production" && (
         <div style={{ marginBottom: 10, fontFamily: FONTS.body, fontSize: 11, fontWeight: 600 }} className="text-admin-ink-dim">
-          Dev — switch tier to preview plan gating live across the talent surface.
+          Dev · switch tier to preview plan gating live across the talent surface.
         </div>
       )}
       {/* Tier columns */}
@@ -133,23 +133,15 @@ export function TalentTierCompareDrawer() {
               >
                 {meta.tagline}
               </div>
-              <div
-                style={{
-                  fontFamily: FONTS.display,
-                  fontSize: 18,
-                  marginTop: 12,
-                  color: t === "max" ? "#fff" : COLORS.accentDeep,
-                  fontWeight: 600,
-                }}
-              >
-                {meta.monthlyPrice}
-              </div>
+              {/* Pricing intentionally omitted — talent billing isn't live,
+                  so we don't show a per-month price the talent can't yet be
+                  charged. The waitlist card below is the single honest CTA. */}
               <p
                 style={{
                   fontFamily: FONTS.body,
                   fontSize: 12.5,
                   lineHeight: 1.55,
-                  marginTop: 8,
+                  marginTop: 12,
                   marginBottom: 0,
                   opacity: 0.85,
                 }}
@@ -365,7 +357,7 @@ export function TalentPageTemplateDrawer() {
       open={open}
       onClose={closeDrawer}
       title="Choose a template"
-      description="Templates set the layout, hero size, and section order of your personal page. Switch any time — content stays."
+      description="Templates set the layout, hero size, and section order of your personal page. Switch any time; content stays."
       width={680}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
@@ -671,7 +663,7 @@ export function TalentCustomDomainDrawer() {
       open={open}
       onClose={closeDrawer}
       title="Custom domain"
-      description="Point your own domain at your Tulala personal page. Visitors see yourname.com — Tulala handles SSL + redirects."
+      description="Point your own domain at your Tulala personal page. Visitors see yourname.com; Tulala handles SSL + redirects."
       width={580}
       footer={
         // Phase 1.5 STRIP: save removed — Max-only feature, not wired for Free

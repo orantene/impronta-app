@@ -163,8 +163,8 @@ export function AdminMessageStream({
           margin: "8px 14px 0",
           padding: "5px 10px",
           borderRadius: 999,
-          background: threadType === "private" ? "rgba(245,158,11,0.10)" : "rgba(15,79,62,0.08)",
-          color: threadType === "private" ? "#92400E" : "#0F4F3E",
+          background: threadType === "private" ? COLORS.amberSoft : "rgba(15,79,62,0.08)",
+          color: threadType === "private" ? COLORS.amberDeep : "#0F4F3E",
           fontSize: 10.5,
           fontWeight: 700,
           letterSpacing: 0.4,
@@ -177,8 +177,8 @@ export function AdminMessageStream({
         }}
         title={
           threadType === "private"
-            ? "Client thread — visible to the client and workspace staff."
-            : "Talent group — visible to selected talent and workspace coordinators."
+            ? "Client thread. Visible to the client and workspace staff."
+            : "Talent group. Visible to selected talent and workspace coordinators."
         }
       >
         {threadType === "private" ? "Client thread" : "Talent group"}
@@ -432,7 +432,7 @@ export function AdminMessageStream({
                 fd.append("file", file);
                 const r = await uploadInquiryAttachment(fd);
                 if (!r.ok) toast(`Attach failed: ${r.error}`);
-                else toast(`File attached — ${file.name}`);
+                else toast(`File attached: ${file.name}`);
               });
             }}
             // Voice notes — record + send straight to the inquiry thread.

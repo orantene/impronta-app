@@ -23,12 +23,12 @@ export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
   // Phase A C1 — dead-chrome sweep: each "Coming soon" button now
   // toasts instead of staring back inertly at the user.
   const comingSoon = (what: string) => {
-    toast(`${what} is on the next phase — Production sheet editor lands with the calendar pipeline.`);
+    toast(`${what} is on the next phase. Production sheet editor lands with the calendar pipeline.`);
   };
   const futureBtnStyle: React.CSSProperties = {
     padding: "8px 14px", borderRadius: 10,
     border: `1.5px dashed ${COLORS.border}`,
-    background: "rgba(214,158,46,0.06)", color: "#7C5A14",
+    background: COLORS.amberSoft, color: COLORS.amberDeep,
     fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
     cursor: "pointer",
     display: "inline-flex", alignItems: "center", gap: 6,
@@ -84,7 +84,7 @@ export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
             notes: null,
           }}
           onClose={() => setCallSheetOpen(false)}
-          onSaved={() => toast("Call sheet updated — sent to client + talent.")}
+          onSaved={() => toast("Call sheet updated, sent to client + talent.")}
         />
       )}
       <DetailSection title="Location">
@@ -186,7 +186,7 @@ export function PayoutReceiverPicker({
           minWidth: 180,
         }}
       >
-        <option value="">— choose —</option>
+        <option value="">Choose…</option>
         {(candidates ?? []).map((c) => (
           <option key={c.payoutAccountId} value={c.payoutAccountId}>
             {c.displayName} ({c.receiverKind})
@@ -343,7 +343,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
                   {pending ? "Creating…" : "Request balance"}
                 </button>
                 <div className="text-[11px] mt-1 text-admin-ink-muted">
-                  Deposit collected — charge the remaining balance. The talent/agency payout fans out when the balance settles.
+                  Deposit collected. Charge the remaining balance. The talent/agency payout fans out when the balance settles.
                 </div>
               </>
             ) : state.depositAmountCents > 0 ? (
@@ -397,7 +397,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
               : txStatus === "payout_pending"
               ? `Payout pending ${txn?.payoutInitiatedAt ? `since ${new Date(txn.payoutInitiatedAt).toLocaleString()}` : ""}`
               : txStatus === "paid"
-              ? "Funds received — pick a payout receiver below, then initiate the payout."
+              ? "Funds received. Pick a payout receiver below, then initiate the payout."
               : "Released to talent once invoice clears."}
           </div>
           {isAdmin && txn && (txStatus === "paid" || txStatus === "payout_pending") && (
@@ -600,7 +600,7 @@ export function resolveShellAction(
   // Past (wrapped) stage — payouts + receipts.
   if (conv.stage === "past") {
     if (pov === "client") return { hint: "Wrapped. Receipt + invoice available in Files." };
-    if (pov === "talent" || pov === "talent_coord") return { hint: "Wrapped. Payment cleared — receipt in Files." };
+    if (pov === "talent" || pov === "talent_coord") return { hint: "Wrapped. Payment cleared, receipt in Files." };
     return { hint: "Wrapped. Mark payouts ready when settled." };
   }
 

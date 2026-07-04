@@ -423,7 +423,7 @@ export function ConversationTab({
                   <div style={{ fontSize: 10.5, fontWeight: 700, marginBottom: 2, display: "inline-flex", alignItems: "center", gap: 5, flexWrap: "wrap" }} className="text-admin-ink-muted">
                     <span>{senderName}{roleLabel ? <span className="font-medium"> · {roleLabel}</span> : null}</span>
                     {m.sender === "workspace" && (
-                      <span title="Workspace System User — the agency speaking, not an individual" style={{
+                      <span title="Workspace System User · the agency speaking, not an individual" style={{
                         display: "inline-flex", alignItems: "center", gap: 3,
                         padding: "0 5px", borderRadius: 999,
                         background: COLORS.indigoSoft, color: COLORS.indigoDeep,
@@ -572,7 +572,7 @@ export function ConversationEmptyState() {
       </span>
       <div className="text-admin-ink text-admin-13 font-semibold">No messages yet</div>
       <div style={{ fontSize: 11.5, maxWidth: 240 }} className="text-admin-ink-muted">
-        Start the conversation below — your message will go to the right people in this thread.
+        Start the conversation below and your message will go to the right people in this thread.
       </div>
     </div>
   );
@@ -608,9 +608,9 @@ export function TypingIndicator({ who }: { who: string }) {
 export const __draftStore: Map<string, string> = new Map();
 
 export const SMART_REPLIES_FOR_LAST: Record<string, string[]> = {
-  inquiry: ["Got it — pulling options", "When do you need it by?", "On it."],
+  inquiry: ["Got it, pulling options", "When do you need it by?", "On it."],
   hold:    ["Confirming with talent", "Sending revised offer", "Will update by EOD"],
-  offer:   ["Approved — proceeding", "Can we adjust dates?", "Need budget breakdown"],
+  offer:   ["Approved, proceeding", "Can we adjust dates?", "Need budget breakdown"],
   default: ["Sounds good", "Let me check", "Confirming shortly"],
 };
 
@@ -829,7 +829,7 @@ export function DraftComposer({
           <button type="button"
             onClick={() => setSendAs("workspace")}
             aria-pressed={sendAs === "workspace"}
-            title={`Post as ${workspaceName} — System User identity`}
+            title={`Post as ${workspaceName} · System User identity`}
             style={{
               display: "inline-flex", alignItems: "center", gap: 4,
               padding: "3px 10px", borderRadius: 999,
@@ -847,10 +847,12 @@ export function DraftComposer({
         </div>
       )}
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        {/* C1 — attachment button. Enabled when the caller passes onAttach.
-            Hidden file input triggers the OS picker; selected file is
-            forwarded to onAttach for upload. Voice/mic stays stubbed. */}
-        {onAttach ? (
+        {/* C1 — attachment button. Only rendered when the caller passes
+            onAttach (upload is wired). Hidden file input triggers the OS
+            picker; selected file is forwarded to onAttach. When attachments
+            aren't wired we hide the control entirely rather than showing a
+            dead, disabled button. Voice/mic stays stubbed below. */}
+        {onAttach && (
           <label
             title="Attach a file"
             aria-label="Attach file"
@@ -872,16 +874,6 @@ export function DraftComposer({
               <path d="M11 4.5v6a3 3 0 11-6 0V4a2 2 0 014 0v6a1 1 0 11-2 0V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </label>
-        ) : (
-          <button type="button" aria-label="Attach file" title="File attachments coming soon" disabled style={{
-            width: 36, height: 36, borderRadius: "50%", border: "none",
-            background: "transparent", color: COLORS.inkMuted, cursor: "not-allowed", opacity: 0.45,
-            display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-          }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M11 4.5v6a3 3 0 11-6 0V4a2 2 0 014 0v6a1 1 0 11-2 0V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </button>
         )}
         {/* Sparkle toggle — re-opens the smart-reply chips when they've
             been dismissed. Only renders before the user has sent /
@@ -984,28 +976,18 @@ export function DraftComposer({
             }}
           />
         </div>
-        {!val && (
-          voiceContext ? (
-            <VoiceRecorderButton
-              inquiryId={voiceContext.inquiryId}
-              threadType={voiceContext.threadType}
-              accent={COLORS.accentDeep}
-              idleColor={COLORS.inkMuted}
-              onSent={() => onVoiceSent?.()}
-              onError={(msg) => __composerToast(msg)}
-            />
-          ) : (
-            <button type="button" aria-label="Voice note" title="Voice notes coming soon" disabled style={{
-              width: 36, height: 36, borderRadius: "50%", border: "none",
-              background: "transparent", color: COLORS.inkMuted, cursor: "not-allowed", opacity: 0.45,
-              display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            }}>
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                <rect x="6" y="2" width="4" height="8" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M3 8a5 5 0 0010 0M8 13v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            </button>
-          )
+        {/* Voice note — only rendered when voiceContext is present (recording
+            + send is wired). Without it we hide the control rather than show a
+            dead, disabled mic button. */}
+        {!val && voiceContext && (
+          <VoiceRecorderButton
+            inquiryId={voiceContext.inquiryId}
+            threadType={voiceContext.threadType}
+            accent={COLORS.accentDeep}
+            idleColor={COLORS.inkMuted}
+            onSent={() => onVoiceSent?.()}
+            onError={(msg) => __composerToast(msg)}
+          />
         )}
         <button type="button" disabled={!val.trim()} onClick={() => { if (val.trim()) handleSend(val); }}
           aria-label="Send"

@@ -57,42 +57,24 @@ export function TalentPayoutsDrawer() {
 export function TalentVerificationDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-verification";
-
+  // Honest stub — ID verification has no vendor flow wired yet. Rather than
+  // show a fake upload framing with a dead, disabled "Start verification"
+  // button, we surface a clear "coming soon" plus the (legitimate) reasons to
+  // verify, so the value is visible without pretending the flow is live.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Verify your identity"
-      description="Upload a government ID + a quick selfie. Once approved you get the Verified badge, clients see it on every inquiry."
+      description="Get the Verified badge so clients see it on every inquiry. ID review is coming soon."
       width={560}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <button
-            type="button"
-            disabled
-            style={{
-              padding: "9px 16px",
-              background: "rgba(11,11,13,0.12)",
-              border: "none",
-              borderRadius: 8,
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              fontWeight: 500,
-              color: COLORS.inkMuted,
-              cursor: "not-allowed",
-            }}
-            title="ID verification coming soon"
-          >
-            Start verification
-          </button>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ padding: "12px 14px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, marginBottom: 14, fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-accent-soft text-admin-ink">
-        <strong className="text-admin-accent-deep">End-to-end encrypted.</strong>{" "}
-        Documents are reviewed by Tulala&apos;s trust team and deleted after approval. Never shared with clients.
-      </div>
+      <EmptyState
+        icon="user"
+        title="Coming soon"
+        body="Identity verification isn't live yet. We'll notify you the moment it opens so you can claim the Verified badge."
+      />
 
       <div className="flex flex-col gap-3.5">
         <h3 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: -0.15 }} className="text-admin-ink">
@@ -102,7 +84,7 @@ export function TalentVerificationDrawer() {
           {[
             { label: "Verified badge on every inquiry", body: "Clients filter on it. Verified profiles get ~3× more replies in our data." },
             { label: "Higher trust tier", body: "Eligible for Silver and Gold tiers as your booking history grows." },
-            { label: "Required for payouts > €1k", body: "Compliance, Stripe needs the same KYC anyway." },
+            { label: "Required for payouts over €1k", body: "Compliance, Stripe needs the same KYC anyway." },
           ].map((item, idx) => (
             <li
               key={idx}
@@ -131,9 +113,6 @@ export function TalentVerificationDrawer() {
             </li>
           ))}
         </ul>
-        <div style={{ padding: "16px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55, textAlign: "center" }} className="bg-admin-surface-alt text-admin-ink-muted">
-          ID verification is coming soon. We&apos;ll notify you when it&apos;s available.
-        </div>
       </div>
     </DrawerShell>
   );

@@ -86,7 +86,7 @@ function WhosTurnBanner({
   })();
 
   const styles: Record<typeof tone, { bg: string; color: string; border: string }> = {
-    amber: { bg: "rgba(245,158,11,0.08)", color: "#92400E", border: "rgba(245,158,11,0.20)" },
+    amber: { bg: COLORS.amberSoft, color: COLORS.amberDeep, border: "rgba(82,96,109,0.20)" },
     blue:  { bg: "rgba(29,78,216,0.07)", color: "#1D4ED8", border: "rgba(29,78,216,0.18)" },
     green: { bg: "rgba(15,79,62,0.07)",  color: "#0F4F3E", border: "rgba(15,79,62,0.18)" },
     muted: { bg: "rgba(11,11,13,0.04)",  color: "rgba(11,11,13,0.60)", border: "rgba(11,11,13,0.10)" },
@@ -206,13 +206,13 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
       primary: { label: "Reply to client", tone: "primary", onClick: () => { setActiveTab("client"); } },
     };
     if (stageBucket === "hold") return {
-      hint: "Hold open — send the revised offer.",
+      hint: "Hold open. Send the revised offer.",
       primary: { label: "Open offer", tone: "primary", onClick: () => { setActiveTab("offer"); } },
     };
     if (stageBucket === "approved") return {
       // Finding D: approved ≠ booked. Direct the admin to the convert step
       // instead of telling them it's already "Booked".
-      hint: "Approved by all parties — ready to book. Use “Move to → Booked” to lock the dates.",
+      hint: "Approved by all parties, ready to book. Use “Move to → Booked” to lock the dates.",
       primary: { label: "Review offer", tone: "primary", onClick: () => { setActiveTab("offer"); } },
     };
     if (stageBucket === "booked") return {
@@ -652,7 +652,7 @@ export function deriveAdminStatusSheetData(
           offerStatus === "No offer" ? "Draft offer when lineup is set."
         : offerStatus === "Draft" ? "Send to client."
         : offerStatus === "Sent" ? "Awaiting client response."
-        : offerStatus === "Accepted" ? "Offer locked — proceed to event."
+        : offerStatus === "Accepted" ? "Offer locked. Proceed to event."
         : undefined,
     },
     talents: allTalents.map((t) => ({
@@ -678,8 +678,8 @@ export function deriveAdminStatusSheetData(
     nextStep:
         stage === "Inquiry" ? "Build the shortlist and confirm talent rates."
       : stage === "Offer sent" ? "Client is reviewing the offer."
-      : stage === "Approved" ? "Approved by all parties — Move to Booked to lock it."
-      : stage === "Booked" ? "Production planning — open the Event tab."
+      : stage === "Approved" ? "Approved by all parties. Move to Booked to lock it."
+      : stage === "Booked" ? "Production planning. Open the Event tab."
       : stage === "Wrapped" ? "Booking closed. Settle payouts."
       : undefined,
   };

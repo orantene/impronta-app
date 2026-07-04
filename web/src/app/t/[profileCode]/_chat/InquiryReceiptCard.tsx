@@ -46,7 +46,7 @@ import {
   AVATAR_GROUND,
   FACE_OBJECT_POSITION,
   MAX_AVATARS_DESKTOP,
-  initialsOf,
+  PERSON_SILHOUETTE_SVG,
 } from "./launcher-avatar-styles";
 
 export type InquiryReceiptCardProps = {
@@ -376,7 +376,18 @@ function Face({
           }}
         />
       ) : (
-        initialsOf(face.displayName)
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            width: "100%",
+            height: "100%",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "rgba(90,102,120,0.7)",
+          }}
+          dangerouslySetInnerHTML={{ __html: PERSON_SILHOUETTE_SVG }}
+        />
       )}
     </span>
   );
@@ -424,7 +435,18 @@ function CoordinatorFace({
           }}
         />
       ) : (
-        initialsOf(coordinator.displayName)
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            width: "100%",
+            height: "100%",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "rgba(90,102,120,0.7)",
+          }}
+          dangerouslySetInnerHTML={{ __html: PERSON_SILHOUETTE_SVG }}
+        />
       )}
     </span>
   );

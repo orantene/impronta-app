@@ -36,9 +36,9 @@ import {
   FACE_OBJECT_POSITION,
   MAX_AVATARS_DESKTOP,
   MAX_AVATARS_MOBILE,
+  PERSON_SILHOUETTE_SVG,
   UIC,
   ensureAvatarKeyframes,
-  initialsOf,
 } from "./launcher-avatar-styles";
 
 export type LauncherAvatarStackProps = {
@@ -435,7 +435,18 @@ function AvatarCircle({
             }}
           />
         ) : (
-          initialsOf(talent.displayName)
+          <span
+            aria-hidden="true"
+            style={{
+              display: "inline-flex",
+              width: "100%",
+              height: "100%",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "rgba(90,102,120,0.7)",
+            }}
+            dangerouslySetInnerHTML={{ __html: PERSON_SILHOUETTE_SVG }}
+          />
         )}
       </button>
 

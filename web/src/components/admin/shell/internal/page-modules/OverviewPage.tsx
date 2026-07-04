@@ -164,9 +164,9 @@ export function OverviewPage() {
       <section
         style={{
           background: needsYouTotal > 0
-            ? `linear-gradient(135deg, ${COLORS.coralSoft} 0%, #fff 60%)`
+            ? `linear-gradient(135deg, ${COLORS.indigoSoft} 0%, #fff 60%)`
             : `linear-gradient(135deg, ${COLORS.accentSoft} 0%, #fff 60%)`,
-          border: `1px solid ${needsYouTotal > 0 ? COLORS.coral : COLORS.accent}`,
+          border: `1px solid ${needsYouTotal > 0 ? COLORS.indigo : COLORS.accent}`,
           borderRadius: 14,
           padding: "16px 20px",
           marginBottom: 16,
@@ -180,15 +180,15 @@ export function OverviewPage() {
           aria-hidden
           style={{
             width: 38, height: 38, borderRadius: 12, background: "#fff",
-            border: `1px solid ${needsYouTotal > 0 ? COLORS.coral : COLORS.accent}`,
-            color: needsYouTotal > 0 ? COLORS.coral : COLORS.accent,
+            border: `1px solid ${needsYouTotal > 0 ? COLORS.indigo : COLORS.accent}`,
+            color: needsYouTotal > 0 ? COLORS.indigo : COLORS.accent,
             display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
           }}
         >
           <Icon name="bolt" size={18} stroke={1.7} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: needsYouTotal > 0 ? COLORS.coralDeep : COLORS.accent }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: needsYouTotal > 0 ? COLORS.indigoDeep : COLORS.accent }}>
             Needs you now
           </div>
           <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.ink, marginTop: 2 }}>
@@ -206,18 +206,18 @@ export function OverviewPage() {
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     padding: "3px 9px 3px 4px", borderRadius: 999, cursor: "pointer",
-                    background: "#fff", border: `1px solid ${COLORS.coral}40`, fontFamily: FONTS.body,
+                    background: "#fff", border: `1px solid ${COLORS.indigo}40`, fontFamily: FONTS.body,
                   }}
                 >
-                  <span style={{ minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, display: "inline-flex", alignItems: "center", justifyContent: "center", background: COLORS.coral, color: "#fff", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{b.n}</span>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.coralDeep }}>{b.label}</span>
+                  <span style={{ minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, display: "inline-flex", alignItems: "center", justifyContent: "center", background: COLORS.indigo, color: "#fff", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{b.n}</span>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.indigoDeep }}>{b.label}</span>
                 </button>
               ))}
             </div>
           )}
           {awaitingClientCount > 0 && (
             <div style={{ marginTop: 7, fontSize: 12, color: COLORS.inkMuted }}>
-              {awaitingClientCount} {awaitingClientCount === 1 ? "inquiry is" : "inquiries are"} waiting on the client — their move, not yours.
+              {awaitingClientCount} {awaitingClientCount === 1 ? "inquiry is" : "inquiries are"} waiting on the client. Their move, not yours.
             </div>
           )}
         </div>
@@ -232,7 +232,7 @@ export function OverviewPage() {
           card-frame chrome around individual values. */}
       <WorkspaceStatStrip
         items={[
-          { label: "Needs you", value: needsYouTotal, tone: COLORS.coral, onClick: () => openDrawer("today-pulse") },
+          { label: "Needs you", value: needsYouTotal, tone: COLORS.fill, onClick: () => openDrawer("today-pulse") },
           { label: "Waiting on client", value: awaitingClientCount, tone: COLORS.indigo, onClick: () => openDrawer("awaiting-client") },
           { label: "Confirmed", value: overviewMetrics?.confirmedBookingCount ?? confirmedThisWeek.length, tone: COLORS.success, onClick: () => openDrawer("confirmed-bookings") },
           {
@@ -250,7 +250,7 @@ export function OverviewPage() {
       <Grid cols="2">
         <PrimaryCard
           title="Waiting on client"
-          description="Offers and approvals sent — the ball is in the client's court. Nudge if one goes cold."
+          description="Offers and approvals sent. The ball is in the client's court. Nudge if one goes cold."
           icon={<Icon name="mail" size={14} stroke={1.7} />}
           affordance="Open list"
           meta={<>{pluralize(awaitingClientCount, "inquiry", "inquiries", true)}</>}
@@ -336,7 +336,7 @@ export function OverviewPage() {
             onClick={() =>
               openUpgrade({
                 feature: "Custom talent fields",
-                why: "Add fields your agency cares about — tags, niches, contracts.",
+                why: "Add fields your agency cares about (tags, niches, contracts).",
                 requiredPlan: "agency",
                 unlocks: ["Custom fields", "Per-roster taxonomy", "Filter config"],
               })
@@ -613,7 +613,7 @@ function OverviewFree() {
 
       <StarterCard
         title="Your activation arc"
-        subtitle="All five are reversible — skip what you don't need."
+        subtitle="All five are reversible. Skip what you don't need."
       >
         <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }} className="bg-admin-fill">
           {ACTIVATION_TASKS.map((task, idx) => {
@@ -686,7 +686,7 @@ function OverviewFree() {
                     </div>
                     <div style={{ fontSize: 11.5, marginTop: 1, opacity: done ? 0.55 : 1 }} className="text-admin-ink-muted">
                       {done && autoComplete[task.id] && !state.completedTasks.has(task.id)
-                        ? "Auto-detected — already done."
+                        ? "Auto-detected, already done."
                         : task.hint}
                     </div>
                   </div>
@@ -736,7 +736,7 @@ function OverviewFree() {
           onClick={() =>
             openUpgrade({
               feature: "Custom domain",
-              why: "Run your storefront at your own brand's domain — not a Tulala subdomain.",
+              why: "Run your storefront at your own brand's domain, not a Tulala subdomain.",
               requiredPlan: "studio",
               unlocks: ["Custom domain (e.g. acme-models.com)", "Verified email-from", "SSL automatic"],
             })
@@ -774,7 +774,7 @@ function OverviewFree() {
           onClick={() =>
             openUpgrade({
               feature: "Branded site design",
-              why: "Bring your full visual identity to the storefront — typography, color, layout.",
+              why: "Bring your full visual identity to the storefront (typography, color, layout).",
               requiredPlan: "agency",
               unlocks: ["Theme builder", "Section presets", "Brand tokens"],
             })
@@ -786,7 +786,7 @@ function OverviewFree() {
           onClick={() =>
             openUpgrade({
               feature: "Field catalog",
-              why: "Add fields your agency cares about — tags, niches, contracts.",
+              why: "Add fields your agency cares about (tags, niches, contracts).",
               requiredPlan: "agency",
             })
           }
