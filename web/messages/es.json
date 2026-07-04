@@ -169,6 +169,19 @@
         "contactImpronta": "Contactar a la agencia"
       }
     },
+    "profileCta": {
+      "inquireAbout": "Consultar sobre {name}",
+      "bookNowPrice": "Reservar ahora · {price}",
+      "bookInstantly": "Reservar a {name} al instante",
+      "closeAria": "Cerrar",
+      "instantNeedsAccount": "La reserva instantánea necesita una cuenta para confirmar tu reserva y el pago. Inicia sesión y pulsa Reservar ahora de nuevo, o usa la opción Consultar para enviar un mensaje primero.",
+      "signInToBook": "Inicia sesión para reservar",
+      "total": "Total",
+      "instantConfirmNote": "Confirma la reserva con {name} a su tarifa fija. Completarás el pago en la siguiente pantalla.",
+      "eventDateOptional": "Fecha del evento (opcional)",
+      "booking": "Reservando…",
+      "confirmAndBook": "Confirmar y reservar · {price}"
+    },
     "common": {
       "brand": "Roster"
     },
@@ -800,6 +813,11 @@
       "removedToastDismissAria": "Descartar",
       "gateRecapOne": "Usaremos esto para enviarte la respuesta de {agency} sobre {names}.",
       "gateRecapOverflow": "{names}, +{count}",
+      "gatePrompt": "¿Cómo puede {name} contactarte?",
+      "gateFirstName": "Nombre",
+      "gateLastName": "Apellido",
+      "gateYourMessageLabel": "TU MENSAJE",
+      "gateSend": "Enviar mensaje",
       "switcherAria": "Cambiar de proyecto",
       "switcherPaneTitle": "Proyectos",
       "switcherEmpty": "Aún no tienes proyectos.",

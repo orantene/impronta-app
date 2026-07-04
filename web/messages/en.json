@@ -169,6 +169,19 @@
         "contactImpronta": "Contact the agency"
       }
     },
+    "profileCta": {
+      "inquireAbout": "Inquire about {name}",
+      "bookNowPrice": "Book now · {price}",
+      "bookInstantly": "Book {name} instantly",
+      "closeAria": "Close",
+      "instantNeedsAccount": "Instant booking needs an account so we can confirm your booking and payment. Sign in, then press Book now again, or use the Inquire option to send a message first.",
+      "signInToBook": "Sign in to book",
+      "total": "Total",
+      "instantConfirmNote": "Confirms the booking with {name} at their fixed rate. You will complete payment on the next screen.",
+      "eventDateOptional": "Event date (optional)",
+      "booking": "Booking…",
+      "confirmAndBook": "Confirm & book · {price}"
+    },
     "common": {
       "brand": "Roster"
     },
@@ -800,6 +813,11 @@
       "removedToastDismissAria": "Dismiss",
       "gateRecapOne": "We will use this to send you {agency} reply about {names}.",
       "gateRecapOverflow": "{names}, +{count}",
+      "gatePrompt": "Where should {name} reach you?",
+      "gateFirstName": "First name",
+      "gateLastName": "Last name",
+      "gateYourMessageLabel": "YOUR MESSAGE",
+      "gateSend": "Send message",
       "switcherAria": "Switch project",
       "switcherPaneTitle": "Projects",
       "switcherEmpty": "No projects yet.",

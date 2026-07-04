@@ -2140,6 +2140,7 @@ export default async function PublicTalentProfilePage({
                 sourcePage={profileSourcePage}
                 fixedRateDollars={instantBook.fixedRateDollars}
                 currencyCode={instantBook.currencyCode}
+                locale={locale}
                 className={inquireBtnClass}
               />
             ) : null}
@@ -2151,6 +2152,7 @@ export default async function PublicTalentProfilePage({
               tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
               agencyName={tenantBrand ?? "the agency"}
               sourcePage={profileSourcePage}
+              locale={locale}
               className={inquireBtnClass}
             />
           </>
@@ -2165,6 +2167,7 @@ export default async function PublicTalentProfilePage({
                 sourcePage={profileSourcePage}
                 fixedRateDollars={instantBook.fixedRateDollars}
                 currencyCode={instantBook.currencyCode}
+                locale={locale}
                 className={inquireBtnClassFull}
               />
             ) : null}
@@ -2176,6 +2179,7 @@ export default async function PublicTalentProfilePage({
               tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
               agencyName={tenantBrand ?? "the agency"}
               sourcePage={profileSourcePage}
+              locale={locale}
               className={inquireBtnClassFull}
             />
           </>
@@ -2190,6 +2194,7 @@ export default async function PublicTalentProfilePage({
                 sourcePage={profileSourcePage}
                 fixedRateDollars={instantBook.fixedRateDollars}
                 currencyCode={instantBook.currencyCode}
+                locale={locale}
                 className={inquireBtnClass}
               />
             ) : null}
@@ -2201,6 +2206,7 @@ export default async function PublicTalentProfilePage({
               tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
               agencyName={tenantBrand ?? "the agency"}
               sourcePage={profileSourcePage}
+              locale={locale}
               className={inquireBtnClass}
             />
           </>
