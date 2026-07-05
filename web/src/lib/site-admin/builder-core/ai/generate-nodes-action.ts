@@ -23,6 +23,7 @@ import {
   resolveAiChatAdapter,
 } from "@/lib/ai/resolve-provider";
 import { logServerError } from "@/lib/server/safe-error";
+import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import {
   generateBuilderNodes,
@@ -62,9 +63,14 @@ function checkRate(userId: string): { ok: boolean; remainingMs?: number } {
   return { ok: true };
 }
 
-/** The injected model call — pins Opus 4.8, returns the raw text or null on any failure. */
-function buildModelGenerator(): ModelGenerateFn {
+/**
+ * The injected model call — pins Opus 4.8, records per-call token usage + cost
+ * (best-effort) for the platform-admin dashboard, and returns the raw text or
+ * null on any failure.
+ */
+function buildModelGenerator(actorProfileId: string | null, scope: GenerateScope): ModelGenerateFn {
   return async ({ systemPrompt, userMessage, jsonSchema, maxTokens }) => {
+    const startedAt = Date.now();
     try {
       const adapter = await resolveAiChatAdapter();
       const result = await adapter.chatCompletion({
@@ -73,6 +79,15 @@ function buildModelGenerator(): ModelGenerateFn {
         jsonSchema,
         maxTokens,
         model: GENERATION_MODEL,
+      });
+      void recordAiGenerationUsage({
+        provider: adapter.id,
+        model: result.ok ? (result.model ?? GENERATION_MODEL) : GENERATION_MODEL,
+        usage: result.ok ? result.usage : undefined,
+        actorProfileId,
+        ok: result.ok,
+        scope,
+        latencyMs: Date.now() - startedAt,
       });
       return result.ok ? result.text : null;
     } catch (err) {
@@ -122,7 +137,7 @@ export async function generateBuilderNodesAction(input: {
     const generated = await generateBuilderNodes({
       brief: input.brief,
       scope: input.scope,
-      generateWithModel: buildModelGenerator(),
+      generateWithModel: buildModelGenerator(auth.user.id, input.scope),
     });
     if (generated.ok) {
       return {

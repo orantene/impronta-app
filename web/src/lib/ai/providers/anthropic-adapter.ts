@@ -86,7 +86,15 @@ export function createAnthropicChatAdapter(apiKey?: string | null): AiProviderAd
             message: "Claude returned no text.",
           };
         }
-        return { ok: true, text };
+        return {
+          ok: true,
+          text,
+          model,
+          usage: {
+            inputTokens: msg.usage?.input_tokens ?? null,
+            outputTokens: msg.usage?.output_tokens ?? null,
+          },
+        };
       } catch (e: unknown) {
         const err = e as { status?: number; message?: string };
         const status = typeof err.status === "number" ? err.status : undefined;

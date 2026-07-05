@@ -27,8 +27,14 @@ export type ChatCompletionInput = {
   jsonSchema?: JsonSchemaForChat;
 };
 
+/** Token usage returned by a provider, when available. */
+export type AiUsage = {
+  inputTokens: number | null;
+  outputTokens: number | null;
+};
+
 export type ChatCompletionResult =
-  | { ok: true; text: string }
+  | { ok: true; text: string; usage?: AiUsage; model?: string }
   | { ok: false; code: string; message: string };
 
 export type AiProviderAdapter = {

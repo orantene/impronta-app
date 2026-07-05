@@ -132,22 +132,42 @@ export function FreeformInsertPopover({
         </button>
       </div>
       {onGenerateSection ? (
-        <AIBriefInput
-          onCompose={async (brief) => {
-            setAiPending(true);
-            try {
-              return await onGenerateSection(brief);
-            } finally {
-              setAiPending(false);
-            }
+        <div
+          style={{
+            paddingBottom: 9,
+            marginBottom: 2,
+            borderBottom: `1px solid ${CHROME.line}`,
           }}
-          pending={aiPending}
-          title="Generate a section"
-          description="Describe a section to add here — AI builds it as editable blocks."
-          ctaLabel="Generate"
-          pendingLabel="Generating…"
-          placeholder="e.g. a services section with three cards and a booking button"
-        />
+        >
+          <div
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: CHROME.muted2,
+              marginBottom: 6,
+            }}
+          >
+            Generate with AI
+          </div>
+          <AIBriefInput
+            variant="embedded"
+            showHeader={false}
+            onCompose={async (brief) => {
+              setAiPending(true);
+              try {
+                return await onGenerateSection(brief);
+              } finally {
+                setAiPending(false);
+              }
+            }}
+            pending={aiPending}
+            ctaLabel="Generate"
+            pendingLabel="Generating…"
+            placeholder="e.g. a services section with three cards and a booking button"
+          />
+        </div>
       ) : null}
       <ElementLibraryInsertPicker
         variant="navigator"

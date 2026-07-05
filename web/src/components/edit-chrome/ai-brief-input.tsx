@@ -3,22 +3,21 @@
 /**
  * AI-1 (B4) — shared AI brief input.
  *
- * The "describe your page in one line → Design with AI" affordance shown on the
- * shared EmptyCanvasStarter beneath the "Start here" banner. Built ONCE here and
- * adopted by every surface that mounts EmptyCanvasStarter (storefront homepage +
- * cms_page, /t/[code] profile, /t/site page, Lab) — there is no surface branch;
- * the only per-surface variation is the `surface` context the parent passes to
- * the compose action. Copy is overridable via props (defaults to "Design with
- * AI").
+ * The "describe it in one line → build with AI" affordance. Built ONCE here and
+ * adopted by the empty-canvas starter (full page / section) and the freeform
+ * insert popover (generate a section). Presentational: it owns only the brief
+ * text + the pending/error UI; the compose + apply runs in the parent.
  *
- * Behavior contract (admin-edit-UX bar): every state is explicit and persistent
- * — idle, composing (spinner + disabled), error (visible message, not a vanishing
- * toast). The compose itself runs in the parent (action + the shared
- * applyTemplateWithUndo chokepoint) so this component stays presentational; it
- * owns only the brief text + the pending/error UI.
+ * Design: uses the editor chrome tokens (CHROME / CHROME_RADII / CHROME_SHADOWS)
+ * so it sits natively on the warm paper canvas — the editor accent (indigo
+ * #7c3aed) as a soft tint, warm control wells, and the canonical rose error, not
+ * cold stone/Tailwind grays. `variant="embedded"` drops the outer card so a host
+ * can compose the header + form inside its own container (no double border).
  */
 
 import { useState, type FormEvent } from "react";
+
+import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./kit";
 
 export interface AiBriefComposeOutcome {
   ok: boolean;
@@ -31,28 +30,24 @@ export function AIBriefInput({
   disabled,
   placeholder,
   title = "Design with AI",
-  description = "Describe your page in a line and we'll design it from our sections — then make it yours.",
+  description = "Describe it in a line and AI builds it as editable blocks — then make it yours.",
   ctaLabel = "Design with AI",
   pendingLabel = "Designing…",
+  variant = "card",
+  showHeader = true,
 }: {
-  /**
-   * Run the compose + apply for this brief. The parent calls the shared
-   * `composePageFromBriefAction` then applies the returned tree through
-   * `applyTemplateWithUndo`. Resolves with `{ ok, error? }` so this component can
-   * surface a failure inline.
-   */
   onCompose: (brief: string) => Promise<AiBriefComposeOutcome>;
-  /** True while the parent is composing/applying (drives the spinner). */
   pending: boolean;
-  /** Hard-disable (e.g. another apply is in flight on the same card). */
   disabled?: boolean;
   placeholder?: string;
-  /** Heading copy — defaults to the "Design with AI" framing. */
   title?: string;
   description?: string;
-  /** Submit button label (idle / pending). */
   ctaLabel?: string;
   pendingLabel?: string;
+  /** "card" = self-contained warm card; "embedded" = no outer card (host owns it). */
+  variant?: "card" | "embedded";
+  /** When false, the icon + title + description header is omitted (host renders its own). */
+  showHeader?: boolean;
 }) {
   const [brief, setBrief] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -61,35 +56,63 @@ export function AIBriefInput({
     e.preventDefault();
     const value = brief.trim();
     if (value.length < 3) {
-      setError("Add a few words describing the page you want.");
+      setError("Add a few words describing what you want.");
       return;
     }
     setError(null);
     const result = await onCompose(value);
     if (!result.ok) {
-      setError(result.error ?? "Could not compose a page — try rephrasing.");
+      setError(result.error ?? "Could not build that — try rephrasing.");
     }
   }
 
   const busy = pending;
+  const locked = busy || disabled;
 
-  return (
-    <div className="mt-8 rounded-xl border border-[#7c3aed]/15 bg-gradient-to-br from-[#7c3aed]/[0.05] to-white px-5 py-4">
-      <div className="flex items-center gap-2">
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#7c3aed] text-white">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M12 3l1.9 4.8L19 9.7l-4.1 2.9L16 18l-4-2.8L8 18l1.1-5.4L5 9.7l5.1-1.9z" />
-          </svg>
-        </span>
-        <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-stone-800">{title}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-stone-500">
-            {description}
-          </p>
+  const body = (
+    <>
+      {showHeader ? (
+        <div className="flex items-start gap-3">
+          <span
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center"
+            style={{
+              borderRadius: 10,
+              background: "rgba(124, 58, 237, 0.10)",
+              color: CHROME.accent,
+            }}
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M12 3l1.9 4.8L19 9.7l-4.1 2.9L16 18l-4-2.8L8 18l1.1-5.4L5 9.7l5.1-1.9z" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <p
+              className="text-[14px] font-semibold"
+              style={{ color: CHROME.ink, letterSpacing: "-0.01em" }}
+            >
+              {title}
+            </p>
+            <p className="mt-1 text-[12.5px] leading-relaxed" style={{ color: CHROME.muted }}>
+              {description}
+            </p>
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-2 sm:flex-row">
+      <form
+        onSubmit={handleSubmit}
+        className={`flex flex-col gap-2.5 sm:flex-row ${showHeader ? "mt-4" : ""}`}
+      >
         <input
           type="text"
           value={brief}
@@ -97,18 +120,23 @@ export function AIBriefInput({
             setBrief(e.target.value);
             if (error) setError(null);
           }}
-          disabled={busy || disabled}
+          disabled={locked}
           maxLength={400}
-          placeholder={
-            placeholder ?? "e.g. a portfolio for my wedding photography"
-          }
-          aria-label="Describe the page you want"
-          className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-800 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-[#7c3aed]/40 focus:ring-2 focus:ring-[#7c3aed]/20 disabled:cursor-not-allowed disabled:opacity-60"
+          placeholder={placeholder ?? "e.g. a portfolio for my wedding photography"}
+          aria-label="Describe what you want"
+          className="min-w-0 flex-1 px-3.5 py-2.5 text-sm outline-none transition placeholder:text-stone-400 focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/25 disabled:cursor-not-allowed disabled:opacity-60"
+          style={{
+            borderRadius: 10,
+            border: `1px solid ${CHROME.controlBorder}`,
+            background: CHROME.controlFill,
+            color: CHROME.ink,
+          }}
         />
         <button
           type="submit"
-          disabled={busy || disabled || brief.trim().length < 3}
-          className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#7c3aed] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#8b5cf6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/45 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={locked || brief.trim().length < 3}
+          className="inline-flex shrink-0 items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/45 disabled:cursor-not-allowed disabled:opacity-60"
+          style={{ borderRadius: 10, background: CHROME.accent }}
         >
           {busy ? (
             <>
@@ -137,11 +165,33 @@ export function AIBriefInput({
       {error ? (
         <div
           role="alert"
-          className="mt-2.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+          className="mt-3 px-3 py-2 text-xs"
+          style={{
+            borderRadius: 10,
+            border: `1px solid ${CHROME.roseLine}`,
+            background: CHROME.roseBg,
+            color: CHROME.rose,
+          }}
         >
           {error}
         </div>
       ) : null}
+    </>
+  );
+
+  if (variant === "embedded") return body;
+
+  return (
+    <div
+      className="mt-8 px-5 py-5"
+      style={{
+        borderRadius: CHROME_RADII.xl,
+        border: `1px solid ${CHROME.line}`,
+        background: "linear-gradient(180deg, rgba(124,58,237,0.05), #ffffff 62%)",
+        boxShadow: CHROME_SHADOWS.card,
+      }}
+    >
+      {body}
     </div>
   );
 }

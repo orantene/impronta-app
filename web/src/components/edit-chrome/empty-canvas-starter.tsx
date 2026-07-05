@@ -35,6 +35,8 @@ import { addEmptyCanvasHeroAction } from "@/lib/site-admin/edit-mode/starter-act
 import { generateBuilderNodesAction } from "@/lib/site-admin/builder-core/ai/generate-nodes-action";
 
 import { AIBriefInput } from "./ai-brief-input";
+import { Segmented } from "./kit/segmented";
+import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./kit";
 import { useMaybeEditContext } from "./edit-context";
 import {
   starterSurfaceForKind,
@@ -238,54 +240,64 @@ export function EmptyCanvasStarter({
           active EditContext (the legacy no-EditContext homepage mount has no
           client tree-replace path). */}
       {editCtx ? (
-        <div className="mt-8">
-          <div
-            role="radiogroup"
-            aria-label="What should AI build?"
-            className="mb-3 inline-flex rounded-lg border border-stone-200 bg-white p-0.5 shadow-sm"
-          >
-            {(
-              [
-                { key: "page", label: "Full page" },
-                { key: "section", label: "Section" },
-              ] as const
-            ).map((opt) => {
-              const active = aiMode === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  disabled={aiPending}
-                  onClick={() => setAiMode(opt.key)}
-                  className={`rounded-[7px] px-3.5 py-1.5 text-xs font-semibold transition ${
-                    active
-                      ? "bg-[#7c3aed] text-white shadow-sm"
-                      : "text-stone-500 hover:text-stone-800"
-                  } disabled:cursor-not-allowed disabled:opacity-60`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
+        <div
+          className="mt-10 p-5"
+          style={{
+            borderRadius: CHROME_RADII.xl,
+            border: `1px solid ${CHROME.line}`,
+            background: "linear-gradient(180deg, rgba(124,58,237,0.05), #ffffff 62%)",
+            boxShadow: CHROME_SHADOWS.card,
+          }}
+        >
+          {/* One cohesive AI module: accent chip + title + the mode switch, then
+              the brief field (embedded, header-less). */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <span
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center"
+                style={{ borderRadius: 10, background: "rgba(124, 58, 237, 0.10)", color: CHROME.accent }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 3l1.9 4.8L19 9.7l-4.1 2.9L16 18l-4-2.8L8 18l1.1-5.4L5 9.7l5.1-1.9z" />
+                </svg>
+              </span>
+              <div className="min-w-0">
+                <p className="text-[14px] font-semibold" style={{ color: CHROME.ink, letterSpacing: "-0.01em" }}>
+                  Design with AI
+                </p>
+                <p className="mt-1 text-[12.5px] leading-relaxed" style={{ color: CHROME.muted }}>
+                  {aiMode === "page"
+                    ? "Describe your page and AI builds it as editable blocks."
+                    : "Describe one section and AI builds it as editable blocks."}
+                </p>
+              </div>
+            </div>
+            <Segmented
+              value={aiMode}
+              onChange={setAiMode}
+              options={[
+                { value: "page", label: "Full page" },
+                { value: "section", label: "Section" },
+              ]}
+              compact
+            />
           </div>
-          <AIBriefInput
-            onCompose={handleAiCompose}
-            pending={aiPending}
-            disabled={quickInsertPending}
-            title={aiMode === "page" ? "Design a full page with AI" : "Build a section with AI"}
-            description={
-              aiMode === "page"
-                ? "Describe your page and AI builds it as editable components — then make it yours."
-                : "Describe one section or block and AI builds it as editable components you can refine."
-            }
-            placeholder={
-              aiMode === "page"
-                ? "e.g. a homepage for a boutique modeling agency, editorial and minimal"
-                : "e.g. a services section with three cards and a booking button"
-            }
-          />
+          <div className="mt-4">
+            <AIBriefInput
+              variant="embedded"
+              showHeader={false}
+              onCompose={handleAiCompose}
+              pending={aiPending}
+              disabled={quickInsertPending}
+              ctaLabel={aiMode === "page" ? "Design page" : "Build section"}
+              pendingLabel={aiMode === "page" ? "Designing…" : "Building…"}
+              placeholder={
+                aiMode === "page"
+                  ? "e.g. a homepage for a boutique modeling agency, editorial and minimal"
+                  : "e.g. a services section with three cards and a booking button"
+              }
+            />
+          </div>
         </div>
       ) : null}
     </div>
