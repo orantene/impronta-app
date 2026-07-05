@@ -22,6 +22,8 @@ import { useEffect, useState, useCallback } from "react";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { createInquiryPaymentIntent } from "@/lib/server-actions/client-pipeline";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 // Created once per page load — loadStripe memoises internally but we guard the
@@ -45,6 +47,7 @@ const BRAND = "#0F4F3E";
 const INK = "#0B0B0D";
 
 export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) {
+  const t = useT();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [mock, setMock] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -58,18 +61,18 @@ export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) 
       const r = await createInquiryPaymentIntent(inquiryId);
       if (cancelled) return;
       if (!r.ok) {
-        setLoadError(r.error ?? "Could not start payment.");
+        setLoadError(r.error ?? t("dashboard.clientPay.couldNotStart"));
       } else if (r.mock) {
         setMock(true);
       } else if (r.clientSecret) {
         setClientSecret(r.clientSecret);
       } else {
-        setLoadError("Payment could not be initialized — try again.");
+        setLoadError(t("dashboard.clientPay.couldNotInit"));
       }
       setInitializing(false);
     })();
     return () => { cancelled = true; };
-  }, [inquiryId]);
+  }, [inquiryId, t]);
 
   const handleSucceeded = useCallback(() => {
     setSucceeded(true);
@@ -119,7 +122,7 @@ export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) 
             color: INK, letterSpacing: -0.2,
           }}
         >
-          {succeeded ? "Payment confirmed" : "Confirm payment"}
+          {succeeded ? t("dashboard.clientPay.confirmedTitle") : t("dashboard.clientPay.confirmTitle")}
         </h2>
 
         <div style={{
@@ -129,7 +132,7 @@ export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) 
           margin: "12px 0 18px",
           display: "flex", alignItems: "baseline", justifyContent: "space-between",
         }}>
-          <span style={{ fontSize: 12, color: "rgba(11,11,13,0.55)" }}>Total</span>
+          <span style={{ fontSize: 12, color: "rgba(11,11,13,0.55)" }}>{t("dashboard.clientPay.total")}</span>
           <span style={{
             fontSize: 17, fontWeight: 700, color: INK,
             fontVariantNumeric: "tabular-nums",
@@ -142,7 +145,7 @@ export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) 
           <SuccessPanel amountLabel={amountLabel} onClose={onClose} />
         ) : initializing ? (
           <p style={{ fontSize: 13, color: "rgba(11,11,13,0.6)", padding: "8px 0 16px" }}>
-            Preparing secure payment…
+            {t("dashboard.clientPay.preparing")}
           </p>
         ) : loadError ? (
           <ErrorPanel message={loadError} onClose={onClose} />
@@ -160,7 +163,7 @@ export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) 
           </Elements>
         ) : (
           <ErrorPanel
-            message="Payment is not configured (publishable key missing)."
+            message={t("dashboard.clientPay.notConfigured")}
             onClose={onClose}
           />
         )}
@@ -173,6 +176,7 @@ export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) 
 function PaymentForm({
   amountLabel, onClose, onPaid,
 }: { amountLabel: string; onClose: () => void; onPaid: () => void }) {
+  const t = useT();
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -189,7 +193,7 @@ function PaymentForm({
       redirect: "if_required",
     });
     if (confirmError) {
-      setError(confirmError.message ?? "Payment could not be completed.");
+      setError(confirmError.message ?? t("dashboard.clientPay.confirmError"));
       setSubmitting(false);
       return;
     }
@@ -202,9 +206,9 @@ function PaymentForm({
       <PaymentElement options={{ layout: "tabs" }} />
       {error && <InlineError message={error} />}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18 }}>
-        <SheetButton variant="ghost" disabled={submitting} onClick={onClose}>Cancel</SheetButton>
+        <SheetButton variant="ghost" disabled={submitting} onClick={onClose}>{t("dashboard.clientPay.cancel")}</SheetButton>
         <SheetButton variant="primary" disabled={submitting || !stripe} onClick={pay}>
-          {submitting ? "Processing…" : `Pay ${amountLabel}`}
+          {submitting ? t("dashboard.clientPay.processing") : interpolate(t("dashboard.clientPay.payAmount"), { amount: amountLabel })}
         </SheetButton>
       </div>
     </div>
@@ -212,21 +216,22 @@ function PaymentForm({
 }
 
 function MockPanel({ onClose, onPaid }: { onClose: () => void; onPaid: () => void }) {
+  const t = useT();
   return (
     <div>
       <p style={{ fontSize: 12.5, lineHeight: 1.5, color: "rgba(11,11,13,0.55)", margin: "0 0 16px" }}>
-        Demo mode — no live Stripe keys configured. Simulate a successful
-        payment to preview the confirmation flow.
+        {t("dashboard.clientPay.mockNote")}
       </p>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <SheetButton variant="ghost" onClick={onClose}>Cancel</SheetButton>
-        <SheetButton variant="primary" onClick={onPaid}>Simulate payment</SheetButton>
+        <SheetButton variant="ghost" onClick={onClose}>{t("dashboard.clientPay.cancel")}</SheetButton>
+        <SheetButton variant="primary" onClick={onPaid}>{t("dashboard.clientPay.simulate")}</SheetButton>
       </div>
     </div>
   );
 }
 
 function SuccessPanel({ amountLabel, onClose }: { amountLabel: string; onClose: () => void }) {
+  const t = useT();
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -235,15 +240,14 @@ function SuccessPanel({ amountLabel, onClose }: { amountLabel: string; onClose: 
           display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 16,
         }}>✓</span>
         <span style={{ fontSize: 13.5, color: INK, fontWeight: 600 }}>
-          {amountLabel} paid — your booking is confirmed.
+          {interpolate(t("dashboard.clientPay.successLine"), { amount: amountLabel })}
         </span>
       </div>
       <p style={{ fontSize: 12, lineHeight: 1.5, color: "rgba(11,11,13,0.55)", margin: "0 0 16px" }}>
-        A confirmation is on its way to your email, and the receipt PDF has been
-        added to this conversation&apos;s Files.
+        {t("dashboard.clientPay.successBody")}
       </p>
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <SheetButton variant="primary" onClick={onClose}>Done</SheetButton>
+        <SheetButton variant="primary" onClick={onClose}>{t("dashboard.clientPay.done")}</SheetButton>
       </div>
     </div>
   );
@@ -262,11 +266,12 @@ function InlineError({ message }: { message: string }) {
 }
 
 function ErrorPanel({ message, onClose }: { message: string; onClose: () => void }) {
+  const t = useT();
   return (
     <div>
       <InlineError message={message} />
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-        <SheetButton variant="ghost" onClick={onClose}>Close</SheetButton>
+        <SheetButton variant="ghost" onClick={onClose}>{t("dashboard.clientPay.close")}</SheetButton>
       </div>
     </div>
   );
