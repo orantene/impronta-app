@@ -16,6 +16,13 @@ export type ChatCompletionInput = {
   userMessage: string;
   temperature?: number;
   maxTokens?: number;
+  /**
+   * Per-call model override. Lets one feature pin a specific model (e.g. the
+   * builder generator on `claude-opus-4-8`) without repurposing the shared
+   * chat default other call sites rely on. Falls back to the adapter's env
+   * default (`ANTHROPIC_CHAT_MODEL` / `OPENAI_CHAT_MODEL`) when unset.
+   */
+  model?: string;
   /** When set, OpenAI uses response_format json_schema; Claude gets schema in the prompt. */
   jsonSchema?: JsonSchemaForChat;
 };

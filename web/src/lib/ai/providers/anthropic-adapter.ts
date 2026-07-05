@@ -8,8 +8,27 @@ import type {
 
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 
-function modelId(): string {
-  return process.env.ANTHROPIC_CHAT_MODEL?.trim() || DEFAULT_MODEL;
+/** Per-call override wins, then the env default, then the module default. */
+function modelId(override?: string): string {
+  return override?.trim() || process.env.ANTHROPIC_CHAT_MODEL?.trim() || DEFAULT_MODEL;
+}
+
+/**
+ * The Opus 4.7+ / Sonnet 5 / Fable 5 family REMOVED the sampling parameters —
+ * sending `temperature` / `top_p` / `top_k` returns a 400. Older models (incl.
+ * the current default and Opus/Sonnet 4.6 and earlier) still accept them. We
+ * therefore only send `temperature` when the resolved model accepts it, so a
+ * caller pinning e.g. `claude-opus-4-8` (the builder generator) does not 400.
+ */
+function modelRejectsSamplingParams(model: string): boolean {
+  const m = model.toLowerCase();
+  return (
+    m.startsWith("claude-opus-4-8") ||
+    m.startsWith("claude-opus-4-7") ||
+    m.startsWith("claude-sonnet-5") ||
+    m.startsWith("claude-fable-5") ||
+    m.startsWith("claude-mythos-5")
+  );
 }
 
 function schemaInstruction(jsonSchema?: ChatCompletionInput["jsonSchema"]): string {
@@ -44,13 +63,18 @@ export function createAnthropicChatAdapter(apiKey?: string | null): AiProviderAd
 
       try {
         const client = new Anthropic({ apiKey: key });
-        const msg = await client.messages.create({
-          model: modelId(),
+        const model = modelId(input.model);
+        const params: Anthropic.MessageCreateParamsNonStreaming = {
+          model,
           max_tokens: input.maxTokens ?? 4096,
-          temperature: input.temperature ?? 0.2,
           system: systemWithSchema,
           messages: [{ role: "user", content: input.userMessage }],
-        });
+        };
+        // Only the pre-4.7 models accept sampling params; the 4.7+/5 family 400s.
+        if (!modelRejectsSamplingParams(model)) {
+          params.temperature = input.temperature ?? 0.2;
+        }
+        const msg = await client.messages.create(params);
 
         const block = msg.content.find((b) => b.type === "text");
         const text =

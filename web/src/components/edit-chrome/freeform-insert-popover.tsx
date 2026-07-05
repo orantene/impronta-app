@@ -9,11 +9,13 @@
  * Indented to sit under its trigger row; calm surface, no harsh border, matching
  * NodeInsertMenu.
  */
+import { useState } from "react";
 import { X } from "lucide-react";
 
 import {
   ElementLibraryInsertPicker,
 } from "./element-library-insert-picker";
+import { AIBriefInput } from "./ai-brief-input";
 import { CHROME, CHROME_RADII } from "./kit";
 import type { BuilderNodeKind } from "@/lib/site-admin/builder-node";
 
@@ -30,14 +32,22 @@ export function FreeformInsertPopover({
   indent = ROOT_PADDING,
   onPick,
   onPickSectionEmbed,
+  onGenerateSection,
   onDismiss,
 }: {
   target: FreeformInsertPopoverTarget;
   indent?: number;
   onPick: (kind: BuilderNodeKind) => void;
   onPickSectionEmbed: (sectionTypeKey: string) => void;
+  /**
+   * When provided, shows a one-line "Generate a section with AI" affordance at
+   * the top of the picker: the brief is composed into a real editable section
+   * inserted at this target. Absent → the popover is the plain element picker.
+   */
+  onGenerateSection?: (brief: string) => Promise<{ ok: boolean; error?: string }>;
   onDismiss: () => void;
 }) {
+  const [aiPending, setAiPending] = useState(false);
   return (
     <div
       data-freeform-insert-menu={target.key}
@@ -121,6 +131,24 @@ export function FreeformInsertPopover({
           <X size={14} strokeWidth={2.2} aria-hidden />
         </button>
       </div>
+      {onGenerateSection ? (
+        <AIBriefInput
+          onCompose={async (brief) => {
+            setAiPending(true);
+            try {
+              return await onGenerateSection(brief);
+            } finally {
+              setAiPending(false);
+            }
+          }}
+          pending={aiPending}
+          title="Generate a section"
+          description="Describe a section to add here — AI builds it as editable blocks."
+          ctaLabel="Generate"
+          pendingLabel="Generating…"
+          placeholder="e.g. a services section with three cards and a booking button"
+        />
+      ) : null}
       <ElementLibraryInsertPicker
         variant="navigator"
         allowedKinds={target.allowedKinds}
