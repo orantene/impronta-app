@@ -34,6 +34,7 @@ import {
 } from "@/lib/billing/commercial-terms-types";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY =
@@ -69,7 +70,7 @@ export function OfferTab({
 }) {
   const t = useT();
   if (!details) {
-    return <div style={{ padding: 24, color: C.inkMuted, fontSize: 13 }}>{t("dashboard.clientOffer.loading")}</div>;
+    return <TabLoadingSkeleton label={t("dashboard.clientOffer.loading")} />;
   }
   if (!details.offer?.exists) {
     return (

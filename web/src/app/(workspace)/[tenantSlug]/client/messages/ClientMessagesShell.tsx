@@ -51,6 +51,7 @@ import { ThreadShell } from "@/components/shared/ThreadShell";
 import { clientInquiryMatchesFilter, toClientThreadItems } from "./client-thread-adapter";
 import { DetailsTab } from "./DetailsTab";
 import { OfferTab } from "./OfferTab";
+import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
 import { ClientConfirmDialog } from "../_components/ConfirmDialog";
 import {
   sendClientMessageAction,
@@ -551,7 +552,7 @@ export function ClientMessagesShell({
               border: `1px solid ${C.borderSoft}`,
               borderRadius: 14,
               overflow: "hidden",
-              height: "min(calc(100vh - 56px - 52px - 200px), 720px)",
+              height: "min(calc(100dvh - 56px - 52px - 200px), 720px)",
               minHeight: 520,
               minWidth: 0,
               maxWidth: "100%",
@@ -1320,6 +1321,76 @@ function buildClientStatusSheetData(
 
 // ─── Thread search ───────────────────────────────────────────────────────
 
+// Human-visible strings a structured chat card surfaces, keyed by the payload
+// fields `renderClientChatCard` reads (total_label, amount_label, summary,
+// hint, changed_field, by_name, text, deposit_label, balance_label). Folding
+// these into the searched text makes offer / payment / booking / call-sheet
+// card content findable in-thread instead of invisible (body-only) search.
+const CARD_SEARCH_PAYLOAD_KEYS = [
+  "total_label",
+  "amount_label",
+  "summary",
+  "hint",
+  "changed_field",
+  "by_name",
+  "text",
+  "deposit_label",
+  "balance_label",
+] as const;
+
+/** Pull the readable card-summary text out of a message's card payload. */
+function cardSummaryText(payload: Record<string, unknown> | null | undefined): string {
+  if (!payload) return "";
+  const parts: string[] = [];
+  for (const key of CARD_SEARCH_PAYLOAD_KEYS) {
+    const v = payload[key];
+    if (typeof v === "string" && v.trim()) parts.push(v.trim());
+  }
+  return parts.join(" ");
+}
+
+/**
+ * Build the search adapter fields for one thread message.
+ *
+ * - `body` becomes body + card-summary text + any attachment filename so a
+ *   query matches card content and shared-file names, not just plain sends.
+ *   (ThreadSearch only indexes the `body` field, so extra text is appended
+ *   there; the real body still leads so the rendered snippet stays readable.)
+ * - `hasAttachment` is derived from the message: voice notes are media, and
+ *   shared-file announcements are stamped with a leading 📎 marker in both
+ *   locales (see `sharedFile` copy); a metadata attachment descriptor also
+ *   counts if one is ever attached.
+ */
+function adaptMessageForSearch(m: WorkspaceMessage): ThreadSearchMessage {
+  const kind = m.message_kind ?? "text";
+  const body = m.body || "";
+
+  const meta = m.metadata ?? null;
+  const metaFilename =
+    meta && typeof meta["filename"] === "string" ? (meta["filename"] as string) : "";
+  const hasMetaAttachment =
+    !!meta && (typeof meta["filename"] === "string" || Array.isArray(meta["attachments"]));
+
+  // Shared-file announcements ride the chat as plain-text sends whose body is
+  // prefixed with 📎 (locale-independent marker); treat those + voice notes +
+  // any structured attachment descriptor as attachments.
+  const isFileAnnounce = body.trimStart().startsWith("📎");
+  const hasAttachment = kind === "voice" || isFileAnnounce || hasMetaAttachment;
+
+  const extras = [cardSummaryText(m.card_payload), metaFilename]
+    .filter(Boolean)
+    .join(" ");
+  const indexedBody = extras ? `${body} ${extras}`.trim() : body;
+
+  return {
+    id: m.id,
+    body: indexedBody,
+    createdAt: (m.created_at || "").slice(0, 16).replace("T", " "),
+    senderName: m.is_mine ? "You" : m.sender_name,
+    hasAttachment,
+  };
+}
+
 function ClientThreadSearchTrigger({
   messages,
   onJumpOffer,
@@ -1332,13 +1403,7 @@ function ClientThreadSearchTrigger({
   const t = useT();
   const [open, setOpen] = useState(false);
   const adapted: ThreadSearchMessage[] = useMemo(
-    () => messages.map((m) => ({
-      id: m.id,
-      body: m.body || "",
-      createdAt: (m.created_at || "").slice(0, 16).replace("T", " "),
-      senderName: m.is_mine ? "You" : m.sender_name,
-      hasAttachment: false,
-    })),
+    () => messages.map(adaptMessageForSearch),
     [messages],
   );
   const jumpTargets: JumpTarget[] = useMemo(() => {
@@ -2596,7 +2661,7 @@ function LineupTab({
 }) {
   const t = useT();
   if (!details) {
-    return <div style={{ padding: 24, color: C.inkMuted, fontFamily: FONT, fontSize: 13 }}>{t("dashboard.clientMessages.lineupLoading")}</div>;
+    return <TabLoadingSkeleton label={t("dashboard.clientMessages.lineupLoading")} />;
   }
   const list = details.talent.selected;
   const mode = details.talent.selection_mode;
@@ -2793,7 +2858,7 @@ function LineupStatusPill({ status }: { status: string }) {
 function FilesTab({ details }: { details: ClientInquiryDetails | null }) {
   const t = useT();
   if (!details) {
-    return <div style={{ padding: 24, color: C.inkMuted, fontFamily: FONT, fontSize: 13 }}>{t("dashboard.clientMessages.filesLoading")}</div>;
+    return <TabLoadingSkeleton label={t("dashboard.clientMessages.filesLoading")} />;
   }
   const files = details.attachments.files;
   const links = details.attachments.links;

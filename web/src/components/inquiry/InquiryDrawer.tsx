@@ -42,6 +42,8 @@ import {
   type InquiryIntentActionState,
 } from "@/app/(workspace)/[tenantSlug]/client/_actions/inquiry-intent-actions";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { SearchTalentField } from "./SearchTalentField";
 
 const INQUIRY_DRAFT_AUTOSAVE_MS = 10_000;
@@ -135,6 +137,7 @@ export function InquiryDrawer({
   talentToolsSlot,
   onClose,
 }: InquiryDrawerProps) {
+  const t = useT();
   // ─ Body scroll lock + ESC ──────────────────────────────────────────────────
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -280,7 +283,7 @@ export function InquiryDrawer({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="New inquiry"
+      aria-label={t("public.inquiryDrawer.dialogAria")}
       style={{
         position: "fixed",
         inset: 0,
@@ -321,35 +324,39 @@ export function InquiryDrawer({
         >
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
-              {submitted ? "Sent" : step === "compose" ? "New inquiry" : "Review & send"}
+              {submitted
+                ? t("public.inquiryDrawer.eyebrowSent")
+                : step === "compose"
+                  ? t("public.inquiryDrawer.eyebrowCompose")
+                  : t("public.inquiryDrawer.eyebrowReview")}
             </div>
             <h2 style={{ margin: "3px 0 0", fontSize: 19, fontWeight: 600, color: C.ink, letterSpacing: -0.1, fontFamily: FONT_DISPLAY }}>
               {submitted
-                ? "Inquiry sent"
+                ? t("public.inquiryDrawer.titleSent")
                 : step === "compose"
-                  ? "Start a new project"
-                  : "Looks good, ready to send?"}
+                  ? t("public.inquiryDrawer.titleCompose")
+                  : t("public.inquiryDrawer.titleReview")}
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: 12.5, color: C.inkMuted, maxWidth: 520, lineHeight: 1.45 }}>
               {submitted
-                ? <>Your request is with <strong>{agencyName}</strong>.</>
+                ? interpolate(t("public.inquiryDrawer.leadSent"), { agency: agencyName })
                 : step === "compose"
-                  ? <>Tell <strong>{agencyName}</strong> what you need. We&apos;ll match talent + draft an offer.</>
-                  : <>One last check before <strong>{agencyName}</strong> picks this up.</>
+                  ? interpolate(t("public.inquiryDrawer.leadCompose"), { agency: agencyName })
+                  : interpolate(t("public.inquiryDrawer.leadReview"), { agency: agencyName })
               }
             </p>
             {autosaveEnabled && !submitted && (
               <div style={{ marginTop: 8, fontSize: 11, color: saveState.kind === "saved" ? C.success : C.inkDim }}>
                 {saveState.kind === "saved"
-                  ? `Draft saved ${formatRelative(saveState.savedAt)}`
-                  : "Draft will save automatically"}
+                  ? interpolate(t("public.inquiryDrawer.draftSaved"), { when: formatRelative(saveState.savedAt, t) })
+                  : t("public.inquiryDrawer.draftWillSave")}
               </div>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("public.inquiryDrawer.closeAria")}
             style={{
               width: 32,
               height: 32,
@@ -413,18 +420,18 @@ export function InquiryDrawer({
         >
           <div style={{ fontSize: 11.5, color: C.inkDim, lineHeight: 1.35, maxWidth: 320 }}>
             {submitted
-              ? <>Thanks, {agencyName} will be in touch.</>
+              ? interpolate(t("public.inquiryDrawer.footerSent"), { agency: agencyName })
               : !canSubmit && step === "compose"
-                ? <>Add at least <strong>your name</strong>, <strong>email or phone</strong>, and a <strong>brief</strong> to send.</>
+                ? t("public.inquiryDrawer.footerNeedMore")
                 : submitState.kind === "error"
                   ? <span style={{ color: C.amber }}>{submitState.message}</span>
-                  : <>By sending, you&apos;ll start a coordinator-led conversation with {agencyName}.</>
+                  : interpolate(t("public.inquiryDrawer.footerReady"), { agency: agencyName })
             }
           </div>
           <div style={{ display: "inline-flex", gap: 8, flexShrink: 0 }}>
             {submitted ? (
               <button type="button" onClick={onClose} style={primaryBtn(true)}>
-                Done
+                {t("public.inquiryDrawer.btnDone")}
               </button>
             ) : step === "compose" ? (
               <button
@@ -433,12 +440,12 @@ export function InquiryDrawer({
                 disabled={!canSubmit}
                 style={primaryBtn(canSubmit)}
               >
-                Review
+                {t("public.inquiryDrawer.btnReview")}
               </button>
             ) : (
               <>
                 <button type="button" onClick={() => setStep("compose")} style={ghostBtn}>
-                  Edit
+                  {t("public.inquiryDrawer.btnEdit")}
                 </button>
                 <button
                   type="button"
@@ -446,7 +453,7 @@ export function InquiryDrawer({
                   disabled={submitting || !canSubmit}
                   style={primaryBtn(!submitting && canSubmit)}
                 >
-                  {submitting ? "Sending…" : "Send to coordinator"}
+                  {submitting ? t("public.inquiryDrawer.btnSending") : t("public.inquiryDrawer.btnSend")}
                 </button>
               </>
             )}
@@ -550,23 +557,24 @@ export function RequesterSection({
   onChange: (v: InquiryRequester) => void;
   client: InquiryDrawerProps["client"];
 }) {
+  const t = useT();
   const isLoggedIn = !!client?.user_id;
   return (
-    <Section title="Your info" subtitle="Who is making this request?">
+    <Section title={t("public.inquiryDrawer.requesterTitle")} subtitle={t("public.inquiryDrawer.requesterSubtitle")}>
       {/* Trust card — always shown, content differs by state */}
       <TrustCard isLoggedIn={isLoggedIn} client={client} />
 
       <FieldRow>
-        <Field label="Name">
-          <Input value={value.name ?? ""} onChange={(v) => onChange({ ...value, name: v })} placeholder="Your full name" />
+        <Field label={t("public.inquiryDrawer.requesterName")}>
+          <Input value={value.name ?? ""} onChange={(v) => onChange({ ...value, name: v })} placeholder={t("public.inquiryDrawer.requesterNamePlaceholder")} />
         </Field>
       </FieldRow>
       <FieldRow>
-        <Field label="Email">
-          <Input type="email" value={value.email ?? ""} onChange={(v) => onChange({ ...value, email: v })} placeholder="you@brand.com" />
+        <Field label={t("public.inquiryDrawer.requesterEmail")}>
+          <Input type="email" value={value.email ?? ""} onChange={(v) => onChange({ ...value, email: v })} placeholder={t("public.inquiryDrawer.requesterEmailPlaceholder")} />
         </Field>
-        <Field label="Phone or WhatsApp">
-          <Input type="tel" value={value.phone ?? ""} onChange={(v) => onChange({ ...value, phone: v })} placeholder="+52 …" />
+        <Field label={t("public.inquiryDrawer.requesterPhone")}>
+          <Input type="tel" value={value.phone ?? ""} onChange={(v) => onChange({ ...value, phone: v })} placeholder={t("public.inquiryDrawer.requesterPhonePlaceholder")} />
         </Field>
       </FieldRow>
     </Section>
@@ -574,26 +582,33 @@ export function RequesterSection({
 }
 
 function TrustCard({ isLoggedIn, client }: { isLoggedIn: boolean; client: InquiryDrawerProps["client"] }) {
+  const t = useT();
   if (isLoggedIn) {
     const bookings = client?.previous_bookings_count ?? 0;
     return (
       <div style={trustCardStyle(C.successSoft, C.success)}>
-        <div className="font-bold">Logged-in client</div>
+        <div className="font-bold">{t("public.inquiryDrawer.trustLoggedInTitle")}</div>
         <ul style={{ margin: "6px 0 0", padding: 0, listStyle: "none", fontSize: 12, color: C.inkMuted, lineHeight: 1.6 }}>
-          <li>✓ Verified email</li>
-          {client?.member_since && <li>Member since {client.member_since}</li>}
-          <li>Trust level: <strong>{client?.trust_level ?? "basic"}</strong></li>
-          {bookings > 0 && <li>{bookings} previous booking{bookings === 1 ? "" : "s"}</li>}
+          <li>✓ {t("public.inquiryDrawer.trustVerifiedEmail")}</li>
+          {client?.member_since && <li>{interpolate(t("public.inquiryDrawer.trustMemberSince"), { date: client.member_since })}</li>}
+          <li>{interpolate(t("public.inquiryDrawer.trustLevel"), { level: client?.trust_level ?? "basic" })}</li>
+          {bookings > 0 && (
+            <li>
+              {interpolate(
+                t(bookings === 1 ? "public.inquiryDrawer.trustBookingsOne" : "public.inquiryDrawer.trustBookingsOther"),
+                { count: bookings },
+              )}
+            </li>
+          )}
         </ul>
       </div>
     );
   }
   return (
     <div style={trustCardStyle(C.amberSoft, C.amber)}>
-      <div className="font-bold">New client</div>
+      <div className="font-bold">{t("public.inquiryDrawer.trustNewTitle")}</div>
       <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
-        Your contact info lets the agency follow up. You can set up a free account
-        right after sending to track this inquiry.
+        {t("public.inquiryDrawer.trustNewBody")}
       </div>
     </div>
   );
@@ -610,9 +625,10 @@ export function ClientSection({
   value: InquiryClient;
   onChange: (v: InquiryClient) => void;
 }) {
+  const t = useT();
   const sameAsRequester = value.same_as_requester !== false; // default checked
   return (
-    <Section title="Who's this for?" subtitle="Job identity and the end client.">
+    <Section title={t("public.inquiryDrawer.clientTitle")} subtitle={t("public.inquiryDrawer.clientSubtitle")}>
       <label style={checkboxRow}>
         <input
           type="checkbox"
@@ -624,31 +640,31 @@ export function ClientSection({
             ...(e.target.checked ? {} : { name: "", company: "" }),
           })}
         />
-        <span><strong>Same as my profile</strong>, booking for me/my company</span>
+        <span>{t("public.inquiryDrawer.clientSameAsProfile")}</span>
       </label>
 
       {!sameAsRequester && (
         <>
           <FieldRow>
-            <Field label="Client name">
-              <Input value={value.name ?? ""} onChange={(v) => onChange({ ...value, name: v })} placeholder="The end client (if different)" />
+            <Field label={t("public.inquiryDrawer.clientNameLabel")}>
+              <Input value={value.name ?? ""} onChange={(v) => onChange({ ...value, name: v })} placeholder={t("public.inquiryDrawer.clientNamePlaceholder")} />
             </Field>
-            <Field label="Company / brand">
-              <Input value={value.company ?? ""} onChange={(v) => onChange({ ...value, company: v })} placeholder="Brand or venue" />
+            <Field label={t("public.inquiryDrawer.clientCompanyLabel")}>
+              <Input value={value.company ?? ""} onChange={(v) => onChange({ ...value, company: v })} placeholder={t("public.inquiryDrawer.clientCompanyPlaceholder")} />
             </Field>
           </FieldRow>
           <FieldRow>
-            <Field label="Booking for">
+            <Field label={t("public.inquiryDrawer.clientBookingForLabel")}>
               <Select
                 value={value.booking_for ?? "another_client"}
                 onChange={(v) => onChange({ ...value, booking_for: v as InquiryClient["booking_for"] })}
                 options={[
-                  { value: "myself", label: "Myself" },
-                  { value: "my_company", label: "My company" },
-                  { value: "another_client", label: "Another client / guest" },
-                  { value: "brand", label: "A brand" },
-                  { value: "venue", label: "A venue" },
-                  { value: "agency_client", label: "An agency client" },
+                  { value: "myself", label: t("public.inquiryDrawer.clientBookingForMyself") },
+                  { value: "my_company", label: t("public.inquiryDrawer.clientBookingForMyCompany") },
+                  { value: "another_client", label: t("public.inquiryDrawer.clientBookingForAnother") },
+                  { value: "brand", label: t("public.inquiryDrawer.clientBookingForBrand") },
+                  { value: "venue", label: t("public.inquiryDrawer.clientBookingForVenue") },
+                  { value: "agency_client", label: t("public.inquiryDrawer.clientBookingForAgency") },
                 ]}
               />
             </Field>
@@ -657,11 +673,13 @@ export function ClientSection({
       )}
 
       <FieldRow>
-        <Field label="Job name (optional)" hint="A short title for this project.">
+        <Field label={t("public.inquiryDrawer.clientJobNameLabel")} hint={t("public.inquiryDrawer.clientJobNameHint")}>
           <Input
             value={value.job_name ?? ""}
             onChange={(v) => onChange({ ...value, job_name: v })}
-            placeholder={`e.g. ${requester.name?.split(" ")[0] ?? "Summer"} opening · Aug 14`}
+            placeholder={interpolate(t("public.inquiryDrawer.clientJobNamePlaceholder"), {
+              name: requester.name?.split(" ")[0] ?? t("public.inquiryDrawer.clientJobNameFallback"),
+            })}
           />
         </Field>
       </FieldRow>
@@ -687,6 +705,7 @@ export function CityAutocomplete({
   value: string;
   onSelect: (city: string, countryIso2: string) => void;
 }) {
+  const t = useT();
   const [draft, setDraft] = useState(value);
   const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -754,7 +773,7 @@ export function CityAutocomplete({
           if (justSelectedRef.current) { justSelectedRef.current = false; return; }
           if (draft !== value) onSelect(draft, "");
         }}
-        placeholder="e.g. Tulum"
+        placeholder={t("public.inquiryDrawer.cityPlaceholder")}
         style={inputStyle}
       />
       {open && suggestions.length > 0 && (
@@ -789,19 +808,20 @@ export function CityAutocomplete({
 export function LocationSection({
   value, onChange,
 }: { value: InquiryLocation; onChange: (v: InquiryLocation) => void }) {
+  const t = useT();
   return (
-    <Section title="Where" subtitle="Helps talent confirm they can be there.">
+    <Section title={t("public.inquiryDrawer.locationTitle")} subtitle={t("public.inquiryDrawer.locationSubtitle")}>
       <FieldRow>
-        <Field label="Venue or area">
+        <Field label={t("public.inquiryDrawer.locationVenueLabel")}>
           <Input
             value={value.venue_name ?? ""}
             onChange={(v) => onChange({ ...value, venue_name: v })}
-            placeholder="e.g. Tulum Beach Club"
+            placeholder={t("public.inquiryDrawer.locationVenuePlaceholder")}
           />
         </Field>
       </FieldRow>
       <FieldRow>
-        <Field label="City">
+        <Field label={t("public.inquiryDrawer.locationCityLabel")}>
           <CityAutocomplete
             value={value.city ?? ""}
             onSelect={(city, countryIso2) =>
@@ -813,35 +833,35 @@ export function LocationSection({
             }
           />
         </Field>
-        <Field label="Country (optional)">
+        <Field label={t("public.inquiryDrawer.locationCountryLabel")}>
           <Input
             value={value.country ?? ""}
             onChange={(v) => onChange({ ...value, country: v })}
-            placeholder="MX"
+            placeholder={t("public.inquiryDrawer.locationCountryPlaceholder")}
           />
         </Field>
       </FieldRow>
       <FieldRow>
-        <Field label="Venue status">
+        <Field label={t("public.inquiryDrawer.locationStatusLabel")}>
           <Select
             value={value.status ?? "unconfirmed"}
             onChange={(v) => onChange({ ...value, status: v as InquiryLocation["status"] })}
             options={[
-              { value: "confirmed", label: "Venue confirmed" },
-              { value: "unconfirmed", label: "Venue not confirmed yet" },
-              { value: "online", label: "Online / remote" },
-              { value: "not_sure", label: "Not sure yet" },
+              { value: "confirmed", label: t("public.inquiryDrawer.locationStatusConfirmed") },
+              { value: "unconfirmed", label: t("public.inquiryDrawer.locationStatusUnconfirmed") },
+              { value: "online", label: t("public.inquiryDrawer.locationStatusOnline") },
+              { value: "not_sure", label: t("public.inquiryDrawer.locationStatusNotSure") },
             ]}
           />
         </Field>
       </FieldRow>
       <FieldRow>
-        <Field label="Address or notes (optional)">
+        <Field label={t("public.inquiryDrawer.locationNotesLabel")}>
           <Textarea
             rows={2}
             value={value.notes ?? ""}
             onChange={(v) => onChange({ ...value, notes: v })}
-            placeholder="Specific street, parking notes, access info…"
+            placeholder={t("public.inquiryDrawer.locationNotesPlaceholder")}
           />
         </Field>
       </FieldRow>
@@ -856,23 +876,24 @@ export function LocationSection({
 export function DateSection({
   value, onChange,
 }: { value: InquiryDate; onChange: (v: InquiryDate) => void }) {
+  const t = useT();
   return (
-    <Section title="When" subtitle="The date can be approximate.">
+    <Section title={t("public.inquiryDrawer.dateTitle")} subtitle={t("public.inquiryDrawer.dateSubtitle")}>
       <FieldRow>
-        <Field label="Date status">
+        <Field label={t("public.inquiryDrawer.dateStatusLabel")}>
           <Select
             value={value.status ?? "exact"}
             onChange={(v) => onChange({ ...value, status: v as InquiryDate["status"] })}
             options={[
-              { value: "exact", label: "Exact date" },
-              { value: "flexible", label: "Flexible date" },
-              { value: "not_sure", label: "Not sure yet" },
-              { value: "multi_day", label: "Multi-day" },
-              { value: "recurring", label: "Recurring" },
+              { value: "exact", label: t("public.inquiryDrawer.dateStatusExact") },
+              { value: "flexible", label: t("public.inquiryDrawer.dateStatusFlexible") },
+              { value: "not_sure", label: t("public.inquiryDrawer.dateStatusNotSure") },
+              { value: "multi_day", label: t("public.inquiryDrawer.dateStatusMultiDay") },
+              { value: "recurring", label: t("public.inquiryDrawer.dateStatusRecurring") },
             ]}
           />
         </Field>
-        <Field label="Event date">
+        <Field label={t("public.inquiryDrawer.dateEventDateLabel")}>
           <Input
             type="date"
             value={value.event_date ?? ""}
@@ -881,18 +902,18 @@ export function DateSection({
         </Field>
       </FieldRow>
       <FieldRow>
-        <Field label="Start time (optional)">
+        <Field label={t("public.inquiryDrawer.dateStartTimeLabel")}>
           <Input
             type="time"
             value={value.start_time ?? ""}
             onChange={(v) => onChange({ ...value, start_time: v })}
           />
         </Field>
-        <Field label="Duration (optional)">
+        <Field label={t("public.inquiryDrawer.dateDurationLabel")}>
           <Input
             value={value.duration ?? ""}
             onChange={(v) => onChange({ ...value, duration: v })}
-            placeholder="e.g. 2-4 hours · full day"
+            placeholder={t("public.inquiryDrawer.dateDurationPlaceholder")}
           />
         </Field>
       </FieldRow>
@@ -917,6 +938,7 @@ export function TalentSection({
   /** B2 — extra add-talent tools (directory quick-add) shown with the list. */
   toolsSlot?: React.ReactNode;
 }) {
+  const t = useT();
   const selected = value.selected_ids ?? [];
   const isAgencyMode = value.selection_mode === "agency_recommends" || selected.length === 0;
 
@@ -929,25 +951,25 @@ export function TalentSection({
   };
 
   return (
-    <Section title="Talent" subtitle="Pick specific talent, or let the agency recommend.">
+    <Section title={t("public.inquiryDrawer.talentTitle")} subtitle={t("public.inquiryDrawer.talentSubtitle")}>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
         <Pill
           active={value.selection_mode !== "i_know_who"}
           onClick={() => onChange({ ...value, selection_mode: "agency_recommends" })}
         >
-          Let the agency recommend
+          {t("public.inquiryDrawer.talentModeRecommend")}
         </Pill>
         <Pill
           active={value.selection_mode === "i_know_who"}
           onClick={() => onChange({ ...value, selection_mode: "i_know_who" })}
         >
-          I know who I want
+          {t("public.inquiryDrawer.talentModeIKnow")}
         </Pill>
         <Pill
           active={value.selection_mode === "similar_to_past"}
           onClick={() => onChange({ ...value, selection_mode: "similar_to_past" })}
         >
-          Similar to past booking
+          {t("public.inquiryDrawer.talentModeSimilar")}
         </Pill>
       </div>
 
@@ -962,7 +984,7 @@ export function TalentSection({
         >
           {selected.map((id) => {
             const r = roster.find((r) => r.id === id);
-            const name = r?.name ?? "Talent";
+            const name = r?.name ?? t("public.inquiryDrawer.talentFallbackName");
             return (
               <div key={id} style={talentMiniCard}>
                 <div style={talentMiniPhotoWrap}>
@@ -984,7 +1006,7 @@ export function TalentSection({
                   )}
                   <button
                     type="button"
-                    aria-label={`Remove ${name}`}
+                    aria-label={interpolate(t("public.inquiryDrawer.talentRemoveAria"), { name })}
                     onClick={() => removeTalent(id)}
                     style={talentMiniRemove}
                   >
@@ -1005,7 +1027,7 @@ export function TalentSection({
 
       {!boundToCart && value.selection_mode === "i_know_who" && roster.length > 0 && (
         <FieldRow>
-          <Field label="Add talent">
+          <Field label={t("public.inquiryDrawer.talentAddLabel")}>
             <SearchTalentField
               roster={roster}
               selectedIds={selected}
@@ -1025,19 +1047,19 @@ export function TalentSection({
 
       {isAgencyMode && (
         <FieldRow>
-          <Field label="How many talent (optional)">
+          <Field label={t("public.inquiryDrawer.talentCountLabel")}>
             <Input
               type="number"
               value={value.count_needed?.toString() ?? ""}
               onChange={(v) => onChange({ ...value, count_needed: v ? parseInt(v, 10) : undefined })}
-              placeholder="e.g. 3"
+              placeholder={t("public.inquiryDrawer.talentCountPlaceholder")}
             />
           </Field>
-          <Field label="Type of talent">
+          <Field label={t("public.inquiryDrawer.talentTypeLabel")}>
             <Input
               value={value.notes ?? ""}
               onChange={(v) => onChange({ ...value, notes: v })}
-              placeholder="e.g. 2 hosts + 1 model"
+              placeholder={t("public.inquiryDrawer.talentTypePlaceholder")}
             />
           </Field>
         </FieldRow>
@@ -1057,23 +1079,36 @@ export function BudgetSection({
   onChange: (v: InquiryBudget) => void;
   talentCount: number;
 }) {
+  const t = useT();
   const pref = value.preference ?? "agency_recommends";
+  const amountLabelKey =
+    pref === "total_budget"
+      ? "public.inquiryDrawer.budgetAroundLabel"
+      : pref === "per_hour"
+        ? "public.inquiryDrawer.budgetPerHourLabel"
+        : pref === "per_day"
+          ? "public.inquiryDrawer.budgetPerDayLabel"
+          : pref === "per_week"
+            ? "public.inquiryDrawer.budgetPerWeekLabel"
+            : pref === "per_contract"
+              ? "public.inquiryDrawer.budgetPerContractLabel"
+              : "public.inquiryDrawer.budgetPerTalentLabel";
   return (
-    <Section title="Budget" subtitle="No need to guess, let the agency price it.">
+    <Section title={t("public.inquiryDrawer.budgetTitle")} subtitle={t("public.inquiryDrawer.budgetSubtitle")}>
       <FieldRow>
-        <Field label="How would you like the agency to price this?">
+        <Field label={t("public.inquiryDrawer.budgetPreferenceLabel")}>
           <Select
             value={pref}
             onChange={(v) => onChange({ ...value, preference: v as InquiryBudget["preference"] })}
             options={[
-              { value: "agency_recommends", label: "Let the agency recommend the best offer" },
-              { value: "total_budget", label: "I have a total budget" },
-              { value: "per_hour", label: "I want to pay per hour" },
-              { value: "per_day", label: "I want to pay per day" },
-              { value: "per_week", label: "I want to pay per week" },
-              { value: "per_contract", label: "I want to pay per contract" },
-              { value: "per_talent", label: "I want to pay per talent" },
-              { value: "not_sure", label: "Not sure yet" },
+              { value: "agency_recommends", label: t("public.inquiryDrawer.budgetPrefRecommend") },
+              { value: "total_budget", label: t("public.inquiryDrawer.budgetPrefTotal") },
+              { value: "per_hour", label: t("public.inquiryDrawer.budgetPrefPerHour") },
+              { value: "per_day", label: t("public.inquiryDrawer.budgetPrefPerDay") },
+              { value: "per_week", label: t("public.inquiryDrawer.budgetPrefPerWeek") },
+              { value: "per_contract", label: t("public.inquiryDrawer.budgetPrefPerContract") },
+              { value: "per_talent", label: t("public.inquiryDrawer.budgetPrefPerTalent") },
+              { value: "not_sure", label: t("public.inquiryDrawer.budgetPrefNotSure") },
             ]}
           />
         </Field>
@@ -1081,7 +1116,7 @@ export function BudgetSection({
 
       {(pref === "total_budget" || pref === "per_hour" || pref === "per_day" || pref === "per_week" || pref === "per_contract" || pref === "per_talent") && (
         <FieldRow>
-          <Field label={pref === "total_budget" ? "Around" : `Per ${pref.replace("per_", "")} (approx)`}>
+          <Field label={t(amountLabelKey)}>
             <Input
               type="number"
               value={value.amount?.toString() ?? ""}
@@ -1089,7 +1124,7 @@ export function BudgetSection({
               placeholder="$"
             />
           </Field>
-          <Field label="Currency">
+          <Field label={t("public.inquiryDrawer.budgetCurrencyLabel")}>
             <Select
               value={value.currency ?? "USD"}
               onChange={(v) => onChange({ ...value, currency: v })}
@@ -1105,7 +1140,7 @@ export function BudgetSection({
 
       {pref === "agency_recommends" && talentCount > 0 && (
         <div style={hintBoxStyle}>
-          With {talentCount} talent selected, the agency will price based on schedule, location, usage, and logistics. You&apos;ll see the offer here before any commitment.
+          {interpolate(t("public.inquiryDrawer.budgetHint"), { count: talentCount })}
         </div>
       )}
     </Section>
@@ -1130,6 +1165,7 @@ export function BriefSection({
   onChange: (v: InquiryBrief) => void;
   context: BriefContext;
 }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const [aiState, setAiState] = useState<"idle" | "loading" | "error">("idle");
   const [aiError, setAiError] = useState<string | null>(null);
@@ -1154,27 +1190,27 @@ export function BriefSection({
       });
       const data = await res.json() as { draft?: string; error?: string };
       if (!res.ok || !data.draft) {
-        setAiError(data.error ?? "Couldn't generate a draft right now.");
+        setAiError(data.error ?? t("public.inquiryDrawer.briefAiErrorGenerate"));
         setAiState("error");
         return;
       }
       onChange({ ...value, summary: data.draft });
       setAiState("idle");
     } catch {
-      setAiError("Network error. Try again.");
+      setAiError(t("public.inquiryDrawer.briefAiErrorNetwork"));
       setAiState("error");
     }
-  }, [context, value, onChange]);
+  }, [context, value, onChange, t]);
 
   return (
-    <Section title="What you need" subtitle="A short brief is enough to start.">
+    <Section title={t("public.inquiryDrawer.briefTitle")} subtitle={t("public.inquiryDrawer.briefSubtitle")}>
       <FieldRow>
-        <Field label="Tell us about the project">
+        <Field label={t("public.inquiryDrawer.briefSummaryLabel")}>
           <Textarea
             rows={4}
             value={value.summary ?? ""}
             onChange={(v) => onChange({ ...value, summary: v })}
-            placeholder="What are you planning? What kind of talent works for you? Anything already confirmed?"
+            placeholder={t("public.inquiryDrawer.briefSummaryPlaceholder")}
           />
         </Field>
       </FieldRow>
@@ -1198,7 +1234,7 @@ export function BriefSection({
               opacity: aiState === "loading" ? 0.6 : 1,
             }}
           >
-            {aiState === "loading" ? "Writing…" : "✦ Write a brief for me"}
+            {aiState === "loading" ? t("public.inquiryDrawer.briefAiGenerating") : t("public.inquiryDrawer.briefAiGenerate")}
           </button>
         )}
         {hasText && (
@@ -1219,7 +1255,7 @@ export function BriefSection({
               opacity: aiState === "loading" ? 0.6 : 1,
             }}
           >
-            {aiState === "loading" ? "Polishing…" : "✦ Polish this brief"}
+            {aiState === "loading" ? t("public.inquiryDrawer.briefAiPolishing") : t("public.inquiryDrawer.briefAiPolish")}
           </button>
         )}
         {aiState === "error" && aiError && (
@@ -1244,40 +1280,40 @@ export function BriefSection({
           cursor: "pointer",
         }}
       >
-        {expanded ? "− Hide advanced logistics" : "+ Add more details (wardrobe, media usage, equipment…)"}
+        {expanded ? t("public.inquiryDrawer.briefHideAdvanced") : t("public.inquiryDrawer.briefShowAdvanced")}
       </button>
 
       {expanded && (
         <>
           <FieldRow>
-            <Field label="What should the talent do?">
+            <Field label={t("public.inquiryDrawer.briefRoleLabel")}>
               <Textarea
                 rows={2}
                 value={(value.role_expectations ?? []).join(", ")}
                 onChange={(v) => onChange({ ...value, role_expectations: v.split(",").map(s => s.trim()).filter(Boolean) })}
-                placeholder="Greet guests, pose for photos, host booth, dance/perform, model clothing, create content…"
+                placeholder={t("public.inquiryDrawer.briefRolePlaceholder")}
               />
             </Field>
           </FieldRow>
           <FieldRow>
-            <Field label="Wardrobe / styling">
-              <Input value={value.wardrobe_notes ?? ""} onChange={(v) => onChange({ ...value, wardrobe_notes: v })} placeholder="Talent brings · client provides · dress code · TBD" />
+            <Field label={t("public.inquiryDrawer.briefWardrobeLabel")}>
+              <Input value={value.wardrobe_notes ?? ""} onChange={(v) => onChange({ ...value, wardrobe_notes: v })} placeholder={t("public.inquiryDrawer.briefWardrobePlaceholder")} />
             </Field>
-            <Field label="Equipment">
-              <Input value={value.equipment_notes ?? ""} onChange={(v) => onChange({ ...value, equipment_notes: v })} placeholder="Talent brings · client provides · none · TBD" />
-            </Field>
-          </FieldRow>
-          <FieldRow>
-            <Field label="Media / usage">
-              <Input value={value.media_usage ?? ""} onChange={(v) => onChange({ ...value, media_usage: v })} placeholder="No filming · event recap · organic social · paid ads · website" />
-            </Field>
-            <Field label="Travel / parking">
-              <Input value={value.travel_notes ?? ""} onChange={(v) => onChange({ ...value, travel_notes: v })} placeholder="Parking · transport · talent handles own · TBD" />
+            <Field label={t("public.inquiryDrawer.briefEquipmentLabel")}>
+              <Input value={value.equipment_notes ?? ""} onChange={(v) => onChange({ ...value, equipment_notes: v })} placeholder={t("public.inquiryDrawer.briefEquipmentPlaceholder")} />
             </Field>
           </FieldRow>
           <FieldRow>
-            <Field label="Special notes">
-              <Textarea rows={2} value={value.special_requirements ?? ""} onChange={(v) => onChange({ ...value, special_requirements: v })} placeholder="Anything else the coordinator should know…" />
+            <Field label={t("public.inquiryDrawer.briefMediaLabel")}>
+              <Input value={value.media_usage ?? ""} onChange={(v) => onChange({ ...value, media_usage: v })} placeholder={t("public.inquiryDrawer.briefMediaPlaceholder")} />
+            </Field>
+            <Field label={t("public.inquiryDrawer.briefTravelLabel")}>
+              <Input value={value.travel_notes ?? ""} onChange={(v) => onChange({ ...value, travel_notes: v })} placeholder={t("public.inquiryDrawer.briefTravelPlaceholder")} />
+            </Field>
+          </FieldRow>
+          <FieldRow>
+            <Field label={t("public.inquiryDrawer.briefSpecialLabel")}>
+              <Textarea rows={2} value={value.special_requirements ?? ""} onChange={(v) => onChange({ ...value, special_requirements: v })} placeholder={t("public.inquiryDrawer.briefSpecialPlaceholder")} />
             </Field>
           </FieldRow>
         </>
@@ -1304,6 +1340,7 @@ export function FilesLinksSection({
   stagedFiles: File[];
   onStagedFiles: (v: File[]) => void;
 }) {
+  const t = useT();
   const [linkDraft, setLinkDraft] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileWarning, setFileWarning] = useState<string | null>(null);
@@ -1313,7 +1350,12 @@ export function FilesLinksSection({
     const combined = [...stagedFiles, ...picked];
     const oversized = picked.filter((f) => f.size > FILE_MAX_BYTES);
     if (oversized.length > 0) {
-      setFileWarning(`${oversized.map((f) => f.name).join(", ")} ${oversized.length === 1 ? "is" : "are"} over 20 MB and won't be uploaded.`);
+      setFileWarning(
+        interpolate(
+          t(oversized.length === 1 ? "public.inquiryDrawer.filesOversizedOne" : "public.inquiryDrawer.filesOversizedOther"),
+          { names: oversized.map((f) => f.name).join(", ") },
+        ),
+      );
     } else {
       setFileWarning(null);
     }
@@ -1321,7 +1363,7 @@ export function FilesLinksSection({
     onStagedFiles(valid);
     // Reset so the same file can be re-selected after removal.
     if (fileInputRef.current) fileInputRef.current.value = "";
-  }, [stagedFiles, onStagedFiles]);
+  }, [stagedFiles, onStagedFiles, t]);
 
   const removeFile = useCallback((idx: number) => {
     onStagedFiles(stagedFiles.filter((_, i) => i !== idx));
@@ -1330,7 +1372,7 @@ export function FilesLinksSection({
   void files; void onFiles; // reserved for post-submit attachment display
 
   return (
-    <Section title="Files & references" subtitle="Optional. Moodboards, briefs, reference posts.">
+    <Section title={t("public.inquiryDrawer.filesTitle")} subtitle={t("public.inquiryDrawer.filesSubtitle")}>
       {/* File picker */}
       <div>
         <input
@@ -1340,7 +1382,7 @@ export function FilesLinksSection({
           accept={FILE_ACCEPT}
           onChange={handleFileChange}
           style={{ display: "none" }}
-          aria-label="Attach files"
+          aria-label={t("public.inquiryDrawer.filesAttachAria")}
         />
         <button
           type="button"
@@ -1356,10 +1398,10 @@ export function FilesLinksSection({
           }}
         >
           <span style={{ fontSize: 14 }}>📎</span>
-          Attach files
+          {t("public.inquiryDrawer.filesAttachButton")}
         </button>
         <span style={{ marginLeft: 8, fontSize: 11, color: C.inkDim }}>
-          PDF, images, docs, up to 20 MB each, {FILE_MAX_COUNT} max
+          {interpolate(t("public.inquiryDrawer.filesLimitHint"), { count: FILE_MAX_COUNT })}
         </span>
       </div>
 
@@ -1379,7 +1421,7 @@ export function FilesLinksSection({
               <button
                 type="button"
                 onClick={() => removeFile(i)}
-                aria-label={`Remove ${f.name}`}
+                aria-label={interpolate(t("public.inquiryDrawer.filesRemoveAria"), { name: f.name })}
                 style={{ background: "transparent", border: "none", cursor: "pointer", color: C.inkMuted, fontSize: 14, lineHeight: 1, padding: "0 2px" }}
               >×</button>
             </li>
@@ -1393,12 +1435,12 @@ export function FilesLinksSection({
 
       {/* Reference links */}
       <FieldRow>
-        <Field label="Reference link">
+        <Field label={t("public.inquiryDrawer.linkLabel")}>
           <div className="flex gap-2">
             <Input
               value={linkDraft}
               onChange={setLinkDraft}
-              placeholder="Paste Instagram, TikTok, drive link, brand site…"
+              placeholder={t("public.inquiryDrawer.linkPlaceholder")}
             />
             <button
               type="button"
@@ -1409,7 +1451,7 @@ export function FilesLinksSection({
                 setLinkDraft("");
               }}
             >
-              Add
+              {t("public.inquiryDrawer.linkAdd")}
             </button>
           </div>
         </Field>
@@ -1437,60 +1479,64 @@ export function FilesLinksSection({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function Review({ intent, agencyName, stagedFiles }: { intent: InquiryIntent; agencyName: string; stagedFiles: File[] }) {
+  const t = useT();
   const sameAsRequester = intent.client?.same_as_requester !== false;
+  const empty = t("public.inquiryDrawer.reviewEmpty");
+  const fileCount = stagedFiles.length;
+  const linkCount = (intent.links ?? []).length;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 13.5, color: C.ink, fontFamily: FONT }}>
       <div style={{ fontSize: 12.5, color: C.inkMuted }}>
-        Send request to <strong>{agencyName}</strong>
+        {interpolate(t("public.inquiryDrawer.reviewSendTo"), { agency: agencyName })}
       </div>
 
-      <ReviewRow label="Job">
-        {intent.client?.job_name?.trim() || intent.brief?.summary?.slice(0, 60) || "Untitled inquiry"}
+      <ReviewRow label={t("public.inquiryDrawer.reviewJob")}>
+        {intent.client?.job_name?.trim() || intent.brief?.summary?.slice(0, 60) || t("public.inquiryDrawer.reviewJobUntitled")}
       </ReviewRow>
-      <ReviewRow label="Contact">
+      <ReviewRow label={t("public.inquiryDrawer.reviewContact")}>
         {intent.requester.name}
         {intent.requester.email && <span style={{ color: C.inkMuted }}> · {intent.requester.email}</span>}
         {intent.requester.phone && <span style={{ color: C.inkMuted }}> · {intent.requester.phone}</span>}
       </ReviewRow>
       {!sameAsRequester && (intent.client?.name || intent.client?.company) && (
-        <ReviewRow label="Client / company">
+        <ReviewRow label={t("public.inquiryDrawer.reviewClientCompany")}>
           {intent.client?.name}{intent.client?.company ? ` · ${intent.client.company}` : ""}
         </ReviewRow>
       )}
-      <ReviewRow label="Location">
-        {[intent.location?.venue_name, intent.location?.city].filter(Boolean).join(" · ") || statusLabel(intent.location?.status)}
+      <ReviewRow label={t("public.inquiryDrawer.reviewLocation")}>
+        {[intent.location?.venue_name, intent.location?.city].filter(Boolean).join(" · ") || statusLabel(intent.location?.status, empty)}
       </ReviewRow>
-      <ReviewRow label="Date">
-        {intent.date?.event_date || statusLabel(intent.date?.status)}
+      <ReviewRow label={t("public.inquiryDrawer.reviewDate")}>
+        {intent.date?.event_date || statusLabel(intent.date?.status, empty)}
         {intent.date?.start_time && <span style={{ color: C.inkMuted }}> · {intent.date.start_time}</span>}
         {intent.date?.duration && <span style={{ color: C.inkMuted }}> · {intent.date.duration}</span>}
       </ReviewRow>
-      <ReviewRow label="Talent">
+      <ReviewRow label={t("public.inquiryDrawer.reviewTalent")}>
         {intent.talent?.selection_mode === "agency_recommends"
-          ? "Agency to recommend"
-          : `${intent.talent?.selected_ids?.length ?? 0} selected`}
-        {intent.talent?.count_needed ? ` · ${intent.talent.count_needed} needed` : ""}
+          ? t("public.inquiryDrawer.reviewTalentRecommend")
+          : interpolate(t("public.inquiryDrawer.reviewTalentSelected"), { count: intent.talent?.selected_ids?.length ?? 0 })}
+        {intent.talent?.count_needed ? ` · ${interpolate(t("public.inquiryDrawer.reviewTalentNeeded"), { count: intent.talent.count_needed })}` : ""}
       </ReviewRow>
-      <ReviewRow label="Budget">
+      <ReviewRow label={t("public.inquiryDrawer.reviewBudget")}>
         {intent.budget?.preference === "agency_recommends" || !intent.budget?.preference
-          ? "Let agency recommend the best offer"
-          : `${intent.budget?.amount ?? "—"} ${intent.budget?.currency ?? ""} · ${intent.budget?.preference?.replace("_", " ")}`}
+          ? t("public.inquiryDrawer.reviewBudgetRecommend")
+          : `${intent.budget?.amount ?? empty} ${intent.budget?.currency ?? ""} · ${intent.budget?.preference?.replace("_", " ")}`}
       </ReviewRow>
-      <ReviewRow label="Brief">
+      <ReviewRow label={t("public.inquiryDrawer.reviewBrief")}>
         <span style={{ display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-          {intent.brief?.summary ?? "—"}
+          {intent.brief?.summary ?? empty}
         </span>
       </ReviewRow>
-      {(stagedFiles.length > 0 || (intent.links ?? []).length > 0) && (
-        <ReviewRow label="References">
-          {stagedFiles.length > 0 && (
-            <span>{stagedFiles.length} file{stagedFiles.length !== 1 ? "s" : ""} attached</span>
+      {(fileCount > 0 || linkCount > 0) && (
+        <ReviewRow label={t("public.inquiryDrawer.reviewReferences")}>
+          {fileCount > 0 && (
+            <span>{interpolate(t(fileCount !== 1 ? "public.inquiryDrawer.reviewFilesOther" : "public.inquiryDrawer.reviewFilesOne"), { count: fileCount })}</span>
           )}
-          {stagedFiles.length > 0 && (intent.links ?? []).length > 0 && (
+          {fileCount > 0 && linkCount > 0 && (
             <span style={{ color: C.inkMuted }}> · </span>
           )}
-          {(intent.links ?? []).length > 0 && (
-            <span style={{ color: C.inkMuted }}>{(intent.links ?? []).length} link{(intent.links ?? []).length !== 1 ? "s" : ""}</span>
+          {linkCount > 0 && (
+            <span style={{ color: C.inkMuted }}>{interpolate(t(linkCount !== 1 ? "public.inquiryDrawer.reviewLinksOther" : "public.inquiryDrawer.reviewLinksOne"), { count: linkCount })}</span>
           )}
         </ReviewRow>
       )}
@@ -1507,8 +1553,8 @@ function ReviewRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-function statusLabel(s: string | undefined): string {
-  if (!s) return "—";
+function statusLabel(s: string | undefined, empty: string): string {
+  if (!s) return empty;
   return s.replace(/_/g, " ");
 }
 
@@ -1524,6 +1570,7 @@ function SubmittedView({
   state: SubmittedState;
   agencyName: string;
 }) {
+  const t = useT();
   const messagesHref =
     `/${state.tenantSlug}/client/messages`
     + `?inquiry=${encodeURIComponent(state.inquiryId)}&just_submitted=1`;
@@ -1538,13 +1585,13 @@ function SubmittedView({
     : "";
   const guestCta =
     state.guestActivation === "matched"
-      ? { href: `/login${guestEmailQuery}`, label: "Sign in to track" }
+      ? { href: `/login${guestEmailQuery}`, label: t("public.inquiryDrawer.guestCtaSignIn") }
       : state.guestActivation === "created"
         ? {
             href: `/forgot-password${guestEmailQuery}`,
-            label: "Set a password to track",
+            label: t("public.inquiryDrawer.guestCtaSetPassword"),
           }
-        : { href: `/register${guestEmailQuery}`, label: "Create an account" };
+        : { href: `/register${guestEmailQuery}`, label: t("public.inquiryDrawer.guestCtaCreate") };
 
   return (
     <div
@@ -1575,11 +1622,10 @@ function SubmittedView({
       </div>
       <div>
         <div style={{ fontSize: 17, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
-          Your inquiry is on its way
+          {t("public.inquiryDrawer.submittedTitle")}
         </div>
         <p style={{ margin: "6px auto 0", fontSize: 13, color: C.inkMuted, maxWidth: 380, lineHeight: 1.5 }}>
-          {agencyName} has it now. A coordinator will review your brief, match
-          talent, and reply with an offer. No commitment until you approve it.
+          {interpolate(t("public.inquiryDrawer.submittedBody"), { agency: agencyName })}
         </p>
       </div>
 
@@ -1597,34 +1643,23 @@ function SubmittedView({
         >
           <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>
             {state.guestActivation === "matched"
-              ? "We found your account"
+              ? t("public.inquiryDrawer.submittedGuestMatchedTitle")
               : state.guestActivation === "created"
-                ? "We set up an account for you"
-                : "Track this inquiry"}
+                ? t("public.inquiryDrawer.submittedGuestCreatedTitle")
+                : t("public.inquiryDrawer.submittedGuestTrackTitle")}
           </div>
           <p style={{ margin: "5px 0 0", fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>
-            {state.guestActivation === "created" ? (
-              <>
-                We started a free account for{" "}
-                {state.guestEmail ? <strong>{state.guestEmail}</strong> : "you"}.
-                Set a password to follow this inquiry. Offers, messages, and
-                updates all land in one place.
-              </>
-            ) : state.guestActivation === "matched" ? (
-              <>
-                Sign in
-                {state.guestEmail ? <> with <strong>{state.guestEmail}</strong></> : ""}{" "}
-                to follow this inquiry. Offers, messages, and updates all land
-                in one place.
-              </>
-            ) : (
-              <>
-                Create a free account
-                {state.guestEmail ? <> with <strong>{state.guestEmail}</strong></> : ""}{" "}
-                to follow this inquiry. Offers, messages, and updates all land
-                in one place.
-              </>
-            )}
+            {state.guestActivation === "created"
+              ? state.guestEmail
+                ? interpolate(t("public.inquiryDrawer.submittedGuestCreatedBodyEmail"), { email: state.guestEmail })
+                : t("public.inquiryDrawer.submittedGuestCreatedBodyNoEmail")
+              : state.guestActivation === "matched"
+                ? state.guestEmail
+                  ? interpolate(t("public.inquiryDrawer.submittedGuestMatchedBodyEmail"), { email: state.guestEmail })
+                  : t("public.inquiryDrawer.submittedGuestMatchedBodyNoEmail")
+                : state.guestEmail
+                  ? interpolate(t("public.inquiryDrawer.submittedGuestUnlinkedBodyEmail"), { email: state.guestEmail })
+                  : t("public.inquiryDrawer.submittedGuestUnlinkedBodyNoEmail")}
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
             <a href={guestCta.href} style={primaryLinkStyle}>
@@ -1634,7 +1669,7 @@ function SubmittedView({
         </div>
       ) : (
         <a href={messagesHref} style={primaryLinkStyle}>
-          View in Messages
+          {t("public.inquiryDrawer.viewInMessages")}
         </a>
       )}
     </div>
@@ -1941,14 +1976,16 @@ function buildDefaults(
 
 // ─── Tiny helpers ────────────────────────────────────────────────────────────
 
-function formatRelative(iso: string): string {
+function formatRelative(iso: string, t: (key: string) => string): string {
   const ms = Date.now() - new Date(iso).getTime();
-  if (ms < 60_000) return "just now";
+  if (ms < 60_000) return t("public.inquiryDrawer.relativeJustNow");
   const m = Math.floor(ms / 60_000);
-  if (m === 1) return "1 minute ago";
-  if (m < 60) return `${m} minutes ago`;
+  if (m === 1) return t("public.inquiryDrawer.relativeMinuteOne");
+  if (m < 60) return interpolate(t("public.inquiryDrawer.relativeMinuteOther"), { count: m });
   const h = Math.floor(m / 60);
-  return h === 1 ? "1 hour ago" : `${h} hours ago`;
+  return h === 1
+    ? t("public.inquiryDrawer.relativeHourOne")
+    : interpolate(t("public.inquiryDrawer.relativeHourOther"), { count: h });
 }
 
 function formatBytes(b: number): string {
@@ -1977,6 +2014,7 @@ export function InquiryDrawerShell({
   children: React.ReactNode;
   footer?: React.ReactNode;
 }) {
+  const t = useT();
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -2039,7 +2077,7 @@ export function InquiryDrawerShell({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("public.inquiryDrawer.closeAria")}
             style={{
               width: 32, height: 32, borderRadius: 8,
               border: `1px solid ${C.borderSoft}`,

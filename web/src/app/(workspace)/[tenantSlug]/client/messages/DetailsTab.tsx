@@ -15,6 +15,7 @@ import { cancelInquiryAsClient } from "../_actions/inquiry-cancel-actions";
 import { updateClientInquiryDetailsAction } from "../_actions/inquiry-details-actions";
 import { ClientConfirmDialog } from "../_components/ConfirmDialog";
 import { useT } from "@/i18n/use-t";
+import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY =
@@ -90,6 +91,7 @@ export function DetailsTab({
   details: ClientInquiryDetails | null;
   tenantSlug?: string;
 }) {
+  const t = useT();
   // A1 — edit state. All hooks unconditional per rules.
   const [editSection, setEditSection] = useState<"brief" | "schedule" | "location" | null>(null);
   const [saving, startSave] = useTransition();
@@ -148,11 +150,7 @@ export function DetailsTab({
   );
 
   if (!details) {
-    return (
-      <div style={{ padding: 24, color: C.inkMuted, fontFamily: FONT, fontSize: 13 }}>
-        Loading details…
-      </div>
-    );
+    return <TabLoadingSkeleton label={t("dashboard.clientMessages.loadingMessages")} />;
   }
 
   const isLocked = LOCKED_STATUSES.has(details.status);
