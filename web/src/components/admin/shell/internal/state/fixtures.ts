@@ -3381,6 +3381,32 @@ export const TAXONOMY: TaxonomyParent[] = [
   },
 ];
 
+/**
+ * i18n catalog-key siblings for the TAXONOMY *parent* labels (additive,
+ * non-breaking). The English `.label` on each TAXONOMY entry stays the source of
+ * truth for the many non-localized consumers across the admin shell; a localized
+ * consumer that holds a `useT()` (e.g. the talent MyProfile header) resolves
+ * `t(TAXONOMY_PARENT_LABEL_KEYS[id])` and falls back to the English label when a
+ * key is absent. Keys live under `dashboard.enums.talentRole.*`. Only the 13
+ * parent ids are mapped (the only taxonomy labels rendered on localized
+ * surfaces); child role labels remain a noted follow-up.
+ */
+export const TAXONOMY_PARENT_LABEL_KEYS: Record<TaxonomyParentId, string> = {
+  models: "dashboard.enums.talentRole.models",
+  hosts: "dashboard.enums.talentRole.hosts",
+  performers: "dashboard.enums.talentRole.performers",
+  music: "dashboard.enums.talentRole.music",
+  creators: "dashboard.enums.talentRole.creators",
+  chefs: "dashboard.enums.talentRole.chefs",
+  wellness: "dashboard.enums.talentRole.wellness",
+  hospitality: "dashboard.enums.talentRole.hospitality",
+  transportation: "dashboard.enums.talentRole.transportation",
+  photo_video: "dashboard.enums.talentRole.photo_video",
+  event_staff: "dashboard.enums.talentRole.event_staff",
+  security: "dashboard.enums.talentRole.security",
+  services: "dashboard.enums.talentRole.services",
+};
+
 export const PLAN_TAXONOMY_LIMITS: Record<"free" | "studio" | "agency" | "network", number> = {
   free: 3,
   studio: 8,

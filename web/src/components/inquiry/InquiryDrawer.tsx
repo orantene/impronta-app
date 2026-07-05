@@ -1478,6 +1478,31 @@ export function FilesLinksSection({
 // Review step
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Localized enum→catalog-key maps for the Review summary (additive). Location +
+// date `status` share one map (their value sets don't collide); the budget
+// `preference` has its own. `t()` returns the key on a miss, so callers fall back
+// to a humanized `snake_case → words` string for any value without a key.
+const INQUIRY_STATUS_LABEL_KEYS: Record<string, string> = {
+  confirmed: "dashboard.enums.inquiryStatus.confirmed",
+  unconfirmed: "dashboard.enums.inquiryStatus.unconfirmed",
+  online: "dashboard.enums.inquiryStatus.online",
+  not_sure: "dashboard.enums.inquiryStatus.not_sure",
+  exact: "dashboard.enums.inquiryStatus.exact",
+  flexible: "dashboard.enums.inquiryStatus.flexible",
+  multi_day: "dashboard.enums.inquiryStatus.multi_day",
+  recurring: "dashboard.enums.inquiryStatus.recurring",
+};
+const BUDGET_PREFERENCE_LABEL_KEYS: Record<string, string> = {
+  agency_recommends: "dashboard.enums.budgetPreference.agency_recommends",
+  total_budget: "dashboard.enums.budgetPreference.total_budget",
+  per_hour: "dashboard.enums.budgetPreference.per_hour",
+  per_day: "dashboard.enums.budgetPreference.per_day",
+  per_week: "dashboard.enums.budgetPreference.per_week",
+  per_contract: "dashboard.enums.budgetPreference.per_contract",
+  per_talent: "dashboard.enums.budgetPreference.per_talent",
+  not_sure: "dashboard.enums.budgetPreference.not_sure",
+};
+
 function Review({ intent, agencyName, stagedFiles }: { intent: InquiryIntent; agencyName: string; stagedFiles: File[] }) {
   const t = useT();
   const sameAsRequester = intent.client?.same_as_requester !== false;
@@ -1504,10 +1529,10 @@ function Review({ intent, agencyName, stagedFiles }: { intent: InquiryIntent; ag
         </ReviewRow>
       )}
       <ReviewRow label={t("public.inquiryDrawer.reviewLocation")}>
-        {[intent.location?.venue_name, intent.location?.city].filter(Boolean).join(" · ") || statusLabel(intent.location?.status, empty)}
+        {[intent.location?.venue_name, intent.location?.city].filter(Boolean).join(" · ") || statusLabel(intent.location?.status, empty, t)}
       </ReviewRow>
       <ReviewRow label={t("public.inquiryDrawer.reviewDate")}>
-        {intent.date?.event_date || statusLabel(intent.date?.status, empty)}
+        {intent.date?.event_date || statusLabel(intent.date?.status, empty, t)}
         {intent.date?.start_time && <span style={{ color: C.inkMuted }}> · {intent.date.start_time}</span>}
         {intent.date?.duration && <span style={{ color: C.inkMuted }}> · {intent.date.duration}</span>}
       </ReviewRow>
@@ -1520,7 +1545,7 @@ function Review({ intent, agencyName, stagedFiles }: { intent: InquiryIntent; ag
       <ReviewRow label={t("public.inquiryDrawer.reviewBudget")}>
         {intent.budget?.preference === "agency_recommends" || !intent.budget?.preference
           ? t("public.inquiryDrawer.reviewBudgetRecommend")
-          : `${intent.budget?.amount ?? empty} ${intent.budget?.currency ?? ""} · ${intent.budget?.preference?.replace("_", " ")}`}
+          : `${intent.budget?.amount ?? empty} ${intent.budget?.currency ?? ""} · ${budgetPreferenceLabel(intent.budget.preference, t)}`}
       </ReviewRow>
       <ReviewRow label={t("public.inquiryDrawer.reviewBrief")}>
         <span style={{ display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
@@ -1553,9 +1578,23 @@ function ReviewRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-function statusLabel(s: string | undefined, empty: string): string {
+function statusLabel(s: string | undefined, empty: string, t: (key: string) => string): string {
   if (!s) return empty;
+  const key = INQUIRY_STATUS_LABEL_KEYS[s];
+  if (key) {
+    const localized = t(key);
+    if (localized && localized !== key) return localized;
+  }
   return s.replace(/_/g, " ");
+}
+
+function budgetPreferenceLabel(pref: string, t: (key: string) => string): string {
+  const key = BUDGET_PREFERENCE_LABEL_KEYS[pref];
+  if (key) {
+    const localized = t(key);
+    if (localized && localized !== key) return localized;
+  }
+  return pref.replace(/_/g, " ");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

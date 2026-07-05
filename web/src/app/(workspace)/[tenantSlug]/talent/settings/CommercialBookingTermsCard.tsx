@@ -21,8 +21,8 @@ import {
   updateTalentBookingTerms,
 } from "@/lib/talent/talent-booking-terms-actions";
 import {
-  REFUND_POLICY_DESCRIPTIONS,
-  REFUND_POLICY_LABELS,
+  REFUND_POLICY_DESCRIPTION_KEYS,
+  REFUND_POLICY_LABEL_KEYS,
   type RefundPolicyKey,
   type TalentBookingTerms,
 } from "@/lib/billing/commercial-terms-types";
@@ -248,12 +248,12 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
           >
             <option value="">{t("dashboard.talentBookingTerms.refundNoPreference")}</option>
             {REFUND_KEYS.map((k) => (
-              <option key={k} value={k}>{REFUND_POLICY_LABELS[k]}</option>
+              <option key={k} value={k}>{t(REFUND_POLICY_LABEL_KEYS[k])}</option>
             ))}
           </select>
           {terms.refundPolicy ? (
             <span style={{ fontSize: 10.5, color: C.inkMuted }}>
-              {REFUND_POLICY_DESCRIPTIONS[terms.refundPolicy]}
+              {t(REFUND_POLICY_DESCRIPTION_KEYS[terms.refundPolicy])}
             </span>
           ) : (
             <span style={{ fontSize: 10.5, color: C.inkMuted }}>

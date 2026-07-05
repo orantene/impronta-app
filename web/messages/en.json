@@ -1032,6 +1032,87 @@
     }
   },
   "dashboard": {
+    "enums": {
+      "servicePricing": {
+        "hour": "Per hour",
+        "day": "Per day",
+        "week": "Per week",
+        "half_day": "Per half-day",
+        "event": "Per event",
+        "per_person": "Per person",
+        "per_contact": "Per session",
+        "flat_package": "Flat package",
+        "custom": "Custom / quote on request"
+      },
+      "servicePricingSuffix": {
+        "hour": "/ hour",
+        "day": "/ day",
+        "week": "/ week",
+        "half_day": "/ half-day",
+        "event": "/ event",
+        "per_person": "/ person",
+        "per_contact": "/ session",
+        "flat_package": "",
+        "custom": ""
+      },
+      "refundPolicy": {
+        "tiered": "Tiered",
+        "flexible": "Flexible",
+        "strict": "Strict",
+        "manual": "Manual"
+      },
+      "refundPolicyDesc": {
+        "tiered": "Full refund 14+ days out, 50% at 7 to 14 days, none under 7 days; deposit non-refundable",
+        "flexible": "Full refund up to 48h before, none after",
+        "strict": "Deposit non-refundable; 50% balance under 30 days, none under 7",
+        "manual": "Admin decides each refund manually"
+      },
+      "balanceMethod": {
+        "request_in_messages": "Deposit now, balance in Messages",
+        "pay_in_place": "Pay in person",
+        "full_upfront": "Full amount now"
+      },
+      "balanceMethodDesc": {
+        "request_in_messages": "Deposit now; the balance is requested in Messages before the event",
+        "pay_in_place": "No deposit online, paid in person/on the day",
+        "full_upfront": "Full amount charged now"
+      },
+      "talentRole": {
+        "models": "Models",
+        "hosts": "Hosts & Promo",
+        "performers": "Performers",
+        "music": "Music & DJs",
+        "creators": "Creators & Influencers",
+        "chefs": "Chefs & Culinary",
+        "wellness": "Wellness",
+        "hospitality": "Hospitality",
+        "transportation": "Transportation",
+        "photo_video": "Photo & Video",
+        "event_staff": "Event Staff",
+        "security": "Security",
+        "services": "Services"
+      },
+      "inquiryStatus": {
+        "confirmed": "Confirmed",
+        "unconfirmed": "Unconfirmed",
+        "online": "Online",
+        "not_sure": "Not sure",
+        "exact": "Exact",
+        "flexible": "Flexible",
+        "multi_day": "Multi day",
+        "recurring": "Recurring"
+      },
+      "budgetPreference": {
+        "agency_recommends": "Agency recommends",
+        "total_budget": "Total budget",
+        "per_hour": "Per hour",
+        "per_day": "Per day",
+        "per_week": "Per week",
+        "per_contract": "Per contract",
+        "per_talent": "Per talent",
+        "not_sure": "Not sure"
+      }
+    },
     "loadingNav": "Loading nav…",
     "signOut": "Sign out",
     "signingOut": "Signing out…",

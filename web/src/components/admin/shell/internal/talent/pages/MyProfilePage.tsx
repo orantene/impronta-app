@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { Divider, Icon, PrimaryButton, SecondaryButton, SecondaryCard } from "../../primitives";
-import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PROFILES_BY_ID, TAXONOMY, applyProfileOverride, buildFreshTalentProfile, clearPendingReview, computeProfileCompleteness, getPendingReviewForRoster, getProfileById, useAdminShell, usePendingReviewSubscription, useProfileOverrideSubscription } from "../../state";
+import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PROFILES_BY_ID, TAXONOMY, TAXONOMY_PARENT_LABEL_KEYS, applyProfileOverride, buildFreshTalentProfile, clearPendingReview, computeProfileCompleteness, getPendingReviewForRoster, getProfileById, useAdminShell, usePendingReviewSubscription, useProfileOverrideSubscription } from "../../state";
 import { PageHeader } from "../shared/page-chrome-1";
 import { TierBreakdown } from "../shared/profile-1";
 import { AllSectionsGrid, EngagementStrip, ProfileHero } from "../shared/profile-sections-1";
@@ -84,9 +84,20 @@ export function MyProfilePage() {
   // Phase C4 — derive role labels for the page header. Primary +
   // secondary roles render as "Model · also Host" so the multi-role
   // identity is obvious at the top of the dashboard.
-  const primaryRoleLabel = TAXONOMY.find(tx => tx.id === p.primaryType)?.label ?? t("dashboard.talentMyProfile.roleFallback");
+  // Localized: resolve the taxonomy PARENT label via its catalog key when one
+  // exists (dashboard.enums.talentRole.*), falling back to the English fixture
+  // label for any id without a key. `t()` returns the key itself on a miss, so
+  // guard against that and fall back to the English label too.
+  const roleLabelFor = (id: string | undefined): string | undefined => {
+    const parent = TAXONOMY.find(tx => tx.id === id);
+    if (!parent) return undefined;
+    const key = TAXONOMY_PARENT_LABEL_KEYS[parent.id];
+    const localized = key ? t(key) : "";
+    return localized && localized !== key ? localized : parent.label;
+  };
+  const primaryRoleLabel = roleLabelFor(p.primaryType) ?? t("dashboard.talentMyProfile.roleFallback");
   const secondaryRoleLabels = p.secondaryTypes
-    .map(id => TAXONOMY.find(tx => tx.id === id)?.label)
+    .map(id => roleLabelFor(id))
     .filter((l): l is string => !!l);
   const roleSummary = secondaryRoleLabels.length > 0
     ? `${primaryRoleLabel} · ${t("dashboard.talentMyProfile.roleAlso")} ${secondaryRoleLabels.join(" · ")}`

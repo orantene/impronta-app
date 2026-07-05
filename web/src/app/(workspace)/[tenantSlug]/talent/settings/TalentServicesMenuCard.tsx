@@ -28,8 +28,8 @@ import {
 } from "@/lib/talent/services-menu-actions";
 import {
   SERVICE_PRICING_TYPES,
-  SERVICE_PRICING_LABELS,
-  SERVICE_PRICING_SUFFIX,
+  SERVICE_PRICING_LABEL_KEYS,
+  SERVICE_PRICING_SUFFIX_KEYS,
   SERVICE_VISIBILITIES,
   pricingTypeRequiresAmount,
   type ServiceMenuItem,
@@ -283,7 +283,7 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                       style={{ ...inputStyle, width: "100%", cursor: saving ? "wait" : "pointer" }}
                     >
                       {SERVICE_PRICING_TYPES.map((pt) => (
-                        <option key={pt} value={pt}>{SERVICE_PRICING_LABELS[pt]}</option>
+                        <option key={pt} value={pt}>{t(SERVICE_PRICING_LABEL_KEYS[pt])}</option>
                       ))}
                     </select>
                   </label>
@@ -345,7 +345,7 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                   <span style={{ fontSize: 12, fontWeight: 600, color: it.pricingType === "custom" ? C.inkMuted : C.accentDeep }}>
                     {it.pricingType === "custom"
                       ? t("dashboard.talentServices.quoteOnRequest")
-                      : `${fmtMoney(it.amountCents, it.currency)} ${SERVICE_PRICING_SUFFIX[it.pricingType]}`.trim()}
+                      : `${fmtMoney(it.amountCents, it.currency)} ${t(SERVICE_PRICING_SUFFIX_KEYS[it.pricingType])}`.trim()}
                   </span>
                 </div>
 

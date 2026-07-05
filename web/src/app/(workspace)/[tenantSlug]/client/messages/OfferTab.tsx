@@ -26,10 +26,10 @@ import {
   type InquiryOfferActionState,
 } from "../_actions/inquiry-offer-actions";
 import {
-  BALANCE_METHOD_LABELS,
-  BALANCE_METHOD_DESCRIPTIONS,
-  REFUND_POLICY_LABELS,
-  REFUND_POLICY_DESCRIPTIONS,
+  BALANCE_METHOD_LABEL_KEYS,
+  BALANCE_METHOD_DESCRIPTION_KEYS,
+  REFUND_POLICY_LABEL_KEYS,
+  REFUND_POLICY_DESCRIPTION_KEYS,
   normalizeDepositPct,
 } from "@/lib/billing/commercial-terms-types";
 import { useT } from "@/i18n/use-t";
@@ -343,15 +343,15 @@ function BookingTerms({
               ? t("dashboard.clientOffer.paidInFull")
               : interpolate(t("dashboard.clientOffer.balanceVia"), {
                   amount: formatMoney(balanceMajor, offer.currency),
-                  method: BALANCE_METHOD_LABELS[terms.balanceMethod],
+                  method: t(BALANCE_METHOD_LABEL_KEYS[terms.balanceMethod]),
                 })
           }
-          hint={BALANCE_METHOD_DESCRIPTIONS[terms.balanceMethod]}
+          hint={t(BALANCE_METHOD_DESCRIPTION_KEYS[terms.balanceMethod])}
         />
         <TermRow
           label={t("dashboard.clientOffer.refunds")}
-          value={REFUND_POLICY_LABELS[terms.refundPolicy]}
-          hint={REFUND_POLICY_DESCRIPTIONS[terms.refundPolicy]}
+          value={t(REFUND_POLICY_LABEL_KEYS[terms.refundPolicy])}
+          hint={t(REFUND_POLICY_DESCRIPTION_KEYS[terms.refundPolicy])}
           last
         />
       </div>
@@ -860,7 +860,7 @@ function ApproveDrawer({
         {offer.commercialTerms && (
           <SummaryRow
             label={t("dashboard.clientOffer.refunds")}
-            value={REFUND_POLICY_LABELS[offer.commercialTerms.refundPolicy]}
+            value={t(REFUND_POLICY_LABEL_KEYS[offer.commercialTerms.refundPolicy])}
           />
         )}
         <Hint>

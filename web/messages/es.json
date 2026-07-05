@@ -1032,6 +1032,87 @@
     }
   },
   "dashboard": {
+    "enums": {
+      "servicePricing": {
+        "hour": "Por hora",
+        "day": "Por día",
+        "week": "Por semana",
+        "half_day": "Por medio día",
+        "event": "Por evento",
+        "per_person": "Por persona",
+        "per_contact": "Por sesión",
+        "flat_package": "Paquete cerrado",
+        "custom": "Personalizado / presupuesto a pedido"
+      },
+      "servicePricingSuffix": {
+        "hour": "/ hora",
+        "day": "/ día",
+        "week": "/ semana",
+        "half_day": "/ medio día",
+        "event": "/ evento",
+        "per_person": "/ persona",
+        "per_contact": "/ sesión",
+        "flat_package": "",
+        "custom": ""
+      },
+      "refundPolicy": {
+        "tiered": "Escalonada",
+        "flexible": "Flexible",
+        "strict": "Estricta",
+        "manual": "Manual"
+      },
+      "refundPolicyDesc": {
+        "tiered": "Reembolso total con 14+ días de antelación, 50% entre 7 y 14 días, ninguno con menos de 7 días; el depósito no es reembolsable",
+        "flexible": "Reembolso total hasta 48 h antes, ninguno después",
+        "strict": "Depósito no reembolsable; 50% del saldo con menos de 30 días, ninguno con menos de 7",
+        "manual": "El administrador decide cada reembolso manualmente"
+      },
+      "balanceMethod": {
+        "request_in_messages": "Depósito ahora, saldo en Mensajes",
+        "pay_in_place": "Pago en persona",
+        "full_upfront": "Importe total ahora"
+      },
+      "balanceMethodDesc": {
+        "request_in_messages": "Depósito ahora; el saldo se solicita en Mensajes antes del evento",
+        "pay_in_place": "Sin depósito en línea, se paga en persona el día",
+        "full_upfront": "Importe total cobrado ahora"
+      },
+      "talentRole": {
+        "models": "Modelos",
+        "hosts": "Anfitriones y Promo",
+        "performers": "Artistas",
+        "music": "Música y DJs",
+        "creators": "Creadores e Influencers",
+        "chefs": "Chefs y Gastronomía",
+        "wellness": "Bienestar",
+        "hospitality": "Hospitalidad",
+        "transportation": "Transporte",
+        "photo_video": "Foto y Video",
+        "event_staff": "Personal de Eventos",
+        "security": "Seguridad",
+        "services": "Servicios"
+      },
+      "inquiryStatus": {
+        "confirmed": "Confirmado",
+        "unconfirmed": "Sin confirmar",
+        "online": "En línea",
+        "not_sure": "No estoy seguro",
+        "exact": "Exacta",
+        "flexible": "Flexible",
+        "multi_day": "Varios días",
+        "recurring": "Recurrente"
+      },
+      "budgetPreference": {
+        "agency_recommends": "La agencia recomienda",
+        "total_budget": "Presupuesto total",
+        "per_hour": "Por hora",
+        "per_day": "Por día",
+        "per_week": "Por semana",
+        "per_contract": "Por contrato",
+        "per_talent": "Por talento",
+        "not_sure": "No estoy seguro"
+      }
+    },
     "loadingNav": "Cargando menú…",
     "signOut": "Cerrar sesión",
     "signingOut": "Cerrando sesión…",
