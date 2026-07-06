@@ -33,6 +33,11 @@ import { useBuilderTree } from "./builder-tree-bridge";
 import { useHoveredBuilderNodeId } from "./hover-bridge";
 import { useSelectedBuilderNodeId } from "./selection-bridge";
 import { FreeformInsertPopover } from "./freeform-insert-popover";
+import { generateBuilderNodesAction } from "@/lib/site-admin/builder-core/ai/generate-nodes-action";
+import {
+  starterSurfaceForKind,
+  textToPageSurfaceForStarterSurface,
+} from "./empty-canvas-starter-surface";
 import {
   BUILDER_NODE_REGISTRY,
   gateNestedInsertKinds,
@@ -349,12 +354,19 @@ export function FreeformLayersTree({
     removeBuilderNode,
     insertBuilderNode,
     insertBuilderSectionEmbed,
+    insertBuilderComponent,
     patchBuilderNodeProps,
     reportMutationError,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
     setHoveredBuilderNodeId,
+    surfaceKind,
   } = useEditContext();
+  // "Generate a section with AI" reuses the same surface split the blank-canvas
+  // starter uses, so the insert-popover generator inherits the audience preset.
+  const aiSurface = textToPageSurfaceForStarterSurface(
+    starterSurfaceForKind(surfaceKind),
+  );
   const builderTree = useBuilderTree(); // WS2 — value from the tree micro-store
   const hoveredBuilderNodeId = useHoveredBuilderNodeId(); // W2-T3 — value from the bridge
   const selectedBuilderNodeId = useSelectedBuilderNodeId(); // W2 (selection-bridge) — value from the micro-store
@@ -486,6 +498,34 @@ export function FreeformLayersTree({
     (parentId: string | null, sectionTypeKey: string) =>
       runInsert(() => insertBuilderSectionEmbed(parentId, sectionTypeKey)),
     [insertBuilderSectionEmbed, runInsert],
+  );
+
+  // "Generate a section with AI" from the insert popover. Composes ONE section
+  // from the brief and inserts it as an editable subtree at the target (re-minted
+  // ids, undo + autosave via insertBuilderComponent). Not routed through
+  // runInsert: the popover must stay open through the async call so it can show
+  // pending + surface an inline error, and closes itself on success.
+  const handleGenerateSection = useCallback(
+    async (brief: string): Promise<{ ok: boolean; error?: string }> => {
+      const composed = await generateBuilderNodesAction({
+        brief,
+        scope: "section",
+        surface: aiSurface,
+      });
+      if (!composed.ok) return { ok: false, error: composed.error };
+      const section = composed.builderTree[0];
+      if (!section) return { ok: false, error: "The AI did not return a section." };
+      // A section is only valid at the page root, so append it there (not under
+      // the popover's nested parent).
+      const result = await insertBuilderComponent(null, JSON.stringify(section));
+      if (!result.ok) {
+        return { ok: false, error: result.error ?? "Could not insert the section." };
+      }
+      setInsertTarget(null);
+      if (result.nodeId) selectBuilderNode(result.nodeId);
+      return { ok: true };
+    },
+    [aiSurface, insertBuilderComponent, selectBuilderNode],
   );
 
   const handleMove = useCallback(
@@ -723,6 +763,7 @@ export function FreeformLayersTree({
           onPickSectionEmbed={(sectionTypeKey) =>
             void handleInsertSectionEmbed(insertTarget.parentId, sectionTypeKey)
           }
+          onGenerateSection={handleGenerateSection}
           onDismiss={() => setInsertTarget(null)}
         />
       ) : null}

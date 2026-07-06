@@ -32,9 +32,11 @@ import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { addEmptyCanvasHeroAction } from "@/lib/site-admin/edit-mode/starter-action";
-import { composePageFromBriefAction } from "@/lib/site-admin/builder-core/ai/text-to-page-action";
+import { generateBuilderNodesAction } from "@/lib/site-admin/builder-core/ai/generate-nodes-action";
 
 import { AIBriefInput } from "./ai-brief-input";
+import { Segmented } from "./kit/segmented";
+import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./kit";
 import { useMaybeEditContext } from "./edit-context";
 import {
   starterSurfaceForKind,
@@ -60,6 +62,10 @@ export function EmptyCanvasStarter({
     editCtx ? starterSurfaceForKind(editCtx.surfaceKind) : undefined,
   );
   const [aiPending, setAiPending] = useState(false);
+  // "Full page" designs the whole blank page; "Section" builds a single
+  // section/block. Both emit real, editable freeform components (the AI uses the
+  // component gallery); the only difference is how much it generates at once.
+  const [aiMode, setAiMode] = useState<"page" | "section">("page");
 
   // After a homepage hero insert, wait for the storefront body to repaint in
   // place (or reload as a fallback) so the operator sees their first block
@@ -123,10 +129,12 @@ export function EmptyCanvasStarter({
     });
   }
 
-  // "Design with AI" — compose a page from a one-line brief and apply it through
-  // the SAME shared undo chokepoint as a template apply (snapshot + Undo toast +
-  // autosave inherited on every surface). The composer returns a validated,
-  // governed BuilderNode tree (presets only); here we only persist + adopt it.
+  // "Design with AI" — generate a full page OR a single section from a one-line
+  // brief as REAL, editable freeform components, and apply it through the SAME
+  // shared undo chokepoint as a template apply (snapshot + Undo toast + autosave
+  // inherited on every surface). The generator returns a validated, governed
+  // BuilderNode tree (server-side `validateBuilderNodeTree`); here we only
+  // persist + adopt it. On the blank canvas both modes apply the whole tree.
   const handleAiCompose = useCallback(
     async (brief: string): Promise<{ ok: boolean; error?: string }> => {
       if (!editCtx) {
@@ -137,25 +145,26 @@ export function EmptyCanvasStarter({
       }
       setAiPending(true);
       try {
-        const composed = await composePageFromBriefAction({
+        const generated = await generateBuilderNodesAction({
           brief,
+          scope: aiMode,
           surface: textToPageSurface,
           locale,
         });
-        if (!composed.ok) {
+        if (!generated.ok) {
           return {
             ok: false,
-            error: composed.error ?? "Could not design a page — try again.",
+            error: generated.error ?? "Could not design that — try again.",
           };
         }
         const result = await editCtx.applyComposedTreeWithUndo({
-          tree: composed.builderTree,
-          label: composed.label,
+          tree: generated.builderTree,
+          label: generated.label,
         });
         if (!result.ok) {
           return {
             ok: false,
-            error: result.error ?? "Could not apply the page — try again.",
+            error: result.error ?? "Could not apply the result — try again.",
           };
         }
         return { ok: true };
@@ -163,7 +172,7 @@ export function EmptyCanvasStarter({
         setAiPending(false);
       }
     },
-    [editCtx, textToPageSurface, locale],
+    [editCtx, aiMode, textToPageSurface, locale],
   );
 
   return (
@@ -226,15 +235,70 @@ export function EmptyCanvasStarter({
         </div>
       ) : null}
 
-      {/* "Design with AI" — describe the page and the shared text-to-page
-          composer assembles it. Requires an active EditContext (the legacy
-          no-EditContext homepage mount has no client tree-replace path). */}
+      {/* "Design with AI" — describe a full page or a single section and the
+          generator builds it as real, editable freeform components. Requires an
+          active EditContext (the legacy no-EditContext homepage mount has no
+          client tree-replace path). */}
       {editCtx ? (
-        <AIBriefInput
-          onCompose={handleAiCompose}
-          pending={aiPending}
-          disabled={quickInsertPending}
-        />
+        <div
+          className="mt-10 p-5"
+          style={{
+            borderRadius: CHROME_RADII.xl,
+            border: `1px solid ${CHROME.line}`,
+            background: "linear-gradient(180deg, rgba(124,58,237,0.05), #ffffff 62%)",
+            boxShadow: CHROME_SHADOWS.card,
+          }}
+        >
+          {/* One cohesive AI module: accent chip + title + the mode switch, then
+              the brief field (embedded, header-less). */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <span
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center"
+                style={{ borderRadius: 10, background: "rgba(124, 58, 237, 0.10)", color: CHROME.accent }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 3l1.9 4.8L19 9.7l-4.1 2.9L16 18l-4-2.8L8 18l1.1-5.4L5 9.7l5.1-1.9z" />
+                </svg>
+              </span>
+              <div className="min-w-0">
+                <p className="text-[14px] font-semibold" style={{ color: CHROME.ink, letterSpacing: "-0.01em" }}>
+                  Design with AI
+                </p>
+                <p className="mt-1 text-[12.5px] leading-relaxed" style={{ color: CHROME.muted }}>
+                  {aiMode === "page"
+                    ? "Describe your page and AI builds it as editable blocks."
+                    : "Describe one section and AI builds it as editable blocks."}
+                </p>
+              </div>
+            </div>
+            <Segmented
+              value={aiMode}
+              onChange={setAiMode}
+              options={[
+                { value: "page", label: "Full page" },
+                { value: "section", label: "Section" },
+              ]}
+              compact
+            />
+          </div>
+          <div className="mt-4">
+            <AIBriefInput
+              variant="embedded"
+              showHeader={false}
+              onCompose={handleAiCompose}
+              pending={aiPending}
+              disabled={quickInsertPending}
+              ctaLabel={aiMode === "page" ? "Design page" : "Build section"}
+              pendingLabel={aiMode === "page" ? "Designing…" : "Building…"}
+              placeholder={
+                aiMode === "page"
+                  ? "e.g. a homepage for a boutique modeling agency, editorial and minimal"
+                  : "e.g. a services section with three cards and a booking button"
+              }
+            />
+          </div>
+        </div>
       ) : null}
     </div>
   );
