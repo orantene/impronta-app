@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate, type Translator } from "@/i18n/interpolate";
 import { OverflowMenu } from "@/components/chat-interactions";
 import { StatusSheet, type StatusSheetData } from "@/components/messages-status-sheet/StatusSheet";
 import { DetailsTabContainer } from "@/components/details-tab/DetailsTabContainer";
@@ -50,39 +52,39 @@ function WhosTurnBanner({
   /** Number of talents who haven't responded yet. Used to show "(N of M)". */
   talentPending?: number;
 }) {
+  const t = useT();
   if (!nextActionBy || stage === "booked" || stage === "past") return null;
 
   const { text, tone } = ((): { text: string; tone: "amber" | "blue" | "green" | "muted" } => {
     if (nextActionBy === "client") return {
       text: stage === "hold"
-        ? "Waiting on client to approve the offer."
-        : "Waiting on client to respond.",
+        ? t("dashboard.adminThread.turnClientApprove")
+        : t("dashboard.adminThread.turnClientRespond"),
       tone: "amber",
     };
     if (nextActionBy === "coordinator") return {
       text: stage === "inquiry"
-        ? "Your turn. Reply to the client to move this forward."
+        ? t("dashboard.adminThread.turnCoordinatorInquiry")
         : stage === "hold"
-        ? "Your turn. Finalize the offer and send it."
+        ? t("dashboard.adminThread.turnCoordinatorHold")
         : stage === "approved"
-        ? "Ready to book. Use Move to Booked to lock it."
-        : "Your turn.",
+        ? t("dashboard.adminThread.turnCoordinatorApproved")
+        : t("dashboard.adminThread.turnCoordinatorGeneric"),
       tone: "blue",
     };
     if (nextActionBy === "talent") {
-      const pendingNote = talentPending && talentPending > 0
-        ? ` (${talentPending} pending)`
-        : "";
       return {
-        text: `Waiting on talent to respond${pendingNote}.`,
+        text: talentPending && talentPending > 0
+          ? interpolate(t("dashboard.adminThread.turnTalentRespondPending"), { count: talentPending })
+          : t("dashboard.adminThread.turnTalentRespond"),
         tone: "muted",
       };
     }
     if (nextActionBy === "ops") return {
-      text: "Waiting on internal review (ops).",
+      text: t("dashboard.adminThread.turnOps"),
       tone: "muted",
     };
-    return { text: "Waiting for next action.", tone: "muted" };
+    return { text: t("dashboard.adminThread.turnFallback"), tone: "muted" };
   })();
 
   const styles: Record<typeof tone, { bg: string; color: string; border: string }> = {
@@ -119,6 +121,7 @@ function WhosTurnBanner({
 // Tab bar: Client thread · Talent group · Files · Details (admin sees ALL — no locks)
 // Tab content adapts per active tab.
 export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack: () => void }) {
+  const t = useT();
   const { toast, state, effectiveTenant } = useAdminShell();
   const router = useRouter();
   // Match the talent shell: admin lands on the flat Client tab (the
@@ -188,10 +191,10 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
   const offer = inquiry.offer;
   const offerLabel = (() => {
     if (!offer) return null;
-    if (offer.status === "draft") return `Draft · ${offer.total}`;
-    if (offer.status === "sent") return `Sent · ${offer.total} · awaiting client`;
-    if (offer.status === "accepted") return `Accepted · ${offer.total}`;
-    if (offer.status === "rejected") return `Rejected · ${offer.total}`;
+    if (offer.status === "draft") return interpolate(t("dashboard.adminThread.offerDraft"), { total: offer.total });
+    if (offer.status === "sent") return interpolate(t("dashboard.adminThread.offerSent"), { total: offer.total });
+    if (offer.status === "accepted") return interpolate(t("dashboard.adminThread.offerAccepted"), { total: offer.total });
+    if (offer.status === "rejected") return interpolate(t("dashboard.adminThread.offerRejected"), { total: offer.total });
     return offer.total;
   })();
 
@@ -202,23 +205,23 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
   const adminAction: { primary?: ShellAction; secondary?: ShellAction; hint?: string } = (() => {
     if (inquiry.nextActionBy !== "coordinator") return {};
     if (stageBucket === "inquiry") return {
-      hint: "Reply to client to keep this moving.",
-      primary: { label: "Reply to client", tone: "primary", onClick: () => { setActiveTab("client"); } },
+      hint: t("dashboard.adminThread.actionInquiryHint"),
+      primary: { label: t("dashboard.adminThread.actionInquiryPrimary"), tone: "primary", onClick: () => { setActiveTab("client"); } },
     };
     if (stageBucket === "hold") return {
-      hint: "Hold open. Send the revised offer.",
-      primary: { label: "Open offer", tone: "primary", onClick: () => { setActiveTab("offer"); } },
+      hint: t("dashboard.adminThread.actionHoldHint"),
+      primary: { label: t("dashboard.adminThread.actionHoldPrimary"), tone: "primary", onClick: () => { setActiveTab("offer"); } },
     };
     if (stageBucket === "approved") return {
       // Finding D: approved ≠ booked. Direct the admin to the convert step
       // instead of telling them it's already "Booked".
-      hint: "Approved by all parties, ready to book. Use “Move to → Booked” to lock the dates.",
-      primary: { label: "Review offer", tone: "primary", onClick: () => { setActiveTab("offer"); } },
+      hint: t("dashboard.adminThread.actionApprovedHint"),
+      primary: { label: t("dashboard.adminThread.actionApprovedPrimary"), tone: "primary", onClick: () => { setActiveTab("offer"); } },
     };
     if (stageBucket === "booked") return {
-      hint: "Booked. Open the event details + call sheet.",
+      hint: t("dashboard.adminThread.actionBookedHint"),
       // Slice B: Logistics rolled into Event tab.
-      primary: { label: "Open event", tone: "success", onClick: () => { setActiveTab("event"); } },
+      primary: { label: t("dashboard.adminThread.actionBookedPrimary"), tone: "success", onClick: () => { setActiveTab("event"); } },
     };
     return {};
   })();
@@ -253,7 +256,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   { kind: "direct" },
         }}
         onBack={onBack}
-        backLabel="Inbox"
+        backLabel={t("dashboard.adminThread.backLabel")}
         showCoordPill={false}
         onStatusClick={() => setStatusSheetOpen(true)}
         rightSlot={(
@@ -263,7 +266,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
               <button
                 type="button"
                 onClick={() => setCoordinatorSheetOpen(true)}
-                title={inquiry.coordinator ? `Coordinator: ${inquiry.coordinator.name} · click to reassign or assign a talent` : "Assign a coordinator (staff or roster talent)"}
+                title={inquiry.coordinator ? interpolate(t("dashboard.adminThread.coordChipTitleAssigned"), { name: inquiry.coordinator.name }) : t("dashboard.adminThread.coordChipTitleUnassigned")}
                 style={{
                   height: 32,
                   padding: "0 10px",
@@ -282,7 +285,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                 }}
               >
                 <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: inquiry.coordinator ? COLORS.success : COLORS.amber, display: "inline-block" }} />
-                {coordinatorFirstName ? `Coord: ${coordinatorFirstName}` : "Assign coord"}
+                {coordinatorFirstName ? interpolate(t("dashboard.adminThread.coordChipLabelAssigned"), { name: coordinatorFirstName }) : t("dashboard.adminThread.coordChipLabelUnassigned")}
               </button>
             )}
             <StageTransitionMenu inquiryId={inquiry.id} stage={inquiry.stage} />
@@ -314,7 +317,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
               <button
                 type="button"
                 onClick={() => setActiveTab("lineup")}
-                aria-label={`${lineupTotal} talent on this inquiry — open Lineup tab`}
+                aria-label={interpolate(t("dashboard.adminThread.lineupOpenAria"), { count: lineupTotal })}
                 style={{
                   background: "transparent", border: "none", padding: 0,
                   display: "inline-flex", alignItems: "center", gap: 8,
@@ -364,11 +367,11 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   )}
                 </span>
                 <span style={{ fontWeight: 600 }} className="text-admin-ink">
-                  {lineupTotal} talent{lineupTotal === 1 ? "" : "s"}
+                  {interpolate(t(lineupTotal === 1 ? "dashboard.adminThread.lineupCountOne" : "dashboard.adminThread.lineupCountMany"), { count: lineupTotal })}
                 </span>
                 {lineupTotal > 0 && (
                   <span className="text-admin-ink-dim">
-                    · {lineupAccepted}/{lineupTotal} accepted
+                    {interpolate(t("dashboard.adminThread.lineupAcceptedSuffix"), { accepted: lineupAccepted, total: lineupTotal })}
                   </span>
                 )}
               </button>
@@ -382,7 +385,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
               <button
                 type="button"
                 onClick={() => setActiveTab("offer")}
-                aria-label={`Offer state: ${offerLabel} — open Offer tab`}
+                aria-label={interpolate(t("dashboard.adminThread.offerChipAria"), { label: offerLabel })}
                 title={offerLabel}
                 style={{
                   background: COLORS.surfaceAlt, color: COLORS.inkMuted,
@@ -474,7 +477,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   <PitchOriginCard
                     tenantSlug={effectiveTenant.slug}
                     pitchId={inquiry.pitchId}
-                    pitchTitle={inquiry.pitchTitle ?? "Pitch"}
+                    pitchTitle={inquiry.pitchTitle ?? t("dashboard.adminThread.pitchTitleFallback")}
                     compact
                   />
                 </div>
@@ -483,14 +486,14 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
               {showClientStream && (
                 <AdminMessageStream
                   messages={clientMessages}
-                  placeholder={`Reply to ${inquiry.clientName}…`}
+                  placeholder={interpolate(t("dashboard.adminThread.replyToClientPlaceholder"), { name: inquiry.clientName })}
                   threadKey={`admin:${inquiry.id}:client`}
                   smartReplyContext={adminSmartCtx}
                   firstTimeClientName={isFirstConvWith(inquiry.clientName) ? inquiry.clientName : undefined}
                   closed={inquiry.stage === "rejected" || inquiry.stage === "expired"}
                   closedNotice={inquiry.stage === "rejected"
-                    ? "Closed · the client passed on this offer."
-                    : "Closed · auto-expired (no client response in the window)."}
+                    ? t("dashboard.adminThread.closedClientPassedOffer")
+                    : t("dashboard.adminThread.closedAutoExpiredClient")}
                   inquiryId={inquiry.id}
                   tenantSlug={effectiveTenant.slug}
                   threadType="private"
@@ -499,13 +502,13 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
               {showGroupStream && (
                 <AdminMessageStream
                   messages={talentMessages}
-                  placeholder="Message talent group…"
+                  placeholder={t("dashboard.adminThread.messageTalentGroupPlaceholder")}
                   threadKey={`admin:${inquiry.id}:talent`}
                   smartReplyContext={adminSmartCtx}
                   closed={inquiry.stage === "rejected" || inquiry.stage === "expired"}
                   closedNotice={inquiry.stage === "rejected"
-                    ? "Closed · the client passed on this project."
-                    : "Closed · auto-expired."}
+                    ? t("dashboard.adminThread.closedClientPassedProject")
+                    : t("dashboard.adminThread.closedAutoExpired")}
                   inquiryId={inquiry.id}
                   tenantSlug={effectiveTenant.slug}
                   threadType="group"
@@ -581,7 +584,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
       <StatusSheet
         open={statusSheetOpen}
         onClose={() => setStatusSheetOpen(false)}
-        data={deriveAdminStatusSheetData(inquiry, stageBucket, allTalents, offerLabel)}
+        data={deriveAdminStatusSheetData(inquiry, stageBucket, allTalents, offerLabel, t)}
       />
       {inquiryIsUuid && (
         <EditJobSheet
@@ -589,7 +592,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
           inquiryId={inquiry.id}
           tenantSlug={effectiveTenant.slug}
           onClose={() => setEditJobOpen(false)}
-          onSaved={() => { toast("Job details saved."); router.refresh(); }}
+          onSaved={() => { toast(t("dashboard.adminThread.jobDetailsSavedToast")); router.refresh(); }}
         />
       )}
       {inquiryIsUuid && (
@@ -597,7 +600,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
           open={coordinatorSheetOpen}
           onClose={() => setCoordinatorSheetOpen(false)}
           inquiryId={inquiry.id}
-          currentCoordName={inquiry.coordinator?.name ?? "Unassigned"}
+          currentCoordName={inquiry.coordinator?.name ?? t("dashboard.adminThread.coordUnassigned")}
           currentCoordUserId={inquiry.coordinator?.id ?? null}
           onSuccess={() => router.refresh()}
           // The coordinator chip is the primary "assign a talent / hand off"
@@ -621,6 +624,7 @@ export function deriveAdminStatusSheetData(
   stageBucket: "inquiry" | "hold" | "approved" | "booked" | "past",
   allTalents: Array<{ name: string; status: string }>,
   offerLabel: string | null,
+  t: Translator,
 ): StatusSheetData {
   const stage: StatusSheetData["stage"] =
       stageBucket === "inquiry" ? "Inquiry"
@@ -649,10 +653,10 @@ export function deriveAdminStatusSheetData(
       status: offerStatus,
       totalLabel: offerLabel ?? undefined,
       nextAction:
-          offerStatus === "No offer" ? "Draft offer when lineup is set."
-        : offerStatus === "Draft" ? "Send to client."
-        : offerStatus === "Sent" ? "Awaiting client response."
-        : offerStatus === "Accepted" ? "Offer locked. Proceed to event."
+          offerStatus === "No offer" ? t("dashboard.adminThread.statusOfferNextNoOffer")
+        : offerStatus === "Draft" ? t("dashboard.adminThread.statusOfferNextDraft")
+        : offerStatus === "Sent" ? t("dashboard.adminThread.statusOfferNextSent")
+        : offerStatus === "Accepted" ? t("dashboard.adminThread.statusOfferNextAccepted")
         : undefined,
     },
     talents: allTalents.map((t) => ({
@@ -670,17 +674,17 @@ export function deriveAdminStatusSheetData(
       status: paymentStatus,
       amountLabel: offerLabel ?? undefined,
       nextAction:
-          paymentStatus === "Not requested" ? "Send payment request once booked."
-        : paymentStatus === "Requested" ? "Awaiting client payment."
-        : paymentStatus === "Paid" ? "Cleared. Payout pending."
+          paymentStatus === "Not requested" ? t("dashboard.adminThread.statusPaymentNextNotRequested")
+        : paymentStatus === "Requested" ? t("dashboard.adminThread.statusPaymentNextRequested")
+        : paymentStatus === "Paid" ? t("dashboard.adminThread.statusPaymentNextPaid")
         : undefined,
     },
     nextStep:
-        stage === "Inquiry" ? "Build the shortlist and confirm talent rates."
-      : stage === "Offer sent" ? "Client is reviewing the offer."
-      : stage === "Approved" ? "Approved by all parties. Move to Booked to lock it."
-      : stage === "Booked" ? "Production planning. Open the Event tab."
-      : stage === "Wrapped" ? "Booking closed. Settle payouts."
+        stage === "Inquiry" ? t("dashboard.adminThread.statusNextStepInquiry")
+      : stage === "Offer sent" ? t("dashboard.adminThread.statusNextStepOfferSent")
+      : stage === "Approved" ? t("dashboard.adminThread.statusNextStepApproved")
+      : stage === "Booked" ? t("dashboard.adminThread.statusNextStepBooked")
+      : stage === "Wrapped" ? t("dashboard.adminThread.statusNextStepWrapped")
       : undefined,
   };
 }
