@@ -517,7 +517,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 50
+      "count": 48
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-2.tsx": {
@@ -578,7 +578,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 35
+      "count": 33
     }
   },
   "src/components/admin/shell/internal/metrics-ribbon.tsx": {
@@ -1006,17 +1006,17 @@
   },
   "src/components/admin/shell/internal/talent-drawers/monetization.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 28
+      "count": 25
     }
   },
   "src/components/admin/shell/internal/talent-drawers/network.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 16
+      "count": 7
     }
   },
   "src/components/admin/shell/internal/talent-drawers/premium-pages.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 62
+      "count": 61
     }
   },
   "src/components/admin/shell/internal/talent-drawers/profile-essentials.tsx": {
@@ -1159,7 +1159,7 @@
   },
   "src/components/admin/shell/internal/talent/shared/profile-sections-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 34
+      "count": 33
     }
   },
   "src/components/admin/shell/internal/talent/shared/profile-sections-3.tsx": {
@@ -1207,7 +1207,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 285
+      "count": 279
     }
   },
   "src/components/admin/shell/internal/workspace.tsx": {
