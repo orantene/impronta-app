@@ -65,6 +65,13 @@ export async function saveAndActivateProvider(
     const supabase = await service();
     if (!supabase) return { ok: false, error: "Database is unavailable." };
 
+    // Clear every default FIRST so activation never leaves two `is_default` rows
+    // (which would break the getDefaultProviderInstance maybeSingle read).
+    await supabase
+      .from("ai_provider_instances")
+      .update({ is_default: false })
+      .eq("tenant_id", DEFAULT_AI_TENANT_ID);
+
     let instanceId = await findInstanceId(supabase, kind);
     const common = {
       kind,
@@ -92,13 +99,6 @@ export async function saveAndActivateProvider(
       if (error) throw error;
       instanceId = data.id as string;
     }
-
-    // Only one default in the registry.
-    await supabase
-      .from("ai_provider_instances")
-      .update({ is_default: false })
-      .eq("tenant_id", DEFAULT_AI_TENANT_ID)
-      .neq("id", instanceId);
 
     // Upsert the encrypted secret (1:1 with the instance).
     const ciphertext = encryptSecret(key);
@@ -137,6 +137,21 @@ export async function setProviderActive(
     if (!supabase) return { ok: false, error: "Database is unavailable." };
     const instanceId = await findInstanceId(supabase, kind);
     if (!instanceId) return { ok: false, error: "That provider is not configured yet." };
+    if (active) {
+      // Never activate a keyless provider — it would resolve as default but find
+      // no key, so every generation would silently fail.
+      const { data: secret } = await supabase
+        .from("ai_provider_secrets")
+        .select("provider_instance_id")
+        .eq("provider_instance_id", instanceId)
+        .maybeSingle();
+      if (!secret) return { ok: false, error: "Add a key for this provider before activating it." };
+      // Clear other defaults FIRST (avoid a two-default window).
+      await supabase
+        .from("ai_provider_instances")
+        .update({ is_default: false })
+        .eq("tenant_id", DEFAULT_AI_TENANT_ID);
+    }
     const { error } = await supabase
       .from("ai_provider_instances")
       .update({
@@ -147,13 +162,6 @@ export async function setProviderActive(
       })
       .eq("id", instanceId);
     if (error) throw error;
-    if (active) {
-      await supabase
-        .from("ai_provider_instances")
-        .update({ is_default: false })
-        .eq("tenant_id", DEFAULT_AI_TENANT_ID)
-        .neq("id", instanceId);
-    }
     return { ok: true };
   } catch (err) {
     logServerError("ai-provider-admin/setProviderActive", err);

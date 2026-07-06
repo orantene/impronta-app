@@ -137,6 +137,8 @@ export async function generateBuilderNodesAction(input: {
     const generated = await generateBuilderNodes({
       brief: input.brief,
       scope: input.scope,
+      // actor_profile_id FKs to profiles.id, which equals the auth user id in
+      // this schema (every other actor_profile_id writer passes session.user.id).
       generateWithModel: buildModelGenerator(auth.user.id, input.scope),
     });
     if (generated.ok) {
