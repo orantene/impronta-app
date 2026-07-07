@@ -252,15 +252,22 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
 
+  // Latest-t ref: useT() returns a fresh closure each render, so putting t in
+  // reload's deps would rebuild reload every render and make the
+  // `useEffect(reload)` below refetch on every render (infinite loop). Read the
+  // translator off a ref (only used in the error branch) so reload stays stable.
+  const tRef = React.useRef(t);
+  tRef.current = t;
+
   const reload = React.useCallback(() => {
     setLoading(true);
     loadInquiryPaymentState(effectiveTenant.slug, inquiry.id)
       .then((r) => {
         if (r.ok) setState(r.data ?? null);
-        else toast(interpolate(t("dashboard.adminTabs.payment.loadStateFailed"), { error: r.error ?? "" }));
+        else toast(interpolate(tRef.current("dashboard.adminTabs.payment.loadStateFailed"), { error: r.error ?? "" }));
       })
       .finally(() => setLoading(false));
-  }, [inquiry.id, effectiveTenant.slug, toast, t]);
+  }, [inquiry.id, effectiveTenant.slug, toast]);
 
   useEffect(() => { reload(); }, [reload]);
 
