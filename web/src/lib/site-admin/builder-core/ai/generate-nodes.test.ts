@@ -214,6 +214,52 @@ test("coerce hardens hostile model output into a valid tree", () => {
   }
 });
 
+test("a token-width content column is centered (margin-inline auto), full is not", () => {
+  const tree = coerceToSections({
+    sections: [
+      {
+        kind: "section",
+        label: "Hero",
+        children: [
+          // reading-width column → must center in its full-bleed parent
+          {
+            kind: "container",
+            props: { layout: "stack", style: { maxWidth: "reading", paddingY: "l" } },
+            children: [{ kind: "heading", props: { text: "Centered hero", level: 1 } }],
+          },
+          // full-width column → must NOT get centering escapes (it already spans)
+          {
+            kind: "container",
+            props: { layout: "grid", columns: 3, style: { maxWidth: "full" } },
+            children: [{ kind: "paragraph", props: { text: "row" } }],
+          },
+        ],
+      },
+    ],
+  });
+  const validation = validateBuilderNodeTree(tree);
+  assert.equal(validation.ok, true, "centered tree must still validate");
+
+  const containers = collectNodes(validation.tree).filter((n) => n.kind === "container");
+  const reading = containers.find(
+    (n) => (n.props as { style?: { maxWidth?: string } }).style?.maxWidth === "reading",
+  );
+  const full = containers.find(
+    (n) => (n.props as { style?: { maxWidth?: string } }).style?.maxWidth === "full",
+  );
+  assert.ok(reading, "reading-width container survived");
+  assert.ok(full, "full-width container survived");
+
+  const rs = (reading!.props as unknown as { style: Record<string, unknown> }).style;
+  assert.equal(rs.marginLeftFree, "auto");
+  assert.equal(rs.marginRightFree, "auto");
+  assert.equal(rs.width, "100%");
+
+  const fs = (full!.props as unknown as { style: Record<string, unknown> }).style;
+  assert.equal(fs.marginLeftFree, undefined, "full width must not be centered");
+  assert.equal(fs.width, undefined);
+});
+
 test("empty model output resolves to EMPTY (caller falls back)", async () => {
   const result = await generateBuilderNodes({
     brief: "a homepage",

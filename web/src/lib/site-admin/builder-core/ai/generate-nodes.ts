@@ -297,6 +297,20 @@ function sanitizeStyle(raw: unknown): Record<string, unknown> | undefined {
   if (typeof weight === "number" && Number.isInteger(weight) && weight >= 100 && weight <= 900) {
     out[CURATED_STYLE_FONT_WEIGHT_KEY] = weight;
   }
+  // Center any bounded-width content column. The `maxWidth` TOKEN only sets
+  // `max-width`; it never adds `margin-inline: auto`, so a token-width block
+  // floats to the LEFT of its full-bleed parent (a cramped column instead of a
+  // centered one — verified live on generated heroes). The shipped page-designs
+  // avoid this by pairing `maxWidthFree` with explicit `marginLeftFree/RightFree:
+  // "auto"`; we do the same here so generated columns center like the presets.
+  // `full` is excluded (it already spans the row). These keys are validated
+  // free-style escapes (registry `builderNodeStyleValueSchema`), so they never
+  // drop the node.
+  if (out.maxWidth === "narrow" || out.maxWidth === "reading" || out.maxWidth === "wide") {
+    out.width = "100%";
+    out.marginLeftFree = "auto";
+    out.marginRightFree = "auto";
+  }
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
