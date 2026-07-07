@@ -33,6 +33,7 @@ import { useRouter } from "next/navigation";
 
 import { addEmptyCanvasHeroAction } from "@/lib/site-admin/edit-mode/starter-action";
 import { generateBuilderNodesAction } from "@/lib/site-admin/builder-core/ai/generate-nodes-action";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 
 import { AIBriefInput } from "./ai-brief-input";
 import { Segmented } from "./kit/segmented";
@@ -66,6 +67,18 @@ export function EmptyCanvasStarter({
   // section/block. Both emit real, editable freeform components (the AI uses the
   // component gallery); the only difference is how much it generates at once.
   const [aiMode, setAiMode] = useState<"page" | "section">("page");
+  // Preview-before-apply: the generator returns a validated tree, but instead of
+  // committing it optimistically we stash it and show the operator what was made
+  // (section labels) with Add / Regenerate / Discard — cheap iteration is the
+  // real value of the AI path. Only "Add" runs the shared undo chokepoint.
+  const [pendingGen, setPendingGen] = useState<{
+    tree: BuilderNodeTree;
+    label: string;
+    brief: string;
+    sectionLabels: string[];
+  } | null>(null);
+  const [applyPending, setApplyPending] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // After a homepage hero insert, wait for the storefront body to repaint in
   // place (or reload as a fallback) so the operator sees their first block
@@ -135,6 +148,7 @@ export function EmptyCanvasStarter({
   // inherited on every surface). The generator returns a validated, governed
   // BuilderNode tree (server-side `validateBuilderNodeTree`); here we only
   // persist + adopt it. On the blank canvas both modes apply the whole tree.
+  // Generate (do NOT apply yet) — stash the validated tree for preview.
   const handleAiCompose = useCallback(
     async (brief: string): Promise<{ ok: boolean; error?: string }> => {
       if (!editCtx) {
@@ -144,6 +158,7 @@ export function EmptyCanvasStarter({
         };
       }
       setAiPending(true);
+      setPreviewError(null);
       try {
         const generated = await generateBuilderNodesAction({
           brief,
@@ -157,16 +172,18 @@ export function EmptyCanvasStarter({
             error: generated.error ?? "Could not design that — try again.",
           };
         }
-        const result = await editCtx.applyComposedTreeWithUndo({
+        const sectionLabels = generated.builderTree.map((n) => {
+          const label = (n as { props?: { label?: unknown } }).props?.label;
+          return typeof label === "string" && label.trim()
+            ? label
+            : (n as { kind: string }).kind;
+        });
+        setPendingGen({
           tree: generated.builderTree,
           label: generated.label,
+          brief,
+          sectionLabels,
         });
-        if (!result.ok) {
-          return {
-            ok: false,
-            error: result.error ?? "Could not apply the result — try again.",
-          };
-        }
         return { ok: true };
       } finally {
         setAiPending(false);
@@ -174,6 +191,38 @@ export function EmptyCanvasStarter({
     },
     [editCtx, aiMode, textToPageSurface, locale],
   );
+
+  // "Add to page" — commit the previewed tree through the shared undo chokepoint
+  // (snapshot + Undo toast + autosave inherited). The starter unmounts as the
+  // canvas fills.
+  const handleApplyPreview = useCallback(async () => {
+    if (!pendingGen || !editCtx) return;
+    setApplyPending(true);
+    setPreviewError(null);
+    try {
+      const result = await editCtx.applyComposedTreeWithUndo({
+        tree: pendingGen.tree,
+        label: pendingGen.label,
+      });
+      if (!result.ok) {
+        setPreviewError(result.error ?? "Could not add it — try again.");
+        return;
+      }
+      setPendingGen(null);
+    } finally {
+      setApplyPending(false);
+    }
+  }, [pendingGen, editCtx]);
+
+  // "Regenerate" — throw away the draft and re-run the SAME brief (the cheap
+  // iteration loop). No cost until the operator likes one and Adds it.
+  const handleRegenerate = useCallback(() => {
+    const brief = pendingGen?.brief;
+    if (!brief) return;
+    // Keep the current draft visible (buttons disable while aiPending) until the
+    // new one replaces it — no flash back to the empty input.
+    void handleAiCompose(brief);
+  }, [pendingGen, handleAiCompose]);
 
   return (
     <div
@@ -283,20 +332,88 @@ export function EmptyCanvasStarter({
             />
           </div>
           <div className="mt-4">
-            <AIBriefInput
-              variant="embedded"
-              showHeader={false}
-              onCompose={handleAiCompose}
-              pending={aiPending}
-              disabled={quickInsertPending}
-              ctaLabel={aiMode === "page" ? "Design page" : "Build section"}
-              pendingLabel={aiMode === "page" ? "Designing…" : "Building…"}
-              placeholder={
-                aiMode === "page"
-                  ? "e.g. a homepage for a boutique modeling agency, editorial and minimal"
-                  : "e.g. a services section with three cards and a booking button"
-              }
-            />
+            {pendingGen ? (
+              <div
+                style={{
+                  borderRadius: 12,
+                  border: `1px solid ${CHROME.line}`,
+                  background: CHROME.controlFill,
+                  padding: 14,
+                }}
+              >
+                <p className="text-[12.5px] font-semibold" style={{ color: CHROME.ink }}>
+                  AI drafted {pendingGen.sectionLabels.length}{" "}
+                  {pendingGen.sectionLabels.length === 1 ? "section" : "sections"} — review, then add
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {pendingGen.sectionLabels.map((l, i) => (
+                    <span
+                      key={`${l}-${i}`}
+                      className="px-2 py-1 text-[11px]"
+                      style={{ borderRadius: 999, background: "rgba(124,58,237,0.10)", color: CHROME.accent }}
+                    >
+                      {l}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-3.5 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleApplyPreview}
+                    disabled={applyPending || aiPending}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{ borderRadius: 9, background: CHROME.accent }}
+                  >
+                    {applyPending ? "Adding…" : "Add to page"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRegenerate}
+                    disabled={applyPending || aiPending}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{ borderRadius: 9, border: `1px solid ${CHROME.controlBorder}`, background: "#fff", color: CHROME.ink }}
+                  >
+                    {aiPending ? "Regenerating…" : "Regenerate"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingGen(null);
+                      setPreviewError(null);
+                    }}
+                    disabled={applyPending || aiPending}
+                    className="px-2.5 py-2 text-[12.5px] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{ color: CHROME.muted, background: "transparent", border: "none" }}
+                  >
+                    Discard
+                  </button>
+                </div>
+                {previewError ? (
+                  <div
+                    role="alert"
+                    className="mt-3 px-3 py-2 text-xs"
+                    style={{ borderRadius: 10, border: `1px solid ${CHROME.roseLine}`, background: CHROME.roseBg, color: CHROME.rose }}
+                  >
+                    {previewError}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <AIBriefInput
+                variant="embedded"
+                showHeader={false}
+                onCompose={handleAiCompose}
+                pending={aiPending}
+                disabled={quickInsertPending}
+                ctaLabel={aiMode === "page" ? "Design page" : "Build section"}
+                pendingLabel={aiMode === "page" ? "Designing…" : "Building…"}
+                placeholder={
+                  aiMode === "page"
+                    ? "e.g. a homepage for a boutique modeling agency, editorial and minimal"
+                    : "e.g. a services section with three cards and a booking button"
+                }
+              />
+            )}
           </div>
         </div>
       ) : null}
