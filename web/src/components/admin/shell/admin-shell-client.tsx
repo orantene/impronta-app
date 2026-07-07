@@ -58,6 +58,7 @@ import { DrawerRoot, UpgradeModal } from "./internal/drawers";
 import { CommandPalette } from "./internal/palette";
 import { DRAWER_HELP } from "./internal/help";
 import { useDashboardText } from "./internal/dashboard-i18n";
+import { interpolate } from "@/i18n/interpolate";
 // Type-only import — `_data-bridge.ts` is a server-only module guarded by
 // `import "server-only"`, so a runtime import would throw at hydration. The
 // `import type` form is erased at compile time and emits no JS, which is
@@ -821,8 +822,8 @@ function BottomActionFab() {
                 else if (e.key === "ArrowUp")   { e.preventDefault(); moveSel(-1); }
                 else if (e.key === "Escape" && query) { e.preventDefault(); setQuery(""); }
               }}
-              placeholder="Search, create, or ask Tulala…"
-              aria-label="Search, create, or ask"
+              placeholder={copy.t("Search, create, or ask Tulala…")}
+              aria-label={copy.t("Search, create, or ask")}
               style={{
                 flex: 1, minWidth: 0,
                 border: "none", outline: "none", background: "transparent",
@@ -832,7 +833,7 @@ function BottomActionFab() {
             />
             {query ? (
               <button type="button" onClick={() => { setQuery(""); searchRef.current?.focus(); }}
-                aria-label="Clear search"
+                aria-label={copy.t("Clear search")}
                 style={{
                   border: "none", background: "rgba(11,11,13,0.06)", cursor: "pointer",
                   color: COLORS.inkMuted,
@@ -861,14 +862,14 @@ function BottomActionFab() {
             gap: 4,
             borderBottom: `1px solid ${COLORS.borderSoft}`,
           }}>
-            <FabTabButton label="Create" icon="plus" active={tab === "create"} onClick={() => setTab("create")} />
-            <FabTabButton label="Recent" icon="bolt" active={tab === "recent"} onClick={() => setTab("recent")} badge={FAB_DRAFTS_MOCK > 0 ? FAB_DRAFTS_MOCK : undefined} />
-            <FabTabButton label="Ask AI" icon="sparkle" active={tab === "ai"} onClick={() => { setAiSeed(query.trim()); setTab("ai"); }} accent="royal" />
+            <FabTabButton label={copy.t("Create")} icon="plus" active={tab === "create"} onClick={() => setTab("create")} />
+            <FabTabButton label={copy.t("Recent")} icon="bolt" active={tab === "recent"} onClick={() => setTab("recent")} badge={FAB_DRAFTS_MOCK > 0 ? FAB_DRAFTS_MOCK : undefined} />
+            <FabTabButton label={copy.t("Ask AI")} icon="sparkle" active={tab === "ai"} onClick={() => { setAiSeed(query.trim()); setTab("ai"); }} accent="royal" />
           </div>
 
           {/* Body */}
           {tab === "create" && (
-            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 6px" }} role="listbox" aria-label="Search results">
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 6px" }} role="listbox" aria-label={copy.t("Search results")}>
               {filteredItems.map((it, idx) => {
                 const selected = idx === Math.min(selIdx, filteredItems.length - 1);
                 return (
@@ -1061,6 +1062,7 @@ function BottomActionFab() {
 // recent rows are filtered by label/note substring.
 function FabRecentPanel({ query = "" }: { query?: string }) {
   const { openDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
   const drafts = [
     { id: "draft-1", label: "Maria Sandoval — promo model", note: "Draft · started 2h ago", action: () => toast("Resume Maria's profile") },
     { id: "draft-2", label: "Carlos Pérez — DJ",            note: "Draft · started 3d ago", action: () => toast("Resume Carlos's profile") },
@@ -1078,11 +1080,11 @@ function FabRecentPanel({ query = "" }: { query?: string }) {
   const empty = q && filteredDrafts.length === 0 && filteredRecent.length === 0;
   return (
     <div style={{ overflowY: "auto", padding: "10px 6px", maxHeight: 380, fontFamily: FONTS.body }}>
-      <RecentSection title="Drafts" items={filteredDrafts} />
-      <RecentSection title="Last created" items={filteredRecent} />
+      <RecentSection title={copy.t("Drafts")} items={filteredDrafts} />
+      <RecentSection title={copy.t("Last created")} items={filteredRecent} />
       {empty && (
         <div style={{ padding: "14px 14px 6px", fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-          Nothing recent matches “{query}”.
+          {interpolate(copy.t("Nothing recent matches “{query}”."), { query })}
         </div>
       )}
     </div>
@@ -1165,12 +1167,13 @@ function FabTabButton({ label, icon, active, onClick, accent, badge }: {
 // ── AI chat panel (extracted from AIHelpBot, now mounted inside Fab) ─
 function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
   const { state } = useAdminShell();
+  const copy = useDashboardText();
   const drawerId = state.drawer.drawerId;
   const helpEntry = drawerId ? (DRAWER_HELP as Record<string, typeof DRAWER_HELP[keyof typeof DRAWER_HELP]>)[drawerId] ?? null : null;
   const faqs = helpEntry?.faqs ?? [];
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<{ role: "user" | "bot"; text: string }[]>([
-    { role: "bot", text: "Hi! I can answer questions about how to use Tulala. Try asking something or pick a suggestion below." },
+    { role: "bot", text: copy.t("Hi! I can answer questions about how to use Tulala. Try asking something or pick a suggestion below.") },
   ]);
   const listRef = useRef<HTMLDivElement>(null);
   const lastSeed = useRef<string>("");
@@ -1211,12 +1214,12 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
 
   const quickSuggestions = faqs.length > 0
     ? faqs.slice(0, 3).map((f) => f.q)
-    : ["How do I send an offer?", "How do I add talent to the roster?", "How do I invite a teammate?"];
+    : [copy.t("How do I send an offer?"), copy.t("How do I add talent to the roster?"), copy.t("How do I invite a teammate?")];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 320, maxHeight: 460 }}>
       {helpEntry && (
-        <div style={{ padding: "6px 14px", fontSize: 10.5, fontWeight: 500 }} className="bg-admin-royal-soft text-admin-royal-deep">Context: {helpEntry.category}</div>
+        <div style={{ padding: "6px 14px", fontSize: 10.5, fontWeight: 500 }} className="bg-admin-royal-soft text-admin-royal-deep">{interpolate(copy.t("Context: {category}"), { category: helpEntry.category })}</div>
       )}
       <div ref={listRef} style={{
         flex: 1, overflowY: "auto", padding: "12px 14px",
@@ -1268,7 +1271,7 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") send(input); }}
-          placeholder="Ask Tulala anything…"
+          placeholder={copy.t("Ask Tulala anything…")}
           style={{
             flex: 1, padding: "9px 12px",
             fontFamily: FONTS.body, fontSize: 12.5,

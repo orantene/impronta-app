@@ -166,6 +166,24 @@ const ES_TEXT: Record<string, string> = {
   "Close quick actions": "Cerrar acciones rápidas",
   "Press G then a key from anywhere to quick-create": "Presiona G y luego una tecla desde cualquier lugar para crear rápido",
 
+  // Command palette / bottom-action FAB (admin-shell-client)
+  "Search, create, or ask Tulala…": "Busca, crea o pregúntale a Tulala...",
+  "Search, create, or ask": "Buscar, crear o preguntar",
+  "Clear search": "Borrar búsqueda",
+  "Search results": "Resultados de búsqueda",
+  "Create": "Crear",
+  "Recent": "Reciente",
+  "Ask AI": "Preguntar a la IA",
+  "Drafts": "Borradores",
+  "Last created": "Creado recientemente",
+  "Nothing recent matches “{query}”.": "Nada reciente coincide con «{query}».",
+  "Hi! I can answer questions about how to use Tulala. Try asking something or pick a suggestion below.": "¡Hola! Puedo responder preguntas sobre cómo usar Tulala. Prueba a preguntar algo o elige una sugerencia abajo.",
+  "How do I send an offer?": "¿Cómo envío una oferta?",
+  "How do I add talent to the roster?": "¿Cómo agrego talento a la lista?",
+  "How do I invite a teammate?": "¿Cómo invito a un compañero de equipo?",
+  "Context: {category}": "Contexto: {category}",
+  "Ask Tulala anything…": "Pregúntale lo que sea a Tulala...",
+
   // Drawer rail and headers
   "Essentials": "Esenciales",
   "Visual": "Visual",
