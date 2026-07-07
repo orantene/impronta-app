@@ -32,6 +32,16 @@ export const GENERATION_ALLOWED_KINDS = [
   "split",
   "card",
   "cta_group",
+  // Rich, self-contained kinds (Wave 3). accordion_item is child-only (valid
+  // ONLY inside an accordion — the drop-policy enforces placement). form and
+  // pricing_table carry their own data arrays (no child nodes); coerce validates
+  // + clamps every entry. tabs is deliberately NOT here: its defaultTabId is
+  // id-referential and gets re-minted by cloneBuilderTreeWithFreshIds, which is
+  // error-prone; accordion sidesteps this by not emitting defaultOpenItemIds.
+  "accordion",
+  "accordion_item",
+  "form",
+  "pricing_table",
   "heading",
   "paragraph",
   "button",

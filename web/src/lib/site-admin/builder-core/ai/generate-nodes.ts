@@ -127,6 +127,10 @@ export function buildGenerationSystemPrompt(): string {
     `- icon       props:{icon:${GENERATION_ICON_NAMES.map((n) => `"${n}"`).join("|")}, size:"sm"|"md"|"lg"|"xl"}.`,
     '- divider    props:{tone:"default"|"muted"}.',
     '- spacer     props:{size:"s"|"m"|"l"}.',
+    '- accordion  props:{allowMultiple:true|false}  children:[accordion_item, ...]. A stack of expandable rows — perfect for an FAQ. Do not try to set an open-by-default row.',
+    '- accordion_item  props:{title:"A real question?"}  children:[paragraph, ...]. One row of an accordion; title is the always-visible header, children are the revealed answer. Only valid inside an accordion.',
+    '- form       props:{method:"post", fields:[{name:"email", type:"email"|"text"|"tel"|"textarea"|"submit", label:"...", placeholder:"...", required:true}, ...]}. Use for a contact / inquiry section. 2-6 fields, ending with one type:"submit" field. No children.',
+    '- pricing_table  props:{tiers:[{name:"...", price:"$49", period:"month", description:"...", highlighted:true, features:[{label:"...", included:true}], ctaLabel:"Choose", ctaHref:"/inquire"}, ...]}. 2-4 tiers; mark the recommended one highlighted:true. Prices are strings ("$49" or "Custom"). No children.',
     "",
     "OPTIONAL style object on any block's props (all keys optional — omit unless it earns its place). Only these keys/values survive; anything else is dropped, so do not invent CSS:",
     '  align:"left"|"center"|"right"',
@@ -478,6 +482,98 @@ function coerceNode(
         size: size === "s" || size === "m" || size === "l" ? size : "m",
       });
       return emit(props);
+    }
+    case "accordion": {
+      // Only accordion_item children are valid (drop-policy); coerceChildren
+      // enforces it. We deliberately DO NOT emit defaultOpenItemIds: it is
+      // id-referential and cloneBuilderTreeWithFreshIds re-mints ids downstream,
+      // which would orphan the reference. An all-closed accordion is valid.
+      const props: Record<string, unknown> = withStyle({});
+      const allowMultiple = rawProps.allowMultiple;
+      if (typeof allowMultiple === "boolean") props.allowMultiple = allowMultiple;
+      const children = coerceChildren();
+      if (children.length === 0) return null; // an accordion with no items is useless
+      return emit(props, children);
+    }
+    case "accordion_item": {
+      const title = clampString(rawProps.title ?? node.title, 180);
+      if (!title) return null; // title is required by the schema
+      return emit(withStyle({ title }), coerceChildren());
+    }
+    case "form": {
+      const rawFields = Array.isArray(rawProps.fields) ? rawProps.fields : [];
+      const fields: Array<Record<string, unknown>> = [];
+      const seenFieldIds = new Set<string>();
+      const seenNames = new Set<string>();
+      for (const raw of rawFields.slice(0, 24)) {
+        const field = asObject(raw);
+        if (!field) continue;
+        const type = field.type;
+        if (type !== "text" && type !== "email" && type !== "tel" && type !== "textarea" && type !== "submit") {
+          continue;
+        }
+        const label = clampString(field.label, 120) ?? (type === "submit" ? "Send" : "Field");
+        // Derive a stable, unique id + name from whatever the model gave (or the label).
+        let id = clampString(field.id ?? field.name ?? label, 120) ?? `field-${fields.length + 1}`;
+        while (seenFieldIds.has(id)) id = `${id}-${fields.length + 1}`;
+        let name = clampString(field.name ?? id, 80) ?? id;
+        while (seenNames.has(name)) name = `${name}-${fields.length + 1}`;
+        seenFieldIds.add(id);
+        seenNames.add(name);
+        const out: Record<string, unknown> = { id, name, type, label };
+        const placeholder = clampString(field.placeholder, 160);
+        if (placeholder) out.placeholder = placeholder;
+        if (typeof field.required === "boolean") out.required = field.required;
+        fields.push(out);
+      }
+      if (fields.length === 0) return null; // schema requires >= 1 field
+      const props: Record<string, unknown> = withStyle({ fields });
+      const method = rawProps.method;
+      if (method === "get" || method === "post") props.method = method;
+      const honeypotName = clampString(rawProps.honeypotName, 80);
+      if (honeypotName) props.honeypotName = honeypotName;
+      // action left unset → the form falls back to the tenant's default inquiry sink.
+      return emit(props);
+    }
+    case "pricing_table": {
+      const rawTiers = Array.isArray(rawProps.tiers) ? rawProps.tiers : [];
+      const tiers: Array<Record<string, unknown>> = [];
+      const seenTierIds = new Set<string>();
+      for (const raw of rawTiers.slice(0, 4)) {
+        const tier = asObject(raw);
+        if (!tier) continue;
+        const name = clampString(tier.name, 120);
+        const price = clampString(tier.price, 80);
+        if (!name || !price) continue; // name + price are required
+        let id = clampString(tier.id ?? name, 80) ?? `tier-${tiers.length + 1}`;
+        while (seenTierIds.has(id)) id = `${id}-${tiers.length + 1}`;
+        seenTierIds.add(id);
+        const out: Record<string, unknown> = { id, name, price };
+        const description = clampString(tier.description, 500);
+        if (description) out.description = description;
+        const period = clampString(tier.period, 80);
+        if (period) out.period = period;
+        const ctaLabel = clampString(tier.ctaLabel, 80);
+        if (ctaLabel) out.ctaLabel = ctaLabel;
+        let ctaHref = clampString(tier.ctaHref, 500);
+        if (ctaHref && /^\s*(?:javascript|data|vbscript):/i.test(ctaHref)) ctaHref = "/inquire";
+        if (ctaHref) out.ctaHref = ctaHref;
+        if (typeof tier.highlighted === "boolean") out.highlighted = tier.highlighted;
+        const rawFeatures = Array.isArray(tier.features) ? tier.features : [];
+        const features: Array<Record<string, unknown>> = [];
+        for (const rawFeature of rawFeatures.slice(0, 20)) {
+          const f = asObject(rawFeature);
+          const flabel = clampString(f?.label, 240);
+          if (!flabel) continue;
+          const feat: Record<string, unknown> = { label: flabel };
+          if (typeof f?.included === "boolean") feat.included = f.included;
+          features.push(feat);
+        }
+        if (features.length > 0) out.features = features;
+        tiers.push(out);
+      }
+      if (tiers.length < 2) return null; // schema requires 2-4 tiers
+      return emit(withStyle({ tiers }));
     }
     default:
       return null;
