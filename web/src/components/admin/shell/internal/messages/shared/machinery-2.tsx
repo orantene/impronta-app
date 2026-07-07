@@ -1,6 +1,7 @@
 "use client";
 
 import { type CSSProperties } from "react";
+import { useT } from "@/i18n/use-t";
 import { useAdminShell, COLORS, FONTS, MY_TALENT_PROFILE, type InquiryRecord } from "../../state";
 import { Avatar } from "../../primitives";
 import { type Conversation } from "../../talent";
@@ -44,8 +45,9 @@ export function TalentBookingTab({
   onOpenLineup?: () => void;
 }) {
   const { toast } = useAdminShell();
+  const tr = useT();
   const pinned = conv.pinned ?? {};
-  const days = countdownLabel(inquiry.schedule.start);
+  const days = countdownLabel(inquiry.schedule.start, tr);
   const coord = inquiry.coordinators[0];
   const teammates = inquiry.talent.length > 1;
   // Solo-coord case: when isCoordinator AND there's only 1 talent (the

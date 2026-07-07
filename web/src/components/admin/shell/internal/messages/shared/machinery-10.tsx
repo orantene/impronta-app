@@ -409,6 +409,17 @@ export const UNIT_TYPE_LABEL: Record<UnitType, string> = {
   event:    "/event",
 };
 
+// i18n sibling for UNIT_TYPE_LABEL (additive — the English map above stays
+// for non-localized consumers). Localized consumers resolve
+// `t(UNIT_TYPE_LABEL_KEYS[unitType])`. Keys live under
+// `dashboard.enums.unitType.*`.
+export const UNIT_TYPE_LABEL_KEYS: Record<UnitType, string> = {
+  hour:     "dashboard.enums.unitType.hour",
+  day:      "dashboard.enums.unitType.day",
+  contract: "dashboard.enums.unitType.contract",
+  event:    "dashboard.enums.unitType.event",
+};
+
 export function fmtMoney(n: number, currency: string) {
   if (!n) return "—";
   return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);

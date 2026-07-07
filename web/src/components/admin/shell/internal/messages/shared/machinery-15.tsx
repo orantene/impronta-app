@@ -2,6 +2,8 @@
 
 import React, { useTransition, useRef, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { uploadInquiryAttachmentAsTalent, acceptInquiryInvitation, declineInquiryInvitation, submitMyRateForInquiry, sendInquiryMessageAsTalent } from "@/lib/server-actions/talent-pipeline";
 import { useAdminShell, COLORS, FONTS, MY_TALENT_PROFILE, TRANSITION } from "../../state";
 import { Avatar } from "../../primitives";
@@ -16,20 +18,21 @@ import { MOCK_FILES_FOR_CONV } from "./machinery-9";
 
 export function FilesTab({ conv, povCanSeeTalentFiles, pov }: { conv: Conversation; povCanSeeTalentFiles: boolean; pov?: "talent" }) {
   const { toast } = useAdminShell();
+  const t = useT();
   const [talentUploadPending, startTalentUploadTransition] = useTransition();
   const talentFileInputRef = useRef<HTMLInputElement | null>(null);
   const isUuidConv = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
   const isTalentUpload = pov === "talent" && isUuidConv;
 
   const onTalentPickFile = (file: File) => {
-    if (file.size > 100 * 1024 * 1024) { toast("File exceeds 100 MB cap"); return; }
+    if (file.size > 100 * 1024 * 1024) { toast(t("dashboard.adminTabs.files.fileOver100")); return; }
     startTalentUploadTransition(async () => {
       const fd = new FormData();
       fd.set("inquiryId", conv.id);
       fd.set("file", file);
       const r = await uploadInquiryAttachmentAsTalent(fd);
-      if (!r.ok) toast(`Upload failed: ${r.error}`);
-      else toast("File uploaded");
+      if (!r.ok) toast(interpolate(t("dashboard.adminTabs.files.uploadFailed"), { error: r.error }));
+      else toast(t("dashboard.adminTabs.files.fileUploaded"));
     });
   };
 
@@ -126,14 +129,14 @@ export function FilesTab({ conv, povCanSeeTalentFiles, pov }: { conv: Conversati
               background: f.thread === "client" ? COLORS.indigoSoft : COLORS.surfaceAlt,
               color: f.thread === "client" ? COLORS.indigoDeep : COLORS.inkMuted,
               letterSpacing: 0.3, textTransform: "uppercase",
-            }}>{f.thread === "client" ? "Client" : "Team"}</span>
+            }}>{f.thread === "client" ? t("dashboard.adminTabs.files.clientChip") : t("dashboard.adminTabs.files.teamChip")}</span>
           )}
         </div>
         <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
           {f.size} · {f.addedBy} · {f.addedAt}
         </div>
       </div>
-      <button type="button" onClick={() => toast(`Downloading ${f.name}`)} aria-label="Download" title="Download" style={{
+      <button type="button" onClick={() => toast(interpolate(t("dashboard.adminTabs.files.downloading"), { name: f.name }))} aria-label={t("dashboard.adminTabs.files.download")} title={t("dashboard.adminTabs.files.download")} style={{
         padding: 7, borderRadius: 7, border: "none", background: "transparent",
         color: COLORS.inkMuted, cursor: "pointer",
       }}>
@@ -175,7 +178,7 @@ export function FilesTab({ conv, povCanSeeTalentFiles, pov }: { conv: Conversati
         disabled={talentUploadPending}
         onClick={() => {
           if (isTalentUpload) talentFileInputRef.current?.click();
-          else toast("Choose a file to upload");
+          else toast(t("dashboard.adminTabs.files.chooseFile"));
         }}
         style={{
           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
@@ -192,21 +195,21 @@ export function FilesTab({ conv, povCanSeeTalentFiles, pov }: { conv: Conversati
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
           <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
         </svg>
-        {talentUploadPending ? "Uploading…" : "Add file"}
+        {talentUploadPending ? t("dashboard.adminTabs.files.uploading") : t("dashboard.adminTabs.files.addFile")}
         <span style={{ marginLeft: 8, fontWeight: 400, fontSize: 11 }} className="text-admin-ink-muted">
-          polaroids, signed contracts, references
+          {t("dashboard.adminTabs.files.addFileHint")}
         </span>
       </button>
 
       {visible.length === 0 ? (
         <div style={{ padding: "24px 12px", textAlign: "center", fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-          No files attached yet · drop one above to share with the team.
+          {t("dashboard.adminTabs.files.emptyState")}
         </div>
       ) : (
         <>
-          {showGroupHeaders && groupTitle(`From client · ${sortedClient.length}`)}
+          {showGroupHeaders && groupTitle(interpolate(t("dashboard.adminTabs.files.fromClient"), { count: sortedClient.length }))}
           {sortedClient.map(f => fileCard(f, !showGroupHeaders && povCanSeeTalentFiles))}
-          {showGroupHeaders && groupTitle(`Booking team · ${sortedTalent.length}`)}
+          {showGroupHeaders && groupTitle(interpolate(t("dashboard.adminTabs.files.bookingTeam"), { count: sortedTalent.length }))}
           {sortedTalent.map(f => fileCard(f, !showGroupHeaders))}
         </>
       )}
@@ -272,17 +275,24 @@ export function TeamStrip({
   povLabel: "edit" | "view";
   onOpen: () => void;
 }) {
+  const t = useT();
   if (lineup.length === 0) return null;
-  const accepted = lineup.filter(t => {
-    const s = (t.state || "").toLowerCase();
+  // Discriminant->label map: keep switching on the raw povLabel union for
+  // the icon; resolve the SR-only label via t().
+  const povLabelKey: Record<"edit" | "view", string> = {
+    edit: "dashboard.adminTabs.teamStrip.editLineup",
+    view: "dashboard.adminTabs.teamStrip.viewLineup",
+  };
+  const accepted = lineup.filter(tal => {
+    const s = (tal.state || "").toLowerCase();
     return s === "accepted" || s === "confirmed" || s === "booked";
   }).length;
-  const pending = lineup.filter(t => {
-    const s = (t.state || "").toLowerCase();
+  const pending = lineup.filter(tal => {
+    const s = (tal.state || "").toLowerCase();
     return s === "pending" || s === "invited";
   }).length;
-  const declined = lineup.filter(t => {
-    const s = (t.state || "").toLowerCase();
+  const declined = lineup.filter(tal => {
+    const s = (tal.state || "").toLowerCase();
     return s === "declined" || s === "rejected" || s === "withdrew" || s === "withdrawn";
   }).length;
   // Show up to 6 faces in the strip — premium messaging apps
@@ -301,7 +311,7 @@ export function TeamStrip({
     <button
       type="button"
       onClick={onOpen}
-      aria-label="Open lineup"
+      aria-label={t("dashboard.adminTabs.teamStrip.openLineup")}
       style={{
         position: "relative",
         display: "flex", alignItems: "center", gap: 10,
@@ -336,14 +346,14 @@ export function TeamStrip({
           carries the lineup-health signal that used to need a side rail
           + counts row. Premium messaging-app convention. */}
       <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-        {visible.map((t, i) => {
-          const s = (t.state || "").toLowerCase();
+        {visible.map((tal, i) => {
+          const s = (tal.state || "").toLowerCase();
           const ring = (s === "accepted" || s === "confirmed" || s === "booked") ? COLORS.success
             : (s === "pending" || s === "invited") ? COLORS.amber
             : (s === "declined" || s === "rejected" || s === "withdrew" || s === "withdrawn") ? "rgba(11,11,13,0.18)"
             : "rgba(11,11,13,0.18)";
           return (
-            <div key={t.talentId} style={{
+            <div key={tal.talentId} style={{
               // inline-flex collapses phantom line-box space the
               // inline-block Avatar otherwise creates (was 36px tall
               // for a 28px avatar, leaving an awkward gap below).
@@ -354,7 +364,7 @@ export function TeamStrip({
               position: "relative",
               zIndex: visible.length - i,
             }}>
-              <Avatar size={28} tone="auto" hashSeed={t.name} initials={t.initials} photoUrl={t.photoUrl} />
+              <Avatar size={28} tone="auto" hashSeed={tal.name} initials={tal.initials} photoUrl={tal.photoUrl} />
             </div>
           );
         })}
@@ -370,7 +380,7 @@ export function TeamStrip({
       <div style={{ flex: 1, minWidth: 0, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "nowrap", fontSize: 12, fontWeight: 600, letterSpacing: -0.05, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
         {isSolo ? (
           <span style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
-            {soloIsMe ? "Just you" : (lineup[0]?.name ?? "")}
+            {soloIsMe ? t("dashboard.adminTabs.teamStrip.justYou") : (lineup[0]?.name ?? "")}
           </span>
         ) : (
           <>
@@ -378,7 +388,7 @@ export function TeamStrip({
               {accepted}/{lineup.length}
             </span>
             <span style={{ fontWeight: 500 }} className="text-admin-ink-muted">
-              on the lineup
+              {t("dashboard.adminTabs.teamStrip.onLineup")}
             </span>
           </>
         )}
@@ -387,7 +397,7 @@ export function TeamStrip({
             <svg width="7" height="7" viewBox="0 0 8 8" fill="none">
               <path d="M1.5 4.2l1.7 1.6L6.5 2.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Locked
+            {t("dashboard.adminTabs.teamStrip.locked")}
           </span>
         )}
       </div>
@@ -419,7 +429,7 @@ export function TeamStrip({
         position: "absolute", width: 1, height: 1, padding: 0,
         margin: -1, overflow: "hidden", clip: "rect(0 0 0 0)",
         whiteSpace: "nowrap", border: 0,
-      }}>{povLabel === "edit" ? "Edit lineup" : "View lineup"}</span>
+      }}>{t(povLabelKey[povLabel])}</span>
     </button>
   );
 }
@@ -433,6 +443,7 @@ export function TeamStrip({
 
 export function ConversationActionPin({ conv }: { conv: Conversation }) {
   const { toast } = useAdminShell();
+  const t = useT();
   const router = useRouter();
   // C4 — capture `pending` so we can no-op duplicate clicks during an
   // in-flight Accept / Decline / Submit-rate call. Without this, a
@@ -456,27 +467,27 @@ export function ConversationActionPin({ conv }: { conv: Conversation }) {
     if (pending) return;
     startTransition(async () => {
       const r = await acceptInquiryInvitation(conv.id);
-      if (!r.ok) toast(`Accept failed: ${r.error}`);
-      else { toast("Inquiry accepted"); router.refresh(); }
+      if (!r.ok) toast(interpolate(t("dashboard.adminTabs.actionPin.acceptFailed"), { error: r.error }));
+      else { toast(t("dashboard.adminTabs.actionPin.inquiryAccepted")); router.refresh(); }
     });
   } : null;
   const realDecline = isRealInquiry ? () => {
     if (pending) return;
     startTransition(async () => {
       const r = await declineInquiryInvitation(conv.id);
-      if (!r.ok) toast(`Decline failed: ${r.error}`);
-      else { toast("Inquiry declined"); router.refresh(); }
+      if (!r.ok) toast(interpolate(t("dashboard.adminTabs.actionPin.declineFailed"), { error: r.error }));
+      else { toast(t("dashboard.adminTabs.actionPin.inquiryDeclined")); router.refresh(); }
     });
   } : null;
   const realSubmitRate = isRealInquiry ? () => {
-    const raw = window.prompt("Your rate (cost the agency pays you, in offer currency):");
+    const raw = window.prompt(t("dashboard.adminTabs.actionPin.ratePrompt"));
     if (raw == null) return;
     const num = parseFloat(raw.replace(/[^0-9.]/g, ""));
-    if (!Number.isFinite(num) || num < 0) { toast("Invalid rate"); return; }
+    if (!Number.isFinite(num) || num < 0) { toast(t("dashboard.adminTabs.actionPin.invalidRate")); return; }
     startTransition(async () => {
       const r = await submitMyRateForInquiry(conv.id, num);
-      if (!r.ok) toast(`Submit rate failed: ${r.error}`);
-      else { toast("Rate submitted"); router.refresh(); }
+      if (!r.ok) toast(interpolate(t("dashboard.adminTabs.actionPin.submitRateFailed"), { error: r.error }));
+      else { toast(t("dashboard.adminTabs.actionPin.rateSubmitted")); router.refresh(); }
     });
   } : null;
 
@@ -490,10 +501,10 @@ export function ConversationActionPin({ conv }: { conv: Conversation }) {
     if (conv.id === "c7") {
       return (
         <ActionPinShell tone="amber" icon="📝"
-          title="Crew assets due Jun 14"
-          body="Solstice needs updated bios + portrait shots for the festival program. Tariq and Anouk haven't dropped them in Files yet."
-          primary={{ label: "Nudge crew", disabled: true, title: "Crew reminders need a live notification workflow." }}
-          secondary={{ label: "Upload mine", disabled: true, title: "Crew asset upload needs a live file request workflow." }}
+          title={t("dashboard.adminTabs.actionPin.crewAssetsTitle")}
+          body={t("dashboard.adminTabs.actionPin.crewAssetsBody")}
+          primary={{ label: t("dashboard.adminTabs.actionPin.nudgeCrew"), disabled: true, title: t("dashboard.adminTabs.actionPin.nudgeCrewTitle") }}
+          secondary={{ label: t("dashboard.adminTabs.actionPin.uploadMine"), disabled: true, title: t("dashboard.adminTabs.actionPin.uploadMineTitle") }}
         />
       );
     }
@@ -505,9 +516,9 @@ export function ConversationActionPin({ conv }: { conv: Conversation }) {
   // the explicit acknowledgement in audit + activity.
   const realPostConfirm = isRealInquiry ? (label: string) => {
     startTransition(async () => {
-      const r = await sendInquiryMessageAsTalent(conv.id, `✓ Confirmed: ${label}`);
-      if (!r.ok) toast(`Confirm failed: ${r.error}`);
-      else { toast("Confirmed"); router.refresh(); }
+      const r = await sendInquiryMessageAsTalent(conv.id, interpolate(t("dashboard.adminTabs.actionPin.confirmedMessage"), { label }));
+      if (!r.ok) toast(interpolate(t("dashboard.adminTabs.actionPin.confirmFailed"), { error: r.error }));
+      else { toast(t("dashboard.adminTabs.actionPin.confirmed")); router.refresh(); }
     });
   } : null;
 
@@ -518,29 +529,29 @@ export function ConversationActionPin({ conv }: { conv: Conversation }) {
   if (conv.stage === "hold") {
     return (
       <ActionPinShell tone="amber" icon="⏰"
-        title="Hold expires in 4h"
-        body="Confirm now to keep this slot, or release it for the next talent."
+        title={t("dashboard.adminTabs.actionPin.holdTitle")}
+        body={t("dashboard.adminTabs.actionPin.holdBody")}
         primary={realAccept
-          ? { label: "Confirm hold", onClick: realAccept }
-          : { label: "Confirm hold", disabled: true, title: "Hold confirmation needs a real inquiry invitation." }}
+          ? { label: t("dashboard.adminTabs.actionPin.confirmHold"), onClick: realAccept }
+          : { label: t("dashboard.adminTabs.actionPin.confirmHold"), disabled: true, title: t("dashboard.adminTabs.actionPin.confirmHoldDisabled") }}
         secondary={realDecline
-          ? { label: "Release", onClick: realDecline }
-          : { label: "Release", disabled: true, title: "Hold release needs a real inquiry invitation." }}
+          ? { label: t("dashboard.adminTabs.actionPin.release"), onClick: realDecline }
+          : { label: t("dashboard.adminTabs.actionPin.release"), disabled: true, title: t("dashboard.adminTabs.actionPin.releaseDisabled") }}
       />
     );
   }
 
   // BOOKED — surface unresolved action-confirm (e.g. call sheet).
   if (conv.stage === "booked" && lastAction?.kind === "action-confirm") {
-    const label = lastAction.label || "Action";
+    const label = lastAction.label || t("dashboard.adminTabs.actionPin.actionFallback");
     return (
       <ActionPinShell tone="indigo" icon="📋"
         title={label}
-        body="Coordinator is waiting for your sign-off before set day."
+        body={t("dashboard.adminTabs.actionPin.signoffBody")}
         primary={realPostConfirm
-          ? { label: "Confirm", onClick: () => realPostConfirm(label) }
-          : { label: "Confirm", disabled: true, title: "Confirmation needs a real inquiry thread." }}
-        secondary={{ label: "Question", disabled: true, title: "Use the composer below to reply in this mock thread." }}
+          ? { label: t("dashboard.adminTabs.actionPin.confirm"), onClick: () => realPostConfirm(label) }
+          : { label: t("dashboard.adminTabs.actionPin.confirm"), disabled: true, title: t("dashboard.adminTabs.actionPin.confirmDisabled") }}
+        secondary={{ label: t("dashboard.adminTabs.actionPin.question"), disabled: true, title: t("dashboard.adminTabs.actionPin.questionDisabled") }}
       />
     );
   }
@@ -550,34 +561,34 @@ export function ConversationActionPin({ conv }: { conv: Conversation }) {
     if (lastAction?.kind === "action-rate") {
       return (
         <ActionPinShell tone="indigo" icon="💸"
-          title="Submit your rate"
-          body={`${conv.leader?.name?.split(" ")[0] ?? "The coordinator"} is waiting on your number to send the offer to the client.`}
+          title={t("dashboard.adminTabs.actionPin.submitRateTitle")}
+          body={interpolate(t("dashboard.adminTabs.actionPin.submitRateBody"), { name: conv.leader?.name?.split(" ")[0] ?? t("dashboard.adminTabs.actionPin.theCoordinator") })}
           primary={realSubmitRate
-            ? { label: "Submit rate", onClick: realSubmitRate }
-            : { label: "Submit rate", disabled: true, title: "Rate submission needs a real inquiry invitation." }}
-          secondary={{ label: "Ask coordinator to set", disabled: true, title: "Coordinator rate requests need a live workflow." }}
+            ? { label: t("dashboard.adminTabs.actionPin.submitRate"), onClick: realSubmitRate }
+            : { label: t("dashboard.adminTabs.actionPin.submitRate"), disabled: true, title: t("dashboard.adminTabs.actionPin.submitRateDisabled") }}
+          secondary={{ label: t("dashboard.adminTabs.actionPin.askCoordSet"), disabled: true, title: t("dashboard.adminTabs.actionPin.askCoordSetDisabled") }}
         />
       );
     }
     if (lastAction?.kind === "polaroid-request") {
       return (
         <ActionPinShell tone="indigo" icon="📸"
-          title="Polaroids requested"
-          body="Send 6 fresh polaroids so the client can pre-approve the look."
-          primary={{ label: "Upload polaroids", disabled: true, title: "Polaroid upload needs a live media workflow." }}
+          title={t("dashboard.adminTabs.actionPin.polaroidsTitle")}
+          body={t("dashboard.adminTabs.actionPin.polaroidsBody")}
+          primary={{ label: t("dashboard.adminTabs.actionPin.uploadPolaroids"), disabled: true, title: t("dashboard.adminTabs.actionPin.uploadPolaroidsDisabled") }}
         />
       );
     }
     return (
       <ActionPinShell tone="indigo" icon="✋"
-        title="Coordinator invited you"
-        body={`Reply to ${conv.leader?.name ?? "the coordinator"} or accept the inquiry to lock your spot.`}
+        title={t("dashboard.adminTabs.actionPin.invitedTitle")}
+        body={interpolate(t("dashboard.adminTabs.actionPin.invitedBody"), { name: conv.leader?.name ?? t("dashboard.adminTabs.actionPin.invitedBodyFallback") })}
         primary={realAccept
-          ? { label: "Accept", onClick: realAccept }
-          : { label: "Accept", disabled: true, title: "Accept needs a real inquiry invitation." }}
+          ? { label: t("dashboard.adminTabs.actionPin.accept"), onClick: realAccept }
+          : { label: t("dashboard.adminTabs.actionPin.accept"), disabled: true, title: t("dashboard.adminTabs.actionPin.acceptDisabled") }}
         secondary={realDecline
-          ? { label: "Decline", onClick: realDecline }
-          : { label: "Decline", disabled: true, title: "Decline needs a real inquiry invitation." }}
+          ? { label: t("dashboard.adminTabs.actionPin.decline"), onClick: realDecline }
+          : { label: t("dashboard.adminTabs.actionPin.decline"), disabled: true, title: t("dashboard.adminTabs.actionPin.declineDisabled") }}
       />
     );
   }

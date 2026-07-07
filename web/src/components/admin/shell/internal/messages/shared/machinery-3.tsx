@@ -1,6 +1,7 @@
 "use client";
 
 import { type CSSProperties } from "react";
+import { useT } from "@/i18n/use-t";
 import { useAdminShell, COLORS, FONTS, type InquiryRecord } from "../../state";
 import { Avatar } from "../../primitives";
 import { type Conversation } from "../../talent";
@@ -39,8 +40,9 @@ export function ClientProjectViewTab({
   onOpenOffer: () => void;
 }) {
   const { toast } = useAdminShell();
+  const tr = useT();
   const pinned = conv.pinned ?? {};
-  const days = countdownLabel(inquiry.schedule.start);
+  const days = countdownLabel(inquiry.schedule.start, tr);
   const coord = inquiry.coordinators[0];
   const lineup = inquiry.talent;
   const teammates = lineup.length > 0;
