@@ -133,14 +133,14 @@ export function buildGenerationSystemPrompt(): string {
     '  size:"sm"|"md"|"lg"|"xl"|"display"      (heading scale)',
     '  maxWidth:"narrow"|"reading"|"wide"|"full"',
     '  paddingX,paddingY,marginTop,marginBottom: "none"|"s"|"m"|"l"',
-    '  background:"none"|"surface"|"contrast"   (contrast = dark band)',
+    '  background:"none"|"surface"   (surface = a subtle theme-paired raised panel)',
     '  radius:"none"|"sm"|"md"|"lg"|"pill"',
     '  textColor,backgroundColor: a short CSS color — hex like "#1a1a1a" or a keyword, under ~40 chars',
     "  fontWeight: 100-900",
     '  textTransform:"none"|"uppercase"|"lowercase"|"capitalize"   fontStyle:"normal"|"italic"   tone:"default"|"muted"|"strong"',
     '  objectFit:"cover"|"contain"   aspectRatio:"auto"|"1:1"|"4:3"|"3:4"|"16:9"|"21:9"',
     "",
-    'COLOR: default to a warm editorial palette. For a dark band use background:"contrast" (or backgroundColor near "#15120e") with light text (textColor near "#f3ece0"). Cream surfaces use backgroundColor near "#f3efe7" with ink text near "#1b1713". Use at most one accent hex for eyebrows/rules. Never put light text on a light background or dark on dark.',
+    'COLOR: the tenant theme already supplies a coherent, readable palette — LEAVE MOST BLOCKS UNCOLORED and let the theme paint them. The theme\'s polarity is unknown to you (a page can be light OR dark), so a hardcoded color is a gamble. Two safe moves only: (1) leave color unset (recommended for nearly every block); (2) to make ONE deliberate colored band, set backgroundColor AND textColor together on the SAME container as a self-consistent pair — e.g. a dark band backgroundColor:"#15120e" with textColor:"#f3ece0", or a cream band backgroundColor:"#f3efe7" with textColor:"#1b1713"; its text children then inherit that color, so leave them uncolored. NEVER set a text color without a matching background on the same block, or a background without its text color — a lone color is DROPPED. Never light-on-light or dark-on-dark.',
     "",
     "RULES",
     "- Copy: write real, specific, on-brand copy — never lorem ipsum or placeholder text. Headlines are short and declarative (5-9 words); body is one or two real sentences. Give the business a plausible concrete name and voice.",
@@ -292,6 +292,20 @@ function sanitizeStyle(raw: unknown): Record<string, unknown> | undefined {
   }
   for (const key of CURATED_STYLE_COLOR_KEYS) {
     if (isSafeStyleColor(style[key])) out[key] = style[key];
+  }
+  // Colors survive only as a self-consistent PAIR (a background with its own
+  // readable foreground). A LONE text color sits on the theme's own surface —
+  // whose polarity the model can't see — and a lone background leaves the text
+  // at the theme default; either can invert to unreadable on a given tenant
+  // theme (verified live: cream text with no background rendered invisible on a
+  // light theme). Drop the orphan so the theme paints a guaranteed-readable
+  // default; keep the pair, which is readable on any theme.
+  if (
+    (typeof out.textColor === "string") !==
+    (typeof out.backgroundColor === "string")
+  ) {
+    delete out.textColor;
+    delete out.backgroundColor;
   }
   const weight = style[CURATED_STYLE_FONT_WEIGHT_KEY];
   if (typeof weight === "number" && Number.isInteger(weight) && weight >= 100 && weight <= 900) {

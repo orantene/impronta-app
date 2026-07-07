@@ -260,6 +260,48 @@ test("a token-width content column is centered (margin-inline auto), full is not
   assert.equal(fs.width, undefined);
 });
 
+test("color safety: contrast band dropped, orphan color dropped, paired colors kept", () => {
+  const tree = coerceToSections({
+    sections: [
+      {
+        kind: "section",
+        label: "Bands",
+        children: [
+          // theme-relative "contrast" band + hardcoded light text = the live
+          // unreadable case → background token dropped, orphan textColor dropped.
+          {
+            kind: "container",
+            props: { layout: "stack", style: { background: "contrast", textColor: "#f3ece0" } },
+            children: [{ kind: "heading", props: { text: "Orphan light text", level: 2, style: { textColor: "#f3ece0" } } }],
+          },
+          // self-consistent hex PAIR on one block → kept (readable on any theme).
+          {
+            kind: "container",
+            props: { layout: "stack", style: { backgroundColor: "#15120e", textColor: "#f3ece0" } },
+            children: [{ kind: "paragraph", props: { text: "Paired band copy" } }],
+          },
+        ],
+      },
+    ],
+  });
+  const validation = validateBuilderNodeTree(tree);
+  assert.equal(validation.ok, true);
+
+  const containers = collectNodes(validation.tree).filter((n) => n.kind === "container");
+  // First container: background token gone, orphan textColor gone.
+  const bandA = containers[0]!.props as { style?: Record<string, unknown> };
+  assert.equal(bandA.style?.background, undefined, "theme-relative contrast band must be dropped");
+  assert.equal(bandA.style?.textColor, undefined, "orphan text color must be dropped");
+  // The heading child's orphan textColor is also dropped (inherits the theme).
+  const heading = collectNodes(validation.tree).find((n) => n.kind === "heading");
+  assert.equal((heading!.props as { style?: Record<string, unknown> }).style?.textColor, undefined);
+
+  // Second container: the self-consistent pair survives intact.
+  const bandB = containers[1]!.props as { style?: Record<string, unknown> };
+  assert.equal(bandB.style?.backgroundColor, "#15120e");
+  assert.equal(bandB.style?.textColor, "#f3ece0");
+});
+
 test("empty model output resolves to EMPTY (caller falls back)", async () => {
   const result = await generateBuilderNodes({
     brief: "a homepage",

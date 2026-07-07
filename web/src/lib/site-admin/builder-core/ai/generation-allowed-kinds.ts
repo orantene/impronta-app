@@ -105,7 +105,13 @@ export const CURATED_STYLE_ENUM_VALUES = {
   marginBottom: ["none", "s", "m", "l"],
   paddingX: ["none", "s", "m", "l"],
   paddingY: ["none", "s", "m", "l"],
-  background: ["none", "surface", "contrast"],
+  // "contrast" is DELIBERATELY omitted: it is a THEME-RELATIVE band (it renders
+  // dark on a light theme but LIGHT on a dark theme), so a model that pairs it
+  // with a hardcoded light text color produces light-on-light — unreadable
+  // (verified live). Bands must instead be an explicit backgroundColor+textColor
+  // PAIR (self-consistent on any theme). "surface" stays: it is a theme-paired
+  // raised surface whose foreground the theme keeps readable.
+  background: ["none", "surface"],
   radius: ["none", "sm", "md", "lg", "pill"],
   objectFit: ["cover", "contain"],
   aspectRatio: ["auto", "1:1", "4:3", "3:4", "16:9", "21:9"],
