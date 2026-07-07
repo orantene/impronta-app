@@ -4,6 +4,7 @@ import {
   loadAiGenerationUsageSummary,
   loadPlatformAiProviderState,
 } from "@/lib/ai/ai-provider-admin";
+import { GENERATION_MODEL_OPTIONS } from "@/lib/ai/ai-generation-model";
 import { AiProvidersClient } from "./AiProvidersClient";
 
 export const dynamic = "force-dynamic";
@@ -13,5 +14,11 @@ export default async function AiProvidersPage() {
     loadPlatformAiProviderState(),
     loadAiGenerationUsageSummary(30),
   ]);
-  return <AiProvidersClient state={state} usage={usage} />;
+  return (
+    <AiProvidersClient
+      state={state}
+      usage={usage}
+      modelOptions={GENERATION_MODEL_OPTIONS.map((o) => ({ ...o }))}
+    />
+  );
 }

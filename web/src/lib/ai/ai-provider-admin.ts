@@ -6,6 +6,10 @@ import { encryptSecret, isCredentialEncryptionConfigured, maskApiKey } from "@/l
 import { getEnvAiProviderOverride, getResolvedAiChatKind } from "@/lib/ai/resolve-provider";
 import { estimateCostUsd } from "@/lib/ai/ai-model-costs";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  resolveGenerationModel,
+  type GenerationModelId,
+} from "@/lib/ai/ai-generation-model";
 import type { AiProviderRegistryKind } from "@/lib/ai/ai-provider-repository";
 
 /**
@@ -186,6 +190,7 @@ export type PlatformAiProviderState = {
   resolvedKind: string;
   envOverride: string | null;
   anthropicModelEnv: string | null;
+  generationModel: GenerationModelId;
   providers: ProviderRow[];
 };
 
@@ -194,6 +199,7 @@ export async function loadPlatformAiProviderState(): Promise<PlatformAiProviderS
   const resolvedKind = await getResolvedAiChatKind().catch(() => "none");
   const envOverride = getEnvAiProviderOverride();
   const anthropicModelEnv = process.env.ANTHROPIC_CHAT_MODEL?.trim() || null;
+  const generationModel = await resolveGenerationModel();
 
   const supabase = await service();
   const providers: ProviderRow[] = [];
@@ -218,7 +224,14 @@ export async function loadPlatformAiProviderState(): Promise<PlatformAiProviderS
       });
     }
   }
-  return { encryptionConfigured, resolvedKind, envOverride, anthropicModelEnv, providers };
+  return {
+    encryptionConfigured,
+    resolvedKind,
+    envOverride,
+    anthropicModelEnv,
+    generationModel,
+    providers,
+  };
 }
 
 export type AiUsageSummary = {

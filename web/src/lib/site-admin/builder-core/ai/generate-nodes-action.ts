@@ -31,8 +31,10 @@ import {
   type ModelGenerateFn,
 } from "./generate-nodes";
 import { composePageFromBrief, type TextToPageSurface } from "./text-to-page";
-
-const GENERATION_MODEL = "claude-opus-4-8";
+import {
+  resolveGenerationModel,
+  type GenerationModelId,
+} from "@/lib/ai/ai-generation-model";
 
 export type GenerateNodesActionState =
   | {
@@ -68,7 +70,11 @@ function checkRate(userId: string): { ok: boolean; remainingMs?: number } {
  * (best-effort) for the platform-admin dashboard, and returns the raw text or
  * null on any failure.
  */
-function buildModelGenerator(actorProfileId: string | null, scope: GenerateScope): ModelGenerateFn {
+function buildModelGenerator(
+  actorProfileId: string | null,
+  scope: GenerateScope,
+  model: GenerationModelId,
+): ModelGenerateFn {
   return async ({ systemPrompt, userMessage, jsonSchema, maxTokens }) => {
     const startedAt = Date.now();
     try {
@@ -78,11 +84,11 @@ function buildModelGenerator(actorProfileId: string | null, scope: GenerateScope
         userMessage,
         jsonSchema,
         maxTokens,
-        model: GENERATION_MODEL,
+        model,
       });
       void recordAiGenerationUsage({
         provider: adapter.id,
-        model: result.ok ? (result.model ?? GENERATION_MODEL) : GENERATION_MODEL,
+        model: result.ok ? (result.model ?? model) : model,
         usage: result.ok ? result.usage : undefined,
         actorProfileId,
         ok: result.ok,
@@ -134,12 +140,13 @@ export async function generateBuilderNodesAction(input: {
   const useModel = await isResolvedAiChatConfigured().catch(() => false);
 
   if (useModel) {
+    const model = await resolveGenerationModel();
     const generated = await generateBuilderNodes({
       brief: input.brief,
       scope: input.scope,
       // actor_profile_id FKs to profiles.id, which equals the auth user id in
       // this schema (every other actor_profile_id writer passes session.user.id).
-      generateWithModel: buildModelGenerator(auth.user.id, input.scope),
+      generateWithModel: buildModelGenerator(auth.user.id, input.scope, model),
     });
     if (generated.ok) {
       return {

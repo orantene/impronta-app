@@ -10,13 +10,19 @@
 
 import { useState, useTransition } from "react";
 
-import { saveAiProviderKeyAction, setAiProviderActiveAction } from "./actions";
+import {
+  saveAiProviderKeyAction,
+  setAiGenerationModelAction,
+  setAiProviderActiveAction,
+} from "./actions";
 import type {
   AiUsageSummary,
   PlatformAiProviderState,
   ProviderConfigKind,
   ProviderRow,
 } from "@/lib/ai/ai-provider-admin";
+
+type ModelOption = { id: string; label: string; hint: string };
 
 const HQ = {
   bg: "#0f0f12",
@@ -63,9 +69,11 @@ function compact(n: number): string {
 export function AiProvidersClient({
   state,
   usage,
+  modelOptions,
 }: {
   state: PlatformAiProviderState;
   usage: AiUsageSummary;
+  modelOptions: ModelOption[];
 }) {
   const byKind = new Map(state.providers.map((p) => [p.kind, p] as const));
 
@@ -120,6 +128,9 @@ export function AiProvidersClient({
             <ProviderCard key={p.kind} def={p} row={byKind.get(p.kind)} />
           ))}
         </section>
+
+        {/* Generation model picker */}
+        <GenerationModelCard current={state.generationModel} options={modelOptions} />
 
         {/* Usage */}
         <UsagePanel usage={usage} />
@@ -345,6 +356,90 @@ function Pill({ tone, children }: { tone: "green" | "muted" | "faint"; children:
     >
       {children}
     </span>
+  );
+}
+
+function GenerationModelCard({
+  current,
+  options,
+}: {
+  current: string;
+  options: ModelOption[];
+}) {
+  const [selected, setSelected] = useState(current);
+  const [error, setError] = useState<string | null>(null);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function choose(id: string) {
+    if (id === selected || pending) return;
+    const prev = selected;
+    setSelected(id); // optimistic
+    setError(null);
+    setOkMsg(null);
+    startTransition(async () => {
+      const r = await setAiGenerationModelAction({ model: id });
+      if (r.ok) {
+        setOkMsg("Saved.");
+      } else {
+        setSelected(prev);
+        setError(r.error);
+      }
+    });
+  }
+
+  return (
+    <section style={{ marginTop: 14 }}>
+      <div style={{ background: HQ.card, border: `1px solid ${HQ.border}`, borderRadius: 14, padding: 16 }}>
+        <div style={{ fontSize: 15, fontWeight: 650 }}>Generation model</div>
+        <div style={{ fontSize: 12, color: HQ.inkMuted, marginTop: 4 }}>
+          Which Claude model the AI page builder composes with. Applies to every generation.
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 10,
+            marginTop: 12,
+          }}
+        >
+          {options.map((o) => {
+            const isSel = o.id === selected;
+            return (
+              <button
+                key={o.id}
+                type="button"
+                disabled={pending}
+                onClick={() => choose(o.id)}
+                style={{
+                  textAlign: "left",
+                  cursor: pending ? "default" : "pointer",
+                  background: isSel ? HQ.accentSoft : HQ.cardHi,
+                  border: `1px solid ${isSel ? "rgba(139,92,246,0.55)" : HQ.border}`,
+                  borderRadius: 10,
+                  padding: "11px 13px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 650, color: isSel ? HQ.accent : HQ.ink }}>
+                    {o.label}
+                  </span>
+                  {isSel ? <Pill tone="green">Active</Pill> : null}
+                </div>
+                <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 4, lineHeight: 1.45 }}>
+                  {o.hint}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        {error ? (
+          <div style={{ fontSize: 12, color: HQ.rose, marginTop: 8 }}>{error}</div>
+        ) : okMsg ? (
+          <div style={{ fontSize: 12, color: HQ.green, marginTop: 8 }}>{okMsg}</div>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
