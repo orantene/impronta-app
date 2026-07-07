@@ -257,7 +257,9 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
   // `useEffect(reload)` below refetch on every render (infinite loop). Read the
   // translator off a ref (only used in the error branch) so reload stays stable.
   const tRef = React.useRef(t);
-  tRef.current = t;
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   const reload = React.useCallback(() => {
     setLoading(true);
