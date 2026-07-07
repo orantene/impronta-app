@@ -2,6 +2,8 @@
 
 import { useTransition, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate, type Translator } from "@/i18n/interpolate";
 import { PayoutNudgeCard } from "@/components/talent-payouts/PayoutNudgeCard";
 import { loadCurrentTalentPayoutSnapshot, loadMyInquiryTakeHome, type TalentPayoutSnapshot } from "@/lib/server-actions/talent-self";
 import { type TalentTakeHome } from "@/lib/talent/inquiry-take-home";
@@ -22,19 +24,25 @@ import { DealSummaryCard, LineupRowCard, ParticipantRow, TimelineRow, dashedBtn,
 import { SubmitRateSheet } from "./machinery-14";
 import type { Offer } from "./machinery-9";
 
-/** Human label + tone for an inquiry_offers status. */
-function offerStatusInfo(status: string): { label: string; bg: string; tone: string } {
+/** Human label + tone for an inquiry_offers status. The `status` value stays
+ *  the raw English discriminant (it drives control flow elsewhere); only the
+ *  displayed label resolves through `t`. */
+function offerStatusInfo(status: string, t: Translator): { label: string; bg: string; tone: string } {
+  const tx = (key: string, fallback: string) => {
+    const out = t(key);
+    return out === key ? fallback : out;
+  };
   switch (status) {
     case "draft":
-      return { label: "Draft", bg: COLORS.amberSoft, tone: COLORS.amberDeep };
+      return { label: tx("dashboard.adminTabs.offer.statusDraft", "Draft"), bg: COLORS.amberSoft, tone: COLORS.amberDeep };
     case "sent":
-      return { label: "Sent · awaiting approval", bg: "rgba(29,78,216,0.10)", tone: "#1D4ED8" };
+      return { label: tx("dashboard.adminTabs.offer.statusSent", "Sent · awaiting approval"), bg: "rgba(29,78,216,0.10)", tone: "#1D4ED8" };
     case "accepted":
-      return { label: "Accepted", bg: "rgba(15,81,50,0.10)", tone: "#0F5132" };
+      return { label: tx("dashboard.adminTabs.offer.statusAccepted", "Accepted"), bg: "rgba(15,81,50,0.10)", tone: "#0F5132" };
     case "rejected":
-      return { label: "Declined", bg: "rgba(153,27,27,0.08)", tone: "#991B1B" };
+      return { label: tx("dashboard.adminTabs.offer.statusDeclined", "Declined"), bg: "rgba(153,27,27,0.08)", tone: "#991B1B" };
     case "superseded":
-      return { label: "Superseded", bg: COLORS.amberSoft, tone: COLORS.amberDeep };
+      return { label: tx("dashboard.adminTabs.offer.statusSuperseded", "Superseded"), bg: COLORS.amberSoft, tone: COLORS.amberDeep };
     default:
       return { label: status, bg: COLORS.borderSoft, tone: COLORS.inkMuted };
   }
@@ -63,6 +71,7 @@ export function LiveOfferPanel({
 }) {
   const { toast, effectiveMessagesInquiries, effectiveTenant } = useAdminShell();
   const router = useRouter();
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const real = effectiveMessagesInquiries.find((r) => r.id === inquiryId);
   const offer = injectedOffer ?? real?.offer ?? null;
@@ -135,15 +144,15 @@ export function LiveOfferPanel({
   if (!offer || !offerId || offerId.endsWith("-offer")) return null;
 
   const status = offer.status;
-  const statusInfo = offerStatusInfo(status);
+  const statusInfo = offerStatusInfo(status, t);
 
   const run = (label: string, fn: () => Promise<{ ok: boolean; error?: string }>) =>
     startTransition(async () => {
       const r = await fn();
       if (!r.ok) {
-        toast(`${label} failed: ${r.error ?? "Unknown error"}`);
+        toast(interpolate(t("dashboard.adminTabs.offer.actionFailed"), { label, error: r.error ?? t("dashboard.adminTabs.offer.unknownError") }));
       } else {
-        toast(`${label} ✓`);
+        toast(interpolate(t("dashboard.adminTabs.offer.actionOk"), { label }));
         router.refresh();
       }
     });
@@ -214,7 +223,7 @@ export function LiveOfferPanel({
               {statusInfo.label}
             </span>
             {offer.sentAt && (
-              <span className="text-admin-ink-muted" style={{ fontSize: 11 }}>sent {offer.sentAt}</span>
+              <span className="text-admin-ink-muted" style={{ fontSize: 11 }}>{interpolate(t("dashboard.adminTabs.offer.sentAt"), { date: offer.sentAt })}</span>
             )}
           </div>
           {offer.total && (
@@ -223,7 +232,7 @@ export function LiveOfferPanel({
             </div>
           )}
           {!offer.total && (
-            <div style={{ fontSize: 13 }} className="text-admin-ink-muted">No total set yet</div>
+            <div style={{ fontSize: 13 }} className="text-admin-ink-muted">{t("dashboard.adminTabs.offer.noTotalSet")}</div>
           )}
         </div>
       </div>
@@ -232,7 +241,7 @@ export function LiveOfferPanel({
       {offer.lineItems.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
           <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }} className="text-admin-ink-muted">
-            Line items
+            {t("dashboard.adminTabs.offer.lineItems")}
           </div>
           <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, overflow: "hidden" }}>
           {offer.lineItems.map((ln, i) => (
@@ -269,7 +278,7 @@ export function LiveOfferPanel({
                 background: "rgba(11,11,13,0.025)",
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">Total</span>
+              <span style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{t("dashboard.adminTabs.offer.total")}</span>
               <span style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 700, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">
                 {offer.total}
               </span>
@@ -297,18 +306,18 @@ export function LiveOfferPanel({
       {canManage && hasSnapshot && agg && (
         <div style={{ padding: "12px 14px", borderRadius: 10, display: "flex", flexDirection: "column", gap: 7, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
           <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }} className="text-admin-ink-muted">
-            Commission breakdown
+            {t("dashboard.adminTabs.offer.commissionBreakdown")}
           </div>
-          <CommissionRow label="Client pays (gross)" value={fmtMoney(agg.grossCharged / 100, snapCurrency)} strong />
-          <CommissionRow label="Platform fee" value={`− ${fmtMoney(agg.platformFee / 100, snapCurrency)}`} />
-          <CommissionRow label="Talent net" value={fmtMoney(agg.talentNet / 100, snapCurrency)} />
+          <CommissionRow label={t("dashboard.adminTabs.offer.clientPaysGross")} value={fmtMoney(agg.grossCharged / 100, snapCurrency)} strong />
+          <CommissionRow label={t("dashboard.adminTabs.offer.platformFee")} value={`− ${fmtMoney(agg.platformFee / 100, snapCurrency)}`} />
+          <CommissionRow label={t("dashboard.adminTabs.offer.talentNet")} value={fmtMoney(agg.talentNet / 100, snapCurrency)} />
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "2px 0" }} />
-          <CommissionRow label="Your margin (workspace)" value={fmtMoney(agg.workspaceFee / 100, snapCurrency)} strong />
+          <CommissionRow label={t("dashboard.adminTabs.offer.yourMargin")} value={fmtMoney(agg.workspaceFee / 100, snapCurrency)} strong />
         </div>
       )}
       {canManage && bookingId && snapshots !== null && !hasSnapshot && (
         <div className="text-admin-ink-muted text-admin-11" style={{ lineHeight: 1.5 }}>
-          Commission breakdown appears once the booking&apos;s commission snapshot is recorded.
+          {t("dashboard.adminTabs.offer.commissionPending")}
         </div>
       )}
 
@@ -319,9 +328,9 @@ export function LiveOfferPanel({
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {status === "draft" && (
             <button type="button" disabled={pending}
-              onClick={() => run("Send offer", () => sendOfferAction(effectiveTenant.slug, inquiryId, offerId))}
+              onClick={() => run(t("dashboard.adminTabs.offer.sendOffer"), () => sendOfferAction(effectiveTenant.slug, inquiryId, offerId))}
               style={primaryBtn(COLORS.accent)}
-            >Send to client</button>
+            >{t("dashboard.adminTabs.offer.sendToClient")}</button>
           )}
           {/* A2 — Amend & re-send: when the offer is SENT but the admin needs
               to adjust terms (price error, changed scope, client feedback),
@@ -332,12 +341,12 @@ export function LiveOfferPanel({
               "sent = locked with no edit path" dead-end. */}
           {status === "sent" && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span className="text-admin-ink-muted text-admin-11">Awaiting client + talent approval…</span>
+              <span className="text-admin-ink-muted text-admin-11">{t("dashboard.adminTabs.offer.awaitingApproval")}</span>
               <button
                 type="button"
                 disabled={pending}
-                title="Withdraw this offer to edit the terms and re-send"
-                onClick={() => run("Amend offer", () => reopenOfferAction(effectiveTenant.slug, inquiryId, offerId))}
+                title={t("dashboard.adminTabs.offer.amendTitle")}
+                onClick={() => run(t("dashboard.adminTabs.offer.amendOffer"), () => reopenOfferAction(effectiveTenant.slug, inquiryId, offerId))}
                 style={{
                   padding: "5px 12px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
                   border: `1px solid ${COLORS.border}`,
@@ -349,15 +358,15 @@ export function LiveOfferPanel({
                 <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
                   <path d="M8 2l2 2-6 6H2v-2l6-6zM7 3l2 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                Amend &amp; re-send
+                {t("dashboard.adminTabs.offer.amendResend")}
               </button>
             </div>
           )}
           {status === "rejected" && (
             <button type="button" disabled={pending}
-              onClick={() => run("Counter offer", () => counterOfferAction(effectiveTenant.slug, inquiryId, offerId))}
+              onClick={() => run(t("dashboard.adminTabs.offer.counterOffer"), () => counterOfferAction(effectiveTenant.slug, inquiryId, offerId))}
               style={primaryBtn(COLORS.accent)}
-            >Counter offer</button>
+            >{t("dashboard.adminTabs.offer.counterOffer")}</button>
           )}
         </div>
       )}
@@ -390,6 +399,7 @@ function CommissionRow({ label, value, strong }: { label: string; value: string;
 export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const { toast, effectiveMessagesInquiries, effectiveTenant } = useAdminShell();
   const router = useRouter();
+  const t = useT();
   // B7 — talent counter-rate handler. Sends a tagged [Counter request]
   // message via the engine. Coordinator-side picks it up from the
   // conversation thread and re-drafts the offer.
@@ -562,7 +572,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
           <LiveOfferPanel inquiryId={conv.id} pov={pov} injectedOffer={coordOffer} injectedBookingId={coordBookingId} />
         ) : (
           <div style={{ padding: 24, textAlign: "center", fontSize: 13 }} className="text-admin-ink-dim">
-            No offer yet for this inquiry.
+            {t("dashboard.adminTabs.offer.noOfferYet")}
             {(isAdmin || (isTalent && pov.isCoordinator)) && <CreateOfferButton inquiryId={conv.id} />}
           </div>
         )}
@@ -682,39 +692,39 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       />
 
       {/* ── B. Participants ──────────────────────────────────── */}
-      <SectionHeader title="Who's running this" subtitle={isClient ? "Your point of contact." : `${offer.coordinators.length} coordinator${offer.coordinators.length === 1 ? "" : "s"} · ${offer.rows.length} talent${offer.rows.length === 1 ? "" : "s"}`} />
+      <SectionHeader title={t("dashboard.adminTabs.offer.whosRunning")} subtitle={isClient ? t("dashboard.adminTabs.offer.yourContact") : interpolate(t("dashboard.adminTabs.offer.coordTalentCount"), { coordinators: offer.coordinators.length, talent: offer.rows.length })} />
       <div className="flex flex-col gap-2">
         {offer.coordinators.map(c => (
           <ParticipantRow
             key={c.id}
             initials={c.initials}
             name={c.name}
-            role="Coordinator"
+            role={t("dashboard.adminTabs.offer.coordinatorRole")}
             tone="royal"
-            note={c.alsoTalentId ? "Also booked as talent" : undefined}
+            note={c.alsoTalentId ? t("dashboard.adminTabs.offer.alsoBookedTalent") : undefined}
           />
         ))}
         {isAdmin && offer.coordinators.length < 2 && (
           <button
             type="button"
             disabled
-            title="Coordinator assignment needs the live offer workflow."
-            style={disabledBtn(dashedBtn("Add coordinator (max 2)"))}
+            title={t("dashboard.adminTabs.offer.addCoordDisabled")}
+            style={disabledBtn(dashedBtn("add-coordinator"))}
           >
-            + Add coordinator
+            {t("dashboard.adminTabs.offer.addCoordinator")}
           </button>
         )}
       </div>
 
       {/* ── C. Lineup & rates — privacy-aware ─────────────────── */}
       <SectionHeader
-        title="Lineup &amp; rates"
+        title={t("dashboard.adminTabs.offer.lineupRates")}
         subtitle={
           isClient
-            ? "Talent we're proposing for your booking."
+            ? t("dashboard.adminTabs.offer.lineupSubClient")
             : isTalent && !pov.isCoordinator
-              ? "Your private rate. Other talent rates are not visible to you."
-              : "Per-talent rates. Each talent sets their own. Only coordinators see the full lineup."
+              ? t("dashboard.adminTabs.offer.lineupSubTalent")
+              : t("dashboard.adminTabs.offer.lineupSubAdmin")
         }
       />
       <div className="flex flex-col gap-2.5">
@@ -739,10 +749,10 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
           <button
             type="button"
             disabled
-            title="Invite talent needs the live offer workflow."
-            style={disabledBtn(dashedBtn("Invite talent"))}
+            title={t("dashboard.adminTabs.offer.inviteTalentDisabled")}
+            style={disabledBtn(dashedBtn("invite-talent"))}
           >
-            + Invite talent
+            {t("dashboard.adminTabs.offer.inviteTalent")}
           </button>
         )}
       </div>
@@ -751,11 +761,11 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       {canSeeFullCommerce && (
         <div style={{ padding: "12px 14px", borderRadius: 10, fontSize: 12.5 }} className="bg-admin-surface-alt">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <span className="text-admin-ink-muted">Agency fee</span>
+            <span className="text-admin-ink-muted">{t("dashboard.adminTabs.offer.agencyFee")}</span>
             <span style={{ fontWeight: 600 }} className="text-admin-ink">{fmtMoney(offer.agencyFee, currency)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span className="text-admin-ink-muted">Coordinator share ({offer.coordinatorPct}% of fee)</span>
+            <span className="text-admin-ink-muted">{interpolate(t("dashboard.adminTabs.offer.coordinatorShare"), { pct: offer.coordinatorPct })}</span>
             <span style={{ fontWeight: 600 }} className="text-admin-ink">{fmtMoney(offer.agencyFee * offer.coordinatorPct / 100, currency)}</span>
           </div>
         </div>
@@ -801,7 +811,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       )}
 
       {/* ── D. Activity timeline ─────────────────────────────── */}
-      <SectionHeader title="Activity" subtitle="Same events surface in the chat thread." />
+      <SectionHeader title={t("dashboard.adminTabs.offer.activity")} subtitle={t("dashboard.adminTabs.offer.activitySub")} />
       <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
         {offer.timeline.map((e, i) => (
           <TimelineRow key={e.id} event={e} last={i === offer.timeline.length - 1} />

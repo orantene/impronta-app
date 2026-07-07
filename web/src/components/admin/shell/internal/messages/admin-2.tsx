@@ -326,13 +326,13 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                 }}
               >
                 <span className="inline-flex">
-                  {allTalents.slice(0, 5).map((t, idx) => {
-                    const isAccepted = t.status === "accepted";
-                    const isSuperseded = t.status === "superseded";
+                  {allTalents.slice(0, 5).map((member, idx) => {
+                    const isAccepted = member.status === "accepted";
+                    const isSuperseded = member.status === "superseded";
                     const isDeclined = isSuperseded;
                     // Derive initials from name since the talent rows
                     // on RichInquiry don't carry an initials field.
-                    const initials = t.name
+                    const initials = member.name
                       .trim()
                       .split(/\s+/)
                       .slice(0, 2)
@@ -340,7 +340,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                       .join("") || "·";
                     return (
                       <span
-                        key={`${t.name}-${idx}`}
+                        key={`${member.name}-${idx}`}
                         style={{
                           marginLeft: idx === 0 ? 0 : -6,
                           border: `1.5px solid #fff`,
@@ -349,9 +349,9 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                           position: "relative",
                           opacity: isDeclined ? 0.4 : 1,
                         }}
-                        title={`${t.name} · ${t.status}`}
+                        title={`${member.name} · ${lineItemStatusLabel(member.status, t)}`}
                       >
-                        <Avatar size={22} tone="auto" hashSeed={t.name} initials={initials} photoUrl={t.thumb || undefined} />
+                        <Avatar size={22} tone="auto" hashSeed={member.name} initials={initials} photoUrl={member.thumb || undefined} />
                         {isAccepted && (
                           <span aria-hidden style={{
                             position: "absolute", bottom: -1, right: -1,
@@ -585,6 +585,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
         open={statusSheetOpen}
         onClose={() => setStatusSheetOpen(false)}
         data={deriveAdminStatusSheetData(inquiry, stageBucket, allTalents, offerLabel, t)}
+        t={t}
       />
       {inquiryIsUuid && (
         <EditJobSheet
@@ -614,6 +615,21 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
       )}
     </div>
   );
+}
+
+/** Localize a per-talent line-item status slug (from `LineItemStatus`) for
+ *  the avatar-stack tooltip. Falls back to the raw slug on a catalog miss. */
+function lineItemStatusLabel(status: string, t: Translator): string {
+  const KEY: Record<string, string> = {
+    pending: "dashboard.adminThread.lineItemStatus.pending",
+    accepted: "dashboard.adminThread.lineItemStatus.accepted",
+    declined: "dashboard.adminThread.lineItemStatus.declined",
+    superseded: "dashboard.adminThread.lineItemStatus.superseded",
+  };
+  const key = KEY[status];
+  if (!key) return status;
+  const out = t(key);
+  return out === key ? status : out;
 }
 
 /** Derive the 4-family status data for the admin Status sheet. Keeps

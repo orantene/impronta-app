@@ -1,6 +1,10 @@
 "use client";
 
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { getMessageStringArray } from "@/i18n/messages";
 import { sendInquiryMessageAsTalent } from "@/lib/server-actions/talent-pipeline";
 import { sendInquiryMessageAsClient } from "@/lib/server-actions/client-pipeline";
 import { COLORS, FONTS, useAdminShell } from "../../state";
@@ -36,12 +40,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // snapshot of what's happening over there." Doesn't leak message bodies —
 // just the meta-state. Closes the awareness gap. ──
 export function CrossThreadBridge({ who, clientName, stage }: { who: string; clientName: string; stage: string }) {
+  const t = useT();
   const summary = (() => {
-    if (stage === "inquiry") return `${who} is briefing ${clientName}. You'll get a heads-up when the offer is being drafted.`;
-    if (stage === "hold") return `${who} is finalizing terms with ${clientName}. Your hold is locked while they review.`;
-    if (stage === "booked") return `${who} is the day-of point with ${clientName}.`;
-    if (stage === "past") return `${who} closed the loop with ${clientName} after the shoot.`;
-    return `${who} is in conversation with ${clientName}.`;
+    const vars = { who, clientName };
+    if (stage === "inquiry") return interpolate(t("dashboard.adminTabs.crossThread.inquiry"), vars);
+    if (stage === "hold") return interpolate(t("dashboard.adminTabs.crossThread.hold"), vars);
+    if (stage === "booked") return interpolate(t("dashboard.adminTabs.crossThread.booked"), vars);
+    if (stage === "past") return interpolate(t("dashboard.adminTabs.crossThread.past"), vars);
+    return interpolate(t("dashboard.adminTabs.crossThread.default"), vars);
   })();
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 11px", background: "rgba(11,11,13,0.025)", border: `1px dashed ${COLORS.borderSoft}`, borderRadius: 8, fontFamily: FONTS.body, fontSize: 11.25, lineHeight: 1.45 }} className="text-admin-ink-muted">
@@ -49,7 +55,7 @@ export function CrossThreadBridge({ who, clientName, stage }: { who: string; cli
         <path d="M3 4h6M3 7h4M3 10h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
         <circle cx="11" cy="3" r="1" fill="currentColor"/>
       </svg>
-      <span><strong style={{ fontWeight: 600 }} className="text-admin-ink">Client side</strong> · {summary}</span>
+      <span><strong style={{ fontWeight: 600 }} className="text-admin-ink">{t("dashboard.adminTabs.crossThread.clientSide")}</strong> · {summary}</span>
     </div>
   );
 }
@@ -94,9 +100,10 @@ export function ConversationTab({
   onSendReal?: (text: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const { toast, bridgeTalentSelfProfile, bridgeSessionIdentity } = useAdminShell();
+  const t = useT();
   // S0.3 retirement: TeamStrip tap now nudges user to the Lineup tab
   // (parent shell handles tab switching). The drawer is no longer rendered.
-  const openLineupTab = () => toast("Tap the Lineup tab above to manage talent");
+  const openLineupTab = () => toast(t("dashboard.adminTabs.composer.openLineupToast"));
   const inquiryForLineup = useMemo(() => convToInquiry(conv), [conv]);
   // Subscribe to message-stash updates so newly-sent messages appear
   // immediately. Without this, the composer pushes into the store but
@@ -240,10 +247,10 @@ export function ConversationTab({
               onBlock={
                 trustChip.blockTarget
                   ? async () => {
-                      const t = trustChip.blockTarget!;
-                      const r = await blockInquirySenderAsTalent(t.inquiryId, t.subjectType, t.subjectId);
+                      const target = trustChip.blockTarget!;
+                      const r = await blockInquirySenderAsTalent(target.inquiryId, target.subjectType, target.subjectId);
                       if (r.ok) setTrustChip((prev) => (prev ? { ...prev, isBlocked: true } : prev));
-                      else toast("Could not block sender. Try again.");
+                      else toast(t("dashboard.adminTabs.composer.blockFailed"));
                       return r;
                     }
                   : null
@@ -270,8 +277,8 @@ export function ConversationTab({
               clears + closes. */}
           <button type="button"
             onClick={() => { setSearchOpen(o => !o); if (searchOpen) setThreadSearch(""); }}
-            aria-label={searchOpen ? "Close thread search" : "Search this thread"}
-            title={searchOpen ? "Close search" : "Search this thread"}
+            aria-label={searchOpen ? t("dashboard.adminTabs.composer.closeThreadSearch") : t("dashboard.adminTabs.composer.searchThread")}
+            title={searchOpen ? t("dashboard.adminTabs.composer.closeSearch") : t("dashboard.adminTabs.composer.searchThread")}
             style={{
               flexShrink: 0,
               width: 30, height: 30, borderRadius: 8,
@@ -295,7 +302,7 @@ export function ConversationTab({
               value={threadSearch}
               onChange={(e) => setThreadSearch(e.currentTarget.value)}
               onKeyDown={(e) => { if (e.key === "Escape") { setThreadSearch(""); setSearchOpen(false); } }}
-              placeholder="Search in this thread…"
+              placeholder={t("dashboard.adminTabs.composer.searchPlaceholder")}
               style={{
                 width: "100%", padding: "7px 12px", borderRadius: 999,
                 border: `1px solid ${COLORS.borderSoft}`,
@@ -306,7 +313,7 @@ export function ConversationTab({
             />
             {threadSearch.trim() && (
               <div style={{ marginTop: 4, fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-                {textMessages.length} match{textMessages.length === 1 ? "" : "es"} for &ldquo;{threadSearch}&rdquo;
+                {interpolate(t(textMessages.length === 1 ? "dashboard.adminTabs.composer.matchCountOne" : "dashboard.adminTabs.composer.matchCountMany"), { count: textMessages.length, query: threadSearch })}
               </div>
             )}
           </div>
@@ -388,7 +395,7 @@ export function ConversationTab({
             : m.sender === "client" ? conv.client
             : m.sender === "agency" ? conv.agency
             : m.sender === "workspace" ? wsIdentity!.name
-            : "You";
+            : t("dashboard.adminTabs.composer.you");
           const senderInitials =
               m.sender === "coordinator" ? conv.leader.initials
             : m.sender === "client" ? conv.clientInitials
@@ -396,7 +403,10 @@ export function ConversationTab({
             : m.sender === "workspace" ? wsIdentity!.initials
             : "ME";
           const roleLabel = m.sender === "you" ? null
-            : m.sender === "workspace" ? "workspace"
+            : m.sender === "workspace" ? t("dashboard.adminTabs.composer.roleWorkspace")
+            : m.sender === "coordinator" ? t("dashboard.adminTabs.composer.roleCoordinator")
+            : m.sender === "client" ? t("dashboard.adminTabs.composer.roleClient")
+            : m.sender === "agency" ? t("dashboard.adminTabs.composer.roleAgency")
             : m.sender;
           return (
             <React.Fragment key={m.id}>
@@ -423,7 +433,7 @@ export function ConversationTab({
                   <div style={{ fontSize: 10.5, fontWeight: 700, marginBottom: 2, display: "inline-flex", alignItems: "center", gap: 5, flexWrap: "wrap" }} className="text-admin-ink-muted">
                     <span>{senderName}{roleLabel ? <span className="font-medium"> · {roleLabel}</span> : null}</span>
                     {m.sender === "workspace" && (
-                      <span title="Workspace System User · the agency speaking, not an individual" style={{
+                      <span title={t("dashboard.adminTabs.composer.systemUserTitle")} style={{
                         display: "inline-flex", alignItems: "center", gap: 3,
                         padding: "0 5px", borderRadius: 999,
                         background: COLORS.indigoSoft, color: COLORS.indigoDeep,
@@ -433,7 +443,7 @@ export function ConversationTab({
                         <svg width="7" height="7" viewBox="0 0 8 8" fill="none" aria-hidden>
                           <path d="M2 1.5h4l1 1.5v3l-1 1.5H2l-1-1.5v-3l1-1.5z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
                         </svg>
-                        System
+                        {t("dashboard.adminTabs.composer.systemBadge")}
                       </span>
                     )}
                     {/* Phase 5 — Network multi-workspace attribution.
@@ -446,7 +456,7 @@ export function ConversationTab({
                       && conv.source?.kind === "agency-referral"
                       && (conv.source as { via?: string }).via
                       && (conv.source as { via?: string }).via !== conv.agency && (
-                      <span title={`Referred via ${(conv.source as { via?: string }).via}`} style={{
+                      <span title={interpolate(t("dashboard.adminTabs.composer.referredVia"), { via: (conv.source as { via?: string }).via ?? "" })} style={{
                         display: "inline-flex", alignItems: "center", gap: 3,
                         padding: "0 5px", borderRadius: 999,
                         background: "rgba(46,125,91,0.14)", color: "#1F5C40",
@@ -475,7 +485,7 @@ export function ConversationTab({
                     </span>
                   )}
                   {lastMine && (
-                    <span style={{ marginLeft: 4, fontWeight: 500 }}>· Read</span>
+                    <span style={{ marginLeft: 4, fontWeight: 500 }}>· {t("dashboard.adminTabs.composer.read")}</span>
                   )}
                 </div>
               </div>
@@ -509,14 +519,14 @@ export function ConversationTab({
               <path d="M5 6.5V5a2 2 0 014 0v1.5" stroke="currentColor" strokeWidth="1.4"/>
             </svg>
             {conv.stage === "past"
-              ? "Conversation wrapped · the project is paid + closed."
+              ? t("dashboard.adminTabs.composer.closedWrapped")
               : conv.outcome === "client_cancelled"
-                ? "Closed · the client cancelled this project."
+                ? t("dashboard.adminTabs.composer.closedCancelled")
                 : conv.outcome === "client_rejected"
-                  ? "Closed · the client passed on the offer."
+                  ? t("dashboard.adminTabs.composer.closedRejected")
                   : conv.outcome === "client_no_response"
-                    ? "Closed · auto-expired (no client response in the window)."
-                    : "Conversation closed."}
+                    ? t("dashboard.adminTabs.composer.closedNoResponse")
+                    : t("dashboard.adminTabs.composer.closedGeneric")}
           </div>
         ) : (
           <DraftComposer
@@ -537,9 +547,9 @@ export function ConversationTab({
                   : /:client$/.test(threadKey)
                     ? sendInquiryMessageAsClient(conv.id, text)
                     : sendInquiryMessageAsTalent(conv.id, text);
-                void send.then((r) => { if (!r.ok) toast(`Send failed: ${r.error}`); });
+                void send.then((r) => { if (!r.ok) toast(interpolate(t("dashboard.adminTabs.composer.sendFailed"), { error: r.error ?? "" })); });
               } else {
-                toast("Message sent");
+                toast(t("dashboard.adminTabs.composer.messageSent"));
               }
             }}
             workspaceName={conv.agency}
@@ -558,6 +568,7 @@ export function ConversationTab({
 }
 
 export function ConversationEmptyState() {
+  const t = useT();
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "32px 16px", fontFamily: FONTS.body, textAlign: "center" }} className="text-admin-ink-dim">
       <span aria-hidden style={{
@@ -570,15 +581,16 @@ export function ConversationEmptyState() {
           <path d="M3 4h10c.6 0 1 .4 1 1v6c0 .6-.4 1-1 1H7l-3 2.5V12H3c-.6 0-1-.4-1-1V5c0-.6.4-1 1-1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
         </svg>
       </span>
-      <div className="text-admin-ink text-admin-13 font-semibold">No messages yet</div>
+      <div className="text-admin-ink text-admin-13 font-semibold">{t("dashboard.adminTabs.composer.noMessagesYet")}</div>
       <div style={{ fontSize: 11.5, maxWidth: 240 }} className="text-admin-ink-muted">
-        Start the conversation below and your message will go to the right people in this thread.
+        {t("dashboard.adminTabs.composer.noMessagesBlurb")}
       </div>
     </div>
   );
 }
 
 export function TypingIndicator({ who }: { who: string }) {
+  const t = useT();
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", fontFamily: FONTS.body, fontSize: 11, fontStyle: "italic" }} className="text-admin-ink-muted">
       <span className="inline-flex gap-0.5">
@@ -590,7 +602,7 @@ export function TypingIndicator({ who }: { who: string }) {
           }} />
         ))}
       </span>
-      {who} is typing…
+      {interpolate(t("dashboard.adminTabs.composer.isTyping"), { who })}
       <style>{`
         @keyframes tulalaTypingDot {
           0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
@@ -664,6 +676,8 @@ export function DraftComposer({
   onVoiceSent?: () => void;
 }) {
   const { toast: __composerToast } = useAdminShell();
+  const t = useT();
+  const locale = useDashboardLocale();
   const [val, setVal] = useState(() => __draftStore.get(threadKey) ?? "");
   // C3 — @-mention picker state. Opens when the user types "@" anywhere
   // in the input. Stores the partial query after "@" for filtering.
@@ -738,7 +752,15 @@ export function DraftComposer({
     setHasSent(false);
     setSmartOpen(false); // switching threads collapses the panel
   }, [threadKey]);
-  const replies = SMART_REPLIES_FOR_LAST[smartReplyContext] ?? SMART_REPLIES_FOR_LAST.default;
+  // Localized smart-reply chips keyed by the (English) smartReplyContext
+  // discriminant. The catalog stores per-context string arrays; on a miss
+  // we fall back to the English SMART_REPLIES_FOR_LAST map so behavior is
+  // preserved for any context without a catalog entry.
+  const smartCtxKey = ["inquiry", "hold", "offer"].includes(smartReplyContext) ? smartReplyContext : "default";
+  const localizedReplies = getMessageStringArray(locale, `dashboard.adminTabs.smartReplies.${smartCtxKey}`);
+  const replies = localizedReplies.length > 0
+    ? localizedReplies
+    : (SMART_REPLIES_FOR_LAST[smartReplyContext] ?? SMART_REPLIES_FOR_LAST.default);
   // Show top 2-3 chips only so the row stays compact.
   const visibleReplies = (replies ?? []).slice(0, 3);
   const handleSend = (text: string) => {
@@ -787,8 +809,8 @@ export function DraftComposer({
           <button
             type="button"
             onClick={() => setSmartOpen(false)}
-            aria-label="Hide smart replies"
-            title="Hide suggestions"
+            aria-label={t("dashboard.adminTabs.composer.hideSmartReplies")}
+            title={t("dashboard.adminTabs.composer.hideSuggestions")}
             style={{
               marginLeft: "auto",
               width: 22, height: 22, borderRadius: "50%",
@@ -811,7 +833,7 @@ export function DraftComposer({
       {wsAvailable && (
         <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
           <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", fontFamily: FONTS.body, marginRight: 2 }} className="text-admin-ink-muted">
-            Send as
+            {t("dashboard.adminTabs.composer.sendAs")}
           </span>
           <button type="button"
             onClick={() => setSendAs("you")}
@@ -824,12 +846,12 @@ export function DraftComposer({
               fontSize: 10.5, fontWeight: 700, cursor: "pointer",
               fontFamily: FONTS.body,
             }}>
-            You
+            {t("dashboard.adminTabs.composer.you")}
           </button>
           <button type="button"
             onClick={() => setSendAs("workspace")}
             aria-pressed={sendAs === "workspace"}
-            title={`Post as ${workspaceName} · System User identity`}
+            title={interpolate(t("dashboard.adminTabs.composer.postAsWorkspace"), { name: workspaceName ?? "" })}
             style={{
               display: "inline-flex", alignItems: "center", gap: 4,
               padding: "3px 10px", borderRadius: 999,
@@ -854,8 +876,8 @@ export function DraftComposer({
             dead, disabled button. Voice/mic stays stubbed below. */}
         {onAttach && (
           <label
-            title="Attach a file"
-            aria-label="Attach file"
+            title={t("dashboard.adminTabs.composer.attachFileTitle")}
+            aria-label={t("dashboard.adminTabs.composer.attachFileAria")}
             style={{
               width: 36, height: 36, borderRadius: "50%", border: "none",
               background: "transparent", color: COLORS.inkMuted, cursor: "pointer",
@@ -882,8 +904,8 @@ export function DraftComposer({
           <button
             type="button"
             onClick={() => setSmartOpen(true)}
-            aria-label="Show smart replies"
-            title="Smart replies"
+            aria-label={t("dashboard.adminTabs.composer.showSmartReplies")}
+            title={t("dashboard.adminTabs.composer.smartReplies")}
             style={{
               width: 36, height: 36, borderRadius: "50%", border: "none",
               background: "transparent",
@@ -913,7 +935,7 @@ export function DraftComposer({
               fontFamily: FONTS.body,
             }}>
               <div style={{ padding: "5px 10px 3px", fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
-                Mention someone
+                {t("dashboard.adminTabs.composer.mentionSomeone")}
               </div>
               {filteredMentions.map((c, i) => (
                 <button
@@ -990,7 +1012,7 @@ export function DraftComposer({
           />
         )}
         <button type="button" disabled={!val.trim()} onClick={() => { if (val.trim()) handleSend(val); }}
-          aria-label="Send"
+          aria-label={t("dashboard.adminTabs.composer.send")}
           style={{
             width: 36, height: 36, borderRadius: "50%", border: "none",
             cursor: val.trim() ? "pointer" : "default",
