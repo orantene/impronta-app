@@ -10,7 +10,7 @@ import {
   resolveGenerationModel,
   type GenerationModelId,
 } from "@/lib/ai/ai-generation-model";
-import type { AiProviderRegistryKind } from "@/lib/ai/ai-provider-repository";
+import { fetchTenantControls, type AiProviderRegistryKind } from "@/lib/ai/ai-provider-repository";
 
 /**
  * PLATFORM-ADMIN writers + loaders for the global AI provider registry (the row
@@ -232,6 +232,93 @@ export async function loadPlatformAiProviderState(): Promise<PlatformAiProviderS
     generationModel,
     providers,
   };
+}
+
+// ── Spend cap ─────────────────────────────────────────────────────────────
+
+export type TenantSpendStatus = {
+  capCents: number | null;
+  warnThresholdPercent: number | null;
+  hardStop: boolean;
+  currentSpendCents: number;
+  percentUsed: number; // rounded; can exceed 100
+  monthKey: string;
+};
+
+function currentMonthKey(): string {
+  const d = new Date();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Read the tenant's monthly cap + this month's spend for the AI Providers UI + banner. */
+export async function loadTenantSpendStatus(
+  tenantId: string = DEFAULT_AI_TENANT_ID,
+): Promise<TenantSpendStatus> {
+  const monthKey = currentMonthKey();
+  const fallback: TenantSpendStatus = {
+    capCents: null,
+    warnThresholdPercent: null,
+    hardStop: true,
+    currentSpendCents: 0,
+    percentUsed: 0,
+    monthKey,
+  };
+  try {
+    const controls = await fetchTenantControls(tenantId);
+    const supabase = await service();
+    let spend = 0;
+    if (supabase) {
+      const { data } = await supabase
+        .from("ai_usage_monthly")
+        .select("spend_cents")
+        .eq("tenant_id", tenantId)
+        .eq("month_key", monthKey)
+        .maybeSingle();
+      spend = (data as { spend_cents?: number } | null)?.spend_cents ?? 0;
+    }
+    const capCents = controls?.monthly_spend_cap_cents ?? null;
+    const pct = capCents && capCents > 0 ? (spend / capCents) * 100 : 0;
+    return {
+      capCents,
+      warnThresholdPercent: controls?.warn_threshold_percent ?? null,
+      hardStop: controls?.hard_stop_on_cap ?? true,
+      currentSpendCents: spend,
+      percentUsed: Math.round(pct),
+      monthKey,
+    };
+  } catch (err) {
+    logServerError("ai-provider-admin/loadTenantSpendStatus", err);
+    return fallback;
+  }
+}
+
+/** Update the monthly spend cap + warn threshold + hard-stop (super_admin CALLER gate). */
+export async function saveTenantSpendCap(
+  input: { capCents: number | null; warnThresholdPercent: number | null; hardStop: boolean },
+  tenantId: string = DEFAULT_AI_TENANT_ID,
+): Promise<SaveProviderResult> {
+  try {
+    const supabase = await service();
+    if (!supabase) return { ok: false, error: "Database is unavailable." };
+    const cap = input.capCents == null ? null : Math.max(0, Math.round(input.capCents));
+    const warn =
+      input.warnThresholdPercent == null
+        ? null
+        : Math.min(100, Math.max(1, Math.round(input.warnThresholdPercent)));
+    const { error } = await supabase
+      .from("ai_tenant_controls")
+      .update({
+        monthly_spend_cap_cents: cap,
+        warn_threshold_percent: warn,
+        hard_stop_on_cap: input.hardStop,
+      })
+      .eq("tenant_id", tenantId);
+    if (error) throw error;
+    return { ok: true };
+  } catch (err) {
+    logServerError("ai-provider-admin/saveTenantSpendCap", err);
+    return { ok: false, error: "Couldn't save. Please try again." };
+  }
 }
 
 export type AiUsageSummary = {

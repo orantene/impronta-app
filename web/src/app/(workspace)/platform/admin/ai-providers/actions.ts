@@ -12,6 +12,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPlatformRole } from "@/lib/access/platform-role";
 import {
   saveAndActivateProvider,
+  saveTenantSpendCap,
   setProviderActive,
   type ProviderConfigKind,
 } from "@/lib/ai/ai-provider-admin";
@@ -58,6 +59,22 @@ export async function setAiGenerationModelAction(input: {
   const guard = await requirePlatformAdmin();
   if (!guard.ok) return guard;
   const result = await setGenerationModel(input.model);
+  if (result.ok) revalidatePath(REVALIDATE_PATH);
+  return result;
+}
+
+export async function setAiSpendCapAction(input: {
+  capCents: number | null;
+  warnThresholdPercent: number | null;
+  hardStop: boolean;
+}): Promise<AiProviderActionResult> {
+  const guard = await requirePlatformAdmin();
+  if (!guard.ok) return guard;
+  const result = await saveTenantSpendCap({
+    capCents: input.capCents,
+    warnThresholdPercent: input.warnThresholdPercent,
+    hardStop: input.hardStop,
+  });
   if (result.ok) revalidatePath(REVALIDATE_PATH);
   return result;
 }

@@ -24,6 +24,7 @@ import {
 } from "@/lib/ai/resolve-provider";
 import { logServerError } from "@/lib/server/safe-error";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
+import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import {
   generateBuilderNodes,
@@ -140,6 +141,12 @@ export async function generateBuilderNodesAction(input: {
   const useModel = await isResolvedAiChatConfigured().catch(() => false);
 
   if (useModel) {
+    // Tenant-level guardrails (monthly spend cap / request limits) — a hard cap
+    // stops AI spend before the (paid) model call. No controls row = no-op.
+    const gate = await assertAiInvocationAllowed();
+    if (!gate.ok) {
+      return { ok: false, error: gate.message, code: gate.code.toUpperCase() };
+    }
     const model = await resolveGenerationModel();
     const generated = await generateBuilderNodes({
       brief: input.brief,
