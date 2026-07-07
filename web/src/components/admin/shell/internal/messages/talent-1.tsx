@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate, type Translator } from "@/i18n/interpolate";
 import { OverflowMenu } from "@/components/chat-interactions";
 import { StatusSheet } from "@/components/messages-status-sheet/StatusSheet";
 import { COLORS, RADIUS, FONTS, TRANSITION, type ClientTrustLevel } from "../state";
@@ -14,6 +16,35 @@ import { PageTopThread } from "./shared/machinery-8";
 import { ThreadSearchTrigger } from "./shared/machinery-9";
 import type { Offer } from "./shared/machinery-9";
 
+
+// Stage discriminant → localized label. Keeps switching on the raw
+// stage string (logic unchanged); only the rendered label is translated.
+// Mirrors the source's derivation: past → Wrapped, hold → Offer, else
+// the capitalized stage name (falls back to that when no key matches).
+const TALENT_STAGE_LABEL_KEYS: Record<string, string> = {
+  past:         "dashboard.talentThread.stageWrapped",
+  hold:         "dashboard.talentThread.stageOffer",
+  inquiry:      "dashboard.talentThread.stageInquiry",
+  submitted:    "dashboard.talentThread.stageSubmitted",
+  coordination: "dashboard.talentThread.stageCoordination",
+  approved:     "dashboard.talentThread.stageApproved",
+  booked:       "dashboard.talentThread.stageBooked",
+  today:        "dashboard.talentThread.stageToday",
+  paid:         "dashboard.talentThread.stagePaid",
+  wrapped:      "dashboard.talentThread.stageWrapped",
+  cancelled:    "dashboard.talentThread.stageCancelled",
+};
+export function talentStageLabel(stage: string, t: Translator): string {
+  const key = TALENT_STAGE_LABEL_KEYS[stage];
+  if (key) {
+    const out = t(key);
+    if (out !== key) return out;
+  }
+  // Fallback: match the legacy derivation (capitalize the raw stage).
+  if (stage === "past") return t("dashboard.talentThread.stageWrapped");
+  if (stage === "hold") return t("dashboard.talentThread.stageOffer");
+  return stage.charAt(0).toUpperCase() + stage.slice(1);
+}
 
 // ── Talent JOB SHELL HEADER — unified single-band header ──
 // Replaces the prior 4-band stack (PageTopThread + StageProgress +
@@ -37,12 +68,11 @@ export function TalentJobShellHeader({
   /** Toast function for OverflowMenu actions. */
   toast: (msg: string) => void;
 }) {
+  const t = useT();
   const sc = stageStyle(conv.stage);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const hasRate = yourRate && yourRate !== "—";
-  const stageLabel = conv.stage === "past" ? "Wrapped"
-    : conv.stage === "hold" ? "Offer"
-    : conv.stage.charAt(0).toUpperCase() + conv.stage.slice(1);
+  const stageLabel = talentStageLabel(conv.stage, t);
 
   // Take-home breakdown (mirror of the old TakeHomeCard math)
   const numeric = parseFloat(yourRate.replace(/[^0-9.]/g, ""));
@@ -54,7 +84,7 @@ export function TalentJobShellHeader({
   const fmt = (n: number) => `${currency}${Math.round(n).toLocaleString()}`;
 
   const metaLine = [
-    `via ${conv.agency}`,
+    interpolate(t("dashboard.talentThread.via"), { agency: conv.agency }),
     conv.location ? conv.location.split(" · ")[0] : null,
     conv.date,
   ].filter(Boolean).join(" · ");
@@ -62,7 +92,7 @@ export function TalentJobShellHeader({
   // Build the source-channel descriptor (where the inquiry came from).
   // Surfaces as a small chip next to the meta line so the talent always
   // knows who reached them and through which channel.
-  const sourceMeta = conv.source ? sourceChipMeta(conv.source) : null;
+  const sourceMeta = conv.source ? sourceChipMeta(conv.source, t) : null;
 
   return (
     <header data-tulala-job-shell-header style={{
@@ -108,7 +138,7 @@ export function TalentJobShellHeader({
           type="button"
           data-tulala-back-btn
           onClick={onBack}
-          aria-label="Back to my jobs"
+          aria-label={t("dashboard.talentThread.backAria")}
           style={{
             flexShrink: 0, marginTop: 2,
             width: 26, height: 26, borderRadius: 7,
@@ -145,7 +175,7 @@ export function TalentJobShellHeader({
               minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
             }}>{metaLine}</span>
             {sourceMeta && (
-              <span aria-label={`Source: ${sourceMeta.label}`} title={sourceMeta.tooltip} style={{
+              <span aria-label={interpolate(t("dashboard.talentThread.sourceAria"), { label: sourceMeta.label })} title={sourceMeta.tooltip} style={{
                 flexShrink: 0,
                 display: "inline-flex", alignItems: "center", gap: 4,
                 padding: "2px 8px", borderRadius: 999,
@@ -158,7 +188,7 @@ export function TalentJobShellHeader({
               </span>
             )}
             {conv.iAmCoordinator && (
-              <span title="You're the coordinator on this job" style={{
+              <span title={t("dashboard.talentThread.youreCoordTitle")} style={{
                 flexShrink: 0,
                 display: "inline-flex", alignItems: "center", gap: 4,
                 padding: "2px 8px", borderRadius: 999,
@@ -169,7 +199,7 @@ export function TalentJobShellHeader({
                 <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden>
                   <path d="M6 1l1.5 3.2L11 5l-2.5 2.4.6 3.4L6 9l-3.1 1.8.6-3.4L1 5l3.5-.8L6 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
                 </svg>
-                <span data-tulala-coord-pill-text>You&apos;re coord</span>
+                <span data-tulala-coord-pill-text>{t("dashboard.talentThread.youreCoord")}</span>
               </span>
             )}
           </div>
@@ -188,11 +218,11 @@ export function TalentJobShellHeader({
                 : conv.outcome === "client_no_response" ? "⌛"
                 : "—"}
             </span>
-            {conv.outcome === "client_cancelled" ? "Client cancelled"
-              : conv.outcome === "client_rejected" ? "Offer rejected"
-              : conv.outcome === "client_no_response" ? "Expired · no reply"
-              : conv.outcome === "talent_declined" ? "You declined"
-              : "Closed"}
+            {conv.outcome === "client_cancelled" ? t("dashboard.talentThread.outcomeClientCancelled")
+              : conv.outcome === "client_rejected" ? t("dashboard.talentThread.outcomeOfferRejected")
+              : conv.outcome === "client_no_response" ? t("dashboard.talentThread.outcomeExpiredNoReply")
+              : conv.outcome === "talent_declined" ? t("dashboard.talentThread.outcomeYouDeclined")
+              : t("dashboard.talentThread.outcomeClosed")}
           </span>
         )}
         {hasRate && (
@@ -201,7 +231,7 @@ export function TalentJobShellHeader({
               type="button"
               onClick={() => setBreakdownOpen(v => !v)}
               aria-expanded={breakdownOpen}
-              aria-label={`Your take-home: ${yourRate}. Click for breakdown.`}
+              aria-label={interpolate(t("dashboard.talentThread.takeHomeAria"), { rate: yourRate })}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
                 padding: "5px 10px", borderRadius: 999,
@@ -213,12 +243,12 @@ export function TalentJobShellHeader({
               }}
             >
               <span style={{ fontSize: 9.5, fontWeight: 600, opacity: 0.7, letterSpacing: 0.3, textTransform: "uppercase" }}>
-                {conv.stage === "past" ? "Paid" : "Your pay"}
+                {conv.stage === "past" ? t("dashboard.talentThread.paidLabel") : t("dashboard.talentThread.yourPay")}
               </span>
               <span>{yourRate}</span>
               {coordCommissionLabel && (
                 <span
-                  title="You also coordinate this job — coord commission shown separately"
+                  title={t("dashboard.talentThread.coordSuffixTitle")}
                   style={{
                     marginLeft: 2,
                     padding: "1px 6px",
@@ -243,13 +273,13 @@ export function TalentJobShellHeader({
                 borderRadius: 10, boxShadow: "0 12px 30px -8px rgba(11,11,13,0.12)",
                 zIndex: 10,
               }}>
-                <BreakdownRow label="Gross rate"      value={fmt(gross)} muted />
-                <BreakdownRow label="Agency commission (15%)" value={`–${fmt(agencyFee)}`} muted />
-                <BreakdownRow label="Platform fee (5%)"  value={`–${fmt(platformFee)}`} muted />
+                <BreakdownRow label={t("dashboard.talentThread.breakdownGross")}      value={fmt(gross)} muted />
+                <BreakdownRow label={t("dashboard.talentThread.breakdownAgency")} value={`–${fmt(agencyFee)}`} muted />
+                <BreakdownRow label={t("dashboard.talentThread.breakdownPlatform")}  value={`–${fmt(platformFee)}`} muted />
                 <div style={{ height: 1, background: COLORS.borderSoft, margin: "6px 0" }} />
-                <BreakdownRow label="Your take-home" value={yourRate} bold />
+                <BreakdownRow label={t("dashboard.talentThread.breakdownTakeHome")} value={yourRate} bold />
                 <div style={{ fontSize: 10.5, marginTop: 8 }} className="text-admin-ink-muted">
-                  {conv.stage === "past" ? "Paid · receipt available" : "Paid 14 days post-shoot"}
+                  {conv.stage === "past" ? t("dashboard.talentThread.breakdownPaidReceipt") : t("dashboard.talentThread.breakdownPaidTiming")}
                 </div>
               </div>
             )}
@@ -260,7 +290,7 @@ export function TalentJobShellHeader({
             type="button"
             data-tulala-status-pill
             onClick={onStatusClick}
-            aria-label={`Status: ${stageLabel}. Tap for details.`}
+            aria-label={interpolate(t("dashboard.talentThread.statusPillAria"), { stage: stageLabel })}
             style={{
               flexShrink: 0,
               fontSize: 10.5, fontWeight: 700,
@@ -493,60 +523,87 @@ export function ShellHeader({
 // Small chip describing where the inquiry came from. Talent's first
 // instinct when a new job lands: "Where did this come from?". This
 // answers it without needing to dig into Details.
-export function sourceChipMeta(source: NonNullable<Conversation["source"]>): {
+export function sourceChipMeta(source: NonNullable<Conversation["source"]>, t?: Translator): {
   icon: React.ReactNode;
   label: string;
   bg: string;
   fg: string;
   tooltip: string;
 } {
+  // Localize when a translator is supplied; fall back to English so the
+  // shared helper stays correct for consumers that don't pass `t` yet.
+  const tr = (key: string, fallback: string): string => {
+    if (!t) return fallback;
+    const out = t(key);
+    return out === key ? fallback : out;
+  };
   switch (source.kind) {
     case "tulala-hub":
       return {
         icon: (<svg width="9" height="9" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/><path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.4"/></svg>),
-        label: "Tulala Hub",
+        label: tr("dashboard.talentThread.sourceTulalaHub", "Tulala Hub"),
         bg: COLORS.indigoSoft,
         fg: COLORS.indigoDeep,
-        tooltip: source.label ?? "Discovered via Tulala Hub",
+        tooltip: source.label ?? tr("dashboard.talentThread.sourceTulalaHubTooltip", "Discovered via Tulala Hub"),
       };
     case "direct":
       return {
         icon: (<svg width="9" height="9" viewBox="0 0 12 12" fill="none"><path d="M2 3h8v6H2zM2 3l4 3 4-3" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>),
-        label: "Direct",
+        label: tr("dashboard.talentThread.sourceDirect", "Direct"),
         bg: "rgba(46,125,91,0.10)",
         fg: COLORS.successDeep ?? COLORS.success,
-        tooltip: source.label ?? "Direct inbound to your agency",
+        tooltip: source.label ?? tr("dashboard.talentThread.sourceDirectTooltip", "Direct inbound to your agency"),
       };
     case "agency-referral":
       return {
         icon: (<svg width="9" height="9" viewBox="0 0 12 12" fill="none"><circle cx="3.5" cy="6" r="1.5" stroke="currentColor" strokeWidth="1.3"/><circle cx="8.5" cy="6" r="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M5 6h2" stroke="currentColor" strokeWidth="1.3"/></svg>),
-        label: "Referral",
+        label: tr("dashboard.talentThread.sourceReferral", "Referral"),
         bg: COLORS.surfaceAlt,
         fg: COLORS.inkMuted,
-        tooltip: source.via ? `Referred by ${source.via}` : "Routed by another agency",
+        tooltip: source.via
+          ? interpolate(tr("dashboard.talentThread.sourceReferralViaTooltip", "Referred by {via}"), { via: source.via })
+          : tr("dashboard.talentThread.sourceReferralTooltip", "Routed by another agency"),
       };
     case "instagram-dm":
       return {
         icon: (<svg width="9" height="9" viewBox="0 0 12 12" fill="none"><rect x="2" y="2" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.3"/><circle cx="6" cy="6" r="1.6" stroke="currentColor" strokeWidth="1.3"/></svg>),
-        label: "IG DM",
+        label: tr("dashboard.talentThread.sourceIgDm", "IG DM"),
         bg: "rgba(218,89,153,0.12)",
         fg: "#B23170",
-        tooltip: "Inbound Instagram DM",
+        tooltip: tr("dashboard.talentThread.sourceIgDmTooltip", "Inbound Instagram DM"),
       };
     case "email":
       return {
         icon: (<svg width="9" height="9" viewBox="0 0 12 12" fill="none"><path d="M2 3h8v6H2zM2 3l4 3 4-3" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>),
-        label: "Cold email",
+        label: tr("dashboard.talentThread.sourceColdEmail", "Cold email"),
         bg: "rgba(11,11,13,0.05)",
         fg: COLORS.inkMuted,
-        tooltip: source.from ? `Cold email from ${source.from}` : "Cold inbound email",
+        tooltip: source.from
+          ? interpolate(tr("dashboard.talentThread.sourceColdEmailFromTooltip", "Cold email from {from}"), { from: source.from })
+          : tr("dashboard.talentThread.sourceColdEmailTooltip", "Cold inbound email"),
       };
   }
 }
 
+// Funnel stage id → localized label key. Mirrors FUNNEL_STAGES ids;
+// falls back to the constant's English label when a key is missing.
+const FUNNEL_STAGE_LABEL_KEYS: Record<string, string> = {
+  inquiry: "dashboard.talentThread.stageInquiry",
+  offered: "dashboard.talentThread.stageOffer",
+  booked:  "dashboard.talentThread.stageBooked",
+  wrapped: "dashboard.talentThread.stageWrapped",
+};
+
 // ── Slim, premium 4-step funnel — inline variant. Fits within the
 // unified header (full labels) AND inside left-rail rows (compact).
 export function JobStageFunnel({ currentStage, compact }: { currentStage: string; compact: boolean }) {
+  const t = useT();
+  const funnelLabel = (s: { id: string; label: string }): string => {
+    const key = FUNNEL_STAGE_LABEL_KEYS[s.id];
+    if (!key) return s.label;
+    const out = t(key);
+    return out === key ? s.label : out;
+  };
   const idx = funnelIndexFor(currentStage);
   // Cancelled jobs get a muted coral palette instead of success green —
   // the visual cue should match the outcome (negative/abandoned), not
@@ -559,7 +616,7 @@ export function JobStageFunnel({ currentStage, compact }: { currentStage: string
     <div role="progressbar"
       data-tulala-stage-funnel={compact ? "compact" : "full"}
       aria-valuemin={1} aria-valuemax={FUNNEL_STAGES.length} aria-valuenow={idx + 1}
-      aria-label={`Stage ${idx + 1} of ${FUNNEL_STAGES.length}: ${FUNNEL_STAGES[idx]?.label}`}
+      aria-label={interpolate(t("dashboard.talentThread.funnelStageAria"), { current: idx + 1, total: FUNNEL_STAGES.length, label: FUNNEL_STAGES[idx] ? funnelLabel(FUNNEL_STAGES[idx]!) : "" })}
       style={{ display: "flex", alignItems: "center", gap: compact ? 4 : 6, fontFamily: FONTS.body, justifyContent: "flex-start" }}
     >
       {/* Mobile: center the funnel — on narrow viewports the row of dots
@@ -594,7 +651,7 @@ export function JobStageFunnel({ currentStage, compact }: { currentStage: string
                   color: past || here ? COLORS.ink : COLORS.inkDim,
                   letterSpacing: -0.05,
                   textDecoration: isCancelled && here ? "line-through" : "none",
-                }}>{s.label}</span>
+                }}>{funnelLabel(s)}</span>
               )}
             </span>
             {i < FUNNEL_STAGES.length - 1 && (
@@ -634,16 +691,17 @@ export function funnelIndexFor(stage: string): number {
  * is blocked (e.g. test environment without window timers).
  */
 export function LineupTabPanel({ onOpen }: { onOpen: () => void }) {
+  const t = useT();
   useEffect(() => {
     // Defer one tick so the tab paints before the drawer overlays it
     // — avoids a flash of empty body on the user's first click.
-    const t = setTimeout(onOpen, 16);
-    return () => clearTimeout(t);
+    const timer = setTimeout(onOpen, 16);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: auto-open drawer once on first paint; onOpen is a stable prop that should not re-trigger this
   }, []);
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 24, fontFamily: FONTS.body, fontSize: 12.5, textAlign: "center" }} className="text-admin-ink-muted">
-      Opening the lineup —
+      {t("dashboard.talentThread.lineupOpening")}{" "}
       <button
         type="button"
         onClick={onOpen}
@@ -654,7 +712,7 @@ export function LineupTabPanel({ onOpen }: { onOpen: () => void }) {
           fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
           textDecoration: "underline",
         }}
-      >tap here if it didn&apos;t open</button>.
+      >{t("dashboard.talentThread.lineupTapHere")}</button>.
     </div>
   );
 }
