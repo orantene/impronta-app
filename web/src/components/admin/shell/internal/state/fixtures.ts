@@ -402,6 +402,24 @@ export const INQUIRY_STAGE_META: Record<
   expired: { label: "Expired", tone: "dim", description: "Lapsed past response window." },
 };
 
+/**
+ * i18n catalog-key siblings for the inquiry-stage labels (additive,
+ * non-breaking). The English `.label` on each INQUIRY_STAGE_META entry stays
+ * the source of truth for the many non-localized consumers; a localized
+ * consumer holding a `useT()` resolves `t(INQUIRY_STAGE_LABEL_KEYS[stage])`.
+ * Keys live under `dashboard.enums.inquiryStage.*`.
+ */
+export const INQUIRY_STAGE_LABEL_KEYS: Record<InquiryStage, string> = {
+  draft: "dashboard.enums.inquiryStage.draft",
+  submitted: "dashboard.enums.inquiryStage.submitted",
+  coordination: "dashboard.enums.inquiryStage.coordination",
+  offer_pending: "dashboard.enums.inquiryStage.offer_pending",
+  approved: "dashboard.enums.inquiryStage.approved",
+  booked: "dashboard.enums.inquiryStage.booked",
+  rejected: "dashboard.enums.inquiryStage.rejected",
+  expired: "dashboard.enums.inquiryStage.expired",
+};
+
 export const REQUIREMENT_ROLE_META: Record<
   RequirementRole,
   { label: string; pluralLabel: string }

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { interpolate } from "@/i18n/interpolate";
+import { useT } from "@/i18n/use-t";
 import { pinNextConversation as pinNextConversationP } from "../messages";
 import { ClientTrustChip, CompactLockedCard, EmptyState, GhostButton, Icon, MoreWithSection, PrimaryButton, ReadOnlyChip, SecondaryButton, StatusPill, StatusStrip } from "../primitives";
-import { COLORS, FONTS, FREE_PLAN_VALUE, RICH_INQUIRIES, TRANSITION, describeSource, getInquiries, meetsRole, useAdminShell } from "../state";
+import { COLORS, FONTS, FREE_PLAN_VALUE, TRANSITION, describeSource, meetsRole, useAdminShell } from "../state";
 import type { InquirySource, RichInquiry } from "../state";
 import { downloadCsv } from "../wave2";
 import { FabWithQuickCreate } from "./InboxPage";
@@ -15,6 +17,7 @@ import { PageHeader } from "./pages-shared";
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkPage() {
+  const t = useT();
   const { state, openDrawer, setPage, openUpgrade, toast, effectiveMessagesInquiries, effectiveBookings } = useAdminShell();
   const canEdit = meetsRole(state.role, "manager");
   const isFree = state.plan === "free";
@@ -69,7 +72,7 @@ export function WorkPage() {
         source: iq.source?.kind ?? "",
       })),
     );
-    toast(`Exported ${filteredInquiries.length} rows to CSV`);
+    toast(interpolate(t("dashboard.adminWork.exportedRows"), { count: filteredInquiries.length }));
   };
 
   // Legacy stage names ("hold", "awaiting-client", "confirmed") came from the
@@ -83,15 +86,15 @@ export function WorkPage() {
   return (
     <>
       <PageHeader
-        title="Workflow"
-        subtitle="Every open inquiry grouped by where it's stuck — from first brief to confirmed booking."
+        title={t("dashboard.adminWork.title")}
+        subtitle={t("dashboard.adminWork.subtitle")}
         actions={
           <>
-            <GhostButton size="sm" onClick={exportCsv}>Export CSV</GhostButton>
+            <GhostButton size="sm" onClick={exportCsv}>{t("dashboard.adminWork.exportCsv")}</GhostButton>
             {!canEdit && <ReadOnlyChip />}
             {canEdit && (
               <PrimaryButton onClick={() => openDrawer("new-inquiry")}>
-                New inquiry
+                {t("dashboard.adminWork.newInquiry")}
               </PrimaryButton>
             )}
           </>
@@ -99,11 +102,11 @@ export function WorkPage() {
       />
 
       <StatusStrip
-        ariaLabel="Pipeline overview"
+        ariaLabel={t("dashboard.adminWork.pipelineOverviewAria")}
         items={[
-          { id: "drafts",    label: "Drafts & holds", value: drafts.length,    tone: "amber",  onClick: () => openDrawer("drafts-holds") },
-          { id: "awaiting",  label: "Awaiting client", value: awaiting.length, tone: "amber",  onClick: () => openDrawer("awaiting-client") },
-          { id: "confirmed", label: "Confirmed",       value: Array.isArray(confirmed) ? confirmed.length : 0, tone: "green",  onClick: () => openDrawer("confirmed-bookings") },
+          { id: "drafts",    label: t("dashboard.adminWork.draftsHolds"), value: drafts.length,    tone: "amber",  onClick: () => openDrawer("drafts-holds") },
+          { id: "awaiting",  label: t("dashboard.adminWork.awaitingClient"), value: awaiting.length, tone: "amber",  onClick: () => openDrawer("awaiting-client") },
+          { id: "confirmed", label: t("dashboard.adminWork.confirmed"),       value: Array.isArray(confirmed) ? confirmed.length : 0, tone: "green",  onClick: () => openDrawer("confirmed-bookings") },
         ]}
       />
 
@@ -119,22 +122,22 @@ export function WorkPage() {
         >
           <div>
             <h2 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, margin: 0, letterSpacing: -0.2 }} className="text-admin-ink">
-              Active pipeline
+              {t("dashboard.adminWork.activePipeline")}
             </h2>
             {(search.trim() || sourceFilter !== "all" || sort !== "newest") && (
               <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">
-                {filteredInquiries.length} {filteredInquiries.length === 1 ? "result" : "results"}
-                {search.trim() && ` for "${search.trim()}"`}
+                {interpolate(t(filteredInquiries.length === 1 ? "dashboard.adminWork.resultCountOne" : "dashboard.adminWork.resultCountOther"), { count: filteredInquiries.length })}
+                {search.trim() && ` ${interpolate(t("dashboard.adminWork.resultForQuery"), { query: search.trim() })}`}
               </div>
             )}
           </div>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <input
               type="text"
-              aria-label="Search pipeline by client or brief"
+              aria-label={t("dashboard.adminWork.searchAria")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search client or brief…"
+              placeholder={t("dashboard.adminWork.searchPlaceholder")}
               style={{
                 padding: "7px 10px",
                 fontFamily: FONTS.body,
@@ -150,7 +153,7 @@ export function WorkPage() {
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as typeof sort)}
-              aria-label="Sort"
+              aria-label={t("dashboard.adminWork.sortAria")}
               style={{
                 padding: "7px 10px",
                 fontFamily: FONTS.body,
@@ -162,10 +165,10 @@ export function WorkPage() {
                 cursor: "pointer",
               }}
             >
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-              <option value="client">Client</option>
-              <option value="amount">Amount</option>
+              <option value="newest">{t("dashboard.adminWork.sortNewest")}</option>
+              <option value="oldest">{t("dashboard.adminWork.sortOldest")}</option>
+              <option value="client">{t("dashboard.adminWork.sortClient")}</option>
+              <option value="amount">{t("dashboard.adminWork.sortAmount")}</option>
             </select>
             <SourceFilterChips value={sourceFilter} onChange={setSourceFilter} />
             {(search.trim() || sort !== "newest" || sourceFilter !== "all") && (
@@ -187,13 +190,13 @@ export function WorkPage() {
                   gap: 4,
                 }}
               >
-                <span aria-hidden>×</span> Clear
+                <span aria-hidden>×</span> {t("dashboard.adminWork.clear")}
               </button>
             )}
             <GhostButton onClick={() => openDrawer("filter-config")}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                 <Icon name="filter" size={12} stroke={1.7} />
-                Filter
+                {t("dashboard.adminWork.filter")}
               </span>
             </GhostButton>
           </div>
@@ -209,18 +212,18 @@ export function WorkPage() {
           {filteredInquiries.length === 0 && (
             <EmptyState
               icon="mail"
-              title={search.trim() ? `No results for "${search.trim()}"` : "No inquiries match"}
-              body={search.trim() ? "Try a different search term or clear the query." : "When a brief comes in via this channel, it'll show up here. You can also log one manually."}
-              primaryLabel={search.trim() ? "Clear search" : "New inquiry"}
+              title={search.trim() ? interpolate(t("dashboard.adminWork.emptySearchTitle"), { query: search.trim() }) : t("dashboard.adminWork.emptyTitle")}
+              body={search.trim() ? t("dashboard.adminWork.emptySearchBody") : t("dashboard.adminWork.emptyBody")}
+              primaryLabel={search.trim() ? t("dashboard.adminWork.clearSearch") : t("dashboard.adminWork.newInquiry")}
               onPrimary={() => { if (search.trim()) setSearch(""); else openDrawer("new-inquiry"); }}
             />
           )}
           {filteredInquiries.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(0,2fr) 110px 110px 70px", gap: 14, padding: "9px 18px", background: "rgba(11,11,13,0.02)", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }} className="text-admin-ink-muted">
-              <span>Client · brief</span>
-              <span>Talent</span>
-              <span>Stage</span>
-              <span>Amount</span>
+              <span>{t("dashboard.adminWork.colClientBrief")}</span>
+              <span>{t("dashboard.adminWork.colTalent")}</span>
+              <span>{t("dashboard.adminWork.colStage")}</span>
+              <span>{t("dashboard.adminWork.colAmount")}</span>
               <span />
             </div>
           )}
@@ -289,23 +292,23 @@ export function WorkPage() {
       {isFree && (
         <MoreWithSection plan="studio">
           <CompactLockedCard
-            title="Private inquiry inbox"
+            title={t("dashboard.adminWork.lockPrivateInbox")}
             requiredPlan="studio"
             onClick={() =>
               openUpgrade({
-                feature: "Private inquiries",
-                why: "Take inquiries on your own domain — keep your client list private.",
+                feature: t("dashboard.adminWork.upPrivateInquiriesFeature"),
+                why: t("dashboard.adminWork.upPrivateInquiriesWhy"),
                 requiredPlan: "studio",
               })
             }
           />
           <CompactLockedCard
-            title="Custom email templates"
+            title={t("dashboard.adminWork.lockEmailTemplates")}
             requiredPlan="studio"
             onClick={() =>
               openUpgrade({
-                feature: "Email templates",
-                why: "Send branded offers and updates from your own email-from address.",
+                feature: t("dashboard.adminWork.upEmailTemplatesFeature"),
+                why: t("dashboard.adminWork.upEmailTemplatesWhy"),
                 requiredPlan: "studio",
               })
             }
@@ -361,12 +364,13 @@ function SourceFilterChips({
   value: "all" | "direct" | "hub" | "manual" | "marketplace";
   onChange: (v: "all" | "direct" | "hub" | "manual" | "marketplace") => void;
 }) {
+  const t = useT();
   const opts: { v: typeof value; label: string }[] = [
-    { v: "all", label: "All sources" },
-    { v: "direct", label: "Direct" },
-    { v: "hub", label: "Hub" },
-    { v: "manual", label: "Manual" },
-    { v: "marketplace", label: "Marketplace" },
+    { v: "all", label: t("dashboard.adminWork.sourceAll") },
+    { v: "direct", label: t("dashboard.adminWork.sourceDirect") },
+    { v: "hub", label: t("dashboard.adminWork.sourceHub") },
+    { v: "manual", label: t("dashboard.adminWork.sourceManual") },
+    { v: "marketplace", label: t("dashboard.adminWork.sourceMarketplace") },
   ];
   return (
     <div
@@ -414,15 +418,16 @@ function SourceFilterChips({
  * to the StatusPill primitive.
  */
 function StageBadge({ stage }: { stage: string }) {
-  const map: Record<string, { label: string; tone: "ink" | "amber" | "green" | "dim" | "red" }> = {
-    draft: { label: "Draft", tone: "dim" },
-    hold: { label: "On hold", tone: "amber" },
-    "awaiting-client": { label: "Awaiting client", tone: "amber" },
-    confirmed: { label: "Confirmed", tone: "green" },
-    archived: { label: "Archived", tone: "dim" },
+  const t = useT();
+  const map: Record<string, { labelKey: string; tone: "ink" | "amber" | "green" | "dim" | "red" }> = {
+    draft: { labelKey: "dashboard.adminWork.stageDraft", tone: "dim" },
+    hold: { labelKey: "dashboard.adminWork.stageHold", tone: "amber" },
+    "awaiting-client": { labelKey: "dashboard.adminWork.stageAwaitingClient", tone: "amber" },
+    confirmed: { labelKey: "dashboard.adminWork.stageConfirmed", tone: "green" },
+    archived: { labelKey: "dashboard.adminWork.stageArchived", tone: "dim" },
   };
-  const m = map[stage] ?? { label: stage, tone: "dim" as const };
-  return <StatusPill tone={m.tone} label={m.label} />;
+  const m = map[stage];
+  return <StatusPill tone={m?.tone ?? "dim"} label={m ? t(m.labelKey) : stage} />;
 }
 
 /**
@@ -436,6 +441,7 @@ function StageBadge({ stage }: { stage: string }) {
  * now lead with that.
  */
 export function FreeValuePanel() {
+  const t = useT();
   const { setPage, openDrawer, effectiveRoster, effectiveTenant } = useAdminShell();
   // Patch the static FREE_PLAN_VALUE entries that contain fixture data:
   // - "roster" → real count from bridge (cap stays 5)
@@ -445,7 +451,7 @@ export function FreeValuePanel() {
       return { ...v, used: { ...v.used, current: effectiveRoster.length } };
     }
     if (v.id === "storefront") {
-      return { ...v, detail: `Lives at ${effectiveTenant.slug}.tulala.digital.` };
+      return { ...v, detail: interpolate(t("dashboard.adminWork.storefrontLivesAt"), { domain: `${effectiveTenant.slug}.tulala.digital` }) };
     }
     return v;
   });
@@ -469,14 +475,14 @@ export function FreeValuePanel() {
       >
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink-muted">
-            Today on Free
+            {t("dashboard.adminWork.todayOnFree")}
           </div>
           <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, letterSpacing: -0.1 }} className="text-admin-ink">
-            What works right now
+            {t("dashboard.adminWork.whatWorksNow")}
           </div>
         </div>
         <GhostButton onClick={() => openDrawer("plan-compare")}>
-          Compare plans →
+          {t("dashboard.adminWork.comparePlans")}
         </GhostButton>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -548,10 +554,10 @@ export function FreeValuePanel() {
         }}
       >
         <span style={{ fontSize: 12, flex: 1 }} className="text-admin-ink-muted">
-          Caps are soft. We&apos;ll nudge before you run out — never block mid-conversation.
+          {t("dashboard.adminWork.capsAreSoft")}
         </span>
-        <SecondaryButton onClick={() => setPage("talent")}>Open roster</SecondaryButton>
-        <PrimaryButton onClick={() => setPage("work")}>See pipeline</PrimaryButton>
+        <SecondaryButton onClick={() => setPage("talent")}>{t("dashboard.adminWork.openRoster")}</SecondaryButton>
+        <PrimaryButton onClick={() => setPage("work")}>{t("dashboard.adminWork.seePipeline")}</PrimaryButton>
       </div>
     </div>
   );

@@ -25,6 +25,8 @@
  */
 
 import React, { useMemo, useState, useEffect, useCallback, type ReactNode } from "react";
+import { interpolate } from "@/i18n/interpolate";
+import { useT } from "@/i18n/use-t";
 import { setNotificationPrefs, getNotificationPrefs } from "@/lib/server-actions/user-prefs";
 import { actionLoadUserWorkspaces, type UserWorkspace } from "@/lib/server-actions/admin-user-workspaces";
 import { updateWorkspaceAccount } from "@/lib/server-actions/admin-workspace-settings";
@@ -3563,6 +3565,7 @@ export function SavedViewsBar<T>({
   current: T;
   onApply: (view: T) => void;
 }) {
+  const t = useT();
   const { toast } = useAdminShell();
   const storageKey = `tulala_views_${viewKey}`;
   const [views, setViews] = useState<{ id: string; name: string; payload: T }[]>(() => {
@@ -3586,10 +3589,10 @@ export function SavedViewsBar<T>({
   };
 
   const saveCurrent = () => {
-    const name = window.prompt("Name this view");
+    const name = window.prompt(t("dashboard.adminWave.nameThisView"));
     if (!name) return;
     persist([...views, { id: `v-${Date.now()}`, name: name.trim(), payload: current }]);
-    toast(`View "${name}" saved`);
+    toast(interpolate(t("dashboard.adminWave.viewSaved"), { name }));
   };
 
   const remove = (id: string) => {
@@ -3607,7 +3610,7 @@ export function SavedViewsBar<T>({
       }}
     >
       <span style={{ fontSize: 11, fontWeight: 600, marginRight: 4 }} className="text-admin-ink-muted">
-        Views
+        {t("dashboard.adminWave.views")}
       </span>
       {views.map((v) => (
         <span
@@ -3642,7 +3645,7 @@ export function SavedViewsBar<T>({
           <button
             type="button"
             onClick={() => remove(v.id)}
-            aria-label={`Remove view ${v.name}`}
+            aria-label={interpolate(t("dashboard.adminWave.removeView"), { name: v.name })}
             style={{
               background: "transparent",
               border: "none",
@@ -3671,7 +3674,7 @@ export function SavedViewsBar<T>({
           cursor: "pointer",
         }}
       >
-        + Save current
+        {t("dashboard.adminWave.saveCurrent")}
       </button>
     </div>
   );
@@ -3698,10 +3701,11 @@ export function LoadMore({
   shown: number;
   onMore: () => void;
 }) {
+  const t = useT();
   if (shown >= total) {
     return (
       <div style={{ padding: "16px 0 0", textAlign: "center", fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-        End of list · {total} {total === 1 ? "item" : "items"}
+        {interpolate(t(total === 1 ? "dashboard.adminWave.endOfListOne" : "dashboard.adminWave.endOfListOther"), { count: total })}
       </div>
     );
   }
@@ -3722,7 +3726,7 @@ export function LoadMore({
           cursor: "pointer",
         }}
       >
-        Load more · {total - shown} remaining
+        {interpolate(t("dashboard.adminWave.loadMore"), { count: total - shown })}
       </button>
     </div>
   );
@@ -3984,6 +3988,7 @@ export function QuickReplyButtons({
   onCounter: () => void;
   onDecline: () => void;
 }) {
+  const t = useT();
   return (
     <div className="inline-flex gap-1.5">
       <button
@@ -3991,21 +3996,21 @@ export function QuickReplyButtons({
         onClick={onAccept}
         style={quickReplyStyle("ink")}
       >
-        Accept
+        {t("dashboard.adminWave.quickAccept")}
       </button>
       <button
         type="button"
         onClick={onCounter}
         style={quickReplyStyle("ghost")}
       >
-        Counter
+        {t("dashboard.adminWave.quickCounter")}
       </button>
       <button
         type="button"
         onClick={onDecline}
         style={quickReplyStyle("red")}
       >
-        Decline
+        {t("dashboard.adminWave.quickDecline")}
       </button>
     </div>
   );
@@ -4095,14 +4100,15 @@ const CHANGELOG: { date: string; title: string; body: string }[] = [
 ];
 
 export function WhatsNewDrawer() {
+  const t = useT();
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "whats-new";
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="What's new"
-      description="Recent product updates, newest first."
+      title={t("dashboard.adminWave.whatsNewTitle")}
+      description={t("dashboard.adminWave.whatsNewDesc")}
     >
       <div className="flex flex-col gap-3.5">
         {CHANGELOG.map((item, idx) => (
@@ -4139,14 +4145,15 @@ export function WhatsNewDrawer() {
 // #25 — HelpDrawer
 // ════════════════════════════════════════════════════════════════════
 export function HelpDrawer() {
+  const t = useT();
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "help";
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Help"
-      description="Keyboard shortcuts, getting-started videos, and how to reach support."
+      title={t("dashboard.adminWave.helpTitle")}
+      description={t("dashboard.adminWave.helpDesc")}
     >
       <div className="flex flex-col gap-4">
         <section
@@ -4158,16 +4165,16 @@ export function HelpDrawer() {
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10 }} className="text-admin-ink">
-            Keyboard shortcuts
+            {t("dashboard.adminWave.keyboardShortcuts")}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, fontFamily: FONTS.body }}>
             {(
               [
-                ["⌘K · Ctrl+K", "Command palette"],
-                ["?", "Show this list"],
-                ["Esc", "Close drawers / overlays"],
-                ["j / k", "Navigate list rows"],
-                ["Enter", "Open selected row"],
+                ["⌘K · Ctrl+K", t("dashboard.adminWave.shortcutPalette")],
+                ["?", t("dashboard.adminWave.shortcutShowList")],
+                ["Esc", t("dashboard.adminWave.shortcutClose")],
+                ["j / k", t("dashboard.adminWave.shortcutNavigate")],
+                ["Enter", t("dashboard.adminWave.shortcutOpenRow")],
               ] as const
             ).map(([key, desc]) => (
               <div key={key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -4189,32 +4196,32 @@ export function HelpDrawer() {
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10 }} className="text-admin-ink">
-            Get help
+            {t("dashboard.adminWave.getHelp")}
           </div>
           <div className="flex flex-col gap-1.5">
             <button
               type="button"
               disabled
-              title="Coming soon"
+              title={t("dashboard.adminWave.comingSoon")}
               style={{ ...helpRowStyle, cursor: "not-allowed", opacity: 0.5 }}
             >
-              Read the docs →
+              {t("dashboard.adminWave.readDocs")}
             </button>
             <button
               type="button"
               disabled
-              title="Coming soon"
+              title={t("dashboard.adminWave.comingSoon")}
               style={{ ...helpRowStyle, cursor: "not-allowed", opacity: 0.5 }}
             >
-              Chat with support →
+              {t("dashboard.adminWave.chatSupport")}
             </button>
             <button
               type="button"
               disabled
-              title="Coming soon"
+              title={t("dashboard.adminWave.comingSoon")}
               style={{ ...helpRowStyle, cursor: "not-allowed", opacity: 0.5 }}
             >
-              Book onboarding call →
+              {t("dashboard.adminWave.bookOnboarding")}
             </button>
           </div>
         </section>
@@ -4269,6 +4276,7 @@ export type WorkspaceActivationState = {
 };
 
 export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationState } = {}) {
+  const t = useT();
   const { openDrawer, setPage, openUpgrade, toast, state: shellState, effectiveTenant } = useAdminShell();
   const [dismissed, setDismissed] = useState(false);
   const [, setReminded] = useState(false);
@@ -4285,22 +4293,22 @@ export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationSt
   //   Free  → point to their Tulala subdomain + upsell
   //   Studio+ → "set your branded domain" as before
   const domainStepDesc = isFreePlan
-    ? `Your storefront is live at ${effectiveTenant.domain}. Upgrade for a branded domain.`
-    : "Go live on your branded URL.";
-  const domainStepCta  = isFreePlan ? "Upgrade to Studio" : "Configure";
+    ? interpolate(t("dashboard.adminWave.activationDomainDescFree"), { domain: effectiveTenant.domain })
+    : t("dashboard.adminWave.activationDomainDescPaid");
+  const domainStepCta  = isFreePlan ? t("dashboard.adminWave.activationUpgradeStudio") : t("dashboard.adminWave.activationConfigure");
   const domainStepAction = isFreePlan
-    ? () => openUpgrade({ feature: "Custom domain", why: "Run your storefront at your own brand's domain, not a Tulala subdomain.", unlocks: ["Custom domain (e.g. acme-models.com)", "Auto-renewed SSL", "Verified email-from address"] })
+    ? () => openUpgrade({ feature: t("dashboard.adminWave.activationDomainFeature"), why: t("dashboard.adminWave.activationDomainWhy"), unlocks: [t("dashboard.adminWave.activationDomainUnlock1"), t("dashboard.adminWave.activationDomainUnlock2"), t("dashboard.adminWave.activationDomainUnlock3")] })
     : () => setPage("settings");
 
   const steps: ActivationStep[] = [
     // Phase B de-fixture: defaults changed from `?? true` → `?? false` so
     // standalone/dev mode (no bridge) shows honest incomplete state instead
     // of pre-checked steps. OverviewPage passes real values when bridged.
-    { id: "profile",    label: "Complete workspace profile",       desc: "Add logo, bio, and social links.",             done: s.hasCompleteProfile ?? false, cta: "Edit profile",    onCta: () => openDrawer("workspace-settings") },
-    { id: "talent",     label: "Add your first talent",            desc: "Import or invite talent to your roster.",      done: s.hasAnyTalent       ?? false, cta: "Add talent",      onCta: () => setPage("roster") },
-    { id: "inquiry",    label: "Send your first inquiry",          desc: "Try the booking flow end-to-end.",             done: s.hasSentInquiry     ?? false, cta: "New inquiry",     onCta: () => openDrawer("new-inquiry") },
-    { id: "payout",     label: "Connect a payout method",          desc: "Required to receive platform payouts.",        done: s.hasPayoutMethod    ?? false, cta: "Set up payouts",  onCta: () => setPage("payouts") },
-    { id: "domain",     label: isFreePlan ? "View your storefront URL" : "Set your workspace domain", desc: domainStepDesc, done: !isFreePlan && (s.hasCustomDomain ?? false), cta: domainStepCta, onCta: domainStepAction },
+    { id: "profile",    label: t("dashboard.adminWave.activationProfileLabel"),  desc: t("dashboard.adminWave.activationProfileDesc"), done: s.hasCompleteProfile ?? false, cta: t("dashboard.adminWave.activationEditProfile"), onCta: () => openDrawer("workspace-settings") },
+    { id: "talent",     label: t("dashboard.adminWave.activationTalentLabel"),   desc: t("dashboard.adminWave.activationTalentDesc"),  done: s.hasAnyTalent       ?? false, cta: t("dashboard.adminWave.activationAddTalent"),   onCta: () => setPage("roster") },
+    { id: "inquiry",    label: t("dashboard.adminWave.activationInquiryLabel"),  desc: t("dashboard.adminWave.activationInquiryDesc"), done: s.hasSentInquiry     ?? false, cta: t("dashboard.adminWave.activationNewInquiry"),  onCta: () => openDrawer("new-inquiry") },
+    { id: "payout",     label: t("dashboard.adminWave.activationPayoutLabel"),   desc: t("dashboard.adminWave.activationPayoutDesc"),  done: s.hasPayoutMethod    ?? false, cta: t("dashboard.adminWave.activationSetupPayouts"), onCta: () => setPage("payouts") },
+    { id: "domain",     label: isFreePlan ? t("dashboard.adminWave.activationDomainLabelFree") : t("dashboard.adminWave.activationDomainLabelPaid"), desc: domainStepDesc, done: !isFreePlan && (s.hasCustomDomain ?? false), cta: domainStepCta, onCta: domainStepAction },
   ];
 
   // Self-hide for established tenants regardless of per-step state —
@@ -4319,10 +4327,10 @@ export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationSt
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }} className="text-admin-ink">
-            Get your workspace ready
+            {t("dashboard.adminWave.activationHeading")}
           </div>
           <div className="text-admin-ink-muted text-xs">
-            {doneCount} of {steps.length} steps complete
+            {interpolate(t("dashboard.adminWave.activationStepsComplete"), { done: doneCount, total: steps.length })}
           </div>
         </div>
         <button
@@ -4330,11 +4338,11 @@ export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationSt
           onClick={() => {
             setDismissed(true);
             setReminded(true);
-            toast("We'll remind you in 24 hours");
+            toast(t("dashboard.adminWave.activationRemindToast"));
           }}
           style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body }}
         >
-          Remind me later
+          {t("dashboard.adminWave.activationRemindLater")}
         </button>
       </div>
 
@@ -4401,30 +4409,31 @@ const TALENT_FIRST_RUN_STEPS = [
   {
     step:  1,
     emoji: "👤",
-    title: "Claim your profile",
-    body:  "Add a photo, bio, height, and measurements so coordinators can find and evaluate you.",
+    titleKey: "dashboard.adminWave.talentRunClaimTitle",
+    bodyKey:  "dashboard.adminWave.talentRunClaimBody",
     cta:   "talent-profile-edit" as const,
-    ctaLabel: "Fill in my profile",
+    ctaLabelKey: "dashboard.adminWave.talentRunClaimCta",
   },
   {
     step:  2,
     emoji: "📸",
-    title: "Upload polaroids",
-    body:  "Your polaroids are the first thing an agency checks. Upload at least 4 fresh, natural shots.",
+    titleKey: "dashboard.adminWave.talentRunPolaroidsTitle",
+    bodyKey:  "dashboard.adminWave.talentRunPolaroidsBody",
     cta:   "talent-profile-edit" as const,
-    ctaLabel: "Upload polaroids",
+    ctaLabelKey: "dashboard.adminWave.talentRunPolaroidsCta",
   },
   {
     step:  3,
     emoji: "📅",
-    title: "Mark your availability",
-    body:  "Let coordinators know when you're free. Block dates you can't work.",
+    titleKey: "dashboard.adminWave.talentRunAvailabilityTitle",
+    bodyKey:  "dashboard.adminWave.talentRunAvailabilityBody",
     cta:   "talent-availability" as const,
-    ctaLabel: "Set availability",
+    ctaLabelKey: "dashboard.adminWave.talentRunAvailabilityCta",
   },
 ];
 
 export function TalentFirstRunBanner() {
+  const t = useT();
   const { openDrawer } = useAdminShell();
   const [currentStep, setCurrentStep] = useState(1);
   const [dismissed, setDismissed] = useState(false);
@@ -4450,10 +4459,10 @@ export function TalentFirstRunBanner() {
 
       <div style={{ fontSize: 28, marginBottom: 8 }}>{step.emoji}</div>
       <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
-        Step {step.step}: {step.title}
+        {interpolate(t("dashboard.adminWave.firstRunStepTitle"), { step: step.step, title: t(step.titleKey) })}
       </div>
       <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 16, lineHeight: 1.55 }}>
-        {step.body}
+        {t(step.bodyKey)}
       </div>
 
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -4467,7 +4476,7 @@ export function TalentFirstRunBanner() {
             fontFamily: FONTS.body, fontSize: 13, fontWeight: 700,
           }}
         >
-          {step.ctaLabel}
+          {t(step.ctaLabelKey)}
         </button>
 
         {!isLast ? (
@@ -4481,7 +4490,7 @@ export function TalentFirstRunBanner() {
               fontFamily: FONTS.body, fontSize: 13,
             }}
           >
-            Skip this step
+            {t("dashboard.adminWave.skipThisStep")}
           </button>
         ) : (
           <button
@@ -4494,7 +4503,7 @@ export function TalentFirstRunBanner() {
               fontFamily: FONTS.body, fontSize: 12,
             }}
           >
-            Dismiss
+            {t("dashboard.adminWave.dismiss")}
           </button>
         )}
       </div>
@@ -4510,30 +4519,31 @@ const CLIENT_FIRST_RUN_STEPS = [
   {
     step:     1,
     emoji:    "🔒",
-    title:    "Verify your brand",
-    body:     "Complete email + company verification to unlock inquiry sending and shortlist sharing.",
-    ctaLabel: "Verify now",
+    titleKey:    "dashboard.adminWave.clientRunVerifyTitle",
+    bodyKey:     "dashboard.adminWave.clientRunVerifyBody",
+    ctaLabelKey: "dashboard.adminWave.clientRunVerifyCta",
     onCta:    "verify",
   },
   {
     step:     2,
     emoji:    "🔍",
-    title:    "Save your first search",
-    body:     "Browse talent, apply filters, and save the search to get notified when matches appear.",
-    ctaLabel: "Go to Discover",
+    titleKey:    "dashboard.adminWave.clientRunSearchTitle",
+    bodyKey:     "dashboard.adminWave.clientRunSearchBody",
+    ctaLabelKey: "dashboard.adminWave.clientRunSearchCta",
     onCta:    "discover",
   },
   {
     step:     3,
     emoji:    "✉️",
-    title:    "Send your first inquiry",
-    body:     "Pick a talent from your shortlist and send a brief. Coordinators typically reply within 4 hours.",
-    ctaLabel: "New inquiry",
+    titleKey:    "dashboard.adminWave.clientRunInquiryTitle",
+    bodyKey:     "dashboard.adminWave.clientRunInquiryBody",
+    ctaLabelKey: "dashboard.adminWave.clientRunInquiryCta",
     onCta:    "inquiry",
   },
 ];
 
 export function ClientFirstRunBanner() {
+  const t = useT();
   const { openDrawer, setClientPage } = useAdminShell();
   const [currentStep, setCurrentStep] = useState(1);
   const [dismissed, setDismissed] = useState(false);
@@ -4569,10 +4579,10 @@ export function ClientFirstRunBanner() {
 
       <div style={{ fontSize: 24, marginBottom: 6 }}>{step.emoji}</div>
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }} className="text-admin-ink">
-        Step {step.step}: {step.title}
+        {interpolate(t("dashboard.adminWave.firstRunStepTitle"), { step: step.step, title: t(step.titleKey) })}
       </div>
       <div style={{ fontSize: 13, marginBottom: 14, lineHeight: 1.55 }} className="text-admin-ink-muted">
-        {step.body}
+        {t(step.bodyKey)}
       </div>
 
       <div className="flex gap-2">
@@ -4586,7 +4596,7 @@ export function ClientFirstRunBanner() {
             fontFamily: FONTS.body, fontSize: 13, fontWeight: 700,
           }}
         >
-          {step.ctaLabel}
+          {t(step.ctaLabelKey)}
         </button>
         {!isLast ? (
           <button
@@ -4599,7 +4609,7 @@ export function ClientFirstRunBanner() {
               fontFamily: FONTS.body, fontSize: 12,
             }}
           >
-            Skip
+            {t("dashboard.adminWave.skip")}
           </button>
         ) : (
           <button
@@ -4612,7 +4622,7 @@ export function ClientFirstRunBanner() {
               fontFamily: FONTS.body, fontSize: 12,
             }}
           >
-            Done
+            {t("dashboard.adminWave.done")}
           </button>
         )}
       </div>
@@ -4634,6 +4644,7 @@ export type DemoDataBannerProps = {
 };
 
 export function DemoDataBanner({ isEstablishedTenant = false }: DemoDataBannerProps = {}) {
+  const t = useT();
   const { toast } = useAdminShell();
   const [enabled, setEnabled] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -4653,7 +4664,7 @@ export function DemoDataBanner({ isEstablishedTenant = false }: DemoDataBannerPr
       if (next) localStorage.setItem(DEMO_DATA_KEY, "true");
       else      localStorage.removeItem(DEMO_DATA_KEY);
     }
-    toast(next ? "Demo data loaded. Refresh to apply" : "Demo data cleared. Refresh to reset");
+    toast(next ? t("dashboard.adminWave.demoLoadedToast") : t("dashboard.adminWave.demoClearedToast"));
   }
 
   if (dismissed) return null;
@@ -4663,10 +4674,10 @@ export function DemoDataBanner({ isEstablishedTenant = false }: DemoDataBannerPr
       <span className="text-lg">🧪</span>
       <div className="flex-1">
         <div className="text-admin-ink text-admin-13 font-semibold">
-          {enabled ? "Demo data is active" : "Evaluating Tulala?"}
+          {enabled ? t("dashboard.adminWave.demoActiveTitle") : t("dashboard.adminWave.demoEvaluatingTitle")}
         </div>
         <div className="text-admin-ink-muted text-admin-11h">
-          {enabled ? "All data shown is fictional." : "Load sample inquiries, bookings, and talent to explore the full platform."}
+          {enabled ? t("dashboard.adminWave.demoActiveDesc") : t("dashboard.adminWave.demoEvaluatingDesc")}
         </div>
       </div>
       <button
@@ -4682,12 +4693,12 @@ export function DemoDataBanner({ isEstablishedTenant = false }: DemoDataBannerPr
           flexShrink: 0,
         }}
       >
-        {enabled ? "Clear demo data" : "Load demo data"}
+        {enabled ? t("dashboard.adminWave.demoClearBtn") : t("dashboard.adminWave.demoLoadBtn")}
       </button>
       <button
         type="button"
         onClick={() => setDismissed(true)}
-        aria-label="Dismiss"
+        aria-label={t("dashboard.adminWave.dismiss")}
         style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: COLORS.inkMuted, padding: 0, lineHeight: 1 }}
       >
         ×
