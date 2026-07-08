@@ -6,6 +6,8 @@
 
 import { loadPlatformCatalogFieldDetail } from "../../../catalog-field-detail-data";
 import { FieldDetailView } from "./field-detail-view";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,7 @@ export default async function PlatformCatalogFieldDetailPage({
   const { saved, error } = await searchParams;
   const decoded = decodeURIComponent(fieldKey);
   const detail = await loadPlatformCatalogFieldDetail(decoded);
+  const t = createTranslator(await getRequestLocale());
 
   return (
     <FieldDetailView
@@ -28,6 +31,7 @@ export default async function PlatformCatalogFieldDetailPage({
       saved={saved}
       error={error}
       variant="page"
+      t={t}
     />
   );
 }

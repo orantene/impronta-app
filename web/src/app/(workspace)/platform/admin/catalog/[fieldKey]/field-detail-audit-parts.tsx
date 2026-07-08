@@ -1,4 +1,8 @@
 import type { FieldDetailAuditEntry } from "../../../catalog-field-detail-data";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+const K = "dashboard.platform.catalog";
 
 const HQ = {
   card: "#16161A",
@@ -28,18 +32,26 @@ function formatAuditTime(value: string): string {
   }).format(d);
 }
 
-export function AuditHistory({ audit }: { audit: FieldDetailAuditEntry[] }) {
+// enum → catalog key; render label via t(), switch on the raw severity string.
+// Unknown severities fall back to the raw persisted value (flagged).
+const SEVERITY_LABEL_KEYS: Record<string, string> = {
+  info: "auditSeverityInfo",
+  warn: "auditSeverityWarn",
+  emergency: "auditSeverityEmergency",
+};
+
+export function AuditHistory({ audit, t }: { audit: FieldDetailAuditEntry[]; t: Translate }) {
   return (
     <section style={{ background: HQ.card, border: `1px solid ${HQ.borderSoft}`, borderRadius: 12, padding: 16, fontFamily: F, marginBottom: 16 }}>
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontFamily: FD, fontSize: 15, fontWeight: 600, color: HQ.ink }}>Audit history</div>
+        <div style={{ fontFamily: FD, fontSize: 15, fontWeight: 600, color: HQ.ink }}>{t(`${K}.auditTitle`)}</div>
         <div style={{ fontSize: 12, color: HQ.inkMuted, marginTop: 2 }}>
-          Recent platform-level changes for this field and its current taxonomy mappings.
+          {t(`${K}.auditSubtitle`)}
         </div>
       </div>
       {audit.length === 0 ? (
         <div style={{ fontSize: 12, color: HQ.inkDim }}>
-          No audit rows yet. Every save to this field&apos;s definition and taxonomy mappings will appear here.
+          {t(`${K}.auditEmpty`)}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -69,16 +81,16 @@ export function AuditHistory({ audit }: { audit: FieldDetailAuditEntry[] }) {
                   {entry.action}
                 </div>
                 <div style={{ fontSize: 10.5, color: HQ.inkDim, marginTop: 2 }}>
-                  {entry.target_type ?? "engine row"}
-                  {entry.actor_role ? ` · by ${entry.actor_role}` : ""}
+                  {entry.target_type ?? t(`${K}.auditEngineRow`)}
+                  {entry.actor_role ? ` · ${interpolate(t(`${K}.auditByActor`), { role: entry.actor_role })}` : ""}
                   {entry.changed_keys.length > 0
-                    ? ` · fields: ${entry.changed_keys.join(", ")}`
+                    ? ` · ${interpolate(t(`${K}.auditFieldsList`), { keys: entry.changed_keys.join(", ") })}`
                     : ""}
                 </div>
                 {entry.changes.length > 0 && (
                   <details style={{ marginTop: 6 }}>
                     <summary style={{ cursor: "pointer", fontSize: 10.5, color: HQ.green }}>
-                      {entry.changes.length} field{entry.changes.length === 1 ? "" : "s"} changed — show before / after
+                      {interpolate(t(`${K}.${entry.changes.length === 1 ? "auditChangedOne" : "auditChangedMany"}`), { count: entry.changes.length })}
                     </summary>
                     <div style={{ display: "grid", gap: 4, marginTop: 6 }}>
                       {entry.changes.map((change) => (
@@ -122,8 +134,11 @@ export function AuditHistory({ audit }: { audit: FieldDetailAuditEntry[] }) {
                           ? HQ.red
                           : HQ.inkMuted,
                   }}
+                  title={entry.severity}
                 >
-                  {entry.severity}
+                  {SEVERITY_LABEL_KEYS[entry.severity]
+                    ? t(`${K}.${SEVERITY_LABEL_KEYS[entry.severity]}`)
+                    : entry.severity}
                 </span>
               </div>
             </div>
