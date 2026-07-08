@@ -1252,6 +1252,264 @@ const ES_TEXT: Record<string, string> = {
   "Image optimization": "Optimización de imágenes",
   "Broken links": "Enlaces rotos",
   // "Sitemap" already defined above (reused).
+
+  // ── light-16: operations / analytics "coming soon" stub drawers ──
+  "Coming soon": "Próximamente",
+  "Top performers": "Mejores resultados",
+  "Talent and client rankings by booking revenue.": "Clasificación de talento y clientes por ingresos de reservas.",
+  "Revenue-ranked talent and client leaderboards aren't live yet. They'll appear here once booking analytics are wired up.":
+    "Las clasificaciones de talento y clientes por ingresos aún no están activas. Aparecerán aquí cuando se conecten las analíticas de reservas.",
+  "Team workload": "Carga del equipo",
+  "Active load, messages, and reply time per coordinator.": "Carga activa, mensajes y tiempo de respuesta por coordinador.",
+  "Per-coordinator workload and response-time analytics aren't live yet. We'll surface them here once the data is tracked.":
+    "Las analíticas de carga y tiempo de respuesta por coordinador aún no están activas. Las mostraremos aquí cuando se registren los datos.",
+  "My queue": "Mi cola",
+  "Your assigned inquiries, sorted by urgency.": "Tus consultas asignadas, ordenadas por urgencia.",
+  "Your personal, SLA-ranked work queue isn't live yet. For now, your inquiries live in Messages and the Pipeline view.":
+    "Tu cola de trabajo personal ordenada por SLA aún no está activa. Por ahora, tus consultas están en Mensajes y en la vista de flujo.",
+  "SLA timers": "Temporizadores de SLA",
+  "Response deadlines across active inquiries.": "Plazos de respuesta en las consultas activas.",
+  "Response-deadline (SLA) tracking isn't live yet. Inquiry age is shown in Messages and the Pipeline in the meantime.":
+    "El seguimiento de plazos de respuesta (SLA) aún no está activo. Mientras tanto, la antigüedad de la consulta se muestra en Mensajes y en el flujo.",
+  "Automation rules": "Reglas de automatización",
+  "Trigger-action rules that run automatically.": "Reglas de acción por disparador que se ejecutan automáticamente.",
+  "Automation rules (trigger → action) aren't available yet. We'll add a rule builder here when it ships.":
+    "Las reglas de automatización (disparador → acción) aún no están disponibles. Añadiremos un creador de reglas aquí cuando se lance.",
+  "Saved replies": "Respuestas guardadas",
+  "Reusable message templates.": "Plantillas de mensajes reutilizables.",
+  "Reusable reply templates aren't available yet. We'll add them here so you can insert and edit canned responses.":
+    "Las plantillas de respuesta reutilizables aún no están disponibles. Las añadiremos aquí para que puedas insertar y editar respuestas predefinidas.",
+
+  // ── light-14: storefront visibility drawer ──
+  "Visibility saved": "Visibilidad guardada",
+  "Storefront visibility": "Visibilidad de la tienda",
+  "What's public on your storefront, and what shows up in Tulala discovery.":
+    "Lo que es público en tu tienda y lo que aparece en Descubrir de Tulala.",
+  "Public storefront": "Tienda pública",
+  "Show roster grid": "Mostrar cuadrícula de la lista",
+  "Show client logos": "Mostrar logos de clientes",
+  "Show editorial posts": "Mostrar publicaciones editoriales",
+  "Allow direct inquiries": "Permitir consultas directas",
+  "Tulala discovery": "Descubrir de Tulala",
+  "On Free, you appear in our public talent directory. Studio and up are private by default.":
+    "En el plan Free, apareces en nuestro directorio público de talento. Studio y superiores son privados de forma predeterminada.",
+  "Listed in Tulala directory": "Listado en el directorio de Tulala",
+  "Featured rotation eligible": "Apto para la rotación destacada",
+
+  // ── light-14: hub distribution drawer ──
+  "Hub distribution": "Distribución del hub",
+  "Push talent to discovery across all your brands.": "Envía talento a Descubrir en todas tus marcas.",
+  "Available on Network.": "Disponible en Network.",
+  "Push talent to discovery across all your agency brands at once.":
+    "Envía talento a Descubrir en todas las marcas de tu agencia a la vez.",
+  "Upgrade to Network": "Mejorar a Network",
+  "Connected brands": "Marcas conectadas",
+  "What this unlocks": "Qué desbloquea",
+  "Run multiple agency brands as one operation": "Gestiona varias marcas de agencia como una sola operación",
+  "Move roster across brands without losing history": "Mueve la lista entre marcas sin perder el historial",
+  "Hub-level analytics across all brands": "Analíticas a nivel de hub en todas las marcas",
+  "Cross-roster pool for shared talent": "Grupo entre listas para talento compartido",
+
+  // ── light-14: filter config drawer ──
+  "Filters saved": "Filtros guardados",
+  "Filters": "Filtros",
+  "Narrow down what you see.": "Acota lo que ves.",
+  "Apply filters": "Aplicar filtros",
+  // "Stage" already defined above (reused).
+  "All talent": "Todo el talento",
+  "Date range": "Rango de fechas",
+  "Any time": "En cualquier momento",
+  "This week": "Esta semana",
+  "This month": "Este mes",
+  "This quarter": "Este trimestre",
+
+  // ── light-14: danger zone drawer ──
+  "Danger zone": "Zona de peligro",
+  "Irreversible actions. Be sure before you click.": "Acciones irreversibles. Asegúrate antes de hacer clic.",
+  "Pause workspace": "Pausar el espacio de trabajo",
+  "Support can take your storefront offline temporarily. Data is preserved.":
+    "Soporte puede poner tu tienda fuera de línea temporalmente. Los datos se conservan.",
+  "Email pause request": "Enviar solicitud de pausa",
+  "Opening workspace support email": "Abriendo el correo de soporte del espacio de trabajo",
+  "Transfer ownership": "Transferir titularidad",
+  "Support reviews ownership transfer requests before any account access changes.":
+    "Soporte revisa las solicitudes de transferencia de titularidad antes de cualquier cambio de acceso a la cuenta.",
+  "Email transfer request": "Enviar solicitud de transferencia",
+  "Opening ownership support email": "Abriendo el correo de soporte de titularidad",
+  "Delete workspace": "Eliminar el espacio de trabajo",
+  "Permanent deletion requires support review and a final export.":
+    "La eliminación permanente requiere revisión de soporte y una exportación final.",
+  "Email deletion request": "Enviar solicitud de eliminación",
+  "Opening deletion support email": "Abriendo el correo de soporte de eliminación",
+
+  // ── light-14: simple stub drawer ──
+  "This drawer is part of the prototype skeleton. Its detailed content lands in the next iteration.":
+    "Este panel forma parte del esqueleto del prototipo. Su contenido detallado llegará en la próxima iteración.",
+
+  // ── light-14: plan compare drawer ──
+  "Choose your plan": "Elige tu plan",
+  "Find the right fit for where your agency is headed. All plans include core messaging and the public roster.":
+    "Encuentra el ajuste adecuado para hacia dónde va tu agencia. Todos los planes incluyen la mensajería principal y la lista pública.",
+  "Most popular": "Más popular",
+  "Downgrade": "Bajar de plan",
+  "Feature breakdown": "Desglose de funciones",
+
+  // ── light-14: client trust ladder drawer ──
+  "Basic": "Básico",
+  "Silver": "Plata",
+  "Gold": "Oro",
+  "Verified email": "Correo verificado",
+  "Completed profile": "Perfil completado",
+  "Browse public rosters": "Explorar listas públicas",
+  "Submit inquiries": "Enviar consultas",
+  "Identity verification": "Verificación de identidad",
+  "Phone confirmed": "Teléfono confirmado",
+  "Direct talent contact (if talent allows)": "Contacto directo con el talento (si el talento lo permite)",
+  "Priority processing": "Procesamiento prioritario",
+  "Verified identity": "Identidad verificada",
+  "1+ completed booking": "1+ reserva completada",
+  "No disputes": "Sin disputas",
+  "First-look on new availability": "Vista anticipada de nueva disponibilidad",
+  "Extended 72h holds": "Retenciones ampliadas de 72 h",
+  "Funded account": "Cuenta con fondos",
+  "3+ bookings": "3+ reservas",
+  "5★ avg": "5★ de media",
+  "Dedicated coordinator": "Coordinador dedicado",
+  "VIP talent access": "Acceso VIP al talento",
+  "Direct messaging all tiers": "Mensajería directa en todos los niveles",
+  "Client Trust Ladder": "Escala de confianza del cliente",
+  "Higher trust unlocks access opportunities, never pay-to-DM":
+    "Más confianza desbloquea oportunidades de acceso, nunca pagar por mensaje",
+  "Current tier": "Nivel actual",
+  "you are here": "estás aquí",
+  "Start verification →": "Iniciar verificación →",
+
+  // ── light-15: escrow detail drawer ──
+  "Opening escrow support email": "Abriendo el correo de soporte de depósito",
+  "Authorized": "Autorizado",
+  "Payment method verified. Hold placed, no charge yet.": "Método de pago verificado. Retención aplicada, sin cargo todavía.",
+  "Held": "Retenido",
+  "Funds locked in escrow. Released only after booking confirms.": "Fondos bloqueados en depósito. Se liberan solo cuando se confirma la reserva.",
+  "Released": "Liberado",
+  "Shoot complete. Funds transferred to payout receiver.": "Sesión completada. Fondos transferidos al receptor del cobro.",
+  "Escrow Status": "Estado del depósito",
+  "Payment held securely until shoot is confirmed complete": "Pago retenido de forma segura hasta confirmar que la sesión se completó",
+  "Funds are secured. Auto-released 24h after confirmed shoot date.": "Los fondos están asegurados. Se liberan automáticamente 24 h después de la fecha de sesión confirmada.",
+  "Request release": "Solicitar liberación",
+  "Email dispute": "Enviar disputa por correo",
+
+  // ── light-15: refund flow drawer ──
+  "Opening refund support email": "Abriendo el correo de soporte de reembolso",
+  "Request Refund": "Solicitar reembolso",
+  "Email support to start a refund review.": "Escribe a soporte para iniciar una revisión de reembolso.",
+  "Full refund": "Reembolso completo",
+  "Partial refund": "Reembolso parcial",
+  "Select reason…": "Selecciona un motivo...",
+  "Shoot cancelled by client": "Sesión cancelada por el cliente",
+  "Talent no-show": "El talento no se presentó",
+  "Force majeure": "Fuerza mayor",
+  "Deliverables below standard": "Entregables por debajo del estándar",
+  "Billing error / duplicate": "Error de facturación / duplicado",
+  "Email refund request": "Enviar solicitud de reembolso",
+
+  // ── light-15: dispute flow drawer ──
+  "Talent didn't show up": "El talento no se presentó",
+  "Deliverables not as agreed": "Entregables distintos a lo acordado",
+  "Charged incorrectly": "Cobro incorrecto",
+  "Cancellation policy dispute": "Disputa de política de cancelación",
+  "Opening dispute support email": "Abriendo el correo de soporte de disputa",
+  "Open Dispute": "Abrir disputa",
+  "Email support to start a dispute review. Funds are not frozen automatically from this drawer.": "Escribe a soporte para iniciar una revisión de disputa. Los fondos no se congelan automáticamente desde este panel.",
+  "Type": "Tipo",
+  "Evidence": "Evidencia",
+  "Continue →": "Continuar →",
+  "Evidence upload coming soon": "La subida de evidencia estará disponible pronto",
+  "Attach evidence to the support email after it opens.": "Adjunta la evidencia al correo de soporte una vez que se abra.",
+  "Support must review this manually.": "Soporte debe revisar esto manualmente.",
+  "Emailing this request does not freeze escrow automatically; support will confirm payment status and next steps.": "Enviar esta solicitud no congela el depósito automáticamente; soporte confirmará el estado del pago y los próximos pasos.",
+  "Email dispute request": "Enviar solicitud de disputa",
+
+  // ── light-15: KYC verification drawer ──
+  "Identity Verification": "Verificación de identidad",
+  "Government-issued ID": "Documento de identidad oficial",
+  "Passport, driving licence, or national ID": "Pasaporte, permiso de conducir o documento nacional de identidad",
+  "Selfie with your ID": "Selfie con tu documento",
+  "A clear photo of you holding your document": "Una foto clara de ti sosteniendo tu documento",
+  "Secure & private": "Seguro y privado",
+  "Encrypted, deleted after verification": "Cifrado, eliminado tras la verificación",
+  "Tap to upload or take a photo": "Toca para subir o tomar una foto",
+  "Selfie holding your ID": "Selfie sosteniendo tu documento",
+  "Both your face and document must be clearly visible": "Tu rostro y tu documento deben verse claramente",
+  "Submitted": "Enviado",
+  "Review within 24 hours. You'll be notified once verified.": "Revisión en un plazo de 24 horas. Te avisaremos cuando se verifique.",
+
+  // ── light-15: proof of funds drawer ──
+  "Proof of Funds": "Comprobante de fondos",
+  "Required for Silver and Gold trust tiers": "Requerido para los niveles de confianza Plata y Oro",
+  "Demonstrate available funds via bank link (instant) or wire deposit (1-3 business days).": "Demuestra los fondos disponibles mediante enlace bancario (instantáneo) o transferencia (1-3 días hábiles).",
+  "Link bank account (instant)": "Vincular cuenta bancaria (instantáneo)",
+  "Wire deposit (1-3 days)": "Transferencia (1-3 días)",
+
+  // ── light-15: payout method failure drawer ──
+  "The IBAN appears invalid. Please check and re-enter.": "El IBAN parece no ser válido. Compruébalo y vuelve a introducirlo.",
+  "Your payout card has expired.": "Tu tarjeta de cobro ha caducado.",
+  "Your bank rejected the transfer, the account may be closed.": "Tu banco rechazó la transferencia; la cuenta podría estar cerrada.",
+  "This transfer was flagged. Our team will contact you within 24h.": "Esta transferencia se marcó para revisión. Nuestro equipo te contactará en un plazo de 24 h.",
+  "Payout Failed": "Cobro fallido",
+  "Action required to receive your payment": "Acción requerida para recibir tu pago",
+  "An error occurred.": "Ocurrió un error.",
+  "Update payout method →": "Actualizar método de cobro →",
+  "Contact support": "Contactar con soporte",
+
+  // ── light-15: subscription lifecycle drawer ──
+  "Trial ending soon": "La prueba termina pronto",
+  "Your trial ends in 3 days. Upgrade to keep access.": "Tu prueba termina en 3 días. Mejora para mantener el acceso.",
+  "Upgrade now": "Mejorar ahora",
+  "Manage plan": "Gestionar plan",
+  "Plan paused": "Plan pausado",
+  "Features are read-only. Resume any time, billing picks up from today.": "Las funciones son de solo lectura. Reanuda cuando quieras; la facturación continúa desde hoy.",
+  "Resume plan": "Reanudar plan",
+  "Plan cancelled": "Plan cancelado",
+  "Reactivate": "Reactivar",
+  "Payment failed, grace period": "Pago fallido, periodo de gracia",
+  "Couldn't charge your card. Update payment within 7 days to avoid restriction.": "No se pudo cobrar tu tarjeta. Actualiza el pago en un plazo de 7 días para evitar restricciones.",
+  "Update payment": "Actualizar pago",
+  "Cancel subscription": "Cancelar suscripción",
+
+  // ── light-15: notification detail drawer ──
+  "Notification": "Notificación",
+  "No additional detail available.": "No hay más detalles disponibles.",
+
+  // ── light-15: AI draft assist drawer ──
+  "AI Draft Assist": "Asistente de borradores con IA",
+  "Generate a first draft, you edit, then send": "Genera un primer borrador, tú lo editas y luego lo envías",
+  "Drafting…": "Redactando...",
+  "Generate draft": "Generar borrador",
+  "Draft, edit before sending": "Borrador, edítalo antes de enviar",
+  "Use draft →": "Usar borrador →",
+
+  // ── light-15: AI search explain drawer ──
+  "Search interpretation": "Interpretación de la búsqueda",
+
+  // ── light-15: AI weekly digest drawer ──
+  "Weekly digest": "Resumen semanal",
+  "Payments": "Pagos",
+
+  // ── light-15: conversion funnel drawer ──
+  "Inquiries received": "Consultas recibidas",
+  "Offer sent": "Oferta enviada",
+  "Client approved": "Cliente aprobó",
+  // "Booking confirmed" already defined above (reused).
+  "Conversion funnel": "Embudo de conversión",
+  "Inquiry-to-booking conversion across your workspace. Drop-off shows where deals are lost.": "Conversión de consulta a reserva en tu espacio de trabajo. La caída muestra dónde se pierden los acuerdos.",
+  "Overall conversion": "Conversión total",
+  "Active pipeline": "Flujo activo",
+  "in progress": "en curso",
+  "Lost deals": "Acuerdos perdidos",
+  "declined or expired": "rechazados o caducados",
+  "Pipeline funnel": "Embudo del flujo",
+  "Stage breakdown": "Desglose por etapa",
+  "entry stage": "etapa de entrada",
 };
 
 export function translateDashboardText(
