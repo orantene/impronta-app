@@ -25,6 +25,7 @@ import {
   useAdminShell
 } from "./drawer-shared";
 import { byLabel, byName } from "@/lib/field-engine/sort-comparators";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 2 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -42,6 +43,8 @@ export function FieldCatalogDrawer() {
   };
 
   const { state, closeDrawer, openDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const rules = FIELD_PRIVACY_PLAN_RULES[state.plan as "free" | "studio" | "agency" | "network"]
     ?? FIELD_PRIVACY_PLAN_RULES.free;
   const canCustomize = rules.canFlipPublicInternal; // studio+: enable/disable + relabel
@@ -75,32 +78,32 @@ export function FieldCatalogDrawer() {
 
   // ── field ops ──────────────────────────────────────────────────────
   const toggleField = async (f: CatField) => {
-    if (!canCustomize) { toast("Upgrade to Studio to customize the field catalog"); return; }
+    if (!canCustomize) { toast(tt("Upgrade to Studio to customize the field catalog")); return; }
     const next = !f.enabled;
     const snap = fields;
     setFields((fs) => fs.map((x) => x.field_definition_id === f.field_definition_id ? { ...x, enabled: next } : x));
     mark(f.field_definition_id, true);
     const res = await setWorkspaceFieldCatalog({ field_definition_id: f.field_definition_id, enabled: next });
     mark(f.field_definition_id, false);
-    if (!res.ok) { setFields(snap); toast(res.error || "Couldn't save the field"); return; }
-    toast(next ? "Field captured for this workspace" : "Field hidden from this workspace");
+    if (!res.ok) { setFields(snap); toast(res.error || tt("Couldn't save the field")); return; }
+    toast(next ? tt("Field captured for this workspace") : tt("Field hidden from this workspace"));
   };
 
   const toggleRequired = async (f: CatField) => {
-    if (!canRequire) { toast("Upgrade to Agency to set required fields"); return; }
-    if (!f.enabled) { toast("Enable the field before making it required"); return; }
+    if (!canRequire) { toast(tt("Upgrade to Agency to set required fields")); return; }
+    if (!f.enabled) { toast(tt("Enable the field before making it required")); return; }
     const next = !(f.required_override ?? false);
     const snap = fields;
     setFields((fs) => fs.map((x) => x.field_definition_id === f.field_definition_id ? { ...x, required_override: next } : x));
     mark(f.field_definition_id, true);
     const res = await setWorkspaceFieldCatalog({ field_definition_id: f.field_definition_id, required: next });
     mark(f.field_definition_id, false);
-    if (!res.ok) { setFields(snap); toast(res.error || "Couldn't save the field"); return; }
-    toast(next ? "Marked required to publish" : "No longer required");
+    if (!res.ok) { setFields(snap); toast(res.error || tt("Couldn't save the field")); return; }
+    toast(next ? tt("Marked required to publish") : tt("No longer required"));
   };
 
   const commitFieldLabel = async (f: CatField) => {
-    if (!canCustomize) { toast("Upgrade to Studio to edit fields"); setRenaming(null); return; }
+    if (!canCustomize) { toast(tt("Upgrade to Studio to edit fields")); setRenaming(null); return; }
     const v = renameVal.trim();
     const nextLabel = v && v !== f.label ? v : null;
     const h = renameHelperVal.trim();
@@ -119,16 +122,16 @@ export function FieldCatalogDrawer() {
       ...(helperChanged ? { helper: nextHelper } : {}),
     });
     mark(f.field_definition_id, false);
-    if (!res.ok) { setFields(snap); toast(res.error || "Couldn't save the field"); return; }
+    if (!res.ok) { setFields(snap); toast(res.error || tt("Couldn't save the field")); return; }
     toast(
       helperChanged && !labelChanged
-        ? (nextHelper ? "Guidance text saved" : "Guidance text cleared")
-        : (nextLabel ? "Saved for your workspace" : "Reset to the network name"),
+        ? (nextHelper ? tt("Guidance text saved") : tt("Guidance text cleared"))
+        : (nextLabel ? tt("Saved for your workspace") : tt("Reset to the network name")),
     );
   };
 
   const persistFieldOrder = async (nextItems: CatField[], previousFields: CatField[], groupKey: string) => {
-    if (!canCustomize) { toast("Upgrade to Studio to reorder fields"); return; }
+    if (!canCustomize) { toast(tt("Upgrade to Studio to reorder fields")); return; }
     mark(`order:${groupKey}`, true);
     for (let index = 0; index < nextItems.length; index += 1) {
       const field = nextItems[index];
@@ -140,12 +143,12 @@ export function FieldCatalogDrawer() {
       if (!res.ok) {
         setFields(previousFields);
         mark(`order:${groupKey}`, false);
-        toast(res.error || "Couldn't save the field order");
+        toast(res.error || tt("Couldn't save the field order"));
         return;
       }
     }
     mark(`order:${groupKey}`, false);
-    toast("Field order saved");
+    toast(tt("Field order saved"));
   };
 
   const dropField = (target: CatField) => {
@@ -180,19 +183,19 @@ export function FieldCatalogDrawer() {
 
   // ── group ops ──────────────────────────────────────────────────────
   const toggleGroup = async (g: CatGroup) => {
-    if (!canCustomize) { toast("Upgrade to Studio to customize the field catalog"); return; }
+    if (!canCustomize) { toast(tt("Upgrade to Studio to customize the field catalog")); return; }
     const next = !g.enabled;
     const snap = groups;
     setGroups((gs) => gs.map((x) => x.id === g.id ? { ...x, enabled: next } : x));
     mark(g.id, true);
     const res = await setWorkspaceFieldGroup({ field_group_id: g.id, is_enabled: next });
     mark(g.id, false);
-    if (!res.ok) { setGroups(snap); toast(res.error || "Couldn't save the section"); return; }
-    toast(next ? "Section enabled" : "Section hidden from this workspace");
+    if (!res.ok) { setGroups(snap); toast(res.error || tt("Couldn't save the section")); return; }
+    toast(next ? tt("Section enabled") : tt("Section hidden from this workspace"));
   };
 
   const commitGroupLabel = async (g: CatGroup) => {
-    if (!canCustomize) { toast("Upgrade to Studio to rename sections"); setRenaming(null); return; }
+    if (!canCustomize) { toast(tt("Upgrade to Studio to rename sections")); setRenaming(null); return; }
     const v = renameVal.trim();
     const nextLabel = v && v !== g.name ? v : null;
     if ((g.custom_label ?? null) === nextLabel) { setRenaming(null); return; }
@@ -202,12 +205,12 @@ export function FieldCatalogDrawer() {
     mark(g.id, true);
     const res = await setWorkspaceFieldGroup({ field_group_id: g.id, custom_label: nextLabel });
     mark(g.id, false);
-    if (!res.ok) { setGroups(snap); toast(res.error || "Couldn't rename the section"); return; }
-    toast(nextLabel ? "Section renamed for your workspace" : "Reset to the network name");
+    if (!res.ok) { setGroups(snap); toast(res.error || tt("Couldn't rename the section")); return; }
+    toast(nextLabel ? tt("Section renamed for your workspace") : tt("Reset to the network name"));
   };
 
   const persistGroupOrder = async (nextGroups: CatGroup[], previousGroups: CatGroup[]) => {
-    if (!canCustomize) { toast("Upgrade to Studio to reorder sections"); return; }
+    if (!canCustomize) { toast(tt("Upgrade to Studio to reorder sections")); return; }
     mark("order:groups", true);
     for (let index = 0; index < nextGroups.length; index += 1) {
       const group = nextGroups[index];
@@ -219,12 +222,12 @@ export function FieldCatalogDrawer() {
       if (!res.ok) {
         setGroups(previousGroups);
         mark("order:groups", false);
-        toast(res.error || "Couldn't save the section order");
+        toast(res.error || tt("Couldn't save the section order"));
         return;
       }
     }
     mark("order:groups", false);
-    toast("Section order saved");
+    toast(tt("Section order saved"));
   };
 
   const dropGroup = (target: CatGroup) => {
@@ -283,13 +286,13 @@ export function FieldCatalogDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Field catalog"
-      description="Fields available to this workspace's enabled talent categories. Toggle what you collect, rename for your team, and mark what is required within platform safety rules."
+      title={tt("Field catalog")}
+      description={tt("Fields available to this workspace's enabled talent categories. Toggle what you collect, rename for your team, and mark what is required within platform safety rules.")}
       width={680}
       footer={
         <>
-          <SecondaryButton onClick={() => openDrawer("field-privacy")}>Field privacy</SecondaryButton>
-          <PrimaryButton onClick={closeDrawer}>Done</PrimaryButton>
+          <SecondaryButton onClick={() => openDrawer("field-privacy")}>{tt("Field privacy")}</SecondaryButton>
+          <PrimaryButton onClick={closeDrawer}>{tt("Done")}</PrimaryButton>
         </>
       }
     >
@@ -298,11 +301,11 @@ export function FieldCatalogDrawer() {
         background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
         borderRadius: 12, overflow: "hidden", marginBottom: 16, fontFamily: FONTS.body,
       }}>
-        <FieldPrivacyCount label="Captured" count={enabledCount}
+        <FieldPrivacyCount label={tt("Captured")} count={enabledCount}
           icon="✓" tone={COLORS.successDeep} bg={COLORS.successSoft} />
-        <FieldPrivacyCount label="Sections" count={groups.length}
+        <FieldPrivacyCount label={tt("Sections")} count={groups.length}
           icon="▦" tone={COLORS.inkMuted} bg="rgba(11,11,13,0.04)" borderLeft />
-        <FieldPrivacyCount label="Off" count={offCount}
+        <FieldPrivacyCount label={copy.isSpanish ? "Desactivados" : "Off"} count={offCount}
           icon="–" tone={COLORS.inkMuted} bg="rgba(11,11,13,0.04)" borderLeft />
       </div>
 
@@ -313,18 +316,18 @@ export function FieldCatalogDrawer() {
           fontFamily: FONTS.body, fontSize: 12.5, color: "#3B4A75",
           marginBottom: 16, lineHeight: 1.5,
         }}>
-          <strong>The network catalog is read-only on Free.</strong> Upgrade to Studio to choose which fields your workspace captures and rename them for your team. Agency tier adds required-field control.
+          <strong>{tt("The network catalog is read-only on Free.")}</strong> {tt("Upgrade to Studio to choose which fields your workspace captures and rename them for your team. Agency tier adds required-field control.")}
           <button type="button" onClick={() => openDrawer("plan-billing")} style={{
             marginLeft: 8, padding: "4px 10px", borderRadius: 999,
             background: "#3B4A75", color: "#fff", border: "none",
             fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
-          }}>Compare plans</button>
+          }}>{tt("Compare plans")}</button>
         </div>
       )}
 
       {loading && (
         <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
-          Loading the field catalog…
+          {tt("Loading the field catalog…")}
         </div>
       )}
       {error && !loading && (
@@ -333,7 +336,7 @@ export function FieldCatalogDrawer() {
           <button type="button" onClick={() => void load()} style={{
             marginLeft: 6, textDecoration: "underline", background: "none",
             border: "none", cursor: "pointer", color: COLORS.ink, fontFamily: FONTS.body,
-          }}>Retry</button>
+          }}>{tt("Retry")}</button>
         </div>
       )}
 
@@ -342,7 +345,7 @@ export function FieldCatalogDrawer() {
           {order.map((bucket) => {
             const g = bucket.group;
             const groupKey = g ? `g:${g.id}` : "g:__general__";
-            const groupName = g ? (g.custom_label ?? g.name) : "General";
+            const groupName = g ? (g.custom_label ?? tt(g.name)) : tt("General");
             const groupOff = g ? !g.enabled : false;
             const groupBusy = g ? saving.has(g.id) : false;
             return (
@@ -370,12 +373,12 @@ export function FieldCatalogDrawer() {
                         padding: "5px 11px", borderRadius: 999, border: "none",
                         background: COLORS.fill, color: "#fff",
                         fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
-                      }}>Save</button>
+                      }}>{tt("Save")}</button>
                       <button type="button" onClick={() => setRenaming(null)} style={{
                         padding: "5px 9px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
                         background: "transparent", color: COLORS.inkMuted,
                         fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
-                      }}>Cancel</button>
+                      }}>{tt("Cancel")}</button>
                     </div>
                   ) : (
                     <>
@@ -386,12 +389,12 @@ export function FieldCatalogDrawer() {
                         textDecoration: groupOff ? "line-through" : "none",
                       }}>{groupName}</span>
                       {g && g.custom_label && (
-                        <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">renamed</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">{tt("renamed")}</span>
                       )}
                       {g && canCustomize && (
                         <>
                           <span
-                            title="Drag to reorder sections"
+                            title={tt("Drag to reorder sections")}
                             className="select-none text-admin-ink-dim text-admin-11 font-bold"
                           >
                             ⋮⋮
@@ -400,7 +403,7 @@ export function FieldCatalogDrawer() {
                             background: "none", border: "none", cursor: "pointer",
                             color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 10.5,
                             textDecoration: "underline", padding: 0,
-                          }}>rename</button>
+                          }}>{tt("rename")}</button>
                           <button type="button" disabled={groupBusy} onClick={() => void toggleGroup(g)} style={{
                             marginLeft: "auto", padding: "3px 10px", borderRadius: 999,
                             border: `1px solid ${groupOff ? COLORS.border : COLORS.successDeep}`,
@@ -408,7 +411,7 @@ export function FieldCatalogDrawer() {
                             color: groupOff ? COLORS.inkMuted : COLORS.successDeep,
                             fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
                             cursor: groupBusy ? "wait" : "pointer", opacity: groupBusy ? 0.6 : 1,
-                          }}>{groupOff ? "Section off" : "Section on"}</button>
+                          }}>{groupOff ? tt("Section off") : tt("Section on")}</button>
                         </>
                       )}
                     </>
@@ -421,7 +424,7 @@ export function FieldCatalogDrawer() {
                 }}>
                   {bucket.items.map((f, i) => {
                     const fieldKey = `f:${f.field_definition_id}`;
-                    const fieldName = f.custom_label ?? f.label;
+                    const fieldName = f.custom_label ?? tt(f.label);
                     const required = f.required_override ?? false;
                     const busy = saving.has(f.field_definition_id);
                     return (
@@ -443,7 +446,7 @@ export function FieldCatalogDrawer() {
                         {renaming !== fieldKey && canCustomize && (
                           <span
                             aria-hidden
-                            title="Drag to reorder fields in this section"
+                            title={tt("Drag to reorder fields in this section")}
                             className="shrink-0 select-none text-admin-ink-dim text-admin-12 font-bold leading-none"
                           >
                             ⋮⋮
@@ -454,22 +457,22 @@ export function FieldCatalogDrawer() {
                             <div className="flex flex-col gap-1.5">
                               <div>
                                 <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 3, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-admin-ink-muted">
-                                  Label
+                                  {tt("Label")}
                                 </div>
                                 <TextInput
                                   autoFocus
                                   value={renameVal}
-                                  placeholder={f.label}
+                                  placeholder={tt(f.label)}
                                   onChange={(e) => setRenameVal(e.target.value)}
                                 />
                               </div>
                               <div>
                                 <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 3, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-admin-ink-muted">
-                                  Guidance text <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— shown to whoever fills this field</span>
+                                  {tt("Guidance text")} <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>· {tt("shown to whoever fills this field")}</span>
                                 </div>
                                 <TextInput
                                   value={renameHelperVal}
-                                  placeholder="e.g. Use the agency-approved spelling"
+                                  placeholder={tt("e.g. Use the agency-approved spelling")}
                                   onChange={(e) => setRenameHelperVal(e.target.value)}
                                 />
                               </div>
@@ -478,12 +481,12 @@ export function FieldCatalogDrawer() {
                                   padding: "5px 11px", borderRadius: 999, border: "none",
                                   background: COLORS.fill, color: "#fff",
                                   fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
-                                }}>Save</button>
+                                }}>{tt("Save")}</button>
                                 <button type="button" onClick={() => setRenaming(null)} style={{
                                   padding: "5px 9px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
                                   background: "transparent", color: COLORS.inkMuted,
                                   fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
-                                }}>Cancel</button>
+                                }}>{tt("Cancel")}</button>
                               </div>
                             </div>
                           ) : (
@@ -491,10 +494,10 @@ export function FieldCatalogDrawer() {
                               <div className="flex items-center gap-1.5">
                                 <span className="text-admin-ink text-admin-12h font-medium">{fieldName}</span>
                                 {f.custom_label && (
-                                  <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">renamed</span>
+                                  <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">{tt("renamed")}</span>
                                 )}
                                 {required && (
-                                  <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-amber-soft text-admin-amber-deep">required</span>
+                                  <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-amber-soft text-admin-amber-deep">{tt("required")}</span>
                                 )}
                               </div>
                               <div style={{ fontSize: 10.5, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
@@ -512,7 +515,7 @@ export function FieldCatalogDrawer() {
                                       color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 10.5,
                                       textDecoration: "underline", padding: 0,
                                     }}
-                                  >edit</button>
+                                  >{tt("edit")}</button>
                                 )}
                               </div>
                               {f.custom_helper && (
@@ -527,7 +530,7 @@ export function FieldCatalogDrawer() {
                               type="button"
                               disabled={busy || !canRequire || !f.enabled}
                               onClick={() => void toggleRequired(f)}
-                              title={!canRequire ? "Agency tier sets required fields" : !f.enabled ? "Enable the field first" : required ? "Required to publish" : "Optional"}
+                              title={!canRequire ? tt("Agency tier sets required fields") : !f.enabled ? tt("Enable the field first") : required ? tt("Required to publish") : tt("Optional")}
                               style={{
                                 padding: "4px 10px", borderRadius: 999,
                                 border: `1px solid ${required ? COLORS.amberDeep : COLORS.border}`,
@@ -537,12 +540,12 @@ export function FieldCatalogDrawer() {
                                 cursor: (busy || !canRequire || !f.enabled) ? "not-allowed" : "pointer",
                                 opacity: (!canRequire || !f.enabled) ? 0.45 : 1,
                               }}
-                            >Required</button>
+                            >{tt("Required")}</button>
                             <button
                               type="button"
                               disabled={busy || !canCustomize}
                               onClick={() => void toggleField(f)}
-                              title={!canCustomize ? "Studio tier customizes the catalog" : f.enabled ? "Captured — tap to stop collecting" : "Off — tap to start collecting"}
+                              title={!canCustomize ? tt("Studio tier customizes the catalog") : f.enabled ? tt("Captured. Tap to stop collecting.") : tt("Off. Tap to start collecting.")}
                               style={{
                                 padding: "5px 12px", borderRadius: 999,
                                 border: `1px solid ${f.enabled ? COLORS.successDeep : COLORS.border}`,
@@ -552,7 +555,7 @@ export function FieldCatalogDrawer() {
                                 cursor: (busy || !canCustomize) ? "not-allowed" : "pointer",
                                 opacity: !canCustomize ? 0.5 : (busy ? 0.6 : 1),
                               }}
-                            >{f.enabled ? "On" : "Off"}</button>
+                            >{f.enabled ? tt("On") : tt("Off")}</button>
                           </div>
                         )}
                       </div>
@@ -564,7 +567,7 @@ export function FieldCatalogDrawer() {
           })}
           {fields.length === 0 && (
             <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
-              No catalog fields for this workspace yet.
+              {tt("No catalog fields for this workspace yet.")}
             </div>
           )}
 
@@ -572,14 +575,14 @@ export function FieldCatalogDrawer() {
           <div style={{ padding: 14, borderRadius: 12, border: `1px dashed ${COLORS.borderSoft}`, fontFamily: FONTS.body }} className="bg-admin-surface">
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <span className="text-admin-ink text-admin-12h font-semibold">
-                Workspace-specific custom fields
+                {tt("Workspace-specific custom fields")}
               </span>
-              <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: "rgba(11,11,13,0.06)", letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">coming soon</span>
+              <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: "rgba(11,11,13,0.06)", letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">{tt("coming soon")}</span>
             </div>
             <div style={{ fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
               {rules.canCreateCustom
-                ? "Defining brand-new fields (beyond the network catalog) is included in your plan and is being built into the Catalog Studio. For now you can fully customize which network fields you capture, rename them, and set what's required above."
-                : "Brand-new custom fields are an Agency-tier capability and are being built into the Catalog Studio. Every workspace can already customize the network catalog above — enable, rename, and require the fields you actually use."}
+                ? tt("Defining brand-new fields (beyond the network catalog) is included in your plan and is being built into the Catalog Studio. For now you can fully customize which network fields you capture, rename them, and set what's required above.")
+                : tt("Brand-new custom fields are an Agency-tier capability and are being built into the Catalog Studio. Every workspace can already customize the network catalog above: enable, rename, and require the fields you actually use.")}
             </div>
           </div>
         </div>
@@ -605,6 +608,8 @@ export function FieldPrivacyDrawer() {
   type Grp = { id: string; slug: string; name: string; sort_order: number };
 
   const { state, closeDrawer, openDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const rules = FIELD_PRIVACY_PLAN_RULES[state.plan as "free" | "studio" | "agency" | "network"]
     ?? FIELD_PRIVACY_PLAN_RULES.free;
 
@@ -634,13 +639,13 @@ export function FieldPrivacyDrawer() {
     const target = toEng(protoVis);
     if (target === effOf(f)) return;
     if (!rules.canFlipPublicInternal && target !== f.platform_default) {
-      toast("Upgrade to Studio to change field visibility"); return;
+      toast(tt("Upgrade to Studio to change field visibility")); return;
     }
     if (target === "hidden" && !rules.canHide) {
-      toast("Upgrade to Agency to hide fields entirely"); return;
+      toast(tt("Upgrade to Agency to hide fields entirely")); return;
     }
     if (target === "public" && f.floored) {
-      toast("This field is platform-restricted and can't be public"); return;
+      toast(tt("This field is platform-restricted and can't be public")); return;
     }
     setPending(p => ({ ...p, [f.field_definition_id]: target }));
     const res = target === f.platform_default
@@ -648,13 +653,13 @@ export function FieldPrivacyDrawer() {
       : await setWorkspaceFieldVisibility({ field_definition_id: f.field_definition_id, visibility: target });
     if (!res.ok) {
       setPending(p => { const n = { ...p }; delete n[f.field_definition_id]; return n; });
-      toast(res.error || "Couldn't save the field setting"); return;
+      toast(res.error || tt("Couldn't save the field setting")); return;
     }
     setFields(fs => fs.map(x => x.field_definition_id === f.field_definition_id
       ? { ...x, effective: target, has_override: target !== x.platform_default }
       : x));
     setPending(p => { const n = { ...p }; delete n[f.field_definition_id]; return n; });
-    toast("Saved");
+    toast(tt("Saved"));
   };
 
   const counts = {
@@ -689,13 +694,13 @@ export function FieldPrivacyDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Field privacy"
-      description="Effective visibility for fields available to this workspace's enabled talent categories."
+      title={tt("Field privacy")}
+      description={tt("Effective visibility for fields available to this workspace's enabled talent categories.")}
       width={680}
       footer={
         <>
-          <SecondaryButton onClick={() => openDrawer("field-catalog")}>Field catalog</SecondaryButton>
-          <PrimaryButton onClick={closeDrawer}>Done</PrimaryButton>
+          <SecondaryButton onClick={() => openDrawer("field-catalog")}>{tt("Field catalog")}</SecondaryButton>
+          <PrimaryButton onClick={closeDrawer}>{tt("Done")}</PrimaryButton>
         </>
       }
     >
@@ -704,11 +709,11 @@ export function FieldPrivacyDrawer() {
         background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
         borderRadius: 12, overflow: "hidden", marginBottom: 16, fontFamily: FONTS.body,
       }}>
-        <FieldPrivacyCount label="On storefront" count={counts.public}
+        <FieldPrivacyCount label={tt("On storefront")} count={counts.public}
           icon="🌐" tone={COLORS.successDeep} bg={COLORS.successSoft} />
-        <FieldPrivacyCount label="Admin-only" count={counts.internal}
+        <FieldPrivacyCount label={tt("Admin-only")} count={counts.internal}
           icon="🔒" tone={COLORS.amberDeep} bg={COLORS.amberSoft} borderLeft />
-        <FieldPrivacyCount label="Hidden" count={counts.hidden}
+        <FieldPrivacyCount label={copy.isSpanish ? "Ocultos" : "Hidden"} count={counts.hidden}
           icon="–" tone={COLORS.inkMuted} bg="rgba(11,11,13,0.04)" borderLeft />
       </div>
 
@@ -719,18 +724,18 @@ export function FieldPrivacyDrawer() {
           fontFamily: FONTS.body, fontSize: 12.5, color: "#3B4A75",
           marginBottom: 16, lineHeight: 1.5,
         }}>
-          <strong>Free plan defaults are locked.</strong> Upgrade to Studio to flip fields between public and admin-only. Agency tier unlocks hiding fields entirely.
+          <strong>{tt("Free plan defaults are locked.")}</strong> {tt("Upgrade to Studio to flip fields between public and admin-only. Agency tier unlocks hiding fields entirely.")}
           <button type="button" onClick={() => openDrawer("plan-billing")} style={{
             marginLeft: 8, padding: "4px 10px", borderRadius: 999,
             background: "#3B4A75", color: "#fff", border: "none",
             fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
-          }}>Compare plans</button>
+          }}>{tt("Compare plans")}</button>
         </div>
       )}
 
       {loading && (
         <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
-          Loading the field catalog…
+          {tt("Loading the field catalog…")}
         </div>
       )}
       {error && !loading && (
@@ -739,14 +744,14 @@ export function FieldPrivacyDrawer() {
           <button type="button" onClick={() => void load()} style={{
             marginLeft: 6, textDecoration: "underline", background: "none",
             border: "none", cursor: "pointer", color: COLORS.ink, fontFamily: FONTS.body,
-          }}>Retry</button>
+          }}>{tt("Retry")}</button>
         </div>
       )}
       {!loading && !error && (
         <div className="flex flex-col gap-3.5">
           {order.map((bucket) => (
             <div key={bucket.key}>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 6, paddingLeft: 4 }} className="text-admin-ink-muted">{bucket.name}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 6, paddingLeft: 4 }} className="text-admin-ink-muted">{bucket.name === "Other" ? (copy.isSpanish ? "Otros" : "Other") : tt(bucket.name)}</div>
               <div style={{
                 background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
                 borderRadius: 12, overflow: "hidden",
@@ -755,8 +760,8 @@ export function FieldPrivacyDrawer() {
                   <FieldPrivacyRow
                     key={f.field_definition_id}
                     isFirst={i === 0}
-                    label={f.label}
-                    description={f.field_key + (f.floored ? " · platform-restricted" : "")}
+                    label={tt(f.label)}
+                    description={f.field_key + (f.floored ? ` · ${tt("platform-restricted")}` : "")}
                     defaultVis={toProto(f.platform_default)}
                     current={toProto(effOf(f))}
                     onChange={(v) => void onChange(f, v)}
@@ -769,7 +774,7 @@ export function FieldPrivacyDrawer() {
           ))}
           {fields.length === 0 && (
             <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
-              No catalog fields for this workspace yet.
+              {tt("No catalog fields for this workspace yet.")}
             </div>
           )}
         </div>

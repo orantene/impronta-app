@@ -16,6 +16,7 @@ import {
   useAdminShell
 } from "./drawer-shared";
 import { byLabel, byName } from "@/lib/field-engine/sort-comparators";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 1 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -33,6 +34,8 @@ export function WorkspaceFieldSettingsDrawer() {
   };
 
   const { state, closeDrawer, openDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const rules = FIELD_PRIVACY_PLAN_RULES[state.plan as "free" | "studio" | "agency" | "network"]
     ?? FIELD_PRIVACY_PLAN_RULES.free;
   const canCustomize = rules.canFlipPublicInternal; // studio+: enable/disable + relabel
@@ -76,49 +79,49 @@ export function WorkspaceFieldSettingsDrawer() {
     mark(f.field_definition_id, true);
     const res = await setWorkspaceFieldCatalog(payload);
     mark(f.field_definition_id, false);
-    if (!res.ok) { setFields(snap); toast(res.error || "Couldn't save the field"); return; }
+    if (!res.ok) { setFields(snap); toast(res.error || tt("Couldn't save the field")); return; }
     toast(okMsg);
   };
 
   const toggleEnabled = (f: WField) => {
-    if (!canCustomize) { toast("Upgrade to Studio to customize the field catalog"); return; }
+    if (!canCustomize) { toast(tt("Upgrade to Studio to customize the field catalog")); return; }
     const next = !f.enabled;
     void save(f, { enabled: next }, { field_definition_id: f.field_definition_id, enabled: next },
-      next ? "Field captured for this workspace" : "Field hidden from this workspace");
+      next ? tt("Field captured for this workspace") : tt("Field hidden from this workspace"));
   };
   const toggleRequired = (f: WField) => {
-    if (!canRequire) { toast("Upgrade to Agency to set required fields"); return; }
-    if (!f.enabled) { toast("Enable the field before making it required"); return; }
+    if (!canRequire) { toast(tt("Upgrade to Agency to set required fields")); return; }
+    if (!f.enabled) { toast(tt("Enable the field before making it required")); return; }
     const next = !(f.required_override ?? false);
     void save(f, { required_override: next }, { field_definition_id: f.field_definition_id, required: next },
-      next ? "Marked required to publish" : "No longer required");
+      next ? tt("Marked required to publish") : tt("No longer required"));
   };
   const commitLabel = (f: WField, raw: string) => {
-    if (!canCustomize) { toast("Upgrade to Studio to rename fields"); return; }
+    if (!canCustomize) { toast(tt("Upgrade to Studio to rename fields")); return; }
     const v = raw.trim();
     const next = v && v !== f.label ? v : null;
     if ((f.custom_label ?? null) === next) return;
     void save(f, { custom_label: next }, { field_definition_id: f.field_definition_id, custom_label: next },
-      next ? "Renamed for your workspace" : "Reset to the network name");
+      next ? tt("Renamed for your workspace") : tt("Reset to the network name"));
   };
   const commitHelper = (f: WField, raw: string) => {
-    if (!canCustomize) { toast("Upgrade to Studio to edit fields"); return; }
+    if (!canCustomize) { toast(tt("Upgrade to Studio to edit fields")); return; }
     const v = raw.trim();
     const next = v ? v : null;
     if ((f.custom_helper ?? null) === next) return;
     void save(f, { custom_helper: next }, { field_definition_id: f.field_definition_id, helper: next },
-      next ? "Guidance text saved" : "Guidance text cleared");
+      next ? tt("Guidance text saved") : tt("Guidance text cleared"));
   };
   const isOverridden = (f: WField) =>
     !f.enabled || f.required_override !== null || !!f.custom_label || !!f.custom_helper;
   const resetField = (f: WField) => {
-    if (!canCustomize) { toast("Upgrade to Studio to reset fields"); return; }
+    if (!canCustomize) { toast(tt("Upgrade to Studio to reset fields")); return; }
     if (!isOverridden(f)) return;
     void save(
       f,
       { enabled: true, required_override: null, custom_label: null, custom_helper: null },
       { field_definition_id: f.field_definition_id, enabled: true, required: null, custom_label: null, helper: null },
-      "Field reset to platform default",
+      tt("Field reset to platform default"),
     );
   };
 
@@ -134,12 +137,12 @@ export function WorkspaceFieldSettingsDrawer() {
       if (!res.ok) {
         setGroups(previousGroups);
         mark("field-group-order", false);
-        toast(res.error || "Couldn't save group order");
+        toast(res.error || tt("Couldn't save group order"));
         return;
       }
     }
     mark("field-group-order", false);
-    toast("Field group order saved");
+    toast(tt("Field group order saved"));
   };
 
   const dropGroup = (target: WGroup | null) => {
@@ -175,12 +178,12 @@ export function WorkspaceFieldSettingsDrawer() {
       if (!res.ok) {
         setFields(previousFields);
         mark("field-order", false);
-        toast(res.error || "Couldn't save field order");
+        toast(res.error || tt("Couldn't save field order"));
         return;
       }
     }
     mark("field-order", false);
-    toast("Field order saved");
+    toast(tt("Field order saved"));
   };
 
   const dropField = (target: WField, groupKey: string) => {
@@ -241,7 +244,7 @@ export function WorkspaceFieldSettingsDrawer() {
   });
 
   const resetAll = async () => {
-    if (!canCustomize) { toast("Upgrade to Studio to reset fields"); return; }
+    if (!canCustomize) { toast(tt("Upgrade to Studio to reset fields")); return; }
     const targets = fields.filter(isOverridden);
     if (targets.length === 0) return;
     for (const f of targets) {
@@ -251,9 +254,9 @@ export function WorkspaceFieldSettingsDrawer() {
         enabled: true, required: null, custom_label: null, custom_helper: null,
       } as Parameters<typeof setWorkspaceFieldCatalog>[0]);
       mark(f.field_definition_id, false);
-      if (!res.ok) { toast(res.error || "Couldn't reset all"); await load(); return; }
+      if (!res.ok) { toast(res.error || tt("Couldn't reset all")); await load(); return; }
     }
-    toast("All workspace overrides cleared — fields back to platform defaults");
+    toast(tt("All workspace overrides cleared. Fields back to platform defaults."));
     await load();
   };
 
@@ -470,20 +473,20 @@ export function WorkspaceFieldSettingsDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Workspace field settings"
-      description="Per-field control over what your roster captures: enable/disable, rename, set guidance text, and mark required. Talent + admin editors update automatically."
+      title={tt("Workspace field settings")}
+      description={tt("Per-field control over what your roster captures: enable/disable, rename, set guidance text, and mark required. Talent + admin editors update automatically.")}
       width={720}
       footer={
         <div style={footerStyle}>
           <div className="text-admin-ink-muted text-xs">
-            <strong className="text-admin-ink">{overrideCount}</strong> {overrideCount === 1 ? "override" : "overrides"} active
+            <strong className="text-admin-ink">{overrideCount}</strong> {overrideCount === 1 ? tt("override active") : tt("overrides active")}
             {overrideCount > 0 && canCustomize && (
-              <button type="button" onClick={() => void resetAll()} style={resetAllButtonStyle}>Reset all</button>
+              <button type="button" onClick={() => void resetAll()} style={resetAllButtonStyle}>{tt("Reset all")}</button>
             )}
           </div>
           <div className="flex gap-2">
-            <SecondaryButton onClick={() => openDrawer("field-privacy")}>Field privacy</SecondaryButton>
-            <PrimaryButton onClick={closeDrawer}>Done</PrimaryButton>
+            <SecondaryButton onClick={() => openDrawer("field-privacy")}>{tt("Field privacy")}</SecondaryButton>
+            <PrimaryButton onClick={closeDrawer}>{tt("Done")}</PrimaryButton>
           </div>
         </div>
       }
@@ -492,7 +495,7 @@ export function WorkspaceFieldSettingsDrawer() {
         <div style={searchWrapStyle} className="bg-admin-surface-alt">
           <input
             type="text"
-            placeholder="Search field by label or key…"
+            placeholder={tt("Search field by label or key…")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={searchInputStyle}
@@ -501,19 +504,19 @@ export function WorkspaceFieldSettingsDrawer() {
 
         {!canCustomize && (
           <div style={planNoticeStyle} className="text-admin-indigo-deep">
-            Your plan can view the catalog. <strong>Studio</strong> unlocks enable/disable + rename;
-            <strong> Agency</strong> adds required-field control. Visibility lives in <strong>Field privacy</strong>.
+            {tt("Your plan can view the catalog.")} <strong>Studio</strong> {tt("unlocks enable/disable + rename;")}
+            <strong> Agency</strong> {tt("adds required-field control. Visibility lives in")} <strong>{tt("Field privacy")}</strong>.
           </div>
         )}
 
         {loading && (
           <div style={loadingStyle} className="text-admin-ink-muted">
-            Loading workspace field settings…
+            {tt("Loading workspace field settings…")}
           </div>
         )}
         {error && !loading && (
           <div style={errorStyle} className="bg-admin-amber-soft text-admin-amber-deep">
-            {error} <button type="button" onClick={() => void load()} style={retryButtonStyle}>Retry</button>
+            {error} <button type="button" onClick={() => void load()} style={retryButtonStyle}>{tt("Retry")}</button>
           </div>
         )}
 
@@ -535,11 +538,11 @@ export function WorkspaceFieldSettingsDrawer() {
           >
             <div style={groupHeaderStyle} className="text-admin-ink-muted">
               {group && canCustomize && (
-                <span aria-hidden title="Drag to reorder field groups" style={dragHandleStyle}>⋮⋮</span>
+                <span aria-hidden title={tt("Drag to reorder field groups")} style={dragHandleStyle}>⋮⋮</span>
               )}
-              <span>{group ? (group.custom_label ?? group.name) : "General"}</span>
+              <span>{group ? (group.custom_label ?? tt(group.name)) : tt("General")}</span>
               {saving.has("field-group-order") && group && (
-                <span style={savingOrderStyle}>saving order…</span>
+                <span style={savingOrderStyle}>{tt("saving order…")}</span>
               )}
             </div>
             <div className="flex flex-col gap-1.5">
@@ -577,7 +580,7 @@ export function WorkspaceFieldSettingsDrawer() {
                       {canCustomize && (
                         <span
                           aria-hidden
-                          title="Drag to reorder fields in this group"
+                          title={tt("Drag to reorder fields in this group")}
                           style={fieldDragHandleStyle}
                         >
                           ⋮⋮
@@ -585,16 +588,16 @@ export function WorkspaceFieldSettingsDrawer() {
                       )}
                       <div className="flex-1 min-w-0">
                         <div style={fieldLabelStyle} className="text-admin-ink">
-                          {f.custom_label ?? f.label}
+                          {f.custom_label ?? tt(f.label)}
                           {over && (
-                            <span style={customizedBadgeStyle} className="text-admin-amber-deep">· customized</span>
+                            <span style={customizedBadgeStyle} className="text-admin-amber-deep">· {tt("customized")}</span>
                           )}
                         </div>
                         <div style={fieldKeyStyle} className="text-admin-ink-dim">{f.field_key}</div>
                       </div>
-                      <span style={requiredPillStyle(required)}>{required ? "REQUIRED" : "OPTIONAL"}</span>
+                      <span style={requiredPillStyle(required)}>{required ? tt("REQUIRED") : tt("OPTIONAL")}</span>
                       {!f.enabled && (
-                        <span style={offPillStyle} className="text-admin-ink-muted">OFF</span>
+                        <span style={offPillStyle} className="text-admin-ink-muted">{tt("OFF")}</span>
                       )}
                       <span aria-hidden style={chevronStyle}>{open ? "▾" : "▸"}</span>
                     </button>
@@ -602,16 +605,16 @@ export function WorkspaceFieldSettingsDrawer() {
                     {open && (
                       <div style={expandedBodyStyle}>
                         <SettingToggleRow
-                          label="Enabled for your workspace"
-                          hint={canCustomize ? "Off = not collected on any surface (talent + admin + public)." : "Upgrade to Studio to change this."}
+                          label={tt("Enabled for your workspace")}
+                          hint={canCustomize ? tt("Off = not collected on any surface (talent + admin + public).") : tt("Upgrade to Studio to change this.")}
                           value={f.enabled}
                           disabled={!canCustomize}
                           onChange={() => toggleEnabled(f)}
                           isOverridden={!f.enabled}
                         />
                         <SettingToggleRow
-                          label="Required to publish"
-                          hint={!canRequire ? "Agency tier sets required fields." : !f.enabled ? "Enable the field first." : "Talent must fill this before the profile can publish."}
+                          label={tt("Required to publish")}
+                          hint={!canRequire ? tt("Agency tier sets required fields.") : !f.enabled ? tt("Enable the field first.") : tt("Talent must fill this before the profile can publish.")}
                           value={required}
                           disabled={!canRequire || !f.enabled}
                           onChange={() => toggleRequired(f)}
@@ -620,12 +623,12 @@ export function WorkspaceFieldSettingsDrawer() {
                         <div style={editGridStyle}>
                           <div>
                             <label style={editLabelStyle} className="text-admin-ink-muted">
-                              Custom label
+                              {tt("Custom label")}
                             </label>
                             <input
                               type="text"
                               defaultValue={f.custom_label ?? ""}
-                              placeholder={f.label}
+                              placeholder={tt(f.label)}
                               disabled={!canCustomize}
                               onBlur={(e) => commitLabel(f, e.target.value)}
                               style={editInputStyle(canCustomize)}
@@ -633,12 +636,12 @@ export function WorkspaceFieldSettingsDrawer() {
                           </div>
                           <div>
                             <label style={editLabelStyle} className="text-admin-ink-muted">
-                              Custom helper text
+                              {tt("Custom helper text")}
                             </label>
                             <input
                               type="text"
                               defaultValue={f.custom_helper ?? ""}
-                              placeholder="Guidance shown while editing this field"
+                              placeholder={tt("Guidance shown while editing this field")}
                               disabled={!canCustomize}
                               onBlur={(e) => commitHelper(f, e.target.value)}
                               style={editInputStyle(canCustomize)}
@@ -646,7 +649,7 @@ export function WorkspaceFieldSettingsDrawer() {
                           </div>
                         </div>
                         {over && canCustomize && (
-                          <button type="button" onClick={() => resetField(f)} style={resetFieldButtonStyle}>Reset to platform default</button>
+                          <button type="button" onClick={() => resetField(f)} style={resetFieldButtonStyle}>{tt("Reset to platform default")}</button>
                         )}
                       </div>
                     )}
@@ -657,7 +660,7 @@ export function WorkspaceFieldSettingsDrawer() {
           </div>
         ))}
         {!loading && !error && shown.length === 0 && (
-          <div style={loadingStyle} className="text-admin-ink-muted">{fields.length === 0 ? "No catalog fields for this workspace." : "No fields match your search."}</div>
+          <div style={loadingStyle} className="text-admin-ink-muted">{fields.length === 0 ? tt("No catalog fields for this workspace.") : tt("No fields match your search.")}</div>
         )}
       </div>
     </DrawerShell>
