@@ -2,7 +2,7 @@
 
 import React, { useState, useTransition, useEffect, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
-import { interpolate } from "@/i18n/interpolate";
+import { interpolate, type Translator } from "@/i18n/interpolate";
 import { CallSheetEditorSheet } from "@/components/admin/call-sheet-editor/CallSheetEditorSheet";
 import { setInquiryPayoutReceiver, loadInquiryPayoutReceiverCandidates, loadInquiryPaymentState, requestInquiryPayment, markInquiryPaymentPending, markInquiryPaymentReceived, initiateInquiryPayout, markInquiryPaymentDisputed, markInquiryPayoutSent, markInquiryPaymentFailed, cancelInquiryTransaction, createInquiryTransactionDraft, type PayoutReceiverOption, type InquiryPaymentState } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { useAdminShell, COLORS, FONTS, type InquiryRecord } from "../../state";
@@ -604,7 +604,15 @@ export function resolveShellAction(
   conv: Conversation, pov: "client" | "talent" | "talent_coord" | "admin",
   _toast: (s: string) => void,
   options: ShellActionResolverOptions = {},
+  t?: Translator,
 ): { primary?: ShellAction; secondary?: ShellAction; hint?: string } {
+  // Localize when a translator is supplied; fall back to English so
+  // unlocalized callers keep the current copy.
+  const tx = (key: string, fallback: string): string => {
+    if (!t) return fallback;
+    const out = t(key);
+    return out === key ? fallback : out;
+  };
   const offer = MOCK_OFFER_FOR_CONV[conv.id];
   // Slice E (Messages consolidation v2): verb table from plan §9.
   // Booked stage — role-shaped action verbs. Call sheet editor is
@@ -612,26 +620,26 @@ export function resolveShellAction(
   if (conv.stage === "booked") {
     if (pov === "client")
       return {
-        hint: "Booked. Open the event plan + your payment status.",
-        primary: { label: "Open event", tone: "success", onClick: options.onOpenOffer ?? (() => {}) },
+        hint: tx("dashboard.adminTabs.shellAction.clientBookedHint", "Booked. Open the event plan + your payment status."),
+        primary: { label: tx("dashboard.adminTabs.shellAction.openEvent", "Open event"), tone: "success", onClick: options.onOpenOffer ?? (() => {}) },
       };
     if (pov === "talent" || pov === "talent_coord")
       return {
-        hint: "You're booked. Open the call sheet for prep + arrival.",
-        primary: { label: "Open event", tone: "success", onClick: options.onOpenOffer ?? (() => {}) },
+        hint: tx("dashboard.adminTabs.shellAction.talentBookedHint", "You're booked. Open the call sheet for prep + arrival."),
+        primary: { label: tx("dashboard.adminTabs.shellAction.openEvent", "Open event"), tone: "success", onClick: options.onOpenOffer ?? (() => {}) },
       };
     // admin
     return {
-      hint: "Booked. Open the event details + call sheet.",
-      primary: { label: "Open event", tone: "success", onClick: options.onOpenOffer ?? (() => {}) },
+      hint: tx("dashboard.adminTabs.shellAction.adminBookedHint", "Booked. Open the event details + call sheet."),
+      primary: { label: tx("dashboard.adminTabs.shellAction.openEvent", "Open event"), tone: "success", onClick: options.onOpenOffer ?? (() => {}) },
     };
   }
 
   // Past (wrapped) stage — payouts + receipts.
   if (conv.stage === "past") {
-    if (pov === "client") return { hint: "Wrapped. Receipt + invoice available in Files." };
-    if (pov === "talent" || pov === "talent_coord") return { hint: "Wrapped. Payment cleared, receipt in Files." };
-    return { hint: "Wrapped. Mark payouts ready when settled." };
+    if (pov === "client") return { hint: tx("dashboard.adminTabs.shellAction.clientWrappedHint", "Wrapped. Receipt + invoice available in Files.") };
+    if (pov === "talent" || pov === "talent_coord") return { hint: tx("dashboard.adminTabs.shellAction.talentWrappedHint", "Wrapped. Payment cleared, receipt in Files.") };
+    return { hint: tx("dashboard.adminTabs.shellAction.adminWrappedHint", "Wrapped. Mark payouts ready when settled.") };
   }
 
   // ── Offer-driven actions: defer to nextActionFor as the single
@@ -647,12 +655,12 @@ export function resolveShellAction(
     const action = nextActionFor(offer, povObj);
     const needsOfferTab = !!(action.cta || action.secondary);
     const offerHint = needsOfferTab
-      ? `${action.label} Open the Offer tab to continue.`
+      ? interpolate(tx("dashboard.adminTabs.shellAction.offerHintSuffix", "{label} Open the Offer tab to continue."), { label: action.label })
       : action.label;
     return {
       hint: offerHint,
       primary: needsOfferTab && options.onOpenOffer ? {
-        label: "Open offer",
+        label: tx("dashboard.adminTabs.shellAction.openOffer", "Open offer"),
         tone: action.ctaTone === "success" ? "success" : "primary",
         onClick: options.onOpenOffer,
         title: action.cta ?? action.secondary,
@@ -665,24 +673,26 @@ export function resolveShellAction(
   //    "say yes / no to being on the shortlist" bar. ──
   if (conv.stage === "inquiry" || conv.stage === "hold") {
     if (pov === "client") return {
-      hint: "Coordinator is on it.",
+      hint: tx("dashboard.adminTabs.shellAction.clientCoordOnIt", "Coordinator is on it."),
       secondary: options.onOpenClientThread
-        ? { label: "Open thread", tone: "ghost", onClick: options.onOpenClientThread }
+        ? { label: tx("dashboard.adminTabs.shellAction.openThread", "Open thread"), tone: "ghost", onClick: options.onOpenClientThread }
         : undefined,
     };
     if (pov === "talent") {
-      const verb = conv.stage === "inquiry" ? "Accept" : "Confirm";
+      const verb = conv.stage === "inquiry"
+        ? tx("dashboard.adminTabs.shellAction.verbAccept", "Accept")
+        : tx("dashboard.adminTabs.shellAction.verbConfirm", "Confirm");
       return {
-        hint: `Coordinator invited you. ${verb}, hold, or decline?`,
-        primary: { label: verb, tone: "success", disabled: true, title: "Requires a live inquiry invitation." },
-        secondary: { label: "Decline", tone: "ghost", disabled: true, title: "Requires a live inquiry invitation." },
+        hint: interpolate(tx("dashboard.adminTabs.shellAction.talentInvitedHint", "Coordinator invited you. {verb}, hold, or decline?"), { verb }),
+        primary: { label: verb, tone: "success", disabled: true, title: tx("dashboard.adminTabs.shellAction.requiresLiveInvite", "Requires a live inquiry invitation.") },
+        secondary: { label: tx("dashboard.adminTabs.shellAction.decline", "Decline"), tone: "ghost", disabled: true, title: tx("dashboard.adminTabs.shellAction.requiresLiveInvite", "Requires a live inquiry invitation.") },
       };
     }
   }
 
   // Cancelled stage (no offer) — closure context
   if (conv.stage === "cancelled") {
-    return { hint: "Conversation closed." };
+    return { hint: tx("dashboard.adminTabs.shellAction.conversationClosed", "Conversation closed.") };
   }
 
   return {};

@@ -581,6 +581,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           isCoordinator ? "talent_coord" : "talent",
           toast,
           { onOpenOffer: () => setActiveTab("offer") },
+          t,
         );
         const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
         const isMockConv = !!MOCK_OFFER_FOR_CONV[conv.id];

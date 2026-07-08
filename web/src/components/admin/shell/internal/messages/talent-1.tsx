@@ -383,16 +383,19 @@ export function ShellHeader({
    *  with the 4-family status breakdown. */
   onStatusClick?: () => void;
 }) {
+  const t = useT();
   const sc = stageStyle(conv.stage);
-  const stageLabel = conv.stage === "past" ? "Wrapped"
-    : conv.stage === "hold" ? "Offer"
-    : conv.stage.charAt(0).toUpperCase() + conv.stage.slice(1);
+  // Stage label — reuse the semantic talentThread.stage* keys via the
+  // shared resolver (past → Wrapped, hold → Offer, else capitalized).
+  const stageLabel = conv.stage === "past" ? t("dashboard.adminThread.shellHeader.stageWrapped")
+    : conv.stage === "hold" ? t("dashboard.adminThread.shellHeader.stageOffer")
+    : talentStageLabel(conv.stage, t);
   const metaLine = [
-    `via ${conv.agency}`,
+    interpolate(t("dashboard.talentThread.via"), { agency: conv.agency }),
     conv.location ? conv.location.split(" · ")[0] : null,
     conv.date,
   ].filter(Boolean).join(" · ");
-  const sourceMeta = conv.source ? sourceChipMeta(conv.source) : null;
+  const sourceMeta = conv.source ? sourceChipMeta(conv.source, t) : null;
   return (
     <header data-tulala-job-shell-header style={{
       background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
@@ -407,7 +410,7 @@ export function ShellHeader({
         + "}"
       }} />
       <div data-tulala-header-row1 style={{ display: "flex", alignItems: "flex-start", gap: 12, minWidth: 0 }}>
-        <button type="button" onClick={onBack} aria-label={`Back to ${backLabel}`} style={{
+        <button type="button" onClick={onBack} aria-label={interpolate(t("dashboard.adminThread.shellHeader.backTo"), { label: backLabel })} style={{
           flexShrink: 0, marginTop: 2, width: 26, height: 26, borderRadius: 7,
           border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
           color: COLORS.inkMuted, cursor: "pointer",
@@ -439,7 +442,7 @@ export function ShellHeader({
           <div style={{ fontSize: 11.5, marginTop: 3, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden" }} className="text-admin-ink-muted">
             <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{metaLine}</span>
             {sourceMeta && (
-              <span aria-label={`Source: ${sourceMeta.label}`} title={sourceMeta.tooltip} style={{
+              <span aria-label={interpolate(t("dashboard.adminThread.shellHeader.sourceAria"), { label: sourceMeta.label })} title={sourceMeta.tooltip} style={{
                 flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4,
                 padding: "2px 8px", borderRadius: 999,
                 background: sourceMeta.bg, color: sourceMeta.fg,
@@ -451,7 +454,7 @@ export function ShellHeader({
               </span>
             )}
             {showCoordPill && conv.iAmCoordinator && (
-              <span title="You're the coordinator on this job" style={{
+              <span title={t("dashboard.adminThread.shellHeader.youreCoordTitle")} style={{
                 flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4,
                 padding: "2px 8px", borderRadius: 999,
                 background: COLORS.indigoSoft, color: COLORS.indigoDeep,
@@ -461,7 +464,7 @@ export function ShellHeader({
                 <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden>
                   <path d="M6 1l1.5 3.2L11 5l-2.5 2.4.6 3.4L6 9l-3.1 1.8.6-3.4L1 5l3.5-.8L6 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
                 </svg>
-                You&apos;re coord
+                {t("dashboard.adminThread.shellHeader.youreCoord")}
               </span>
             )}
           </div>
@@ -474,8 +477,8 @@ export function ShellHeader({
                 <button
                   type="button"
                   onClick={onStatusClick}
-                  aria-label={`Status: ${stageLabel} — open full breakdown`}
-                  title="View full status"
+                  aria-label={interpolate(t("dashboard.adminThread.shellHeader.statusAria"), { stage: stageLabel })}
+                  title={t("dashboard.adminThread.shellHeader.viewFullStatus")}
                   style={{
                     flexShrink: 0,
                     fontSize: 10.5, fontWeight: 700,
