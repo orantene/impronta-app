@@ -4785,6 +4785,102 @@
       "igVerifyStep4Body": "Tulala admins verify the DM was received from your handle and matches the code. Most decisions in <24h.",
       "igVerifyCancel": "Cancel",
       "igVerifyGenerate": "Generate code & continue"
+    },
+    "platform": {
+      "shell": {
+        "superAdmin": "Super admin",
+        "signOut": "Sign out",
+        "youFallback": "You"
+      },
+      "nav": {
+        "ariaLabel": "Platform sections",
+        "today": "Today",
+        "tenants": "Tenants",
+        "users": "Users",
+        "network": "Network",
+        "billing": "Billing",
+        "pricing": "Pricing",
+        "operations": "Operations",
+        "integrations": "Integrations",
+        "email": "Email",
+        "catalog": "Profile Fields",
+        "taxonomy": "Taxonomy",
+        "languages": "Languages",
+        "translations": "Translations",
+        "builderLab": "Builder Lab",
+        "settings": "Settings",
+        "auditLog": "Audit Log"
+      },
+      "switcher": {
+        "workspaces": "Workspaces",
+        "switchTo": "Switch to a workspace",
+        "loading": "Loading workspaces…",
+        "empty": "You're not a member of any workspace."
+      },
+      "tier": {
+        "free": "Free",
+        "studio": "Studio",
+        "agency": "Agency",
+        "network": "Network"
+      },
+      "role": {
+        "owner": "Owner",
+        "admin": "Admin",
+        "coordinator": "Coordinator",
+        "editor": "Editor",
+        "talent": "Talent",
+        "member": "Member"
+      },
+      "leadStatus": {
+        "new": "New",
+        "contacted": "Contacted",
+        "onboarded": "Onboarded",
+        "archived": "Archived",
+        "spam": "Spam"
+      },
+      "today": {
+        "title": "Today",
+        "subtitle": "Platform health, tenant signups, and queues that need eyes today.",
+        "activeTenants": "Active tenants",
+        "activeTenantsCaption": "on the platform",
+        "totalUsers": "Total users",
+        "totalUsersCaption": "registered accounts",
+        "totalTenants": "Total tenants",
+        "totalTenantsCaption": "agencies and hubs",
+        "talentProfiles": "Talent profiles",
+        "talentProfilesCaption": "across the network",
+        "leads7d": "Leads · last 7d",
+        "leads30d": "Leads · last 30d",
+        "leadsAllTime": "{count} all-time",
+        "leadsSource": "from /get-started",
+        "conversion": "Conversion",
+        "conversionCaption": "{count} provisioned",
+        "hqAlerts": "HQ alerts",
+        "hqAlertsNone": "No platform alerts yet",
+        "recentCount": "{count} recent",
+        "hqAlertsEmpty": "Platform alerts (new workspaces, failed signups) will appear here.",
+        "recentSignups": "Recent signups",
+        "recentSignupsSubtitle": "{count} most recent tenants",
+        "recentSignupsEmpty": "No signups yet.",
+        "viewAllTenants": "View all tenants →",
+        "recentLeads": "Recent leads",
+        "recentLeadsSubtitle": "{count} most recent from /get-started",
+        "recentLeadsEmpty": "No leads yet.",
+        "orphanTitle": "Orphan paid-tier free workspaces",
+        "orphanSubtitleOne": "{count} ghost. Paid signup crashed before Stripe. Review before any cleanup.",
+        "orphanSubtitleMany": "{count} ghosts. Paid signup crashed before Stripe. Review before any cleanup.",
+        "orphanNoEmail": "(no lead email on file)",
+        "orphanLeadRef": " · lead {id}…",
+        "orphanFootnote": "No delete action here. Investigate each row in the tenants drawer, then drop manually via SQL with founder approval.",
+        "sectionsTitle": "Platform sections",
+        "sectionsSubtitle": "Jump to any section",
+        "sectionTenantsDesc": "All agencies and hubs",
+        "sectionUsersDesc": "All registered accounts",
+        "sectionNetworkDesc": "Hub and discovery surface",
+        "sectionBillingDesc": "MRR, invoices, dunning",
+        "sectionOperationsDesc": "Feature flags and system jobs",
+        "sectionSettingsDesc": "HQ team and audit trail"
+      }
     }
   },
   "admin": {

@@ -4785,6 +4785,102 @@
       "igVerifyStep4Body": "Los administradores de Tulala verifican que el DM se recibió desde tu usuario y coincide con el código. La mayoría de las decisiones en <24 h.",
       "igVerifyCancel": "Cancelar",
       "igVerifyGenerate": "Generar código y continuar"
+    },
+    "platform": {
+      "shell": {
+        "superAdmin": "Super admin",
+        "signOut": "Cerrar sesión",
+        "youFallback": "Tú"
+      },
+      "nav": {
+        "ariaLabel": "Secciones de la plataforma",
+        "today": "Hoy",
+        "tenants": "Inquilinos",
+        "users": "Usuarios",
+        "network": "Red",
+        "billing": "Facturación",
+        "pricing": "Precios",
+        "operations": "Operaciones",
+        "integrations": "Integraciones",
+        "email": "Correo",
+        "catalog": "Campos de Profile",
+        "taxonomy": "Taxonomía",
+        "languages": "Idiomas",
+        "translations": "Traducciones",
+        "builderLab": "Builder Lab",
+        "settings": "Ajustes",
+        "auditLog": "Registro de auditoría"
+      },
+      "switcher": {
+        "workspaces": "Espacios de trabajo",
+        "switchTo": "Cambiar a un espacio de trabajo",
+        "loading": "Cargando espacios de trabajo…",
+        "empty": "No eres miembro de ningún espacio de trabajo."
+      },
+      "tier": {
+        "free": "Free",
+        "studio": "Studio",
+        "agency": "Agency",
+        "network": "Network"
+      },
+      "role": {
+        "owner": "Propietario",
+        "admin": "Administrador",
+        "coordinator": "Coordinador",
+        "editor": "Editor",
+        "talent": "Talent",
+        "member": "Miembro"
+      },
+      "leadStatus": {
+        "new": "Nuevo",
+        "contacted": "Contactado",
+        "onboarded": "Incorporado",
+        "archived": "Archivado",
+        "spam": "Spam"
+      },
+      "today": {
+        "title": "Hoy",
+        "subtitle": "Estado de la plataforma, altas de inquilinos y colas que necesitan atención hoy.",
+        "activeTenants": "Inquilinos activos",
+        "activeTenantsCaption": "en la plataforma",
+        "totalUsers": "Usuarios totales",
+        "totalUsersCaption": "cuentas registradas",
+        "totalTenants": "Inquilinos totales",
+        "totalTenantsCaption": "agencias y hubs",
+        "talentProfiles": "Profiles de Talent",
+        "talentProfilesCaption": "en toda la red",
+        "leads7d": "Leads · últimos 7 días",
+        "leads30d": "Leads · últimos 30 días",
+        "leadsAllTime": "{count} en total",
+        "leadsSource": "desde /get-started",
+        "conversion": "Conversión",
+        "conversionCaption": "{count} aprovisionados",
+        "hqAlerts": "Alertas de HQ",
+        "hqAlertsNone": "Aún no hay alertas de la plataforma",
+        "recentCount": "{count} recientes",
+        "hqAlertsEmpty": "Las alertas de la plataforma (nuevos espacios de trabajo, altas fallidas) aparecerán aquí.",
+        "recentSignups": "Altas recientes",
+        "recentSignupsSubtitle": "{count} inquilinos más recientes",
+        "recentSignupsEmpty": "Aún no hay altas.",
+        "viewAllTenants": "Ver todos los inquilinos →",
+        "recentLeads": "Leads recientes",
+        "recentLeadsSubtitle": "{count} más recientes desde /get-started",
+        "recentLeadsEmpty": "Aún no hay leads.",
+        "orphanTitle": "Espacios de trabajo huérfanos de plan de pago",
+        "orphanSubtitleOne": "{count} fantasma. El alta de pago falló antes de Stripe. Revisa antes de cualquier limpieza.",
+        "orphanSubtitleMany": "{count} fantasmas. El alta de pago falló antes de Stripe. Revisa antes de cualquier limpieza.",
+        "orphanNoEmail": "(sin correo de lead registrado)",
+        "orphanLeadRef": " · lead {id}…",
+        "orphanFootnote": "Aquí no hay acción de borrado. Investiga cada fila en el panel de inquilinos y luego elimínala manualmente por SQL con la aprobación del fundador.",
+        "sectionsTitle": "Secciones de la plataforma",
+        "sectionsSubtitle": "Ir a cualquier sección",
+        "sectionTenantsDesc": "Todas las agencias y hubs",
+        "sectionUsersDesc": "Todas las cuentas registradas",
+        "sectionNetworkDesc": "Hub y superficie de descubrimiento",
+        "sectionBillingDesc": "MRR, facturas, gestión de impagos",
+        "sectionOperationsDesc": "Feature flags y trabajos del sistema",
+        "sectionSettingsDesc": "Equipo de HQ y registro de auditoría"
+      }
     }
   },
   "admin": {
