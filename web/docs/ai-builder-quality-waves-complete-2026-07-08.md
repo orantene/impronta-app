@@ -62,3 +62,34 @@ screenshots: gold buttons visible on noir, uppercase/tracked CTA chrome, eyebrow
 bounded images, pricing_table + form + accordion + icons rendering, no horizontal
 overflow on mobile, full-bleed color bands. Gates green: tsc, lint, and the
 generator/renderer/adapter/eval/a11y test suites.
+
+## LIVE production verification (2026-07-08, via the prod builder)
+
+Drove the LIVE, keyed generator through the prod Impronta builder ("Design with
+AI" → full page) on the editorial-noir theme, to prove the half the eval harness
+couldn't (no local key). One brief ("homepage for a boutique modeling agency in
+Milan, editorial and minimal, with a services grid and a closing call to action"):
+
+- **`effort:"xhigh"` works in prod** — server action returned 200 after a ~35s
+  real generation (not the instant preset fallback). This clears the audit's #1
+  risk (a rejected effort field would have silently degraded every generation).
+- **The AIQ-4 paragraph fix holds on REAL output** — hero subhead, testimonial
+  quote, FAQ answers, and closing-CTA body all render legibly (light-on-dark) on
+  noir. This was the invisible-body-copy P0.
+- **Noir buttons + AIQ-25 chrome hold on real output** — "BOOK A MODEL" renders
+  gold, uppercase, visible.
+- **AIQ-11 few-shots land in real output** — the model produced a named-attribution
+  testimonial ("Giulia Ferretti, Fashion Director at Corso Studio") and a real
+  3-item FAQ accordion.
+- **Brand-color band renders correctly** — the closing CTA is a full-bleed gold
+  band with readable dark text and a visible CTA.
+- **Copy quality is on-brand** — "Vela Milano", roster/book language, zero lorem,
+  no buyer/cart.
+
+This substantially closes the audit's "output unproven" gap: the render fixes AND
+the prompt quality are confirmed on live model output. NOTE: AIQ-12 tenant
+polarity is still not wired, but the live evidence shows dark themes already render
+correctly without it (the band roles + token fixes handle polarity), so it is
+downgraded from P0 to a non-urgent refinement. A formal keyed baseline
+(`npm run eval:generate --write-baseline`) is still the remaining step to arm the
+regression gate.
