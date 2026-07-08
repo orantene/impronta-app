@@ -18,6 +18,7 @@
 import { notFound, redirect } from "next/navigation";
 import { Toaster } from "sonner";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import {
@@ -177,13 +178,22 @@ export default async function ClientLayout({
   // D1 — seed initial notifications for the bell (zero client waterfalls).
   // Locale settings are also pre-fetched here so the DashboardLocaleToggle
   // inside ClientAccountMenu knows the tenant's supported languages.
-  const [favoriteIds, savedIds, initialNotifications, tenantLocaleSettings] =
-    await Promise.all([
-      getFavoriteTalentIds(),
-      getSavedTalentIds(),
-      loadMyNotifications(50),
-      loadTenantLocaleSettings(scope.tenantId),
-    ]);
+  // Reviews are a PREMIUM capability gated on the surface tenant's entitlement.
+  // Resolved here (server component) so the nav can hide the "reviews" entry on
+  // a non-entitled workspace. Fails closed via tenantReviewsEnabled.
+  const [
+    favoriteIds,
+    savedIds,
+    initialNotifications,
+    tenantLocaleSettings,
+    reviewsEnabled,
+  ] = await Promise.all([
+    getFavoriteTalentIds(),
+    getSavedTalentIds(),
+    loadMyNotifications(50),
+    loadTenantLocaleSettings(scope.tenantId),
+    tenantReviewsEnabled(scope.tenantId),
+  ]);
 
   const userInitials = initials(clientProfile.displayName);
 
@@ -374,7 +384,11 @@ export default async function ClientLayout({
         </header>
 
         {/* ── Bar 2: Client nav topbar ── */}
-        <ClientTopbar tenantSlug={tenantSlug} locale={locale} />
+        <ClientTopbar
+          tenantSlug={tenantSlug}
+          locale={locale}
+          reviewsEnabled={reviewsEnabled}
+        />
 
         {/* D9 polish — global keyboard shortcuts (renders null unless help open) */}
         <ClientKeyboardShortcuts tenantSlug={tenantSlug} labels={keyboardLabels} />

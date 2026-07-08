@@ -22,7 +22,11 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { reportReviewAction } from "@/lib/reviews/review-actions";
 import { createReviewRequestAction } from "@/lib/reviews/review-request-actions";
-import { loadOwnerReceivedReviewsAction } from "@/lib/reviews/review-owner-actions";
+import {
+  loadOwnerPrivateNoteThemesAction,
+  loadOwnerReceivedReviewsAction,
+} from "@/lib/reviews/review-owner-actions";
+import type { OwnerPrivateNote } from "@/lib/reviews/load-reviews";
 import type {
   TalentRatingSummary,
   TalentReview,
@@ -131,6 +135,66 @@ function StandingHeader({ summary }: { summary: TalentRatingSummary }) {
           : credible
             ? "This is the reputation clients see. Standing rises with strong, consistent reviews across more bookings."
             : `A few more reviews and your standing becomes a credible signal to clients. You need ${Math.max(0, 3 - count)} more to reach it.`}
+      </div>
+    </div>
+  );
+}
+
+// ─── Growth notes (private coaching, talent-only) ───────────────────────────
+
+/**
+ * A gentle, private card of recent coaching notes clients left alongside their
+ * reviews. Only the subject talent can read these (RLS-scoped). Copy stays
+ * encouraging and never punitive. Renders nothing when there are no notes.
+ */
+function GrowthNotesCard({ notes }: { notes: OwnerPrivateNote[] }) {
+  if (notes.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        borderRadius: RADIUS.lg,
+        border: `1px solid ${COLORS.border}`,
+        background: COLORS.card,
+        padding: 20,
+        fontFamily: FONTS.body,
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
+          Growth notes
+        </span>
+        <span style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
+          Private coaching a few clients shared just for you. Only you can see
+          these. Take what is useful and keep doing what already works.
+        </span>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {notes.map((n) => (
+          <div
+            key={n.reviewId}
+            style={{
+              padding: "12px 14px",
+              borderRadius: RADIUS.md,
+              border: `1px solid ${COLORS.borderSoft}`,
+              background: COLORS.surfaceAlt,
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+            }}
+          >
+            <span style={{ fontSize: 13, lineHeight: 1.55 }} className="text-admin-ink">
+              {n.note}
+            </span>
+            <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
+              {formatDate(n.createdAt)}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -425,15 +489,18 @@ export function ReviewsPage() {
     reviews: TalentReview[];
     summary: TalentRatingSummary;
   } | null>(null);
+  const [growthNotes, setGrowthNotes] = useState<OwnerPrivateNote[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     if (!talentId) {
       setData({ reviews: [], summary: { average: 0, count: 0 } });
+      setGrowthNotes([]);
       return;
     }
     setData(null);
+    setGrowthNotes([]);
     setLoadError(null);
     loadOwnerReceivedReviewsAction(talentId)
       .then((res) => {
@@ -441,6 +508,15 @@ export function ReviewsPage() {
       })
       .catch(() => {
         if (!cancelled) setLoadError("Could not load your reviews.");
+      });
+    // Private coaching notes load independently — a failure here never blocks
+    // the reviews list; the card simply stays hidden.
+    loadOwnerPrivateNoteThemesAction(talentId)
+      .then((notes) => {
+        if (!cancelled) setGrowthNotes(notes);
+      })
+      .catch(() => {
+        if (!cancelled) setGrowthNotes([]);
       });
     return () => {
       cancelled = true;
@@ -483,19 +559,15 @@ export function ReviewsPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
           <StandingHeader summary={data.summary} />
 
+          {/* Private coaching notes, talent-only. Renders nothing when empty. */}
+          <GrowthNotesCard notes={growthNotes} />
+
           {talentId && tenantSlug && (
             <AskForReviewCard
               tenantSlug={tenantSlug}
               talentProfileId={talentId}
             />
           )}
-
-          {/* TODO(growth-card): a "themes" / private-note growth card would live
-              here once the received-review payload carries structured private
-              feedback. The current TalentReview shape (id/rating/body/status)
-              has no private-note or theme field, so there is no data to derive
-              a real growth summary from without a new loader. Left out rather
-              than fabricated. */}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <span

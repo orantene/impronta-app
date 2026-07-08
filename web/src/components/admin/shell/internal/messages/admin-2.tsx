@@ -323,6 +323,12 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                 }}
               >
                 <span className="inline-flex">
+                  {/* TODO(trust-strip): thread rating_avg/rating_count into this view
+                      (RequirementGroup.talents rows in state/types.ts) to render a
+                      compact read-only "★ {rating_avg} · {rating_count}" chip next to
+                      each talent's name here. Skipped for now — rating data is not
+                      loaded on the talent row, and adding a per-talent query would be
+                      an N+1. */}
                   {allTalents.slice(0, 5).map((t, idx) => {
                     const isAccepted = t.status === "accepted";
                     const isSuperseded = t.status === "superseded";

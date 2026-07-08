@@ -5,6 +5,7 @@
 
 import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadClientReviews,
@@ -33,6 +34,22 @@ export default async function ClientReviewsPage({ params }: { params: PageParams
 
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
+
+  // Reviews are a PREMIUM capability, gated on the SURFACE tenant's entitlement.
+  // A non-entitled workspace gets a plain empty state (same ClientPageHeader
+  // shell) instead of the reviews panel. Fails closed via tenantReviewsEnabled.
+  const reviewsEnabled = await tenantReviewsEnabled(scope.tenantId);
+  if (!reviewsEnabled) {
+    return (
+      <div style={{ fontFamily: FONT }}>
+        <ClientPageHeader
+          eyebrow="Reviews"
+          title="Reviews"
+          subtitle="Reviews are not enabled on this workspace."
+        />
+      </div>
+    );
+  }
 
   const [received, receivedSummary, authored, roster] = await Promise.all([
     loadClientReviews(session.user.id),

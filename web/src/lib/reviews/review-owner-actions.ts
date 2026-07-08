@@ -23,7 +23,9 @@
 
 import { requireSession } from "@/lib/server/action-guards";
 import type { TalentRatingSummary, TalentReview } from "./review-types";
+import type { OwnerPrivateNote } from "./load-reviews";
 import {
+  loadOwnerPrivateNoteThemes,
   loadTalentRatingSummary,
   loadTalentReviewsForOwner,
 } from "./load-reviews";
@@ -48,4 +50,23 @@ export async function loadOwnerReceivedReviewsAction(
     loadTalentRatingSummary(id),
   ]);
   return { reviews, summary };
+}
+
+/**
+ * Recent private coaching notes on the talent's OWN received reviews, for the
+ * owner's talent-only "Growth notes" card. RLS scopes these to the subject
+ * talent (they run as the authed owner via the cached server client), so this
+ * never exposes another talent's coaching feedback. Returns an empty list for
+ * signed-out callers, an unknown profile, or when there are no notes.
+ */
+export async function loadOwnerPrivateNoteThemesAction(
+  talentProfileId: string,
+): Promise<OwnerPrivateNote[]> {
+  const auth = await requireSession();
+  if (!auth.ok) return [];
+
+  const id = (talentProfileId ?? "").trim();
+  if (!id) return [];
+
+  return loadOwnerPrivateNoteThemes(id);
 }
