@@ -9,6 +9,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { AVAILABLE_CHANNELS, COLORS, FONTS, TALENT_CHANNELS, TRANSITION, useAdminShell } from "../state";
 import {
   DrawerShell,
@@ -53,6 +55,7 @@ type AddEventMode = "pick" | "work" | "block";
 
 export function TalentHubDetailDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const router = useRouter();
   const [, startApplyTransition] = useTransition();
   const open = state.drawer.drawerId === "talent-hub-detail";
@@ -70,17 +73,23 @@ export function TalentHubDetailDrawer() {
   const feePct = channel.feeRate ? Math.round(channel.feeRate * 100) : 0;
   const responseTime =
     channel.kind === "studio"
-      ? "1–3 weeks (slow but high-quality leads)"
+      ? t("dashboard.talentDrawers.events.responseStudio")
       : channel.verified
-        ? "Within 24h for most inquiries"
-        : "Variable — newer platform, less data";
+        ? t("dashboard.talentDrawers.events.responseVerified")
+        : t("dashboard.talentDrawers.events.responseUnverified");
+  const kindLabel =
+    channel.kind === "studio"
+      ? t("dashboard.talentDrawers.events.studioFreeBook")
+      : channel.verified
+        ? t("dashboard.talentDrawers.events.verifiedHub")
+        : t("dashboard.talentDrawers.events.unverifiedHub");
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title={channel.name}
-      description={`${channel.kind === "studio" ? "Studio · free book" : channel.verified ? "Verified external hub" : "External hub · not yet Tulala-verified"} · joining is reversible`}
+      description={`${kindLabel} · ${t("dashboard.talentDrawers.events.reversibleSuffix")}`}
       width={520}
       footer={
         <>
@@ -93,10 +102,10 @@ export function TalentHubDetailDrawer() {
                 });
               }}
             >
-              Apply to hubs &amp; agencies →
+              {t("dashboard.talentDrawers.events.applyToHubs")}
             </PrimaryButton>
           )}
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
         </>
       }
     >
@@ -108,40 +117,39 @@ export function TalentHubDetailDrawer() {
         )}
 
         <section>
-          <SubsectionLabel>The deal</SubsectionLabel>
+          <SubsectionLabel>{t("dashboard.talentDrawers.events.theDeal")}</SubsectionLabel>
           <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-            <KvRow label="Fee rate" value={feePct === 0 ? "0% · no platform take" : `${feePct}% on bookings via ${channel.name}`} />
-            <KvRow label="Response time" value={responseTime} />
+            <KvRow label={t("dashboard.talentDrawers.events.feeRate")} value={feePct === 0 ? t("dashboard.talentDrawers.events.feeRateNone") : interpolate(t("dashboard.talentDrawers.events.feeRateOnBookings"), { pct: feePct, name: channel.name })} />
+            <KvRow label={t("dashboard.talentDrawers.events.responseTime")} value={responseTime} />
             <KvRow
-              label="Verified"
+              label={t("dashboard.talentDrawers.events.verifiedLabel")}
               value={
-                channel.verified ? "Yes — Tulala-vetted" : "No — newer / unverified"
+                channel.verified ? t("dashboard.talentDrawers.events.verifiedYes") : t("dashboard.talentDrawers.events.verifiedNo")
               }
             />
-            <KvRow label="Reversible?" value="Yes — toggle off anytime in Reach" />
+            <KvRow label={t("dashboard.talentDrawers.events.reversibleLabel")} value={t("dashboard.talentDrawers.events.reversibleValue")} />
           </div>
         </section>
 
         <section>
-          <SubsectionLabel>What happens when you join</SubsectionLabel>
+          <SubsectionLabel>{t("dashboard.talentDrawers.events.whenYouJoin")}</SubsectionLabel>
           <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 12.5, lineHeight: 1.7 }} className="text-admin-ink">
-            <li>{channel.name} can list your profile + forward inquiries</li>
-            <li>Inquiries land in your Tulala inbox alongside agency-routed ones</li>
-            <li>Your contact-policy filters still apply — Basic-tier clients are blocked if you&apos;ve blocked them</li>
+            <li>{interpolate(t("dashboard.talentDrawers.events.joinBullet1"), { name: channel.name })}</li>
+            <li>{t("dashboard.talentDrawers.events.joinBullet2")}</li>
+            <li>{t("dashboard.talentDrawers.events.joinBullet3")}</li>
             {feePct > 0 && (
               <li>
-                When a booking comes through {channel.name}, they take {feePct}% of the fee at payout
+                {interpolate(t("dashboard.talentDrawers.events.joinBullet4"), { name: channel.name, pct: feePct })}
               </li>
             )}
-            <li>You can pause or leave any time from Reach</li>
+            <li>{t("dashboard.talentDrawers.events.joinBullet5")}</li>
           </ul>
         </section>
 
         {!channel.verified && (
           <div style={{ padding: "10px 12px", border: `1px solid rgba(194,106,69,0.18)`, borderRadius: 8, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-coral-soft text-admin-coral-deep">
-            <strong className="font-semibold">Heads up:</strong>{" "}
-            {channel.name} isn&apos;t yet Tulala-verified. Inquiries may include
-            unvetted clients. You can leave with one click if quality drops.
+            <strong className="font-semibold">{t("dashboard.talentDrawers.events.headsUp")}</strong>{" "}
+            {interpolate(t("dashboard.talentDrawers.events.unverifiedWarning"), { name: channel.name })}
           </div>
         )}
       </div>
@@ -151,6 +159,7 @@ export function TalentHubDetailDrawer() {
 
 export function TalentAddEventDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-add-event";
   const initialMode = (state.drawer.payload?.mode as AddEventMode | undefined) ?? "pick";
   const [mode, setMode] = useState<AddEventMode>(initialMode);
@@ -170,22 +179,22 @@ export function TalentAddEventDrawer() {
       }}
       title={
         mode === "pick"
-          ? "Add to your calendar"
+          ? t("dashboard.talentDrawers.events.addToCalendar")
           : mode === "work"
-            ? "Log work"
-            : "Block time"
+            ? t("dashboard.talentDrawers.events.logWork")
+            : t("dashboard.talentDrawers.events.blockTime")
       }
       description={
         mode === "pick"
-          ? "Track your booking life — even when the gig didn't come through Tulala."
+          ? t("dashboard.talentDrawers.events.addToCalendarDesc")
           : mode === "work"
-            ? "Off-platform booking? Log it here so it counts toward your earnings + history."
-            : "Block your calendar so agencies don't pitch you when you're unavailable."
+            ? t("dashboard.talentDrawers.events.logWorkDesc")
+            : t("dashboard.talentDrawers.events.blockTimeDesc")
       }
       width={540}
       footer={
         mode === "pick" ? (
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.cancel")}</SecondaryButton>
         ) : undefined // forms own their own footers
       }
     >
@@ -198,26 +207,26 @@ export function TalentAddEventDrawer() {
         <div className="flex flex-col gap-4">
           <div style={{ padding: "20px 16px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, fontFamily: FONTS.body, textAlign: "center" }} className="bg-admin-surface-alt">
             <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }} className="text-admin-ink">
-              Booking log — coming soon
+              {t("dashboard.talentDrawers.events.bookingLogTitle")}
             </div>
             <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
-              Off-platform booking tracking will be available in an upcoming update.
+              {t("dashboard.talentDrawers.events.bookingLogBody")}
             </div>
           </div>
-          <SecondaryButton onClick={() => setMode("pick")}>Back</SecondaryButton>
+          <SecondaryButton onClick={() => setMode("pick")}>{t("dashboard.talentDrawers.back")}</SecondaryButton>
         </div>
       )}
       {mode === "block" && (
         <div className="flex flex-col gap-4">
           <div style={{ padding: "20px 16px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, fontFamily: FONTS.body, textAlign: "center" }} className="bg-admin-surface-alt">
             <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }} className="text-admin-ink">
-              Block time — coming soon
+              {t("dashboard.talentDrawers.events.blockTimeTitle")}
             </div>
             <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
-              Calendar blocking will be available in an upcoming update.
+              {t("dashboard.talentDrawers.events.blockTimeBody")}
             </div>
           </div>
-          <SecondaryButton onClick={() => setMode("pick")}>Back</SecondaryButton>
+          <SecondaryButton onClick={() => setMode("pick")}>{t("dashboard.talentDrawers.back")}</SecondaryButton>
         </div>
       )}
     </DrawerShell>
@@ -226,13 +235,14 @@ export function TalentAddEventDrawer() {
 
 /** Mode picker — two big choices, clear contracts. */
 function ModePicker({ onPick }: { onPick: (m: "work" | "block") => void }) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-3">
       <ModePickerCard
         kind="work"
-        title="Log work"
-        body="A booking you did (or will do) outside Tulala. Adds to your earnings + calendar."
-        meta="Quick add or full details"
+        title={t("dashboard.talentDrawers.events.pickWorkTitle")}
+        body={t("dashboard.talentDrawers.events.pickWorkBody")}
+        meta={t("dashboard.talentDrawers.events.pickWorkMeta")}
         toneFg={COLORS.green}
         toneBg={COLORS.successSoft}
         icon="credit"
@@ -240,9 +250,9 @@ function ModePicker({ onPick }: { onPick: (m: "work" | "block") => void }) {
       />
       <ModePickerCard
         kind="block"
-        title="Block time"
-        body="Vacation, day job, school, family — anything that means you're not available. Won't count as earnings."
-        meta="Reason + date range"
+        title={t("dashboard.talentDrawers.events.pickBlockTitle")}
+        body={t("dashboard.talentDrawers.events.pickBlockBody")}
+        meta={t("dashboard.talentDrawers.events.pickBlockMeta")}
         toneFg={COLORS.amber}
         toneBg={COLORS.amberSoft}
         icon="lock"
