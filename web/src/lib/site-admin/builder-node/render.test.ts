@@ -1070,8 +1070,9 @@ describe("renderBuilderNodes", () => {
       { id: "t:strong", kind: "paragraph", props: { text: "Bold", style: { tone: "strong" } } },
     ]);
 
-    // Button color is wired to the brand primary token (literal fallback keeps the default).
-    assert.match(html, /background:var\(--token-color-primary,#111\)/);
+    // Button color is wired to the brand primary token; the fallback nests the ink
+    // token so a theme with no primary still gets a visible (not near-black) button.
+    assert.match(html, /background:var\(--token-color-primary,var\(--token-color-ink,#111\)\)/);
     // Heading + paragraph fonts wired to the themed font tokens (additive, inherit fallback).
     assert.match(html, /font-family:var\(--site-heading-font,inherit\)/);
     assert.match(html, /font-family:var\(--site-body-font,inherit\)/);
