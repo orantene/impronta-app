@@ -212,11 +212,11 @@ export function DirectoryActiveFilterChips({
           key={chip.id}
           type="button"
           onClick={() => commit(chip.remove)}
-          className="group inline-flex max-w-[14rem] items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] py-1 pl-3 pr-2 text-[12px] text-white/75 outline-none transition-colors hover:border-white/30 hover:text-white focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="group inline-flex max-w-[14rem] items-center gap-1.5 rounded-full border border-border bg-muted/40 py-1 pl-3 pr-2 text-[12px] text-muted-foreground outline-none transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           aria-label={`Remove filter: ${chip.label}`}
         >
           <span className="truncate">{chip.label}</span>
-          <X className="size-3.5 shrink-0 text-white/40 transition-colors group-hover:text-white/80" />
+          <X className="size-3.5 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground/80" />
         </button>
       ))}
       {chips.length > 1 ? (
@@ -224,7 +224,7 @@ export function DirectoryActiveFilterChips({
           type="button"
           onClick={clearAll}
           aria-label="Clear all active filters"
-          className="inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-medium text-white/55 underline-offset-4 outline-none transition-colors hover:text-white hover:underline focus-visible:ring-2 focus-visible:ring-white/30"
+          className="inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-medium text-muted-foreground underline-offset-4 outline-none transition-colors hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-foreground/30"
         >
           {ui.filters.clearAll}
         </button>

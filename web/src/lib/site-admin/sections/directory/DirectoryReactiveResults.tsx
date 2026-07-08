@@ -549,6 +549,8 @@ function DirectoryReactiveResultsInner({
               manualProfileCodes={scope === "manual" ? manualProfileCodes : undefined}
               cardStyle={cardStyle}
               cardAspect={cardAspect}
+              density={density}
+              hoverBehavior={hoverBehavior}
               onFetchingChange={handleFetchingChange}
               onCountChange={handleCountChange}
               show={{

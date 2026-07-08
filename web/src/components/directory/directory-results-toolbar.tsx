@@ -48,7 +48,7 @@ export function DirectoryResultsToolbar({
           <span
             className={cn(
               "text-sm tabular-nums transition-opacity duration-150",
-              isFetching ? "text-white/30" : "text-white/70",
+              isFetching ? "text-muted-foreground/50" : "text-muted-foreground",
             )}
             aria-live="polite"
             aria-label={isFetching ? "Updating result count…" : undefined}
@@ -63,7 +63,7 @@ export function DirectoryResultsToolbar({
           )}
         >
           <div
-            className="inline-flex rounded-lg border border-white/15 bg-white/[0.04] p-0.5"
+            className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5"
             role="group"
             aria-label={ui.toolbar.resultLayoutAria}
           >
@@ -74,8 +74,8 @@ export function DirectoryResultsToolbar({
               className={cn(
                 "rounded-md p-2 transition-colors",
                 view === "grid"
-                  ? "bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
-                  : "text-white/60 hover:text-zinc-200",
+                  ? "bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
+                  : "text-muted-foreground hover:text-foreground",
               )}
               aria-label={ui.toolbar.gridViewAria}
             >
@@ -88,8 +88,8 @@ export function DirectoryResultsToolbar({
               className={cn(
                 "rounded-md p-2 transition-colors",
                 view === "list"
-                  ? "bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
-                  : "text-white/60 hover:text-zinc-200",
+                  ? "bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
+                  : "text-muted-foreground hover:text-foreground",
               )}
               aria-label={ui.toolbar.listViewAria}
             >
@@ -102,8 +102,8 @@ export function DirectoryResultsToolbar({
               className={cn(
                 "rounded-md p-2 transition-colors",
                 view === "map"
-                  ? "bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
-                  : "text-white/60 hover:text-zinc-200",
+                  ? "bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
+                  : "text-muted-foreground hover:text-foreground",
               )}
               aria-label={ui.toolbar.mapViewAria}
             >
