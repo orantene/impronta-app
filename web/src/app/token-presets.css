@@ -148,6 +148,11 @@ html[data-token-background-mode="editorial-noir"] {
   --token-color-line: rgba(201, 162, 39, 0.18);
   --token-color-muted: #a1a1aa;
   --token-color-ink: #f4f4f5;
+  /* Gold accent as the builder primary. Without this, `--token-color-primary`
+   * falls through to :root's near-black #111, so every token-driven primary /
+   * secondary button (incl. AI-generated pages) renders black-on-black and
+   * disappears. Mirrors noir-or / espresso, which already pin their accent. */
+  --token-color-primary: #c6a14e;
   /* Legacy bridge: storefront chrome reads --impronta-* vars and shadcn
    * --background. Alias them to the noir palette so every component that
    * uses those vars (hero copy, cards, chips, profile page) repaints to
