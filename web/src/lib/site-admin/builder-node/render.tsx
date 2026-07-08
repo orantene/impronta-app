@@ -3895,7 +3895,11 @@ function renderBuilderNodeElement(
           suppressHydrationWarning
           style={inlineNodeStyle(node.props.style, MARGIN_ZERO, {
             lineHeight: 1.65,
-            color: "rgba(18, 18, 18, 0.72)",
+            // AIQ-4 — theme-adaptive soft body color. On the light theme (ink
+            // #121212) this is byte-equivalent to the old rgba(18,18,18,0.72);
+            // on dark themes it becomes soft LIGHT ink instead of near-black-on-
+            // dark (default paragraphs were rendering invisible on noir).
+            color: "color-mix(in oklab, var(--token-color-ink, #121212) 72%, transparent)",
             ...cue.style,
           })}
         >
@@ -4198,7 +4202,11 @@ function renderBuilderNodeElement(
           className="site-builder-node site-builder-node--rich-text"
           style={inlineNodeStyle(node.props.style, MARGIN_ZERO, {
             lineHeight: 1.65,
-            color: "rgba(18, 18, 18, 0.72)",
+            // AIQ-4 — theme-adaptive soft body color. On the light theme (ink
+            // #121212) this is byte-equivalent to the old rgba(18,18,18,0.72);
+            // on dark themes it becomes soft LIGHT ink instead of near-black-on-
+            // dark (default paragraphs were rendering invisible on noir).
+            color: "color-mix(in oklab, var(--token-color-ink, #121212) 72%, transparent)",
             whiteSpace: "pre-wrap",
             ...cue.style,
           })}

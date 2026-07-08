@@ -19,6 +19,7 @@ import {
   isSafeMinHeight,
 } from "./generation-allowed-kinds";
 import { BUILDER_NODE_REGISTRY, builderNodeStyleValueSchema } from "@/lib/site-admin/builder-node/registry";
+import { scoreGeneratedTree } from "./eval-scorecard";
 import { BUILDER_ICON_NAMES } from "@/lib/site-admin/builder-node/icon-registry";
 import { PAGE_DESIGN_PHOTOS } from "@/lib/site-admin/builder-node/page-designs/photos";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
@@ -210,6 +211,46 @@ test("AIQ-13: prompt offers the theme-paired band roles", () => {
   const prompt = buildGenerationSystemPrompt();
   assert.ok(prompt.includes('background:"accent"'), "prompt names accent band role");
   assert.ok(prompt.includes('background:"muted"'), "prompt names muted band role");
+});
+
+test("AIQ-32: system prompt encodes the KEEP invariants (voice/dash/vocab/H1/color)", () => {
+  const p = buildGenerationSystemPrompt();
+  assert.match(p, /NEVER use em dashes or en dashes/);
+  assert.match(p, /NEVER use buyer, cart, checkout, add to cart, shop, purchase/);
+  assert.match(p, /You BOOK talent, you do not buy it\./);
+  assert.match(p, /NEVER generic labels like/);
+  assert.match(p, /EXACTLY ONE heading with level:1 on the whole page/);
+  assert.match(p, /opens with a SHORT uppercase eyebrow paragraph/);
+  assert.match(p, /backgroundColor AND textColor together on the SAME container/);
+  assert.match(p, /a lone color is DROPPED/);
+  assert.match(p, /at most ONE deliberate colored band per page/);
+});
+
+test("AIQ-32: user message locks the section-count band + section scope", () => {
+  assert.match(buildGenerationUserMessage("page", "x"), /3 to 6 sections/);
+  assert.match(buildGenerationUserMessage("section", "x"), /EXACTLY ONE section/);
+});
+
+test("AIQ-32: a clean stubbed page carries zero scorecard errors through the pipeline", async () => {
+  const r = await generateBuilderNodes({ brief: "boutique modeling agency", scope: "page", generateWithModel: stubModel(HERO_AND_SERVICES) });
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  const card = scoreGeneratedTree(r.tree);
+  assert.equal(card.counts.errors, 0, JSON.stringify(card.findings));
+});
+
+test("AIQ-32: sanitizeStyle drops a lone color so the tree never carries an orphan", async () => {
+  const withLoneColor = {
+    sections: [{ kind: "section", label: "X", children: [
+      { kind: "heading", props: { text: "Only title", level: 1 } },
+      { kind: "paragraph", props: { text: "Body copy here.", style: { textColor: "#ffffff" } } },
+    ] }],
+  };
+  const r = await generateBuilderNodes({ brief: "a services section", scope: "section", generateWithModel: stubModel(withLoneColor) });
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  const card = scoreGeneratedTree(r.tree);
+  assert.equal(card.findings.some((f) => f.code === "lone_color"), false, "sanitizeStyle stripped the orphan");
 });
 
 test("image roles all resolve to a real curated photo", () => {

@@ -49,3 +49,5 @@ next-env.d.ts
 
 # AI builder eval harness output (regenerable QA artifacts)
 /public/_eval/
+/eval/generate-runs/
+/scripts/ai-builder-eval/screenshots/
