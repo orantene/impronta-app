@@ -28,7 +28,9 @@ import {
 import {
   loadOwnerPrivateNoteThemesAction,
   loadOwnerReceivedReviewsAction,
+  loadReviewAnalyticsAction,
   submitReviewReplyAction,
+  type ReviewAnalytics,
 } from "@/lib/reviews/review-owner-actions";
 import type { OwnerPrivateNote } from "@/lib/reviews/load-reviews";
 import type {
@@ -140,6 +142,79 @@ function StandingHeader({ summary }: { summary: TalentRatingSummary }) {
             ? "This is the reputation clients see. Standing rises with strong, consistent reviews across more bookings."
             : `A few more reviews and your standing becomes a credible signal to clients. You need ${Math.max(0, 3 - count)} more to reach it.`}
       </div>
+    </div>
+  );
+}
+
+// ─── Light reputation analytics (3-4 inline numbers, not a dashboard) ───────
+
+/**
+ * A compact inline stat strip under the reputation header: a couple of
+ * lifetime numbers a talent can read at a glance. Deliberately LIGHT — three
+ * small stats, no chart. Individual stats hide when their signal is null.
+ * Renders nothing if there's nothing meaningful to show yet.
+ */
+function AnalyticsStrip({ analytics }: { analytics: ReviewAnalytics }) {
+  const stats: { label: string; value: string }[] = [];
+
+  stats.push({
+    label: "Lifetime rating",
+    value:
+      analytics.ratingCount > 0 && analytics.lifetimeAvg != null
+        ? `${analytics.lifetimeAvg.toFixed(1)} (${analytics.ratingCount})`
+        : "—",
+  });
+
+  if (analytics.wouldBookAgainPct != null) {
+    stats.push({
+      label: "Would book again",
+      value: `${analytics.wouldBookAgainPct}%`,
+    });
+  }
+
+  if (analytics.responseRatePct != null) {
+    stats.push({
+      label: "Reviews per completed booking",
+      value: `${analytics.responseRatePct}%`,
+    });
+  }
+
+  if (stats.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 20,
+        padding: "12px 20px",
+        borderRadius: RADIUS.md,
+        border: `1px solid ${COLORS.borderSoft}`,
+        background: COLORS.surfaceAlt,
+        fontFamily: FONTS.body,
+      }}
+    >
+      {stats.map((s) => (
+        <div
+          key={s.label}
+          style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}
+        >
+          <span style={{ fontSize: 15, fontWeight: 700 }} className="text-admin-ink">
+            {s.value}
+          </span>
+          <span
+            style={{
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+            }}
+            className="text-admin-ink-muted"
+          >
+            {s.label}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -650,6 +725,7 @@ export function ReviewsPage() {
     summary: TalentRatingSummary;
   } | null>(null);
   const [growthNotes, setGrowthNotes] = useState<OwnerPrivateNote[]>([]);
+  const [analytics, setAnalytics] = useState<ReviewAnalytics | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Reviews are a PREMIUM capability, gated on the workspace's entitlement.
   // null = not yet resolved (avoid flashing the upsell); false = show upsell.
@@ -681,10 +757,12 @@ export function ReviewsPage() {
     if (!talentId) {
       setData({ reviews: [], summary: { average: 0, count: 0 } });
       setGrowthNotes([]);
+      setAnalytics(null);
       return;
     }
     setData(null);
     setGrowthNotes([]);
+    setAnalytics(null);
     setLoadError(null);
     loadOwnerReceivedReviewsAction(talentId)
       .then((res) => {
@@ -701,6 +779,15 @@ export function ReviewsPage() {
       })
       .catch(() => {
         if (!cancelled) setGrowthNotes([]);
+      });
+    // Light reputation analytics load independently — fail closed so a failure
+    // never blocks the reviews list; the strip simply stays hidden.
+    loadReviewAnalyticsAction(talentId)
+      .then((res) => {
+        if (!cancelled) setAnalytics(res.ok ? res.data : null);
+      })
+      .catch(() => {
+        if (!cancelled) setAnalytics(null);
       });
     return () => {
       cancelled = true;
@@ -763,6 +850,9 @@ export function ReviewsPage() {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
           <StandingHeader summary={data.summary} />
+
+          {/* Light reputation analytics. Renders nothing when unresolved/empty. */}
+          {analytics && <AnalyticsStrip analytics={analytics} />}
 
           {/* Private coaching notes, talent-only. Renders nothing when empty. */}
           <GrowthNotesCard notes={growthNotes} />

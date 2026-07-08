@@ -74,6 +74,111 @@ export async function loadOwnerPrivateNoteThemesAction(
   return loadOwnerPrivateNoteThemes(id);
 }
 
+/** Light reputation analytics for the owner's own Reviews page. */
+export type ReviewAnalytics = {
+  lifetimeAvg: number | null;
+  ratingCount: number;
+  wouldBookAgainPct: number | null;
+  completedBookings: number;
+  responseRatePct: number | null;
+};
+
+/**
+ * A few inline reputation numbers for the talent's OWN Reviews page:
+ * lifetime rating + count, "would book again" %, completed bookings, and a
+ * review-collection rate proxy (reviews per completed booking).
+ *
+ * The rows come from `talent_profiles` (rating_avg / rating_count /
+ * would_book_again_pct / total_completed_bookings). Mirrors the
+ * `loadOwnerPrivateNoteThemes` guard: require a session, then service-role read
+ * ONLY after verifying the authed caller owns the profile
+ * (talent_profiles.user_id === auth.uid()). Never throws — returns
+ * { ok: false } on any failure so the page can fail closed without blocking
+ * the reviews list.
+ */
+export async function loadReviewAnalyticsAction(
+  talentProfileId: string,
+): Promise<
+  { ok: true; data: ReviewAnalytics } | { ok: false; error: string }
+> {
+  try {
+    const auth = await requireSession();
+    if (!auth.ok) return { ok: false, error: "You must be signed in." };
+
+    const id = (talentProfileId ?? "").trim();
+    if (!id) return { ok: false, error: "Missing profile." };
+
+    const svc = createServiceRoleClient();
+    if (!svc) return { ok: false, error: "Not configured." };
+
+    // Ownership check — the caller must own the profile — followed by the
+    // aggregate read, both in one service-role fetch of the owned row.
+    const { data: profileRow, error: profErr } = await svc
+      .from("talent_profiles")
+      .select(
+        "user_id, rating_avg, rating_count, would_book_again_pct, total_completed_bookings",
+      )
+      .eq("id", id)
+      .returns<
+        {
+          user_id: string | null;
+          rating_avg: number | null;
+          rating_count: number | null;
+          would_book_again_pct: number | null;
+          total_completed_bookings: number | null;
+        }[]
+      >()
+      .maybeSingle();
+
+    if (profErr || !profileRow) {
+      return { ok: false, error: "Profile not found." };
+    }
+    if (!profileRow.user_id || profileRow.user_id !== auth.user.id) {
+      return { ok: false, error: "You can only view your own analytics." };
+    }
+
+    const rawAvg = Number(profileRow.rating_avg ?? NaN);
+    const lifetimeAvg = Number.isFinite(rawAvg)
+      ? Math.round(rawAvg * 10) / 10
+      : null;
+
+    const ratingCount =
+      typeof profileRow.rating_count === "number" &&
+      Number.isFinite(profileRow.rating_count)
+        ? profileRow.rating_count
+        : 0;
+
+    const rawBookAgain = Number(profileRow.would_book_again_pct ?? NaN);
+    const wouldBookAgainPct = Number.isFinite(rawBookAgain)
+      ? Math.round(rawBookAgain)
+      : null;
+
+    const completedBookings =
+      typeof profileRow.total_completed_bookings === "number" &&
+      Number.isFinite(profileRow.total_completed_bookings)
+        ? profileRow.total_completed_bookings
+        : 0;
+
+    const responseRatePct =
+      completedBookings > 0
+        ? Math.round((100 * ratingCount) / completedBookings)
+        : null;
+
+    return {
+      ok: true,
+      data: {
+        lifetimeAvg,
+        ratingCount,
+        wouldBookAgainPct,
+        completedBookings,
+        responseRatePct,
+      },
+    };
+  } catch {
+    return { ok: false, error: "Could not load analytics." };
+  }
+}
+
 /**
  * Post the talent's one-time public REPLY to a received review (their public
  * right-of-reply).
