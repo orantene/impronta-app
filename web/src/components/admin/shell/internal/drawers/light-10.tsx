@@ -331,7 +331,7 @@ export function FieldCatalogDrawer() {
         </div>
       )}
       {error && !loading && (
-        <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.amber}`, fontFamily: FONTS.body, fontSize: 12.5 }} className="bg-admin-amber-soft text-admin-ink">
+        <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12.5 }} className="bg-admin-surface-alt text-admin-ink">
           {error}{" "}
           <button type="button" onClick={() => void load()} style={{
             marginLeft: 6, textDecoration: "underline", background: "none",
@@ -497,7 +497,7 @@ export function FieldCatalogDrawer() {
                                   <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">{tt("renamed")}</span>
                                 )}
                                 {required && (
-                                  <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-amber-soft text-admin-amber-deep">{tt("required")}</span>
+                                  <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-accent-soft text-admin-accent">{tt("required")}</span>
                                 )}
                               </div>
                               <div style={{ fontSize: 10.5, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
@@ -533,9 +533,9 @@ export function FieldCatalogDrawer() {
                               title={!canRequire ? tt("Agency tier sets required fields") : !f.enabled ? tt("Enable the field first") : required ? tt("Required to publish") : tt("Optional")}
                               style={{
                                 padding: "4px 10px", borderRadius: 999,
-                                border: `1px solid ${required ? COLORS.amberDeep : COLORS.border}`,
-                                background: required ? COLORS.amberSoft : "transparent",
-                                color: required ? COLORS.amberDeep : COLORS.inkDim,
+                                border: `1px solid ${required ? COLORS.accent : COLORS.border}`,
+                                background: required ? COLORS.accentSoft : "transparent",
+                                color: required ? COLORS.accent : COLORS.inkDim,
                                 fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
                                 cursor: (busy || !canRequire || !f.enabled) ? "not-allowed" : "pointer",
                                 opacity: (!canRequire || !f.enabled) ? 0.45 : 1,
@@ -712,7 +712,7 @@ export function FieldPrivacyDrawer() {
         <FieldPrivacyCount label={tt("On storefront")} count={counts.public}
           icon="🌐" tone={COLORS.successDeep} bg={COLORS.successSoft} />
         <FieldPrivacyCount label={tt("Admin-only")} count={counts.internal}
-          icon="🔒" tone={COLORS.amberDeep} bg={COLORS.amberSoft} borderLeft />
+          icon="🔒" tone={COLORS.indigoDeep} bg={COLORS.indigoSoft} borderLeft />
         <FieldPrivacyCount label={copy.isSpanish ? "Ocultos" : "Hidden"} count={counts.hidden}
           icon="–" tone={COLORS.inkMuted} bg="rgba(11,11,13,0.04)" borderLeft />
       </div>
@@ -739,7 +739,7 @@ export function FieldPrivacyDrawer() {
         </div>
       )}
       {error && !loading && (
-        <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.amber}`, fontFamily: FONTS.body, fontSize: 12.5 }} className="bg-admin-amber-soft text-admin-ink">
+        <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12.5 }} className="bg-admin-surface-alt text-admin-ink">
           {error}{" "}
           <button type="button" onClick={() => void load()} style={{
             marginLeft: 6, textDecoration: "underline", background: "none",

@@ -318,7 +318,7 @@ export function WorkspaceFieldSettingsDrawer() {
   const errorStyle: React.CSSProperties = {
     padding: 14,
     borderRadius: 10,
-    border: `1px solid ${COLORS.amber}`,
+    border: `1px solid ${COLORS.border}`,
     fontFamily: FONTS.body,
     fontSize: 12.5,
   };
@@ -327,7 +327,7 @@ export function WorkspaceFieldSettingsDrawer() {
     padding: "3px 9px",
     borderRadius: 999,
     border: "none",
-    background: COLORS.amberDeep,
+    background: COLORS.fill,
     color: "#fff",
     fontSize: 11,
     fontWeight: 700,
@@ -360,7 +360,7 @@ export function WorkspaceFieldSettingsDrawer() {
     dimmed: boolean,
   ): React.CSSProperties => ({
     borderRadius: 10,
-    border: `1px solid ${over ? COLORS.amber : COLORS.borderSoft}`,
+    border: `1px solid ${over ? COLORS.indigo : COLORS.borderSoft}`,
     background: enabled ? "#fff" : "rgba(11,11,13,0.03)",
     fontFamily: FONTS.body,
     opacity: dimmed ? 0.7 : 1,
@@ -515,7 +515,7 @@ export function WorkspaceFieldSettingsDrawer() {
           </div>
         )}
         {error && !loading && (
-          <div style={errorStyle} className="bg-admin-amber-soft text-admin-amber-deep">
+          <div style={errorStyle} className="bg-admin-surface-alt text-admin-ink">
             {error} <button type="button" onClick={() => void load()} style={retryButtonStyle}>{tt("Retry")}</button>
           </div>
         )}
@@ -590,7 +590,7 @@ export function WorkspaceFieldSettingsDrawer() {
                         <div style={fieldLabelStyle} className="text-admin-ink">
                           {f.custom_label ?? tt(f.label)}
                           {over && (
-                            <span style={customizedBadgeStyle} className="text-admin-amber-deep">· {tt("customized")}</span>
+                            <span style={customizedBadgeStyle} className="text-admin-indigo-deep">· {tt("customized")}</span>
                           )}
                         </div>
                         <div style={fieldKeyStyle} className="text-admin-ink-dim">{f.field_key}</div>
