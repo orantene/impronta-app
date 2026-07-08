@@ -26,11 +26,12 @@ import {
   updateTalentBookingTerms,
 } from "@/lib/talent/talent-booking-terms-actions";
 import {
-  REFUND_POLICY_DESCRIPTIONS,
-  REFUND_POLICY_LABELS,
+  REFUND_POLICY_DESCRIPTION_KEYS,
+  REFUND_POLICY_LABEL_KEYS,
   type RefundPolicyKey,
   type TalentBookingTerms,
 } from "@/lib/billing/commercial-terms-types";
+import { useT } from "@/i18n/use-t";
 import { COLORS, FONTS } from "../../drawer-shared";
 
 const REFUND_KEYS: RefundPolicyKey[] = ["tiered", "flexible", "strict", "manual"];
@@ -63,6 +64,7 @@ export function CommercialTermsEditor({
   talentId: string;
   readOnly?: boolean;
 }) {
+  const t = useT();
   const [terms, setTerms] = React.useState<TalentBookingTerms>(EMPTY);
   const [rateInput, setRateInput] = React.useState("");
   const [depositInput, setDepositInput] = React.useState("");
@@ -225,12 +227,12 @@ export function CommercialTermsEditor({
         >
           <option value="">No preference</option>
           {REFUND_KEYS.map((k) => (
-            <option key={k} value={k}>{REFUND_POLICY_LABELS[k]}</option>
+            <option key={k} value={k}>{t(REFUND_POLICY_LABEL_KEYS[k])}</option>
           ))}
         </select>
         <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
           {terms.refundPolicy
-            ? REFUND_POLICY_DESCRIPTIONS[terms.refundPolicy]
+            ? t(REFUND_POLICY_DESCRIPTION_KEYS[terms.refundPolicy])
             : "Falls back to the agency's policy."}
         </span>
       </label>

@@ -8,12 +8,14 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { HQ, HQ_F, HQ_FM, PlanChip, SectionLabel } from "../tenants/hq-kit";
-import { MembershipRoleChip } from "./user-chips";
+import { HQ, HQ_F, HQ_FM, PlanChip, PLAN_TIER_LABEL_KEY, SectionLabel } from "../tenants/hq-kit";
+import { MembershipRoleChip, MEMBERSHIP_ROLE_LABEL_KEY } from "./user-chips";
 import {
   removeUserFromWorkspace,
   changePlatformUserWorkspaceRole,
 } from "./actions-tier2";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import type { PlatformUserRow } from "../../platform-data";
 
 type Membership = PlatformUserRow["memberships"][number];
@@ -29,6 +31,7 @@ function MembershipRow({
   userId: string;
   onDone: () => void;
 }) {
+  const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mode, setMode] = useState<"idle" | "changeRole" | "removeConfirm">(
     "idle",
@@ -114,8 +117,8 @@ function MembershipRow({
             {m.slug}
           </div>
         </div>
-        <PlanChip plan={m.plan} />
-        <MembershipRoleChip role={m.role} />
+        <PlanChip plan={m.plan} label={PLAN_TIER_LABEL_KEY[m.plan] ? t(PLAN_TIER_LABEL_KEY[m.plan]) : undefined} />
+        <MembershipRoleChip role={m.role} label={MEMBERSHIP_ROLE_LABEL_KEY[m.role] ? t(MEMBERSHIP_ROLE_LABEL_KEY[m.role]) : undefined} />
         <button
           type="button"
           onClick={() => {
@@ -136,7 +139,7 @@ function MembershipRow({
             alignItems: "center",
             justifyContent: "center",
           }}
-          aria-label="Membership actions"
+          aria-label={t("dashboard.platform.users.memberships.actionsAria")}
         >
           ⋯
         </button>
@@ -163,7 +166,7 @@ function MembershipRow({
             }}
             style={menuButtonStyle}
           >
-            Change role
+            {t("dashboard.platform.users.memberships.changeRole")}
           </button>
           <button
             type="button"
@@ -174,7 +177,7 @@ function MembershipRow({
             }}
             style={{ ...menuButtonStyle, color: HQ.amber, borderColor: "rgba(229,181,103,0.35)" }}
           >
-            Remove
+            {t("dashboard.platform.users.memberships.remove")}
           </button>
         </div>
       )}
@@ -195,7 +198,7 @@ function MembershipRow({
               marginBottom: 8,
             }}
           >
-            Select new role for this workspace:
+            {t("dashboard.platform.users.memberships.selectNewRole")}
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
             {WORKSPACE_ROLES.map((r) => (
@@ -215,7 +218,7 @@ function MembershipRow({
                   cursor: "pointer",
                 }}
               >
-                {r.charAt(0).toUpperCase() + r.slice(1)}
+                {MEMBERSHIP_ROLE_LABEL_KEY[r] ? t(MEMBERSHIP_ROLE_LABEL_KEY[r]) : r.charAt(0).toUpperCase() + r.slice(1)}
               </button>
             ))}
           </div>
@@ -235,14 +238,14 @@ function MembershipRow({
                 cursor: status === "pending" || selectedRole === m.role ? "not-allowed" : "pointer",
               }}
             >
-              {status === "pending" ? "Saving…" : "Save"}
+              {status === "pending" ? t("dashboard.platform.users.memberships.saving") : t("dashboard.platform.users.memberships.save")}
             </button>
             <button
               type="button"
               onClick={() => setMode("idle")}
               style={{ ...menuButtonStyle, color: HQ.inkMuted }}
             >
-              Cancel
+              {t("dashboard.platform.users.memberships.cancel")}
             </button>
           </div>
         </div>
@@ -265,7 +268,7 @@ function MembershipRow({
               marginBottom: 10,
             }}
           >
-            Remove this user from <strong>{m.name}</strong>? This cannot be undone.
+            {t("dashboard.platform.users.memberships.removeConfirmPrefix")} <strong>{m.name}</strong>{t("dashboard.platform.users.memberships.removeConfirmSuffix")}
           </div>
           {errorMsg && (
             <div style={{ fontSize: 11.5, color: HQ.amber, marginBottom: 8 }}>
@@ -285,14 +288,14 @@ function MembershipRow({
                 cursor: status === "pending" ? "not-allowed" : "pointer",
               }}
             >
-              {status === "pending" ? "Removing…" : "Confirm remove"}
+              {status === "pending" ? t("dashboard.platform.users.memberships.removing") : t("dashboard.platform.users.memberships.confirmRemove")}
             </button>
             <button
               type="button"
               onClick={() => setMode("idle")}
               style={{ ...menuButtonStyle, color: HQ.inkMuted }}
             >
-              Cancel
+              {t("dashboard.platform.users.memberships.cancel")}
             </button>
           </div>
         </div>
@@ -318,6 +321,7 @@ export function WorkspaceMembershipsSection({
 }: {
   user: PlatformUserRow;
 }) {
+  const t = useT();
   const router = useRouter();
   const workspaces = user.memberships.filter((m) => m.kind === "agency");
   const hubs = user.memberships.filter((m) => m.kind === "hub");
@@ -330,9 +334,9 @@ export function WorkspaceMembershipsSection({
     <>
       {/* Workspaces */}
       <section style={{ marginBottom: 18 }}>
-        <SectionLabel>Workspaces · {workspaces.length}</SectionLabel>
+        <SectionLabel>{interpolate(t("dashboard.platform.users.memberships.workspacesLabel"), { count: workspaces.length })}</SectionLabel>
         {workspaces.length === 0 ? (
-          <EmptyState text="Not a member of any workspace." />
+          <EmptyState text={t("dashboard.platform.users.memberships.notMemberWorkspace")} />
         ) : (
           <ul
             style={{
@@ -357,9 +361,9 @@ export function WorkspaceMembershipsSection({
 
       {/* Hubs */}
       <section style={{ marginBottom: 18 }}>
-        <SectionLabel>Hubs · {hubs.length}</SectionLabel>
+        <SectionLabel>{interpolate(t("dashboard.platform.users.memberships.hubsLabel"), { count: hubs.length })}</SectionLabel>
         {hubs.length === 0 ? (
-          <EmptyState text="Not a member of any hub." />
+          <EmptyState text={t("dashboard.platform.users.memberships.notMemberHub")} />
         ) : (
           <ul
             style={{

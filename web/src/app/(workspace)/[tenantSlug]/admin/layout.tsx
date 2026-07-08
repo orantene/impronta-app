@@ -202,14 +202,17 @@ export default async function WorkspaceAdminLayout({
 
   return (
     <>
-      {/* Real-data banner sits above the prototype chrome until the
-          prototype's top-bar identity is migrated to consume the bridge.
+      {/* Real-data diagnostic banner. Dev/preview only — never ships to
+          production. It sits above the prototype chrome until the prototype's
+          top-bar identity is migrated to consume the bridge.
           See _real-identity-banner.tsx for the replacement plan. */}
-      <RealIdentityBanner
-        scope={scope}
-        user={{ id: session.user.id, email: session.user.email ?? undefined }}
-        metrics={overviewMetrics}
-      />
+      {process.env.NODE_ENV !== "production" && (
+        <RealIdentityBanner
+          scope={scope}
+          user={{ id: session.user.id, email: session.user.email ?? undefined }}
+          metrics={overviewMetrics}
+        />
+      )}
       <AdminShellClient
         tenantSlug={tenantSlug}
         initialPage={initialPage}

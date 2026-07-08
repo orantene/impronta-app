@@ -9,6 +9,8 @@
 // ════════════════════════════════════════════════════════════════════
 
 import { useState } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { COLORS, FONTS, RADIUS, useAdminShell } from "../state";
 import {
   DrawerShell,
@@ -16,6 +18,33 @@ import {
   PrimaryButton,
   SecondaryButton,
 } from "../primitives";
+
+// Review dimensions carry a stable enum key; labels/hints resolve through the
+// catalog (additive i18n pattern, English fixture kept for non-localized use).
+const REVIEW_DIMENSION_KEYS: Record<string, { label: string; hint: string }> = {
+  professionalism: {
+    label: "dashboard.talentDrawers.analytics.dimProfessionalism",
+    hint: "dashboard.talentDrawers.analytics.dimProfessionalismHint",
+  },
+  creativity: {
+    label: "dashboard.talentDrawers.analytics.dimCreativity",
+    hint: "dashboard.talentDrawers.analytics.dimCreativityHint",
+  },
+  reliability: {
+    label: "dashboard.talentDrawers.analytics.dimReliability",
+    hint: "dashboard.talentDrawers.analytics.dimReliabilityHint",
+  },
+};
+
+// Rating word per star value (index 1..5); index 0 is the unrated empty slot.
+const RATING_WORD_KEYS = [
+  "",
+  "dashboard.talentDrawers.analytics.ratePoor",
+  "dashboard.talentDrawers.analytics.rateFair",
+  "dashboard.talentDrawers.analytics.rateGood",
+  "dashboard.talentDrawers.analytics.rateGreat",
+  "dashboard.talentDrawers.analytics.rateExcellent",
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WS-8.12  Talent career analytics — "Where do my bookings actually come from?"
@@ -37,6 +66,7 @@ const CAREER_STATS = {
 
 export function TalentCareerAnalyticsDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-career-analytics";
   const s = CAREER_STATS;
   const inquiryDelta = s.inquiriesQ - s.inquiriesQPrev;
@@ -58,18 +88,18 @@ export function TalentCareerAnalyticsDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Career analytics"
-      description="Your performance at a glance — this quarter and year-to-date."
+      title={t("dashboard.talentDrawers.analytics.careerTitle")}
+      description={t("dashboard.talentDrawers.analytics.careerDesc")}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
 
         {/* Stat tiles */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {[
-            { label: "Inquiries this Q", value: s.inquiriesQ, sub: `${deltaTxt} vs last Q`, subColor: deltaColor },
-            { label: "Accept rate",       value: `${s.acceptRate}%`, sub: "of inquiries you accepted" },
-            { label: "Bookings YTD",      value: s.bookingsYTD, sub: "confirmed bookings" },
-            { label: "Avg day rate YTD",  value: `€${s.avgRateYTD.toLocaleString()}`, sub: "across all bookings" },
+            { label: t("dashboard.talentDrawers.analytics.tileInquiriesThisQ"), value: s.inquiriesQ, sub: interpolate(t("dashboard.talentDrawers.analytics.tileInquiriesThisQSub"), { delta: deltaTxt }), subColor: deltaColor },
+            { label: t("dashboard.talentDrawers.analytics.tileAcceptRate"),       value: `${s.acceptRate}%`, sub: t("dashboard.talentDrawers.analytics.tileAcceptRateSub") },
+            { label: t("dashboard.talentDrawers.analytics.tileBookingsYtd"),      value: s.bookingsYTD, sub: t("dashboard.talentDrawers.analytics.tileBookingsYtdSub") },
+            { label: t("dashboard.talentDrawers.analytics.tileAvgDayRateYtd"),  value: `€${s.avgRateYTD.toLocaleString()}`, sub: t("dashboard.talentDrawers.analytics.tileAvgDayRateYtdSub") },
           ].map((tile) => (
             <div key={tile.label} style={{
               background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
@@ -91,7 +121,7 @@ export function TalentCareerAnalyticsDrawer() {
         {/* Rate trend sparkline */}
         <div style={{ padding: "14px 16px", border: `1px solid ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
           <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }} className="text-admin-ink-muted">
-            Day-rate trend (last 7 bookings)
+            {t("dashboard.talentDrawers.analytics.rateTrendTitle")}
           </div>
           <svg width={sparkW} height={sparkH} style={{ display: "block", overflow: "visible" }}>
             <polyline
@@ -112,7 +142,7 @@ export function TalentCareerAnalyticsDrawer() {
         {/* Top clients */}
         <div>
           <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }} className="text-admin-ink-muted">
-            Top clients YTD
+            {t("dashboard.talentDrawers.analytics.topClientsTitle")}
           </div>
           <div className="flex flex-col gap-1.5">
             {s.topClients.map((c) => (
@@ -123,7 +153,7 @@ export function TalentCareerAnalyticsDrawer() {
               }}>
                 <div>
                   <div className="text-admin-ink text-admin-13 font-semibold">{c.name}</div>
-                  <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{c.bookings} bookings</div>
+                  <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{interpolate(t("dashboard.talentDrawers.analytics.clientBookings"), { count: c.bookings })}</div>
                 </div>
                 <div className="text-admin-ink text-admin-13 font-bold">
                   €{c.spend.toLocaleString()}
@@ -138,7 +168,7 @@ export function TalentCareerAnalyticsDrawer() {
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
             <Icon name="sparkle" size={13} color={COLORS.royal} stroke={1.7} />
             <span style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-royal">
-              AI Insights
+              {t("dashboard.talentDrawers.analytics.aiInsights")}
             </span>
           </div>
           <div className="flex flex-col gap-2">
@@ -146,17 +176,17 @@ export function TalentCareerAnalyticsDrawer() {
               [
                 {
                   icon: "bolt" as const,
-                  body: `7 of your last 10 inquiries were commercial. Your commercial booking rate (${s.acceptRate}%) is lower than editorial — you may be under-pricing that category.`,
+                  body: interpolate(t("dashboard.talentDrawers.analytics.aiInsightPricing"), { count: 7, rate: s.acceptRate }),
                   tone: "amber" as const,
                 },
                 {
                   icon: "star" as const,
-                  body: `Your day rate increased by €${(s.rateHistory[s.rateHistory.length - 1] - s.rateHistory[0]).toLocaleString()} over the last 7 bookings. You're trending up — consider raising your quote floor.`,
+                  body: interpolate(t("dashboard.talentDrawers.analytics.aiInsightTrend"), { amount: (s.rateHistory[s.rateHistory.length - 1] - s.rateHistory[0]).toLocaleString() }),
                   tone: "green" as const,
                 },
                 {
                   icon: "user" as const,
-                  body: `${s.topClients[0].name} accounts for ${Math.round((s.topClients[0].spend / (s.topClients.reduce((a, c) => a + c.spend, 0))) * 100)}% of your YTD revenue. Diversifying reduces scheduling risk.`,
+                  body: interpolate(t("dashboard.talentDrawers.analytics.aiInsightConcentration"), { client: s.topClients[0].name, pct: Math.round((s.topClients[0].spend / (s.topClients.reduce((a, c) => a + c.spend, 0))) * 100) }),
                   tone: "info" as const,
                 },
               ] as { icon: "bolt" | "star" | "user"; body: string; tone: "amber" | "green" | "info" }[]
@@ -200,6 +230,7 @@ const REVIEW_DIMENSIONS = [
 
 export function TalentReceiveReviewDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-receive-review";
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [comment, setComment] = useState("");
@@ -213,7 +244,7 @@ export function TalentReceiveReviewDrawer() {
       <button
         type="button"
         onClick={() => setRatings((r) => ({ ...r, [dim]: star }))}
-        aria-label={`${star} stars for ${dim}`}
+        aria-label={interpolate(t("dashboard.talentDrawers.analytics.starsFor"), { count: star, dimension: dim })}
         style={{
           background: "none", border: "none", cursor: "pointer",
           fontSize: 20, color: filled ? "#F59E0B" : COLORS.borderSoft,
@@ -227,16 +258,16 @@ export function TalentReceiveReviewDrawer() {
 
   if (submitted) {
     return (
-      <DrawerShell open={open} onClose={closeDrawer} title="Review submitted">
+      <DrawerShell open={open} onClose={closeDrawer} title={t("dashboard.talentDrawers.analytics.reviewSubmittedTitle")}>
         <div style={{ textAlign: "center", padding: "32px 20px", fontFamily: FONTS.body }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🌟</div>
           <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }} className="text-admin-ink">
-            Thanks for the feedback!
+            {t("dashboard.talentDrawers.analytics.reviewThanks")}
           </div>
           <div className="text-admin-ink-muted text-admin-13">
-            Your review helps other coordinators know what it&apos;s like working with you.
+            {t("dashboard.talentDrawers.analytics.reviewThanksBody")}
           </div>
-          <div className="mt-5"><PrimaryButton onClick={closeDrawer}>Done</PrimaryButton></div>
+          <div className="mt-5"><PrimaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.done")}</PrimaryButton></div>
         </div>
       </DrawerShell>
     );
@@ -246,35 +277,35 @@ export function TalentReceiveReviewDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Review from client"
-      description="H&M Campaign · May 2026 shoot · 1 day"
+      title={t("dashboard.talentDrawers.analytics.reviewFromClientTitle")}
+      description={t("dashboard.talentDrawers.analytics.reviewFromClientDesc")}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Skip</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.analytics.skip")}</SecondaryButton>
           <PrimaryButton
             disabled={!allRated}
             onClick={() => { setSubmitted(true); }}
           >
-            Publish review
+            {t("dashboard.talentDrawers.analytics.publishReview")}
           </PrimaryButton>
         </>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
         <div style={{ padding: "12px 14px", border: `1px solid ${COLORS.border}`, fontSize: 13 }} className="bg-admin-surface-alt rounded-admin-lg text-admin-ink-muted">
-          A client has left a review of your performance. Once you publish it, it will appear on your public profile.
+          {t("dashboard.talentDrawers.analytics.reviewIntro")}
         </div>
 
         {/* Dimension ratings */}
         {REVIEW_DIMENSIONS.map((d) => (
           <div key={d.key} style={{ borderBottom: `1px solid ${COLORS.borderSoft}`, paddingBottom: 12 }}>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }} className="text-admin-ink">{d.label}</div>
-            <div style={{ fontSize: 11.5, marginBottom: 6 }} className="text-admin-ink-muted">{d.hint}</div>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }} className="text-admin-ink">{t(REVIEW_DIMENSION_KEYS[d.key].label)}</div>
+            <div style={{ fontSize: 11.5, marginBottom: 6 }} className="text-admin-ink-muted">{t(REVIEW_DIMENSION_KEYS[d.key].hint)}</div>
             <div className="flex gap-0.5">
               {[1, 2, 3, 4, 5].map((s) => <Star key={s} dim={d.key} star={s} />)}
               {ratings[d.key] && (
                 <span style={{ marginLeft: 6, fontSize: 12, alignSelf: "center" }} className="text-admin-ink-muted">
-                  {["", "Poor", "Fair", "Good", "Great", "Excellent"][ratings[d.key] ?? 0]}
+                  {(() => { const key = RATING_WORD_KEYS[ratings[d.key] ?? 0]; return key ? t(key) : ""; })()}
                 </span>
               )}
             </div>
@@ -283,7 +314,7 @@ export function TalentReceiveReviewDrawer() {
 
         {/* Written comment */}
         <div>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }} className="text-admin-ink">Client&apos;s written feedback</div>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }} className="text-admin-ink">{t("dashboard.talentDrawers.analytics.writtenFeedback")}</div>
           <div style={{ padding: "12px 14px", background: "#fff", border: `1px solid ${COLORS.border}`, fontSize: 13, lineHeight: 1.6, fontStyle: "italic" }} className="rounded-admin-md text-admin-ink">
             &ldquo;Sofia was fantastic — arrived on time, full of ideas, and made the team feel comfortable immediately. Would book again without hesitation.&rdquo;
           </div>
@@ -305,6 +336,7 @@ const AGENCY_STATS = [
 
 export function TalentAgencyAnalyticsDrawer() {
   const { state, closeDrawer, openDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-agency-analytics";
   const totalRevenue = AGENCY_STATS.reduce((s, a) => s + a.revenue, 0);
   const totalBookings = AGENCY_STATS.reduce((s, a) => s + a.bookings, 0);
@@ -313,25 +345,25 @@ export function TalentAgencyAnalyticsDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Agency analytics"
-      description="Which agencies are driving the most bookings for you, year-to-date."
+      title={t("dashboard.talentDrawers.analytics.agencyAnalyticsTitle")}
+      description={t("dashboard.talentDrawers.analytics.agencyAnalyticsDesc")}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
 
         {/* Summary row */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {[
-            { label: "Total bookings YTD",  value: totalBookings },
-            { label: "Total revenue YTD",   value: `€${totalRevenue.toLocaleString()}` },
-          ].map((t) => (
-            <div key={t.label} style={{
+            { label: t("dashboard.talentDrawers.analytics.totalBookingsYtd"),  value: totalBookings },
+            { label: t("dashboard.talentDrawers.analytics.totalRevenueYtd"),   value: `€${totalRevenue.toLocaleString()}` },
+          ].map((tile) => (
+            <div key={tile.label} style={{
               background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
               padding: "12px 14px", border: `1px solid ${COLORS.border}`,
             }}>
               <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }} className="text-admin-ink-muted">
-                {t.label}
+                {tile.label}
               </div>
-              <div className="text-admin-ink text-admin-22 font-extrabold">{t.value}</div>
+              <div className="text-admin-ink text-admin-22 font-extrabold">{tile.value}</div>
             </div>
           ))}
         </div>
@@ -368,16 +400,16 @@ export function TalentAgencyAnalyticsDrawer() {
                     fontSize: 12, color: COLORS.accent, fontFamily: FONTS.body,
                   }}
                 >
-                  View →
+                  {t("dashboard.talentDrawers.analytics.viewAgency")} →
                 </button>
               </div>
 
               {/* Stats */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
                 {[
-                  { label: "Bookings",    value: `${a.bookings} (${pct}%)` },
-                  { label: "Revenue",     value: `€${a.revenue.toLocaleString()}` },
-                  { label: "Accept rate", value: `${a.acceptRate}%` },
+                  { label: t("dashboard.talentDrawers.analytics.statBookings"),    value: `${a.bookings} (${pct}%)` },
+                  { label: t("dashboard.talentDrawers.analytics.statRevenue"),     value: `€${a.revenue.toLocaleString()}` },
+                  { label: t("dashboard.talentDrawers.analytics.statAcceptRate"), value: `${a.acceptRate}%` },
                 ].map((stat, j) => (
                   <div key={stat.label} style={{
                     padding: "10px 14px", textAlign: "center",
@@ -399,7 +431,7 @@ export function TalentAgencyAnalyticsDrawer() {
                   <div style={{ '--progress-w': `${pct}%`, '--progress-bg': [COLORS.accent, "#3B82F6", "#8B5CF6"][i] ?? COLORS.ink }} className="w-[var(--progress-w)] h-full rounded-full bg-[var(--progress-bg)]" />
                 </div>
                 <div style={{ fontSize: 10.5, marginTop: 3 }} className="text-admin-ink-muted">
-                  {pct}% of total bookings
+                  {interpolate(t("dashboard.talentDrawers.analytics.shareOfBookings"), { pct })}
                 </div>
               </div>
             </div>

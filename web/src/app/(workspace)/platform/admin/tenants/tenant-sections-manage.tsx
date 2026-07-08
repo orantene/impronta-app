@@ -8,7 +8,15 @@
  */
 
 import { useState, useTransition } from "react";
-import { HQ, HQ_FM, Chip, PlanChip, RoleChip } from "./hq-kit";
+import {
+  HQ,
+  HQ_FM,
+  Chip,
+  PlanChip,
+  RoleChip,
+  PLAN_TIER_LABEL_KEY,
+  WORKSPACE_ROLE_LABEL_KEY,
+} from "./hq-kit";
 import {
   Accordion,
   Btn,
@@ -40,6 +48,25 @@ import {
   actionRemoveWorkspaceMember,
   actionTransferWorkspaceOwner,
 } from "./actions";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+
+function planChipLabel(t: Translate, plan: string): string | undefined {
+  const key = PLAN_TIER_LABEL_KEY[plan];
+  return key ? t(key) : undefined;
+}
+
+function planText(t: Translate, plan: string): string {
+  const key = PLAN_TIER_LABEL_KEY[plan];
+  return key ? t(key) : PLAN_TIER_LABEL[plan as WorkspacePlanTier] ?? plan;
+}
+
+function roleChipLabel(t: Translate, role: string): string | undefined {
+  const key = WORKSPACE_ROLE_LABEL_KEY[role];
+  return key ? t(key) : undefined;
+}
 
 // ─── D + E. Members & admin role management ──────────────────────────────────
 
@@ -52,6 +79,7 @@ function MemberRow({
   member: TenantManagementMember;
   onChanged: OnChanged;
 }) {
+  const t = useT();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(
     null,
@@ -67,7 +95,7 @@ function MemberRow({
         setConfirm(null);
         await onChanged();
       } else {
-        setMsg({ tone: "err", text: res.error ?? "Action failed." });
+        setMsg({ tone: "err", text: res.error ?? t("dashboard.platform.tenants.actionFailed") });
         setConfirm(null);
       }
     });
@@ -99,10 +127,10 @@ function MemberRow({
           </div>
         </div>
         {isOwner ? (
-          <RoleChip role="owner" />
+          <RoleChip role="owner" label={roleChipLabel(t, "owner")} />
         ) : (
           <select
-            aria-label={`Role for ${member.displayName}`}
+            aria-label={interpolate(t("dashboard.platform.tenants.roleForMember"), { name: member.displayName })}
             value={member.role}
             disabled={pending}
             onChange={(e) =>
@@ -117,7 +145,7 @@ function MemberRow({
           >
             {["admin", "manager", "editor", "viewer"].map((r) => (
               <option key={r} value={r}>
-                {r}
+                {roleChipLabel(t, r) ?? r}
               </option>
             ))}
           </select>
@@ -138,12 +166,12 @@ function MemberRow({
           </Chip>
         )}
         <span style={{ fontSize: 10.5, color: HQ.inkDim }}>
-          joined {member.joinedAtLabel}
+          {interpolate(t("dashboard.platform.tenants.joined"), { when: member.joinedAtLabel })}
         </span>
         <span style={{ flex: 1 }} />
         {!isOwner && member.status === "active" && (
           <Btn size="sm" onClick={() => setConfirm("transfer")} disabled={pending}>
-            ⤴ Make owner
+            {t("dashboard.platform.tenants.makeOwner")}
           </Btn>
         )}
         {!isOwner && (
@@ -153,21 +181,19 @@ function MemberRow({
             onClick={() => setConfirm("remove")}
             disabled={pending}
           >
-            Remove
+            {t("dashboard.platform.tenants.remove")}
           </Btn>
         )}
       </div>
       <Feedback msg={msg} />
       <ConfirmModal
         open={confirm === "remove"}
-        title="Remove member"
-        body={
-          <>
-            Remove <strong>{member.displayName}</strong> from{" "}
-            <strong>{detail.name}</strong>? They lose all workspace access.
-          </>
-        }
-        confirmLabel="Remove member"
+        title={t("dashboard.platform.tenants.removeMemberTitle")}
+        body={interpolate(t("dashboard.platform.tenants.removeMemberBody"), {
+          name: member.displayName,
+          workspace: detail.name,
+        })}
+        confirmLabel={t("dashboard.platform.tenants.removeMemberConfirm")}
         pending={pending}
         onCancel={() => setConfirm(null)}
         onConfirm={() =>
@@ -178,15 +204,12 @@ function MemberRow({
       />
       <ConfirmModal
         open={confirm === "transfer"}
-        title="Transfer ownership"
-        body={
-          <>
-            Make <strong>{member.displayName}</strong> the owner of{" "}
-            <strong>{detail.name}</strong>? The current owner becomes an admin.
-            Ownership carries billing responsibility.
-          </>
-        }
-        confirmLabel="Transfer ownership"
+        title={t("dashboard.platform.tenants.transferOwnershipTitle")}
+        body={interpolate(t("dashboard.platform.tenants.transferOwnershipBody"), {
+          name: member.displayName,
+          workspace: detail.name,
+        })}
+        confirmLabel={t("dashboard.platform.tenants.transferOwnershipConfirm")}
         pending={pending}
         onCancel={() => setConfirm(null)}
         onConfirm={() =>
@@ -209,6 +232,7 @@ function AddMemberForm({
   detail: TenantManagementDetail;
   onChanged: OnChanged;
 }) {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("editor");
   const [pending, start] = useTransition();
@@ -226,7 +250,7 @@ function AddMemberForm({
       });
       if (res.ok) {
         setEmail("");
-        setMsg({ tone: "ok", text: "Member added." });
+        setMsg({ tone: "ok", text: t("dashboard.platform.tenants.memberAdded") });
         await onChanged();
       } else {
         setMsg({ tone: "err", text: res.error });
@@ -254,12 +278,12 @@ function AddMemberForm({
           marginBottom: 8,
         }}
       >
-        Add staff member
+        {t("dashboard.platform.tenants.addStaffMember")}
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <input
           type="email"
-          placeholder="member@email.com"
+          placeholder={t("dashboard.platform.tenants.addMemberPlaceholder")}
           value={email}
           disabled={pending}
           onChange={(e) => setEmail(e.target.value)}
@@ -273,17 +297,16 @@ function AddMemberForm({
         >
           {["admin", "manager", "editor", "viewer"].map((r) => (
             <option key={r} value={r}>
-              {r}
+              {roleChipLabel(t, r) ?? r}
             </option>
           ))}
         </select>
         <Btn tone="primary" onClick={submit} disabled={pending || !email.trim()}>
-          {pending ? "Adding…" : "Add"}
+          {pending ? t("dashboard.platform.tenants.adding") : t("dashboard.platform.tenants.add")}
         </Btn>
       </div>
       <p style={{ fontSize: 10.5, color: HQ.inkDim, margin: "8px 0 0" }}>
-        The person must already have a Tulala account. Use Transfer ownership to
-        assign the owner role.
+        {t("dashboard.platform.tenants.addMemberNote")}
       </p>
       <Feedback msg={msg} />
     </div>
@@ -297,6 +320,7 @@ function AssignOwnerForm({
   detail: TenantManagementDetail;
   onChanged: OnChanged;
 }) {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
@@ -307,7 +331,7 @@ function AssignOwnerForm({
       const res = await actionAssignOwnerByEmail({ tenantId: detail.id, email });
       if (res.ok) {
         setEmail("");
-        setMsg({ tone: "ok", text: "Owner assigned." });
+        setMsg({ tone: "ok", text: t("dashboard.platform.tenants.ownerAssigned") });
         await onChanged();
       } else {
         setMsg({ tone: "err", text: res.error });
@@ -335,12 +359,12 @@ function AssignOwnerForm({
           marginBottom: 6,
         }}
       >
-        No owner — assign one
+        {t("dashboard.platform.tenants.noOwnerAssignOne")}
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <input
           type="email"
-          placeholder="owner@email.com"
+          placeholder={t("dashboard.platform.tenants.assignOwnerPlaceholder")}
           value={email}
           disabled={pending}
           onChange={(e) => setEmail(e.target.value)}
@@ -351,11 +375,11 @@ function AssignOwnerForm({
           onClick={submit}
           disabled={pending || !email.trim()}
         >
-          {pending ? "Assigning…" : "Assign as owner"}
+          {pending ? t("dashboard.platform.tenants.assigning") : t("dashboard.platform.tenants.assignAsOwner")}
         </Btn>
       </div>
       <p style={{ fontSize: 10.5, color: HQ.inkDim, margin: "6px 0 0" }}>
-        Creates a new membership at owner level. The person must have a Tulala account.
+        {t("dashboard.platform.tenants.assignOwnerNote")}
       </p>
       <Feedback msg={msg} />
     </div>
@@ -363,12 +387,13 @@ function AssignOwnerForm({
 }
 
 export function MembersSection({ detail, onChanged, defaultOpen }: SectionProps) {
+  const t = useT();
   const hasOwner = detail.members.some((m) => m.role === "owner" && m.status === "active");
   return (
     <Accordion
-      title="Members & roles"
+      title={t("dashboard.platform.tenants.sectionMembers")}
       hint={`${detail.members.length}`}
-      trailing={!hasOwner ? <span style={{ fontSize: 10.5, color: HQ.red, fontWeight: 600 }}>no owner</span> : null}
+      trailing={!hasOwner ? <span style={{ fontSize: 10.5, color: HQ.red, fontWeight: 600 }}>{t("dashboard.platform.tenants.noOwnerBadge")}</span> : null}
       defaultOpen={defaultOpen ?? true}
     >
       <div style={{ paddingTop: 4 }}>
@@ -377,7 +402,7 @@ export function MembersSection({ detail, onChanged, defaultOpen }: SectionProps)
         )}
         {detail.members.length === 0 ? (
           <div style={{ padding: "12px 0", fontSize: 12.5, color: HQ.inkMuted }}>
-            No members yet.
+            {t("dashboard.platform.tenants.noMembersYet")}
           </div>
         ) : (
           detail.members.map((m) => (
@@ -398,7 +423,22 @@ export function MembersSection({ detail, onChanged, defaultOpen }: SectionProps)
 // ─── F. Plan override ────────────────────────────────────────────────────────
 
 function OverrideCard({ override }: { override: WorkspacePlanOverride }) {
+  const t = useT();
   const d = daysUntil(override.expiresAt);
+  const expiresLine = override.expiresAt
+    ? `${interpolate(t("dashboard.platform.tenants.overrideExpires"), { date: fmtDate(override.expiresAt) })}${
+        d !== null && d >= 0
+          ? ` · ${interpolate(
+              t(
+                d === 1
+                  ? "dashboard.platform.tenants.overrideDaysLeftOne"
+                  : "dashboard.platform.tenants.overrideDaysLeftOther",
+              ),
+              { count: d },
+            )}`
+          : ""
+      }`
+    : t("dashboard.platform.tenants.overrideNoExpiry");
   return (
     <div
       style={{
@@ -409,35 +449,29 @@ function OverrideCard({ override }: { override: WorkspacePlanOverride }) {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <PlanChip plan={override.overridePlanTier} />
+        <PlanChip plan={override.overridePlanTier} label={planChipLabel(t, override.overridePlanTier)} />
         <span style={{ fontSize: 12, color: HQ.ink, fontWeight: 600 }}>
-          override active
+          {t("dashboard.platform.tenants.overrideActiveShort")}
         </span>
         <span style={{ flex: 1 }} />
-        <Chip outline>from {PLAN_TIER_LABEL[override.basePlanTier]}</Chip>
+        <Chip outline>{interpolate(t("dashboard.platform.tenants.overrideFrom"), { plan: planText(t, override.basePlanTier) })}</Chip>
       </div>
       <div style={{ marginTop: 6, fontSize: 11.5, color: HQ.inkMuted }}>
-        {override.expiresAt ? (
-          <>
-            Expires {fmtDate(override.expiresAt)}
-            {d !== null && d >= 0 ? ` · ${d} day${d === 1 ? "" : "s"} left` : ""}
-          </>
-        ) : (
-          "No expiry — indefinite grant"
-        )}
+        {expiresLine}
       </div>
       {override.reason && (
         <div style={{ marginTop: 4, fontSize: 11.5, color: HQ.inkMuted }}>
-          Reason: {override.reason}
+          {interpolate(t("dashboard.platform.tenants.overrideReason"), { reason: override.reason })}
         </div>
       )}
       <div style={{ marginTop: 4, fontSize: 10.5, color: HQ.inkDim }}>
-        Granted by {override.createdByName ?? "platform admin"} ·{" "}
-        {fmtDate(override.createdAt)}
+        {interpolate(t("dashboard.platform.tenants.overrideGrantedBy"), {
+          name: override.createdByName ?? t("dashboard.platform.tenants.overridePlatformAdmin"),
+          date: fmtDate(override.createdAt),
+        })}
       </div>
       <div style={{ marginTop: 6, fontSize: 10.5, color: HQ.inkDim }}>
-        On expiry the workspace returns to {PLAN_TIER_LABEL[override.basePlanTier]}{" "}
-        unless a paid subscription exists.
+        {interpolate(t("dashboard.platform.tenants.overrideReturnsTo"), { plan: planText(t, override.basePlanTier) })}
       </div>
     </div>
   );
@@ -448,6 +482,7 @@ export function PlanOverrideSection({
   onChanged,
   defaultOpen,
 }: SectionProps) {
+  const t = useT();
   const { override } = detail;
   const [tier, setTier] = useState<WorkspacePlanTier>("studio");
   const [grantKind, setGrantKind] = useState<"comp" | "trial" | "promo">("comp");
@@ -475,7 +510,7 @@ export function PlanOverrideSection({
         note,
       });
       if (res.ok) {
-        setMsg({ tone: "ok", text: "Override applied." });
+        setMsg({ tone: "ok", text: t("dashboard.platform.tenants.overrideApplied") });
         setReason("");
         setNote("");
         await onChanged();
@@ -501,9 +536,9 @@ export function PlanOverrideSection({
 
   return (
     <Accordion
-      title="Plan override"
+      title={t("dashboard.platform.tenants.sectionPlanOverride")}
       trailing={
-        override ? <Chip bg={HQ.greenSoft} color={HQ.green}>Active</Chip> : null
+        override ? <Chip bg={HQ.greenSoft} color={HQ.green}>{t("dashboard.platform.tenants.active")}</Chip> : null
       }
       defaultOpen={defaultOpen ?? Boolean(override)}
     >
@@ -513,10 +548,10 @@ export function PlanOverrideSection({
             <OverrideCard override={override} />
             <div style={{ display: "flex", gap: 8 }}>
               <Btn tone="danger" onClick={() => setConfirmRemove(true)} disabled={pending}>
-                Remove override
+                {t("dashboard.platform.tenants.removeOverride")}
               </Btn>
               <Btn onClick={() => setShowForm((v) => !v)} disabled={pending}>
-                {showForm ? "Cancel replace" : "Replace override"}
+                {showForm ? t("dashboard.platform.tenants.cancelReplace") : t("dashboard.platform.tenants.replaceOverride")}
               </Btn>
             </div>
           </>
@@ -543,25 +578,25 @@ export function PlanOverrideSection({
                 color: HQ.inkDim,
               }}
             >
-              {override ? "Replace with a new override" : "Grant a plan override"}
+              {override ? t("dashboard.platform.tenants.replaceWithNew") : t("dashboard.platform.tenants.grantOverride")}
             </div>
             <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-              Grant plan
+              {t("dashboard.platform.tenants.grantPlan")}
               <select
                 value={tier}
                 disabled={pending}
                 onChange={(e) => setTier(e.target.value as WorkspacePlanTier)}
                 style={{ ...inputStyle, marginTop: 3 }}
               >
-                {WORKSPACE_PLAN_TIERS.map((t) => (
-                  <option key={t} value={t}>
-                    {PLAN_TIER_LABEL[t]}
+                {WORKSPACE_PLAN_TIERS.map((pt) => (
+                  <option key={pt} value={pt}>
+                    {planText(t, pt)}
                   </option>
                 ))}
               </select>
             </label>
             <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-              Grant type
+              {t("dashboard.platform.tenants.grantType")}
               <select
                 value={grantKind}
                 disabled={pending}
@@ -575,9 +610,9 @@ export function PlanOverrideSection({
                 }}
                 style={{ ...inputStyle, marginTop: 3 }}
               >
-                <option value="comp">Comp — silent courtesy grant</option>
-                <option value="trial">Trial — countdown + upgrade nudge</option>
-                <option value="promo">Promo — silent promotional grant</option>
+                <option value="comp">{t("dashboard.platform.tenants.grantComp")}</option>
+                <option value="trial">{t("dashboard.platform.tenants.grantTrial")}</option>
+                <option value="promo">{t("dashboard.platform.tenants.grantPromo")}</option>
               </select>
             </label>
             {grantKind === "trial" && (
@@ -589,14 +624,11 @@ export function PlanOverrideSection({
                   margin: "-2px 0 0",
                 }}
               >
-                The workspace sees a live countdown in its plan badge, an
-                &ldquo;expiring soon&rdquo; warning in the final week, and a
-                restore-this-plan nudge for two weeks after it ends. Choose a
-                bounded duration below — a trial can&rsquo;t be indefinite.
+                {t("dashboard.platform.tenants.trialHint")}
               </p>
             )}
             <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-              Duration
+              {t("dashboard.platform.tenants.duration")}
               <select
                 value={duration}
                 disabled={pending}
@@ -612,7 +644,7 @@ export function PlanOverrideSection({
             </label>
             {duration === "custom" && (
               <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-                Custom expiry date
+                {t("dashboard.platform.tenants.customExpiryDate")}
                 <input
                   type="date"
                   value={customDate}
@@ -623,10 +655,10 @@ export function PlanOverrideSection({
               </label>
             )}
             <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-              Reason
+              {t("dashboard.platform.tenants.reason")}
               <input
                 type="text"
-                placeholder="e.g. 6-month founder comp"
+                placeholder={t("dashboard.platform.tenants.reasonPlaceholder")}
                 value={reason}
                 disabled={pending}
                 onChange={(e) => setReason(e.target.value)}
@@ -634,7 +666,7 @@ export function PlanOverrideSection({
               />
             </label>
             <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-              Internal note (optional)
+              {t("dashboard.platform.tenants.internalNoteOptional")}
               <input
                 type="text"
                 value={note}
@@ -644,12 +676,10 @@ export function PlanOverrideSection({
               />
             </label>
             <Btn tone="primary" onClick={apply} disabled={pending}>
-              {pending ? "Applying…" : override ? "Replace override" : "Apply override"}
+              {pending ? t("dashboard.platform.tenants.applying") : override ? t("dashboard.platform.tenants.replaceOverride") : t("dashboard.platform.tenants.applyOverride")}
             </Btn>
             <p style={{ fontSize: 10.5, color: HQ.inkDim, margin: 0 }}>
-              The granted plan is mirrored onto the workspace immediately — its
-              dashboard, billing page and plan gates all switch to the new tier.
-              Base plan, expiry and author are recorded for a clean reversal.
+              {t("dashboard.platform.tenants.overrideMirrorNote")}
             </p>
           </div>
         )}
@@ -666,7 +696,7 @@ export function PlanOverrideSection({
                 margin: "4px 0 4px",
               }}
             >
-              Override history
+              {t("dashboard.platform.tenants.overrideHistory")}
             </div>
             {detail.overrideHistory.map((o) => (
               <div
@@ -681,7 +711,7 @@ export function PlanOverrideSection({
                   color: HQ.inkMuted,
                 }}
               >
-                <PlanChip plan={o.overridePlanTier} />
+                <PlanChip plan={o.overridePlanTier} label={planChipLabel(t, o.overridePlanTier)} />
                 <span>{o.status}</span>
                 <span style={{ flex: 1 }} />
                 <span style={{ color: HQ.inkDim }}>
@@ -697,20 +727,17 @@ export function PlanOverrideSection({
 
       <ConfirmModal
         open={confirmRemove}
-        title="Remove plan override"
+        title={t("dashboard.platform.tenants.removeOverrideTitle")}
         body={
-          override ? (
-            <>
-              Remove the {PLAN_TIER_LABEL[override.overridePlanTier]} override on{" "}
-              <strong>{detail.name}</strong>? It returns to{" "}
-              {PLAN_TIER_LABEL[override.basePlanTier]} (or its paid subscription
-              plan, if any).
-            </>
-          ) : (
-            ""
-          )
+          override
+            ? interpolate(t("dashboard.platform.tenants.removeOverrideBody"), {
+                plan: planText(t, override.overridePlanTier),
+                workspace: detail.name,
+                base: planText(t, override.basePlanTier),
+              })
+            : ""
         }
-        confirmLabel="Remove override"
+        confirmLabel={t("dashboard.platform.tenants.removeOverride")}
         pending={pending}
         onCancel={() => setConfirmRemove(false)}
         onConfirm={remove}

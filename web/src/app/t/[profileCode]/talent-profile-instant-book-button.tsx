@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation";
 import { Zap, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 import { getTalentProfileInquireData } from "./talent-profile-inquire-data";
 import { createInstantBookingAction } from "@/lib/server-actions/instant-book-action";
 import { trackProductEvent } from "@/lib/analytics/track-client";
@@ -29,6 +31,8 @@ type Props = {
   sourcePage: string;
   fixedRateDollars: number;
   currencyCode: string;
+  /** Resolved page locale (from getRequestLocale on the profile page). */
+  locale: string;
   className?: string;
 };
 
@@ -47,8 +51,10 @@ export function TalentProfileInstantBookButton({
   sourcePage,
   fixedRateDollars,
   currencyCode,
+  locale,
   className,
 }: Props) {
+  const t = createTranslator(locale);
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pov, setPov] = useState<"client" | "guest" | null>(null);
@@ -105,7 +111,7 @@ export function TalentProfileInstantBookButton({
     <>
       <Button type="button" onClick={handleOpen} className={className}>
         <Zap className="mr-1.5 h-4 w-4" aria-hidden />
-        Book now — {priceLabel}
+        {interpolate(t("public.profileCta.bookNowPrice"), { price: priceLabel })}
       </Button>
 
       {open ? (
@@ -120,12 +126,14 @@ export function TalentProfileInstantBookButton({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-start justify-between">
-              <h2 className="text-lg font-semibold">Book {firstName} instantly</h2>
+              <h2 className="text-lg font-semibold">
+                {interpolate(t("public.profileCta.bookInstantly"), { name: firstName })}
+              </h2>
               <button
                 type="button"
                 onClick={() => !submitting && setOpen(false)}
                 className="rounded p-1 text-neutral-400 hover:text-neutral-700"
-                aria-label="Close"
+                aria-label={t("public.profileCta.closeAria")}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -134,27 +142,26 @@ export function TalentProfileInstantBookButton({
             {pov === "guest" ? (
               <div className="space-y-3">
                 <p className="text-sm text-neutral-600">
-                  Instant booking needs an account so we can confirm your booking and payment. Sign in, then press
-                  Book now again — or use the Inquire option to send a message first.
+                  {t("public.profileCta.instantNeedsAccount")}
                 </p>
                 <Button type="button" className="w-full" onClick={() => router.push(`/login?next=${encodeURIComponent(sourcePage)}`)}>
-                  Sign in to book
+                  {t("public.profileCta.signInToBook")}
                 </Button>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="rounded-lg bg-neutral-50 p-3 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-neutral-600">Total</span>
+                    <span className="text-neutral-600">{t("public.profileCta.total")}</span>
                     <span className="font-semibold">{priceLabel}</span>
                   </div>
                   <p className="mt-1 text-xs text-neutral-500">
-                    Confirms the booking with {firstName} at their fixed rate. You&apos;ll complete payment on the next screen.
+                    {interpolate(t("public.profileCta.instantConfirmNote"), { name: firstName })}
                   </p>
                 </div>
 
                 <label className="block text-sm">
-                  <span className="mb-1 block text-neutral-600">Event date (optional)</span>
+                  <span className="mb-1 block text-neutral-600">{t("public.profileCta.eventDateOptional")}</span>
                   <input
                     type="date"
                     value={eventDate}
@@ -166,7 +173,9 @@ export function TalentProfileInstantBookButton({
                 {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
                 <Button type="button" className="w-full" disabled={submitting} onClick={handleConfirm}>
-                  {submitting ? "Booking…" : `Confirm & book — ${priceLabel}`}
+                  {submitting
+                    ? t("public.profileCta.booking")
+                    : interpolate(t("public.profileCta.confirmAndBook"), { price: priceLabel })}
                 </Button>
               </div>
             )}

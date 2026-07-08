@@ -7,6 +7,8 @@
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { COLORS, EARNINGS_ROWS, FONTS, useAdminShell } from "../state";
 import {
   Avatar,
@@ -25,6 +27,7 @@ import { KvRow, SectionLabel } from "./shared";
 
 export function TalentClosedBookingDrawer() {
   const { state, closeDrawer, openDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-closed-booking";
   const earningId = (state.drawer.payload?.earningId as string) ?? "e1";
   const e = EARNINGS_ROWS.find((x) => x.id === earningId) ?? EARNINGS_ROWS[0]!;
@@ -54,7 +57,7 @@ export function TalentClosedBookingDrawer() {
       open={open}
       onClose={closeDrawer}
       title={`${e.client} · ${detail.brief}`}
-      description={`Closed booking · worked ${e.workDate} · paid ${e.payoutDate}`}
+      description={interpolate(t("dashboard.talentDrawers.closedBooking.titleSuffix"), { workDate: e.workDate, payoutDate: e.payoutDate })}
       width={580}
       footer={
         <>
@@ -73,7 +76,7 @@ export function TalentClosedBookingDrawer() {
               cursor: prev ? "pointer" : "not-allowed",
             }}
           >
-            ← Newer
+            ← {t("dashboard.talentDrawers.closedBooking.newer")}
           </button>
           <button
             type="button"
@@ -90,13 +93,13 @@ export function TalentClosedBookingDrawer() {
               cursor: next ? "pointer" : "not-allowed",
             }}
           >
-            Older →
+            {t("dashboard.talentDrawers.closedBooking.older")} →
           </button>
           <div style={{ flex: 1 }} />
           <SecondaryButton onClick={() => openDrawer("talent-chat-archive")}>
-            📄 Archive thread
+            📄 {t("dashboard.talentDrawers.closedBooking.archiveThread")}
           </SecondaryButton>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
         </>
       }
     >
@@ -117,7 +120,7 @@ export function TalentClosedBookingDrawer() {
         }}
       >
         <Icon name="lock" size={12} stroke={1.7} />
-        <span>Archived · paid {e.payoutDate}. Read-only.</span>
+        <span>{interpolate(t("dashboard.talentDrawers.closedBooking.archivedBanner"), { payoutDate: e.payoutDate })}</span>
         <span style={{ marginLeft: "auto", fontWeight: 600 }} className="text-admin-ink">
           {e.amount}
         </span>
@@ -141,12 +144,12 @@ export function TalentClosedBookingDrawer() {
         {e.broughtTeam && e.team && e.team.length > 0 && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 8px", borderRadius: 999, fontWeight: 600, fontSize: 11 }} className="bg-admin-coral-soft text-admin-coral-deep">
             <Icon name="user" size={10} stroke={1.8} />
-            You brought {e.team.join(", ")}
+            {interpolate(t("dashboard.talentDrawers.closedBooking.youBrought"), { names: e.team.join(", ") })}
           </span>
         )}
         {!e.team || e.team.length === 0 ? (
           <span style={{ padding: "3px 8px", borderRadius: 999, background: "rgba(11,11,13,0.05)", fontWeight: 500, fontSize: 11 }} className="text-admin-ink-muted">
-            Solo
+            {t("dashboard.talentDrawers.closedBooking.solo")}
           </span>
         ) : null}
       </div>
@@ -171,7 +174,7 @@ export function TalentClosedBookingDrawer() {
         >
           <Icon name="check" size={12} stroke={1.7} color={COLORS.green} />
           <span style={{ fontWeight: 500 }} className="text-admin-success-deep">
-            Booking #{sameClient.length} with {e.client} · {lifetimeLabel} lifetime
+            {interpolate(t("dashboard.talentDrawers.closedBooking.repeatSignal"), { count: sameClient.length, client: e.client, amount: lifetimeLabel })}
           </span>
         </div>
       )}
@@ -179,19 +182,19 @@ export function TalentClosedBookingDrawer() {
       <div className="flex flex-col gap-4">
         {/* Booking facts */}
         <section>
-          <SectionLabel>Booking</SectionLabel>
+          <SectionLabel>{t("dashboard.talentDrawers.closedBooking.sectionBooking")}</SectionLabel>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-            <KvRow label="Date worked" value={e.workDate} />
-            <KvRow label="Location" value={detail.location} />
-            <KvRow label="Call time" value={detail.call} />
-            <KvRow label="Agency" value={e.agency} />
-            <KvRow label="Fee paid" value={e.amount} />
+            <KvRow label={t("dashboard.talentDrawers.closedBooking.labelDateWorked")} value={e.workDate} />
+            <KvRow label={t("dashboard.talentDrawers.closedBooking.labelLocation")} value={detail.location} />
+            <KvRow label={t("dashboard.talentDrawers.closedBooking.labelCallTime")} value={detail.call} />
+            <KvRow label={t("dashboard.talentDrawers.closedBooking.labelAgency")} value={e.agency} />
+            <KvRow label={t("dashboard.talentDrawers.closedBooking.labelFeePaid")} value={e.amount} />
           </div>
         </section>
 
         {/* Team — who else was on the booking */}
         <section>
-          <SectionLabel>Who was there</SectionLabel>
+          <SectionLabel>{t("dashboard.talentDrawers.closedBooking.sectionWhoWasThere")}</SectionLabel>
           <div
             style={{
               display: "flex",
@@ -233,7 +236,7 @@ export function TalentClosedBookingDrawer() {
                 </div>
                 {p.you && (
                   <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 7px", borderRadius: 999 }} className="bg-admin-coral-soft text-admin-coral-deep">
-                    You
+                    {t("dashboard.talentDrawers.closedBooking.you")}
                   </span>
                 )}
               </div>
@@ -243,7 +246,7 @@ export function TalentClosedBookingDrawer() {
 
         {/* Chat archive — read-only snapshot */}
         <section>
-          <SectionLabel>Archived chat</SectionLabel>
+          <SectionLabel>{t("dashboard.talentDrawers.closedBooking.sectionArchivedChat")}</SectionLabel>
           <div style={{ marginTop: 8, padding: "12px 14px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body, fontSize: 12.5 }} className="bg-admin-surface-alt">
             {detail.chat.map((m, i) => (
               <div key={i} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -255,7 +258,7 @@ export function TalentClosedBookingDrawer() {
               </div>
             ))}
             <div style={{ marginTop: 4, paddingTop: 10, borderTop: `1px solid ${COLORS.borderSoft}`, fontSize: 11, textAlign: "center" }} className="text-admin-ink-dim">
-              Thread closed when payout landed. {detail.chat.length} messages archived.
+              {interpolate(t("dashboard.talentDrawers.closedBooking.threadClosedNote"), { count: detail.chat.length })}
             </div>
           </div>
         </section>
@@ -263,7 +266,7 @@ export function TalentClosedBookingDrawer() {
         {/* What was delivered */}
         {detail.delivered && (
           <section>
-            <SectionLabel>Delivered</SectionLabel>
+            <SectionLabel>{t("dashboard.talentDrawers.closedBooking.sectionDelivered")}</SectionLabel>
             <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.7 }} className="text-admin-ink">
               {detail.delivered.map((d) => (
                 <li key={d}>{d}</li>
@@ -282,7 +285,7 @@ export function TalentClosedBookingDrawer() {
 
         {detail.review && (
           <section>
-            <SectionLabel>Client review</SectionLabel>
+            <SectionLabel>{t("dashboard.talentDrawers.closedBooking.sectionClientReview")}</SectionLabel>
             <div
               style={{
                 marginTop: 8,
@@ -333,20 +336,21 @@ export function TalentClosedBookingDrawer() {
  *   marketplace amber    open marketplace
  */
 function SourceChip({ source }: { source: import("../state").EarningSource }) {
+  const t = useT();
   const labelFor = (s: typeof source) => {
     switch (s.kind) {
       case "agency":
-        return "Agency-routed";
+        return t("dashboard.talentDrawers.sources.agency");
       case "hub":
-        return `via ${s.name}`;
+        return interpolate(t("dashboard.talentDrawers.sources.via"), { name: s.name });
       case "personal":
-        return "Direct · personal page";
+        return t("dashboard.talentDrawers.sources.personal");
       case "studio":
-        return `via ${s.name}`;
+        return interpolate(t("dashboard.talentDrawers.sources.via"), { name: s.name });
       case "marketplace":
-        return `via ${s.name}`;
+        return interpolate(t("dashboard.talentDrawers.sources.via"), { name: s.name });
       case "manual":
-        return "Off-platform · added by you";
+        return t("dashboard.talentDrawers.sources.manual");
     }
   };
   const palette: Record<typeof source.kind, { bg: string; fg: string }> = {
@@ -583,6 +587,7 @@ const MOCK_CLOSED_DETAIL: Record<
 
 export function TalentEarningsDetailDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-earnings-detail";
   const id = (state.drawer.payload?.id as string) ?? "e1";
   const e = EARNINGS_ROWS.find((x) => x.id === id) ?? EARNINGS_ROWS[0];
@@ -591,28 +596,28 @@ export function TalentEarningsDetailDrawer() {
       open={open}
       onClose={closeDrawer}
       title={`${e.client} · ${e.amount}`}
-      description={`Paid ${e.payoutDate} via ${e.agency}`}
+      description={interpolate(t("dashboard.talentDrawers.closedBooking.earningsPaidVia"), { payoutDate: e.payoutDate, agency: e.agency })}
       width={520}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <div className="flex flex-col gap-3.5">
-        <KvRow label="Work date" value={e.workDate} />
-        <KvRow label="Paid on" value={e.payoutDate} />
-        <KvRow label="Agency" value={e.agency} />
-        <KvRow label="Client" value={e.client} />
-        <KvRow label="Gross" value={e.amount} />
-        <KvRow label="Agency cut" value="20%" />
-        <KvRow label="Net to you" value={netOf(e.amount)} />
-        <Divider label="Documents" />
+        <KvRow label={t("dashboard.talentDrawers.closedBooking.labelDateWorked")} value={e.workDate} />
+        <KvRow label={t("dashboard.talentDrawers.closedBooking.labelPaidOn")} value={e.payoutDate} />
+        <KvRow label={t("dashboard.talentDrawers.closedBooking.labelAgency")} value={e.agency} />
+        <KvRow label={t("dashboard.talentDrawers.closedBooking.labelClient")} value={e.client} />
+        <KvRow label={t("dashboard.talentDrawers.closedBooking.labelGross")} value={e.amount} />
+        <KvRow label={t("dashboard.talentDrawers.closedBooking.labelAgencyCut")} value="20%" />
+        <KvRow label={t("dashboard.talentDrawers.closedBooking.labelNetToYou")} value={netOf(e.amount)} />
+        <Divider label={t("dashboard.talentDrawers.closedBooking.documents")} />
         <button style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", textAlign: "left", width: "100%" }} className="text-admin-ink">
           <Icon name="external" size={13} />
-          Booking contract.pdf
-          <span style={{ marginLeft: "auto", fontSize: 11.5 }} className="text-admin-ink-muted">2 pages</span>
+          {t("dashboard.talentDrawers.closedBooking.bookingContract")}
+          <span style={{ marginLeft: "auto", fontSize: 11.5 }} className="text-admin-ink-muted">{interpolate(t("dashboard.talentDrawers.closedBooking.pages"), { count: 2 })}</span>
         </button>
         <button style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", textAlign: "left", width: "100%" }} className="text-admin-ink">
           <Icon name="external" size={13} />
-          Payout statement.pdf
-          <span style={{ marginLeft: "auto", fontSize: 11.5 }} className="text-admin-ink-muted">1 page</span>
+          {t("dashboard.talentDrawers.closedBooking.payoutStatement")}
+          <span style={{ marginLeft: "auto", fontSize: 11.5 }} className="text-admin-ink-muted">{interpolate(t("dashboard.talentDrawers.closedBooking.page"), { count: 1 })}</span>
         </button>
       </div>
     </DrawerShell>

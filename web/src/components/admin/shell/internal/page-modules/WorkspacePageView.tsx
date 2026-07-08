@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { CreateMyTalentProfileDialog } from "@/components/talent/create-my-talent-profile-dialog";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import type { Locale } from "@/i18n/config";
 import { Affordance, AutoSaveIndicator, Card, CompactLockedCard, MoreWithSection, PlanChip, ReadOnlyChip } from "../primitives";
 import { COLORS, FONTS, PLAN_META, RADIUS, TRANSITION, meetsPlan, meetsRole, useAdminShell } from "../state";
@@ -155,6 +157,7 @@ function AccordionItem({
 }
 
 export function WorkspacePageView() {
+  const t = useT();
   const { state, setPage, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant } = useAdminShell();
   const pendingTrustCount = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info"
@@ -186,11 +189,11 @@ export function WorkspacePageView() {
   type SettingsTab = "workspace" | "roster" | "team" | "billing" | "advanced";
   const [activeTab, setActiveTab] = useState<SettingsTab>("workspace");
   const TABS: { id: SettingsTab; label: string; emoji: string; sections: string[] }[] = [
-    { id: "workspace", label: "Workspace",     emoji: "🏛", sections: ["account", "workspace", "commercial-terms", "domain", "branding", "media-watermark"] },
-    { id: "roster",    label: "Roster",        emoji: "🎯", sections: ["talent-types", "roster-review", "registration", "discover"] },
-    { id: "team",      label: "Team & legal",  emoji: "👥", sections: ["team", "compliance"] },
-    { id: "billing",   label: "Plan & integrations", emoji: "💳", sections: ["plan", "integrations", "brand", "growth", "email"] },
-    { id: "advanced",  label: "Advanced",      emoji: "⚙",  sections: ["features", "danger"] },
+    { id: "workspace", label: t("dashboard.adminWorkspace.tabWorkspace"),     emoji: "🏛", sections: ["account", "workspace", "commercial-terms", "domain", "branding", "media-watermark"] },
+    { id: "roster",    label: t("dashboard.adminWorkspace.tabRoster"),        emoji: "🎯", sections: ["talent-types", "roster-review", "registration", "discover"] },
+    { id: "team",      label: t("dashboard.adminWorkspace.tabTeamLegal"),  emoji: "👥", sections: ["team", "compliance"] },
+    { id: "billing",   label: t("dashboard.adminWorkspace.tabPlanIntegrations"), emoji: "💳", sections: ["plan", "integrations", "brand", "growth", "email"] },
+    { id: "advanced",  label: t("dashboard.adminWorkspace.tabAdvanced"),      emoji: "⚙",  sections: ["features", "danger"] },
   ];
   const visibleSections = new Set(TABS.find(t => t.id === activeTab)!.sections);
 
@@ -252,8 +255,8 @@ export function WorkspacePageView() {
   return (
     <>
       <PageHeader
-        title="Settings"
-        subtitle="Plan, team, branding, identity — the controls that shape who you are inside Tulala."
+        title={t("dashboard.adminWorkspace.title")}
+        subtitle={t("dashboard.adminWorkspace.subtitle")}
         actions={
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button
@@ -267,7 +270,7 @@ export function WorkspacePageView() {
               onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
               onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
             >
-              {openSet.size === SETTINGS_SECTIONS.length ? "Collapse all" : "Expand all"}
+              {openSet.size === SETTINGS_SECTIONS.length ? t("dashboard.adminWorkspace.collapseAll") : t("dashboard.adminWorkspace.expandAll")}
             </button>
             <AutoSaveIndicator savedAt={savedAt} />
           </div>
@@ -327,13 +330,13 @@ export function WorkspacePageView() {
         <div>
 
           {visibleSections.has("account") && (
-          <AccordionItem id="account" label="Account" desc="Workspace name, slug, and contact info." supportLink="/help/settings/account" open={isOpen("account")} onToggle={() => toggleSection("account")}>
+          <AccordionItem id="account" label={t("dashboard.adminWorkspace.accountLabel")} desc={t("dashboard.adminWorkspace.accountDesc")} supportLink="/help/settings/account" open={isOpen("account")} onToggle={() => toggleSection("account")}>
             <SettingsRow onClick={() => openDrawer("identity")}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{effectiveTenant.name}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Name · Slug · Contact email</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.accountRowMeta")}</div>
               </div>
-              <Affordance label="Edit" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceEdit")} />
             </SettingsRow>
             {/* Phase 4 — Pure Workspace state: CTA to create own talent page.
                 Shown only when the current admin has no talent profile in this
@@ -342,13 +345,13 @@ export function WorkspacePageView() {
               <SettingsRow onClick={() => setCreateTalentDialogOpenSettings(true)}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
-                    Want to take bookings yourself?
+                    {t("dashboard.adminWorkspace.takeBookingsTitle")}
                   </div>
                   <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    Create your talent page — becomes visible on your workspace roster
+                    {t("dashboard.adminWorkspace.takeBookingsDesc")}
                   </div>
                 </div>
-                <Affordance label="Create" />
+                <Affordance label={t("dashboard.adminWorkspace.affordanceCreate")} />
               </SettingsRow>
             )}
           </AccordionItem>
@@ -363,7 +366,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("plan") && (
-          <AccordionItem id="plan" label="Plan & billing" desc="Your current plan, usage, and invoices." supportLink="/help/settings/billing" defaultBadge={<PlanChip plan={state.plan} variant="solid" />} open={isOpen("plan")} onToggle={() => toggleSection("plan")}>
+          <AccordionItem id="plan" label={t("dashboard.adminWorkspace.planLabel")} desc={t("dashboard.adminWorkspace.planDesc")} supportLink="/help/settings/billing" defaultBadge={<PlanChip plan={state.plan} variant="solid" />} open={isOpen("plan")} onToggle={() => toggleSection("plan")}>
             {isOwner ? (
               <SettingsRow onClick={() => openDrawer("plan-billing")}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -373,11 +376,11 @@ export function WorkspacePageView() {
                     <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{PLAN_META[state.plan].theme}</div>
                   </div>
                 </div>
-                <Affordance label="Manage" />
+                <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
               </SettingsRow>
             ) : (
               <SettingsRow opacity={0.6}>
-                <span style={{ fontSize: 13, color: COLORS.inkMuted }}>Only owners can change billing</span>
+                <span style={{ fontSize: 13, color: COLORS.inkMuted }}>{t("dashboard.adminWorkspace.ownersOnlyBilling")}</span>
                 <ReadOnlyChip />
               </SettingsRow>
             )}
@@ -385,13 +388,13 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("workspace") && (
-          <AccordionItem id="workspace" label="Workspace" desc="Timezone, locale, currency, and workspace defaults." supportLink="/help/settings/workspace" open={isOpen("workspace")} onToggle={() => toggleSection("workspace")}>
+          <AccordionItem id="workspace" label={t("dashboard.adminWorkspace.workspaceLabel")} desc={t("dashboard.adminWorkspace.workspaceDesc")} supportLink="/help/settings/workspace" open={isOpen("workspace")} onToggle={() => toggleSection("workspace")}>
             {[
-              { title: "General",     desc: "Timezone · Locale · Workspace defaults",  drawer: "workspace-settings" as const },
-              { title: "Guest chat", desc: "Show a “Message” button on your public pages — on/off + where it appears", drawer: "guest-chat-settings" as const },
-              { title: "Profile fields", desc: "Enable, require, rename talent profile fields", drawer: "field-catalog" as const, plan: "agency" as const },
-              { title: "Field settings", desc: "Workspace overrides for the resolved profile engine", drawer: "workspace-field-settings" as const, plan: "agency" as const },
-              { title: "Talent categories", desc: "Tenant-enabled categories for roster and registration",  drawer: "talent-types" as const, plan: "agency" as const },
+              { title: t("dashboard.adminWorkspace.wsGeneralTitle"),     desc: t("dashboard.adminWorkspace.wsGeneralDesc"),  drawer: "workspace-settings" as const },
+              { title: t("dashboard.adminWorkspace.wsGuestChatTitle"), desc: t("dashboard.adminWorkspace.wsGuestChatDesc"), drawer: "guest-chat-settings" as const },
+              { title: t("dashboard.adminWorkspace.wsProfileFieldsTitle"), desc: t("dashboard.adminWorkspace.wsProfileFieldsDesc"), drawer: "field-catalog" as const, plan: "agency" as const },
+              { title: t("dashboard.adminWorkspace.wsFieldSettingsTitle"), desc: t("dashboard.adminWorkspace.wsFieldSettingsDesc"), drawer: "workspace-field-settings" as const, plan: "agency" as const },
+              { title: t("dashboard.adminWorkspace.wsTalentCategoriesTitle"), desc: t("dashboard.adminWorkspace.wsTalentCategoriesDesc"),  drawer: "talent-types" as const, plan: "agency" as const },
             ].map((row) => {
               const locked = row.plan && !meetsPlan(state.plan, row.plan);
               return (
@@ -404,7 +407,7 @@ export function WorkspacePageView() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{row.title}</div>
                     <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{row.desc}</div>
                   </div>
-                  {locked ? <LockedPill plan={row.plan!} /> : <Affordance label="Configure" />}
+                  {locked ? <LockedPill plan={row.plan!} /> : <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />}
                 </SettingsRow>
               );
             })}
@@ -414,31 +417,31 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("commercial-terms") && tenantSlug && (
-          <AccordionItem id="commercial-terms" label="Booking terms" desc="Default deposit, refund policy, and instant booking for new offers." supportLink="/help/settings/booking-terms" open={isOpen("commercial-terms")} onToggle={() => toggleSection("commercial-terms")}>
+          <AccordionItem id="commercial-terms" label={t("dashboard.adminWorkspace.bookingTermsLabel")} desc={t("dashboard.adminWorkspace.bookingTermsDesc")} supportLink="/help/settings/booking-terms" open={isOpen("commercial-terms")} onToggle={() => toggleSection("commercial-terms")}>
             {/* Commercial terms — workspace defaults; an offer can override. */}
             <CommercialTermsSettingsCard tenantSlug={tenantSlug} />
           </AccordionItem>
           )}
 
           {visibleSections.has("domain") && (
-          <AccordionItem id="domain" label="Domain" desc="Run your storefront at your own domain." supportLink="/help/settings/domain" open={isOpen("domain")} onToggle={() => toggleSection("domain")}>
+          <AccordionItem id="domain" label={t("dashboard.adminWorkspace.domainLabel")} desc={t("dashboard.adminWorkspace.domainDesc")} supportLink="/help/settings/domain" open={isOpen("domain")} onToggle={() => toggleSection("domain")}>
             {meetsPlan(state.plan, "studio") ? (
               <SettingsRow>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Custom domain</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.customDomain")}</div>
                   <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    No custom domain connected
+                    {t("dashboard.adminWorkspace.noCustomDomain")}
                   </div>
                 </div>
               </SettingsRow>
             ) : (
               <SettingsRow
                 opacity={0.55}
-                onClick={() => openUpgrade({ feature: "Custom domain", why: "Run your storefront at your own domain.", requiredPlan: "studio" })}
+                onClick={() => openUpgrade({ feature: t("dashboard.adminWorkspace.customDomain"), why: t("dashboard.adminWorkspace.domainDesc"), requiredPlan: "studio" })}
               >
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Custom domain</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Requires Studio or above</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.customDomain")}</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.requiresStudio")}</div>
                 </div>
                 <LockedPill plan="studio" />
               </SettingsRow>
@@ -447,23 +450,23 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("branding") && (
-          <AccordionItem id="branding" label="Branding" desc="Logo, colors, email identity — what clients see." supportLink="/help/settings/branding" open={isOpen("branding")} onToggle={() => toggleSection("branding")}>
+          <AccordionItem id="branding" label={t("dashboard.adminWorkspace.brandingLabel")} desc={t("dashboard.adminWorkspace.brandingDesc")} supportLink="/help/settings/branding" open={isOpen("branding")} onToggle={() => toggleSection("branding")}>
             {isAdmin && meetsPlan(state.plan, "agency") ? (
               <SettingsRow onClick={() => openDrawer("branding")}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Brand identity</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Logo · Colors · Email signature · Voice</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.brandIdentity")}</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.brandIdentityMeta")}</div>
                 </div>
-                <Affordance label="Edit" />
+                <Affordance label={t("dashboard.adminWorkspace.affordanceEdit")} />
               </SettingsRow>
             ) : (
               <SettingsRow
                 opacity={0.55}
-                onClick={() => openUpgrade({ feature: "Branding", why: "Full brand identity control.", requiredPlan: "agency", unlocks: ["Logo & favicon", "Color tokens", "Email signature"] })}
+                onClick={() => openUpgrade({ feature: t("dashboard.adminWorkspace.brandingLabel"), why: t("dashboard.adminWorkspace.brandingUpgradeWhy"), requiredPlan: "agency", unlocks: [t("dashboard.adminWorkspace.brandingUnlock1"), t("dashboard.adminWorkspace.brandingUnlock2"), t("dashboard.adminWorkspace.brandingUnlock3")] })}
               >
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Brand identity</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Requires Agency or above</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.brandIdentity")}</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.requiresAgency")}</div>
                 </div>
                 <LockedPill plan="agency" />
               </SettingsRow>
@@ -472,31 +475,31 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("media-watermark") && (
-          <AccordionItem id="media-watermark" label="Media & watermark" desc="Agency photo library, logo watermark, and photo usage tracking." supportLink="/help/settings/media" open={isOpen("media-watermark")} onToggle={() => toggleSection("media-watermark")}>
+          <AccordionItem id="media-watermark" label={t("dashboard.adminWorkspace.mediaWatermarkLabel")} desc={t("dashboard.adminWorkspace.mediaWatermarkDesc")} supportLink="/help/settings/media" open={isOpen("media-watermark")} onToggle={() => toggleSection("media-watermark")}>
             {/* Watermark — Studio+ */}
             {meetsPlan(state.plan, "studio") ? (
               <SettingsRow onClick={() => openDrawer("branding")}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Logo watermark</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.logoWatermark")}</div>
                   <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    Position · Opacity · Size — applied to public photos
+                    {t("dashboard.adminWorkspace.logoWatermarkMeta")}
                   </div>
                 </div>
-                <Affordance label="Configure" />
+                <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />
               </SettingsRow>
             ) : (
               <SettingsRow
                 opacity={0.55}
                 onClick={() => openUpgrade({
-                  feature: "Logo watermark",
-                  why: "Brand every photo your agency distributes.",
+                  feature: t("dashboard.adminWorkspace.logoWatermark"),
+                  why: t("dashboard.adminWorkspace.watermarkUpgradeWhy"),
                   requiredPlan: "studio",
-                  unlocks: ["Logo watermark on public photos", "Position, opacity & size control", "Light / dark logo variants"],
+                  unlocks: [t("dashboard.adminWorkspace.watermarkUnlock1"), t("dashboard.adminWorkspace.watermarkUnlock2"), t("dashboard.adminWorkspace.watermarkUnlock3")],
                 })}
               >
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Logo watermark</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Requires Studio or above</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.logoWatermark")}</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.requiresStudio")}</div>
                 </div>
                 <LockedPill plan="studio" />
               </SettingsRow>
@@ -505,26 +508,26 @@ export function WorkspacePageView() {
             {meetsPlan(state.plan, "agency") ? (
               <SettingsRow onClick={() => setPage("media")}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Media gallery</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.mediaGallery")}</div>
                   <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    All workspace photos · bulk watermark · usage tracking
+                    {t("dashboard.adminWorkspace.mediaGalleryMeta")}
                   </div>
                 </div>
-                <Affordance label="Open" />
+                <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />
               </SettingsRow>
             ) : (
               <SettingsRow
                 opacity={0.55}
                 onClick={() => openUpgrade({
-                  feature: "Branded media gallery",
-                  why: "See every photo your agency controls — and where each one lives.",
+                  feature: t("dashboard.adminWorkspace.brandedMediaGallery"),
+                  why: t("dashboard.adminWorkspace.mediaGalleryUpgradeWhy"),
                   requiredPlan: "agency",
-                  unlocks: ["Workspace-wide photo inventory", "Bulk watermark apply", "Photo usage tracking"],
+                  unlocks: [t("dashboard.adminWorkspace.mediaGalleryUnlock1"), t("dashboard.adminWorkspace.mediaGalleryUnlock2"), t("dashboard.adminWorkspace.mediaGalleryUnlock3")],
                 })}
               >
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Media gallery</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Requires Agency or above</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.mediaGallery")}</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.requiresAgency")}</div>
                 </div>
                 <LockedPill plan="agency" />
               </SettingsRow>
@@ -533,25 +536,25 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("team") && (
-          <AccordionItem id="team" label="Team" desc="Invite teammates and assign roles." supportLink="/help/settings/team" open={isOpen("team")} onToggle={() => toggleSection("team")}>
+          <AccordionItem id="team" label={t("dashboard.adminWorkspace.teamLabel")} desc={t("dashboard.adminWorkspace.teamDesc")} supportLink="/help/settings/team" open={isOpen("team")} onToggle={() => toggleSection("team")}>
             {isAdmin && !isFree ? (
               <SettingsRow onClick={() => openDrawer("team")}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Team members</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.teamMembers")}</div>
                   <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    {effectiveTeamMembers.length} members · viewer / editor / manager / admin / owner
+                    {interpolate(t("dashboard.adminWorkspace.teamMembersMeta"), { count: effectiveTeamMembers.length })}
                   </div>
                 </div>
-                <Affordance label="Manage" />
+                <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
               </SettingsRow>
             ) : (
               <SettingsRow
                 opacity={0.55}
-                onClick={() => openUpgrade({ feature: "Team & roles", why: "Invite teammates.", requiredPlan: "agency", unlocks: ["Up to 25 seats", "Role-based access"] })}
+                onClick={() => openUpgrade({ feature: t("dashboard.adminWorkspace.teamRolesFeature"), why: t("dashboard.adminWorkspace.teamUpgradeWhy"), requiredPlan: "agency", unlocks: [t("dashboard.adminWorkspace.teamUnlock1"), t("dashboard.adminWorkspace.teamUnlock2")] })}
               >
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Team members</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Requires Agency or above</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.teamMembers")}</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.requiresAgency")}</div>
                 </div>
                 <LockedPill plan="agency" />
               </SettingsRow>
@@ -560,45 +563,45 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("talent-types") && (
-          <AccordionItem id="talent-types" label="Talent types & Catalog Fields" desc="Live categories, field privacy, and profile-field rules for your roster." supportLink="/help/settings/talent-types" open={isOpen("talent-types")} onToggle={() => toggleSection("talent-types")}>
+          <AccordionItem id="talent-types" label={t("dashboard.adminWorkspace.talentTypesLabel")} desc={t("dashboard.adminWorkspace.talentTypesDesc")} supportLink="/help/settings/talent-types" open={isOpen("talent-types")} onToggle={() => toggleSection("talent-types")}>
             <SettingsRow onClick={() => openDrawer("talent-types")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Categories on your site</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.categoriesOnSite")}</div>
                 <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  Live Tulala taxonomy · enabled for Impronta registration and directory
+                  {t("dashboard.adminWorkspace.categoriesOnSiteMeta")}
                 </div>
               </div>
-              <Affordance label="Manage" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("field-privacy")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Field privacy</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.fieldPrivacy")}</div>
                 <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  Resolved visibility for public site, admin view, registration, and hidden fields
+                  {t("dashboard.adminWorkspace.fieldPrivacyMeta")}
                 </div>
               </div>
-              <Affordance label="Configure" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("field-catalog")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Field catalog</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.fieldCatalog")}</div>
                 <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  Built-in engine fields, required rules, labels, helpers, and tenant overrides
+                  {t("dashboard.adminWorkspace.fieldCatalogMeta")}
                 </div>
               </div>
-              <Affordance label="Open" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />
             </SettingsRow>
           </AccordionItem>
           )}
 
           {visibleSections.has("roster-review") && (
-          <AccordionItem id="roster-review" label="Roster review" desc="Verification requests, disputed claims, and self-registration approvals." supportLink="/help/settings/talent-types" open={isOpen("roster-review")} onToggle={() => toggleSection("roster-review")}>
+          <AccordionItem id="roster-review" label={t("dashboard.adminWorkspace.rosterReviewLabel")} desc={t("dashboard.adminWorkspace.rosterReviewDesc")} supportLink="/help/settings/talent-types" open={isOpen("roster-review")} onToggle={() => toggleSection("roster-review")}>
             <SettingsRow onClick={() => openDrawer("trust-verification-queue")}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Trust & Verification</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.trustVerification")}</div>
                   <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    Review Instagram + Tulala verification requests · approve / reject / request more info
+                    {t("dashboard.adminWorkspace.trustVerificationMeta")}
                   </div>
                 </div>
                 {pendingTrustCount > 0 && (
@@ -610,14 +613,14 @@ export function WorkspacePageView() {
                   }}>{pendingTrustCount}</span>
                 )}
               </div>
-              <Affordance label={pendingTrustCount > 0 ? "Review" : "Open"} />
+              <Affordance label={pendingTrustCount > 0 ? t("dashboard.adminWorkspace.affordanceReview") : t("dashboard.adminWorkspace.affordanceOpen")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("trust-disputed-claims")}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Disputed claims</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.disputedClaims")}</div>
                   <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    Talent-flagged agency profiles · release / uphold / remove
+                    {t("dashboard.adminWorkspace.disputedClaimsMeta")}
                   </div>
                 </div>
                 {disputedClaimsCount > 0 && (
@@ -629,16 +632,16 @@ export function WorkspacePageView() {
                   }}>{disputedClaimsCount}</span>
                 )}
               </div>
-              <Affordance label={disputedClaimsCount > 0 ? "Resolve" : "Open"} />
+              <Affordance label={disputedClaimsCount > 0 ? t("dashboard.adminWorkspace.affordanceResolve") : t("dashboard.adminWorkspace.affordanceOpen")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("talent-approvals")}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Pending approvals</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.pendingApprovals")}</div>
                   <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
                     {pendingTalent.length === 0
-                      ? "No self-registrations waiting — you'll be notified."
-                      : "Self-registered talent waiting for review"}
+                      ? t("dashboard.adminWorkspace.pendingApprovalsEmpty")
+                      : t("dashboard.adminWorkspace.pendingApprovalsWaiting")}
                   </div>
                 </div>
                 {pendingTalent.length > 0 && (
@@ -661,154 +664,154 @@ export function WorkspacePageView() {
                   </span>
                 )}
               </div>
-              <Affordance label={pendingTalent.length === 0 ? "Open queue" : "Review"} />
+              <Affordance label={pendingTalent.length === 0 ? t("dashboard.adminWorkspace.affordanceOpenQueue") : t("dashboard.adminWorkspace.affordanceReview")} />
             </SettingsRow>
           </AccordionItem>
           )}
 
           {visibleSections.has("registration") && (
-          <AccordionItem id="registration" label="Open for registration" desc="Let talent join your roster from your public site — instantly, by approval, or as exclusive representation." supportLink="/help/settings/registration" open={isOpen("registration")} onToggle={() => toggleSection("registration")}>
+          <AccordionItem id="registration" label={t("dashboard.adminWorkspace.registrationLabel")} desc={t("dashboard.adminWorkspace.registrationDesc")} supportLink="/help/settings/registration" open={isOpen("registration")} onToggle={() => toggleSection("registration")}>
             <RegistrationSection />
           </AccordionItem>
           )}
 
           {visibleSections.has("discover") && (
-          <AccordionItem id="discover" label="Tulala Discover" desc="What your roster unlocks on the cross-tenant talent catalog." supportLink="/help/settings/discover" open={isOpen("discover")} onToggle={() => toggleSection("discover")}>
+          <AccordionItem id="discover" label={t("dashboard.adminWorkspace.discoverLabel")} desc={t("dashboard.adminWorkspace.discoverDesc")} supportLink="/help/settings/discover" open={isOpen("discover")} onToggle={() => toggleSection("discover")}>
             <SettingsRow>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Talents on Discover</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.discoverTalentsTitle")}</div>
                 <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  Your roster talents can opt in individually via their profile editor. Standard placement on the Discover catalog.
+                  {t("dashboard.adminWorkspace.discoverTalentsDesc")}
                 </div>
               </div>
             </SettingsRow>
             <SettingsRow>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Roster Discover analytics + bulk-enroll</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.discoverAnalyticsTitle")}</div>
                 <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  Per-talent impressions, saves, shortlist adds over 30 days. One-toggle bulk-enroll across your roster.
+                  {t("dashboard.adminWorkspace.discoverAnalyticsDesc")}
                 </div>
               </div>
               {state.plan === "free" && <LockedPill plan="studio" />}
             </SettingsRow>
             <SettingsRow>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Priority placement boost</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.discoverBoostTitle")}</div>
                 <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  Pin individual talents near the top of Discover via the &ldquo;feature in directory&rdquo; toggle. 90-day analytics. Saved query cohorts.
+                  {t("dashboard.adminWorkspace.discoverBoostDesc")}
                 </div>
               </div>
               {(state.plan === "free" || state.plan === "studio") && <LockedPill plan="agency" />}
             </SettingsRow>
             <SettingsRow>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Multi-workspace Discover rollup</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.discoverRollupTitle")}</div>
                 <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  Aggregate Discover performance across every workspace in your network. Unlimited analytics history.
+                  {t("dashboard.adminWorkspace.discoverRollupDesc")}
                 </div>
               </div>
               {state.plan !== "network" && <LockedPill plan="network" />}
             </SettingsRow>
             <div style={{ padding: "10px 14px 12px 14px", fontSize: 11.5, color: COLORS.inkMuted, fontStyle: "italic", lineHeight: 1.5 }}>
-              Each talent&apos;s own &ldquo;Show me on Discover&rdquo; toggle (in their profile) controls visibility. Your workspace plan unlocks placement + analytics tools — not visibility itself.
+              {t("dashboard.adminWorkspace.discoverFootnote")}
             </div>
           </AccordionItem>
           )}
 
           {visibleSections.has("integrations") && (
-          <AccordionItem id="integrations" label="Integrations" desc="Bring your own keys — maps, analytics, and marketing tags for your storefront." supportLink="/help/settings/integrations" open={isOpen("integrations")} onToggle={() => toggleSection("integrations")}>
+          <AccordionItem id="integrations" label={t("dashboard.adminWorkspace.integrationsLabel")} desc={t("dashboard.adminWorkspace.integrationsDesc")} supportLink="/help/settings/integrations" open={isOpen("integrations")} onToggle={() => toggleSection("integrations")}>
             <IntegrationsSection />
           </AccordionItem>
           )}
 
           {visibleSections.has("brand") && (
-          <AccordionItem id="brand" label="Data & brand tools" desc="Imports, migration, brand assets, and brief authoring." supportLink="/help/settings/data-brand" open={isOpen("brand")} onToggle={() => toggleSection("brand")}>
+          <AccordionItem id="brand" label={t("dashboard.adminWorkspace.dataBrandLabel")} desc={t("dashboard.adminWorkspace.dataBrandDesc")} supportLink="/help/settings/data-brand" open={isOpen("brand")} onToggle={() => toggleSection("brand")}>
             <SettingsRow onClick={() => openDrawer("csv-import", { type: "talent" })}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Import talent</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Bulk CSV import with column mapping.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.importTalent")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.importTalentDesc")}</div>
               </div>
-              <Affordance label="Import" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceImport")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("migration-assistant")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Migration assistant</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>AI-assisted import from Excel, WhatsApp, Airtable.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.migrationAssistant")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.migrationAssistantDesc")}</div>
               </div>
-              <Affordance label="Migrate" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceMigrate")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("brand-assets")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Brand assets</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Logos, photography, and document library.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.brandAssets")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.brandAssetsDesc")}</div>
               </div>
-              <Affordance label="Manage" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("beta-program")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Beta program</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Opt into early-access features.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.betaProgram")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.betaProgramDesc")}</div>
               </div>
-              <Affordance label="Manage" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
             </SettingsRow>
           </AccordionItem>
           )}
 
           {visibleSections.has("growth") && (
-          <AccordionItem id="growth" label="Growth & integrations" desc="Calendar sync, referrals, and platform status." supportLink="/help/settings/growth" open={isOpen("growth")} onToggle={() => toggleSection("growth")}>
+          <AccordionItem id="growth" label={t("dashboard.adminWorkspace.growthLabel")} desc={t("dashboard.adminWorkspace.growthDesc")} supportLink="/help/settings/growth" open={isOpen("growth")} onToggle={() => toggleSection("growth")}>
             <SettingsRow onClick={() => openDrawer("calendar-sync")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Calendar sync</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Google, Apple, Outlook · iCal subscription URL.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.calendarSync")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.calendarSyncDesc")}</div>
               </div>
-              <Affordance label="Manage" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("referral-dashboard")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Referral program</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Earn €50 credit per workspace you refer.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.referralProgram")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.referralProgramDesc")}</div>
               </div>
-              <Affordance label="View" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceView")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("system-status")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>System status</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Tulala infrastructure health and incident log.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.systemStatus")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.systemStatusDesc")}</div>
               </div>
-              <Affordance label="View" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceView")} />
             </SettingsRow>
           </AccordionItem>
           )}
 
           {visibleSections.has("email") && (
-          <AccordionItem id="email" label="Email & communications" desc="Templates, sequences, branding, and notification preferences." supportLink="/help/settings/email" open={isOpen("email")} onToggle={() => toggleSection("email")}>
+          <AccordionItem id="email" label={t("dashboard.adminWorkspace.emailLabel")} desc={t("dashboard.adminWorkspace.emailDesc")} supportLink="/help/settings/email" open={isOpen("email")} onToggle={() => toggleSection("email")}>
             <SettingsRow onClick={() => openDrawer("email-templates")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Email templates</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Manage your transactional email library.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.emailTemplates")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.emailTemplatesDesc")}</div>
               </div>
-              <Affordance label="Manage" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("email-branding")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Email branding</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Sender name, logo, colors, and footer.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.emailBranding")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.emailBrandingDesc")}</div>
               </div>
-              <Affordance label="Customize" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceCustomize")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("email-sequences")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Email sequences</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Onboarding, dunning, win-back campaigns.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.emailSequences")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.emailSequencesDesc")}</div>
               </div>
-              <Affordance label="Manage" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("notification-prefs")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Notification preferences</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Email, push, and SMS per event type.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.notificationPrefs")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.notificationPrefsDesc")}</div>
               </div>
-              <Affordance label="Configure" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />
             </SettingsRow>
             {/* Step 13 — Auto-acknowledgement inline form */}
             <AutoAckSettingsRow />
@@ -816,58 +819,58 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("compliance") && (
-          <AccordionItem id="compliance" label="Compliance & legal" desc="GDPR, consent records, and contract templates." supportLink="/help/settings/compliance" open={isOpen("compliance")} onToggle={() => toggleSection("compliance")}>
+          <AccordionItem id="compliance" label={t("dashboard.adminWorkspace.complianceLabel")} desc={t("dashboard.adminWorkspace.complianceDesc")} supportLink="/help/settings/compliance" open={isOpen("compliance")} onToggle={() => toggleSection("compliance")}>
             <SettingsRow onClick={() => openDrawer("gdpr-export")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Export your data</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>GDPR / CCPA data portability — per data type.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.exportData")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.exportDataDesc")}</div>
               </div>
-              <Affordance label="Export" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceExport")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("consent-log")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Consent log</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Marketing preferences — timestamped and auditable.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.consentLog")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.consentLogDesc")}</div>
               </div>
-              <Affordance label="View" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceView")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("contract-templates")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Contract templates</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Workspace-wide reusable templates with merge fields.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.contractTemplates")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.contractTemplatesDesc")}</div>
               </div>
-              <Affordance label="Manage" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
             </SettingsRow>
             <SettingsRow onClick={() => openDrawer("audit-log")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Audit log</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Full event trail — logins, edits, access records.</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.auditLog")}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.auditLogDesc")}</div>
               </div>
-              <Affordance label="View" />
+              <Affordance label={t("dashboard.adminWorkspace.affordanceView")} />
             </SettingsRow>
           </AccordionItem>
           )}
 
           {isAdmin && visibleSections.has("features") && (
-          <AccordionItem id="features" label="Feature controls" desc="Turn platform features on or off for your workspace." supportLink="/help/settings/features" open={isOpen("features")} onToggle={() => toggleSection("features")}>
+          <AccordionItem id="features" label={t("dashboard.adminWorkspace.featuresLabel")} desc={t("dashboard.adminWorkspace.featuresDesc")} supportLink="/help/settings/features" open={isOpen("features")} onToggle={() => toggleSection("features")}>
               <SettingsRow onClick={() => openDrawer("feature-controls")}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>All feature toggles</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Inbox, casting, bookings, payments, analytics, AI tools, site builder, and more.</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.allFeatureToggles")}</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.allFeatureTogglesDesc")}</div>
                 </div>
-                <Affordance label="Configure" />
+                <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />
               </SettingsRow>
             </AccordionItem>
           )}
 
           {isOwner && visibleSections.has("danger") && (
-          <AccordionItem id="danger" label="Danger zone" desc="Irreversible operations — proceed with care." supportLink="/help/settings/danger" danger open={isOpen("danger")} onToggle={() => toggleSection("danger")}>
+          <AccordionItem id="danger" label={t("dashboard.adminWorkspace.dangerLabel")} desc={t("dashboard.adminWorkspace.dangerDesc")} supportLink="/help/settings/danger" danger open={isOpen("danger")} onToggle={() => toggleSection("danger")}>
               <SettingsRow borderColor="#FCA5A5" onClick={() => openDrawer("danger-zone")}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#DC2626" }}>Delete or transfer workspace</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Export everything, transfer ownership, or delete this workspace.</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#DC2626" }}>{t("dashboard.adminWorkspace.deleteTransferWorkspace")}</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.deleteTransferWorkspaceDesc")}</div>
                 </div>
-                <Affordance label="Open" />
+                <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />
               </SettingsRow>
             </AccordionItem>
           )}
@@ -879,23 +882,23 @@ export function WorkspacePageView() {
       {state.plan === "free" && (
         <MoreWithSection plan="studio">
           <CompactLockedCard
-            title="Custom domain"
+            title={t("dashboard.adminWorkspace.customDomain")}
             requiredPlan="studio"
             onClick={() =>
               openUpgrade({
-                feature: "Custom domain",
-                why: "Run your storefront at your own domain.",
+                feature: t("dashboard.adminWorkspace.customDomain"),
+                why: t("dashboard.adminWorkspace.domainDesc"),
                 requiredPlan: "studio",
               })
             }
           />
           <CompactLockedCard
-            title="Email-from address"
+            title={t("dashboard.adminWorkspace.emailFromAddress")}
             requiredPlan="studio"
             onClick={() =>
               openUpgrade({
-                feature: "Email-from",
-                why: "Send client offers from your own verified email.",
+                feature: t("dashboard.adminWorkspace.emailFromFeature"),
+                why: t("dashboard.adminWorkspace.emailFromWhy"),
                 requiredPlan: "studio",
               })
             }

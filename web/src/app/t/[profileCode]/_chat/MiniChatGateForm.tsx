@@ -12,6 +12,8 @@
  * (strategy §3.1 / §10). House rule: the only warm color is the tenant accent.
  */
 
+import { interpolate } from "@/i18n/interpolate";
+
 import {
   inputStyleFor,
   paletteFor,
@@ -20,6 +22,12 @@ import {
 } from "./mini-chat-styles";
 
 export type MiniChatGateFormProps = {
+  /**
+   * The panel's resolved translator (createTranslator(brand.locale)). Threaded
+   * down so the gate — the conversion moment — speaks the visitor's language
+   * instead of hardcoded English. Routes all copy through public.guestChat.*.
+   */
+  t: (key: string) => string;
   /** Talent first name for the "Where should {name} reach you?" prompt. */
   talentFirst: string;
   /**
@@ -52,6 +60,7 @@ export type MiniChatGateFormProps = {
 };
 
 export function MiniChatGateForm({
+  t,
   talentFirst,
   lineupRecap = null,
   draft,
@@ -86,7 +95,7 @@ export function MiniChatGateForm({
       }}
     >
       <div style={{ fontSize: 12, fontWeight: 600, color: C.inkMuted }}>
-        Where should {talentFirst} reach you?
+        {interpolate(t("public.guestChat.gatePrompt"), { name: talentFirst })}
       </div>
       {lineupRecap ? (
         <div
@@ -118,7 +127,7 @@ export function MiniChatGateForm({
           <span
             style={{ color: C.inkDim, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3 }}
           >
-            YOUR MESSAGE
+            {t("public.guestChat.gateYourMessageLabel")}
           </span>
           <br />
           {draft.trim()}
@@ -128,14 +137,14 @@ export function MiniChatGateForm({
         <input
           value={firstName}
           onChange={(e) => onFirstNameChange(e.target.value)}
-          placeholder="First name"
+          placeholder={t("public.guestChat.gateFirstName")}
           autoComplete="given-name"
           style={inputStyle}
         />
         <input
           value={lastName}
           onChange={(e) => onLastNameChange(e.target.value)}
-          placeholder="Last name"
+          placeholder={t("public.guestChat.gateLastName")}
           autoComplete="family-name"
           style={inputStyle}
         />
@@ -143,7 +152,7 @@ export function MiniChatGateForm({
       <input
         value={email}
         onChange={(e) => onEmailChange(e.target.value)}
-        placeholder="Email"
+        placeholder={t("public.guestChat.contactEmail")}
         type="email"
         autoComplete="email"
         style={inputStyle}
@@ -170,7 +179,9 @@ export function MiniChatGateForm({
           cursor: !canSend ? "not-allowed" : "pointer",
         }}
       >
-        {sending ? "Sending…" : "Send message"}
+        {sending
+          ? t("public.guestChat.sendingShort")
+          : t("public.guestChat.gateSend")}
       </button>
     </div>
   );

@@ -12,10 +12,26 @@ import {
   type TenantFieldAdoption,
   type TenantCatalogRisk,
 } from "../../../../tenant-catalog-data";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ id: string }>;
+type Translate = (key: string) => string;
+
+const CP = "dashboard.platform.tenants.catalogPage";
+const CAT = "dashboard.platform.catalog";
+
+// Risk kind (union) -> label key. Label via t(); switch on the raw union.
+const RISK_KIND_KEY: Record<TenantCatalogRisk["kind"], string> = {
+  "deprecated-field-overridden": `${CP}.riskKindDeprecatedFieldOverridden`,
+  "deprecated-field-has-values": `${CP}.riskKindDeprecatedFieldHasValues`,
+  "admin-field-made-public": `${CP}.riskKindAdminFieldMadePublic`,
+  "sensitive-field-made-public": `${CP}.riskKindSensitiveFieldMadePublic`,
+  "field-disabled-but-has-values": `${CP}.riskKindFieldDisabledButHasValues`,
+};
 
 // ─── Design tokens (mirror /platform/admin/catalog/page.tsx) ─────────────────
 
@@ -109,13 +125,13 @@ function Stat({
   );
 }
 
-function VisChip({ v }: { v: "public" | "admin" | "hidden" }) {
+function VisChip({ v, t }: { v: "public" | "admin" | "hidden"; t: Translate }) {
   const meta =
     v === "public"
-      ? { t: "Public", c: HQ.green }
+      ? { t: t(`${CAT}.visPublic`), c: HQ.green }
       : v === "admin"
-        ? { t: "Admin-only", c: HQ.amber }
-        : { t: "Hidden", c: HQ.inkDim };
+        ? { t: t(`${CAT}.visAdmin`), c: HQ.amber }
+        : { t: t(`${CAT}.visHidden`), c: HQ.inkDim };
   return (
     <span
       style={{
@@ -172,7 +188,7 @@ const RISK_TONE: Record<TenantCatalogRisk["kind"], string> = {
 
 // ─── Override card ────────────────────────────────────────────────────────────
 
-function OverrideRow({ ov }: { ov: TenantFieldOverride }) {
+function OverrideRow({ ov, t }: { ov: TenantFieldOverride; t: Translate }) {
   const dim = ov.deprecated || ov.enabled_override === false;
   const visChanged = ov.effectiveVisibility !== ov.platformVisibility;
   return (
@@ -192,7 +208,7 @@ function OverrideRow({ ov }: { ov: TenantFieldOverride }) {
           <Link
             href={`/platform/admin/catalog/${encodeURIComponent(ov.field_key)}`}
             style={{ fontWeight: 600, color: HQ.ink, textDecoration: "none" }}
-            title="Open platform field detail"
+            title={t(`${CP}.openFieldDetailTitle`)}
           >
             {ov.custom_label ? (
               <>
@@ -206,13 +222,13 @@ function OverrideRow({ ov }: { ov: TenantFieldOverride }) {
             )}
           </Link>
           {ov.deprecated && (
-            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.red }}>DEPRECATED</span>
+            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.red }}>{t(`${CAT}.rowDeprecated`)}</span>
           )}
           {ov.enabled_override === false && (
-            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.amber }}>DISABLED</span>
+            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.amber }}>{t(`${CP}.badgeDisabled`)}</span>
           )}
           {ov.required_override === true && (
-            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.amber }}>REQUIRED</span>
+            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.amber }}>{t(`${CAT}.rowRequired`)}</span>
           )}
         </div>
         <div
@@ -227,7 +243,7 @@ function OverrideRow({ ov }: { ov: TenantFieldOverride }) {
         </div>
         {ov.custom_helper && (
           <div style={{ fontSize: 11, color: HQ.inkDim, marginTop: 3, fontStyle: "italic" }}>
-            helper: {ov.custom_helper}
+            {interpolate(t(`${CP}.helperPrefix`), { text: ov.custom_helper })}
           </div>
         )}
       </div>
@@ -242,12 +258,12 @@ function OverrideRow({ ov }: { ov: TenantFieldOverride }) {
       >
         {visChanged ? (
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <VisChip v={ov.platformVisibility} />
+            <VisChip v={ov.platformVisibility} t={t} />
             <span style={{ color: HQ.inkDim, fontSize: 11 }}>→</span>
-            <VisChip v={ov.effectiveVisibility} />
+            <VisChip v={ov.effectiveVisibility} t={t} />
           </div>
         ) : (
-          <VisChip v={ov.platformVisibility} />
+          <VisChip v={ov.platformVisibility} t={t} />
         )}
       </div>
     </div>
@@ -259,9 +275,11 @@ function OverrideRow({ ov }: { ov: TenantFieldOverride }) {
 function AdoptionRow({
   a,
   totalTalents,
+  t,
 }: {
   a: TenantFieldAdoption;
   totalTalents: number;
+  t: Translate;
 }) {
   const pct = totalTalents > 0 ? Math.round((a.talentCount / totalTalents) * 100) : 0;
   return (
@@ -281,19 +299,19 @@ function AdoptionRow({
           <Link
             href={`/platform/admin/catalog/${encodeURIComponent(a.field_key)}`}
             style={{ fontWeight: 600, color: HQ.ink, textDecoration: "none" }}
-            title="Open platform field detail"
+            title={t(`${CP}.openFieldDetailTitle`)}
           >
             {a.label}
           </Link>
           {a.deprecated && (
-            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.red }}>DEPRECATED</span>
+            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.red }}>{t(`${CAT}.rowDeprecated`)}</span>
           )}
         </div>
         <div style={{ fontSize: 10.5, color: HQ.inkMuted, fontFamily: FM, marginTop: 1 }}>
           {a.field_key} · {a.tier}
         </div>
       </div>
-      <VisChip v={a.platformVisibility} />
+      <VisChip v={a.platformVisibility} t={t} />
       {/* Adoption bar */}
       <div
         style={{
@@ -349,6 +367,7 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
   }
 
   const h = posture.header;
+  const t = createTranslator(await getRequestLocale());
 
   return (
     <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
@@ -367,7 +386,7 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
           href="/platform/admin/tenants"
           style={{ color: HQ.inkMuted, textDecoration: "none" }}
         >
-          All tenants
+          {t(`${CP}.breadcrumbAll`)}
         </Link>
         <span style={{ color: HQ.inkDim }}>›</span>
         <Link
@@ -377,7 +396,7 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
           {h.name}
         </Link>
         <span style={{ color: HQ.inkDim }}>›</span>
-        <span style={{ color: HQ.ink }}>Catalog</span>
+        <span style={{ color: HQ.ink }}>{t(`${CP}.breadcrumbCatalog`)}</span>
       </div>
 
       {/* Page title */}
@@ -391,30 +410,28 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
           margin: "0 0 4px",
         }}
       >
-        Catalog Posture
+        {t(`${CP}.title`)}
       </h1>
       <div style={{ fontSize: 12.5, color: HQ.inkMuted, marginBottom: 20 }}>
-        Read-only inspection of field-engine configuration for this workspace.
-        To curate this workspace&rsquo;s talent registration wizard (which fields
-        show, are required, and in what order), open{" "}
+        {t(`${CP}.introBody`)}{" "}
         <Link
           href={`/platform/admin/tenants/${id}/registration-fields`}
           style={{ color: HQ.green, textDecoration: "none" }}
         >
-          Registration fields
+          {t(`${CP}.introRegistrationLink`)}
         </Link>
-        . Cross-links go to the platform-wide{" "}
+        {t(`${CP}.introCrossLinks`)}{" "}
         <Link
           href="/platform/admin/catalog"
           style={{ color: HQ.green, textDecoration: "none" }}
         >
-          Catalog Map
+          {t(`${CP}.introCatalogMapLink`)}
         </Link>
         .
       </div>
 
       {/* Tenant header */}
-      <HqCard title="Workspace" subtitle="Identity + plan">
+      <HqCard title={t(`${CP}.cardWorkspaceTitle`)} subtitle={t(`${CP}.cardWorkspaceSubtitle`)}>
         <div
           style={{
             display: "flex",
@@ -436,16 +453,16 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
           <PlanChip plan={h.plan} />
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-          <Stat label="Overridden fields" value={posture.fieldOverrides.length} />
-          <Stat label="Group overrides" value={posture.groupOverrides.length} />
-          <Stat label="Active talents" value={h.totalTalents} />
+          <Stat label={t(`${CP}.statOverriddenFields`)} value={posture.fieldOverrides.length} />
+          <Stat label={t(`${CP}.statGroupOverrides`)} value={posture.groupOverrides.length} />
+          <Stat label={t(`${CP}.statActiveTalents`)} value={h.totalTalents} />
           <Stat
-            label="Fields w/ values"
+            label={t(`${CP}.statFieldsWithValues`)}
             value={posture.valueAdoption.length}
             tone={posture.valueAdoption.length > 0 ? HQ.green : undefined}
           />
           <Stat
-            label="Risks"
+            label={t(`${CP}.statRisks`)}
             value={posture.risks.length}
             tone={posture.risks.length > 0 ? HQ.red : HQ.green}
           />
@@ -455,8 +472,8 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
       {/* Risk warnings */}
       {posture.risks.length > 0 && (
         <HqCard
-          title={`Risk warnings (${posture.risks.length})`}
-          subtitle="Read-only diagnostics specific to this workspace — never auto-acted."
+          title={interpolate(t(`${CP}.riskCardTitle`), { count: posture.risks.length })}
+          subtitle={t(`${CP}.riskCardSubtitle`)}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {posture.risks.map((r, i) => (
@@ -481,7 +498,7 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
                     paddingTop: 1,
                   }}
                 >
-                  {r.kind}
+                  {t(RISK_KIND_KEY[r.kind])}
                 </span>
                 <Link
                   href={`/platform/admin/catalog/${encodeURIComponent(r.field_key)}`}
@@ -492,7 +509,7 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
                     textDecoration: "none",
                     minWidth: 120,
                   }}
-                  title="Open platform field detail"
+                  title={t(`${CP}.openFieldDetailTitle`)}
                 >
                   {r.field_key}
                 </Link>
@@ -505,21 +522,21 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
 
       {/* Field overrides */}
       <HqCard
-        title={`Field overrides (${posture.fieldOverrides.length})`}
+        title={interpolate(t(`${CP}.overridesCardTitle`), { count: posture.fieldOverrides.length })}
         subtitle={
           posture.fieldOverrides.length === 0
-            ? "This workspace has not overridden any fields."
-            : "Fields where this workspace diverges from platform defaults. Visibility arrows show platform → effective."
+            ? t(`${CP}.overridesCardSubtitleEmpty`)
+            : t(`${CP}.overridesCardSubtitle`)
         }
       >
         {posture.fieldOverrides.length === 0 ? (
           <div style={{ fontSize: 13, color: HQ.inkDim, padding: "8px 0" }}>
-            No field overrides found. All fields inherit platform defaults.
+            {t(`${CP}.overridesEmpty`)}
           </div>
         ) : (
           <div>
             {posture.fieldOverrides.map((ov) => (
-              <OverrideRow key={ov.field_definition_id} ov={ov} />
+              <OverrideRow key={ov.field_definition_id} ov={ov} t={t} />
             ))}
           </div>
         )}
@@ -528,8 +545,8 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
       {/* Group overrides */}
       {posture.groupOverrides.length > 0 && (
         <HqCard
-          title={`Group overrides (${posture.groupOverrides.length})`}
-          subtitle="Field groups this workspace has relabeled or toggled."
+          title={interpolate(t(`${CP}.groupOverridesCardTitle`), { count: posture.groupOverrides.length })}
+          subtitle={t(`${CP}.groupOverridesCardSubtitle`)}
         >
           <div>
             {posture.groupOverrides.map((g) => (
@@ -558,7 +575,7 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
                   )}
                 </div>
                 {g.is_enabled === false && (
-                  <span style={{ fontSize: 10, fontWeight: 700, color: HQ.amber }}>DISABLED</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: HQ.amber }}>{t(`${CP}.badgeDisabled`)}</span>
                 )}
               </div>
             ))}
@@ -568,23 +585,26 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
 
       {/* Value adoption */}
       <HqCard
-        title={`Value adoption (${posture.valueAdoption.length} fields)`}
+        title={interpolate(t(`${CP}.adoptionCardTitle`), { count: posture.valueAdoption.length })}
         subtitle={
           h.totalTalents === 0
-            ? "No active talents on roster — no adoption data."
-            : `Fields where this workspace's talents have live values. Sorted by talent count. ${h.totalTalents} active talent(s) total.`
+            ? t(`${CP}.adoptionCardSubtitleEmpty`)
+            : interpolate(
+                t(h.totalTalents === 1 ? `${CP}.adoptionCardSubtitleOne` : `${CP}.adoptionCardSubtitleOther`),
+                { count: h.totalTalents },
+              )
         }
       >
         {posture.valueAdoption.length === 0 ? (
           <div style={{ fontSize: 13, color: HQ.inkDim, padding: "8px 0" }}>
             {h.totalTalents === 0
-              ? "No active talents on this workspace's roster."
-              : "No live field values found for any talent on this roster."}
+              ? t(`${CP}.adoptionEmptyNoTalents`)
+              : t(`${CP}.adoptionEmptyNoValues`)}
           </div>
         ) : (
           <div>
             {posture.valueAdoption.map((a) => (
-              <AdoptionRow key={a.field_definition_id} a={a} totalTalents={h.totalTalents} />
+              <AdoptionRow key={a.field_definition_id} a={a} totalTalents={h.totalTalents} t={t} />
             ))}
           </div>
         )}

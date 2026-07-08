@@ -6,6 +6,9 @@
 
 import { useMemo, useState } from "react";
 import { reorderSectionFieldsAction } from "../../profile-editor/actions";
+import { useT } from "@/i18n/use-t";
+
+const K = "dashboard.platform.catalog";
 
 type ReorderField = {
   id: string;
@@ -42,6 +45,7 @@ export function SectionFieldOrderPanel({
 }: {
   fields: ReorderField[];
 }) {
+  const t = useT();
   const [items, setItems] = useState(fields);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const orderedIds = useMemo(
@@ -167,7 +171,7 @@ export function SectionFieldOrderPanel({
             cursor: changed ? "pointer" : "not-allowed",
           }}
         >
-          Save field order
+          {t(`${K}.reorderSaveFieldOrder`)}
         </button>
         <button
           type="button"
@@ -184,10 +188,10 @@ export function SectionFieldOrderPanel({
             cursor: changed ? "pointer" : "not-allowed",
           }}
         >
-          Reset
+          {t(`${K}.reorderReset`)}
         </button>
         <span style={{ color: colors.dim, fontSize: 10.5 }}>
-          Drag fields to set their display order within this section.
+          {t(`${K}.reorderFieldHint`)}
         </span>
       </div>
     </form>

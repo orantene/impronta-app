@@ -5,6 +5,8 @@
 
 import { FieldDrawer } from "../../../field-drawer";
 import { TermDetailView } from "../../../term/term-detail-view";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +18,11 @@ export default async function InterceptedNewTermDrawer({
   const { kind, parent, saved, error } = await searchParams;
   const resolvedKind =
     kind === "category_group" ? "category_group" : "parent_category";
+  const t = createTranslator(await getRequestLocale());
+  const K = "dashboard.platform.catalog";
 
   return (
-    <FieldDrawer title="New category" ariaLabel="New category editor">
+    <FieldDrawer title={t(`${K}.termNewDrawerTitle`)} ariaLabel={t(`${K}.termNewDrawerAriaEditor`)}>
       <TermDetailView
         detail={null}
         termId={undefined}
@@ -27,6 +31,7 @@ export default async function InterceptedNewTermDrawer({
         saved={saved}
         error={error}
         variant="drawer"
+        t={t}
       />
     </FieldDrawer>
   );

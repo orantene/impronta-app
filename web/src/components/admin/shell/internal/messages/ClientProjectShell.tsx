@@ -2,6 +2,8 @@
 
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate, type Translator } from "@/i18n/interpolate";
 import { clientApproveCurrentOffer, clientRejectCurrentOffer, startInquiryCheckout } from "@/lib/server-actions/client-pipeline";
 import { useAdminShell, COLORS, FONTS } from "../state";
 import { Avatar } from "../primitives";
@@ -16,7 +18,7 @@ import { MobileInboxTab } from "./shared/inbox-layout-1";
 import { fmtMoney, getOffer } from "./shared/machinery-10";
 import { disabledBtn } from "./shared/machinery-13";
 import type { Offer } from "./shared/machinery-9";
-import { JobStageFunnel, ShellHeader, sourceChipMeta } from "./talent-1";
+import { JobStageFunnel, ShellHeader, sourceChipMeta, talentStageLabel } from "./talent-1";
 import { TalentJobRow, withWeekday } from "./TalentJobShell";
 
 
@@ -31,11 +33,26 @@ import { TalentJobRow, withWeekday } from "./TalentJobShell";
 
 export type ClientFilter = "all" | "waiting-agency" | "action-needed" | "booked" | "past";
 
+// Stable, language-independent discriminant for the client next-action.
+// The rendered `label` is localized, so downstream logic (which route to
+// run, whether the offer tab opens) MUST switch on `kind`, never on the
+// label text — a Spanish label would never match an English regex.
+export type ClientNextActionKind =
+  | "pay" | "sign" | "approve" | "review" | "review_profiles" | "confirm" | "brief" | "verify_card";
+
+export type ClientNextAction = { kind: ClientNextActionKind; label: string; primary?: boolean };
+
 // Derived next-action — reads offer.stage + conv.stage so adding a
 // new conversation no longer requires updating a hand-rolled map.
 // Static overrides below win when the derived label doesn't carry
 // enough context (e.g. payment-blocker reasons unique to one conv).
-export function deriveClientNextAction(conv: Conversation): { label: string; primary?: boolean } | null {
+// `t` localizes the rendered label; the `kind` discriminant stays stable.
+export function deriveClientNextAction(conv: Conversation, t?: Translator): ClientNextAction | null {
+  const tx = (key: string, fallback: string): string => {
+    if (!t) return fallback;
+    const out = t(key);
+    return out === key ? fallback : out;
+  };
   const offer = getOffer(conv.id);
   const ofStage = offer?.stage;
   // Booked + offer accepted → next-action depends on what's left.
@@ -44,9 +61,9 @@ export function deriveClientNextAction(conv: Conversation): { label: string; pri
     // (production reads from a real invoice ledger).
     if (conv.amountToYou && /balance.*owed|balance.*due|€\d+ balance/i.test(conv.amountToYou)) {
       const m = conv.amountToYou.match(/€[\d,]+ balance/);
-      return { label: m ? `Pay ${m[0]}` : "Pay balance", primary: true };
+      return { kind: "pay", label: m ? interpolate(tx("dashboard.clientThread.payAmount", "Pay {amount}"), { amount: m[0] }) : tx("dashboard.clientThread.payBalance", "Pay balance"), primary: true };
     }
-    return { label: "Sign call sheet" };
+    return { kind: "sign", label: tx("dashboard.clientThread.signCallSheet", "Sign call sheet") };
   }
   if (conv.stage === "past") return null;
   if (conv.stage === "cancelled") return null;
@@ -54,16 +71,16 @@ export function deriveClientNextAction(conv: Conversation): { label: string; pri
   if (ofStage === "sent" || ofStage === "reviewing") {
     const total = offer ? offer.rows.reduce((s, r) => s + r.clientRate * r.units, 0) + offer.agencyFee : 0;
     const currency = offer?.clientBudget?.currency ?? "USD";
-    return { label: total > 0 ? `Approve offer (${fmtMoney(total, currency)})` : "Approve offer", primary: true };
+    return { kind: "approve", label: total > 0 ? interpolate(tx("dashboard.clientThread.approveOfferTotal", "Approve offer ({total})"), { total: fmtMoney(total, currency) }) : tx("dashboard.clientThread.approveOffer", "Approve offer"), primary: true };
   }
-  if (ofStage === "countered") return { label: "Review counter", primary: true };
-  if (ofStage === "accepted") return { label: "Sign booking" };
+  if (ofStage === "countered") return { kind: "review", label: tx("dashboard.clientThread.reviewCounter", "Review counter"), primary: true };
+  if (ofStage === "accepted") return { kind: "sign", label: tx("dashboard.clientThread.signBooking", "Sign booking") };
   if (conv.stage === "hold") {
-    return { label: `Confirm ${conv.date ?? "hold"}`, primary: true };
+    return { kind: "confirm", label: interpolate(tx("dashboard.clientThread.confirmHold", "Confirm {hold}"), { hold: conv.date ?? tx("dashboard.clientThread.holdWord", "hold") }), primary: true };
   }
   if (conv.stage === "inquiry") {
-    if (ofStage === "no_offer" || ofStage === "client_budget") return { label: "Add a brief", primary: true };
-    return { label: "Review profiles" };
+    if (ofStage === "no_offer" || ofStage === "client_budget") return { kind: "brief", label: tx("dashboard.clientThread.addBrief", "Add a brief"), primary: true };
+    return { kind: "review_profiles", label: tx("dashboard.clientThread.reviewProfiles", "Review profiles") };
   }
   return null;
 }
@@ -71,30 +88,37 @@ export function deriveClientNextAction(conv: Conversation): { label: string; pri
 // Static fallbacks — used only when deriveClientNextAction can't infer
 // the right label (KYC blockers, post-cancellation notes, etc.). Most
 // conversations get their CTA derived; this map is for edge cases.
-export const CLIENT_NEXT_ACTION_OVERRIDES: Record<string, { label: string; primary?: boolean } | null> = {
-  g1: { label: "Verify card on file", primary: true },
-  g3: { label: "Verify card to unlock profiles", primary: true },
-};
+// `t` localizes the labels; the kind stays stable for logic.
+export function clientNextActionOverride(convId: string, t?: Translator): ClientNextAction | null {
+  const tx = (key: string, fallback: string): string => {
+    if (!t) return fallback;
+    const out = t(key);
+    return out === key ? fallback : out;
+  };
+  if (convId === "g1") return { kind: "verify_card", label: tx("dashboard.clientThread.verifyCardOnFile", "Verify card on file"), primary: true };
+  if (convId === "g3") return { kind: "verify_card", label: tx("dashboard.clientThread.verifyCardUnlock", "Verify card to unlock profiles"), primary: true };
+  return null;
+}
 
-// Compatibility shim — the existing call sites use bracket access
-// (`CLIENT_NEXT_ACTION_FOR_CONV[conv.id]`). Proxied so the lookup
-// runs derive-then-override at call time. Pass the conv-id key, get
-// the right computed action.
-export const CLIENT_NEXT_ACTION_FOR_CONV: Record<string, { label: string; primary?: boolean } | null> = new Proxy({}, {
-  get(_t, convId: string) {
-    if (CLIENT_NEXT_ACTION_OVERRIDES[convId]) return CLIENT_NEXT_ACTION_OVERRIDES[convId];
-    // Find the conv across both client-profile maps.
-    for (const list of Object.values(CLIENT_MOCK_CONVERSATIONS_BY_PROFILE)) {
-      const c = list.find(c => c.id === convId);
-      if (c) return deriveClientNextAction(c);
-    }
-    // Fall back to MOCK_CONVERSATIONS for talent-side ids that share
-    // the same conv (preserves the c1 / c2 / c3 entries' behavior).
-    const c = MOCK_CONVERSATIONS.find(c => c.id === convId);
-    if (c) return deriveClientNextAction(c);
-    return null;
-  },
-}) as Record<string, { label: string; primary?: boolean } | null>;
+// Resolve the client next-action for a conversation id. Runs
+// override-then-derive at call time. Pass `t` to localize the rendered
+// label; callers that only read `.primary` / `.kind` (sort, filter,
+// counts) may omit it. Replaces the former Proxy so a translator can be
+// threaded per call (module-level Proxies can't hold request state).
+export function clientNextActionFor(convId: string, t?: Translator): ClientNextAction | null {
+  const override = clientNextActionOverride(convId, t);
+  if (override) return override;
+  // Find the conv across both client-profile maps.
+  for (const list of Object.values(CLIENT_MOCK_CONVERSATIONS_BY_PROFILE)) {
+    const c = list.find(c => c.id === convId);
+    if (c) return deriveClientNextAction(c, t);
+  }
+  // Fall back to MOCK_CONVERSATIONS for talent-side ids that share
+  // the same conv (preserves the c1 / c2 / c3 entries' behavior).
+  const c = MOCK_CONVERSATIONS.find(c => c.id === convId);
+  if (c) return deriveClientNextAction(c, t);
+  return null;
+}
 
 // Old hand-rolled map kept as a backstop reference (no longer the
 // source of truth). The Proxy above wins. Useful for documenting
@@ -131,6 +155,7 @@ export function ClientProjectShell() {
   // the talent's full inbox or the agency's roster. Falls back to an
   // empty list if a profile hasn't seeded any.
   const { state } = useAdminShell();
+  const t = useT();
   const profileId = state.clientProfile;
   const conversations = CLIENT_MOCK_CONVERSATIONS_BY_PROFILE[profileId] ?? [];
   // Re-render on seen-state changes so the inbox re-sorts the moment
@@ -158,7 +183,7 @@ export function ClientProjectShell() {
   const [mobilePane, setMobilePane] = useState<"list" | "thread">(fromPin ? "thread" : "list");
 
   const filtered = conversations.filter(c => {
-    const next = CLIENT_NEXT_ACTION_FOR_CONV[c.id];
+    const next = clientNextActionFor(c.id);
     if (filter === "action-needed" && !next?.primary) return false;
     if (filter === "waiting-agency" && next?.primary) return false;
     if (filter === "booked" && c.stage !== "booked") return false;
@@ -181,8 +206,8 @@ export function ClientProjectShell() {
     const aNew = (a.seen === false && !isLocallySeen(a.id)) ? 1 : 0;
     const bNew = (b.seen === false && !isLocallySeen(b.id)) ? 1 : 0;
     if (aNew !== bNew) return bNew - aNew;
-    const aAct = CLIENT_NEXT_ACTION_FOR_CONV[a.id]?.primary ? 1 : 0;
-    const bAct = CLIENT_NEXT_ACTION_FOR_CONV[b.id]?.primary ? 1 : 0;
+    const aAct = clientNextActionFor(a.id)?.primary ? 1 : 0;
+    const bAct = clientNextActionFor(b.id)?.primary ? 1 : 0;
     if (aAct !== bAct) return bAct - aAct;
     return a.lastMessage.ageHrs - b.lastMessage.ageHrs;
   });
@@ -242,7 +267,7 @@ export function ClientProjectShell() {
           filter={filter} onFilterChange={setFilter}
         />
         <div data-tulala-thread-pane style={{ display: "flex", flexDirection: "column", minHeight: 0, background: COLORS.surfaceAlt, overflow: "hidden" }}>
-          {active ? <ClientProjectDetail conv={active} onBack={() => setMobilePane("list")} /> : <EmptyDetail label="No project selected" />}
+          {active ? <ClientProjectDetail conv={active} onBack={() => setMobilePane("list")} /> : <EmptyDetail label={t("dashboard.clientThread.noProjectSelected")} />}
         </div>
       </div>
       {/* Mobile-only: thin tab on left edge to reopen the inbox while
@@ -267,8 +292,9 @@ export function ClientProjectShell() {
 export function ClientProjectRow({
   conv, active, onClick,
 }: { conv: Conversation; active: boolean; onClick: () => void }) {
+  const t = useT();
   const sc = stageStyle(conv.stage);
-  const next = CLIENT_NEXT_ACTION_FOR_CONV[conv.id];
+  const next = clientNextActionFor(conv.id, t);
   const dateLabel = conv.date;
   const cityLabel = conv.location ? conv.location.split(" · ")[0] : null;
   const briefMentionsCity = cityLabel && conv.brief.toLowerCase().includes(cityLabel.toLowerCase());
@@ -283,21 +309,21 @@ export function ClientProjectRow({
   // the message uses the stage-shape phrasing the client expects.
   const statusLine = (() => {
     if (next?.primary) return next.label;
-    if (conv.stage === "inquiry") return "Coordinator preparing your shortlist";
-    if (conv.stage === "hold") return "Hold confirmed · finalising offer";
-    if (conv.stage === "booked") return "Booked · schedule confirmed";
-    if (conv.stage === "past") return "Wrapped · invoice closed";
-    if (conv.stage === "cancelled") return conv.outcome === "client_cancelled" ? "Cancelled by you" : "Cancelled";
+    if (conv.stage === "inquiry") return t("dashboard.clientThread.statusPreparingShortlist");
+    if (conv.stage === "hold") return t("dashboard.clientThread.statusHoldFinalising");
+    if (conv.stage === "booked") return t("dashboard.clientThread.statusBookedConfirmed");
+    if (conv.stage === "past") return t("dashboard.clientThread.statusWrappedClosed");
+    if (conv.stage === "cancelled") return conv.outcome === "client_cancelled" ? t("dashboard.clientThread.cancelledByYou") : t("dashboard.clientThread.cancelled");
     return conv.lastMessage.preview;
   })();
 
-  const stageWord = conv.stage === "past" ? "Wrapped"
-    : conv.stage === "hold" ? "Hold"
-    : conv.stage === "cancelled" && conv.outcome === "client_cancelled" ? "Cancelled by you"
-    : conv.stage === "cancelled" && conv.outcome === "client_rejected" ? "Offer rejected"
-    : conv.stage === "cancelled" && conv.outcome === "client_no_response" ? "Expired · no reply"
-    : conv.stage === "cancelled" ? "Cancelled"
-    : conv.stage.charAt(0).toUpperCase() + conv.stage.slice(1);
+  const stageWord = conv.stage === "past" ? t("dashboard.clientThread.stageWrapped")
+    : conv.stage === "hold" ? t("dashboard.clientThread.stageHold")
+    : conv.stage === "cancelled" && conv.outcome === "client_cancelled" ? t("dashboard.clientThread.cancelledByYou")
+    : conv.stage === "cancelled" && conv.outcome === "client_rejected" ? t("dashboard.clientThread.offerRejected")
+    : conv.stage === "cancelled" && conv.outcome === "client_no_response" ? t("dashboard.clientThread.expiredNoReply")
+    : conv.stage === "cancelled" ? t("dashboard.clientThread.cancelled")
+    : talentStageLabel(conv.stage, t);
 
   // Same seen + tint logic as the talent inbox so the row pattern
   // reads identically across roles.
@@ -392,7 +418,7 @@ export function ClientProjectRow({
               {subtitleParts.slice(1).join(" · ")}
             </span>
             {(() => {
-              const sm = conv.source ? sourceChipMeta(conv.source) : null;
+              const sm = conv.source ? sourceChipMeta(conv.source, t) : null;
               if (!sm) return null;
               return (
                 <span title={sm.tooltip} style={{
@@ -479,12 +505,13 @@ export function ClientProjectInbox({
   // Subscribe to pin/manual-unread flags so the inbox re-orders +
   // re-tints when those toggle from a row's hover actions.
   useFlagsSubscription();
+  const t = useT();
   const chips: { id: ClientFilter; label: string; count?: number }[] = [
-    { id: "all", label: "All projects" },
-    { id: "action-needed", label: "Needs you", count: conversations.filter(c => CLIENT_NEXT_ACTION_FOR_CONV[c.id]?.primary).length },
-    { id: "waiting-agency", label: "In flight" },
-    { id: "booked", label: "Booked" },
-    { id: "past", label: "Past" },
+    { id: "all", label: t("dashboard.clientThread.chipAllProjects") },
+    { id: "action-needed", label: t("dashboard.clientThread.chipNeedsYou"), count: conversations.filter(c => clientNextActionFor(c.id)?.primary).length },
+    { id: "waiting-agency", label: t("dashboard.clientThread.chipInFlight") },
+    { id: "booked", label: t("dashboard.clientThread.chipBooked") },
+    { id: "past", label: t("dashboard.clientThread.chipPast") },
   ];
   return (
     <aside data-tulala-list-pane style={{
@@ -499,7 +526,7 @@ export function ClientProjectInbox({
         minWidth: 0, maxWidth: "100%",
       }}>
         <div data-tulala-list-header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
-          <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, margin: 0 }} className="text-admin-ink">Projects</h3>
+          <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, margin: 0 }} className="text-admin-ink">{t("dashboard.clientThread.projectsTitle")}</h3>
           <span className="text-admin-ink-muted text-admin-11">{conversations.length}</span>
         </div>
         <style>{`
@@ -521,7 +548,7 @@ export function ClientProjectInbox({
           }
         `}</style>
         <div data-tulala-inbox-search style={{ marginBottom: 10 }}>
-          <SearchPill value={search} onChange={onSearchChange} placeholder="Search projects…" />
+          <SearchPill value={search} onChange={onSearchChange} placeholder={t("dashboard.clientThread.searchProjects")} />
         </div>
         <div data-tulala-inbox-chips style={{ display: "flex", gap: 5, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2 }}>
           {chips.map(c => (
@@ -555,10 +582,10 @@ export function ClientProjectInbox({
               </svg>
             </div>
             <div className="text-admin-ink text-admin-13 font-semibold">
-              {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "Nothing in this view"}
+              {search.trim() ? interpolate(t("dashboard.clientThread.noMatchesFor"), { query: search }) : t("dashboard.clientThread.nothingInView")}
             </div>
             <div style={{ fontSize: 11.5, lineHeight: 1.4, maxWidth: 240 }} className="text-admin-ink-muted">
-              {search.trim() ? "Try a different keyword, or clear the search." : <>Try the <strong>All projects</strong> filter or clear your search.</>}
+              {search.trim() ? t("dashboard.clientThread.emptySearchHint") : t("dashboard.clientThread.emptyFilterHint")}
             </div>
             {search.trim() && (
               <button type="button" onClick={() => onSearchChange("")} style={{
@@ -566,7 +593,7 @@ export function ClientProjectInbox({
                 border: `1px solid ${COLORS.border}`, background: "transparent",
                 color: COLORS.ink, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
                 fontFamily: FONTS.body,
-              }}>Clear search</button>
+              }}>{t("dashboard.clientThread.clearSearch")}</button>
             )}
           </div>
         ) : renderWithDateGroups(
@@ -584,6 +611,7 @@ export function ClientProjectInbox({
 // ── Client PROJECT DETAIL — calm, status-focused ──
 export function ClientProjectDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
   const { toast } = useAdminShell();
+  const t = useT();
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -591,50 +619,46 @@ export function ClientProjectDetail({ conv, onBack }: { conv: Conversation; onBa
   // CTA routes through clientApproveCurrentOffer / clientRejectCurrentOffer
   // depending on which action the inquiry calls for. Synthetic mock conv
   // ids and unsupported actions stay disabled instead of pretending to run.
+  // Route on the stable action `kind` (never the localized label).
   const isRealInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
-  const handleClientCtaClick = (label: string) => {
+  const handleClientCtaClick = (kind: ClientNextActionKind) => {
     if (!isRealInquiry) return;
-    if (/approve/i.test(label)) {
+    if (kind === "approve") {
       startTransition(async () => {
         const r = await clientApproveCurrentOffer(conv.id);
-        if (!r.ok) toast(`Approve failed: ${r.error}`);
-        else { toast("Offer approved"); router.refresh(); }
+        if (!r.ok) toast(interpolate(t("dashboard.clientThread.approveFailed"), { error: r.error }));
+        else { toast(t("dashboard.clientThread.offerApproved")); router.refresh(); }
       });
       return;
     }
-    if (/reject|decline|pass/i.test(label)) {
-      startTransition(async () => {
-        const r = await clientRejectCurrentOffer(conv.id);
-        if (!r.ok) toast(`Reject failed: ${r.error}`);
-        else { toast("Offer rejected"); router.refresh(); }
-      });
-      return;
-    }
-    if (/pay|invoice|verify card/i.test(label)) {
+    if (kind === "pay" || kind === "verify_card") {
       startTransition(async () => {
         const r = await startInquiryCheckout(conv.id);
-        if (!r.ok) { toast(`Checkout failed: ${r.error}`); return; }
+        if (!r.ok) { toast(interpolate(t("dashboard.clientThread.checkoutFailed"), { error: r.error })); return; }
         if (r.url) {
-          if (r.mock) toast("Stripe not configured — opening mock success page");
+          if (r.mock) toast(t("dashboard.clientThread.stripeNotConfigured"));
           window.location.href = r.url;
         }
       });
       return;
     }
   };
+  // Reference the reject action so tree-shaking keeps the import wired for
+  // the live reject path (surfaced from the Offer tab, not this header CTA).
+  void clientRejectCurrentOffer;
 
   // Mock talent lineup for client view (would come from inquiry record)
   const lineup = (conv.participants ?? []).filter(p => p.isTalent).slice(0, 4);
 
   // Mock timeline of milestones (events the client cares about)
   const timeline: { ts: string; label: string }[] = [
-    { ts: "Apr 22", label: "Inquiry sent" },
-    { ts: "Apr 22", label: `${conv.leader.name} assigned as your coordinator` },
-    ...(conv.stage !== "inquiry" ? [{ ts: "Apr 23", label: "Offer sent · €8,000" }] : []),
-    ...(conv.stage === "booked" || conv.stage === "past" ? [{ ts: "Apr 23", label: "You approved offer" }] : []),
-    ...(conv.stage === "booked" || conv.stage === "past" ? [{ ts: "Apr 24", label: "Call sheet published" }] : []),
-    ...(conv.stage === "past" ? [{ ts: "May 6",  label: "Shoot wrapped" }] : []),
-    ...(conv.stage === "past" ? [{ ts: "May 13", label: "Selects shared" }] : []),
+    { ts: "Apr 22", label: t("dashboard.clientThread.timelineInquirySent") },
+    { ts: "Apr 22", label: interpolate(t("dashboard.clientThread.timelineAssignedCoordinator"), { name: conv.leader.name }) },
+    ...(conv.stage !== "inquiry" ? [{ ts: "Apr 23", label: interpolate(t("dashboard.clientThread.timelineOfferSent"), { amount: "€8,000" }) }] : []),
+    ...(conv.stage === "booked" || conv.stage === "past" ? [{ ts: "Apr 23", label: t("dashboard.clientThread.timelineYouApproved") }] : []),
+    ...(conv.stage === "booked" || conv.stage === "past" ? [{ ts: "Apr 24", label: t("dashboard.clientThread.timelineCallSheetPublished") }] : []),
+    ...(conv.stage === "past" ? [{ ts: "May 6",  label: t("dashboard.clientThread.timelineShootWrapped") }] : []),
+    ...(conv.stage === "past" ? [{ ts: "May 13", label: t("dashboard.clientThread.timelineSelectsShared") }] : []),
   ];
 
   return (
@@ -651,19 +675,19 @@ export function ClientProjectDetail({ conv, onBack }: { conv: Conversation; onBa
       <ShellHeader
         conv={conv}
         onBack={onBack}
-        backLabel="Projects"
+        backLabel={t("dashboard.clientThread.backProjects")}
         primaryChip={null}
         showCoordPill={false}
         rightSlot={(() => {
-          const action = CLIENT_NEXT_ACTION_FOR_CONV[conv.id];
+          const action = clientNextActionFor(conv.id, t);
           if (!action) return null;
-          const canRunAction = isRealInquiry && /approve|reject|decline|pass|pay|invoice|verify card/i.test(action.label);
+          const canRunAction = isRealInquiry && (action.kind === "approve" || action.kind === "pay" || action.kind === "verify_card");
           return (
             <button
               type="button"
               disabled={!canRunAction}
-              title={canRunAction ? undefined : "This client action needs a live workflow before it can run here."}
-              onClick={canRunAction ? () => handleClientCtaClick(action.label) : undefined}
+              title={canRunAction ? undefined : t("dashboard.clientThread.clientActionNeedsWorkflow")}
+              onClick={canRunAction ? () => handleClientCtaClick(action.kind) : undefined}
               style={canRunAction ? {
               padding: "5px 11px", borderRadius: 999,
               border: action.primary ? "none" : `1px solid ${COLORS.border}`,

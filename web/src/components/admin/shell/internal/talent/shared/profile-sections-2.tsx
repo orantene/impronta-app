@@ -13,7 +13,7 @@ import { Grid } from "./page-chrome-1";
 // rather than disabled controls, so the ladder is always visible.
 
 export function PersonalPageBand() {
-  const { openDrawer, toast, state, bridgeTalentSelfProfile, setTalentPage } = useAdminShell();
+  const { openDrawer, state, bridgeTalentSelfProfile, setTalentPage } = useAdminShell();
   const p = MY_TALENT_PROFILE;
   const sub = p.subscription;
   // Tier from shared shell state — reflects live plan switches.
@@ -37,52 +37,34 @@ export function PersonalPageBand() {
     );
   }
 
-  // Free talent: hide the full premium band and show a single "coming soon" card instead.
+  // Free talent: talent billing isn't live yet, so there's nothing to sell.
+  // We drop the upsell/waitlist marketing and its CTA (the tier-compare drawer
+  // reads as purchasable) and keep a single quiet, honest notice: their
+  // standard roster page is live, and richer personal-page tiers are on the
+  // way. No fake pricing, no dead affordance.
   if (tier === "free") {
     return (
       <div
         style={{
-          padding: "20px 22px",
+          padding: "16px 18px",
           background: "#fff",
-          border: `1.5px solid rgba(91,107,160,0.22)`,
-          borderRadius: 14,
-          display: "flex",
-          alignItems: "center",
-          gap: 18,
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
           fontFamily: FONTS.body,
         }}
       >
-        <div className="flex-1 min-w-0">
-          <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 500, marginBottom: 5 }} className="text-admin-indigo-deep">
-            Tulala Pro &amp; Max — coming soon
-          </div>
-          <div style={{ fontSize: 12.5, lineHeight: 1.6, maxWidth: 520 }} className="text-admin-ink-muted">
-            Richer templates, social &amp; video embeds, press band, downloadable media kit, and a custom
-            domain for your own name. Join the waitlist and get early access when billing opens.
-          </div>
-          <div style={{ marginTop: 4, fontSize: 11.5 }} className="text-admin-ink-muted">
-            Your standard roster page at{" "}
-            <span style={{ fontFamily: FONTS.mono }}>{sub.personalPageUrl}</span> is already live.
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+          <Icon name="globe" size={13} stroke={1.7} color={COLORS.inkMuted} />
+          <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
+            Your roster page is live
           </div>
         </div>
-        <button
-          onClick={() => openDrawer("talent-tier-compare")}
-          style={{
-            flexShrink: 0,
-            padding: "10px 20px",
-            background: COLORS.indigoSoft,
-            border: `1px solid rgba(91,107,160,0.32)`,
-            borderRadius: 8,
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            fontWeight: 600,
-            color: COLORS.indigoDeep,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          See what&apos;s coming
-        </button>
+        <div style={{ fontSize: 12, lineHeight: 1.55, maxWidth: 560 }} className="text-admin-ink-muted">
+          It&apos;s published at{" "}
+          <span style={{ fontFamily: FONTS.mono }}>{sub.personalPageUrl}</span>. Richer
+          personal-page tiers with custom templates, embeds and your own domain are on the
+          way, we&apos;ll let you know when they open.
+        </div>
       </div>
     );
   }
@@ -170,7 +152,7 @@ export function PersonalPageBand() {
             description={
               allowPress
                 ? `${sub.press.length} clips · auto-pulled from RSS or pasted manually.`
-                : "Vogue, El País, FT — show off press mentions on your page. Pro+."
+                : "Vogue, El País, FT. Show off press mentions on your page. Pro+."
             }
             meta={allowPress ? <><StatDot tone="green" /> {sub.press.length} clips</> : <LockedBadge requiredTier="pro" />}
             affordance={allowPress ? "Manage press" : "Unlock press band"}
@@ -182,7 +164,7 @@ export function PersonalPageBand() {
               allowKit
                 ? sub.mediaKit
                   ? `${sub.mediaKit.filename} · ${sub.mediaKit.size} · updated ${sub.mediaKit.updatedAt}.`
-                  : "Generate a downloadable EPK PDF — bio, credits, comp card, contact CTA."
+                  : "Generate a downloadable EPK PDF: bio, credits, comp card, contact CTA."
                 : "One-click downloadable EPK · credits · comp card · contact CTA. Pro+."
             }
             meta={allowKit ? <><StatDot tone="green" /> Ready</> : <LockedBadge requiredTier="pro" />}
@@ -195,7 +177,7 @@ export function PersonalPageBand() {
               allowDomain
                 ? sub.customDomain
                   ? `Live at ${sub.customDomain} · ${sub.customDomainStatus}`
-                  : "Connect your own domain — yourname.com → personal page."
+                  : "Connect your own domain. yourname.com → personal page."
                 : "Personal domain (yourname.com) routed straight to your Tulala page. Max only."
             }
             meta={allowDomain ? <><StatDot tone={sub.customDomain ? "green" : "dim"} /> {sub.customDomain ? "Live" : "Not set"}</> : <LockedBadge requiredTier="max" />}
@@ -207,7 +189,7 @@ export function PersonalPageBand() {
             description={
               allowExtraSections
                 ? "Bio · About · Press · Tour dates · Show calendar · Contact CTA. Drag to re-order."
-                : "Multi-section page — story, tour dates, show calendar, contact CTA. Max only."
+                : "Multi-section page: story, tour dates, show calendar, contact CTA. Max only."
             }
             meta={allowExtraSections ? <><StatDot tone="green" /> 6 sections</> : <LockedBadge requiredTier="max" />}
             affordance={allowExtraSections ? "Edit sections" : "Unlock sections"}

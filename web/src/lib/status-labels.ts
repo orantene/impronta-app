@@ -123,6 +123,25 @@ export const TRANSACTION_STATUS_LABELS: Record<string, string> = {
   refunded: "Refunded",
 };
 
+/**
+ * i18n sibling for TRANSACTION_STATUS_LABELS (additive — the English map above
+ * stays for non-localized consumers). Localized consumers resolve
+ * `t(TRANSACTION_STATUS_LABEL_KEYS[status])` and fall back to the English map
+ * on a catalog miss. Keys live under `dashboard.enums.transactionStatus.*`.
+ */
+export const TRANSACTION_STATUS_LABEL_KEYS: Record<string, string> = {
+  draft: "dashboard.enums.transactionStatus.draft",
+  payment_requested: "dashboard.enums.transactionStatus.paymentRequested",
+  pending: "dashboard.enums.transactionStatus.pending",
+  paid: "dashboard.enums.transactionStatus.paid",
+  payout_pending: "dashboard.enums.transactionStatus.payoutPending",
+  payout_sent: "dashboard.enums.transactionStatus.payoutSent",
+  cancelled: "dashboard.enums.transactionStatus.cancelled",
+  failed: "dashboard.enums.transactionStatus.failed",
+  disputed: "dashboard.enums.transactionStatus.disputed",
+  refunded: "dashboard.enums.transactionStatus.refunded",
+};
+
 /** Return a human-readable label for a booking transaction status. */
 export function transactionStatusLabel(status: string): string {
   return TRANSACTION_STATUS_LABELS[status] ?? humanizeStatus(status);

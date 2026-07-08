@@ -21,12 +21,15 @@ import {
   useAdminShell,
   useQueuedRouterRefresh
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function PagesDrawer() {
   const { closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const pages = [
     { id: "p1", title: "Home", status: "published", updated: "2d ago" },
     { id: "p2", title: "Roster", status: "published", updated: "5d ago" },
@@ -38,15 +41,15 @@ export function PagesDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Pages"
-      description="Static pages that complement your roster."
+      title={tt("Pages")}
+      description={tt("Static pages that complement your roster.")}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>
           <PrimaryButton onClick={closeDrawer}>
             <span className="inline-flex items-center gap-1.5">
               <Icon name="plus" size={12} stroke={2} />
-              New page
+              {tt("New page")}
             </span>
           </PrimaryButton>
         </>
@@ -70,12 +73,12 @@ export function PagesDrawer() {
             }}
           >
             <div className="flex-1">
-              <div className="text-admin-ink text-admin-13 font-semibold">{p.title}</div>
+              <div className="text-admin-ink text-admin-13 font-semibold">{tt(p.title)}</div>
               <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
-                /{p.title.toLowerCase().replace(/\s/g, "-")} · updated {p.updated}
+                /{p.title.toLowerCase().replace(/\s/g, "-")} · {tt("updated")} {p.updated}
               </div>
             </div>
-            <StateChipMini label={p.status} tone={p.status === "published" ? "green" : "dim"} />
+            <StateChipMini label={tt(p.status)} tone={p.status === "published" ? "green" : "dim"} />
           </button>
         ))}
       </div>
@@ -86,6 +89,8 @@ export function PagesDrawer() {
 
 export function PostsDrawer() {
   const { closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const posts = [
     { title: "Spring 2026 — what's moving", status: "published", at: "3d ago" },
     { title: "BTS · Vogue Italia editorial", status: "published", at: "1w ago" },
@@ -97,15 +102,15 @@ export function PostsDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Posts"
-      description="Editorial features, news, behind-the-scenes."
+      title={tt("Posts")}
+      description={tt("Editorial features, news, behind-the-scenes.")}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>
           <PrimaryButton onClick={closeDrawer}>
             <span className="inline-flex items-center gap-1.5">
               <Icon name="plus" size={12} stroke={2} />
-              New post
+              {tt("New post")}
             </span>
           </PrimaryButton>
         </>
@@ -125,7 +130,7 @@ export function PostsDrawer() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div className="text-admin-ink text-admin-13 font-semibold">{p.title}</div>
-              <StateChipMini label={p.status} tone={p.status === "published" ? "green" : "dim"} />
+              <StateChipMini label={tt(p.status)} tone={p.status === "published" ? "green" : "dim"} />
             </div>
             <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{p.at}</div>
           </div>
@@ -139,6 +144,8 @@ export function PostsDrawer() {
 export function NavigationDrawer() {
   const queueRouterRefresh = useQueuedRouterRefresh();
   const { closeDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const [pending, startTransition] = useTransition();
   const [headerItems, setHeaderItems] = useState<string[]>([
     "Roster", "About", "Editorial", "Press", "Contact",
@@ -169,8 +176,8 @@ export function NavigationDrawer() {
       const r = await patchAgencySettingsNamespace("", "navigation", {
         headerItems, col1, col2, col3,
       });
-      if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("Navigation saved"); queueRouterRefresh(); closeDrawer(); }
+      if (!r.ok) toast(`${tt("Save failed")}: ${r.error}`);
+      else { toast(tt("Navigation saved")); queueRouterRefresh(); closeDrawer(); }
     });
   };
 
@@ -178,21 +185,21 @@ export function NavigationDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Navigation & footer"
-      description="Header structure and footer columns."
-      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
+      title={tt("Navigation & footer")}
+      description={tt("Header structure and footer columns.")}
+      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? tt("Saving…") : tt("Save")} />}
     >
-      <Section title={`Header — ${headerItems.length} items`}>
+      <Section title={copy.isSpanish ? `Encabezado · ${headerItems.length} elementos` : `Header · ${headerItems.length} items`}>
         <ReorderList items={headerItems} />
       </Section>
-      <Section title="Footer — 3 columns">
-        <FieldRow label="Column 1 title">
+      <Section title={tt("Footer · 3 columns")}>
+        <FieldRow label={tt("Column 1 title")}>
           <TextInput value={col1} onChange={(e) => setCol1((e.target as HTMLInputElement).value)} />
         </FieldRow>
-        <FieldRow label="Column 2 title">
+        <FieldRow label={tt("Column 2 title")}>
           <TextInput value={col2} onChange={(e) => setCol2((e.target as HTMLInputElement).value)} />
         </FieldRow>
-        <FieldRow label="Column 3 title">
+        <FieldRow label={tt("Column 3 title")}>
           <TextInput value={col3} onChange={(e) => setCol3((e.target as HTMLInputElement).value)} />
         </FieldRow>
       </Section>
@@ -203,16 +210,18 @@ export function NavigationDrawer() {
 
 export function MediaDrawer() {
   const { closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Media library"
-      description="Photos and videos. Drag-drop or upload."
+      title={tt("Media library")}
+      description={tt("Photos and videos. Drag-drop or upload.")}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <PrimaryButton onClick={closeDrawer}>Upload</PrimaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>
+          <PrimaryButton onClick={closeDrawer}>{tt("Upload")}</PrimaryButton>
         </>
       }
     >
@@ -249,6 +258,8 @@ export function MediaDrawer() {
 export function TranslationsDrawer() {
   const queueRouterRefresh = useQueuedRouterRefresh();
   const { closeDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const [pending, startTransition] = useTransition();
   const ALL = [
     { code: "EN", name: "English" },
@@ -286,8 +297,8 @@ export function TranslationsDrawer() {
       const r = await patchAgencySettingsNamespace("", "languages", {
         enabled, primary,
       });
-      if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("Languages saved"); queueRouterRefresh(); closeDrawer(); }
+      if (!r.ok) toast(`${tt("Save failed")}: ${r.error}`);
+      else { toast(tt("Languages saved")); queueRouterRefresh(); closeDrawer(); }
     });
   };
 
@@ -295,11 +306,11 @@ export function TranslationsDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Translations"
-      description="Run your storefront in multiple languages."
-      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
+      title={tt("Translations")}
+      description={tt("Run your storefront in multiple languages.")}
+      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? tt("Saving…") : tt("Save")} />}
     >
-      <Section title="Active languages">
+      <Section title={tt("Active languages")}>
         {ALL.map((l) => {
           const isOn = enabled.includes(l.code);
           const isPrimary = primary === l.code;
@@ -319,14 +330,14 @@ export function TranslationsDrawer() {
               <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }} className="text-admin-ink">
                 {l.name}
               </span>
-              {isPrimary && <StateChipMini label="Primary" tone="green" />}
+              {isPrimary && <StateChipMini label={tt("Primary")} tone="green" />}
               {!isPrimary && isOn && (
                 <button type="button" onClick={() => setPrimary(l.code)} style={{
                   fontSize: 11, fontFamily: FONTS.body, padding: "3px 8px",
                   borderRadius: 999, border: `1px solid ${COLORS.border}`,
                   background: "transparent", color: COLORS.inkMuted, cursor: "pointer",
                 }}>
-                  Make primary
+                  {tt("Make primary")}
                 </button>
               )}
               <button type="button" onClick={() => toggle(l.code)} disabled={isPrimary && isOn} style={{
@@ -338,7 +349,7 @@ export function TranslationsDrawer() {
                 cursor: (isPrimary && isOn) ? "not-allowed" : "pointer",
                 opacity: (isPrimary && isOn) ? 0.4 : 1,
               }}>
-                {isOn ? "Remove" : "Add"}
+                {isOn ? tt("Remove") : tt("Add")}
               </button>
             </div>
           );
@@ -352,12 +363,18 @@ export function TranslationsDrawer() {
 export function SeoDrawer() {
   const queueRouterRefresh = useQueuedRouterRefresh();
   const { closeDrawer, toast, effectiveTenant } = useAdminShell();
-  const [pending, startTransition] = useTransition();
-  const [siteTitle, setSiteTitle] = useState(`${effectiveTenant.name} · Talent agency`);
+  const copy = useDashboardText();
+  const tt = copy.t;
+  const [siteTitle, setSiteTitle] = useState(
+    copy.isSpanish
+      ? `${effectiveTenant.name} · Agencia de talento`
+      : `${effectiveTenant.name} · Talent agency`,
+  );
   const [description, setDescription] = useState(
-    "A boutique agency representing editorial, runway, and commercial talent across Europe.",
+    tt("A boutique agency representing editorial, runway, and commercial talent across Europe."),
   );
   const [loaded, setLoaded] = useState(false);
+  const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     let cancelled = false;
@@ -376,8 +393,8 @@ export function SeoDrawer() {
   const onSave = () => {
     startTransition(async () => {
       const r = await patchAgencySettingsNamespace("", "seo", { siteTitle, description });
-      if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("SEO saved"); queueRouterRefresh(); closeDrawer(); }
+      if (!r.ok) toast(`${tt("Save failed")}: ${r.error}`);
+      else { toast(tt("SEO saved")); queueRouterRefresh(); closeDrawer(); }
     });
   };
 
@@ -385,24 +402,24 @@ export function SeoDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="SEO & defaults"
-      description="Meta tags, social previews, sitemap."
-      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
+      title={tt("SEO & defaults")}
+      description={tt("Meta tags, social previews, sitemap.")}
+      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? tt("Saving…") : tt("Save")} />}
     >
-      <Section title="Defaults">
-        <FieldRow label="Site title">
+      <Section title={tt("Defaults")}>
+        <FieldRow label={tt("Site title")}>
           <TextInput value={siteTitle} onChange={(e) => setSiteTitle((e.target as HTMLInputElement).value)} />
         </FieldRow>
-        <FieldRow label="Description">
+        <FieldRow label={tt("Description")}>
           <TextArea rows={2} value={description} onChange={(e) => setDescription((e.target as HTMLTextAreaElement).value)} />
         </FieldRow>
       </Section>
-      <Section title="Open Graph image">
+      <Section title={tt("Open Graph image")}>
         <div style={{ aspectRatio: "1.91", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONTS.display, fontSize: 28 }} className="bg-admin-surface-alt text-admin-ink">
           {effectiveTenant.name}
         </div>
       </Section>
-      <Section title="Sitemap">
+      <Section title={tt("Sitemap")}>
         <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8, padding: 12, fontFamily: FONTS.mono, fontSize: 11, lineHeight: 1.7 }} className="text-admin-ink-muted">
           /sitemap.xml<br />
           {effectiveTenant.domain}/sitemap.xml

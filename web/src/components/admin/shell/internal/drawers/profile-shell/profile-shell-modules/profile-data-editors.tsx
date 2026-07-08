@@ -14,6 +14,7 @@ import {
   actionUploadAndAssignMedia,
   actionUploadTalentDocument,
   useAdminShell,
+  useDashboardText,
 } from "../../drawer-shared";
 
 // Q5: hoisted ID generator for new optimistic rows. Date.now() +
@@ -33,6 +34,7 @@ export type PolaroidsEditorProps = {
 
 export const PolaroidsEditor = React.memo(function PolaroidsEditor({ polaroids, onChange, talentProfileId }: PolaroidsEditorProps) {
   const { toast } = useAdminShell();
+  const copy = useDashboardText();
   const fileRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   // Q5: ref write moved to useEffect (was in render body, tripping refs).
   const polaroidsRef = useRef(polaroids);
@@ -51,7 +53,7 @@ export const PolaroidsEditor = React.memo(function PolaroidsEditor({ polaroids, 
     const fd = new FormData(); fd.append("file", f);
     const res = await actionUploadAndAssignMedia(fd, talentProfileId, "polaroid", { polaroidSlot: id });
     if (res.ok) setUrl(id, res.data.publicUrl, res.data.id);
-    else { toast(res.error || "Upload failed"); setUrl(id, null, null); }
+    else { toast(res.error || copy.t("Upload failed")); setUrl(id, null, null); }
   };
   const handleClear = (id: string) => {
     const slot = polaroidsRef.current.find(p => p.id === id);
@@ -61,7 +63,7 @@ export const PolaroidsEditor = React.memo(function PolaroidsEditor({ polaroids, 
   return (
     <div style={{ fontFamily: FONTS.body }}>
       <div style={{ fontSize: 11, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
-        {filledCount} of 5 polaroids set. Casting directors check this set first.
+        {copy.t("{filled} of 5 polaroids set. Casting directors check this set first.").replace("{filled}", String(filledCount))}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
         {polaroids.map(p => (
@@ -114,6 +116,7 @@ export type CreditsEditorProps = {
 };
 
 export const CreditsEditor = React.memo(function CreditsEditor({ credits, onChange }: CreditsEditorProps) {
+  const copy = useDashboardText();
   const add = () => onChange([...credits, { id: `cr-${Date.now()}`, year: "", brand: "", type: "Editorial" }]);
   const update = (id: string, patch: Partial<typeof credits[number]>) =>
     onChange(credits.map(c => c.id === id ? { ...c, ...patch } : c));
@@ -122,7 +125,7 @@ export const CreditsEditor = React.memo(function CreditsEditor({ credits, onChan
     <div style={{ display: "flex", flexDirection: "column", gap: 10, fontFamily: FONTS.body }}>
       {credits.length > 0 && (
         <div style={{ fontSize: 11, marginBottom: -2 }} className="text-admin-ink-dim">
-          Pin up to 3 with the ★ — they show first on your public profile.
+          {copy.t("Pin up to 3 with the ★. They show first on your public profile.")}
         </div>
       )}
       {credits.map(c => (
@@ -137,16 +140,16 @@ export const CreditsEditor = React.memo(function CreditsEditor({ credits, onChan
               style={{ width: 120, padding: "8px 10px", borderRadius: 8, border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none" }}
             />
             <input type="text" value={c.brand} onChange={(e) => update(c.id, { brand: e.target.value })}
-              placeholder="Brand — e.g. Vogue Italia"
+              placeholder={copy.t("Brand · e.g. Vogue Italia")}
               style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink, outline: "none" }}
             />
-            <button type="button" onClick={() => update(c.id, { pinned: !c.pinned })} aria-label={c.pinned ? "Unpin" : "Pin"} style={{
+            <button type="button" onClick={() => update(c.id, { pinned: !c.pinned })} aria-label={c.pinned ? copy.t("Unpin") : copy.t("Pin")} style={{
               width: 30, height: 30, borderRadius: 8, border: "none",
               background: c.pinned ? COLORS.accent : "transparent",
               color: c.pinned ? "#fff" : COLORS.inkMuted,
               fontSize: 13, cursor: "pointer",
             }}>★</button>
-            <button type="button" onClick={() => remove(c.id)} aria-label="Remove" style={{
+            <button type="button" onClick={() => remove(c.id)} aria-label={copy.t("Remove")} style={{
               width: 28, height: 28, borderRadius: 8, border: "none",
               background: "transparent", color: COLORS.inkMuted, fontSize: 14, cursor: "pointer",
             }}>×</button>
@@ -156,22 +159,22 @@ export const CreditsEditor = React.memo(function CreditsEditor({ credits, onChan
               padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
               background: "#fff", fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none",
             }}>
-              <option value="Editorial">Editorial</option>
-              <option value="Campaign">Campaign</option>
-              <option value="Cover">Cover</option>
-              <option value="Lookbook">Lookbook</option>
-              <option value="Runway">Runway</option>
-              <option value="Performance">Performance</option>
-              <option value="Event">Event</option>
-              <option value="Other">Other</option>
+              <option value="Editorial">{copy.t("Editorial")}</option>
+              <option value="Campaign">{copy.t("Campaign")}</option>
+              <option value="Cover">{copy.t("Cover")}</option>
+              <option value="Lookbook">{copy.t("Lookbook")}</option>
+              <option value="Runway">{copy.t("Runway")}</option>
+              <option value="Performance">{copy.t("Performance")}</option>
+              <option value="Event">{copy.t("Event")}</option>
+              <option value="Other">{copy.t("Other")}</option>
             </select>
             <input type="text" value={c.role ?? ""} onChange={(e) => update(c.id, { role: e.target.value })}
-              placeholder="Role — e.g. Lead, Walk · 4 looks"
+              placeholder={copy.t("Role · e.g. Lead, Walk · 4 looks")}
               style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none" }}
             />
           </div>
           <input type="text" value={c.credit ?? ""} onChange={(e) => update(c.id, { credit: e.target.value })}
-            placeholder="Credit — e.g. Photo · Marco Russo"
+            placeholder={copy.t("Credit · e.g. Photo · Marco Russo")}
             style={{ width: "100%", boxSizing: "border-box", marginTop: 6, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, outline: "none" }}
           />
         </div>
@@ -181,7 +184,7 @@ export const CreditsEditor = React.memo(function CreditsEditor({ credits, onChan
         background: "transparent", border: `1.5px dashed ${COLORS.border}`,
         color: COLORS.inkMuted, fontSize: 12, fontWeight: 600, cursor: "pointer",
         fontFamily: FONTS.body,
-      }}>+ Add credit</button>
+      }}>{copy.t("+ Add credit")}</button>
     </div>
   );
 });
@@ -196,6 +199,7 @@ export type LimitsEditorProps = {
 };
 
 export const LimitsEditor = React.memo(function LimitsEditor({ limits, onChange }: LimitsEditorProps) {
+  const copy = useDashboardText();
   const QUICK_LIMITS = [
     "No nudity", "No fur", "Lingerie · case-by-case", "No tobacco / vape",
     "No alcohol", "No religious imagery", "Vegan only",
@@ -217,7 +221,7 @@ export const LimitsEditor = React.memo(function LimitsEditor({ limits, onChange 
           background: l.enforcement === "hard" ? "rgba(176,48,58,0.04)" : "#fff",
         }}>
           <input type="text" value={l.label} onChange={(e) => update(l.id, { label: e.target.value })}
-            placeholder="e.g. No nudity"
+            placeholder={copy.t("e.g. No nudity")}
             style={{ flex: 1, padding: "6px 8px", border: "none", background: "transparent", fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none" }}
           />
           <select value={l.enforcement} onChange={(e) => update(l.id, { enforcement: e.target.value as "hard" | "soft" })} style={{
@@ -225,17 +229,17 @@ export const LimitsEditor = React.memo(function LimitsEditor({ limits, onChange 
             border: `1px solid ${COLORS.borderSoft}`,
             background: "#fff", fontSize: 11, color: COLORS.ink, outline: "none",
           }}>
-            <option value="hard">Hard · won&apos;t do</option>
-            <option value="soft">Soft · case-by-case</option>
+            <option value="hard">{copy.t("Hard · won't do")}</option>
+            <option value="soft">{copy.t("Soft · case-by-case")}</option>
           </select>
-          <button type="button" onClick={() => remove(l.id)} aria-label="Remove" style={{
+          <button type="button" onClick={() => remove(l.id)} aria-label={copy.t("Remove")} style={{
             width: 26, height: 26, borderRadius: 6, border: "none",
             background: "transparent", color: COLORS.inkMuted, fontSize: 13, cursor: "pointer",
           }}>×</button>
         </div>
       ))}
       <div>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">Quick add</div>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">{copy.t("Quick add")}</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
           {QUICK_LIMITS.filter(l => !usedLabels.has(l.toLowerCase())).map(l => (
             <button key={l} type="button" onClick={() => add(l)} style={{
@@ -244,7 +248,7 @@ export const LimitsEditor = React.memo(function LimitsEditor({ limits, onChange 
               background: "transparent", color: COLORS.inkMuted,
               fontSize: 11, fontWeight: 500, cursor: "pointer",
               fontFamily: FONTS.body,
-            }}>+ {l}</button>
+            }}>+ {copy.t(l)}</button>
           ))}
         </div>
       </div>
@@ -253,7 +257,7 @@ export const LimitsEditor = React.memo(function LimitsEditor({ limits, onChange 
         background: "transparent", border: `1.5px dashed ${COLORS.border}`,
         color: COLORS.inkMuted, fontSize: 12, fontWeight: 600, cursor: "pointer",
         fontFamily: FONTS.body,
-      }}>+ Custom limit</button>
+      }}>{copy.t("+ Custom limit")}</button>
     </div>
   );
 });
@@ -272,6 +276,7 @@ export type FilesEditorProps = {
 
 export const FilesEditor = React.memo(function FilesEditor({ files, onChange, talentProfileId }: FilesEditorProps) {
   const { toast } = useAdminShell();
+  const copy = useDashboardText();
   const fileRef = useRef<HTMLInputElement | null>(null);
   // Q5: ref write moved to useEffect (was in render body, tripping refs).
   const filesRef = useRef(files);
@@ -321,7 +326,7 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
       logServerError("fileseditor_upload", err);
       const next = [...filesRef.current];
       const idx2 = next.findIndex(f => f.id === id);
-      if (idx2 !== -1) next[idx2] = { ...next[idx2], uploading: false, uploadError: "Upload failed — try again." };
+      if (idx2 !== -1) next[idx2] = { ...next[idx2], uploading: false, uploadError: copy.t("Upload failed, try again.") };
       onChange(next);
     }
   };
@@ -350,7 +355,7 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
     <div style={{ display: "flex", flexDirection: "column", gap: 8, fontFamily: FONTS.body }}>
       {files.length === 0 && (
         <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-          Common files: W-8BEN tax form · NDA · model release · driving license · public-liability cert.
+          {copy.t("Common files: W-8BEN tax form · NDA · model release · driving license · public-liability cert.")}
         </div>
       )}
       {files.map(f => (
@@ -362,18 +367,18 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
           <span style={{ fontSize: 18, flexShrink: 0 }}>{ICON_FOR_KIND[f.kind] ?? ICON_FOR_KIND.other}</span>
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 12.5, fontWeight: 600, color: f.uploadError ? "#C82828" : COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {f.name}{f.uploading ? " · uploading…" : ""}
+              {f.name}{f.uploading ? ` · ${copy.t("uploading…")}` : ""}
             </div>
             {f.uploadError ? (
               <div style={{ fontSize: 10.5, color: "#C82828", marginTop: 1 }}>{f.uploadError}</div>
             ) : (
               <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">
-                {fmtSize(f.sizeBytes)} · uploaded {new Date(f.uploadedAt).toLocaleDateString()}{f.storagePath ? " · saved" : (f.uploading ? "" : " · not saved")}
+                {fmtSize(f.sizeBytes)} · {copy.t("uploaded {date}").replace("{date}", new Date(f.uploadedAt).toLocaleDateString(copy.isSpanish ? "es" : "en-US"))}{f.storagePath ? ` · ${copy.t("saved")}` : (f.uploading ? "" : ` · ${copy.t("not saved")}`)}
               </div>
             )}
           </div>
           {f.storagePath && (
-            <button type="button" onClick={() => void download(f)} aria-label="Download" title="Download" style={{
+            <button type="button" onClick={() => void download(f)} aria-label={copy.t("Download")} title={copy.t("Download")} style={{
               padding: "5px 9px", borderRadius: 6, border: `1px solid ${COLORS.borderSoft}`,
               background: "#fff", color: COLORS.inkMuted, fontSize: 11, fontWeight: 600,
               cursor: "pointer", fontFamily: FONTS.body,
@@ -384,15 +389,15 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
             border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
             fontSize: 11, color: COLORS.inkMuted, outline: "none",
           }}>
-            <option value="tax">Tax form</option>
-            <option value="release">Model release</option>
-            <option value="nda">NDA</option>
-            <option value="contract">Contract</option>
-            <option value="cert">Certification</option>
-            <option value="id">ID</option>
-            <option value="other">Other</option>
+            <option value="tax">{copy.t("Tax form")}</option>
+            <option value="release">{copy.t("Model release")}</option>
+            <option value="nda">{copy.t("NDA")}</option>
+            <option value="contract">{copy.t("Contract")}</option>
+            <option value="cert">{copy.t("Certification")}</option>
+            <option value="id">{copy.t("ID")}</option>
+            <option value="other">{copy.t("Other")}</option>
           </select>
-          <button type="button" onClick={() => void remove(f.id)} aria-label="Remove" style={{
+          <button type="button" onClick={() => void remove(f.id)} aria-label={copy.t("Remove")} style={{
             width: 26, height: 26, borderRadius: 6, border: "none",
             background: "transparent", color: COLORS.inkMuted, fontSize: 13, cursor: "pointer",
           }}>×</button>
@@ -406,7 +411,7 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
         fontFamily: FONTS.body,
         display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
       }}>
-        <span className="text-base">+</span> Upload file (PDF, JPG, PNG, DOC)
+        <span className="text-base">+</span> {copy.t("Upload file (PDF, JPG, PNG, DOC)")}
       </button>
       <input ref={fileRef} type="file"
         accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.heic" multiple style={{ display: "none" }}
@@ -417,7 +422,7 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
         }}
       />
       <div style={{ fontSize: 10.5, marginTop: 4 }} className="text-admin-ink-dim">
-        🔒 Files are admin-visible by default. Talent sees but doesn&apos;t edit unless an admin shares.
+        🔒 {copy.t("Files are admin-visible by default. Talent sees but doesn't edit unless an admin shares.")}
       </div>
     </div>
   );

@@ -4,10 +4,12 @@ import { useState, useTransition } from "react";
 
 import { updatePlatformCommercialDefaults } from "../tenants/commercial-terms-actions";
 import {
-  REFUND_POLICY_LABELS,
-  REFUND_POLICY_DESCRIPTIONS,
+  REFUND_POLICY_LABEL_KEYS,
+  REFUND_POLICY_DESCRIPTION_KEYS,
   type RefundPolicyKey,
 } from "@/lib/billing/commercial-terms-types";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 
 /**
  * Super-admin control for the platform-wide commercial booking defaults (the
@@ -26,6 +28,7 @@ export function PlatformCommercialDefaultsCard({
     instantBookDefault: boolean;
   };
 }) {
+  const t = useT();
   const [depositPct, setDepositPct] = useState<string>(String(current.defaultDepositPct));
   const [refundPolicy, setRefundPolicy] = useState<RefundPolicyKey>(
     current.defaultRefundPolicy,
@@ -45,7 +48,7 @@ export function PlatformCommercialDefaultsCard({
   const save = () => {
     setStatus(null);
     if (!pctValid) {
-      setStatus({ ok: false, msg: "Deposit must be 0–100." });
+      setStatus({ ok: false, msg: t("dashboard.platform.settings.depositRangeError") });
       return;
     }
     startTransition(async () => {
@@ -56,8 +59,8 @@ export function PlatformCommercialDefaultsCard({
       });
       setStatus(
         r.ok
-          ? { ok: true, msg: "Saved — applied as the platform fallback." }
-          : { ok: false, msg: `Failed: ${r.error}` },
+          ? { ok: true, msg: t("dashboard.platform.settings.commercialSaved") }
+          : { ok: false, msg: interpolate(t("dashboard.platform.settings.failed"), { error: r.error }) },
       );
     });
   };
@@ -65,7 +68,7 @@ export function PlatformCommercialDefaultsCard({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 13 }}>
       <label style={{ display: "flex", flexDirection: "column", gap: 5, maxWidth: 300 }}>
-        <span style={{ fontWeight: 600 }}>Default deposit (%)</span>
+        <span style={{ fontWeight: 600 }}>{t("dashboard.platform.settings.depositFieldLabel")}</span>
         <input
           type="number"
           min={0}
@@ -78,7 +81,7 @@ export function PlatformCommercialDefaultsCard({
       </label>
 
       <label style={{ display: "flex", flexDirection: "column", gap: 5, maxWidth: 360 }}>
-        <span style={{ fontWeight: 600 }}>Default refund policy</span>
+        <span style={{ fontWeight: 600 }}>{t("dashboard.platform.settings.refundPolicyFieldLabel")}</span>
         <select
           value={refundPolicy}
           onChange={(e) => setRefundPolicy(e.target.value as RefundPolicyKey)}
@@ -86,12 +89,12 @@ export function PlatformCommercialDefaultsCard({
         >
           {POLICY_KEYS.map((k) => (
             <option key={k} value={k}>
-              {REFUND_POLICY_LABELS[k]}
+              {t(REFUND_POLICY_LABEL_KEYS[k])}
             </option>
           ))}
         </select>
         <span style={{ color: "#6b6b76", marginTop: 2, lineHeight: 1.45, fontSize: 12 }}>
-          {REFUND_POLICY_DESCRIPTIONS[refundPolicy]}
+          {t(REFUND_POLICY_DESCRIPTION_KEYS[refundPolicy])}
         </span>
       </label>
 
@@ -103,10 +106,9 @@ export function PlatformCommercialDefaultsCard({
           style={{ marginTop: 3 }}
         />
         <span>
-          <span style={{ fontWeight: 600 }}>Instant booking on by default</span>
+          <span style={{ fontWeight: 600 }}>{t("dashboard.platform.settings.instantBookLabel")}</span>
           <span style={{ display: "block", color: "#6b6b76", marginTop: 2, lineHeight: 1.45 }}>
-            When on, workspaces inherit instant booking unless they override it.
-            Configuration only — no booking flow changes this wave.
+            {t("dashboard.platform.settings.instantBookHint")}
           </span>
         </span>
       </label>
@@ -127,7 +129,7 @@ export function PlatformCommercialDefaultsCard({
             cursor: !dirty || pending ? "default" : "pointer",
           }}
         >
-          {pending ? "Saving…" : "Save"}
+          {pending ? t("dashboard.platform.settings.saving") : t("dashboard.platform.settings.save")}
         </button>
         {status && (
           <span style={{ fontSize: 12.5, color: status.ok ? "#067647" : "#b42318" }}>{status.msg}</span>

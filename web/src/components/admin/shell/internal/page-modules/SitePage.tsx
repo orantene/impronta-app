@@ -1,10 +1,20 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { CapsLabel, Icon, PrimaryButton, PrimaryCard, ReadOnlyChip, SecondaryButton, StatDot } from "../primitives";
 import { COLORS, ENTITY_TYPE_META, FONTS, SITE_PAGES, TRANSITION, meetsPlan, meetsRole, useAdminShell } from "../state";
 import { TierCard, TierSection } from "./BillingPage";
 import { Grid, PageHeader } from "./pages-shared";
+
+// Page-status discriminant → catalog key (localized label via the *_KEY map pattern).
+const PAGE_STATUS_LABEL_KEY: Record<"published" | "draft" | "scheduled" | "archived", string> = {
+  published: "dashboard.adminSite.pageStatus.published",
+  draft: "dashboard.adminSite.pageStatus.draft",
+  scheduled: "dashboard.adminSite.pageStatus.scheduled",
+  archived: "dashboard.adminSite.pageStatus.archived",
+};
 
 
 function SiteSubSection({ title, count, sub, actionLabel, onAction, children }: { title: string; count?: number; sub?: string; actionLabel?: string; onAction?: () => void; children: ReactNode }) {
@@ -62,15 +72,16 @@ export function PageStatusChip({
 }: {
   status: "published" | "draft" | "scheduled" | "archived";
 }) {
+  const t = useT();
   const map = {
-    published: { label: "Live",      bg: COLORS.successSoft, fg: COLORS.successDeep },
-    draft:     { label: "Draft",     bg: COLORS.surfaceAlt,  fg: COLORS.inkMuted },
-    scheduled: { label: "Scheduled", bg: COLORS.indigoSoft,  fg: COLORS.indigoDeep },
-    archived:  { label: "Archived",  bg: COLORS.surfaceAlt,  fg: COLORS.inkDim },
+    published: { bg: COLORS.successSoft, fg: COLORS.successDeep },
+    draft:     { bg: COLORS.surfaceAlt,  fg: COLORS.inkMuted },
+    scheduled: { bg: COLORS.indigoSoft,  fg: COLORS.indigoDeep },
+    archived:  { bg: COLORS.surfaceAlt,  fg: COLORS.inkDim },
   } as const;
   const m = map[status];
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: m.bg, color: m.fg, fontSize: 11, fontWeight: 600, fontFamily: FONTS.body }}>{m.label}</span>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: m.bg, color: m.fg, fontSize: 11, fontWeight: 600, fontFamily: FONTS.body }}>{t(PAGE_STATUS_LABEL_KEY[status])}</span>
   );
 }
 
@@ -89,14 +100,15 @@ function SiteInfoCard({ label, value, status, sub, mono }: { label: string; valu
 }
 
 function SiteTrackingCell({ label, value }: { label: string; value: string }) {
+  const t = useT();
   const active = value.length > 0;
   return (
     <div style={{ padding: "10px 12px", borderRadius: 8, background: active ? COLORS.successSoft : "#fff", border: `1px solid ${active ? "rgba(46,125,91,0.30)" : COLORS.borderSoft}`, fontFamily: FONTS.body }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
         <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }} className="text-admin-ink-muted">{label}</span>
-        {active && <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-success-deep">Active</span>}
+        {active && <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-success-deep">{t("dashboard.adminSite.active")}</span>}
       </div>
-      <div style={{ fontSize: 12, color: active ? COLORS.successDeep : COLORS.inkDim, fontFamily: "ui-monospace, monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{value || "Not configured"}</div>
+      <div style={{ fontSize: 12, color: active ? COLORS.successDeep : COLORS.inkDim, fontFamily: "ui-monospace, monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{value || t("dashboard.adminSite.notConfigured")}</div>
     </div>
   );
 }
@@ -106,21 +118,22 @@ function SiteTrackingCell({ label, value }: { label: string; value: string }) {
 // ════════════════════════════════════════════════════════════════════
 
 export function SitePage() {
+  const t = useT();
   const { state, setPage, openDrawer, openUpgrade, bridgeTenantIdentity, effectiveTenant } = useAdminShell();
   const canEdit = meetsRole(state.role, "admin");
 
   return (
     <>
       <PageHeader
-        title="Public site"
-        subtitle="Roster, site pages, and embeds — in one place."
+        title={t("dashboard.adminSite.title")}
+        subtitle={t("dashboard.adminSite.subtitle")}
         actions={
           <>
             {!canEdit && <ReadOnlyChip />}
             <SecondaryButton size="sm" onClick={() => openDrawer("seo")}>
               <span className="inline-flex items-center gap-1.5">
                 <Icon name="external" size={12} stroke={1.7} />
-                Open subdomain
+                {t("dashboard.adminSite.openSubdomain")}
               </span>
             </SecondaryButton>
           </>
@@ -132,8 +145,8 @@ export function SitePage() {
 
       {/* WS-27 Site management tools */}
       <div style={{ display: "flex", gap: 8, marginTop: 14, marginBottom: 4 }}>
-        <SecondaryButton size="sm" onClick={() => openDrawer("site-context-switcher")}>Switch context</SecondaryButton>
-        <SecondaryButton size="sm" onClick={() => openDrawer("page-scheduler")}>Schedule pages</SecondaryButton>
+        <SecondaryButton size="sm" onClick={() => openDrawer("site-context-switcher")}>{t("dashboard.adminSite.switchContext")}</SecondaryButton>
+        <SecondaryButton size="sm" onClick={() => openDrawer("page-scheduler")}>{t("dashboard.adminSite.schedulePages")}</SecondaryButton>
       </div>
 
       <div style={{ height: 10 }} />
@@ -141,47 +154,47 @@ export function SitePage() {
       {/* EVERY PLAN */}
       <TierSection
         tone="ink"
-        label="EVERY PLAN"
-        title="Your core workspace"
-        subtitle="Free, Studio, Agency, Network — all plans share this."
+        label={t("dashboard.adminSite.tierEveryPlanLabel")}
+        title={t("dashboard.adminSite.tierEveryPlanTitle")}
+        subtitle={t("dashboard.adminSite.tierEveryPlanSubtitle")}
       >
         <PrimaryCard
           title={ENTITY_TYPE_META[state.entityType].rosterLabel}
           description={
             state.entityType === "hub"
-              ? "Members · listings · features."
-              : "Talents · drafts · approvals."
+              ? t("dashboard.adminSite.rosterDescHub")
+              : t("dashboard.adminSite.rosterDescAgency")
           }
           icon={<Icon name="team" size={14} stroke={1.7} />}
-          affordance={state.entityType === "hub" ? "Open network" : "Open roster"}
+          affordance={state.entityType === "hub" ? t("dashboard.adminSite.rosterAffordanceHub") : t("dashboard.adminSite.rosterAffordanceAgency")}
           onClick={() => setPage("talent")}
         />
         <PrimaryCard
-          title="Directory settings"
-          description="Grid · dedicated pages · 34 fields."
+          title={t("dashboard.adminSite.directorySettingsTitle")}
+          description={t("dashboard.adminSite.directorySettingsDesc")}
           icon={<Icon name="settings" size={14} stroke={1.7} />}
-          affordance="Configure"
+          affordance={t("dashboard.adminSite.configure")}
           onClick={() => openDrawer("storefront-visibility")}
         />
         <PrimaryCard
-          title="Inquiries"
-          description="Open · in progress · won."
+          title={t("dashboard.adminSite.inquiriesTitle")}
+          description={t("dashboard.adminSite.inquiriesDesc")}
           icon={<Icon name="mail" size={14} stroke={1.7} />}
-          affordance="Open work"
+          affordance={t("dashboard.adminSite.openWork")}
           onClick={() => setPage("work")}
         />
         <PrimaryCard
-          title="Branding"
-          description="Logo · fonts · accent color"
+          title={t("dashboard.adminSite.brandingTitle")}
+          description={t("dashboard.adminSite.brandingDesc")}
           icon={<Icon name="palette" size={14} stroke={1.7} />}
-          affordance="Edit branding"
+          affordance={t("dashboard.adminSite.editBranding")}
           onClick={() => openDrawer("branding")}
         />
         <PrimaryCard
-          title="Activity"
-          description="Recent edits, publishes, and bookings."
+          title={t("dashboard.adminSite.activityTitle")}
+          description={t("dashboard.adminSite.activityDesc")}
           icon={<Icon name="bolt" size={14} stroke={1.7} />}
-          affordance="See activity"
+          affordance={t("dashboard.adminSite.seeActivity")}
           onClick={() => openDrawer("team-activity")}
         />
       </TierSection>
@@ -189,48 +202,56 @@ export function SitePage() {
       {/* STUDIO */}
       <TierSection
         tone="indigo"
-        label="STUDIO"
-        title="Embed anywhere"
-        subtitle="Drop your roster into WordPress, Webflow, Shopify, or your custom site."
+        label={t("dashboard.adminSite.tierStudioLabel")}
+        title={t("dashboard.adminSite.tierStudioTitle")}
+        subtitle={t("dashboard.adminSite.tierStudioSubtitle")}
       >
         <TierCard
-          title="Widgets"
-          description="Active embeds · views."
+          title={t("dashboard.adminSite.widgetsTitle")}
+          description={t("dashboard.adminSite.widgetsDesc")}
           icon="globe"
           requiredPlan="studio"
           currentPlan={state.plan}
           onClick={() => openDrawer("widgets")}
           onUpgrade={() =>
             openUpgrade({
-              feature: "Widgets",
-              why: "Drop your live roster into any site — WordPress, Webflow, Shopify, or hand-coded.",
+              feature: t("dashboard.adminSite.widgetsTitle"),
+              why: t("dashboard.adminSite.widgetsUpgradeWhy"),
               requiredPlan: "studio",
-              unlocks: ["Embed widget", "View tracking", "Multiple presets"],
+              unlocks: [
+                t("dashboard.adminSite.widgetsUnlock1"),
+                t("dashboard.adminSite.widgetsUnlock2"),
+                t("dashboard.adminSite.widgetsUnlock3"),
+              ],
             })
           }
         />
         <TierCard
-          title="API keys"
-          description="Active keys · last used."
+          title={t("dashboard.adminSite.apiKeysTitle")}
+          description={t("dashboard.adminSite.apiKeysDesc")}
           icon="settings"
           requiredPlan="studio"
           currentPlan={state.plan}
           onClick={() => openDrawer("api-keys")}
           onUpgrade={() =>
             openUpgrade({
-              feature: "API access",
-              why: "Read your roster from your own app — power talent pages, search, and pipelines.",
+              feature: t("dashboard.adminSite.apiAccessFeature"),
+              why: t("dashboard.adminSite.apiKeysUpgradeWhy"),
               requiredPlan: "studio",
-              unlocks: ["Read-only API", "Webhooks", "Per-key scopes"],
+              unlocks: [
+                t("dashboard.adminSite.apiKeysUnlock1"),
+                t("dashboard.adminSite.apiKeysUnlock2"),
+                t("dashboard.adminSite.apiKeysUnlock3"),
+              ],
             })
           }
         />
         <TierCard
-          title="Custom domain & home"
+          title={t("dashboard.adminSite.customDomainTitle")}
           description={
             bridgeTenantIdentity?.verifiedDomain
-              ? `Live at ${bridgeTenantIdentity.verifiedDomain}`
-              : `Currently at ${bridgeTenantIdentity?.slug ? `${bridgeTenantIdentity.slug}.tulala.digital` : effectiveTenant.domain}`
+              ? interpolate(t("dashboard.adminSite.customDomainLiveAt"), { domain: bridgeTenantIdentity.verifiedDomain })
+              : interpolate(t("dashboard.adminSite.customDomainCurrentlyAt"), { domain: bridgeTenantIdentity?.slug ? `${bridgeTenantIdentity.slug}.tulala.digital` : effectiveTenant.domain })
           }
           icon="globe"
           requiredPlan="studio"
@@ -238,94 +259,98 @@ export function SitePage() {
           onClick={() => openDrawer("domain")}
           onUpgrade={() =>
             openUpgrade({
-              feature: "Custom domain",
-              why: "Run your storefront at your own brand's domain — not a Tulala subdomain.",
+              feature: t("dashboard.adminSite.customDomainFeature"),
+              why: t("dashboard.adminSite.customDomainUpgradeWhy"),
               requiredPlan: "studio",
-              unlocks: ["Custom domain", "Verified email-from", "Auto SSL"],
+              unlocks: [
+                t("dashboard.adminSite.customDomainUnlock1"),
+                t("dashboard.adminSite.customDomainUnlock2"),
+                t("dashboard.adminSite.customDomainUnlock3"),
+              ],
             })
           }
-          meta={bridgeTenantIdentity?.verifiedDomain ? <><StatDot tone="green" /> Verified</> : undefined}
+          meta={bridgeTenantIdentity?.verifiedDomain ? <><StatDot tone="green" /> {t("dashboard.adminSite.verified")}</> : undefined}
         />
       </TierSection>
 
       {/* AGENCY */}
       <TierSection
         tone="amber"
-        label="AGENCY"
-        title="Full branded site"
-        subtitle="Your site, your domain, your brand. Pages, posts, nav, theme, SEO."
+        label={t("dashboard.adminSite.tierAgencyLabel")}
+        title={t("dashboard.adminSite.tierAgencyTitle")}
+        subtitle={t("dashboard.adminSite.tierAgencySubtitle")}
       >
         <TierCard
-          title="Homepage"
-          description={meetsPlan(state.plan, "agency") ? "Draft pending" : "First-impression hero"}
+          title={t("dashboard.adminSite.homepageTitle")}
+          description={meetsPlan(state.plan, "agency") ? t("dashboard.adminSite.homepageDescDraft") : t("dashboard.adminSite.homepageDescHero")}
           icon="bolt"
           requiredPlan="agency"
           currentPlan={state.plan}
           onClick={() => openDrawer("homepage")}
           onUpgrade={() =>
             openUpgrade({
-              feature: "Branded homepage",
-              why: "Take full control of the first thing your visitors see.",
+              feature: t("dashboard.adminSite.homepageFeature"),
+              why: t("dashboard.adminSite.homepageUpgradeWhy"),
               requiredPlan: "agency",
             })
           }
         />
         <TierCard
-          title="Pages"
-          description={`${SITE_PAGES.filter(p=>p.status==="published").length} pages · ${SITE_PAGES.filter(p=>p.status==="draft").length} drafts`}
+          title={t("dashboard.adminSite.pagesTitle")}
+          description={interpolate(t("dashboard.adminSite.pagesDesc"), { pages: SITE_PAGES.filter(p=>p.status==="published").length, drafts: SITE_PAGES.filter(p=>p.status==="draft").length })}
           icon="globe"
           requiredPlan="agency"
           currentPlan={state.plan}
           onClick={() => openDrawer("pages")}
           onUpgrade={() =>
             openUpgrade({
-              feature: "Pages",
-              why: "Add About, Press, FAQ, Contact — anything beyond the roster.",
+              feature: t("dashboard.adminSite.pagesTitle"),
+              why: t("dashboard.adminSite.pagesUpgradeWhy"),
               requiredPlan: "agency",
             })
           }
         />
         <TierCard
-          title="Posts"
-          description="News, editorial, brand stories"
+          title={t("dashboard.adminSite.postsTitle")}
+          description={t("dashboard.adminSite.postsDesc")}
           icon="mail"
           requiredPlan="agency"
           currentPlan={state.plan}
           onClick={() => openDrawer("posts")}
           onUpgrade={() =>
             openUpgrade({
-              feature: "Posts",
-              why: "Publish news, editorial features, behind-the-scenes — keep your brand alive.",
+              feature: t("dashboard.adminSite.postsTitle"),
+              why: t("dashboard.adminSite.postsUpgradeWhy"),
               requiredPlan: "agency",
             })
           }
         />
         <TierCard
-          title="Navigation & footer"
-          description="Header 5 · Footer 3 cols"
+          title={t("dashboard.adminSite.navigationTitle")}
+          description={t("dashboard.adminSite.navigationDesc")}
           icon="settings"
           requiredPlan="agency"
           currentPlan={state.plan}
           onClick={() => openDrawer("navigation")}
           onUpgrade={() =>
             openUpgrade({
-              feature: "Custom navigation",
-              why: "Define your own header and footer beyond the default roster page.",
+              feature: t("dashboard.adminSite.navigationFeature"),
+              why: t("dashboard.adminSite.navigationUpgradeWhy"),
               requiredPlan: "agency",
             })
           }
         />
         <TierCard
-          title="SEO & defaults"
-          description="Meta · Sitemap · 2 redirects"
+          title={t("dashboard.adminSite.seoTitle")}
+          description={t("dashboard.adminSite.seoDesc")}
           icon="search"
           requiredPlan="agency"
           currentPlan={state.plan}
           onClick={() => openDrawer("seo")}
           onUpgrade={() =>
             openUpgrade({
-              feature: "SEO & defaults",
-              why: "Own your meta tags, social cards, sitemap and redirect rules.",
+              feature: t("dashboard.adminSite.seoTitle"),
+              why: t("dashboard.adminSite.seoUpgradeWhy"),
               requiredPlan: "agency",
             })
           }
@@ -335,15 +360,15 @@ export function SitePage() {
       {/* NETWORK */}
       <TierSection
         tone="green"
-        label="NETWORK"
-        title="Multi-agency · hub"
-        subtitle="Operate multiple agencies and push talent to cross-agency discovery."
+        label={t("dashboard.adminSite.tierNetworkLabel")}
+        title={t("dashboard.adminSite.tierNetworkTitle")}
+        subtitle={t("dashboard.adminSite.tierNetworkSubtitle")}
         rightSlot={
           <button
             type="button"
             onClick={() => openUpgrade({
-              feature: "Network plan",
-              why: "Run multiple agency identities under one roof. Move roster across brands without losing history.",
+              feature: t("dashboard.adminSite.networkPlanFeature"),
+              why: t("dashboard.adminSite.networkPlanUpgradeWhy"),
               requiredPlan: "network",
             })}
             style={{
@@ -361,38 +386,42 @@ export function SitePage() {
             onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
             onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
           >
-            Contact sales <Icon name="arrow-right" size={11} />
+            {t("dashboard.adminSite.contactSales")} <Icon name="arrow-right" size={11} />
           </button>
         }
       >
         <TierCard
-          title="Hub publishing"
-          description="Cross-agency discovery"
+          title={t("dashboard.adminSite.hubPublishingTitle")}
+          description={t("dashboard.adminSite.hubPublishingDesc")}
           icon="globe"
           requiredPlan="network"
           currentPlan={state.plan}
           onClick={() => openDrawer("hub-distribution")}
           onUpgrade={() =>
             openUpgrade({
-              feature: "Hub publishing",
-              why: "Push talent to discovery across all your agency brands at once.",
+              feature: t("dashboard.adminSite.hubPublishingTitle"),
+              why: t("dashboard.adminSite.hubPublishingUpgradeWhy"),
               requiredPlan: "network",
             })
           }
         />
         <TierCard
-          title="Multi-agency manager"
-          description="Operate multiple brands"
+          title={t("dashboard.adminSite.multiAgencyTitle")}
+          description={t("dashboard.adminSite.multiAgencyDesc")}
           icon="team"
           requiredPlan="network"
           currentPlan={state.plan}
           onClick={() => openDrawer("hub-distribution")}
           onUpgrade={() =>
             openUpgrade({
-              feature: "Multi-agency",
-              why: "Run several agencies as one operation — shared talent pool, separate brand identities.",
+              feature: t("dashboard.adminSite.multiAgencyFeature"),
+              why: t("dashboard.adminSite.multiAgencyUpgradeWhy"),
               requiredPlan: "network",
-              unlocks: ["Sub-brands", "Cross-roster pool", "Hub-level dashboards"],
+              unlocks: [
+                t("dashboard.adminSite.multiAgencyUnlock1"),
+                t("dashboard.adminSite.multiAgencyUnlock2"),
+                t("dashboard.adminSite.multiAgencyUnlock3"),
+              ],
             })
           }
         />
@@ -403,6 +432,7 @@ export function SitePage() {
 
 // Site setup walkthrough banner — full-width prominent card
 function SiteSetupBanner() {
+  const t = useT();
   const { openDrawer } = useAdminShell();
   return (
     <div
@@ -422,19 +452,19 @@ function SiteSetupBanner() {
       <div className="flex-1 min-w-0">
         <div className="mb-1">
           <CapsLabel color={COLORS.accentDeep} style={{ letterSpacing: 1.6 }}>
-            Site setup · the unified walkthrough
+            {t("dashboard.adminSite.setupBannerEyebrow")}
           </CapsLabel>
         </div>
         <h2 style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, letterSpacing: -0.3, margin: 0, lineHeight: 1.25 }} className="text-admin-ink">
-          Get your site live in six steps
+          {t("dashboard.adminSite.setupBannerTitle")}
         </h2>
         <p style={{ fontFamily: FONTS.body, fontSize: 13, margin: "4px 0 0", lineHeight: 1.55, maxWidth: 720 }} className="text-admin-ink-muted">
-          Homepage, pages, posts, navigation, theme, SEO — every Agency card walked through with real status and one click to apply.
+          {t("dashboard.adminSite.setupBannerBody")}
         </p>
       </div>
       <PrimaryButton onClick={() => openDrawer("site-setup")}>
         <span className="inline-flex items-center gap-1.5">
-          Open setup
+          {t("dashboard.adminSite.openSetup")}
           <Icon name="arrow-right" size={13} stroke={1.8} />
         </span>
       </PrimaryButton>

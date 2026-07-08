@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { loadInquiryAttachments, deleteInquiryAttachment, uploadInquiryAttachment, duplicateInquiryBooking, type InquiryAttachment } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { useAdminShell, FONTS, COLORS, RICH_INQUIRIES } from "../../state";
 import { type Conversation } from "../../talent";
 import { BreakdownRow } from "../client-1";
 import { currentTalentId } from "../messages-shared";
-import { UNIT_TYPE_LABEL, fmtMoney } from "./machinery-10";
+import { UNIT_TYPE_LABEL, UNIT_TYPE_LABEL_KEYS, fmtMoney } from "./machinery-10";
 import { PanelSkeleton, ghostBtn, primaryBtn } from "./machinery-13";
 import { FilesTab } from "./machinery-15";
 import type { Offer, UnitType } from "./machinery-9";
@@ -43,6 +45,7 @@ export function SubmitRateSheet({
   onSubmit?: (data: { unitType: UnitType; units: number; amount: number; notes: string }) => void;
 }) {
   const { toast } = useAdminShell();
+  const t = useT();
   const myTalentId = currentTalentId();
   const myRow = offer.rows.find(r => r.talentId === myTalentId);
   const budget = offer.clientBudget;
@@ -103,7 +106,7 @@ export function SubmitRateSheet({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Submit your rate"
+      aria-label={t("dashboard.adminTabs.rateSheet.ariaSubmit")}
       onClick={onClose}
       style={{
         position: "fixed", inset: 0, zIndex: 200,
@@ -139,7 +142,7 @@ export function SubmitRateSheet({
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">
-              {mode === "edit" ? "Edit your rate" : "Submit your rate"}
+              {mode === "edit" ? t("dashboard.adminTabs.rateSheet.editEyebrow") : t("dashboard.adminTabs.rateSheet.submitEyebrow")}
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2, lineHeight: 1.25 }} className="text-admin-ink">
               {conv.client} · {conv.brief}
@@ -149,7 +152,7 @@ export function SubmitRateSheet({
             </div>
           </div>
           <button
-            type="button" onClick={onClose} aria-label="Close"
+            type="button" onClick={onClose} aria-label={t("dashboard.adminTabs.rateSheet.close")}
             style={{
               flexShrink: 0,
               width: 32, height: 32, borderRadius: "50%",
@@ -170,12 +173,12 @@ export function SubmitRateSheet({
         {budget && (
           <div style={{ padding: "10px 12px", borderRadius: 10, border: `1px solid rgba(91,107,160,0.18)` }} className="bg-admin-indigo-soft">
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-indigo-deep">
-              Client budget cap
+              {t("dashboard.adminTabs.rateSheet.budgetCap")}
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">
               {fmtMoney(budget.amount, currency)}{" "}
               <span className="text-admin-ink-muted text-xs font-medium">
-                {UNIT_TYPE_LABEL[budget.unitType]}
+                {t(UNIT_TYPE_LABEL_KEYS[budget.unitType])}
               </span>
             </div>
             {budget.note && (
@@ -189,7 +192,7 @@ export function SubmitRateSheet({
         {/* Role — read-only, set by the coordinator on the lineup row */}
         {myRow?.role && (
           <div>
-            <FieldLabel>Your role on this booking</FieldLabel>
+            <FieldLabel>{t("dashboard.adminTabs.rateSheet.yourRole")}</FieldLabel>
             <div style={{ padding: "9px 11px", borderRadius: 8, fontSize: 13, fontWeight: 500 }} className="bg-admin-surface-alt text-admin-ink">
               {myRow.role}
             </div>
@@ -200,7 +203,7 @@ export function SubmitRateSheet({
             (e.g. quote in days when client's cap was per-hour) but the
             mismatch shows in the comparison label. */}
         <div>
-          <FieldLabel>Unit type</FieldLabel>
+          <FieldLabel>{t("dashboard.adminTabs.rateSheet.unitType")}</FieldLabel>
           <div style={{
             display: "grid", gap: 6,
             gridTemplateColumns: "repeat(4, 1fr)",
@@ -208,6 +211,14 @@ export function SubmitRateSheet({
             {(["hour", "day", "contract", "event"] as UnitType[]).map(u => {
               const active = unitType === u;
               const matchesBudget = budget?.unitType === u;
+              // Discriminant->label: switch on the raw UnitType union; resolve
+              // the picker label via t(). Keeps enum logic stable.
+              const pickerKey: Record<UnitType, string> = {
+                hour: "dashboard.adminTabs.rateSheet.pickerHour",
+                day: "dashboard.adminTabs.rateSheet.pickerDay",
+                contract: "dashboard.adminTabs.rateSheet.pickerContract",
+                event: "dashboard.adminTabs.rateSheet.pickerEvent",
+              };
               return (
                 <button
                   key={u}
@@ -224,13 +235,13 @@ export function SubmitRateSheet({
                     position: "relative",
                   }}
                 >
-                  {u === "contract" ? "Contract" : u}
+                  {t(pickerKey[u])}
                   {matchesBudget && (
                     <span style={{
                       position: "absolute", top: 3, right: 4,
                       width: 5, height: 5, borderRadius: "50%",
                       background: COLORS.indigoDeep,
-                    }} title="Matches client budget unit" />
+                    }} title={t("dashboard.adminTabs.rateSheet.matchesBudget")} />
                   )}
                 </button>
               );
@@ -238,7 +249,7 @@ export function SubmitRateSheet({
           </div>
           {budget && unitType !== budget.unitType && (
             <div style={{ fontSize: 11, color: COLORS.amber, marginTop: 6 }}>
-              ⚠ Different unit than the client&apos;s cap ({UNIT_TYPE_LABEL[budget.unitType]}). The coordinator will need to convert before sending.
+              ⚠ {interpolate(t("dashboard.adminTabs.rateSheet.unitMismatch"), { unit: t(UNIT_TYPE_LABEL_KEYS[budget.unitType]) })}
             </div>
           )}
         </div>
@@ -246,7 +257,7 @@ export function SubmitRateSheet({
         {/* Units count + rate amount — side-by-side */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 10 }}>
           <div>
-            <FieldLabel>{unitType === "contract" ? "Length" : "Quantity"}</FieldLabel>
+            <FieldLabel>{unitType === "contract" ? t("dashboard.adminTabs.rateSheet.length") : t("dashboard.adminTabs.rateSheet.quantity")}</FieldLabel>
             <div style={{
               display: "flex", alignItems: "center", gap: 0,
               border: `1.5px solid ${COLORS.border}`, borderRadius: 10,
@@ -255,7 +266,7 @@ export function SubmitRateSheet({
               <button
                 type="button"
                 onClick={() => setUnits(Math.max(1, units - 1))}
-                aria-label="Decrease"
+                aria-label={t("dashboard.adminTabs.rateSheet.decrease")}
                 style={{
                   width: 36, height: 38, border: "none", background: "transparent",
                   color: COLORS.inkMuted, cursor: "pointer",
@@ -275,7 +286,7 @@ export function SubmitRateSheet({
               <button
                 type="button"
                 onClick={() => setUnits(units + 1)}
-                aria-label="Increase"
+                aria-label={t("dashboard.adminTabs.rateSheet.increase")}
                 style={{
                   width: 36, height: 38, border: "none", background: "transparent",
                   color: COLORS.inkMuted, cursor: "pointer",
@@ -284,11 +295,11 @@ export function SubmitRateSheet({
               >+</button>
             </div>
             <div style={{ fontSize: 10.5, marginTop: 4, textAlign: "center" }} className="text-admin-ink-dim">
-              × {UNIT_TYPE_LABEL[unitType]}
+              {interpolate(t("dashboard.adminTabs.rateSheet.unitTimes"), { unit: t(UNIT_TYPE_LABEL_KEYS[unitType]) })}
             </div>
           </div>
           <div>
-            <FieldLabel>Your rate ({currency === "EUR" ? "€" : currency === "USD" ? "$" : "£"} per unit)</FieldLabel>
+            <FieldLabel>{interpolate(t("dashboard.adminTabs.rateSheet.yourRate"), { symbol: currency === "EUR" ? "€" : currency === "USD" ? "$" : "£" })}</FieldLabel>
             <div style={{
               display: "flex", alignItems: "center", gap: 0,
               border: `1.5px solid ${overBudget ? COLORS.amber : COLORS.border}`, borderRadius: 10,
@@ -313,7 +324,7 @@ export function SubmitRateSheet({
             </div>
             {overBudget && budget && (
               <div style={{ fontSize: 10.5, marginTop: 4, fontWeight: 600 }} className="text-admin-amber">
-                ⚠ Over the client&apos;s cap by {fmtMoney(amount - budget.amount, currency)} — they may counter
+                ⚠ {interpolate(t("dashboard.adminTabs.rateSheet.overCap"), { amount: fmtMoney(amount - budget.amount, currency) })}
               </div>
             )}
           </div>
@@ -321,11 +332,11 @@ export function SubmitRateSheet({
 
         {/* Notes — optional usage / conditions */}
         <div>
-          <FieldLabel>Conditions <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">(optional)</span></FieldLabel>
+          <FieldLabel>{t("dashboard.adminTabs.rateSheet.conditions")} <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">{t("dashboard.adminTabs.rateSheet.optional")}</span></FieldLabel>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g. 12mo EU usage included · travel covered separately"
+            placeholder={t("dashboard.adminTabs.rateSheet.conditionsPlaceholder")}
             rows={2}
             style={{
               width: "100%", minHeight: 56, padding: 10,
@@ -341,13 +352,13 @@ export function SubmitRateSheet({
             visible so the talent sees what they'll actually take home
             BEFORE they submit. */}
         <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
-          <BreakdownRow label={`Gross · ${units} × ${UNIT_TYPE_LABEL[unitType]}`} value={fmtMoney(gross, currency)} muted />
-          <BreakdownRow label="Agency commission · 15%" value={`–${fmtMoney(agencyFee, currency)}`} muted />
-          <BreakdownRow label="Platform fee · 5%" value={`–${fmtMoney(platformFee, currency)}`} muted />
+          <BreakdownRow label={interpolate(t("dashboard.adminTabs.rateSheet.grossLine"), { units, unit: t(UNIT_TYPE_LABEL_KEYS[unitType]) })} value={fmtMoney(gross, currency)} muted />
+          <BreakdownRow label={t("dashboard.adminTabs.rateSheet.agencyCommission")} value={`-${fmtMoney(agencyFee, currency)}`} muted />
+          <BreakdownRow label={t("dashboard.adminTabs.rateSheet.platformFee")} value={`-${fmtMoney(platformFee, currency)}`} muted />
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "6px 0" }} />
-          <BreakdownRow label="Your take-home" value={fmtMoney(takeHome, currency)} bold />
+          <BreakdownRow label={t("dashboard.adminTabs.rateSheet.yourTakeHome")} value={fmtMoney(takeHome, currency)} bold />
           <div style={{ fontSize: 10.5, marginTop: 6 }} className="text-admin-ink-muted">
-            Released 14 days after wrap, once the client invoice clears.
+            {t("dashboard.adminTabs.rateSheet.releasedAfterWrap")}
           </div>
         </div>
 
@@ -361,7 +372,7 @@ export function SubmitRateSheet({
               color: COLORS.ink, cursor: "pointer",
               fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
             }}
-          >Cancel</button>
+          >{t("dashboard.adminTabs.rateSheet.cancel")}</button>
           <button
             type="button"
             disabled={amount <= 0}
@@ -372,8 +383,8 @@ export function SubmitRateSheet({
               // but with onSubmit the offer tab updates immediately.
               onSubmit?.({ unitType, units, amount, notes });
               toast(mode === "edit"
-                ? `Rate updated · ${fmtMoney(gross, currency)} ${UNIT_TYPE_LABEL[unitType]} sent to coordinator`
-                : `Rate submitted · ${fmtMoney(gross, currency)} ${UNIT_TYPE_LABEL[unitType]}. Coordinator notified.`);
+                ? interpolate(t("dashboard.adminTabs.rateSheet.rateUpdatedToast"), { amount: fmtMoney(gross, currency), unit: t(UNIT_TYPE_LABEL_KEYS[unitType]) })
+                : interpolate(t("dashboard.adminTabs.rateSheet.rateSubmittedToast"), { amount: fmtMoney(gross, currency), unit: t(UNIT_TYPE_LABEL_KEYS[unitType]) }));
               onClose();
             }}
             style={{
@@ -386,7 +397,7 @@ export function SubmitRateSheet({
               fontFamily: FONTS.body, fontSize: 13, fontWeight: 700,
             }}
           >
-            {mode === "edit" ? "Update rate" : "Submit to coordinator"}
+            {mode === "edit" ? t("dashboard.adminTabs.rateSheet.updateRate") : t("dashboard.adminTabs.rateSheet.submitToCoordinator")}
           </button>
         </div>
       </div>
@@ -438,6 +449,11 @@ export function resolveFileKey(id: string): string {
  */
 export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
   const { toast, effectiveTenant } = useAdminShell();
+  const t = useT();
+  // Latest-`t` ref so the reload callback resolves the current-locale
+  // translator without listing `t` (fresh each render) as an effect dep.
+  const tRef = useRef(t);
+  useEffect(() => { tRef.current = t; }, [t]);
   const [files, setFiles] = useState<InquiryAttachment[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
@@ -457,7 +473,7 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
     loadInquiryAttachments(effectiveTenant.slug, inquiryId)
       .then((r) => {
         if (r.ok) setFiles(r.data ?? []);
-        else toast(`Couldn't load files: ${r.error}`);
+        else toast(interpolate(tRef.current("dashboard.adminTabs.files.loadFailed"), { error: r.error }));
       })
       .finally(() => setLoading(false));
   }, [inquiryId, isUuid, effectiveTenant.slug, toast]);
@@ -476,24 +492,24 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
   // Even with zero files, render so the upload affordance is reachable.
 
   const remove = (id: string, name: string) => {
-    if (!confirm(`Delete ${name}? This can't be undone from the admin shell.`)) return;
+    if (!confirm(interpolate(t("dashboard.adminTabs.files.deleteConfirm"), { name }))) return;
     startTransition(async () => {
       const r = await deleteInquiryAttachment(effectiveTenant.slug, id);
-      if (!r.ok) toast(`Delete failed: ${r.error}`);
-      else { toast("File deleted"); reload(); }
+      if (!r.ok) toast(interpolate(t("dashboard.adminTabs.files.deleteFailed"), { error: r.error }));
+      else { toast(t("dashboard.adminTabs.files.fileDeleted")); reload(); }
     });
   };
 
   const onPickFile = (file: File) => {
-    if (file.size > 100 * 1024 * 1024) { toast("File exceeds 100 MB cap"); return; }
+    if (file.size > 100 * 1024 * 1024) { toast(t("dashboard.adminTabs.files.fileOver100")); return; }
     startTransition(async () => {
       const fd = new FormData();
       fd.set("inquiryId", inquiryId);
       fd.set("file", file);
       fd.set("attachmentKind", selectedKind);
       const r = await uploadInquiryAttachment(fd);
-      if (!r.ok) toast(`Upload failed: ${r.error}`);
-      else { toast("File uploaded"); reload(); }
+      if (!r.ok) toast(interpolate(t("dashboard.adminTabs.files.uploadFailed"), { error: r.error }));
+      else { toast(t("dashboard.adminTabs.files.fileUploaded")); reload(); }
     });
   };
 
@@ -501,7 +517,7 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
     <div style={{ border: `1px solid ${COLORS.borderSoft}`, padding: 12, marginBottom: 12, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-surface-alt rounded-admin-md">
       <div className="flex items-center gap-2 mb-2">
         <span style={{ fontWeight: 700 }} className="text-admin-ink">
-          Live · DB-backed ({files.length})
+          {interpolate(t("dashboard.adminTabs.files.liveDbBacked"), { count: files.length })}
         </span>
         <span className="text-admin-ink-muted text-admin-11">
           inquiry_attachments
@@ -520,7 +536,7 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
                 | "other",
             )
           }
-          aria-label="Attachment kind"
+          aria-label={t("dashboard.adminTabs.files.attachmentKind")}
           style={{
             border: `1px solid ${COLORS.borderSoft}`,
             borderRadius: 6,
@@ -530,10 +546,10 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
             background: "#fff",
           }}
         >
-          <option value="mood_board">Mood board</option>
-          <option value="reference">Reference</option>
-          <option value="contract">Contract</option>
-          <option value="other">Other</option>
+          <option value="mood_board">{t("dashboard.adminTabs.files.kindMoodBoard")}</option>
+          <option value="reference">{t("dashboard.adminTabs.files.kindReference")}</option>
+          <option value="contract">{t("dashboard.adminTabs.files.kindContract")}</option>
+          <option value="other">{t("dashboard.adminTabs.files.kindOther")}</option>
         </select>
         <input
           ref={fileInputRef}
@@ -551,13 +567,13 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
           onClick={() => fileInputRef.current?.click()}
           style={primaryBtn(COLORS.accent)}
         >
-          {pending ? "Uploading…" : "Upload file"}
+          {pending ? t("dashboard.adminTabs.files.uploading") : t("dashboard.adminTabs.files.uploadFile")}
         </button>
       </div>
       <div className="flex flex-col gap-1.5">
         {files.length === 0 && (
           <div style={{ fontSize: 11, padding: "4px 0" }} className="text-admin-ink-muted">
-            No files yet — drop a brief, contract, polaroid, or call sheet.
+            {t("dashboard.adminTabs.files.noFilesYet")}
           </div>
         )}
         {files.map((f) => (
@@ -574,10 +590,10 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
                 {/* Step 14 — attachment kind chip when the row has a tag. */}
                 {f.attachmentKind && (
                   <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.3, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">
-                    {f.attachmentKind === "mood_board" ? "Mood" :
-                     f.attachmentKind === "reference" ? "Ref" :
-                     f.attachmentKind === "contract" ? "Contract" :
-                     "Other"}
+                    {f.attachmentKind === "mood_board" ? t("dashboard.adminTabs.files.chipMood") :
+                     f.attachmentKind === "reference" ? t("dashboard.adminTabs.files.chipRef") :
+                     f.attachmentKind === "contract" ? t("dashboard.adminTabs.files.chipContract") :
+                     t("dashboard.adminTabs.files.chipOther")}
                   </span>
                 )}
               </div>
@@ -597,7 +613,7 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
                 color: COLORS.coralDeep, cursor: pending ? "wait" : "pointer",
                 fontSize: 11, fontWeight: 600,
               }}
-            >Delete</button>
+            >{t("dashboard.adminTabs.files.delete")}</button>
           </div>
         ))}
       </div>
@@ -623,6 +639,7 @@ export function LiveBookingActions({
   inquiryStage: string;
 }) {
   const { toast, effectiveTenant } = useAdminShell();
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
@@ -635,17 +652,17 @@ export function LiveBookingActions({
   if (!hasBooking) return null;
 
   const dup = () => {
-    if (!confirm("Duplicate this booking?")) return;
+    if (!confirm(t("dashboard.adminTabs.bookingActions.duplicateConfirm"))) return;
     startTransition(async () => {
       const r = await duplicateInquiryBooking(effectiveTenant.slug, inquiryId);
-      if (!r.ok) toast(`Duplicate failed: ${r.error}`);
-      else { toast("Booking duplicated"); router.refresh(); }
+      if (!r.ok) toast(interpolate(t("dashboard.adminTabs.bookingActions.duplicateFailed"), { error: r.error }));
+      else { toast(t("dashboard.adminTabs.bookingActions.duplicated")); router.refresh(); }
     });
   };
 
   return (
     <div style={{ border: `1px solid ${COLORS.borderSoft}`, padding: 10, marginTop: 12, display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-surface-alt rounded-admin-md">
-      <span style={{ fontWeight: 700 }} className="text-admin-ink">Booking actions</span>
+      <span style={{ fontWeight: 700 }} className="text-admin-ink">{t("dashboard.adminTabs.bookingActions.title")}</span>
       <span style={{ flex: 1 }} />
       <button
         type="button"
@@ -653,7 +670,7 @@ export function LiveBookingActions({
         onClick={dup}
         style={ghostBtn()}
       >
-        {pending ? "Duplicating…" : "Duplicate booking"}
+        {pending ? t("dashboard.adminTabs.bookingActions.duplicating") : t("dashboard.adminTabs.bookingActions.duplicate")}
       </button>
     </div>
   );

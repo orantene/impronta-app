@@ -22,11 +22,13 @@ import {
   TextArea,
   ToggleControl,
   useAdminShell,
+  useDashboardText,
   useQueuedRouterRefresh,
 } from "./drawer-shared";
 
 export function GuestChatSettingsDrawer() {
   const { closeDrawer, toast, tenantSlug } = useAdminShell();
+  const copy = useDashboardText();
   const queueRouterRefresh = useQueuedRouterRefresh();
 
   const [enabled, setEnabled] = useState(true);
@@ -59,7 +61,7 @@ export function GuestChatSettingsDrawer() {
   const onSave = async () => {
     if (isSaving || isLoading) return;
     if (!tenantSlug) {
-      toast("Settings saved (demo)");
+      toast(copy.t("Settings saved (demo)"));
       closeDrawer();
       return;
     }
@@ -72,15 +74,15 @@ export function GuestChatSettingsDrawer() {
         greeting: greeting.trim() ? greeting.trim() : null,
       });
       if (!result.ok) {
-        toast(result.error || "Couldn't save. Try again.");
+        toast(result.error || copy.t("Couldn't save. Try again."));
         return;
       }
-      toast("Guest chat settings saved");
+      toast(copy.t("Guest chat settings saved"));
       queueRouterRefresh();
       closeDrawer();
     } catch (err) {
       logServerError("guest-chat-settings.save", err);
-      toast("Couldn't save. Try again.");
+      toast(copy.t("Couldn't save. Try again."));
     } finally {
       setIsSaving(false);
     }
@@ -92,20 +94,20 @@ export function GuestChatSettingsDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Guest chat"
-      description="A floating “Message” button that lets visitors start a real inquiry from your public pages."
+      title={copy.t("Guest chat")}
+      description={copy.t("A floating “Message” button that lets visitors start a real inquiry from your public pages.")}
       footer={
         <StandardFooter
           onSave={onSave}
           disabled={isSaving || isLoading}
-          saveLabel={isSaving ? "Saving…" : isLoading ? "Loading…" : "Save"}
+          saveLabel={isSaving ? copy.t("Saving…") : isLoading ? copy.t("Loading…") : copy.t("Save")}
         />
       }
     >
-      <Section title="Status" framed>
+      <Section title={copy.t("Status")} framed>
         <FieldRow
-          label="Enable guest chat"
-          hint="When off, the Message button is hidden everywhere on your public site."
+          label={copy.t("Enable guest chat")}
+          hint={copy.t("When off, the Message button is hidden everywhere on your public site.")}
         >
           <ToggleControl value={enabled} onChange={setEnabled} label="" />
         </FieldRow>
@@ -113,19 +115,19 @@ export function GuestChatSettingsDrawer() {
 
       {enabled && (
         <Section
-          title="Where it appears"
-          description="Choose which public surfaces show the launcher."
+          title={copy.t("Where it appears")}
+          description={copy.t("Choose which public surfaces show the launcher.")}
           framed
         >
           <FieldRow
-            label="Talent profile pages"
-            hint="The “Message {talent}” button on each individual talent page."
+            label={copy.t("Talent profile pages")}
+            hint={copy.t("The “Message {talent}” button on each individual talent page.")}
           >
             <ToggleControl value={showOnTalent} onChange={setShowOnTalent} label="" />
           </FieldRow>
           <FieldRow
-            label="Directory & home page"
-            hint="A “Message {agency}” button on your home and directory pages — starts a general inquiry to your team."
+            label={copy.t("Directory & home page")}
+            hint={copy.t("A “Message {agency}” button on your home and directory pages, starts a general inquiry to your team.")}
           >
             <ToggleControl
               value={showOnDirectory}
@@ -136,8 +138,7 @@ export function GuestChatSettingsDrawer() {
 
           {noSurface && (
             <p className="rounded-[10px] border border-admin-border px-3 py-2.5 text-[12.5px] leading-relaxed text-admin-ink-muted">
-              Guest chat is on, but no surface is selected — pick at least one
-              place for it to appear, or turn it off above.
+              {copy.t("Guest chat is on, but no surface is selected. Pick at least one place for it to appear, or turn it off above.")}
             </p>
           )}
         </Section>
@@ -145,19 +146,19 @@ export function GuestChatSettingsDrawer() {
 
       {enabled && (
         <Section
-          title="Greeting"
-          description="Optional. Replaces the default opener guests see when they open the chat."
+          title={copy.t("Greeting")}
+          description={copy.t("Optional. Replaces the default opener guests see when they open the chat.")}
           framed
         >
           <FieldRow
-            label="Custom greeting"
-            hint="Leave blank to use the built-in greeting."
+            label={copy.t("Custom greeting")}
+            hint={copy.t("Leave blank to use the built-in greeting.")}
             optional
           >
             <TextArea
               value={greeting}
               onChange={(e) => setGreeting(e.currentTarget.value)}
-              placeholder="Hi! Tell us about your event and we’ll get the right person to reply."
+              placeholder={copy.t("Hi! Tell us about your event and we’ll get the right person to reply.")}
               rows={3}
             />
           </FieldRow>

@@ -2,6 +2,8 @@
 
 import React, { useTransition, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate, type Translator } from "@/i18n/interpolate";
 import { StatusSheet, type StatusSheetData } from "@/components/messages-status-sheet/StatusSheet";
 import { DetailsTabContainer } from "@/components/details-tab/DetailsTabContainer";
 import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyles";
@@ -10,6 +12,7 @@ import { ReservationThread, type ReservationStage, type PillDescriptor, type Pil
 import { acceptInquiryInvitation, declineInquiryInvitation, respondToInquiryOffer } from "@/lib/server-actions/talent-pipeline";
 import { sendTalentInquiryMessage, loadTalentInquiryLineupCount } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
 import { useAdminShell, FONTS, COLORS } from "../state";
+import { Avatar } from "../primitives";
 import { MOCK_CONVERSATIONS, MOCK_THREAD, type Conversation } from "../talent";
 import { AdminReservationView } from "./admin-3";
 import { TakeHomeCard } from "./client-1";
@@ -45,6 +48,7 @@ function TalentWhosTurnBanner({
   conv: Conversation;
   isCoordinator: boolean;
 }) {
+  const t = useT();
   const { stage, myApprovalStatus } = conv;
   if (stage === "booked" || stage === "past" || stage === "cancelled") return null;
 
@@ -55,8 +59,8 @@ function TalentWhosTurnBanner({
     if (stage === "inquiry") {
       return {
         text: isCoordinator
-          ? "Your turn — brief the client and confirm the shortlist."
-          : "Waiting for the coordinator to set up your offer.",
+          ? t("dashboard.talentThread.turnInquiryCoord")
+          : t("dashboard.talentThread.turnInquiryWaiting"),
         tone: isCoordinator ? "blue" : "muted",
       };
     }
@@ -64,19 +68,19 @@ function TalentWhosTurnBanner({
       // Offer round is open — talent needs to approve.
       if (myApprovalStatus === "accepted") {
         return {
-          text: "You approved — waiting on the other parties before this converts.",
+          text: t("dashboard.talentThread.turnHoldApproved"),
           tone: "green",
         };
       }
       if (myApprovalStatus === "rejected") {
         return {
-          text: "You declined this offer.",
+          text: t("dashboard.talentThread.turnHoldDeclined"),
           tone: "muted",
         };
       }
       // null / pending → talent's turn
       return {
-        text: "Your turn — review the offer in the Offer tab and approve or decline.",
+        text: t("dashboard.talentThread.turnHoldPending"),
         tone: "blue",
       };
     }
@@ -119,25 +123,24 @@ function TalentWhosTurnBanner({
 // Uses conv.participants (names + roles) since the talent can't see
 // acceptance-state of others. Rendered in the Lineup tab.
 function TalentReadOnlyLineup({ conv }: { conv: Conversation }) {
+  const t = useT();
   const participants = (conv.participants ?? []).filter(p => p.isTalent);
   const crew = (conv.participants ?? []).filter(p => !p.isTalent);
 
   if (participants.length === 0 && crew.length === 0) {
     return (
       <div style={{ padding: "16px 14px", fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink-muted">
-        Lineup not yet set — the coordinator will add talent and crew as the booking takes shape.
+        {t("dashboard.talentThread.lineupNotSet")}
       </div>
     );
   }
-
-  const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map(s => s[0]?.toUpperCase() ?? "").join("");
 
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
       {participants.length > 0 && (
         <div>
           <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }} className="text-admin-ink-muted">
-            Talent on this job
+            {t("dashboard.talentThread.lineupTalentOnJob")}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {participants.map((p, i) => (
@@ -146,14 +149,9 @@ function TalentReadOnlyLineup({ conv }: { conv: Conversation }) {
                 padding: "8px 12px", borderRadius: 10,
                 background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
               }}>
-                <div style={{
-                  width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                  background: COLORS.fill, color: "#fff",
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 12, fontWeight: 700,
-                }}>
-                  {initials(p.name)}
-                </div>
+                {/* No photo on the Participant type → letter-free silhouette
+                    fallback (photoUrl undefined). Never initials-in-a-box. */}
+                <Avatar photoUrl={undefined} size={34} tone="ink" />
                 <div className="flex-1 min-w-0">
                   <div style={{ fontWeight: 600, fontSize: 13 }} className="text-admin-ink">{p.name}</div>
                   <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{p.role}</div>
@@ -166,7 +164,7 @@ function TalentReadOnlyLineup({ conv }: { conv: Conversation }) {
       {crew.length > 0 && (
         <div>
           <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }} className="text-admin-ink-muted">
-            Crew
+            {t("dashboard.talentThread.lineupCrew")}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {crew.map((p, i) => (
@@ -175,14 +173,8 @@ function TalentReadOnlyLineup({ conv }: { conv: Conversation }) {
                 padding: "8px 12px", borderRadius: 10,
                 background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
               }}>
-                <div style={{
-                  width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                  background: "rgba(11,11,13,0.12)", color: "rgba(11,11,13,0.60)",
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 12, fontWeight: 700,
-                }}>
-                  {initials(p.name)}
-                </div>
+                {/* Crew have no photo field either → silhouette fallback. */}
+                <Avatar photoUrl={undefined} size={34} tone="neutral" />
                 <div className="flex-1 min-w-0">
                   <div style={{ fontWeight: 500, fontSize: 13 }} className="text-admin-ink">{p.name}</div>
                   <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{p.role}</div>
@@ -193,7 +185,7 @@ function TalentReadOnlyLineup({ conv }: { conv: Conversation }) {
         </div>
       )}
       <div style={{ fontSize: 11, lineHeight: 1.5, padding: "8px 0 0" }} className="text-admin-ink-dim">
-        This is a read-only view. Only the coordinator can add or remove talent.
+        {t("dashboard.talentThread.lineupReadOnlyNote")}
       </div>
     </div>
   );
@@ -202,6 +194,7 @@ function TalentReadOnlyLineup({ conv }: { conv: Conversation }) {
 // Layout (top-down): unified header → tabs → conversation
 export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
   const { toast, effectiveTenant } = useAdminShell();
+  const t = useT();
   const router = useRouter();
   // C4 — capture pending to no-op duplicate clicks during in-flight
   // Accept / Decline. Double-tap was firing two engine calls + producing
@@ -359,7 +352,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           const coordShare = combined - talentPayout;
           // Format using the same currency as the talent rate.
           const currency = yourRate.match(/[€£$]/)?.[0] ?? "€";
-          return `+${currency}${Math.round(coordShare).toLocaleString()} coord`;
+          return interpolate(t("dashboard.talentThread.coordSuffix"), { amount: `${currency}${Math.round(coordShare).toLocaleString()}` });
         })()}
         onStatusClick={() => setStatusSheetOpen(true)}
         toast={toast}
@@ -376,8 +369,8 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           borderBottom: `1px solid ${COLORS.borderSoft}`,
           display: "flex", alignItems: "center", gap: 6, fontFamily: FONTS.body,
         }}>
-          <span style={{ fontWeight: 700 }}>You&apos;re coordinating this booking</span>
-          <span style={{ opacity: 0.85 }}>· you manage the client chat, offer, lineup, and payment.</span>
+          <span style={{ fontWeight: 700 }}>{t("dashboard.talentThread.coordinatingTitle")}</span>
+          <span style={{ opacity: 0.85 }}>{t("dashboard.talentThread.coordinatingBody")}</span>
         </div>
       )}
 
@@ -419,7 +412,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
             <PitchOriginCard
               tenantSlug={effectiveTenant.slug}
               pitchId={(conv as Conversation & { pitchId?: string }).pitchId as string}
-              pitchTitle={(conv as Conversation & { pitchTitle?: string }).pitchTitle ?? "Pitch"}
+              pitchTitle={(conv as Conversation & { pitchTitle?: string }).pitchTitle ?? t("dashboard.talentThread.pitchTitleFallback")}
               compact
             />
           </div>
@@ -435,7 +428,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           <ConversationTab
             conv={conv}
             threadKey={`${conv.id}:client`}
-            placeholder={`Message ${conv.client}…`}
+            placeholder={interpolate(t("dashboard.talentThread.messageClientPlaceholder"), { name: conv.client })}
             povCanEditLineup={isCoordinator}
             povCanSeeOffers={isCoordinator}
             povCanSeeCoordNote={true}
@@ -450,7 +443,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           <ConversationTab
             conv={conv}
             threadKey={`${conv.id}:talent`}
-            placeholder="Message booking team…"
+            placeholder={t("dashboard.talentThread.messageBookingTeamPlaceholder")}
             crossThreadBridge={!isCoordinator ? { who: conv.leader.name, clientName: conv.client } : undefined}
             povCanEditLineup={isCoordinator}
             povCanSeeOffers={isCoordinator}
@@ -588,6 +581,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           isCoordinator ? "talent_coord" : "talent",
           toast,
           { onOpenOffer: () => setActiveTab("offer") },
+          t,
         );
         const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
         const isMockConv = !!MOCK_OFFER_FOR_CONV[conv.id];
@@ -609,18 +603,18 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           if (conv.myApprovalStatus === "accepted") {
             return {
               ...baseAction,
-              hint: "You approved this offer — awaiting the other parties.",
+              hint: t("dashboard.talentThread.actionApprovedAwaitingHint"),
               primary: undefined,
               secondary: {
-                label: "Decline",
+                label: t("dashboard.talentThread.actionDecline"),
                 tone: "ghost",
                 disabled: invitePending,
                 onClick: () => {
                   if (invitePending) return;
                   startTalentInviteTransition(async () => {
                     const r = await respondToInquiryOffer(conv.id, "rejected");
-                    if (!r.ok) toast(`Decline failed: ${r.error}`);
-                    else { toast("Offer declined"); router.refresh(); }
+                    if (!r.ok) toast(interpolate(t("dashboard.talentThread.toastDeclineFailed"), { error: r.error }));
+                    else { toast(t("dashboard.talentThread.toastOfferDeclined")); router.refresh(); }
                   });
                 },
               },
@@ -628,30 +622,30 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           }
           return {
             ...baseAction,
-            hint: "You've received an offer. Approve to lock your booking, or decline.",
+            hint: t("dashboard.talentThread.actionOfferReceivedHint"),
             primary: {
-              label: "Approve offer",
+              label: t("dashboard.talentThread.actionApproveOffer"),
               tone: "success",
               disabled: invitePending,
               onClick: () => {
                 if (invitePending) return;
                 startTalentInviteTransition(async () => {
                   const r = await respondToInquiryOffer(conv.id, "accepted");
-                  if (!r.ok) toast(`Approve failed: ${r.error}`);
-                  else { toast("Offer approved"); router.refresh(); }
+                  if (!r.ok) toast(interpolate(t("dashboard.talentThread.toastApproveFailed"), { error: r.error }));
+                  else { toast(t("dashboard.talentThread.toastOfferApproved")); router.refresh(); }
                 });
               },
             },
             secondary: {
-              label: "Decline",
+              label: t("dashboard.talentThread.actionDecline"),
               tone: "ghost",
               disabled: invitePending,
               onClick: () => {
                 if (invitePending) return;
                 startTalentInviteTransition(async () => {
                   const r = await respondToInquiryOffer(conv.id, "rejected");
-                  if (!r.ok) toast(`Decline failed: ${r.error}`);
-                  else { toast("Offer declined"); router.refresh(); }
+                  if (!r.ok) toast(interpolate(t("dashboard.talentThread.toastDeclineFailed"), { error: r.error }));
+                  else { toast(t("dashboard.talentThread.toastOfferDeclined")); router.refresh(); }
                 });
               },
             },
@@ -666,8 +660,8 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
               if (invitePending) return;
               startTalentInviteTransition(async () => {
                 const r = await acceptInquiryInvitation(conv.id);
-                if (!r.ok) toast(`Accept failed: ${r.error}`);
-                else { toast("Inquiry accepted"); router.refresh(); }
+                if (!r.ok) toast(interpolate(t("dashboard.talentThread.toastAcceptFailed"), { error: r.error }));
+                else { toast(t("dashboard.talentThread.toastInquiryAccepted")); router.refresh(); }
               });
             },
           } : baseAction.primary,
@@ -678,8 +672,8 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
               if (invitePending) return;
               startTalentInviteTransition(async () => {
                 const r = await declineInquiryInvitation(conv.id);
-                if (!r.ok) toast(`Decline failed: ${r.error}`);
-                else { toast("Inquiry declined"); router.refresh(); }
+                if (!r.ok) toast(interpolate(t("dashboard.talentThread.toastDeclineFailed"), { error: r.error }));
+                else { toast(t("dashboard.talentThread.toastInquiryDeclined")); router.refresh(); }
               });
             },
           } : baseAction.secondary,
@@ -696,7 +690,8 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
       <StatusSheet
         open={statusSheetOpen}
         onClose={() => setStatusSheetOpen(false)}
-        data={deriveTalentStatusSheetData(conv, yourRate)}
+        data={deriveTalentStatusSheetData(conv, yourRate, t)}
+        t={t}
       />
     </div>
   );
@@ -708,7 +703,16 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
 export function deriveTalentStatusSheetData(
   conv: Conversation,
   yourRate: string,
+  t?: Translator,
 ): StatusSheetData {
+  // Localize the free-text nextAction/nextStep/name strings when a
+  // translator is supplied. The typed stage/offer/payment discriminants
+  // stay raw — StatusSheet localizes those itself via its own `t`.
+  const tr = (key: string, fallback: string): string => {
+    if (!t) return fallback;
+    const out = t(key);
+    return out === key ? fallback : out;
+  };
   const stage: StatusSheetData["stage"] =
       conv.stage === "inquiry" ? "Inquiry"
     : conv.stage === "hold" ? "Offer sent"
@@ -736,26 +740,26 @@ export function deriveTalentStatusSheetData(
       status: offerStatus,
       totalLabel: hasRate ? yourRate : undefined,
       nextAction:
-          offerStatus === "No offer" ? "Waiting for an offer from the coordinator."
-        : offerStatus === "Sent" ? "Review the offer details in the Offer tab."
-        : offerStatus === "Accepted" ? "Offer accepted — check the Event tab for details."
+          offerStatus === "No offer" ? tr("dashboard.talentThread.statusOfferNextNone", "Waiting for an offer from the coordinator.")
+        : offerStatus === "Sent" ? tr("dashboard.talentThread.statusOfferNextSent", "Review the offer details in the Offer tab.")
+        : offerStatus === "Accepted" ? tr("dashboard.talentThread.statusOfferNextAccepted", "Offer accepted. Check the Event tab for details.")
         : undefined,
     },
-    talents: [{ name: "You", status: "Accepted" }],
+    talents: [{ name: tr("dashboard.talentThread.statusYouLabel", "You"), status: "Accepted" }],
     payment: {
       status: paymentStatus,
       amountLabel: hasRate ? yourRate : undefined,
       nextAction:
-          paymentStatus === "Not requested" ? "Payment will be requested after booking is confirmed."
-        : paymentStatus === "Requested" ? "Payment is being processed."
-        : paymentStatus === "Paid" ? "Payment cleared."
+          paymentStatus === "Not requested" ? tr("dashboard.talentThread.statusPaymentNextNotRequested", "Payment will be requested after booking is confirmed.")
+        : paymentStatus === "Requested" ? tr("dashboard.talentThread.statusPaymentNextRequested", "Payment is being processed.")
+        : paymentStatus === "Paid" ? tr("dashboard.talentThread.statusPaymentNextPaid", "Payment cleared.")
         : undefined,
     },
     nextStep:
-        stage === "Inquiry" ? "Wait for the coordinator to set the offer."
-      : stage === "Offer sent" ? "Review the offer and accept or decline."
-      : stage === "Booked" ? "Job is confirmed — check the Event tab."
-      : stage === "Wrapped" ? "Job complete. Payment settled."
+        stage === "Inquiry" ? tr("dashboard.talentThread.statusNextStepInquiry", "Wait for the coordinator to set the offer.")
+      : stage === "Offer sent" ? tr("dashboard.talentThread.statusNextStepOfferSent", "Review the offer and accept or decline.")
+      : stage === "Booked" ? tr("dashboard.talentThread.statusNextStepBooked", "Job is confirmed. Check the Event tab.")
+      : stage === "Wrapped" ? tr("dashboard.talentThread.statusNextStepWrapped", "Job complete. Payment settled.")
       : undefined,
   };
 }
@@ -777,6 +781,7 @@ export function TalentReservationView({
   fileCount: number;
 }) {
   const { toast } = useAdminShell();
+  const t = useT();
   const router = useRouter();
   // C4 — capture pending to no-op duplicate clicks on Accept/Decline.
   const [invitePending, startInviteTxn] = useTransition();
@@ -790,60 +795,60 @@ export function TalentReservationView({
     : "inquiry";
 
   const closedReason =
-      conv.stage === "cancelled" ? "This was cancelled."
-    : conv.stage === "past" && conv.outcome === "talent_declined" ? "You declined this job."
-    : conv.stage === "past" && conv.outcome === "client_rejected" ? "The client passed on this offer."
+      conv.stage === "cancelled" ? t("dashboard.talentThread.resClosedCancelled")
+    : conv.stage === "past" && conv.outcome === "talent_declined" ? t("dashboard.talentThread.resClosedYouDeclined")
+    : conv.stage === "past" && conv.outcome === "client_rejected" ? t("dashboard.talentThread.resClosedClientPassed")
     : conv.stage === "past" && conv.outcome === "completed" ? undefined
     : undefined;
 
   const offerSnap = MOCK_OFFER_FOR_CONV[conv.id] ?? null;
   const offerStatus: { text: string; tone: PillDescriptor["tone"] } = (() => {
     if (!offerSnap) {
-      return { text: yourRate === "—" ? "Pending" : `Your cut · ${yourRate}`, tone: "neutral" };
+      return { text: yourRate === "—" ? t("dashboard.talentThread.resYourCutPending") : interpolate(t("dashboard.talentThread.resYourCut"), { rate: yourRate }), tone: "neutral" };
     }
     const total = conv.amountToYou ?? yourRate;
-    if (offerSnap.stage === "sent")      return { text: `${total} · awaiting client`, tone: "warn" };
-    if (offerSnap.stage === "accepted")  return { text: `${total} · approved`,        tone: "ok" };
-    if (offerSnap.stage === "rejected")  return { text: `${total} · declined`,        tone: "alert" };
-    if (offerSnap.stage === "countered") return { text: `${total} · countered`,       tone: "warn" };
-    return { text: total === "—" ? "In progress" : total, tone: "neutral" };
+    if (offerSnap.stage === "sent")      return { text: interpolate(t("dashboard.talentThread.resAwaitingClient"), { total }), tone: "warn" };
+    if (offerSnap.stage === "accepted")  return { text: interpolate(t("dashboard.talentThread.resApproved"), { total }),        tone: "ok" };
+    if (offerSnap.stage === "rejected")  return { text: interpolate(t("dashboard.talentThread.resDeclined"), { total }),        tone: "alert" };
+    if (offerSnap.stage === "countered") return { text: interpolate(t("dashboard.talentThread.resCountered"), { total }),       tone: "warn" };
+    return { text: total === "—" ? t("dashboard.talentThread.resInProgress") : total, tone: "neutral" };
   })();
 
   const eventStatus = (() => {
     const parts: string[] = [];
     if (conv.date) parts.push(conv.date);
     if (conv.location) parts.push(String(conv.location).split(",")[0]?.trim() ?? "");
-    return parts.filter(Boolean).join(" · ") || "TBC";
+    return parts.filter(Boolean).join(" · ") || t("dashboard.talentThread.resEventTbc");
   })();
 
   // Booking-team pill = lineup status (whom you're working with).
   // Conversation carries `participants` (the booking team) — talents don't
   // see acceptance state on others, just the headcount.
   const lineupTotal = (conv.participants ?? []).length;
-  const lineupStatus = lineupTotal === 0 ? "Just you" : `${lineupTotal} on the team`;
+  const lineupStatus = lineupTotal === 0 ? t("dashboard.talentThread.resJustYou") : interpolate(t("dashboard.talentThread.resOnTheTeam"), { count: lineupTotal });
 
   const pills: PillDescriptor[] = [
     {
       kind: "lineup",
-      label: "Booking team",
+      label: t("dashboard.talentThread.resPillBookingTeam"),
       status: lineupStatus,
       tone: "neutral",
     },
     {
       kind: "offer",
-      label: "Offer",
+      label: t("dashboard.talentThread.resPillOffer"),
       status: offerStatus.text,
       tone: offerStatus.tone,
     },
     {
       kind: "event",
-      label: "Details",
+      label: t("dashboard.talentThread.resPillDetails"),
       status: eventStatus,
       tone: "neutral",
     },
     {
       kind: "files",
-      label: "Files",
+      label: t("dashboard.talentThread.resPillFiles"),
       status: fileCount === 0 ? "" : String(fileCount),
       tone: "neutral",
     },
@@ -852,7 +857,7 @@ export function TalentReservationView({
   const sheets: Partial<Record<PillKind, SheetDescriptor>> = {
     lineup: {
       kind: "lineup",
-      title: "Who's on this job",
+      title: t("dashboard.talentThread.resSheetWhosOnJob"),
       content: (
         <div style={{ margin: -14 }}>
           <TalentBookingTab
@@ -866,7 +871,7 @@ export function TalentReservationView({
     },
     offer: {
       kind: "offer",
-      title: "Your offer",
+      title: t("dashboard.talentThread.resSheetYourOffer"),
       content: (
         <div style={{ margin: -14 }}>
           <OfferTab conv={conv} pov={{ kind: "talent", talentId: currentTalentId(), isCoordinator }} />
@@ -875,7 +880,7 @@ export function TalentReservationView({
     },
     event: {
       kind: "event",
-      title: "Event details",
+      title: t("dashboard.talentThread.resSheetEventDetails"),
       content: (
         <div style={{ margin: -14 }}>
           <TalentLogisticsTab conv={conv} inquiry={convToInquiry(conv)} />
@@ -884,7 +889,7 @@ export function TalentReservationView({
     },
     files: {
       kind: "files",
-      title: "Files",
+      title: t("dashboard.talentThread.resSheetFiles"),
       content: (
         <div style={{ margin: -14 }}>
           <FilesTab conv={conv} povCanSeeTalentFiles={true} pov="talent" />
@@ -902,31 +907,31 @@ export function TalentReservationView({
   const actionRow = (isRealUuid && inviteStage) ? [
     {
       id: "accept",
-      label: "Accept",
+      label: t("dashboard.talentThread.resAccept"),
       emphasis: "primary" as const,
-      preamble: `Coordinator invited you. Take this job, or decline.`,
+      preamble: t("dashboard.talentThread.resAcceptPreamble"),
       disabled: invitePending,
       onClick: () => {
         if (invitePending) return;
         startInviteTxn(async () => {
           const r = await acceptInquiryInvitation(conv.id);
-          if (!r.ok) toast(`Accept failed: ${r.error}`);
-          else { toast("Inquiry accepted"); router.refresh(); }
+          if (!r.ok) toast(interpolate(t("dashboard.talentThread.toastAcceptFailed"), { error: r.error }));
+          else { toast(t("dashboard.talentThread.toastInquiryAccepted")); router.refresh(); }
         });
       },
     },
     {
       id: "decline",
-      label: "Decline",
+      label: t("dashboard.talentThread.resDecline"),
       emphasis: "danger" as const,
       disabled: invitePending,
       onClick: () => {
         if (invitePending) return;
-        if (!confirm("Decline this invite?")) return;
+        if (!confirm(t("dashboard.talentThread.resConfirmDecline"))) return;
         startInviteTxn(async () => {
           const r = await declineInquiryInvitation(conv.id);
-          if (!r.ok) toast(`Decline failed: ${r.error}`);
-          else { toast("Inquiry declined"); router.refresh(); }
+          if (!r.ok) toast(interpolate(t("dashboard.talentThread.toastDeclineFailed"), { error: r.error }));
+          else { toast(t("dashboard.talentThread.toastInquiryDeclined")); router.refresh(); }
         });
       },
     },
@@ -938,7 +943,7 @@ export function TalentReservationView({
     <ConversationTab
       conv={conv}
       threadKey={`${conv.id}:talent`}
-      placeholder="Message booking team…"
+      placeholder={t("dashboard.talentThread.messageBookingTeamPlaceholder")}
       crossThreadBridge={!isCoordinator ? { who: conv.leader.name, clientName: conv.client } : undefined}
       povCanEditLineup={isCoordinator}
       povCanSeeOffers={isCoordinator}

@@ -21,6 +21,7 @@ import {
   applyWorkspaceFieldOverride,
   sendTalentClaimInvite,
   useAdminShell,
+  useDashboardText,
   useWorkspaceFieldOverrideSubscription,
 } from "../../drawer-shared";
 import {
@@ -33,6 +34,7 @@ export function InviteClaimBanner({ stageName, onResend, onTakeOver }: {
   onResend: () => void;
   onTakeOver: () => void;
 }) {
+  const copy = useDashboardText();
   return (
     <div style={{ padding: "10px 18px", borderBottom: `1px solid ${COLORS.amberDeep}30`, display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, flexShrink: 0 }} className="bg-admin-amber-soft">
       <span style={{
@@ -43,22 +45,22 @@ export function InviteClaimBanner({ stageName, onResend, onTakeOver }: {
       }}>📧</span>
       <div className="flex-1 min-w-0">
         <div className="text-admin-amber-deep text-admin-12h font-semibold">
-          Waiting on {stageName || "talent"} to claim this profile
+          {copy.t("Waiting on {name} to claim this profile").replace("{name}", stageName || copy.t("talent"))}
         </div>
         <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
-          Invite sent 3 days ago. They&apos;ll review, edit, and approve before publish.
+          {copy.t("Invite sent 3 days ago. They'll review, edit, and approve before publish.")}
         </div>
       </div>
       <button type="button" onClick={onResend} style={{
         padding: "6px 12px", borderRadius: 999,
         border: `1px solid ${COLORS.amberDeep}40`, background: "#fff",
         color: COLORS.amberDeep, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-      }}>Resend</button>
+      }}>{copy.t("Resend")}</button>
       <button type="button" onClick={onTakeOver} style={{
         padding: "6px 12px", borderRadius: 999, border: "none",
         background: COLORS.amberDeep, color: "#fff",
         fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-      }}>Take over</button>
+      }}>{copy.t("Take over")}</button>
     </div>
   );
 }
@@ -79,6 +81,7 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
   onClose: () => void;
 }) {
   const { bridgeTenantIdentity, effectiveTenant } = useAdminShell();
+  const copy = useDashboardText();
   const workspaceScopeTenantId =
     bridgeTenantIdentity?.tenantId
     ?? bridgeTenantIdentity?.slug
@@ -125,7 +128,7 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
           <div style={{ aspectRatio: "4 / 3.5", background: photos[0]
               ? `url(${photos[0]}) center/cover, ${COLORS.surfaceAlt}`
               : COLORS.surfaceAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }} className="text-admin-ink-muted">{!photos[0] && "📷"}</div>
-          <button type="button" onClick={onClose} aria-label="Close" style={{
+          <button type="button" onClick={onClose} aria-label={copy.t("Close")} style={{
             position: "absolute", top: 12, right: 12,
             width: 34, height: 34, borderRadius: "50%",
             background: "rgba(255,255,255,0.92)", border: "none", cursor: "pointer",
@@ -137,11 +140,11 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
             background: "rgba(11,11,13,0.65)", color: "#fff",
             backdropFilter: "blur(8px)",
             fontSize: 10.5, fontWeight: 600,
-          }}>👁 Client preview</div>
+          }}>👁 {copy.t("Client preview")}</div>
         </div>
         <div style={{ padding: "16px 22px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-            <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, letterSpacing: -0.3, lineHeight: 1.1 }} className="text-admin-ink">{stageName || "Untitled profile"}</h2>
+            <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, letterSpacing: -0.3, lineHeight: 1.1 }} className="text-admin-ink">{stageName || copy.t("Untitled profile")}</h2>
             <span style={{
               fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 999,
               background: trustMeta.bg, color: trustMeta.fg,
@@ -162,7 +165,7 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
           )}
           {showSecondaries && secondaryTypes.length > 0 && (
             <div style={{ fontSize: 11.5, marginBottom: 8 }} className="text-admin-ink-muted">
-              Also available as: {secondaryTypes.map(id => findChild(id)?.child.label).filter(Boolean).join(" · ")}
+              {copy.t("Also available as:")} {secondaryTypes.map(id => findChild(id)?.child.label).filter(Boolean).join(" · ")}
             </div>
           )}
           {showSpecialties && specialties.length > 0 && (
@@ -196,7 +199,7 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
           )}
           {showLanguages && languages.length > 0 && (
             <div style={{ marginTop: 14, fontSize: 11.5 }} className="text-admin-ink-muted">
-              <strong className="text-admin-ink">Languages — </strong>
+              <strong className="text-admin-ink">{copy.t("Languages")} · </strong>
               {languages.map(l => `${l.language} (${l.level})`).join(" · ")}
             </div>
           )}
@@ -211,9 +214,9 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
             border: `1px solid ${COLORS.border}`, background: "#fff",
             color: COLORS.ink,
             fontSize: 13, fontWeight: 600, cursor: "pointer",
-          }}>Close preview</button>
+          }}>{copy.t("Close preview")}</button>
           <div style={{ flex: 1, padding: "12px 18px", borderRadius: 999, color: "#fff", fontSize: 13.5, fontWeight: 600, textAlign: "center" }} className="bg-admin-fill">
-            Send inquiry
+            {copy.t("Send inquiry")}
           </div>
         </div>
       </div>
@@ -227,9 +230,7 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
 //   #18 Talent preview (talent sees own changes before submitting)
 // ════════════════════════════════════════════════════════════════════
 
-
 export type DiffEntry = { fieldId: string; fieldLabel: string; before: string; after: string };
-
 
 export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejectAll, onApplyDecisions, onSubmit }: {
   entries: DiffEntry[];
@@ -242,6 +243,7 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
   onApplyDecisions?: (rejected: Set<string>) => void;
   onSubmit?: () => void;
 }) {
+  const copy = useDashboardText();
   const isAdmin = mode === "admin";
   // Per-field decisions tracked internally. "rejected" means revert to `before`,
   // "approved" / undecided means accept talent's submission.
@@ -266,14 +268,16 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <div className="flex-1">
-            <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 700, letterSpacing: -0.2 }} className="text-admin-ink">{isAdmin ? "Review changes" : "What you've changed"}</h2>
+            <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 700, letterSpacing: -0.2 }} className="text-admin-ink">{isAdmin ? copy.t("Review changes") : copy.t("What you've changed")}</h2>
             <p style={{ margin: "3px 0 0", fontSize: 12, lineHeight: 1.4 }} className="text-admin-ink-muted">
               {entries.length === 0
-                ? "No changes since the last published version."
-                : `${entries.length} field${entries.length === 1 ? "" : "s"} ${isAdmin ? "modified by talent" : "you've changed"}.`}
+                ? copy.t("No changes since the last published version.")
+                : (isAdmin
+                    ? copy.t(entries.length === 1 ? "{count} field modified by talent." : "{count} fields modified by talent.")
+                    : copy.t(entries.length === 1 ? "{count} field you've changed." : "{count} fields you've changed.")).replace("{count}", String(entries.length))}
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" style={{
+          <button type="button" onClick={onClose} aria-label={copy.t("Close")} style={{
             width: 28, height: 28, borderRadius: 8, border: "none",
             background: "transparent", color: COLORS.inkMuted,
             fontSize: 14, lineHeight: 1, cursor: "pointer",
@@ -283,7 +287,7 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
           {entries.length === 0 ? (
             <div style={{ padding: "30px 20px", textAlign: "center", fontSize: 13 }} className="text-admin-ink-muted">
               <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
-              All clear — nothing has changed.
+              {copy.t("All clear, nothing has changed.")}
             </div>
           ) : (
             <div className="flex flex-col gap-3.5">
@@ -297,7 +301,7 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
                     marginBottom: 6,
                   }}>
                     <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
-                      {e.fieldLabel}
+                      {copy.t(e.fieldLabel)}
                     </div>
                     {isAdmin && (() => {
                       const d = decisions.get(e.fieldId);
@@ -311,7 +315,7 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
                               background: d === "rejected" ? COLORS.red : "rgba(176,48,58,0.06)",
                               color: d === "rejected" ? "#fff" : COLORS.red,
                               fontSize: 10.5, fontWeight: 600, cursor: "pointer",
-                          }}>✕ Reject</button>
+                          }}>✕ {copy.t("Reject")}</button>
                           <button type="button" onClick={() => setDecision(e.fieldId, "approved")}
                             aria-pressed={d === "approved"}
                             style={{
@@ -320,7 +324,7 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
                               background: d === "approved" ? COLORS.successDeep : COLORS.successSoft,
                               color: d === "approved" ? "#fff" : COLORS.successDeep,
                               fontSize: 10.5, fontWeight: 600, cursor: "pointer",
-                          }}>✓ Approve</button>
+                          }}>✓ {copy.t("Approve")}</button>
                         </div>
                       );
                     })()}
@@ -334,7 +338,7 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
                     )}
                     {!e.before && (
                       <div style={{ fontSize: 10.5, fontStyle: "italic", marginTop: -2 }} className="text-admin-ink-dim">
-                        + new field
+                        {copy.t("+ new field")}
                       </div>
                     )}
                   </div>
@@ -352,7 +356,7 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
             padding: "9px 14px", borderRadius: 999,
             border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink,
             fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
-          }}>{isAdmin ? "Close" : "Keep editing"}</button>
+          }}>{isAdmin ? copy.t("Close") : copy.t("Keep editing")}</button>
           {isAdmin && entries.length > 0 && (() => {
             const rejected = new Set([...decisions.entries()].filter(([, v]) => v === "rejected").map(([k]) => k));
             const approved = new Set([...decisions.entries()].filter(([, v]) => v === "approved").map(([k]) => k));
@@ -366,7 +370,7 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
                   padding: "9px 16px", borderRadius: 999, border: "none",
                   background: COLORS.fill, color: "#fff",
                   fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
-                }}>Apply · approve {approved.size} · reject {rejected.size}{decisions.size < entries.length ? ` · ${entries.length - decisions.size} pending` : ""}</button>
+                }}>{copy.t("Apply · approve {approved} · reject {rejected}").replace("{approved}", String(approved.size)).replace("{rejected}", String(rejected.size))}{decisions.size < entries.length ? ` · ${copy.t("{count} pending").replace("{count}", String(entries.length - decisions.size))}` : ""}</button>
               );
             }
             return (
@@ -376,14 +380,14 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
                     padding: "9px 14px", borderRadius: 999,
                     border: `1px solid rgba(176,48,58,0.30)`, background: "#fff", color: COLORS.red,
                     fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
-                  }}>Reject all</button>
+                  }}>{copy.t("Reject all")}</button>
                 )}
                 {onApproveAll && (
                   <button type="button" onClick={onApproveAll} style={{
                     padding: "9px 16px", borderRadius: 999, border: "none",
                     background: COLORS.fill, color: "#fff",
                     fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
-                  }}>Approve all</button>
+                  }}>{copy.t("Approve all")}</button>
                 )}
               </>
             );
@@ -393,7 +397,7 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
               padding: "9px 16px", borderRadius: 999, border: "none",
               background: COLORS.fill, color: "#fff",
               fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
-            }}>Submit for review</button>
+            }}>{copy.t("Submit for review")}</button>
           )}
         </div>
       </div>
@@ -435,7 +439,7 @@ export function computeProfileDiff(before: ProfileState | null, after: ProfileSt
   const bBio = before.bios.find(b => b.locale === before.bioActiveLocale)?.text ?? "";
   const aBio = after.bios.find(b => b.locale === after.bioActiveLocale)?.text ?? "";
   if (bBio !== aBio) {
-    out.push({ fieldId: "bio", fieldLabel: `Bio (${after.bioActiveLocale})`, before: bBio, after: aBio });
+    out.push({ fieldId: "bio", fieldLabel: "Bio", before: bBio, after: aBio });
   }
   if (before.serviceArea.homeBase !== after.serviceArea.homeBase) {
     out.push({ fieldId: "homeBase", fieldLabel: "Home base", before: before.serviceArea.homeBase, after: after.serviceArea.homeBase });
@@ -474,6 +478,7 @@ export function PublishCelebrationModal({ stageName, slug, tenantSlug, onClose, 
   onShare: () => void;
 }) {
   const { toast } = useAdminShell();
+  const copy = useDashboardText();
   const profileUrl = `https://tulala.digital/${tenantSlug}/t/${slug}`;
   // 2026 #8 — Web Share API. Triggers the native iOS / Android / desktop
   // share sheet (Messages, WhatsApp, AirDrop, Slack, etc). Falls back
@@ -481,21 +486,21 @@ export function PublishCelebrationModal({ stageName, slug, tenantSlug, onClose, 
   const supportsShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
   const handleNativeShare = async () => {
     if (!supportsShare) {
-      try { await navigator.clipboard.writeText(profileUrl); toast("Link copied — share API unavailable"); }
-      catch { toast("Couldn't open share sheet"); }
+      try { await navigator.clipboard.writeText(profileUrl); toast(copy.t("Link copied. Share sheet unavailable.")); }
+      catch { toast(copy.t("Couldn't open share sheet")); }
       return;
     }
     try {
       await navigator.share({
-        title: `${stageName} on Tulala`,
-        text: `Check out ${stageName}'s profile`,
+        title: copy.t("{name} on Tulala").replace("{name}", stageName),
+        text: copy.t("Check out {name}'s profile").replace("{name}", stageName),
         url: profileUrl,
       });
       onShare();
     } catch (err) {
       // User canceled the share sheet — silent.
       if ((err as DOMException)?.name !== "AbortError") {
-        toast("Share canceled");
+        toast(copy.t("Share canceled"));
       }
     }
   };
@@ -519,8 +524,8 @@ export function PublishCelebrationModal({ stageName, slug, tenantSlug, onClose, 
         textAlign: "center",
       }}>
         <div style={{ fontSize: 42, lineHeight: 1, marginBottom: 8 }}>🎉</div>
-        <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, letterSpacing: -0.3, lineHeight: 1.15 }} className="text-admin-ink">{stageName || "Profile"} is live</h2>
-        <p style={{ margin: "6px 0 16px", fontSize: 13, lineHeight: 1.5 }} className="text-admin-ink-muted">Share the link, drop the QR in a deck, or send the model card.</p>
+        <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, letterSpacing: -0.3, lineHeight: 1.15 }} className="text-admin-ink">{copy.t("{name} is live").replace("{name}", stageName || copy.t("Profile"))}</h2>
+        <p style={{ margin: "6px 0 16px", fontSize: 13, lineHeight: 1.5 }} className="text-admin-ink-muted">{copy.t("Share the link, drop the QR in a deck, or send the model card.")}</p>
         {/* Link card */}
         <div style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.mono, fontSize: 12, marginBottom: 14, textAlign: "left", overflowX: "auto" }} className="bg-admin-surface text-admin-ink">{profileUrl}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
@@ -528,30 +533,29 @@ export function PublishCelebrationModal({ stageName, slug, tenantSlug, onClose, 
             if (typeof navigator !== "undefined" && navigator.clipboard) {
               navigator.clipboard.writeText(profileUrl).then(() => onCopyLink()).catch(() => onCopyLink());
             } else { onCopyLink(); }
-          }} style={celebrationBtnStyle()}>📋 Copy link</button>
+          }} style={celebrationBtnStyle()}>📋 {copy.t("Copy link")}</button>
           <button type="button" onClick={handleNativeShare} style={celebrationBtnStyle()}
-            title={supportsShare ? "Open share sheet" : "Share API unavailable — will copy link"}
+            title={supportsShare ? copy.t("Open share sheet") : copy.t("Share sheet unavailable, will copy link")}
           >
-            📲 {supportsShare ? "Share" : "Copy"}
+            📲 {supportsShare ? copy.t("Share") : copy.t("Copy")}
           </button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-          <button type="button" onClick={onShare} style={celebrationBtnStyle()}>▦ QR code</button>
+          <button type="button" onClick={onShare} style={celebrationBtnStyle()}>▦ {copy.t("QR code")}</button>
           <button type="button" onClick={onShare} style={celebrationBtnStyle()}
-            title={supportsShareFiles ? "Share PDF via system sheet" : "Download PDF"}
-          >📄 PDF model card</button>
+            title={supportsShareFiles ? copy.t("Share PDF via system sheet") : copy.t("Download PDF")}
+          >📄 {copy.t("PDF model card")}</button>
         </div>
         <button type="button" onClick={onClose} style={{
           padding: "10px 18px", borderRadius: 999, border: "none",
           background: COLORS.fill, color: "#fff",
           fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
           width: "100%",
-        }}>Done</button>
+        }}>{copy.t("Done")}</button>
       </div>
     </div>
   );
 }
-
 
 export function celebrationBtnStyle(): React.CSSProperties {
   return {
@@ -580,6 +584,7 @@ export function ProfileOwnershipPanel({
   contactEmail?: string;
 }) {
   const { toast } = useAdminShell();
+  const copy = useDashboardText();
   type OwnershipState = "unclaimed" | "invited" | "claimed";
   const [state, setState] = useState<OwnershipState>("unclaimed");
   const [showInviteForm, setShowInviteForm] = useState(false);
@@ -601,29 +606,29 @@ export function ProfileOwnershipPanel({
 
   const sendInvite = async () => {
     if (!email.trim() && !phone.trim()) {
-      toast("Add an email or phone first");
+      toast(copy.t("Add an email or phone first"));
       return;
     }
     if (talentProfileId) {
       const res = await sendTalentClaimInvite({ talent_profile_id: talentProfileId, email: email.trim() || undefined, phone: phone.trim() || undefined });
-      if (!res.ok) { toast("Failed to send invite — try again"); return; }
+      if (!res.ok) { toast(copy.t("Failed to send invite, try again")); return; }
     }
     setState("invited");
     setShowInviteForm(false);
-    toast(`Claim invite sent to ${email || phone}`);
+    toast(copy.t("Claim invite sent to {contact}").replace("{contact}", email || phone));
   };
-  const resendInvite = () => toast(`Resent claim invite to ${email || phone}`);
+  const resendInvite = () => toast(copy.t("Resent claim invite to {contact}").replace("{contact}", email || phone));
   const cancelInvite = () => {
     setState("unclaimed");
-    toast("Claim invite cancelled");
+    toast(copy.t("Claim invite cancelled"));
   };
   const revoke = () => {
     setState("unclaimed");
-    toast(`${talentName} ownership revoked — back to agency-managed`);
+    toast(copy.t("{name} ownership revoked, back to agency-managed").replace("{name}", talentName));
   };
   const simulateClaim = () => {
     setState("claimed");
-    toast(`${talentName} accepted the invite — they now own this profile`);
+    toast(copy.t("{name} accepted the invite. They now own this profile.").replace("{name}", talentName));
   };
 
   if (state === "unclaimed") {
@@ -634,7 +639,7 @@ export function ProfileOwnershipPanel({
             width: 6, height: 6, borderRadius: "50%",
             background: COLORS.inkMuted,
           }} />
-          You own this profile · talent has no account yet
+          {copy.t("You own this profile · talent has no account yet")}
         </div>
         {!showInviteForm ? (
           <button type="button" onClick={() => setShowInviteForm(true)} style={{
@@ -642,7 +647,7 @@ export function ProfileOwnershipPanel({
             background: COLORS.fill, color: "#fff",
             fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
           }}>
-            ✉ Send claim invite to {talentName}
+            ✉ {copy.t("Send claim invite to {name}").replace("{name}", talentName)}
           </button>
         ) : (
           <div style={{
@@ -651,34 +656,34 @@ export function ProfileOwnershipPanel({
             padding: 14,
           }}>
             <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10 }} className="text-admin-accent-deep">
-              Send claim invite
+              {copy.t("Send claim invite")}
             </div>
-            <FieldRow label="Email" hint="Talent receives a one-tap claim link.">
+            <FieldRow label={copy.t("Email")} hint={copy.t("Talent receives a one-tap claim link.")}>
               <TextInput type="email" placeholder="talent@example.com"
                 value={email} onChange={(e) => setEmail(e.target.value)} />
             </FieldRow>
-            <FieldRow label="Phone" optional hint="Backup channel — we'll SMS the link too.">
+            <FieldRow label={copy.t("Phone")} optional hint={copy.t("Backup channel, we'll SMS the link too.")}>
               <TextInput type="text" placeholder="+34 612 345 678"
                 value={phone} onChange={(e) => setPhone(e.target.value)} />
             </FieldRow>
-            <FieldRow label="One-time password" optional>
+            <FieldRow label={copy.t("One-time password")} optional>
               <ToggleControl value={includePassword} onChange={setIncludePassword}
-                label="Send a 6-digit code instead of a link · for talent without email" />
+                label={copy.t("Send a 6-digit code instead of a link · for talent without email")} />
             </FieldRow>
             <div style={{ padding: "8px 11px", borderRadius: 8, fontSize: 11.5, marginBottom: 12, lineHeight: 1.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">
-              <strong>What happens next:</strong> {talentName} gets an email · clicks &quot;Claim my profile&quot; · creates a password · can edit any field you&apos;ve enabled below. Your existing data stays — they just become the owner.
+              <strong>{copy.t("What happens next:")}</strong> {copy.t("{name} gets an email · clicks \"Claim my profile\" · creates a password · can edit any field you've enabled below. Your existing data stays, they just become the owner.").replace("{name}", talentName)}
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button type="button" onClick={() => setShowInviteForm(false)} style={{
                 padding: "8px 14px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
                 background: "transparent", color: COLORS.ink,
                 fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-              }}>Cancel</button>
+              }}>{copy.t("Cancel")}</button>
               <button type="button" onClick={sendInvite} style={{
                 padding: "8px 14px", borderRadius: 999, border: "none",
                 background: COLORS.fill, color: "#fff",
                 fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-              }}>Send invite</button>
+              }}>{copy.t("Send invite")}</button>
             </div>
           </div>
         )}
@@ -694,28 +699,28 @@ export function ProfileOwnershipPanel({
             width: 6, height: 6, borderRadius: "50%",
             background: COLORS.amber,
           }} />
-          Invite sent to {email || phone} · waiting for {talentName} to claim
+          {copy.t("Invite sent to {contact} · waiting for {name} to claim").replace("{contact}", email || phone).replace("{name}", talentName)}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
           <button type="button" onClick={resendInvite} style={{
             padding: "8px 13px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
             background: "transparent", color: COLORS.ink,
             fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
-          }}>↺ Resend invite</button>
+          }}>↺ {copy.t("Resend invite")}</button>
           <button type="button" onClick={cancelInvite} style={{
             padding: "8px 13px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
             background: "transparent", color: COLORS.inkMuted,
             fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
-          }}>× Cancel invite</button>
+          }}>× {copy.t("Cancel invite")}</button>
           {/* Demo helper — simulates the talent accepting in real product */}
           <button type="button" onClick={simulateClaim} style={{
             padding: "8px 13px", borderRadius: 999, border: `1px dashed ${COLORS.border}`,
             background: "transparent", color: COLORS.inkDim,
             fontFamily: FONTS.body, fontSize: 11, fontWeight: 500, cursor: "pointer",
-          }}>↗ Simulate talent accepting (demo)</button>
+          }}>↗ {copy.t("Simulate talent accepting (demo)")}</button>
         </div>
         <div style={{ fontSize: 11, lineHeight: 1.5 }} className="text-admin-ink-dim">
-          You can keep editing while the invite is pending. Talent&apos;s first edit will overwrite drafts in the fields they have permission for.
+          {copy.t("You can keep editing while the invite is pending. Talent's first edit will overwrite drafts in the fields they have permission for.")}
         </div>
       </div>
     );
@@ -726,11 +731,11 @@ export function ProfileOwnershipPanel({
     <div style={{ fontFamily: FONTS.body }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 11px", borderRadius: 999, fontSize: 12, marginBottom: 10, width: "fit-content", fontWeight: 600 }} className="bg-admin-success-soft text-admin-success-deep">
         <span style={{ width: 6, height: 6, borderRadius: "50%", }} />
-        ✓ {talentName} owns this profile
+        ✓ {copy.t("{name} owns this profile").replace("{name}", talentName)}
       </div>
       <div style={{
         background: "#fff", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, padding: 12, marginBottom: 10 }} className="bg-admin-green">
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">What talent can edit</div>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">{copy.t("What talent can edit")}</div>
         <div className="flex flex-col gap-1.5">
           {([
             { key: "media",        label: "Photos + albums" },
@@ -759,14 +764,14 @@ export function ProfileOwnershipPanel({
                     width: 14, height: 14, borderRadius: "50%", background: "#fff",
                   }} />
                 </button>
-                <span>{p.label}</span>
+                <span>{copy.t(p.label)}</span>
                 {"admin" in p && p.admin && (
                   <span style={{
                     fontSize: 9, fontWeight: 700, color: "#7A5A1F",
                     padding: "1px 6px", borderRadius: 999,
                     background: "rgba(184,135,49,0.14)",
                     textTransform: "uppercase", letterSpacing: 0.4,
-                  }}>admin default</span>
+                  }}>{copy.t("admin default")}</span>
                 )}
               </label>
             );
@@ -774,19 +779,19 @@ export function ProfileOwnershipPanel({
         </div>
       </div>
       <div className="flex gap-2 flex-wrap">
-        <button type="button" onClick={() => toast(`Sent ${talentName} a notification`)} style={{
+        <button type="button" onClick={() => toast(copy.t("Sent {name} a notification").replace("{name}", talentName))} style={{
           padding: "8px 13px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
           background: "transparent", color: COLORS.ink,
           fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
-        }}>✉ Message {talentName}</button>
+        }}>✉ {copy.t("Message {name}").replace("{name}", talentName)}</button>
         <button type="button" onClick={revoke} style={{
           padding: "8px 13px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
           background: "transparent", color: COLORS.red,
           fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
-        }}>↶ Revoke ownership</button>
+        }}>↶ {copy.t("Revoke ownership")}</button>
       </div>
       <div style={{ fontSize: 11, marginTop: 8, lineHeight: 1.5 }} className="text-admin-ink-dim">
-        Revoking returns the profile to agency-managed. Talent&apos;s account stays, but they lose edit access on this profile.
+        {copy.t("Revoking returns the profile to agency-managed. Talent's account stays, but they lose edit access on this profile.")}
       </div>
     </div>
   );

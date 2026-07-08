@@ -8,6 +8,8 @@
 import { loadPlatformTalentTypeDetail } from "../../../../../talent-types-data";
 import { FieldDrawer } from "../../../field-drawer";
 import { TalentTypeDetailView } from "../../../type/talent-type-detail-view";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -21,15 +23,18 @@ export default async function InterceptedTalentTypeDrawer({
   const { termId } = await params;
   const { saved, error } = await searchParams;
   const detail = await loadPlatformTalentTypeDetail(termId);
+  const t = createTranslator(await getRequestLocale());
+  const K = "dashboard.platform.catalog";
 
   return (
-    <FieldDrawer title="Talent type" ariaLabel="Talent type editor">
+    <FieldDrawer title={t(`${K}.typeDrawerTitle`)} ariaLabel={t(`${K}.typeDrawerAriaEditor`)}>
       <TalentTypeDetailView
         detail={detail}
         termId={termId}
         saved={saved}
         error={error}
         variant="drawer"
+        t={t}
       />
     </FieldDrawer>
   );

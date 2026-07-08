@@ -11,6 +11,11 @@ import {
   type PlatformLeadRow,
 } from "../../platform-data";
 import { loadPlatformNotifications } from "../../platform-notifications";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
 
 // ─── HQ design tokens ─────────────────────────────────────────────────────────
 
@@ -217,9 +222,30 @@ function HqCard({
 
 // ─── Lead pill helpers ────────────────────────────────────────────────────────
 
-function tierLabel(t: PlatformLeadRow["tierInterest"]): string {
-  if (!t) return "—";
-  return t.charAt(0).toUpperCase() + t.slice(1);
+const TIER_LABEL_KEY: Record<string, string> = {
+  free: "dashboard.platform.tier.free",
+  studio: "dashboard.platform.tier.studio",
+  agency: "dashboard.platform.tier.agency",
+  network: "dashboard.platform.tier.network",
+};
+
+function tierLabel(tier: PlatformLeadRow["tierInterest"], t: Translate): string {
+  if (!tier) return "—";
+  const key = TIER_LABEL_KEY[tier];
+  return key ? t(key) : tier.charAt(0).toUpperCase() + tier.slice(1);
+}
+
+const LEAD_STATUS_KEY: Record<string, string> = {
+  new: "dashboard.platform.leadStatus.new",
+  contacted: "dashboard.platform.leadStatus.contacted",
+  onboarded: "dashboard.platform.leadStatus.onboarded",
+  archived: "dashboard.platform.leadStatus.archived",
+  spam: "dashboard.platform.leadStatus.spam",
+};
+
+function statusLabel(status: string, t: Translate): string {
+  const key = LEAD_STATUS_KEY[status];
+  return key ? t(key) : status;
 }
 
 function tierTone(t: PlatformLeadRow["tierInterest"]): string {
@@ -281,12 +307,15 @@ export default async function PlatformTodayPage() {
     loadPlatformNotifications(12),
   ]);
 
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+
   return (
     <>
       <PageHeader
         eyebrow="Tulala HQ"
-        title="Today"
-        subtitle="Platform health, tenant signups, and queues that need eyes today."
+        title={t("dashboard.platform.today.title")}
+        subtitle={t("dashboard.platform.today.subtitle")}
       />
 
       {/* ── Stat grid ── */}
@@ -299,30 +328,30 @@ export default async function PlatformTodayPage() {
         }}
       >
         <StatCard
-          label="Active tenants"
+          label={t("dashboard.platform.today.activeTenants")}
           value={stats.activeTenants}
-          caption="on the platform"
+          caption={t("dashboard.platform.today.activeTenantsCaption")}
           tone="green"
           href="/platform/admin/tenants"
         />
         <StatCard
-          label="Total users"
+          label={t("dashboard.platform.today.totalUsers")}
           value={stats.totalUsers}
-          caption="registered accounts"
+          caption={t("dashboard.platform.today.totalUsersCaption")}
           tone="ink"
           href="/platform/admin/users"
         />
         <StatCard
-          label="Total tenants"
+          label={t("dashboard.platform.today.totalTenants")}
           value={stats.totalTenants}
-          caption="agencies + hubs"
+          caption={t("dashboard.platform.today.totalTenantsCaption")}
           tone="ink"
           href="/platform/admin/tenants"
         />
         <StatCard
-          label="Talent profiles"
+          label={t("dashboard.platform.today.talentProfiles")}
           value={stats.totalTalent}
-          caption="across the network"
+          caption={t("dashboard.platform.today.talentProfilesCaption")}
           tone="ink"
           href="/platform/admin/network"
         />
@@ -338,21 +367,21 @@ export default async function PlatformTodayPage() {
         }}
       >
         <StatCard
-          label="Leads · last 7d"
+          label={t("dashboard.platform.today.leads7d")}
           value={leadStats.last7d}
-          caption={`${leadStats.total} all-time`}
+          caption={interpolate(t("dashboard.platform.today.leadsAllTime"), { count: leadStats.total })}
           tone="ink"
         />
         <StatCard
-          label="Leads · last 30d"
+          label={t("dashboard.platform.today.leads30d")}
           value={leadStats.last30d}
-          caption="from /get-started"
+          caption={t("dashboard.platform.today.leadsSource")}
           tone="ink"
         />
         <StatCard
-          label="Conversion"
+          label={t("dashboard.platform.today.conversion")}
           value={`${leadStats.conversionPct}%`}
-          caption={`${leadStats.converted} provisioned`}
+          caption={interpolate(t("dashboard.platform.today.conversionCaption"), { count: leadStats.converted })}
           tone={leadStats.conversionPct >= 20 ? "green" : "amber"}
         />
       </div>
@@ -367,12 +396,12 @@ export default async function PlatformTodayPage() {
       >
         {/* HQ alerts — platform in-app notifications (new workspace, signup-failed, …) */}
         <HqCard
-          title="HQ alerts"
-          subtitle={hqAlerts.length === 0 ? "No platform alerts yet" : `${hqAlerts.length} recent`}
+          title={t("dashboard.platform.today.hqAlerts")}
+          subtitle={hqAlerts.length === 0 ? t("dashboard.platform.today.hqAlertsNone") : interpolate(t("dashboard.platform.today.recentCount"), { count: hqAlerts.length })}
         >
           {hqAlerts.length === 0 ? (
             <p style={{ color: HQ.inkMuted, fontSize: 13, padding: "10px 0" }}>
-              Platform alerts (new workspaces, failed signups) will appear here.
+              {t("dashboard.platform.today.hqAlertsEmpty")}
             </p>
           ) : (
             hqAlerts.map((n) => (
@@ -412,17 +441,17 @@ export default async function PlatformTodayPage() {
 
         {/* Recent signups */}
         <HqCard
-          title="Recent signups"
-          subtitle={`${recentSignups.length} most recent tenants`}
+          title={t("dashboard.platform.today.recentSignups")}
+          subtitle={interpolate(t("dashboard.platform.today.recentSignupsSubtitle"), { count: recentSignups.length })}
         >
           {recentSignups.length === 0 ? (
             <p style={{ color: HQ.inkMuted, fontSize: 13, padding: "10px 0" }}>
-              No signups yet.
+              {t("dashboard.platform.today.recentSignupsEmpty")}
             </p>
           ) : (
-            recentSignups.map((t) => (
+            recentSignups.map((signup) => (
               <div
-                key={t.id}
+                key={signup.id}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -433,7 +462,7 @@ export default async function PlatformTodayPage() {
                 }}
               >
                 <span style={{ flex: 1, fontSize: 13, color: HQ.ink, fontWeight: 500 }}>
-                  {t.name}
+                  {signup.name}
                 </span>
                 <span
                   style={{
@@ -447,9 +476,9 @@ export default async function PlatformTodayPage() {
                     borderRadius: 999,
                   }}
                 >
-                  {t.plan}
+                  {signup.plan}
                 </span>
-                <span style={{ fontSize: 11.5, color: HQ.inkDim }}>{t.createdAt}</span>
+                <span style={{ fontSize: 11.5, color: HQ.inkDim }}>{signup.createdAt}</span>
               </div>
             ))
           )}
@@ -464,19 +493,19 @@ export default async function PlatformTodayPage() {
                 textDecoration: "none",
               }}
             >
-              View all tenants →
+              {t("dashboard.platform.today.viewAllTenants")}
             </Link>
           </div>
         </HqCard>
 
         {/* Recent leads (marketing funnel) */}
         <HqCard
-          title="Recent leads"
-          subtitle={`${recentLeads.length} most recent from /get-started`}
+          title={t("dashboard.platform.today.recentLeads")}
+          subtitle={interpolate(t("dashboard.platform.today.recentLeadsSubtitle"), { count: recentLeads.length })}
         >
           {recentLeads.length === 0 ? (
             <p style={{ color: HQ.inkMuted, fontSize: 13, padding: "10px 0" }}>
-              No leads yet.
+              {t("dashboard.platform.today.recentLeadsEmpty")}
             </p>
           ) : (
             recentLeads.map((l) => {
@@ -524,9 +553,9 @@ export default async function PlatformTodayPage() {
                     </div>
                   </div>
                   <Pill color={tierTone(l.tierInterest)}>
-                    {tierLabel(l.tierInterest)}
+                    {tierLabel(l.tierInterest, t)}
                   </Pill>
-                  <Pill color={statusTone(l.status)}>{l.status}</Pill>
+                  <Pill color={statusTone(l.status)}>{statusLabel(l.status, t)}</Pill>
                   <span style={{ fontSize: 11.5, color: HQ.inkDim, minWidth: 56, textAlign: "right" }}>
                     {l.createdAt}
                   </span>
@@ -550,8 +579,13 @@ export default async function PlatformTodayPage() {
         {/* Orphan paid-tier free workspaces — ghosts from crashed paid signups */}
         {orphanGhosts.length > 0 ? (
           <HqCard
-            title="Orphan paid-tier free workspaces"
-            subtitle={`${orphanGhosts.length} ghost${orphanGhosts.length === 1 ? "" : "s"} — paid signup crashed before Stripe. Review before any cleanup.`}
+            title={t("dashboard.platform.today.orphanTitle")}
+            subtitle={interpolate(
+              orphanGhosts.length === 1
+                ? t("dashboard.platform.today.orphanSubtitleOne")
+                : t("dashboard.platform.today.orphanSubtitleMany"),
+              { count: orphanGhosts.length },
+            )}
           >
             {orphanGhosts.map((g) => {
               const href = `/platform/admin/tenants/${encodeURIComponent(g.tenantId)}`;
@@ -592,11 +626,11 @@ export default async function PlatformTodayPage() {
                         textOverflow: "ellipsis",
                       }}
                     >
-                      {g.ownerEmail ?? "(no lead email on file)"}
-                      {g.leadId ? ` · lead ${g.leadId.slice(0, 8)}…` : ""}
+                      {g.ownerEmail ?? t("dashboard.platform.today.orphanNoEmail")}
+                      {g.leadId ? interpolate(t("dashboard.platform.today.orphanLeadRef"), { id: g.leadId.slice(0, 8) }) : ""}
                     </div>
                   </div>
-                  <Pill color={tierTone(g.signupTierInterest)}>{tierLabel(g.signupTierInterest)}</Pill>
+                  <Pill color={tierTone(g.signupTierInterest)}>{tierLabel(g.signupTierInterest, t)}</Pill>
                   <span
                     style={{
                       fontSize: 11.5,
@@ -619,20 +653,20 @@ export default async function PlatformTodayPage() {
                 lineHeight: 1.5,
               }}
             >
-              No delete action here — investigate each row in the tenants drawer, then drop manually via SQL with founder approval.
+              {t("dashboard.platform.today.orphanFootnote")}
             </p>
           </HqCard>
         ) : null}
 
         {/* Quick links */}
-        <HqCard title="Platform sections" subtitle="Jump to any section">
+        <HqCard title={t("dashboard.platform.today.sectionsTitle")} subtitle={t("dashboard.platform.today.sectionsSubtitle")}>
           {[
-            { href: "/platform/admin/tenants",   label: "Tenants",     desc: "All agencies and hubs" },
-            { href: "/platform/admin/users",      label: "Users",       desc: "All registered accounts" },
-            { href: "/platform/admin/network",    label: "Network",     desc: "Hub and discovery surface" },
-            { href: "/platform/admin/billing",    label: "Billing",     desc: "MRR, invoices, dunning" },
-            { href: "/platform/admin/operations", label: "Operations",  desc: "Feature flags and system jobs" },
-            { href: "/platform/admin/settings",   label: "Settings",    desc: "HQ team and audit trail" },
+            { href: "/platform/admin/tenants",   label: t("dashboard.platform.nav.tenants"),    desc: t("dashboard.platform.today.sectionTenantsDesc") },
+            { href: "/platform/admin/users",      label: t("dashboard.platform.nav.users"),      desc: t("dashboard.platform.today.sectionUsersDesc") },
+            { href: "/platform/admin/network",    label: t("dashboard.platform.nav.network"),    desc: t("dashboard.platform.today.sectionNetworkDesc") },
+            { href: "/platform/admin/billing",    label: t("dashboard.platform.nav.billing"),    desc: t("dashboard.platform.today.sectionBillingDesc") },
+            { href: "/platform/admin/operations", label: t("dashboard.platform.nav.operations"), desc: t("dashboard.platform.today.sectionOperationsDesc") },
+            { href: "/platform/admin/settings",   label: t("dashboard.platform.nav.settings"),   desc: t("dashboard.platform.today.sectionSettingsDesc") },
           ].map((item) => (
             <Link
               key={item.href}

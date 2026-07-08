@@ -1,10 +1,12 @@
 "use client";
 
 import { type CSSProperties } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { useAdminShell, COLORS, FONTS, type InquiryRecord } from "../../state";
 import { Avatar } from "../../primitives";
 import { type Conversation } from "../../talent";
-import { CLIENT_NEXT_ACTION_FOR_CONV } from "../ClientProjectShell";
+import { clientNextActionFor } from "../ClientProjectShell";
 import { readConvNote, useNotesSubscription, useOfferStashSubscription, writeConvNote } from "../conversation-stash";
 import { CoordRoleBadge, PresenceDot } from "./inbox-identity-1";
 import { LiveLineupPanel } from "./machinery-11";
@@ -39,22 +41,24 @@ export function ClientProjectViewTab({
   onOpenOffer: () => void;
 }) {
   const { toast } = useAdminShell();
+  const tr = useT();
   const pinned = conv.pinned ?? {};
-  const days = countdownLabel(inquiry.schedule.start);
+  const days = countdownLabel(inquiry.schedule.start, tr);
   const coord = inquiry.coordinators[0];
   const lineup = inquiry.talent;
   const teammates = lineup.length > 0;
   const showCoord = !!coord;
-  const action = CLIENT_NEXT_ACTION_FOR_CONV[conv.id];
+  const action = clientNextActionFor(conv.id, tr);
   // Subscribe to offer-stash + notes so this view re-renders when
   // the client approves something or edits their notes.
   useOfferStashSubscription();
   useNotesSubscription();
-  const canOpenOfferAction = !!action?.primary && /approve|review|counter/i.test(action.label);
+  // Switch on the stable `kind` discriminant (the label is localized).
+  const canOpenOfferAction = !!action?.primary && (action.kind === "approve" || action.kind === "review" || action.kind === "review_profiles");
   // Lineup drawer RETIRED (S0.3). Add/Swap actions now toast the client
   // toward the Lineup tab where the canonical LiveLineupPanel handles
   // talent management with real DB-backed engine writes.
-  const openLineupTab = () => toast("Tap the Lineup tab above to manage talent");
+  const openLineupTab = () => toast(tr("dashboard.clientThread.manageTalentToast"));
 
   // Same compact card surface as the talent's TalentBookingTab so
   // the patterns look identical across roles.
@@ -130,7 +134,7 @@ export function ClientProjectViewTab({
           </span>
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-coral">
-              Needs your decision
+              {tr("dashboard.clientThread.needsYourDecision")}
             </div>
             <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2 }} className="text-admin-ink">
               {action.label}
@@ -139,7 +143,7 @@ export function ClientProjectViewTab({
           <button
             type="button"
             disabled={!canOpenOfferAction}
-            title={canOpenOfferAction ? undefined : "This client action needs a live workflow before it can run here."}
+            title={canOpenOfferAction ? undefined : tr("dashboard.clientThread.clientActionNeedsWorkflow")}
             onClick={canOpenOfferAction ? onOpenOffer : undefined}
             style={canOpenOfferAction ? {
               flexShrink: 0,
@@ -155,7 +159,7 @@ export function ClientProjectViewTab({
               fontFamily: FONTS.body, fontSize: 12, fontWeight: 700,
             })}
           >
-            {canOpenOfferAction ? "Open offer" : "Coming soon"}
+            {canOpenOfferAction ? tr("dashboard.clientThread.openOffer") : tr("dashboard.clientThread.comingSoon")}
           </button>
         </div>
       ) : days ? (
@@ -194,19 +198,19 @@ export function ClientProjectViewTab({
       {/* The project — title + brief + source. Client wants context:
           what they commissioned, who's doing it, what stage it's at. */}
       <div data-booking-card style={cardStyle}>
-        <div data-booking-section-title style={sectionTitle}>The project</div>
+        <div data-booking-section-title style={sectionTitle}>{tr("dashboard.adminTabs.booking.theProject")}</div>
         <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.35 }} className="text-admin-ink">
           {inquiry.title}
         </div>
         <div style={{ fontSize: 12, marginTop: 3 }} className="text-admin-ink-muted">
-          With {conv.agency} · {conv.leader.name} coordinating
+          {interpolate(tr("dashboard.clientThread.withCoordinating"), { agency: conv.agency, name: conv.leader.name })}
         </div>
         {(() => {
-          const sourceMeta = conv.source ? sourceChipMeta(conv.source) : null;
+          const sourceMeta = conv.source ? sourceChipMeta(conv.source, tr) : null;
           if (!sourceMeta) return null;
           return (
             <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-dim">You sent this via</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-dim">{tr("dashboard.clientThread.youSentThisVia")}</span>
               <span style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
                 padding: "3px 9px", borderRadius: 999,
@@ -239,7 +243,7 @@ export function ClientProjectViewTab({
             </span>
             <div className="flex-1 min-w-0">
               <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 2 }} className="text-admin-indigo-deep">
-                {coord.name.split(" ")[0]}&apos;s note for you
+                {interpolate(tr("dashboard.clientThread.noteForYou"), { name: coord.name.split(" ")[0] })}
               </div>
               <div style={{ fontSize: 12.5, lineHeight: 1.5, fontStyle: "italic" }} className="text-admin-ink">
                 &quot;{conv.pinned.coordinatorNote}&quot;
@@ -253,31 +257,31 @@ export function ClientProjectViewTab({
           patterns mirror across roles. */}
       <div data-booking-grid style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div data-booking-card style={cardStyle}>
-          <div data-booking-section-title style={sectionTitle}>When</div>
+          <div data-booking-section-title style={sectionTitle}>{tr("dashboard.talentThread.bookingWhen")}</div>
           <div className="text-admin-ink text-sm font-bold">
             {inquiry.schedule.start}
             {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
           </div>
           {pinned.callTime && (
             <div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">
-              Call · <span style={{ fontWeight: 600 }} className="text-admin-ink">{pinned.callTime}</span>
+              {tr("dashboard.clientThread.callPrefix")} · <span style={{ fontWeight: 600 }} className="text-admin-ink">{pinned.callTime}</span>
             </div>
           )}
         </div>
         <div data-booking-card style={{ ...cardStyle, padding: 0 }}>
-          <div data-booking-section-title style={{ ...sectionTitle, padding: "12px 14px 0" }}>Where</div>
+          <div data-booking-section-title style={{ ...sectionTitle, padding: "12px 14px 0" }}>{tr("dashboard.talentThread.bookingWhere")}</div>
           {(inquiry.location.city || inquiry.location.venue || inquiry.location.address) ? (
             <div style={{ padding: "8px 14px 12px" }}>
               <LocationMapTile
                 venue={inquiry.location.venue}
                 address={inquiry.location.address}
                 city={inquiry.location.city}
-                onOpenMaps={() => toast("Open map")}
+                onOpenMaps={() => toast(tr("dashboard.clientThread.openMap"))}
               />
             </div>
           ) : (
             <div style={{ padding: "0 14px 12px", fontSize: 12 }} className="text-admin-ink-muted">
-              Location TBC.
+              {tr("dashboard.clientThread.locationTbc")}
             </div>
           )}
         </div>
@@ -295,7 +299,7 @@ export function ClientProjectViewTab({
         }}>
           {teammates && (
             <div data-booking-card style={cardStyle}>
-              <div data-booking-section-title style={sectionTitle}>Your talent</div>
+              <div data-booking-section-title style={sectionTitle}>{tr("dashboard.clientThread.yourTalent")}</div>
               {lineup
                 .filter(t => {
                   const s = (t.state ?? "").toLowerCase();
@@ -328,14 +332,14 @@ export function ClientProjectViewTab({
                   <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
                     <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
                   </svg>
-                  Add talent
+                  {tr("dashboard.clientThread.addTalent")}
                 </button>
               )}
             </div>
           )}
           {showCoord && (
             <div data-booking-card data-booking-coord style={cardStyle}>
-              <div data-booking-section-title style={sectionTitle}>Your contact</div>
+              <div data-booking-section-title style={sectionTitle}>{tr("dashboard.clientThread.yourContact")}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                 <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
                   <Avatar size={36} tone="auto" hashSeed={coord.name} initials={coord.initials} />
@@ -350,8 +354,8 @@ export function ClientProjectViewTab({
                   </div>
                   <div style={{ fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
                     {(coord as { role?: string }).role === "owner"
-                      ? `Workspace owner · ${conv.agency}`
-                      : `Coordinator · ${conv.agency}`}
+                      ? interpolate(tr("dashboard.clientThread.workspaceOwnerAgency"), { agency: conv.agency })
+                      : interpolate(tr("dashboard.clientThread.coordinatorAgency"), { agency: conv.agency })}
                   </div>
                 </div>
                 {/* Coordinator-change requests need a persisted agency-ops
@@ -360,9 +364,9 @@ export function ClientProjectViewTab({
                     just sitting inert. */}
                 {inquiry.status !== "wrapped" && inquiry.status !== "cancelled" && (
                   <button type="button"
-                    onClick={() => toast("Coordinator change requests land with the agency-ops queue in a future phase. For now, message the coordinator directly.")}
-                    title="Coming soon"
-                    aria-label="Coordinator management — coming soon"
+                    onClick={() => toast(tr("dashboard.clientThread.coordChangeToast"))}
+                    title={tr("dashboard.clientThread.comingSoon")}
+                    aria-label={tr("dashboard.clientThread.coordManageComingSoon")}
                     style={{
                       flexShrink: 0,
                       width: 28, height: 28, borderRadius: 8,
@@ -390,7 +394,7 @@ export function ClientProjectViewTab({
                 <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden>
                   <path d="M2 3.5h10v6H6L3 12v-2.5H2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
                 </svg>
-                Message
+                {tr("dashboard.clientThread.message")}
               </button>
             </div>
           )}
@@ -407,15 +411,15 @@ export function ClientProjectViewTab({
         return (
           <div data-booking-card style={cardStyle}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
-              <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>Files</div>
+              <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>{tr("dashboard.clientThread.files")}</div>
               <span className="text-admin-ink-muted text-admin-10h">
-                {clientFiles.length} file{clientFiles.length === 1 ? "" : "s"}
+                {interpolate(tr(clientFiles.length === 1 ? "dashboard.clientThread.fileCountOne" : "dashboard.clientThread.fileCountMany"), { count: clientFiles.length })}
               </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               {preview.map((f) => (
                 <button key={f.name} type="button"
-                  onClick={() => toast(`Opening ${f.name}`)}
+                  onClick={() => toast(interpolate(tr("dashboard.clientThread.openingFile"), { name: f.name }))}
                   style={{
                     display: "flex", alignItems: "center", gap: 9,
                     padding: "7px 9px", borderRadius: 8,
@@ -438,7 +442,7 @@ export function ClientProjectViewTab({
                   <div className="flex-1 min-w-0">
                     <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">{f.name}</div>
                     <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">
-                      {f.size} · added by {f.addedBy} · {f.addedAt}
+                      {interpolate(tr("dashboard.clientThread.fileMeta"), { size: f.size, by: f.addedBy, at: f.addedAt })}
                     </div>
                   </div>
                 </button>
@@ -446,7 +450,7 @@ export function ClientProjectViewTab({
             </div>
             {clientFiles.length > preview.length && (
               <button type="button"
-                onClick={() => toast("Open Files tab")}
+                onClick={() => toast(tr("dashboard.clientThread.openFilesTab"))}
                 style={{
                   marginTop: 8, width: "100%",
                   padding: "6px 10px", borderRadius: 8,
@@ -454,7 +458,7 @@ export function ClientProjectViewTab({
                   color: COLORS.ink, cursor: "pointer",
                   fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
                 }}>
-                View all {clientFiles.length} files
+                {interpolate(tr("dashboard.clientThread.viewAllFiles"), { count: clientFiles.length })}
               </button>
             )}
           </div>
@@ -465,12 +469,12 @@ export function ClientProjectViewTab({
           shoot prep call", "remind to share selects by Fri"). Keyed
           by conv.id so each project has its own note. */}
       <div data-booking-card style={cardStyle}>
-        <div data-booking-section-title style={sectionTitle}>Your notes</div>
+        <div data-booking-section-title style={sectionTitle}>{tr("dashboard.clientThread.yourNotes")}</div>
         <textarea
           key={conv.id}
           defaultValue={readConvNote(conv.id)}
-          placeholder="Reminders, follow-ups, things to ask the coordinator…"
-          onBlur={(e) => { writeConvNote(conv.id, e.currentTarget.value); toast("Note saved"); }}
+          placeholder={tr("dashboard.clientThread.notesPlaceholder")}
+          onBlur={(e) => { writeConvNote(conv.id, e.currentTarget.value); toast(tr("dashboard.clientThread.noteSaved")); }}
           style={{
             width: "100%", minHeight: 64, resize: "vertical",
             padding: 10, borderRadius: 8,

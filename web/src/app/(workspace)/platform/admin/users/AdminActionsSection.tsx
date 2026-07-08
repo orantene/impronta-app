@@ -9,6 +9,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { HQ, HQ_F, HQ_FM } from "../tenants/hq-kit";
+import { useT } from "@/i18n/use-t";
 import {
   resendPlatformUserConfirmation,
   sendPlatformUserPasswordReset,
@@ -45,6 +46,7 @@ function ActionButton({
   variant?: "default" | "warn" | "danger";
   disabled?: boolean;
 }) {
+  const t = useT();
   const borderColor =
     variant === "danger"
       ? "rgba(229,99,99,0.35)"
@@ -77,7 +79,7 @@ function ActionButton({
         transition: "opacity 0.15s",
       }}
     >
-      {pending ? "Working…" : label}
+      {pending ? t("dashboard.platform.users.actions.working") : label}
     </button>
   );
 }
@@ -108,6 +110,7 @@ function StatusMessage({
 // ─── Tier 1 — Safe / reversible ──────────────────────────────────────────────
 
 function Tier1Actions({ user }: { user: PlatformUserRow }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [actionPending, setActionPending] = useState<string | null>(null);
@@ -131,13 +134,13 @@ function Tier1Actions({ user }: { user: PlatformUserRow }) {
       const res = await fn();
       setActionPending(null);
       if (res.ok) {
-        setLastResult({ action: actionKey, ok: true, msg: "Done." });
+        setLastResult({ action: actionKey, ok: true, msg: t("dashboard.platform.users.actions.done") });
         router.refresh();
       } else {
         setLastResult({
           action: actionKey,
           ok: false,
-          msg: res.error ?? "Unknown error.",
+          msg: res.error ?? t("dashboard.platform.users.actions.unknownError"),
         });
       }
     });
@@ -155,12 +158,12 @@ function Tier1Actions({ user }: { user: PlatformUserRow }) {
           marginBottom: 8,
         }}
       >
-        Tier 1 — Safe actions
+        {t("dashboard.platform.users.actions.tier1Title")}
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {isHuman && (
           <ActionButton
-            label="Resend confirmation"
+            label={t("dashboard.platform.users.actions.resendConfirmation")}
             pending={pending && actionPending === "resend"}
             onClick={() =>
               run("resend", () =>
@@ -171,7 +174,7 @@ function Tier1Actions({ user }: { user: PlatformUserRow }) {
         )}
         {isHuman && (
           <ActionButton
-            label="Send password reset"
+            label={t("dashboard.platform.users.actions.sendPasswordReset")}
             pending={pending && actionPending === "pwreset"}
             onClick={() =>
               run("pwreset", () => sendPlatformUserPasswordReset(user.id))
@@ -180,7 +183,7 @@ function Tier1Actions({ user }: { user: PlatformUserRow }) {
         )}
         {isHuman && (
           <ActionButton
-            label="Set temp password"
+            label={t("dashboard.platform.users.actions.setTempPassword")}
             onClick={() => {
               setTempPwMode(!tempPwMode);
               setTempPw("");
@@ -189,7 +192,7 @@ function Tier1Actions({ user }: { user: PlatformUserRow }) {
         )}
         {isHuman && (
           <ActionButton
-            label="Force sign out"
+            label={t("dashboard.platform.users.actions.forceSignOut")}
             variant="warn"
             pending={pending && actionPending === "signout"}
             onClick={() =>
@@ -198,7 +201,7 @@ function Tier1Actions({ user }: { user: PlatformUserRow }) {
           />
         )}
         <ActionButton
-          label="Open support mode"
+          label={t("dashboard.platform.users.actions.openSupportMode")}
           pending={pending && actionPending === "support"}
           onClick={() =>
             run("support", async () => {
@@ -235,14 +238,14 @@ function Tier1Actions({ user }: { user: PlatformUserRow }) {
               marginBottom: 8,
             }}
           >
-            Enter a temporary password (min 8 chars):
+            {t("dashboard.platform.users.actions.tempPasswordPrompt")}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <input
               type="password"
               value={tempPw}
               onChange={(e) => setTempPw(e.target.value)}
-              placeholder="New password"
+              placeholder={t("dashboard.platform.users.actions.tempPasswordPlaceholder")}
               style={{
                 flex: 1,
                 padding: "7px 10px",
@@ -256,7 +259,7 @@ function Tier1Actions({ user }: { user: PlatformUserRow }) {
               }}
             />
             <ActionButton
-              label="Set password"
+              label={t("dashboard.platform.users.actions.setPassword")}
               pending={pending && actionPending === "temppw"}
               disabled={tempPw.length < 8}
               onClick={() => {
@@ -284,6 +287,7 @@ function Tier1Actions({ user }: { user: PlatformUserRow }) {
 // ─── Tier 2 — Reversible admin actions ───────────────────────────────────────
 
 function Tier2Actions({ user }: { user: PlatformUserRow }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [actionPending, setActionPending] = useState<string | null>(null);
@@ -313,12 +317,12 @@ function Tier2Actions({ user }: { user: PlatformUserRow }) {
       const res = await fn();
       setActionPending(null);
       if (res.ok) {
-        setLastResult({ ok: true, msg: "Done." });
+        setLastResult({ ok: true, msg: t("dashboard.platform.users.actions.done") });
         router.refresh();
       } else {
         setLastResult({
           ok: false,
-          msg: res.error ?? "Unknown error.",
+          msg: res.error ?? t("dashboard.platform.users.actions.unknownError"),
         });
       }
     });
@@ -336,12 +340,12 @@ function Tier2Actions({ user }: { user: PlatformUserRow }) {
           marginBottom: 8,
         }}
       >
-        Tier 2 — Reversible
+        {t("dashboard.platform.users.actions.tier2Title")}
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {isHuman && (
           <ActionButton
-            label={isSuspended ? "Unsuspend account" : "Suspend account"}
+            label={isSuspended ? t("dashboard.platform.users.actions.unsuspendAccount") : t("dashboard.platform.users.actions.suspendAccount")}
             variant={isSuspended ? "default" : "warn"}
             pending={
               pending &&
@@ -362,8 +366,8 @@ function Tier2Actions({ user }: { user: PlatformUserRow }) {
           <ActionButton
             label={
               isPublished
-                ? "Hide talent globally"
-                : "Unhide talent globally"
+                ? t("dashboard.platform.users.actions.hideTalentGlobally")
+                : t("dashboard.platform.users.actions.unhideTalentGlobally")
             }
             variant={isPublished ? "warn" : "default"}
             pending={
@@ -379,7 +383,7 @@ function Tier2Actions({ user }: { user: PlatformUserRow }) {
           />
         )}
         <ActionButton
-          label={isTest ? "Unmark test account" : "Mark as test account"}
+          label={isTest ? t("dashboard.platform.users.actions.unmarkTestAccount") : t("dashboard.platform.users.actions.markAsTestAccount")}
           variant={isTest ? "default" : "warn"}
           pending={pending && actionPending === "test"}
           onClick={() =>
@@ -406,6 +410,7 @@ function Tier2Actions({ user }: { user: PlatformUserRow }) {
 // ─── Tier 3 — Destructive ────────────────────────────────────────────────────
 
 function Tier3Actions({ user }: { user: PlatformUserRow }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [modal, setModal] = useState<
@@ -430,10 +435,10 @@ function Tier3Actions({ user }: { user: PlatformUserRow }) {
         const res = await fn(name);
         setModal("none");
         if (res.ok) {
-          setLastResult({ ok: true, msg: "Done." });
+          setLastResult({ ok: true, msg: t("dashboard.platform.users.actions.done") });
           router.refresh();
         } else {
-          setLastResult({ ok: false, msg: res.error ?? "Unknown error." });
+          setLastResult({ ok: false, msg: res.error ?? t("dashboard.platform.users.actions.unknownError") });
         }
       });
     };
@@ -451,26 +456,26 @@ function Tier3Actions({ user }: { user: PlatformUserRow }) {
           marginBottom: 8,
         }}
       >
-        Tier 3 — Destructive
+        {t("dashboard.platform.users.actions.tier3Title")}
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {isHuman && (
           <ActionButton
-            label="GDPR anonymize"
+            label={t("dashboard.platform.users.actions.gdprAnonymize")}
             variant="danger"
             onClick={() => setModal("gdpr")}
           />
         )}
         {isHuman && (
           <ActionButton
-            label="Delete account"
+            label={t("dashboard.platform.users.actions.deleteAccount")}
             variant="danger"
             onClick={() => setModal("delete")}
           />
         )}
         {isClaimedTalent && (
           <ActionButton
-            label="Unclaim talent profile"
+            label={t("dashboard.platform.users.actions.unclaimTalentProfile")}
             variant="danger"
             onClick={() => setModal("unclaim")}
           />
@@ -492,8 +497,8 @@ function Tier3Actions({ user }: { user: PlatformUserRow }) {
           gdprAnonymizePlatformUser(user.id, name),
         )}
         targetName={user.displayName}
-        actionLabel="GDPR Anonymize"
-        warningText={`This will scrub the user's name and email address from all platform tables. The account will remain functional but de-identified. This cannot be reversed.`}
+        actionLabel={t("dashboard.platform.users.actions.gdprActionLabel")}
+        warningText={t("dashboard.platform.users.actions.gdprWarning")}
         isPending={pending}
       />
 
@@ -505,8 +510,8 @@ function Tier3Actions({ user }: { user: PlatformUserRow }) {
           deletePlatformUserAccount(user.id, name),
         )}
         targetName={user.displayName}
-        actionLabel="Delete Account"
-        warningText={`This will permanently delete the user's profile and Supabase auth record. All associated data will be gone. This is irreversible.`}
+        actionLabel={t("dashboard.platform.users.actions.deleteActionLabel")}
+        warningText={t("dashboard.platform.users.actions.deleteWarning")}
         isPending={pending}
       />
 
@@ -519,8 +524,8 @@ function Tier3Actions({ user }: { user: PlatformUserRow }) {
             unclaimTalentProfile(talentId, name),
           )}
           targetName={user.displayName}
-          actionLabel="Unclaim Talent Profile"
-          warningText={`This will sever the link between the auth user and their talent profile. The talent profile will be hidden and remain unclaimed until re-invited.`}
+          actionLabel={t("dashboard.platform.users.actions.unclaimActionLabel")}
+          warningText={t("dashboard.platform.users.actions.unclaimWarning")}
           isPending={pending}
         />
       )}
@@ -531,6 +536,7 @@ function Tier3Actions({ user }: { user: PlatformUserRow }) {
 // ─── Main section ─────────────────────────────────────────────────────────────
 
 export function AdminActionsSection({ user }: { user: PlatformUserRow }) {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -556,7 +562,7 @@ export function AdminActionsSection({ user }: { user: PlatformUserRow }) {
         }}
       >
         <span style={{ fontSize: 11 }}>{isOpen ? "▼" : "▶"}</span>
-        Admin Actions
+        {t("dashboard.platform.users.actions.title")}
         <span
           style={{
             fontSize: 10,
@@ -565,7 +571,7 @@ export function AdminActionsSection({ user }: { user: PlatformUserRow }) {
             letterSpacing: 0.4,
           }}
         >
-          · OPERATOR ONLY
+          · {t("dashboard.platform.users.actions.operatorOnly")}
         </span>
       </div>
 

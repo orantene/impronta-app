@@ -2,6 +2,8 @@
 
 import { Fragment, useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 
 import type {
   EmailLogRow,
@@ -44,13 +46,13 @@ import {
 import { SendLogTable, TemplateEditor } from "./email-console-sections";
 
 type ConsoleTab = "overview" | "log" | "events" | "templates" | "domains" | "suppressions";
-const CONSOLE_TABS: { key: ConsoleTab; label: string }[] = [
-  { key: "overview", label: "Overview" },
-  { key: "log", label: "Send log" },
-  { key: "events", label: "Events" },
-  { key: "templates", label: "Templates" },
-  { key: "domains", label: "Domains" },
-  { key: "suppressions", label: "Suppressions" },
+const CONSOLE_TABS: { key: ConsoleTab; labelKey: string }[] = [
+  { key: "overview", labelKey: "dashboard.platform.email.tabOverview" },
+  { key: "log", labelKey: "dashboard.platform.email.tabLog" },
+  { key: "events", labelKey: "dashboard.platform.email.tabEvents" },
+  { key: "templates", labelKey: "dashboard.platform.email.tabTemplates" },
+  { key: "domains", labelKey: "dashboard.platform.email.tabDomains" },
+  { key: "suppressions", labelKey: "dashboard.platform.email.tabSuppressions" },
 ];
 
 export function EmailConsoleClient(props: {
@@ -72,14 +74,15 @@ export function EmailConsoleClient(props: {
   adminLocales?: readonly string[];
 }) {
   const { sendLog, metrics, suppressions, domain, catalog, templates, sendingDomains, adminEmail, nowMs, adminLocales = ["en", "es"] } = props;
+  const t = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [tab, setTab] = useState<ConsoleTab>("overview");
   const refresh = () => startTransition(() => router.refresh());
 
   const unverified = sendingDomains.filter((d) => d.verificationStatus !== "verified").length;
-  const customized = templates.filter((t) =>
-    adminLocales.some((l) => t.byLocale[l]?.hasOverride),
+  const customized = templates.filter((tpl) =>
+    adminLocales.some((l) => tpl.byLocale[l]?.hasOverride),
   ).length;
   const badge: Record<ConsoleTab, ReactNode> = {
     overview: null,
@@ -94,10 +97,10 @@ export function EmailConsoleClient(props: {
     <div style={{ fontFamily: FONT_BODY, color: HQ.ink, paddingBottom: 60 }}>
       <div style={{ marginBottom: 12 }}>
         <h1 style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 600, letterSpacing: -0.5, margin: "0 0 4px" }}>
-          Email
+          {t("dashboard.platform.email.title")}
         </h1>
         <p style={{ color: HQ.inkMuted, margin: 0, fontSize: 13 }}>
-          Deliverability, send log, suppressions, and diagnostics for the platform email pipeline.
+          {t("dashboard.platform.email.subtitle")}
         </p>
       </div>
 
@@ -118,12 +121,12 @@ export function EmailConsoleClient(props: {
         }}
       >
         <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-          {CONSOLE_TABS.map((t) => {
-            const active = tab === t.key;
+          {CONSOLE_TABS.map((tabDef) => {
+            const active = tab === tabDef.key;
             return (
               <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
+                key={tabDef.key}
+                onClick={() => setTab(tabDef.key)}
                 style={{
                   appearance: "none",
                   background: "none",
@@ -138,14 +141,14 @@ export function EmailConsoleClient(props: {
                   marginBottom: -1,
                 }}
               >
-                {t.label}
-                {badge[t.key]}
+                {t(tabDef.labelKey)}
+                {badge[tabDef.key]}
               </button>
             );
           })}
         </div>
         {isPending && (
-          <span style={{ fontSize: 12, color: HQ.inkMuted, paddingRight: 4 }}>Refreshing…</span>
+          <span style={{ fontSize: 12, color: HQ.inkMuted, paddingRight: 4 }}>{t("dashboard.platform.email.refreshing")}</span>
         )}
       </div>
 
@@ -167,6 +170,7 @@ export function EmailConsoleClient(props: {
 
 // ─── Event toggles (P3b) ─────────────────────────────────────────────────────
 function EventToggles({ entries, onChanged }: { entries: CatalogEntryState[]; onChanged: () => void }) {
+  const t = useT();
   const [busy, setBusy] = useState<string | null>(null);
   const [q, setQ] = useState("");
 
@@ -192,14 +196,14 @@ function EventToggles({ entries, onChanged }: { entries: CatalogEntryState[]; on
   }
 
   function Switch({ e, channel, on, has }: { e: CatalogEntryState; channel: "email" | "in_app"; on: boolean; has: boolean }) {
-    if (!has) return <StatusBadge label="n/a" tone="muted" title="Channel not available for this event" />;
+    if (!has) return <StatusBadge label={t("dashboard.platform.email.switchNa")} tone="muted" title={t("dashboard.platform.email.switchNaTitle")} />;
     const locked = e.required;
     const k = `${e.id}:${channel}`;
     return (
       <button
         disabled={locked || busy === k}
         onClick={() => toggle(e, channel, !on)}
-        title={locked ? "Required — can't be disabled" : on ? "Click to disable" : "Click to enable"}
+        title={locked ? t("dashboard.platform.email.switchLockedTitle") : on ? t("dashboard.platform.email.switchDisableTitle") : t("dashboard.platform.email.switchEnableTitle")}
         style={{
           cursor: locked ? "not-allowed" : "pointer",
           padding: "3px 9px",
@@ -212,7 +216,7 @@ function EventToggles({ entries, onChanged }: { entries: CatalogEntryState[]; on
           color: on ? HQ.green : HQ.inkDim,
         }}
       >
-        {locked ? "🔒 ON" : on ? "ON" : "OFF"}
+        {locked ? t("dashboard.platform.email.switchLockedOn") : on ? t("dashboard.platform.email.switchOn") : t("dashboard.platform.email.switchOff")}
       </button>
     );
   }
@@ -233,23 +237,23 @@ function EventToggles({ entries, onChanged }: { entries: CatalogEntryState[]; on
 
   return (
     <div style={{ marginBottom: 24 }}>
-      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 6 }}>Events</div>
+      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 6 }}>{t("dashboard.platform.email.events")}</div>
       <p style={{ color: HQ.inkMuted, fontSize: 13, margin: "0 0 12px" }}>
-        Enable/disable each notification per channel. 🔒 Required (transactional) events can&apos;t be turned off.
+        {t("dashboard.platform.email.eventsIntro")}
       </p>
-      <div style={{ marginBottom: 12 }}><SearchBox value={q} onChange={setQ} placeholder="Search events…" /></div>
+      <div style={{ marginBottom: 12 }}><SearchBox value={q} onChange={setQ} placeholder={t("dashboard.platform.email.searchEvents")} /></div>
       <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 8, overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
-              <th style={{ ...th, textAlign: "left" }}>Event</th>
-              <th style={{ ...th, width: 90 }}>Email</th>
-              <th style={{ ...th, width: 90 }}>In-app</th>
+              <th style={{ ...th, textAlign: "left" }}>{t("dashboard.platform.email.colEvent")}</th>
+              <th style={{ ...th, width: 90 }}>{t("dashboard.platform.email.colEmail")}</th>
+              <th style={{ ...th, width: 90 }}>{t("dashboard.platform.email.colInApp")}</th>
             </tr>
           </thead>
           <tbody>
             {shown === 0 && (
-              <tr><td colSpan={3}><EmptyState>No events match “{q}”.</EmptyState></td></tr>
+              <tr><td colSpan={3}><EmptyState>{interpolate(t("dashboard.platform.email.eventsNoMatch"), { query: q })}</EmptyState></td></tr>
             )}
             {byCategory.map(([cat, list]) => (
               <Fragment key={cat}>
@@ -268,13 +272,14 @@ function EventToggles({ entries, onChanged }: { entries: CatalogEntryState[]; on
           </tbody>
         </table>
       </div>
-      <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>Showing {shown} of {entries.length} catalog events.</div>
+      <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>{interpolate(t("dashboard.platform.email.showingEvents"), { shown, total: entries.length })}</div>
     </div>
   );
 }
 
 // ─── Health banner ───────────────────────────────────────────────────────────
 function HealthBanner({ domain, metrics }: { domain: EmailDomainStatus; metrics: EmailMetrics }) {
+  const t = useT();
   const ok = domain.status === "configured";
   const trackingDark = metrics.funnel.opened === 0 && metrics.funnel.clicked === 0 && metrics.funnel.sent > 0;
   const [dismissed, setDismissed] = useState(false);
@@ -294,30 +299,29 @@ function HealthBanner({ domain, metrics }: { domain: EmailDomainStatus; metrics:
       >
         <div>
           <div style={{ fontSize: 12, color: HQ.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
-            Platform sender
+            {t("dashboard.platform.email.platformSender")}
           </div>
           <div style={{ fontSize: 16, fontWeight: 600, fontFamily: MONO }}>{domain.effectiveFrom}</div>
         </div>
         <StatusBadge
           tone={ok ? "green" : "amber"}
-          label={ok ? "Configured ✓" : domain.status === "env_fallback" ? "Env fallback" : "Unset — code default"}
+          label={ok ? t("dashboard.platform.email.statusConfigured") : domain.status === "env_fallback" ? t("dashboard.platform.email.statusEnvFallback") : t("dashboard.platform.email.statusUnset")}
         />
       </div>
       {metrics.byStatus.failed > 0 && (
-        <Alert tone="red" title={`${metrics.byStatus.failed} send${metrics.byStatus.failed === 1 ? "" : "s"} failed`}>
-          Open the <strong>Send log</strong> tab and use “Retry all failed” to re-send.
+        <Alert tone="red" title={interpolate(metrics.byStatus.failed === 1 ? t("dashboard.platform.email.sendsFailedOne") : t("dashboard.platform.email.sendsFailedMany"), { count: metrics.byStatus.failed })}>
+          {t("dashboard.platform.email.sendsFailedBodyPre")} <strong>{t("dashboard.platform.email.sendsFailedBodyTab")}</strong> {t("dashboard.platform.email.sendsFailedBodyPost")}
         </Alert>
       )}
       {trackingDark && !dismissed && (
         <Alert
           tone="amber"
-          title="Open/click tracking is dark"
-          actionLabel="Open Resend dashboard"
+          title={t("dashboard.platform.email.trackingDarkTitle")}
+          actionLabel={t("dashboard.platform.email.trackingDarkAction")}
           actionHref="https://resend.com/settings"
           onDismiss={() => setDismissed(true)}
         >
-          No opens or clicks recorded across all sends. Enable Open + Click tracking for the sending
-          domain in Resend, and confirm the webhook subscribes to opened / clicked events.
+          {t("dashboard.platform.email.trackingDarkBody")}
         </Alert>
       )}
     </div>
@@ -335,6 +339,7 @@ function MetricCard({ label: l, value, color }: { label: string; value: number |
 }
 
 function MetricsStrip({ metrics }: { metrics: EmailMetrics }) {
+  const t = useT();
   const f = metrics.funnel;
   const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : null);
   const deliveryPct = pct(f.delivered, f.sent);
@@ -344,26 +349,26 @@ function MetricsStrip({ metrics }: { metrics: EmailMetrics }) {
 
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={sectionLabel}>Deliverability</div>
+      <div style={sectionLabel}>{t("dashboard.platform.email.deliverability")}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 16 }}>
-        <RateStat label="Delivery rate" pct={deliveryPct} caption={`${f.delivered}/${f.sent} delivered`} tone="green" />
-        <RateStat label="Open rate" pct={openPct} caption={`${f.opened}/${f.delivered} opened`} tone="blue" />
-        <RateStat label="Bounce rate" pct={bouncePct} caption={`${f.bounced}/${f.sent} bounced`} tone={bouncePct && bouncePct > 5 ? "red" : "muted"} />
+        <RateStat label={t("dashboard.platform.email.deliveryRate")} pct={deliveryPct} caption={interpolate(t("dashboard.platform.email.deliveredCaption"), { delivered: f.delivered, sent: f.sent })} tone="green" />
+        <RateStat label={t("dashboard.platform.email.openRate")} pct={openPct} caption={interpolate(t("dashboard.platform.email.openedCaption"), { opened: f.opened, delivered: f.delivered })} tone="blue" />
+        <RateStat label={t("dashboard.platform.email.bounceRate")} pct={bouncePct} caption={interpolate(t("dashboard.platform.email.bouncedCaption"), { bounced: f.bounced, sent: f.sent })} tone={bouncePct && bouncePct > 5 ? "red" : "muted"} />
       </div>
 
-      <div style={sectionLabel}>Status counts</div>
+      <div style={sectionLabel}>{t("dashboard.platform.email.statusCounts")}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(110px,1fr))", gap: 12, marginBottom: 12 }}>
-        <MetricCard label="Sent" value={metrics.byStatus.sent} color={HQ.green} />
-        <MetricCard label="Failed" value={metrics.byStatus.failed} color={metrics.byStatus.failed ? HQ.red : HQ.ink} />
-        <MetricCard label="Suppressed" value={metrics.byStatus.suppressed} color={HQ.amber} />
-        <MetricCard label="Queued" value={metrics.byStatus.queued} color={metrics.byStatus.queued ? HQ.amber : HQ.ink} />
-        <MetricCard label="Skipped" value={metrics.byStatus.skipped} color={HQ.inkDim} />
-        <MetricCard label="Failed · 30d" value={metrics.last30d.failed} color={metrics.last30d.failed ? HQ.red : HQ.ink} />
+        <MetricCard label={t("dashboard.platform.email.metricSent")} value={metrics.byStatus.sent} color={HQ.green} />
+        <MetricCard label={t("dashboard.platform.email.metricFailed")} value={metrics.byStatus.failed} color={metrics.byStatus.failed ? HQ.red : HQ.ink} />
+        <MetricCard label={t("dashboard.platform.email.metricSuppressed")} value={metrics.byStatus.suppressed} color={HQ.amber} />
+        <MetricCard label={t("dashboard.platform.email.metricQueued")} value={metrics.byStatus.queued} color={metrics.byStatus.queued ? HQ.amber : HQ.ink} />
+        <MetricCard label={t("dashboard.platform.email.metricSkipped")} value={metrics.byStatus.skipped} color={HQ.inkDim} />
+        <MetricCard label={t("dashboard.platform.email.metricFailed30d")} value={metrics.last30d.failed} color={metrics.last30d.failed ? HQ.red : HQ.ink} />
       </div>
 
       {metrics.topFailingEvents.length > 0 && (
         <div style={{ background: HQ.card, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: "12px 16px" }}>
-          <div style={{ fontSize: 11, color: HQ.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Top failing events</div>
+          <div style={{ fontSize: 11, color: HQ.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{t("dashboard.platform.email.topFailing")}</div>
           {metrics.topFailingEvents.map((e) => (
             <div key={e.eventKind} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "4px 0", fontSize: 13, borderBottom: `1px solid ${HQ.borderSoft}` }}>
               <span style={{ fontFamily: MONO }}>{e.eventKind}</span>
@@ -378,6 +383,7 @@ function MetricsStrip({ metrics }: { metrics: EmailMetrics }) {
 
 // ─── Test send ───────────────────────────────────────────────────────────────
 function TestSend({ adminEmail, onDone }: { adminEmail: string; onDone: () => void }) {
+  const t = useT();
   const [to, setTo] = useState(adminEmail);
   const [tenantId, setTenantId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -390,10 +396,14 @@ function TestSend({ adminEmail, onDone }: { adminEmail: string; onDone: () => vo
     const r = await sendTestEmail({ to, tenantId: tenantId || null });
     setOk(r.ok);
     if (r.ok) {
-      setResult(`Sent (${r.status}) from ${r.from}${r.id ? ` · id ${r.id}` : " · no Resend id (no API key in this runtime)"}`);
+      const idSuffix = r.id
+        ? interpolate(t("dashboard.platform.email.testSentIdSuffix"), { id: r.id })
+        : ` · ${t("dashboard.platform.email.testSentNoId")}`;
+      setResult(interpolate(t("dashboard.platform.email.testSent"), { status: r.status, from: r.from }) + idSuffix);
       onDone();
     } else {
-      setResult(`Failed: ${r.error}${r.from ? ` (resolved from ${r.from})` : ""}`);
+      const resolved = r.from ? interpolate(t("dashboard.platform.email.testResolvedFrom"), { from: r.from }) : "";
+      setResult(interpolate(t("dashboard.platform.email.testFailed"), { error: r.error }) + resolved);
     }
     setBusy(false);
   }
@@ -401,21 +411,21 @@ function TestSend({ adminEmail, onDone }: { adminEmail: string; onDone: () => vo
   const valid = to.includes("@");
   return (
     <div style={{ background: HQ.card, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: 16, marginBottom: 24 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Send a test email</div>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{t("dashboard.platform.email.testSendTitle")}</div>
       <p style={{ color: HQ.inkDim, fontSize: 12, margin: "0 0 12px" }}>
-        Fires a real diagnostic email through the production send path. Leave tenant blank for the platform sender, or enter a tenant id to exercise its white-label resolution.
+        {t("dashboard.platform.email.testSendIntro")}
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr auto", gap: 12, alignItems: "end" }}>
         <div>
-          <label style={label}>Recipient</label>
-          <input style={input} value={to} onChange={(e) => setTo(e.target.value)} placeholder="you@example.com" />
+          <label style={label}>{t("dashboard.platform.email.recipient")}</label>
+          <input style={input} value={to} onChange={(e) => setTo(e.target.value)} placeholder={t("dashboard.platform.email.recipientPlaceholder")} />
         </div>
         <div>
-          <label style={label}>Tenant id (optional)</label>
-          <input style={input} value={tenantId} onChange={(e) => setTenantId(e.target.value)} placeholder="platform default" />
+          <label style={label}>{t("dashboard.platform.email.tenantIdOptional")}</label>
+          <input style={input} value={tenantId} onChange={(e) => setTenantId(e.target.value)} placeholder={t("dashboard.platform.email.tenantIdPlaceholder")} />
         </div>
         <button style={{ ...btn(HQ.green, "#06281C"), opacity: busy || !valid ? 0.5 : 1 }} disabled={busy || !valid} onClick={fire}>
-          {busy ? "Sending…" : "Send test"}
+          {busy ? t("dashboard.platform.email.sending") : t("dashboard.platform.email.sendTest")}
         </button>
       </div>
       {result && (
@@ -427,6 +437,7 @@ function TestSend({ adminEmail, onDone }: { adminEmail: string; onDone: () => vo
 
 // ─── Sending domains (white-label, Resend Domains API) ───────────────────────
 function SendingDomains({ entries, onChanged }: { entries: SendingDomainState[]; onChanged: () => void }) {
+  const t = useT();
   const [tenantId, setTenantId] = useState("");
   const [domain, setDomain] = useState("");
   const [busy, setBusy] = useState(false);
@@ -461,22 +472,20 @@ function SendingDomains({ entries, onChanged }: { entries: SendingDomainState[];
 
   return (
     <div style={{ marginBottom: 24 }}>
-      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 6 }}>Sending domains (white-label)</div>
+      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 6 }}>{t("dashboard.platform.email.sendingDomainsTitle")}</div>
       <p style={{ color: HQ.inkMuted, fontSize: 13, margin: "0 0 14px" }}>
-        Register an agency&apos;s own sending domain via Resend. Add it, give the tenant the DNS records,
-        then Verify. Once verified (and the tenant has the white-label entitlement) their email sends
-        from their domain instead of the platform default.
+        {t("dashboard.platform.email.sendingDomainsIntro")}
       </p>
       <div style={{ background: HQ.card, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: 16, marginBottom: 14 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 12, alignItems: "end" }}>
-          <div><label style={label}>Tenant id</label><input style={input} value={tenantId} onChange={(e) => setTenantId(e.target.value)} placeholder="agency tenant UUID" /></div>
-          <div><label style={label}>Domain</label><input style={input} value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="mail.agency.com" /></div>
-          <button style={{ ...btn(HQ.green, "#06281C"), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={add}>{busy ? "Adding…" : "Add domain"}</button>
+          <div><label style={label}>{t("dashboard.platform.email.tenantId")}</label><input style={input} value={tenantId} onChange={(e) => setTenantId(e.target.value)} placeholder={t("dashboard.platform.email.tenantIdUuidPlaceholder")} /></div>
+          <div><label style={label}>{t("dashboard.platform.email.domain")}</label><input style={input} value={domain} onChange={(e) => setDomain(e.target.value)} placeholder={t("dashboard.platform.email.domainPlaceholder")} /></div>
+          <button style={{ ...btn(HQ.green, "#06281C"), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={add}>{busy ? t("dashboard.platform.email.adding") : t("dashboard.platform.email.addDomain")}</button>
         </div>
         {err && <div style={{ color: HQ.red, fontSize: 12, marginTop: 10 }}>{err}</div>}
       </div>
       {entries.length === 0 ? (
-        <EmptyState>No white-label domains yet — every tenant uses the platform sender.</EmptyState>
+        <EmptyState>{t("dashboard.platform.email.domainsEmpty")}</EmptyState>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           {entries.map((d) => (
@@ -487,9 +496,9 @@ function SendingDomains({ entries, onChanged }: { entries: SendingDomainState[];
                   <div style={{ fontSize: 12, color: HQ.inkDim }}>{d.agencyName ?? d.tenantId}</div>
                 </div>
                 <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <StatusBadge tone={tone(d.verificationStatus)} label={`${d.verificationStatus}${d.connected ? " · live" : ""}`} />
-                  <button style={{ ...btn("rgba(106,166,243,0.15)", HQ.blue), padding: "4px 10px", fontSize: 12, opacity: busyTenant === d.tenantId ? 0.5 : 1 }} disabled={busyTenant === d.tenantId} onClick={() => verify(d.tenantId)}>{busyTenant === d.tenantId ? "…" : "Verify"}</button>
-                  <button style={{ ...btn("transparent", HQ.red), padding: "4px 10px", fontSize: 12, border: `1px solid rgba(243,103,114,0.3)` }} disabled={busyTenant === d.tenantId} onClick={() => remove(d.tenantId)}>Remove</button>
+                  <StatusBadge tone={tone(d.verificationStatus)} label={`${d.verificationStatus}${d.connected ? ` · ${t("dashboard.platform.email.live")}` : ""}`} />
+                  <button style={{ ...btn("rgba(106,166,243,0.15)", HQ.blue), padding: "4px 10px", fontSize: 12, opacity: busyTenant === d.tenantId ? 0.5 : 1 }} disabled={busyTenant === d.tenantId} onClick={() => verify(d.tenantId)}>{busyTenant === d.tenantId ? "…" : t("dashboard.platform.email.verify")}</button>
+                  <button style={{ ...btn("transparent", HQ.red), padding: "4px 10px", fontSize: 12, border: `1px solid rgba(243,103,114,0.3)` }} disabled={busyTenant === d.tenantId} onClick={() => remove(d.tenantId)}>{t("dashboard.platform.email.remove")}</button>
                 </span>
               </div>
               {d.records.length > 0 && d.verificationStatus !== "verified" && (
@@ -497,9 +506,9 @@ function SendingDomains({ entries, onChanged }: { entries: SendingDomainState[];
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                     <thead>
                       <tr style={{ background: "rgba(255,255,255,0.03)" }}>
-                        <th style={th}>Type</th>
-                        <th style={th}>Name</th>
-                        <th style={th}>Value</th>
+                        <th style={th}>{t("dashboard.platform.email.dnsType")}</th>
+                        <th style={th}>{t("dashboard.platform.email.dnsName")}</th>
+                        <th style={th}>{t("dashboard.platform.email.dnsValue")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -524,6 +533,7 @@ function SendingDomains({ entries, onChanged }: { entries: SendingDomainState[];
 
 // ─── Suppression panel ───────────────────────────────────────────────────────
 function SuppressionPanel({ rows, onChanged }: { rows: SuppressionRow[]; onChanged: () => void }) {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -552,25 +562,25 @@ function SuppressionPanel({ rows, onChanged }: { rows: SuppressionRow[]; onChang
 
   return (
     <div style={{ background: HQ.card, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: 16, marginBottom: 24 }}>
-      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 12 }}>Suppressions ({rows.length})</div>
+      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 12 }}>{interpolate(t("dashboard.platform.email.suppressionsTitle"), { count: rows.length })}</div>
       <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr auto", gap: 12, alignItems: "end", marginBottom: 12 }}>
-        <div><label style={label}>Email to suppress</label><input style={input} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="bounced@example.com" /></div>
-        <div><label style={label}>Notes</label><input style={input} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="reason (optional)" /></div>
-        <button style={{ ...btn(HQ.amber, "#2A2206"), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={add}>Suppress</button>
+        <div><label style={label}>{t("dashboard.platform.email.emailToSuppress")}</label><input style={input} value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("dashboard.platform.email.emailToSuppressPlaceholder")} /></div>
+        <div><label style={label}>{t("dashboard.platform.email.notes")}</label><input style={input} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("dashboard.platform.email.notesPlaceholder")} /></div>
+        <button style={{ ...btn(HQ.amber, "#2A2206"), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={add}>{t("dashboard.platform.email.suppress")}</button>
       </div>
       {err && <div style={{ color: HQ.red, fontSize: 12, marginBottom: 10 }}>{err}</div>}
-      {rows.length > 0 && <div style={{ marginBottom: 12 }}><SearchBox value={q} onChange={setQ} placeholder="Search suppressions…" /></div>}
+      {rows.length > 0 && <div style={{ marginBottom: 12 }}><SearchBox value={q} onChange={setQ} placeholder={t("dashboard.platform.email.searchSuppressions")} /></div>}
       {rows.length === 0 ? (
-        <EmptyState>No suppressed addresses.</EmptyState>
+        <EmptyState>{t("dashboard.platform.email.suppressionsEmpty")}</EmptyState>
       ) : filtered.length === 0 ? (
-        <EmptyState>No suppressions match “{q}”.</EmptyState>
+        <EmptyState>{interpolate(t("dashboard.platform.email.suppressionsNoMatch"), { query: q })}</EmptyState>
       ) : (
         <div style={{ display: "grid", gap: 6 }}>
           {filtered.map((s) => (
             <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "8px 10px", border: `1px solid ${HQ.borderSoft}`, borderRadius: 6, fontSize: 13 }}>
               <span style={{ fontFamily: MONO }}>{s.email}</span>
-              <span style={{ color: HQ.inkDim, fontSize: 12, flex: 1 }}>{s.reason}{s.source ? ` · ${s.source}` : ""}{s.notes ? ` · ${s.notes}` : ""} · {relTime(s.createdAtIso)}</span>
-              <button style={{ ...btn("transparent", HQ.red), padding: "4px 10px", fontSize: 12, border: `1px solid rgba(243,103,114,0.3)` }} onClick={() => s.email && remove(s.email)}>Remove</button>
+              <span style={{ color: HQ.inkDim, fontSize: 12, flex: 1 }}>{s.reason}{s.source ? ` · ${s.source}` : ""}{s.notes ? ` · ${s.notes}` : ""} · {relTime(s.createdAtIso, t)}</span>
+              <button style={{ ...btn("transparent", HQ.red), padding: "4px 10px", fontSize: 12, border: `1px solid rgba(243,103,114,0.3)` }} onClick={() => s.email && remove(s.email)}>{t("dashboard.platform.email.remove")}</button>
             </div>
           ))}
         </div>

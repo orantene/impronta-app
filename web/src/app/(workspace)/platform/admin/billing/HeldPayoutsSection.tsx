@@ -13,6 +13,8 @@
 import { useState, useTransition } from "react";
 import { retryHeldPayoutsForPayee } from "./held-payouts-actions";
 import type { HeldLedgerRow } from "@/lib/payments/booking-payouts-ledger";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 
 const HQ = {
   card: "#16161A",
@@ -43,6 +45,7 @@ function ageDays(iso: string): number {
 }
 
 export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -61,8 +64,14 @@ export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
       setBusyKey(null);
       setMsg(
         r.ok
-          ? `Retry: ${r.released} released, ${r.stillHeld} still held, ${r.failed} failed.`
-          : `Retry failed: ${r.error}`,
+          ? interpolate(t("dashboard.platform.billing.heldPayouts.retryResult"), {
+              released: r.released,
+              stillHeld: r.stillHeld,
+              failed: r.failed,
+            })
+          : interpolate(t("dashboard.platform.billing.heldPayouts.retryFailed"), {
+              error: r.error,
+            }),
       );
     });
   };
@@ -73,32 +82,43 @@ export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
       style={{ background: HQ.card, border: `1px solid ${HQ.border}`, borderRadius: 14, padding: 20, marginTop: 20, fontFamily: F }}
     >
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 4 }}>
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: HQ.ink }}>Held payouts</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: HQ.ink }}>
+          {t("dashboard.platform.billing.heldPayouts.title")}
+        </h2>
         <span style={{ fontSize: 12, color: HQ.inkMuted }}>
-          {rows.length === 0 ? "all clear" : `${heldCount} held · ${failedCount} failed`}
+          {rows.length === 0
+            ? t("dashboard.platform.billing.heldPayouts.allClear")
+            : interpolate(t("dashboard.platform.billing.heldPayouts.summary"), {
+                held: heldCount,
+                failed: failedCount,
+              })}
         </span>
       </div>
       <p style={{ margin: "0 0 14px", fontSize: 12.5, color: HQ.inkMuted, lineHeight: 1.5 }}>
-        Earnings from paid bookings waiting on the recipient&apos;s Stripe onboarding. These auto-release when
-        the payee connects their bank; use Retry only to force a re-attempt.
+        {t("dashboard.platform.billing.heldPayouts.description")}
       </p>
 
       {rows.length === 0 ? (
-        <div style={{ fontSize: 13, color: HQ.inkDim, padding: "8px 0" }}>No held payouts. 🎉</div>
+        <div style={{ fontSize: 13, color: HQ.inkDim, padding: "8px 0" }}>
+          {t("dashboard.platform.billing.heldPayouts.empty")} 🎉
+        </div>
       ) : (
         <>
           <div style={{ fontSize: 12.5, color: HQ.ink, marginBottom: 10 }}>
-            Total held: <strong>{fmt(totalCents, rows[0]?.currency ?? "mxn")}</strong> across {rows.length} legs
+            {interpolate(t("dashboard.platform.billing.heldPayouts.totalHeld"), {
+              amount: fmt(totalCents, rows[0]?.currency ?? "mxn"),
+              count: rows.length,
+            })}
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
               <thead>
                 <tr style={{ textAlign: "left", color: HQ.inkDim }}>
-                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>Payee</th>
-                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>Amount</th>
-                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>Status</th>
-                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>Age</th>
-                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>Tries</th>
+                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>{t("dashboard.platform.billing.heldPayouts.colPayee")}</th>
+                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>{t("dashboard.platform.billing.heldPayouts.colAmount")}</th>
+                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>{t("dashboard.platform.billing.heldPayouts.colStatus")}</th>
+                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>{t("dashboard.platform.billing.heldPayouts.colAge")}</th>
+                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>{t("dashboard.platform.billing.heldPayouts.colTries")}</th>
                   <th style={{ padding: "6px 8px", fontWeight: 600 }} />
                 </tr>
               </thead>
@@ -106,11 +126,13 @@ export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
                 {rows.map((row) => (
                   <tr key={row.id} style={{ borderTop: `1px solid ${HQ.borderSoft}`, color: HQ.ink }}>
                     <td style={{ padding: "8px", fontFamily: "monospace", fontSize: 11.5 }}>
-                      {row.party === "talent" ? `talent ${(row.talentProfileId ?? "").slice(0, 8)}` : `ws ${(row.tenantId ?? "").slice(0, 8)}`}
+                      {row.party === "talent"
+                        ? interpolate(t("dashboard.platform.billing.heldPayouts.talentPayee"), { id: (row.talentProfileId ?? "").slice(0, 8) })
+                        : interpolate(t("dashboard.platform.billing.heldPayouts.workspacePayee"), { id: (row.tenantId ?? "").slice(0, 8) })}
                     </td>
                     <td style={{ padding: "8px", fontVariantNumeric: "tabular-nums" }}>{fmt(row.amountCents, row.currency)}</td>
                     <td style={{ padding: "8px", color: row.status === "failed" ? HQ.red : HQ.amber }}>{row.status}</td>
-                    <td style={{ padding: "8px", color: HQ.inkMuted }}>{ageDays(row.createdAt)}d</td>
+                    <td style={{ padding: "8px", color: HQ.inkMuted }}>{interpolate(t("dashboard.platform.billing.heldPayouts.ageDays"), { days: ageDays(row.createdAt) })}</td>
                     <td style={{ padding: "8px", color: HQ.inkMuted }}>{row.attempts}</td>
                     <td style={{ padding: "8px", textAlign: "right" }}>
                       <button
@@ -123,7 +145,7 @@ export function HeldPayoutsSection({ rows }: { rows: HeldLedgerRow[] }) {
                           cursor: pending && busyKey === row.id ? "wait" : "pointer",
                         }}
                       >
-                        {pending && busyKey === row.id ? "…" : "Retry"}
+                        {pending && busyKey === row.id ? "…" : t("dashboard.platform.billing.heldPayouts.retry")}
                       </button>
                     </td>
                   </tr>

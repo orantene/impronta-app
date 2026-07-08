@@ -51,6 +51,8 @@ import { ThreadShell } from "@/components/shared/ThreadShell";
 import { clientInquiryMatchesFilter, toClientThreadItems } from "./client-thread-adapter";
 import { DetailsTab } from "./DetailsTab";
 import { OfferTab } from "./OfferTab";
+import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
+import { ClientConfirmDialog } from "../_components/ConfirmDialog";
 import {
   sendClientMessageAction,
   markClientThreadReadAction,
@@ -59,6 +61,7 @@ import {
 } from "../_actions/inquiry-message-actions";
 import { uploadInquiryAttachmentAsClient } from "@/lib/server-actions/client-inquiry-attachments";
 import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
@@ -127,6 +130,13 @@ type Props = {
   /** Phase C — pre-loaded Details payload for the initial active inquiry. */
   initialDetails: ClientInquiryDetails | null;
   initialActiveId: string | null;
+  /**
+   * True when the page was deep-linked with ?inquiry=<id> but that id is not
+   * in the loaded set (archived / no permission / paginated out). The shell
+   * shows an explicit "isn't available" notice in the thread pane instead of
+   * opening an unrelated thread — a trust guard on the money surface.
+   */
+  pinnedNotFound?: boolean;
   /** Phase C — which tab to open (chat / lineup / offer / details / files). */
   initialTab: ThreadTab;
   /** Auto-open the inquiry drawer on mount (?new=1). */
@@ -146,12 +156,14 @@ export function ClientMessagesShell({
   initialMessages,
   initialDetails,
   initialActiveId,
+  pinnedNotFound = false,
   initialTab,
   autoOpenDrawer = false,
   prefilledTalentId,
   justSubmittedInquiryId,
 }: Props) {
   const router = useRouter();
+  const t = useT();
   const [activeId, setActiveId] = useState<string | null>(initialActiveId);
   const [activeTab, setActiveTab] = useState<ThreadTab>(initialTab);
   const [messages, setMessages] = useState<WorkspaceMessage[]>(initialMessages);
@@ -372,18 +384,18 @@ export function ClientMessagesShell({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 11, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 700, fontFamily: FONT }}>
-            Messages
+            {t("dashboard.clientMessages.eyebrow")}
           </div>
           <h1 style={{ margin: "4px 0 0", fontSize: 24, color: C.ink, letterSpacing: 0, fontFamily: FONT_DISPLAY, fontWeight: 600 }}>
-            Your conversations
+            {t("dashboard.clientMessages.title")}
             {unreadTotal > 0 && (
               <span style={{ marginLeft: 10, fontSize: 13, fontWeight: 600, color: "#fff", background: C.accent, padding: "3px 8px", borderRadius: 999 }}>
-                {unreadTotal} unread
+                {interpolate(t("dashboard.clientMessages.unreadBadge"), { count: unreadTotal })}
               </span>
             )}
           </h1>
           <p style={{ margin: "6px 0 0", maxWidth: 620, fontSize: 13, lineHeight: 1.5, color: C.inkMuted, fontFamily: FONT }}>
-            All inquiries and bookings with {tenantName}. Start a new request anytime.
+            {interpolate(t("dashboard.clientMessages.subtitle"), { tenant: tenantName })}
           </p>
         </div>
         <button
@@ -410,7 +422,7 @@ export function ClientMessagesShell({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
-          New inquiry
+          {t("dashboard.clientMessages.newInquiry")}
         </button>
       </div>
 
@@ -437,12 +449,12 @@ export function ClientMessagesShell({
           <div style={{ padding: "12px 14px", borderBottom: `1px solid ${C.borderSoft}`, display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: -0.1 }}>
-                Projects · {filtered.length}
+                {interpolate(t("dashboard.clientMessages.projectsCount"), { count: filtered.length })}
               </div>
             </div>
             <input
               type="text"
-              placeholder="Search inquiries…"
+              placeholder={t("dashboard.clientMessages.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
@@ -461,11 +473,11 @@ export function ClientMessagesShell({
             />
             <div style={{ display: "flex", gap: 4, overflowX: "auto" }}>
               {([
-                { id: "all" as const, label: "All" },
-                { id: "needs-me" as const, label: "Needs me" },
-                { id: "active" as const, label: "Active" },
-                { id: "booked" as const, label: "Booked" },
-                { id: "past" as const, label: "Past" },
+                { id: "all" as const, label: t("dashboard.clientMessages.filterAll") },
+                { id: "needs-me" as const, label: t("dashboard.clientMessages.filterNeedsMe") },
+                { id: "active" as const, label: t("dashboard.clientMessages.filterActive") },
+                { id: "booked" as const, label: t("dashboard.clientMessages.filterBooked") },
+                { id: "past" as const, label: t("dashboard.clientMessages.filterPast") },
               ]).map(({ id, label }) => {
                 const isActive = filter === id;
                 return (
@@ -517,6 +529,8 @@ export function ClientMessagesShell({
               onBack={() => setMobilePane("list")}
               onAfterOfferAction={() => router.refresh()}
             />
+          ) : pinnedNotFound && !activeId ? (
+            <InquiryUnavailableDetail />
           ) : (
             <EmptyDetail onCreate={() => setDrawerOpen(true)} />
           )
@@ -538,7 +552,7 @@ export function ClientMessagesShell({
               border: `1px solid ${C.borderSoft}`,
               borderRadius: 14,
               overflow: "hidden",
-              height: "min(calc(100vh - 56px - 52px - 200px), 720px)",
+              height: "min(calc(100dvh - 56px - 52px - 200px), 720px)",
               minHeight: 520,
               minWidth: 0,
               maxWidth: "100%",
@@ -625,7 +639,7 @@ export function ClientMessagesShell({
             boxShadow: "0 4px 18px rgba(15,81,50,0.32)",
           }}
         >
-          ✓ Inquiry sent — your coordinator will reply here shortly.
+          {t("dashboard.clientMessages.justSubmittedToast")}
         </div>
       )}
     </>
@@ -647,7 +661,7 @@ type RowChip = {
 function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: boolean; onClick: () => void }) {
   const t = useT();
   const stage = stageStyle(inq.status, t);
-  const company = inq.company || "Unnamed inquiry";
+  const company = inq.company || t("dashboard.clientMessages.unnamedInquiry");
   const dateLabel = inq.event_date ? formatDate(inq.event_date) : null;
   const location = inq.event_location;
   const needsMe = inq.next_action_by === "client";
@@ -665,14 +679,16 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
     { label: stage.label, bg: stage.bg, color: stage.fg, uppercase: true },
   ];
   if (needsMe) {
-    chips.push({ label: "Your turn", bg: "rgba(245,158,11,0.12)", color: "#92400E", fontSize: 10, padding: "1px 7px" });
+    chips.push({ label: t("dashboard.clientMessages.yourTurn"), bg: "rgba(245,158,11,0.12)", color: "#92400E", fontSize: 10, padding: "1px 7px" });
   }
   if (unread) {
-    chips.push({ label: `${inq.unreadCount} new`, bg: C.accentSoft, color: C.accent, fontSize: 10, padding: "1px 7px" });
+    chips.push({ label: interpolate(t("dashboard.clientMessages.newCount"), { count: inq.unreadCount }), bg: C.accentSoft, color: C.accent, fontSize: 10, padding: "1px 7px" });
   }
   if (isDiscover) {
     chips.push({
-      label: `◎ via ${inq.source_channel === "discover_shortlist" ? "Shortlist" : "Discover"}`,
+      label: inq.source_channel === "discover_shortlist"
+        ? t("dashboard.clientMessages.viaShortlist")
+        : t("dashboard.clientMessages.viaDiscover"),
       bg: C.accentSoft,
       color: C.accent,
       fontSize: 10,
@@ -680,8 +696,8 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
       uppercase: true,
       title:
         inq.source_channel === "discover_shortlist"
-          ? "You added talent from a Discover shortlist."
-          : "This inquiry started from Discover.",
+          ? t("dashboard.clientMessages.viaShortlistTitle")
+          : t("dashboard.clientMessages.viaDiscoverTitle"),
     });
   }
 
@@ -689,7 +705,7 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
   // the newest message, plain body otherwise. Truncated to ~70 chars so
   // it never wraps in the 340px list column.
   const preview = inq.last_message_body
-    ? (inq.last_message_from_me ? `You: ${inq.last_message_body}` : inq.last_message_body)
+    ? (inq.last_message_from_me ? interpolate(t("dashboard.clientMessages.youPrefix"), { body: inq.last_message_body }) : inq.last_message_body)
     : null;
   const previewTime = inq.last_message_at ? formatRelativeShort(inq.last_message_at) : null;
 
@@ -779,12 +795,12 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
 
 // ─── Thread pane with Phase C tabs ───────────────────────────────────────
 
-const TAB_CONFIG: Array<{ id: ThreadTab; label: string }> = [
-  { id: "chat", label: "Chat" },
-  { id: "lineup", label: "Lineup" },
-  { id: "offer", label: "Offer" },
-  { id: "details", label: "Details" },
-  { id: "files", label: "Files" },
+const TAB_CONFIG: Array<{ id: ThreadTab; labelKey: string }> = [
+  { id: "chat", labelKey: "dashboard.clientMessages.tabChat" },
+  { id: "lineup", labelKey: "dashboard.clientMessages.tabLineup" },
+  { id: "offer", labelKey: "dashboard.clientMessages.tabOffer" },
+  { id: "details", labelKey: "dashboard.clientMessages.tabDetails" },
+  { id: "files", labelKey: "dashboard.clientMessages.tabFiles" },
 ];
 
 /** Within-Chat sub-view (audit #15) — mirrors the talent shell's Chat/Activity
@@ -911,7 +927,7 @@ function ThreadPaneWithTabs({
           <button
             type="button"
             onClick={onBack}
-            aria-label="Back to list"
+            aria-label={t("dashboard.clientMessages.backToList")}
             style={{
               display: "none",
               width: 30,
@@ -930,13 +946,13 @@ function ThreadPaneWithTabs({
           <style dangerouslySetInnerHTML={{ __html: "@media (max-width:720px){.thread-back-btn{display:inline-flex!important;}}" }} />
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {inq.company || details?.job.title || "Inquiry"}
+              {inq.company || details?.job.title || t("dashboard.clientMessages.inquiryFallback")}
             </div>
             <div style={{ fontSize: 11, color: C.inkMuted, display: "flex", gap: 6, alignItems: "center", marginTop: 2 }}>
               <button
                 type="button"
                 onClick={() => setStatusSheetOpen(true)}
-                aria-label={`Status: ${stage.label}. Tap for full status breakdown.`}
+                aria-label={interpolate(t("dashboard.clientMessages.statusAria"), { status: stage.label })}
                 style={{
                   padding: "2px 8px",
                   borderRadius: 999,
@@ -979,15 +995,15 @@ function ThreadPaneWithTabs({
 
         {/* Tab strip */}
         <div role="tablist" style={{ display: "flex", gap: 0, marginTop: 12, overflowX: "auto" }}>
-          {TAB_CONFIG.map((t) => {
-            const isActive = activeTab === t.id;
+          {TAB_CONFIG.map((tab) => {
+            const isActive = activeTab === tab.id;
             return (
               <button
-                key={t.id}
+                key={tab.id}
                 type="button"
                 role="tab"
                 aria-selected={isActive}
-                onClick={() => onTabChange(t.id)}
+                onClick={() => onTabChange(tab.id)}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -1002,7 +1018,7 @@ function ThreadPaneWithTabs({
                   letterSpacing: 0.1,
                 }}
               >
-                {t.label}
+                {t(tab.labelKey)}
                 <span
                   aria-hidden
                   style={{
@@ -1027,10 +1043,10 @@ function ThreadPaneWithTabs({
             money/booking timeline (offer → payment → booking). Only shown on
             the Chat tab; lives in the fixed header so it stays pinned. */}
         {activeTab === "chat" && (
-          <div role="tablist" aria-label="Chat or activity" style={{ display: "flex", gap: 4, marginTop: 8, marginBottom: 10 }}>
+          <div role="tablist" aria-label={t("dashboard.clientMessages.chatOrActivity")} style={{ display: "flex", gap: 4, marginTop: 8, marginBottom: 10 }}>
             {([
-              { id: "chat" as ChatMode, label: "Chat" },
-              { id: "activity" as ChatMode, label: "Activity" },
+              { id: "chat" as ChatMode, label: t("dashboard.clientMessages.subChat") },
+              { id: "activity" as ChatMode, label: t("dashboard.clientMessages.subActivity") },
             ]).map(({ id, label }) => {
               const isActive = chatMode === id;
               const count = id === "activity" ? activityCount : 0;
@@ -1188,6 +1204,7 @@ function ThreadPaneWithTabs({
           inquiryStatus={inq.status}
           hasOffer={!!details?.offer?.exists}
           details={details}
+          messages={messages}
           onTyping={setTyping}
           onSent={(msg) => onMessagesChange((prev) => [...prev, msg])}
           onReconcileSent={(tempId, realId) =>
@@ -1234,15 +1251,15 @@ const TALENT_FROM_ENGINE: Record<string, TalentParticipationRow["status"]> = {
   replacement_sourcing: "Invited",
 };
 
-const NEXT_STEP_FROM_STATUS: Record<string, string> = {
-  submitted: "Your coordinator is reviewing the request — typical response within 1 business day.",
-  coordination: "Coordinator is sourcing talent. You'll see proposals appear on the Lineup tab.",
-  offer_pending: "An offer is being drafted. You'll receive a notification when it's ready to review.",
-  offer_sent: "Review the offer in the Offer tab. Approve to confirm, decline to ask for changes.",
-  approved: "You've approved the offer. The agency is finalizing your booking — you'll get a confirmation when it's set.",
-  booked: "Booking confirmed. Open the Today tab on event day for call sheet + coordinator contact.",
-  converted: "Booking confirmed.",
-  cancelled: "This project has been cancelled.",
+const NEXT_STEP_KEY_FROM_STATUS: Record<string, string> = {
+  submitted: "dashboard.clientMessages.nextStepSubmitted",
+  coordination: "dashboard.clientMessages.nextStepCoordination",
+  offer_pending: "dashboard.clientMessages.nextStepOfferPending",
+  offer_sent: "dashboard.clientMessages.nextStepOfferSent",
+  approved: "dashboard.clientMessages.nextStepApproved",
+  booked: "dashboard.clientMessages.nextStepBooked",
+  converted: "dashboard.clientMessages.nextStepConverted",
+  cancelled: "dashboard.clientMessages.nextStepCancelled",
 };
 
 /**
@@ -1299,11 +1316,81 @@ function buildClientStatusSheetData(
     offer: { status: offerStatus, totalLabel: offerTotal },
     talents,
     payment,
-    nextStep: NEXT_STEP_FROM_STATUS[inq.status],
+    nextStep: NEXT_STEP_KEY_FROM_STATUS[inq.status] ? translate(NEXT_STEP_KEY_FROM_STATUS[inq.status]) : undefined,
   };
 }
 
 // ─── Thread search ───────────────────────────────────────────────────────
+
+// Human-visible strings a structured chat card surfaces, keyed by the payload
+// fields `renderClientChatCard` reads (total_label, amount_label, summary,
+// hint, changed_field, by_name, text, deposit_label, balance_label). Folding
+// these into the searched text makes offer / payment / booking / call-sheet
+// card content findable in-thread instead of invisible (body-only) search.
+const CARD_SEARCH_PAYLOAD_KEYS = [
+  "total_label",
+  "amount_label",
+  "summary",
+  "hint",
+  "changed_field",
+  "by_name",
+  "text",
+  "deposit_label",
+  "balance_label",
+] as const;
+
+/** Pull the readable card-summary text out of a message's card payload. */
+function cardSummaryText(payload: Record<string, unknown> | null | undefined): string {
+  if (!payload) return "";
+  const parts: string[] = [];
+  for (const key of CARD_SEARCH_PAYLOAD_KEYS) {
+    const v = payload[key];
+    if (typeof v === "string" && v.trim()) parts.push(v.trim());
+  }
+  return parts.join(" ");
+}
+
+/**
+ * Build the search adapter fields for one thread message.
+ *
+ * - `body` becomes body + card-summary text + any attachment filename so a
+ *   query matches card content and shared-file names, not just plain sends.
+ *   (ThreadSearch only indexes the `body` field, so extra text is appended
+ *   there; the real body still leads so the rendered snippet stays readable.)
+ * - `hasAttachment` is derived from the message: voice notes are media, and
+ *   shared-file announcements are stamped with a leading 📎 marker in both
+ *   locales (see `sharedFile` copy); a metadata attachment descriptor also
+ *   counts if one is ever attached.
+ */
+function adaptMessageForSearch(m: WorkspaceMessage): ThreadSearchMessage {
+  const kind = m.message_kind ?? "text";
+  const body = m.body || "";
+
+  const meta = m.metadata ?? null;
+  const metaFilename =
+    meta && typeof meta["filename"] === "string" ? (meta["filename"] as string) : "";
+  const hasMetaAttachment =
+    !!meta && (typeof meta["filename"] === "string" || Array.isArray(meta["attachments"]));
+
+  // Shared-file announcements ride the chat as plain-text sends whose body is
+  // prefixed with 📎 (locale-independent marker); treat those + voice notes +
+  // any structured attachment descriptor as attachments.
+  const isFileAnnounce = body.trimStart().startsWith("📎");
+  const hasAttachment = kind === "voice" || isFileAnnounce || hasMetaAttachment;
+
+  const extras = [cardSummaryText(m.card_payload), metaFilename]
+    .filter(Boolean)
+    .join(" ");
+  const indexedBody = extras ? `${body} ${extras}`.trim() : body;
+
+  return {
+    id: m.id,
+    body: indexedBody,
+    createdAt: (m.created_at || "").slice(0, 16).replace("T", " "),
+    senderName: m.is_mine ? "You" : m.sender_name,
+    hasAttachment,
+  };
+}
 
 function ClientThreadSearchTrigger({
   messages,
@@ -1314,31 +1401,26 @@ function ClientThreadSearchTrigger({
   onJumpOffer?: () => void;
   onJumpDetails?: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const adapted: ThreadSearchMessage[] = useMemo(
-    () => messages.map((m) => ({
-      id: m.id,
-      body: m.body || "",
-      createdAt: (m.created_at || "").slice(0, 16).replace("T", " "),
-      senderName: m.is_mine ? "You" : m.sender_name,
-      hasAttachment: false,
-    })),
+    () => messages.map(adaptMessageForSearch),
     [messages],
   );
   const jumpTargets: JumpTarget[] = useMemo(() => {
     const out: JumpTarget[] = [];
-    if (onJumpOffer) out.push({ kind: "offer", label: "Offer", onJump: onJumpOffer });
-    if (onJumpDetails) out.push({ kind: "call-sheet", label: "Project details", onJump: onJumpDetails });
+    if (onJumpOffer) out.push({ kind: "offer", label: t("dashboard.clientMessages.jumpOffer"), onJump: onJumpOffer });
+    if (onJumpDetails) out.push({ kind: "call-sheet", label: t("dashboard.clientMessages.jumpDetails"), onJump: onJumpDetails });
     return out;
-  }, [onJumpOffer, onJumpDetails]);
+  }, [onJumpOffer, onJumpDetails, t]);
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Search this conversation"
-        title="Search conversation"
+        aria-label={t("dashboard.clientMessages.searchThisConversation")}
+        title={t("dashboard.clientMessages.searchConversation")}
         style={{
           width: 32,
           height: 32,
@@ -1464,6 +1546,12 @@ function detectMentionPrefix(text: string, caretPos: number): string | null {
 
 // ─── Inline composer ─────────────────────────────────────────────────────
 
+/** Normalize a message/chip for dedupe: lowercase, collapse whitespace, drop
+ *  trailing punctuation so "Any update?" matches "any update". */
+function normalizeReply(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, " ").replace(/[.?!¿¡…]+$/u, "");
+}
+
 function ChatComposer({
   inquiryId,
   tenantSlug,
@@ -1471,6 +1559,7 @@ function ChatComposer({
   inquiryStatus,
   hasOffer,
   details,
+  messages,
   onTyping,
   onSent,
   onReconcileSent,
@@ -1481,6 +1570,10 @@ function ChatComposer({
   inquiryStatus?: string;
   hasOffer?: boolean;
   details?: ClientInquiryDetails | null;
+  /** Recent thread messages — used to suppress a smart-reply chip the client
+   *  already sent (chips are keyed off coarse status, so one can re-suggest a
+   *  message just sent via that same chip). */
+  messages?: WorkspaceMessage[];
   /** Ephemeral typing-presence beat. true on keystroke, false on send/blur. */
   onTyping?: (isTyping: boolean) => void;
   onSent: (msg: WorkspaceMessage) => void;
@@ -1488,6 +1581,7 @@ function ChatComposer({
    *  the reconcile dedups by id, never body text (audit #15). */
   onReconcileSent: (tempId: string, realId: string) => void;
 }) {
+  const t = useT();
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -1591,40 +1685,48 @@ function ChatComposer({
   // sending). Hidden once the user has typed something.
   const smartReplies = useMemo(() => {
     if (body.trim().length > 0) return [];
-    switch (inquiryStatus) {
-      case "submitted":
-        return [
-          "Thanks for picking this up!",
-          "Any update on talent?",
-          "Happy to hop on a quick call.",
-        ];
-      case "coordination":
-        return hasOffer
-          ? ["Looking at the offer now.", "Any flexibility on the date?"]
-          : [
-            "Looking forward to the proposal.",
-            "Any update on talent?",
-            "Should I adjust the budget?",
+    const base: string[] = (() => {
+      switch (inquiryStatus) {
+        case "submitted":
+          return [
+            t("dashboard.clientMessages.smartThanksPickup"),
+            t("dashboard.clientMessages.smartAnyTalentUpdate"),
+            t("dashboard.clientMessages.smartHopCall"),
           ];
-      case "offer_pending":
-      case "offer_sent":
-        return [
-          "I'll review and get back to you.",
-          "Can we adjust the rate?",
-          "Need to check with my team — back in 24h.",
-        ];
-      case "approved":
-      case "booked":
-      case "converted":
-        return [
-          "Looking forward to the day!",
-          "Any prep we should know about?",
-          "Who's the talent contact on the day?",
-        ];
-      default:
-        return [];
-    }
-  }, [body, inquiryStatus, hasOffer]);
+        case "coordination":
+          return hasOffer
+            ? [t("dashboard.clientMessages.smartLookingOffer"), t("dashboard.clientMessages.smartDateFlexibility")]
+            : [
+              t("dashboard.clientMessages.smartLookingProposal"),
+              t("dashboard.clientMessages.smartAnyTalentUpdate"),
+              t("dashboard.clientMessages.smartAdjustBudget"),
+            ];
+        case "offer_pending":
+        case "offer_sent":
+          return [
+            t("dashboard.clientMessages.smartReviewGetBack"),
+            t("dashboard.clientMessages.smartAdjustRate"),
+            t("dashboard.clientMessages.smartCheckTeam"),
+          ];
+        case "approved":
+        case "booked":
+        case "converted":
+          return [
+            t("dashboard.clientMessages.smartLookingDay"),
+            t("dashboard.clientMessages.smartPrep"),
+            t("dashboard.clientMessages.smartTalentContact"),
+          ];
+        default:
+          return [];
+      }
+    })();
+    // Suppress any chip the client already sent (verbatim) — chips are keyed off
+    // coarse status, so without this a just-sent chip re-appears next render.
+    const alreadySent = new Set(
+      (messages ?? []).filter((m) => m.is_mine).slice(-8).map((m) => normalizeReply(m.body)),
+    );
+    return alreadySent.size === 0 ? base : base.filter((chip) => !alreadySent.has(normalizeReply(chip)));
+  }, [body, inquiryStatus, hasOffer, t, messages]);
 
   function submit() {
     const trimmed = body.trim();
@@ -1672,7 +1774,7 @@ function ChatComposer({
     if (!file || uploading || pending) return;
     e.target.value = ""; // reset so re-selecting the same file fires onChange
     if (file.size > 100 * 1024 * 1024) {
-      setError("File too large (100 MB max).");
+      setError(t("dashboard.clientMessages.fileTooLarge"));
       return;
     }
     setError(null);
@@ -1684,7 +1786,7 @@ function ChatComposer({
       id: tempId,
       sender_user_id: "",
       sender_name: senderName,
-      body: `📎 Uploading ${file.name}…`,
+      body: interpolate(t("dashboard.clientMessages.uploadingFile"), { name: file.name }),
       created_at: new Date().toISOString(),
       is_mine: true,
     });
@@ -1697,7 +1799,7 @@ function ChatComposer({
       const upRes = await uploadInquiryAttachmentAsClient(formData);
 
       if (!upRes.ok) {
-        setError(upRes.error || "Upload failed.");
+        setError(upRes.error || t("dashboard.clientMessages.uploadFailed"));
         setUploading(false);
         window.dispatchEvent(new CustomEvent("client-message-send-failed", { detail: { tempId } }));
         return;
@@ -1708,13 +1810,13 @@ function ChatComposer({
       // already picks up the row from inquiry_attachments — this message
       // makes the upload visible in the conversation stream too.
       const sizeKB = Math.round(upRes.data.byteSize / 1024);
-      const announceBody = `📎 Shared a file: ${upRes.data.filename} (${sizeKB.toLocaleString()} KB)`;
+      const announceBody = interpolate(t("dashboard.clientMessages.sharedFile"), { name: upRes.data.filename, size: sizeKB.toLocaleString() });
       window.dispatchEvent(new CustomEvent("client-message-send-failed", { detail: { tempId } }));
 
       const sendRes = await sendClientMessageAction(tenantSlug, inquiryId, announceBody);
       setUploading(false);
       if (!sendRes.ok) {
-        setError(`Uploaded, but message failed: ${sendRes.error}`);
+        setError(interpolate(t("dashboard.clientMessages.uploadedButFailed"), { error: sendRes.error }));
         return;
       }
       // The announce send already succeeded — add the bubble with its
@@ -1795,8 +1897,8 @@ function ChatComposer({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading || pending}
-          aria-label="Attach file"
-          title="Attach file"
+          aria-label={t("dashboard.clientMessages.attachFile")}
+          title={t("dashboard.clientMessages.attachFile")}
           style={{
             height: 38,
             width: 38,
@@ -1824,8 +1926,8 @@ function ChatComposer({
             type="button"
             onClick={() => setEmojiOpen((v) => !v)}
             disabled={pending}
-            aria-label="Insert emoji"
-            title="Insert emoji"
+            aria-label={t("dashboard.clientMessages.insertEmoji")}
+            title={t("dashboard.clientMessages.insertEmoji")}
             style={{
               height: 38,
               width: 38,
@@ -1874,7 +1976,7 @@ function ChatComposer({
                   type="button"
                   onClick={() => insertEmoji(e)}
                   role="menuitem"
-                  aria-label={`Insert ${e}`}
+                  aria-label={interpolate(t("dashboard.clientMessages.insertEmojiAria"), { emoji: e })}
                   style={{
                     width: 28,
                     height: 28,
@@ -1914,7 +2016,7 @@ function ChatComposer({
           {mentionQuery !== null && filteredMentions.length > 0 && (
             <div
               role="listbox"
-              aria-label="Mention a participant"
+              aria-label={t("dashboard.clientMessages.mentionParticipant")}
               style={{
                 position: "absolute",
                 bottom: "calc(100% + 6px)",
@@ -1933,7 +2035,7 @@ function ChatComposer({
               }}
             >
               <div style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.4, padding: "4px 8px 2px" }}>
-                Mention a participant
+                {t("dashboard.clientMessages.mentionParticipant")}
               </div>
               {filteredMentions.map((name) => (
                 <button
@@ -2001,7 +2103,7 @@ function ChatComposer({
                 setMentionQuery(null);
               }
             }}
-            placeholder="Reply to your coordinator…"
+            placeholder={t("dashboard.clientMessages.composerPlaceholder")}
             rows={1}
             disabled={pending}
             style={{
@@ -2026,7 +2128,7 @@ function ChatComposer({
           type="button"
           onClick={submit}
           disabled={!body.trim() || pending}
-          aria-label="Send message"
+          aria-label={t("dashboard.clientMessages.sendMessage")}
           style={{
             height: 38,
             width: 44,
@@ -2053,7 +2155,7 @@ function ChatComposer({
         </button>
       </div>
       <div style={{ fontSize: 10.5, color: C.inkDim, paddingLeft: 4 }}>
-        ⌘ + Enter to send · type @ to mention a participant
+        {t("dashboard.clientMessages.composerHint")}
       </div>
     </div>
   );
@@ -2067,42 +2169,43 @@ function ChatComposer({
 
 type ActivityEventItem = ClientInquiryDetails["activity"][number];
 
-/** Human-readable label + icon for each client-visible event type. */
-const ACTIVITY_EVENT_META: Record<string, { icon: string; label: (e: ActivityEventItem) => string }> = {
-  "inquiry.submitted":              { icon: "📝", label: () => "Inquiry submitted" },
-  "inquiry.moved_to_coordination":  { icon: "🎯", label: () => "Moved to coordination" },
-  "inquiry.details_updated":        { icon: "✏️", label: () => "Details updated" },
-  "inquiry.frozen":                 { icon: "🔒", label: () => "Inquiry paused" },
-  "inquiry.unfrozen":               { icon: "🔓", label: () => "Inquiry resumed" },
-  "inquiry.archived":               { icon: "📦", label: () => "Inquiry archived" },
-  "inquiry.cancelled":              { icon: "✖️", label: () => "Inquiry cancelled" },
-  "coordinator.assigned":           { icon: "👤", label: (e) => e.actor_name ? `${e.actor_name} assigned as coordinator` : "Coordinator assigned" },
-  "coordinator.accepted":           { icon: "✅", label: (e) => e.actor_name ? `${e.actor_name} accepted this inquiry` : "Coordinator accepted" },
-  "roster.talent_invited":          { icon: "🌟", label: () => "Talent added to lineup" },
-  "roster.talent_accepted":         { icon: "✅", label: () => "Talent confirmed" },
-  "roster.talent_declined":         { icon: "❌", label: () => "Talent declined" },
-  "offer.created":                  { icon: "💰", label: () => "Offer drafted" },
-  "offer.sent":                     { icon: "📤", label: () => "Offer sent for review" },
-  "offer.client_rejected":          { icon: "↩️", label: () => "Offer returned for revision" },
-  "approval.submitted":             { icon: "👍", label: (e) => e.actor_name ? `${e.actor_name} approved` : "Approval received" },
-  "approval.all_complete":          { icon: "🎉", label: () => "All parties approved — ready to book" },
-  "booking.created":                { icon: "📅", label: () => "Booking confirmed" },
-  "payment_requested":              { icon: "💳", label: () => "Payment requested" },
-  "payment_paid":                   { icon: "✅", label: () => "Payment received" },
-  "booking_confirmed":              { icon: "🎬", label: () => "Booking confirmed — all set!" },
+/** Human-readable label + icon for each client-visible event type. Label
+ *  builders take the dashboard translator so copy localizes at render. */
+const ACTIVITY_EVENT_META: Record<string, { icon: string; label: (e: ActivityEventItem, t: (key: string) => string) => string }> = {
+  "inquiry.submitted":              { icon: "📝", label: (_e, t) => t("dashboard.clientMessages.activitySubmitted") },
+  "inquiry.moved_to_coordination":  { icon: "🎯", label: (_e, t) => t("dashboard.clientMessages.activityMovedCoordination") },
+  "inquiry.details_updated":        { icon: "✏️", label: (_e, t) => t("dashboard.clientMessages.activityDetailsUpdated") },
+  "inquiry.frozen":                 { icon: "🔒", label: (_e, t) => t("dashboard.clientMessages.activityFrozen") },
+  "inquiry.unfrozen":               { icon: "🔓", label: (_e, t) => t("dashboard.clientMessages.activityUnfrozen") },
+  "inquiry.archived":               { icon: "📦", label: (_e, t) => t("dashboard.clientMessages.activityArchived") },
+  "inquiry.cancelled":              { icon: "✖️", label: (_e, t) => t("dashboard.clientMessages.activityCancelled") },
+  "coordinator.assigned":           { icon: "👤", label: (e, t) => e.actor_name ? interpolate(t("dashboard.clientMessages.activityCoordinatorAssignedNamed"), { name: e.actor_name }) : t("dashboard.clientMessages.activityCoordinatorAssigned") },
+  "coordinator.accepted":           { icon: "✅", label: (e, t) => e.actor_name ? interpolate(t("dashboard.clientMessages.activityCoordinatorAcceptedNamed"), { name: e.actor_name }) : t("dashboard.clientMessages.activityCoordinatorAccepted") },
+  "roster.talent_invited":          { icon: "🌟", label: (_e, t) => t("dashboard.clientMessages.activityTalentInvited") },
+  "roster.talent_accepted":         { icon: "✅", label: (_e, t) => t("dashboard.clientMessages.activityTalentAccepted") },
+  "roster.talent_declined":         { icon: "❌", label: (_e, t) => t("dashboard.clientMessages.activityTalentDeclined") },
+  "offer.created":                  { icon: "💰", label: (_e, t) => t("dashboard.clientMessages.activityOfferCreated") },
+  "offer.sent":                     { icon: "📤", label: (_e, t) => t("dashboard.clientMessages.activityOfferSent") },
+  "offer.client_rejected":          { icon: "↩️", label: (_e, t) => t("dashboard.clientMessages.activityOfferRejected") },
+  "approval.submitted":             { icon: "👍", label: (e, t) => e.actor_name ? interpolate(t("dashboard.clientMessages.activityApprovalSubmittedNamed"), { name: e.actor_name }) : t("dashboard.clientMessages.activityApprovalSubmitted") },
+  "approval.all_complete":          { icon: "🎉", label: (_e, t) => t("dashboard.clientMessages.activityApprovalComplete") },
+  "booking.created":                { icon: "📅", label: (_e, t) => t("dashboard.clientMessages.activityBookingCreated") },
+  "payment_requested":              { icon: "💳", label: (_e, t) => t("dashboard.clientMessages.activityPaymentRequested") },
+  "payment_paid":                   { icon: "✅", label: (_e, t) => t("dashboard.clientMessages.activityPaymentPaid") },
+  "booking_confirmed":              { icon: "🎬", label: (_e, t) => t("dashboard.clientMessages.activityBookingConfirmed") },
 };
 
 /** Format a field-diff entry from the `changed` payload of inquiry.details_updated. */
-function formatFieldDiff(fieldName: string, from: unknown, to: unknown): string {
+function formatFieldDiff(fieldName: string, from: unknown, to: unknown, t: (key: string) => string): string {
   const label = ({
-    event_date: "Date",
-    event_location: "Location",
-    message: "Brief",
-    quantity: "Quantity",
+    event_date: t("dashboard.clientMessages.diffDate"),
+    event_location: t("dashboard.clientMessages.diffLocation"),
+    message: t("dashboard.clientMessages.diffBrief"),
+    quantity: t("dashboard.clientMessages.diffQuantity"),
   } as Record<string, string>)[fieldName] ?? fieldName.replace(/_/g, " ");
 
   const fmt = (v: unknown): string => {
-    if (v == null || v === "") return "(none)";
+    if (v == null || v === "") return t("dashboard.clientMessages.diffNone");
     if (typeof v === "string") {
       // Dates: try ISO date formatting
       if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
@@ -2120,9 +2223,10 @@ function formatFieldDiff(fieldName: string, from: unknown, to: unknown): string 
 }
 
 function ActivityEventRow({ event }: { event: ActivityEventItem }) {
+  const t = useT();
   const meta = ACTIVITY_EVENT_META[event.event_type];
   const icon = meta?.icon ?? "•";
-  const label = meta ? meta.label(event) : event.event_type.replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const label = meta ? meta.label(event, t) : event.event_type.replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   // For details_updated: render field diffs inline
   const changed = event.event_type === "inquiry.details_updated"
@@ -2162,7 +2266,7 @@ function ActivityEventRow({ event }: { event: ActivityEventItem }) {
                   lineHeight: 1.4,
                 }}
               >
-                {formatFieldDiff(field, diff.from, diff.to)}
+                {formatFieldDiff(field, diff.from, diff.to, t)}
               </div>
             ))}
           </div>
@@ -2195,6 +2299,7 @@ function ChatThreadBody({
   pinnedIds?: Set<string>;
   onPinChanged?: () => void;
 }) {
+  const t = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
   // "Chat" shows the human conversation (text bubbles + any staff-only kinds
   // that fall through to a plain bubble); "Activity" shows only the
@@ -2255,7 +2360,7 @@ function ChatThreadBody({
       role="log"
       aria-live="polite"
       aria-busy={loading}
-      aria-label={mode === "activity" ? "Booking activity timeline" : "Conversation messages"}
+      aria-label={mode === "activity" ? t("dashboard.clientMessages.activityTimelineLabel") : t("dashboard.clientMessages.conversationMessagesLabel")}
       style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}
     >
       {mode === "chat" && pitch && <PitchOriginBlock pitch={pitch} />}
@@ -2264,8 +2369,8 @@ function ChatThreadBody({
       ) : isEmpty ? (
         <div style={{ color: C.inkDim, fontSize: 12.5, textAlign: "center", padding: 30, fontStyle: "italic" }}>
           {mode === "activity"
-            ? "No activity yet. Offers, payments and booking confirmations will appear here as your booking progresses."
-            : "No messages yet. Your coordinator will reply here once they pick up your inquiry."}
+            ? t("dashboard.clientMessages.emptyActivity")
+            : t("dashboard.clientMessages.emptyChat")}
         </div>
       ) : mode === "activity" ? (
         // D7: merged activity timeline — inquiry_events + money message cards
@@ -2320,8 +2425,9 @@ function ChatThreadBody({
 }
 
 function ChatLoadingSkeleton() {
+  const t = useT();
   return (
-    <div role="status" aria-label="Loading messages" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div role="status" aria-label={t("dashboard.clientMessages.loadingMessages")} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {[
         { mine: false, w: "65%" },
         { mine: true, w: "55%" },
@@ -2362,6 +2468,7 @@ function NextActionStrip({
   hasOffer: boolean;
   onTabChange: (tab: ThreadTab) => void;
 }) {
+  const t = useT();
   // Map (status × next_action_by) → contextual message + optional CTA.
   type StripState = {
     icon: string;
@@ -2377,59 +2484,59 @@ function NextActionStrip({
       case "submitted":
         return {
           icon: "📥",
-          label: by === "client" ? "Your turn" : "Coordinator reviewing",
+          label: by === "client" ? t("dashboard.clientMessages.nextSubmittedYou") : t("dashboard.clientMessages.nextSubmittedAgency"),
           detail: by === "client"
-            ? "Add anything else your coordinator should know."
-            : "Typical reply within one business day.",
+            ? t("dashboard.clientMessages.nextSubmittedYouDetail")
+            : t("dashboard.clientMessages.nextSubmittedAgencyDetail"),
           tone: by === "client" ? "client" : "agency",
         };
       case "coordination":
         return {
           icon: "🎯",
-          label: by === "client" ? "Your turn" : "Sourcing talent",
+          label: by === "client" ? t("dashboard.clientMessages.nextCoordYou") : t("dashboard.clientMessages.nextCoordAgency"),
           detail: by === "client"
-            ? "Reply to your coordinator's question to keep things moving."
-            : "Coordinator is matching the right talent — proposals appear in Lineup.",
+            ? t("dashboard.clientMessages.nextCoordYouDetail")
+            : t("dashboard.clientMessages.nextCoordAgencyDetail"),
           tone: by === "client" ? "client" : "agency",
           cta: by === "client"
             ? undefined
-            : { label: "View lineup", onClick: () => onTabChange("lineup") },
+            : { label: t("dashboard.clientMessages.nextViewLineup"), onClick: () => onTabChange("lineup") },
         };
       case "offer_pending":
       case "offer_sent":
         return {
           icon: "💰",
-          label: hasOffer ? "Offer ready to review" : "Offer being drafted",
+          label: hasOffer ? t("dashboard.clientMessages.nextOfferReady") : t("dashboard.clientMessages.nextOfferDrafting"),
           detail: hasOffer
-            ? "Open the Offer tab to approve or decline."
-            : "Coordinator is finalizing line items — you'll get notified when it's ready.",
+            ? t("dashboard.clientMessages.nextOfferReadyDetail")
+            : t("dashboard.clientMessages.nextOfferDraftingDetail"),
           tone: hasOffer ? "client" : "agency",
           cta: hasOffer
-            ? { label: "Open offer", onClick: () => onTabChange("offer") }
+            ? { label: t("dashboard.clientMessages.nextOpenOffer"), onClick: () => onTabChange("offer") }
             : undefined,
         };
       case "approved":
         return {
           icon: "✅",
-          label: "Approved — booking soon",
-          detail: "Coordinator is converting your approval into a confirmed booking.",
+          label: t("dashboard.clientMessages.nextApproved"),
+          detail: t("dashboard.clientMessages.nextApprovedDetail"),
           tone: "agency",
         };
       case "booked":
       case "converted":
         return {
           icon: "🎬",
-          label: "Booked",
-          detail: "Day-of details will surface in your Today page on event day.",
+          label: t("dashboard.clientMessages.nextBooked"),
+          detail: t("dashboard.clientMessages.nextBookedDetail"),
           tone: "success",
-          cta: { label: "View call sheet", onClick: () => onTabChange("details") },
+          cta: { label: t("dashboard.clientMessages.nextViewCallSheet"), onClick: () => onTabChange("details") },
         };
       case "cancelled":
       case "rejected":
         return {
           icon: "✖️",
-          label: "Cancelled",
-          detail: "This inquiry was cancelled. Start a new one anytime.",
+          label: t("dashboard.clientMessages.nextCancelled"),
+          detail: t("dashboard.clientMessages.nextCancelledDetail"),
           tone: "neutral",
         };
       default:
@@ -2503,8 +2610,9 @@ function PitchOriginBlock({
 }: {
   pitch: NonNullable<ClientInquiryDetails["pitch"]>;
 }) {
+  const t = useT();
   const when = pitch.sent_at ? formatDate(pitch.sent_at) : null;
-  const author = pitch.author_name ?? "Your coordinator";
+  const author = pitch.author_name ?? t("dashboard.clientMessages.pitchDefaultAuthor");
   return (
     <div
       style={{
@@ -2527,7 +2635,7 @@ function PitchOriginBlock({
           letterSpacing: 0.5,
         }}
       >
-        Pitch from {author}
+        {interpolate(t("dashboard.clientMessages.pitchFrom"), { author })}
         {when && <span style={{ color: C.inkMuted, marginLeft: 6, fontWeight: 500 }}>· {when}</span>}
       </div>
       {pitch.brief && (
@@ -2571,8 +2679,9 @@ function LineupTab({
   roster?: TalentOption[];
   onAdded?: () => void;
 }) {
+  const t = useT();
   if (!details) {
-    return <div style={{ padding: 24, color: C.inkMuted, fontFamily: FONT, fontSize: 13 }}>Loading lineup…</div>;
+    return <TabLoadingSkeleton label={t("dashboard.clientMessages.lineupLoading")} />;
   }
   const list = details.talent.selected;
   const mode = details.talent.selection_mode;
@@ -2594,12 +2703,12 @@ function LineupTab({
     <div style={{ padding: "16px 20px 28px", fontFamily: FONT, display: "flex", flexDirection: "column", gap: 12 }}>
       <div>
         <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
-          Lineup
+          {t("dashboard.clientMessages.lineupEyebrow")}
         </div>
         <div style={{ fontSize: 13, color: C.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
           {mode === "agency_recommends"
-            ? "Your coordinator will propose talent based on the brief. You'll see them appear here as they're added."
-            : "Talent on this project. Status updates as coordinators confirm them."}
+            ? t("dashboard.clientMessages.lineupAgencyIntro")
+            : t("dashboard.clientMessages.lineupYouIntro")}
         </div>
         {/* D5.4 — top-level rollup banner. Always present (DB returns
             "No lineup yet" for empty inquiries). */}
@@ -2635,7 +2744,7 @@ function LineupTab({
             fontWeight: 600,
             color: "#3B4B85",
           }}
-          title="Each workspace independently coordinates their own talent. You see one unified view; behind the scenes the workspaces don't share notes."
+          title={t("dashboard.clientMessages.crossTenantTitle")}
           >
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
               <path d="M3 6h6M6 3v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -2659,8 +2768,8 @@ function LineupTab({
           }}
         >
           {mode === "agency_recommends"
-            ? "No proposals yet — your coordinator typically responds within a business day."
-            : "No talent selected yet."}
+            ? t("dashboard.clientMessages.lineupNoProposals")
+            : t("dashboard.clientMessages.lineupNoneSelected")}
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -2737,11 +2846,12 @@ function talentInitials(name: string): string {
 }
 
 function LineupStatusPill({ status }: { status: string }) {
+  const t = useT();
   const palette = (() => {
-    if (status === "active") return { bg: "rgba(15,81,50,0.10)", fg: "#0F5132", label: "Confirmed" };
-    if (status === "invited") return { bg: C.accentSoft, fg: C.accent, label: "Invited" };
-    if (status === "declined") return { bg: "rgba(239,68,68,0.08)", fg: "#991B1B", label: "Declined" };
-    if (status === "replacement_sourcing") return { bg: "rgba(245,158,11,0.10)", fg: "#92400E", label: "Sourcing replacement" };
+    if (status === "active") return { bg: "rgba(15,81,50,0.10)", fg: "#0F5132", label: t("dashboard.clientMessages.statusConfirmed") };
+    if (status === "invited") return { bg: C.accentSoft, fg: C.accent, label: t("dashboard.clientMessages.statusInvited") };
+    if (status === "declined") return { bg: "rgba(239,68,68,0.08)", fg: "#991B1B", label: t("dashboard.clientMessages.statusDeclined") };
+    if (status === "replacement_sourcing") return { bg: "rgba(245,158,11,0.10)", fg: "#92400E", label: t("dashboard.clientMessages.statusSourcingReplacement") };
     return { bg: "rgba(11,11,13,0.06)", fg: C.inkMuted, label: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) };
   })();
   return (
@@ -2766,8 +2876,9 @@ function LineupStatusPill({ status }: { status: string }) {
 // ─── Files tab ───────────────────────────────────────────────────────────
 
 function FilesTab({ details }: { details: ClientInquiryDetails | null }) {
+  const t = useT();
   if (!details) {
-    return <div style={{ padding: 24, color: C.inkMuted, fontFamily: FONT, fontSize: 13 }}>Loading files…</div>;
+    return <TabLoadingSkeleton label={t("dashboard.clientMessages.filesLoading")} />;
   }
   const files = details.attachments.files;
   const links = details.attachments.links;
@@ -2777,10 +2888,10 @@ function FilesTab({ details }: { details: ClientInquiryDetails | null }) {
     <div style={{ padding: "16px 20px 28px", fontFamily: FONT, display: "flex", flexDirection: "column", gap: 12 }}>
       <div>
         <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
-          Files & references
+          {t("dashboard.clientMessages.filesEyebrow")}
         </div>
         <div style={{ fontSize: 13, color: C.inkMuted, marginTop: 4 }}>
-          Materials shared on this project — mood-boards, decks, contracts.
+          {t("dashboard.clientMessages.filesIntro")}
         </div>
       </div>
 
@@ -2796,7 +2907,7 @@ function FilesTab({ details }: { details: ClientInquiryDetails | null }) {
             lineHeight: 1.5,
           }}
         >
-          No files yet. Share references in the chat — your coordinator will collect them here.
+          {t("dashboard.clientMessages.filesEmpty")}
         </div>
       ) : (
         <div className="flex flex-col gap-1.5">
@@ -2822,7 +2933,7 @@ function FilesTab({ details }: { details: ClientInquiryDetails | null }) {
             >
               <span style={{ fontSize: 16 }}>📎</span>
               <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-              <span style={{ fontSize: 11, color: C.inkMuted }}>Open ↗</span>
+              <span style={{ fontSize: 11, color: C.inkMuted }}>{t("dashboard.clientMessages.fileOpen")}</span>
             </a>
           ))}
           {links.map((l, i) => (
@@ -2848,7 +2959,7 @@ function FilesTab({ details }: { details: ClientInquiryDetails | null }) {
             >
               <span style={{ fontSize: 16 }}>🔗</span>
               <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l}</span>
-              <span style={{ fontSize: 11, color: C.inkMuted, flexShrink: 0 }}>Open ↗</span>
+              <span style={{ fontSize: 11, color: C.inkMuted, flexShrink: 0 }}>{t("dashboard.clientMessages.fileOpen")}</span>
             </a>
           ))}
         </div>
@@ -2879,12 +2990,13 @@ function Bubble({
   pinnedIds?: Set<string>;
   onPinChanged?: () => void;
 }) {
+  const t = useT();
   const mine = m.is_mine;
   const kind = m.message_kind ?? "text";
   // Voice notes render as an inline player bubble (handled below), never a
   // money/booking card. Detect from metadata so a tolerant parse wins.
   const voiceMeta = kind === "voice" ? readVoiceMetaFromMessageMetadata(m.metadata) : null;
-  const card = kind !== "text" && kind !== "voice" ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer, onPayNow }) : null;
+  const card = kind !== "text" && kind !== "voice" ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer, onPayNow, t }) : null;
 
   const isOptimistic = m.id.startsWith("tmp-");
   const canEditOrDelete = mine && !isOptimistic && kind === "text" && tenantSlug && onMessagesChange;
@@ -2895,6 +3007,7 @@ function Bubble({
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(m.body);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -2935,11 +3048,15 @@ function Bubble({
     });
   }
 
+  function requestDelete() {
+    setMenuOpen(false);
+    setDeleteConfirmOpen(true);
+  }
+
   function commitDelete() {
     if (!tenantSlug || !onMessagesChange) return;
-    if (!confirm("Delete this message? It will be removed for everyone on the thread.")) return;
     setActionError(null);
-    setMenuOpen(false);
+    setDeleteConfirmOpen(false);
     // Optimistic
     onMessagesChange((prev) => prev.filter((mm) => mm.id !== m.id));
     startTransition(async () => {
@@ -3086,7 +3203,7 @@ function Bubble({
                   disabled={pending}
                   style={{ padding: "5px 10px", borderRadius: 7, background: "transparent", border: `1px solid ${C.borderSoft}`, color: C.inkMuted, fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}
                 >
-                  Cancel
+                  {t("dashboard.clientMessages.cancel")}
                 </button>
                 <button
                   type="button"
@@ -3094,7 +3211,7 @@ function Bubble({
                   disabled={pending || !editValue.trim()}
                   style={{ padding: "5px 12px", borderRadius: 7, background: C.ink, border: "none", color: "#fff", fontSize: 11.5, fontWeight: 600, cursor: pending ? "not-allowed" : "pointer", fontFamily: FONT }}
                 >
-                  Save
+                  {t("dashboard.clientMessages.save")}
                 </button>
               </div>
             </div>
@@ -3136,7 +3253,7 @@ function Bubble({
               <button
                 type="button"
                 onClick={() => setReactionPickerOpen((v) => !v)}
-                aria-label="Add reaction"
+                aria-label={t("dashboard.clientMessages.addReaction")}
                 style={{
                   width: 24,
                   height: 24,
@@ -3178,7 +3295,7 @@ function Bubble({
                       type="button"
                       onClick={() => toggleReaction(emoji)}
                       role="menuitem"
-                      aria-label={`React with ${emoji}`}
+                      aria-label={interpolate(t("dashboard.clientMessages.reactWith"), { emoji })}
                       style={{
                         width: 28,
                         height: 28,
@@ -3223,7 +3340,7 @@ function Bubble({
               <button
                 type="button"
                 onClick={() => setMenuOpen((v) => !v)}
-                aria-label="Message actions"
+                aria-label={t("dashboard.clientMessages.messageActions")}
                 style={{
                   width: 24,
                   height: 24,
@@ -3267,15 +3384,15 @@ function Bubble({
                     role="menuitem"
                     style={{ textAlign: "left", padding: "7px 10px", borderRadius: 6, background: "transparent", border: "none", color: C.ink, fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}
                   >
-                    Edit
+                    {t("dashboard.clientMessages.edit")}
                   </button>
                   <button
                     type="button"
-                    onClick={commitDelete}
+                    onClick={requestDelete}
                     role="menuitem"
                     style={{ textAlign: "left", padding: "7px 10px", borderRadius: 6, background: "transparent", border: "none", color: "#991B1B", fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}
                   >
-                    Delete
+                    {t("dashboard.clientMessages.delete")}
                   </button>
                 </div>
               )}
@@ -3290,7 +3407,7 @@ function Bubble({
                 key={r.emoji}
                 type="button"
                 onClick={() => canReact && toggleReaction(r.emoji)}
-                aria-label={`${r.count} reacted with ${r.emoji}${r.mine ? " (you)" : ""}`}
+                aria-label={interpolate(t(r.mine ? "dashboard.clientMessages.reactedAriaMine" : "dashboard.clientMessages.reactedAria"), { count: r.count, emoji: r.emoji })}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -3315,13 +3432,23 @@ function Bubble({
         <div style={{ fontSize: 10, color: C.inkDim, marginTop: 3, textAlign: mine ? "right" : "left" }}>
           {formatTime(m.created_at)}
           {mine && showSeen && (
-            <span style={{ marginLeft: 6, color: C.accent, fontWeight: 600 }}>· Seen</span>
+            <span style={{ marginLeft: 6, color: C.accent, fontWeight: 600 }}>· {t("dashboard.clientMessages.seen")}</span>
           )}
           {actionError && (
             <span style={{ color: "#991B1B", marginLeft: 6, fontWeight: 600 }}>· {actionError}</span>
           )}
         </div>
       </div>
+      <ClientConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={commitDelete}
+        destructive
+        title={t("dashboard.clientConfirm.deleteMessageTitle")}
+        body={t("dashboard.clientConfirm.deleteMessageBody")}
+        confirmLabel={t("dashboard.clientConfirm.deleteMessageConfirm")}
+        cancelLabel={t("dashboard.clientConfirm.keep")}
+      />
     </div>
   );
 }
@@ -3340,9 +3467,10 @@ function Bubble({
 function renderClientChatCard(
   kind: string,
   payload: Record<string, unknown>,
-  ctx: { onJumpToOffer?: () => void; onPayNow?: (amountLabel: string) => void },
+  ctx: { onJumpToOffer?: () => void; onPayNow?: (amountLabel: string) => void; t: (key: string) => string },
 ): React.ReactNode {
   const get = <T,>(k: string, fallback: T): T => (payload[k] as T) ?? fallback;
+  const { t } = ctx;
 
   switch (kind) {
     case "offer_event":
@@ -3352,7 +3480,7 @@ function renderClientChatCard(
         <OfferCard
           status={get<"draft" | "sent" | "accepted" | "declined" | "countered">("status", "sent")}
           totalLabel={get<string>("total_label", "—")}
-          hint={get<string>("hint", "Tap to review")}
+          hint={get<string>("hint", t("dashboard.clientMessages.cardTapToReview"))}
           onOpen={ctx.onJumpToOffer}
         />
       );
@@ -3365,6 +3493,9 @@ function renderClientChatCard(
           amountLabel={amountLabel}
           status="requested"
           hint={get<string>("hint", "")}
+          // Client IS the payer — Pay-now only. viewerRole="client" also hard-
+          // gates the staff-only Mark-paid action out of this renderer.
+          viewerRole="client"
           onPayNow={ctx.onPayNow ? () => ctx.onPayNow!(amountLabel) : undefined}
         />
       );
@@ -3375,7 +3506,7 @@ function renderClientChatCard(
       return (
         <BookingConfirmedCard
           totalLabel={get<string>("total_label", "")}
-          summary={get<string>("summary", "Payment received — your booking is confirmed.")}
+          summary={get<string>("summary", t("dashboard.clientMessages.cardBookingConfirmed"))}
         />
       );
     case "balance_due": {
@@ -3405,7 +3536,7 @@ function renderClientChatCard(
       );
     case "booking_status":
     case "system_event":
-      return <SystemEventCard text={get<string>("text", "Status updated")} />;
+      return <SystemEventCard text={get<string>("text", t("dashboard.clientMessages.cardStatusUpdated"))} />;
     // Staff-only cards — the client surface never renders these.
     case "coordinator_request":
     case "talent_rate":
@@ -3416,11 +3547,12 @@ function renderClientChatCard(
 }
 
 function EmptyList({ onCreate }: { onCreate: () => void }) {
+  const t = useT();
   return (
     <div style={{ padding: "24px 16px", textAlign: "center", color: C.inkMuted, fontFamily: FONT }}>
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: C.ink }}>No conversations yet</div>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: C.ink }}>{t("dashboard.clientMessages.emptyListTitle")}</div>
       <div style={{ fontSize: 12, marginBottom: 14, lineHeight: 1.5 }}>
-        Start your first inquiry to get a project going.
+        {t("dashboard.clientMessages.emptyListBody")}
       </div>
       <button
         type="button"
@@ -3438,18 +3570,19 @@ function EmptyList({ onCreate }: { onCreate: () => void }) {
           fontWeight: 600,
         }}
       >
-        + New inquiry
+        {t("dashboard.clientMessages.emptyListCta")}
       </button>
     </div>
   );
 }
 
 function EmptyDetail({ onCreate }: { onCreate: () => void }) {
+  const t = useT();
   return (
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: C.inkMuted, fontFamily: FONT, padding: 24 }}>
-      <div style={{ fontSize: 14, color: C.ink, fontWeight: 600 }}>Select a project</div>
+      <div style={{ fontSize: 14, color: C.ink, fontWeight: 600 }}>{t("dashboard.clientMessages.emptyDetailTitle")}</div>
       <div style={{ fontSize: 12.5, textAlign: "center", maxWidth: 320 }}>
-        Pick an inquiry from the list to see your conversation with the coordinator.
+        {t("dashboard.clientMessages.emptyDetailBody")}
       </div>
       <button
         type="button"
@@ -3467,8 +3600,59 @@ function EmptyDetail({ onCreate }: { onCreate: () => void }) {
           fontWeight: 600,
         }}
       >
-        + Start a new inquiry
+        {t("dashboard.clientMessages.emptyDetailCta")}
       </button>
+    </div>
+  );
+}
+
+/**
+ * Shown in the thread pane when the page was deep-linked with ?inquiry=<id>
+ * but that id isn't in the loaded set (archived / no permission / paginated
+ * out). Explicit "not available" state — never a silent fall-through to an
+ * unrelated thread on the money surface. The user's other inquiries stay
+ * listed on the left; picking one clears this notice.
+ */
+function InquiryUnavailableDetail() {
+  const t = useT();
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "column",
+        gap: 12,
+        color: C.inkMuted,
+        fontFamily: FONT,
+        padding: 24,
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 12,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(146,64,14,0.08)",
+          color: "#92400E",
+        }}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 8v4M12 16h.01" />
+        </svg>
+      </div>
+      <div style={{ fontSize: 14, color: C.ink, fontWeight: 600, textAlign: "center" }}>
+        {t("dashboard.clientConfirm.inquiryUnavailableTitle")}
+      </div>
+      <div style={{ fontSize: 12.5, textAlign: "center", maxWidth: 340, lineHeight: 1.55 }}>
+        {t("dashboard.clientConfirm.inquiryUnavailableBody")}
+      </div>
     </div>
   );
 }

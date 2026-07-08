@@ -134,6 +134,11 @@
       "count": 2
     }
   },
+  "src/components/admin/shell/internal/dashboard-i18n.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/components/admin/shell/internal/drawers/UpgradeModal.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 17
@@ -328,7 +333,12 @@
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-reviews.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 20
+      "count": 26
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/review-moderation-queue.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 33
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/talent-type-picker.tsx": {
@@ -438,7 +448,7 @@
   },
   "src/components/admin/shell/internal/messages/admin-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 22
+      "count": 23
     }
   },
   "src/components/admin/shell/internal/messages/admin-3.tsx": {
@@ -517,7 +527,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 50
+      "count": 48
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-2.tsx": {
@@ -578,7 +588,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 35
+      "count": 33
     }
   },
   "src/components/admin/shell/internal/metrics-ribbon.tsx": {
@@ -1001,17 +1011,17 @@
   },
   "src/components/admin/shell/internal/talent-drawers/monetization.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 28
+      "count": 25
     }
   },
   "src/components/admin/shell/internal/talent-drawers/network.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 16
+      "count": 7
     }
   },
   "src/components/admin/shell/internal/talent-drawers/premium-pages.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 62
+      "count": 61
     }
   },
   "src/components/admin/shell/internal/talent-drawers/profile-essentials.tsx": {
@@ -1055,6 +1065,11 @@
   "src/components/admin/shell/internal/talent/pages/MyProfilePage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 19
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/ReviewsPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 23
     }
   },
   "src/components/admin/shell/internal/talent/pages/SettingsPage.tsx": {
@@ -1154,7 +1169,7 @@
   },
   "src/components/admin/shell/internal/talent/shared/profile-sections-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 34
+      "count": 33
     }
   },
   "src/components/admin/shell/internal/talent/shared/profile-sections-3.tsx": {
@@ -1197,7 +1212,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 285
+      "count": 279
     }
   },
   "src/components/admin/shell/internal/workspace.tsx": {
@@ -1415,6 +1430,11 @@
     }
   },
   "src/lib/pitch/pitch-engine.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/reviews/review-actions.ts": {
     "max-lines": {
       "count": 1
     }

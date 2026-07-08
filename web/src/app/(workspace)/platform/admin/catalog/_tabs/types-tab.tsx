@@ -12,17 +12,21 @@ import {
 } from "../../../talent-types-data";
 import { HqCard, HqAccordion, Stat, CopyableId, HQ, F, FD } from "../_ui";
 import { SaveNotice } from "../[fieldKey]/field-detail-editor-parts";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+const K = "dashboard.platform.catalog";
 
 // ---------------------------------------------------------------------------
 // Leaf row — a single talent_type
 // ---------------------------------------------------------------------------
-function TypeRow({ t }: { t: TaxonomyTypeNode }) {
-  const isArchived = !!t.archived_at;
+function TypeRow({ type, t }: { type: TaxonomyTypeNode; t: Translate }) {
+  const isArchived = !!type.archived_at;
   return (
     <Link
-      href={`/platform/admin/catalog/type/${t.id}`}
+      href={`/platform/admin/catalog/type/${type.id}`}
       className="hq-field-row"
-      title={`Edit ${t.name_en}`}
+      title={interpolate(t(`${K}.typeEditTitle`), { name: type.name_en })}
       style={{
         display: "flex",
         alignItems: "center",
@@ -36,16 +40,16 @@ function TypeRow({ t }: { t: TaxonomyTypeNode }) {
         cursor: "pointer",
       }}
     >
-      <CopyableId id={t.id} />
+      <CopyableId id={type.id} />
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {t.icon && <span style={{ fontSize: 14, lineHeight: 1 }}>{t.icon}</span>}
-          <span style={{ fontWeight: 600 }}>{t.name_en}</span>
-          {t.name_es && (
+          {type.icon && <span style={{ fontSize: 14, lineHeight: 1 }}>{type.icon}</span>}
+          <span style={{ fontWeight: 600 }}>{type.name_en}</span>
+          {type.name_es && (
             <>
               <span style={{ fontSize: 10, color: HQ.green, letterSpacing: 0.2 }}>›</span>
-              <span style={{ fontSize: 11, color: HQ.inkDim }}>{t.name_es}</span>
+              <span style={{ fontSize: 11, color: HQ.inkDim }}>{type.name_es}</span>
             </>
           )}
         </div>
@@ -57,18 +61,18 @@ function TypeRow({ t }: { t: TaxonomyTypeNode }) {
             marginTop: 2,
           }}
         >
-          {t.slug} · {t.mappedFieldCount} mapped field{t.mappedFieldCount === 1 ? "" : "s"}
+          {interpolate(t(`${K}.${type.mappedFieldCount === 1 ? "typeMappedFieldsOne" : "typeMappedFieldsMany"}`), { slug: type.slug, count: type.mappedFieldCount })}
         </div>
       </div>
 
       <div style={{ display: "flex", gap: 10, fontSize: 11.5, flexShrink: 0 }}>
-        <span style={{ color: t.agencyCount > 0 ? HQ.green : HQ.inkDim }}>
-          <strong style={{ fontSize: 13, fontFamily: FD }}>{t.agencyCount}</strong>{" "}
-          <span style={{ color: HQ.inkMuted }}>agenc{t.agencyCount === 1 ? "y" : "ies"}</span>
+        <span style={{ color: type.agencyCount > 0 ? HQ.green : HQ.inkDim }}>
+          <strong style={{ fontSize: 13, fontFamily: FD }}>{type.agencyCount}</strong>{" "}
+          <span style={{ color: HQ.inkMuted }}>{t(`${K}.${type.agencyCount === 1 ? "typeAgencyOne" : "typeAgencyMany"}`)}</span>
         </span>
-        <span style={{ color: t.talentCount > 0 ? HQ.green : HQ.inkDim }}>
-          <strong style={{ fontSize: 13, fontFamily: FD }}>{t.talentCount}</strong>{" "}
-          <span style={{ color: HQ.inkMuted }}>talent{t.talentCount === 1 ? "" : "s"}</span>
+        <span style={{ color: type.talentCount > 0 ? HQ.green : HQ.inkDim }}>
+          <strong style={{ fontSize: 13, fontFamily: FD }}>{type.talentCount}</strong>{" "}
+          <span style={{ color: HQ.inkMuted }}>{t(`${K}.${type.talentCount === 1 ? "typeTalentOne" : "typeTalentMany"}`)}</span>
         </span>
       </div>
 
@@ -85,7 +89,7 @@ function TypeRow({ t }: { t: TaxonomyTypeNode }) {
             whiteSpace: "nowrap",
           }}
         >
-          Archived
+          {t(`${K}.typeArchived`)}
         </span>
       )}
     </Link>
@@ -95,8 +99,13 @@ function TypeRow({ t }: { t: TaxonomyTypeNode }) {
 // ---------------------------------------------------------------------------
 // Second-level accordion — a category_group
 // ---------------------------------------------------------------------------
-function GroupAccordion({ group }: { group: TaxonomyGroupNode }) {
-  const countMeta = `${group.types.length} type${group.types.length === 1 ? "" : "s"} · ${group.agencyCount} agenc${group.agencyCount === 1 ? "y" : "ies"} · ${group.talentCount} talent${group.talentCount === 1 ? "" : "s"}`;
+function GroupAccordion({ group, t }: { group: TaxonomyGroupNode; t: Translate }) {
+  const agencies = `${group.agencyCount} ${t(`${K}.${group.agencyCount === 1 ? "typeAgencyOne" : "typeAgencyMany"}`)}`;
+  const talents = `${group.talentCount} ${t(`${K}.${group.talentCount === 1 ? "typeTalentOne" : "typeTalentMany"}`)}`;
+  const countMeta = interpolate(
+    t(`${K}.${group.types.length === 1 ? "groupCountMetaOne" : "groupCountMetaMany"}`),
+    { types: group.types.length, agencies, talents },
+  );
   return (
     <details
       className="hq-acc"
@@ -155,7 +164,7 @@ function GroupAccordion({ group }: { group: TaxonomyGroupNode }) {
             flexShrink: 0,
           }}
         >
-          Edit
+          {t(`${K}.typeEdit`)}
         </Link>
         <Link
           href={`/platform/admin/catalog/type/new`}
@@ -172,7 +181,7 @@ function GroupAccordion({ group }: { group: TaxonomyGroupNode }) {
             flexShrink: 0,
           }}
         >
-          + Type
+          {t(`${K}.typeAddType`)}
         </Link>
       </summary>
 
@@ -185,16 +194,16 @@ function GroupAccordion({ group }: { group: TaxonomyGroupNode }) {
               color: HQ.inkMuted,
             }}
           >
-            No talent types yet.{" "}
+            {t(`${K}.typeNoTypes`)}{" "}
             <Link
               href={`/platform/admin/catalog/type/new`}
               style={{ color: HQ.green, textDecoration: "none" }}
             >
-              + Add one
+              {t(`${K}.typeAddOne`)}
             </Link>
           </div>
         ) : (
-          group.types.map((t) => <TypeRow key={t.id} t={t} />)
+          group.types.map((type) => <TypeRow key={type.id} type={type} t={t} />)
         )}
       </div>
     </details>
@@ -204,8 +213,12 @@ function GroupAccordion({ group }: { group: TaxonomyGroupNode }) {
 // ---------------------------------------------------------------------------
 // Top-level accordion — a parent_category
 // ---------------------------------------------------------------------------
-function ParentAccordion({ parent }: { parent: TaxonomyParentNode }) {
-  const countMeta = `${parent.groupsCount} group${parent.groupsCount === 1 ? "" : "s"} · ${parent.talentTypesCount} type${parent.talentTypesCount === 1 ? "" : "s"} · ${parent.agencyCount} agenc${parent.agencyCount === 1 ? "y" : "ies"} · ${parent.talentCount} talent${parent.talentCount === 1 ? "" : "s"}`;
+function ParentAccordion({ parent, t }: { parent: TaxonomyParentNode; t: Translate }) {
+  const groups = interpolate(t(`${K}.${parent.groupsCount === 1 ? "parentGroupsOne" : "parentGroupsMany"}`), { count: parent.groupsCount });
+  const types = interpolate(t(`${K}.${parent.talentTypesCount === 1 ? "parentTypesOne" : "parentTypesMany"}`), { count: parent.talentTypesCount });
+  const agencies = interpolate(t(`${K}.${parent.agencyCount === 1 ? "parentAgenciesOne" : "parentAgenciesMany"}`), { count: parent.agencyCount });
+  const talents = interpolate(t(`${K}.${parent.talentCount === 1 ? "parentTalentsOne" : "parentTalentsMany"}`), { count: parent.talentCount });
+  const countMeta = interpolate(t(`${K}.parentCountMeta`), { groups, types, agencies, talents });
 
   return (
     <HqAccordion
@@ -243,7 +256,7 @@ function ParentAccordion({ parent }: { parent: TaxonomyParentNode }) {
             whiteSpace: "nowrap",
           }}
         >
-          Edit
+          {t(`${K}.typeEdit`)}
         </Link>
         <Link
           href={`/platform/admin/catalog/term/new?kind=category_group&parent=${parent.id}`}
@@ -259,17 +272,17 @@ function ParentAccordion({ parent }: { parent: TaxonomyParentNode }) {
             whiteSpace: "nowrap",
           }}
         >
-          + Group
+          {t(`${K}.parentAddGroup`)}
         </Link>
       </div>
 
       {/* Groups */}
       {parent.groups.length === 0 ? (
         <div style={{ fontSize: 12.5, color: HQ.inkMuted, padding: "4px 0" }}>
-          No category groups yet.
+          {t(`${K}.parentNoGroups`)}
         </div>
       ) : (
-        parent.groups.map((g) => <GroupAccordion key={g.id} group={g} />)
+        parent.groups.map((g) => <GroupAccordion key={g.id} group={g} t={t} />)
       )}
     </HqAccordion>
   );
@@ -278,7 +291,7 @@ function ParentAccordion({ parent }: { parent: TaxonomyParentNode }) {
 // ---------------------------------------------------------------------------
 // Tab component
 // ---------------------------------------------------------------------------
-export async function TypesTab({ sp }: { sp: Record<string, string | undefined> }) {
+export async function TypesTab({ sp, t }: { sp: Record<string, string | undefined>; t: Translate }) {
   const result = await loadPlatformTaxonomyTree();
 
   const totalParents = result.parents.length;
@@ -302,16 +315,16 @@ export async function TypesTab({ sp }: { sp: Record<string, string | undefined> 
       <div
         style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}
       >
-        <Stat label="Parent categories" value={totalParents} />
-        <Stat label="Category groups" value={totalGroups} />
-        <Stat label="Talent types" value={totalTypes} />
+        <Stat label={t(`${K}.typesStatParents`)} value={totalParents} />
+        <Stat label={t(`${K}.typesStatGroups`)} value={totalGroups} />
+        <Stat label={t(`${K}.typesStatTypes`)} value={totalTypes} />
         <Stat
-          label="Agencies (max any cat.)"
+          label={t(`${K}.typesStatAgencies`)}
           value={statAgencies}
           tone={statAgencies > 0 ? HQ.green : undefined}
         />
         <Stat
-          label="Talent assignments"
+          label={t(`${K}.typesStatAssignments`)}
           value={statTalents}
           tone={statTalents > 0 ? HQ.green : undefined}
         />
@@ -329,12 +342,12 @@ export async function TypesTab({ sp }: { sp: Record<string, string | undefined> 
       >
         <div>
           <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 600, color: HQ.ink }}>
-            Talent-Type Category
+            {t(`${K}.typesHeaderTitle`)}
           </div>
           <div style={{ fontSize: 12, color: HQ.inkMuted, marginTop: 2 }}>
             {!result.ok && result.parents.length === 0
-              ? "Could not load taxonomy."
-              : `${totalParents} categories · ${totalGroups} groups · ${totalTypes} types`}
+              ? t(`${K}.typesHeaderCouldNotLoad`)
+              : interpolate(t(`${K}.typesHeaderSummary`), { categories: totalParents, groups: totalGroups, types: totalTypes })}
           </div>
         </div>
         <Link
@@ -351,28 +364,27 @@ export async function TypesTab({ sp }: { sp: Record<string, string | undefined> 
             whiteSpace: "nowrap",
           }}
         >
-          + New parent category
+          {t(`${K}.typesNewParent`)}
         </Link>
       </div>
 
       {!result.ok && result.parents.length === 0 ? (
-        <HqCard title="Unavailable">
+        <HqCard title={t(`${K}.typesUnavailableTitle`)}>
           <div style={{ fontSize: 13, color: HQ.inkMuted }}>
-            Could not load taxonomy (service client unavailable or query failed). Retry shortly.
+            {t(`${K}.typesUnavailableBody`)}
           </div>
         </HqCard>
       ) : result.parents.length === 0 ? (
-        <HqCard title="No taxonomy yet">
+        <HqCard title={t(`${K}.typesNoneTitle`)}>
           <div style={{ fontSize: 12.5, color: HQ.inkMuted }}>
-            Create your first parent category using the button above to start building the taxonomy
-            hierarchy.
+            {t(`${K}.typesNoneBody`)}
           </div>
         </HqCard>
       ) : (
         /* Tree */
         <div>
           {result.parents.map((parent) => (
-            <ParentAccordion key={parent.id} parent={parent} />
+            <ParentAccordion key={parent.id} parent={parent} t={t} />
           ))}
         </div>
       )}

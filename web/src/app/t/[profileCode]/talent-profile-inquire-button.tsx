@@ -21,6 +21,8 @@ import { Mail } from "lucide-react";
 
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { Button } from "@/components/ui/button";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 import { getTalentProfileInquireData } from "./talent-profile-inquire-data";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
@@ -46,6 +48,8 @@ type TalentProfileInquireButtonProps = {
   sourcePage: string;
   /** Optional portrait for the lineup avatar fly/registry. */
   portraitUrl?: string | null;
+  /** Resolved page locale (from getRequestLocale on the profile page). */
+  locale: string;
   /** Button className override — caller controls placement context. */
   className?: string;
 };
@@ -72,8 +76,10 @@ export function TalentProfileInquireButton({
   agencyName,
   sourcePage,
   portraitUrl = null,
+  locale,
   className,
 }: TalentProfileInquireButtonProps) {
+  const t = createTranslator(locale);
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<InquireData | null>(null);
   const [, startTransition] = useTransition();
@@ -140,7 +146,7 @@ export function TalentProfileInquireButton({
     <>
       <Button type="button" onClick={handleClick} className={className}>
         <Mail className="size-4" />
-        Inquire about {firstName}
+        {interpolate(t("public.profileCta.inquireAbout"), { name: firstName })}
       </Button>
 
       {/* Client-only synced form-view of the SAME inquiry. Guests never reach

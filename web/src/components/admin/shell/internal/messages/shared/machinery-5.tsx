@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, type CSSProperties } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { useAdminShell, COLORS, FONTS, type InquiryRecord } from "../../state";
 import { type Conversation } from "../../talent";
 import { readConvNote, useNotesSubscription, useOfferStashSubscription, writeConvNote } from "../conversation-stash";
@@ -41,11 +43,12 @@ export function AdminBookingTab({
   planTier?: "free" | "studio" | "agency" | "hub-network";
 }) {
   const { toast } = useAdminShell();
+  const t = useT();
   useOfferStashSubscription();
   useNotesSubscription();
   const conv = useMemo(() => buildConvFromInquiry(inquiry), [inquiry]);
   const offer = getOffer(conv.id);
-  const days = countdownLabel(inquiry.schedule.start);
+  const days = countdownLabel(inquiry.schedule.start, t);
   const coord = inquiry.coordinators[0];
   // 2026-05-12 fix S0.2: Project tab was reading legacy mock-derived
   // `inquiry.talent`. For real (UUID) inquiries override with the canonical
@@ -83,25 +86,25 @@ export function AdminBookingTab({
     if (!canEdit) return null;
     const ofStage = offer?.stage;
     if (inquiry.status === "submitted" && lineupTotal === 0) {
-      return { label: "Add talent", sub: "Build the shortlist before replying.", tone: "primary" };
+      return { label: t("dashboard.adminTabs.booking.addTalent"), sub: t("dashboard.adminTabs.booking.addTalentSub"), tone: "primary" };
     }
     if (inquiry.status === "submitted" || inquiry.status === "coordinating") {
       if (lineupAccepted < lineupTotal) {
-        return { label: "Nudge talent", sub: `${lineupTotal - lineupAccepted} talent haven't responded yet.`, tone: "amber" };
+        return { label: t("dashboard.adminTabs.booking.nudgeTalent"), sub: interpolate(t("dashboard.adminTabs.booking.nudgeTalentSub"), { count: lineupTotal - lineupAccepted }), tone: "amber" };
       }
       if (ofStage === "no_offer" || ofStage === "client_budget" || !ofStage) {
-        return { label: "Build the offer", sub: "Lineup confirmed — draft pricing.", tone: "primary" };
+        return { label: t("dashboard.adminTabs.booking.buildOffer"), sub: t("dashboard.adminTabs.booking.buildOfferSub"), tone: "primary" };
       }
-      return { label: "Send to client", sub: "Offer is ready. Push it to the client.", tone: "primary" };
+      return { label: t("dashboard.adminTabs.booking.sendToClient"), sub: t("dashboard.adminTabs.booking.sendToClientSub"), tone: "primary" };
     }
     if (ofStage === "sent" || ofStage === "reviewing") {
-      return { label: "Nudge client", sub: "Offer is with client — ping if it's been quiet.", tone: "amber" };
+      return { label: t("dashboard.adminTabs.booking.nudgeClient"), sub: t("dashboard.adminTabs.booking.nudgeClientSub"), tone: "amber" };
     }
     if (ofStage === "countered") {
-      return { label: "Review counter", sub: "Client came back with a counter-offer.", tone: "primary" };
+      return { label: t("dashboard.adminTabs.booking.reviewCounter"), sub: t("dashboard.adminTabs.booking.reviewCounterSub"), tone: "primary" };
     }
     if (inquiry.status === "approved" || inquiry.status === "booked") {
-      return { label: "Open logistics", sub: "Booked. Call sheet editing is coming soon.", tone: "success" };
+      return { label: t("dashboard.adminTabs.booking.openLogistics"), sub: t("dashboard.adminTabs.booking.openLogisticsSub"), tone: "success" };
     }
     return null;
   })();
@@ -169,7 +172,7 @@ export function AdminBookingTab({
           </span>
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: heroPalette.fg }}>
-              Your move
+              {t("dashboard.adminTabs.booking.yourMove")}
             </div>
             <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2 }} className="text-admin-ink">
               {adminAction.label}
@@ -185,7 +188,7 @@ export function AdminBookingTab({
             opacity: 0.72,
             fontFamily: FONTS.body, fontSize: 12, fontWeight: 700,
           }}>
-            Use tabs
+            {t("dashboard.adminTabs.booking.useTabs")}
           </span>
         </div>
       ) : days ? (
@@ -227,7 +230,7 @@ export function AdminBookingTab({
           is voice ("The project" for admin/client vs "The job" for
           talent), not structure. */}
       <div data-booking-card style={cardStyle}>
-        <div data-booking-section-title style={sectionTitle}>The project</div>
+        <div data-booking-section-title style={sectionTitle}>{t("dashboard.adminTabs.booking.theProject")}</div>
         <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.35 }} className="text-admin-ink">
           {inquiry.title}
         </div>
@@ -238,7 +241,7 @@ export function AdminBookingTab({
             project-detail surface, not the identity surface. */}
         {!inquiry.client.name && !coord && (
           <div style={{ fontSize: 12, marginTop: 3 }} className="text-admin-ink-muted">
-            (no client or coordinator linked yet)
+            {t("dashboard.adminTabs.booking.noClientOrCoord")}
           </div>
         )}
         {/* "Came in via" source chip removed — duplicates ShellHeader's
@@ -267,7 +270,7 @@ export function AdminBookingTab({
             </span>
             <div className="flex-1 min-w-0">
               <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 2 }} className="text-admin-indigo-deep">
-                {coord.name.split(" ")[0]}&apos;s read
+                {interpolate(t("dashboard.adminTabs.booking.readOf"), { name: coord.name.split(" ")[0] })}
               </div>
               <div style={{ fontSize: 12.5, lineHeight: 1.5, fontStyle: "italic" }} className="text-admin-ink">
                 &quot;{conv.pinned.coordinatorNote}&quot;
@@ -280,31 +283,31 @@ export function AdminBookingTab({
       {/* When + Where 2-up */}
       <div data-booking-grid style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div data-booking-card style={cardStyle}>
-          <div data-booking-section-title style={sectionTitle}>When</div>
+          <div data-booking-section-title style={sectionTitle}>{t("dashboard.adminTabs.booking.when")}</div>
           <div className="text-admin-ink text-sm font-bold">
             {inquiry.schedule.start}
             {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
           </div>
           {inquiry.schedule.callTime && (
             <div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">
-              Call · <span style={{ fontWeight: 600 }} className="text-admin-ink">{inquiry.schedule.callTime}</span>
+              {t("dashboard.adminTabs.booking.callPrefix")} · <span style={{ fontWeight: 600 }} className="text-admin-ink">{inquiry.schedule.callTime}</span>
             </div>
           )}
         </div>
         <div data-booking-card style={{ ...cardStyle, padding: 0 }}>
-          <div data-booking-section-title style={{ ...sectionTitle, padding: "12px 14px 0" }}>Where</div>
+          <div data-booking-section-title style={{ ...sectionTitle, padding: "12px 14px 0" }}>{t("dashboard.adminTabs.booking.where")}</div>
           {(inquiry.location.city || inquiry.location.venue || inquiry.location.address) ? (
             <div style={{ padding: "8px 14px 12px" }}>
               <LocationMapTile
                 venue={inquiry.location.venue}
                 address={inquiry.location.address}
                 city={inquiry.location.city}
-                onOpenMaps={() => toast("Open map")}
+                onOpenMaps={() => toast(t("dashboard.adminTabs.booking.openMap"))}
               />
             </div>
           ) : (
             <div style={{ padding: "0 14px 12px", fontSize: 12 }} className="text-admin-ink-muted">
-              Location TBC.
+              {t("dashboard.adminTabs.booking.locationTbc")}
             </div>
           )}
         </div>
@@ -326,15 +329,15 @@ export function AdminBookingTab({
       {allFiles.length > 0 && (
         <div data-booking-card style={cardStyle}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
-            <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>Files</div>
+            <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>{t("dashboard.adminTabs.booking.files")}</div>
             <span className="text-admin-ink-muted text-admin-10h">
-              {allFiles.length} file{allFiles.length === 1 ? "" : "s"}
+              {interpolate(t(allFiles.length === 1 ? "dashboard.adminTabs.booking.fileCountOne" : "dashboard.adminTabs.booking.fileCountMany"), { count: allFiles.length })}
             </span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             {filePreview.map(f => (
               <button key={f.name} type="button"
-                onClick={() => toast(`Opening ${f.name}`)}
+                onClick={() => toast(interpolate(t("dashboard.adminTabs.booking.openingFile"), { name: f.name }))}
                 style={{
                   display: "flex", alignItems: "center", gap: 9,
                   padding: "7px 9px", borderRadius: 8,
@@ -357,7 +360,10 @@ export function AdminBookingTab({
                 <div className="flex-1 min-w-0">
                   <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">{f.name}</div>
                   <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">
-                    {f.thread === "client" ? "Client thread" : "Talent thread"} · {f.size} · added by {f.addedBy} · {f.addedAt}
+                    {interpolate(t("dashboard.adminTabs.booking.fileMeta"), {
+                      thread: f.thread === "client" ? t("dashboard.adminTabs.booking.clientThread") : t("dashboard.adminTabs.booking.talentThread"),
+                      size: f.size, by: f.addedBy, at: f.addedAt,
+                    })}
                   </div>
                 </div>
               </button>
@@ -365,7 +371,7 @@ export function AdminBookingTab({
           </div>
           {allFiles.length > filePreview.length && (
             <button type="button"
-              onClick={() => toast("Open Files tab")}
+              onClick={() => toast(t("dashboard.adminTabs.booking.openFilesTab"))}
               style={{
                 marginTop: 8, width: "100%",
                 padding: "6px 10px", borderRadius: 8,
@@ -373,7 +379,7 @@ export function AdminBookingTab({
                 color: COLORS.ink, cursor: "pointer",
                 fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
               }}>
-              View all {allFiles.length} files
+              {interpolate(t("dashboard.adminTabs.booking.viewAllFiles"), { count: allFiles.length })}
             </button>
           )}
         </div>
@@ -388,9 +394,9 @@ export function AdminBookingTab({
       {inquiry.timeline.length > 0 && (
         <div data-booking-card style={cardStyle}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
-            <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>Last activity</div>
+            <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>{t("dashboard.adminTabs.booking.lastActivity")}</div>
             <span className="text-admin-ink-muted text-admin-10h">
-              {inquiry.timeline.length} event{inquiry.timeline.length === 1 ? "" : "s"}
+              {interpolate(t(inquiry.timeline.length === 1 ? "dashboard.adminTabs.booking.eventCountOne" : "dashboard.adminTabs.booking.eventCountMany"), { count: inquiry.timeline.length })}
             </span>
           </div>
           <div className="flex flex-col gap-2">
@@ -427,7 +433,7 @@ export function AdminBookingTab({
           </div>
           {inquiry.timeline.length > 6 && (
             <div style={{ marginTop: 8, fontSize: 11, textAlign: "center", fontStyle: "italic" }} className="text-admin-ink-muted">
-              + {inquiry.timeline.length - 6} earlier event{inquiry.timeline.length - 6 === 1 ? "" : "s"}
+              {interpolate(t(inquiry.timeline.length - 6 === 1 ? "dashboard.adminTabs.booking.earlierEventsOne" : "dashboard.adminTabs.booking.earlierEventsMany"), { count: inquiry.timeline.length - 6 })}
             </div>
           )}
         </div>
@@ -441,13 +447,13 @@ export function AdminBookingTab({
           {/* Free-tier copy: "coordinator only" implies a team that
               doesn't exist on solo workspaces. Just "Notes" reads
               correctly when there's no team to scope-gate them from. */}
-          {planTier === "free" ? "Notes" : "Internal notes (coordinator only)"}
+          {planTier === "free" ? t("dashboard.adminTabs.booking.notes") : t("dashboard.adminTabs.booking.internalNotes")}
         </div>
         <textarea
           key={inquiry.id}
           defaultValue={readConvNote(inquiry.id)}
-          placeholder="Anything the rest of your coordinator team needs to know about this project…"
-          onBlur={(e) => { writeConvNote(inquiry.id, e.currentTarget.value); toast("Note saved"); }}
+          placeholder={t("dashboard.adminTabs.booking.notesPlaceholder")}
+          onBlur={(e) => { writeConvNote(inquiry.id, e.currentTarget.value); toast(t("dashboard.adminTabs.booking.noteSaved")); }}
           style={{
             width: "100%", minHeight: 64, resize: "vertical",
             padding: 10, borderRadius: 8,
@@ -469,8 +475,9 @@ export function AdminBookingTab({
 // from conv.pinned (the per-talent slot) plus inquiry.schedule. ──
 export function TalentLogisticsTab({ conv, inquiry }: { conv: Conversation; inquiry: InquiryRecord }) {
   const { toast } = useAdminShell();
+  const t = useT();
   const pinned = conv.pinned ?? {};
-  const days = countdownLabel(inquiry.schedule.start);
+  const days = countdownLabel(inquiry.schedule.start, t);
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       {/* Countdown — only when within 14 days, hides for distant or past
@@ -493,7 +500,7 @@ export function TalentLogisticsTab({ conv, inquiry }: { conv: Conversation; inqu
 
       {/* Schedule — call time + wrap time, the questions a working
           talent asks first. */}
-      <DetailSection title="Schedule">
+      <DetailSection title={t("dashboard.adminTabs.talentLogistics.schedule")}>
         <div className="text-admin-ink text-sm font-bold">
           {inquiry.schedule.start}
           {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
@@ -504,40 +511,40 @@ export function TalentLogisticsTab({ conv, inquiry }: { conv: Conversation; inqu
           </div>
         )}
         {!pinned.schedule && pinned.callTime && (
-          <DetailField label="Call time" value={pinned.callTime} />
+          <DetailField label={t("dashboard.adminTabs.talentLogistics.callTime")} value={pinned.callTime} />
         )}
       </DetailSection>
 
       {/* Location — uses the same map tile as Details, redundancy is OK
           here since Logistics is a one-stop "everything I need today". */}
       {(inquiry.location.city || inquiry.location.venue || inquiry.location.address) && (
-        <DetailSection title="Where">
+        <DetailSection title={t("dashboard.adminTabs.talentLogistics.where")}>
           <LocationMapTile
             venue={inquiry.location.venue}
             address={inquiry.location.address}
             city={inquiry.location.city}
-            onOpenMaps={() => toast("Open map")}
+            onOpenMaps={() => toast(t("dashboard.adminTabs.talentLogistics.openMap"))}
           />
         </DetailSection>
       )}
 
       {/* Transport — driver, pickup, parking. Pulled from the
           talent-specific pinned data (set by coordinator). */}
-      <DetailSection title="Transport">
+      <DetailSection title={t("dashboard.adminTabs.talentLogistics.transport")}>
         {pinned.transport ? (
           <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
             {pinned.transport}
           </div>
         ) : (
           <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-            Coordinator hasn&apos;t shared transport details yet.
+            {t("dashboard.adminTabs.talentLogistics.transportEmpty")}
           </div>
         )}
       </DetailSection>
 
       {/* Hotel/lodging — if mentioned in pinned data. */}
       {(pinned as { hotel?: string }).hotel && (
-        <DetailSection title="Lodging">
+        <DetailSection title={t("dashboard.adminTabs.talentLogistics.lodging")}>
           <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
             {(pinned as { hotel?: string }).hotel}
           </div>
@@ -546,10 +553,10 @@ export function TalentLogisticsTab({ conv, inquiry }: { conv: Conversation; inqu
 
       {/* My notes — personal scratchpad. Saves to local state in the
           prototype; production: per-talent-per-job notes. */}
-      <DetailSection title="My notes">
+      <DetailSection title={t("dashboard.adminTabs.talentLogistics.myNotes")}>
         <textarea
-          placeholder="Things to bring, contacts, reminders…"
-          onBlur={() => toast("Note saved")}
+          placeholder={t("dashboard.adminTabs.talentLogistics.myNotesPlaceholder")}
+          onBlur={() => toast(t("dashboard.adminTabs.talentLogistics.noteSaved"))}
           style={{
             width: "100%", minHeight: 70, resize: "vertical",
             padding: 10, borderRadius: 8,
@@ -566,17 +573,17 @@ export function TalentLogisticsTab({ conv, inquiry }: { conv: Conversation; inqu
 
 // Compute a short countdown label from a date string. Best-effort —
 // returns null when we can't parse the date or it's >14 days out / past.
-export function countdownLabel(start: string): { headline: string; subhead: string; urgent: boolean } | null {
+export function countdownLabel(start: string, t: (key: string) => string): { headline: string; subhead: string; urgent: boolean } | null {
   if (!start) return null;
   const parsed = Date.parse(`${start} ${new Date().getFullYear()}`);
   if (isNaN(parsed)) return null;
   const ms = parsed - Date.now();
   const days = Math.floor(ms / 86_400_000);
   if (days < 0 || days > 14) return null;
-  if (days === 0) return { headline: "Today is set day", subhead: "Make sure you've reviewed the call sheet.", urgent: true };
-  if (days === 1) return { headline: "On set tomorrow", subhead: "Final check on transport, wardrobe, and call time.", urgent: true };
-  if (days <= 3) return { headline: `On set in ${days} days`, subhead: "Confirm any open items with the coordinator.", urgent: true };
-  return { headline: `On set in ${days} days`, subhead: "All set — we'll send a final reminder closer to the day.", urgent: false };
+  if (days === 0) return { headline: t("dashboard.adminTabs.booking.countdownTodayHeadline"), subhead: t("dashboard.adminTabs.booking.countdownTodaySub"), urgent: true };
+  if (days === 1) return { headline: t("dashboard.adminTabs.booking.countdownTomorrowHeadline"), subhead: t("dashboard.adminTabs.booking.countdownTomorrowSub"), urgent: true };
+  if (days <= 3) return { headline: interpolate(t("dashboard.adminTabs.booking.countdownDaysHeadline"), { count: days }), subhead: t("dashboard.adminTabs.booking.countdownDaysSubSoon"), urgent: true };
+  return { headline: interpolate(t("dashboard.adminTabs.booking.countdownDaysHeadline"), { count: days }), subhead: t("dashboard.adminTabs.booking.countdownDaysSubFar"), urgent: false };
 }
 
 // ── TalentPaymentTab — talent's own slice of the financial picture.
@@ -585,6 +592,7 @@ export function countdownLabel(start: string): { headline: string; subhead: stri
 // invoice / commercial offer here — just the talent's own line. ──
 export function TalentPaymentTab({ conv, yourRate }: { conv: Conversation; yourRate: string }) {
   const { toast } = useAdminShell();
+  const t = useT();
   const isPast = conv.stage === "past";
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
@@ -595,26 +603,26 @@ export function TalentPaymentTab({ conv, yourRate }: { conv: Conversation; yourR
         borderRadius: 12, padding: 16,
       }}>
         <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, color: isPast ? COLORS.inkMuted : (COLORS.successDeep ?? COLORS.success), textTransform: "uppercase" }}>
-          {isPast ? "Paid" : "Your take-home"}
+          {isPast ? t("dashboard.adminTabs.talentPayment.paid") : t("dashboard.adminTabs.talentPayment.yourTakeHome")}
         </div>
         <div style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 700, marginTop: 4, letterSpacing: -0.4 }} className="text-admin-ink">
           {yourRate}
         </div>
         <div style={{ fontSize: 11.5, marginTop: 4 }} className="text-admin-ink-muted">
-          {isPast ? "Receipt available below." : "Released 14 days after wrap, once the client invoice clears."}
+          {isPast ? t("dashboard.adminTabs.talentPayment.receiptBelow") : t("dashboard.adminTabs.talentPayment.releasedAfterWrap")}
         </div>
       </div>
 
       {/* Status timeline — what's happened so far. */}
-      <DetailSection title="Status">
-        <PaymentStep done label="Booking confirmed" detail="Contract signed and locked." />
-        <PaymentStep done={isPast} label="Wrap" detail={isPast ? "Shoot wrapped on time." : "Pending — set day."} />
-        <PaymentStep done={isPast} label="Client invoice" detail={isPast ? "Paid in full." : "Issued · awaiting client (NET 30)."} />
-        <PaymentStep done={isPast} label="Talent payout" detail={isPast ? "Transferred to your bank." : "Released 14 days after wrap."} />
+      <DetailSection title={t("dashboard.adminTabs.talentPayment.status")}>
+        <PaymentStep done label={t("dashboard.adminTabs.talentPayment.bookingConfirmed")} detail={t("dashboard.adminTabs.talentPayment.bookingConfirmedDetail")} />
+        <PaymentStep done={isPast} label={t("dashboard.adminTabs.talentPayment.wrap")} detail={isPast ? t("dashboard.adminTabs.talentPayment.wrapDone") : t("dashboard.adminTabs.talentPayment.wrapPending")} />
+        <PaymentStep done={isPast} label={t("dashboard.adminTabs.talentPayment.clientInvoice")} detail={isPast ? t("dashboard.adminTabs.talentPayment.clientInvoiceDone") : t("dashboard.adminTabs.talentPayment.clientInvoicePending")} />
+        <PaymentStep done={isPast} label={t("dashboard.adminTabs.talentPayment.talentPayout")} detail={isPast ? t("dashboard.adminTabs.talentPayment.talentPayoutDone") : t("dashboard.adminTabs.talentPayment.talentPayoutPending")} />
       </DetailSection>
 
       {/* Payment method — talent picks how they get paid. */}
-      <DetailSection title="Pay me to">
+      <DetailSection title={t("dashboard.adminTabs.talentPayment.payMeTo")}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10 }}>
           <span aria-hidden style={{
             width: 32, height: 32, borderRadius: 8,
@@ -627,24 +635,24 @@ export function TalentPaymentTab({ conv, yourRate }: { conv: Conversation; yourR
             </svg>
           </span>
           <div className="flex-1 min-w-0">
-            <div className="text-admin-ink text-admin-12h font-semibold">Bank transfer · ES•••• 4421</div>
-            <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">Default · added Mar 2024</div>
+            <div className="text-admin-ink text-admin-12h font-semibold">{t("dashboard.adminTabs.talentPayment.bankTransfer")}</div>
+            <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{t("dashboard.adminTabs.talentPayment.bankDefault")}</div>
           </div>
-          <button type="button" onClick={() => toast("Change payment method")} style={{
+          <button type="button" onClick={() => toast(t("dashboard.adminTabs.talentPayment.changeMethod"))} style={{
             padding: "5px 11px", borderRadius: 999, fontSize: 11, fontWeight: 600,
             border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.ink, cursor: "pointer",
-          }}>Change</button>
+          }}>{t("dashboard.adminTabs.talentPayment.change")}</button>
         </div>
       </DetailSection>
 
       {isPast && (
-        <DetailSection title="Receipt">
+        <DetailSection title={t("dashboard.adminTabs.talentPayment.receipt")}>
           {/* Phase A C1 — dead-chrome sweep: was disabled with no
               feedback. Now click → toast about when it lands. */}
           <button
             type="button"
-            onClick={() => toast("Receipt download lands with the Money phase (Stripe-issued PDF). Coming soon.")}
-            title="Coming soon"
+            onClick={() => toast(t("dashboard.adminTabs.talentPayment.receiptToast"))}
+            title={t("dashboard.adminTabs.talentPayment.receiptComingSoon")}
             style={{
               padding: "8px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 600,
               border: `1.5px dashed ${COLORS.border}`,
@@ -656,8 +664,8 @@ export function TalentPaymentTab({ conv, yourRate }: { conv: Conversation; yourR
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
               <path d="M7 1v9m0 0L4 7m3 3l3-3M2 12h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Receipt download
-            <span style={{ fontSize: 10.5, opacity: 0.7 }}>· soon</span>
+            {t("dashboard.adminTabs.talentPayment.receiptDownload")}
+            <span style={{ fontSize: 10.5, opacity: 0.7 }}>· {t("dashboard.adminTabs.talentPayment.soon")}</span>
           </button>
         </DetailSection>
       )}

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import type { ReactNode } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { loadAgencyAutoAck, updateAgencyAutoAck } from "@/lib/server-actions/admin-workspace-settings";
 import { Card, Divider, Icon, LockedCard, PaymentStatusChip, PayoutStatusChip, PlanChip, PrimaryButton, PrimaryCard, ReadOnlyChip, SecondaryCard, scrollBehavior } from "../primitives";
 import { COLORS, FONTS, PAYOUT_STATUS_META, PLAN_FEE_META, PLAN_META, RADIUS, TRANSITION, WORKSPACE_PAYMENTS, getWorkspacePayout, meetsPlan, meetsRole, useAdminShell } from "../state";
@@ -107,6 +109,7 @@ export function TierCard({
   onUpgrade: () => void;
   meta?: ReactNode;
 }) {
+  const t = useT();
   const unlocked = meetsPlan(currentPlan, requiredPlan);
   if (unlocked) {
     return (
@@ -114,7 +117,7 @@ export function TierCard({
         title={title}
         description={description}
         icon={<Icon name={icon} size={14} stroke={1.7} />}
-        affordance="Open"
+        affordance={t("dashboard.adminBilling.affordanceOpen")}
         onClick={onClick}
         meta={meta}
       />
@@ -131,12 +134,13 @@ export function TierCard({
 }
 
 function PlanLadderStrip() {
+  const t = useT();
   const { state, setPlan, openUpgrade } = useAdminShell();
   const items: { plan: Plan; promise: string }[] = [
-    { plan: "free", promise: "Public storefront on Tulala discovery" },
-    { plan: "studio", promise: "Custom domain + private inquiries" },
-    { plan: "agency", promise: "Branded design + custom fields + team" },
-    { plan: "network", promise: "Multi-brand hub + cross-roster pool" },
+    { plan: "free", promise: t("dashboard.adminBilling.planPromiseFree") },
+    { plan: "studio", promise: t("dashboard.adminBilling.planPromiseStudio") },
+    { plan: "agency", promise: t("dashboard.adminBilling.planPromiseAgency") },
+    { plan: "network", promise: t("dashboard.adminBilling.planPromiseNetwork") },
   ];
   return (
     <div
@@ -209,7 +213,7 @@ function PlanLadderStrip() {
                     borderRadius: 4,
                                       }}
                 >
-                  Current
+                  {t("dashboard.adminBilling.current")}
                 </span>
               )}
               {!isReached && <Icon name="lock" size={10} stroke={1.7} color={COLORS.inkDim} />}
@@ -243,6 +247,7 @@ function PlanLadderStrip() {
 // The data layer lives in _state.tsx. This page is presentation only.
 
 function BillingPage() {
+  const t = useT();
   const { state, openDrawer, openUpgrade } = useAdminShell();
   const isOwner = state.role === "owner";
   const isAdmin = meetsRole(state.role, "admin");
@@ -253,12 +258,12 @@ function BillingPage() {
   return (
     <>
       <PageHeader
-        title="Billing"
-        subtitle="Platform fee, payout routing, and recent payment activity."
+        title={t("dashboard.adminBilling.title")}
+        subtitle={t("dashboard.adminBilling.subtitle")}
         actions={
           isOwner ? (
             <PrimaryButton onClick={() => openDrawer("plan-billing")}>
-              Manage plan
+              {t("dashboard.adminBilling.managePlan")}
             </PrimaryButton>
           ) : null
         }
@@ -267,48 +272,48 @@ function BillingPage() {
       {/* Top row — fee economics + default receiver */}
       <Grid cols="2">
         <PrimaryCard
-          title={`Platform fee · ${fee.label}`}
+          title={interpolate(t("dashboard.adminBilling.platformFeeTitle"), { label: fee.label })}
           description={fee.controlsHint}
           icon={<Icon name="credit" size={14} stroke={1.7} />}
           badge={<PlanChip plan={state.plan} variant="solid" />}
-          affordance={isOwner ? "Compare plan fees" : "View"}
+          affordance={isOwner ? t("dashboard.adminBilling.comparePlanFees") : t("dashboard.adminBilling.affordanceView")}
           onClick={() => openDrawer("plan-billing")}
         />
 
         {!isFree && isAdmin ? (
           <PrimaryCard
-            title="Default payout receiver"
+            title={t("dashboard.adminBilling.defaultPayoutReceiver")}
             description={`${payout.defaultReceiver.displayName}${payout.defaultReceiver.legalName ? ` · ${payout.defaultReceiver.legalName}` : ""}`}
             icon={<Icon name="team" size={14} stroke={1.7} />}
             badge={<PayoutStatusChip status={payout.defaultReceiver.status} />}
-            affordance="Manage receiver"
+            affordance={t("dashboard.adminBilling.manageReceiver")}
             onClick={() => openDrawer("payments-setup")}
           />
         ) : isFree ? (
           <LockedCard
-            title="Default payout receiver"
-            description="Free workspaces don't run payments through Tulala. Studio unlocks card acceptance + payout routing."
+            title={t("dashboard.adminBilling.defaultPayoutReceiver")}
+            description={t("dashboard.adminBilling.payoutReceiverLockedDesc")}
             requiredPlan="studio"
             onClick={() =>
               openUpgrade({
-                feature: "Payments",
-                why: "Accept client card payments and route net payout to one verified receiver per booking.",
+                feature: t("dashboard.adminBilling.paymentsFeature"),
+                why: t("dashboard.adminBilling.paymentsUpgradeWhy"),
                 requiredPlan: "studio",
                 unlocks: [
-                  "Card acceptance (Visa / Mastercard / Amex)",
-                  "Connected payout receiver",
-                  "Lower platform fee",
-                  "Per-booking receipts",
+                  t("dashboard.adminBilling.paymentsUnlock1"),
+                  t("dashboard.adminBilling.paymentsUnlock2"),
+                  t("dashboard.adminBilling.paymentsUnlock3"),
+                  t("dashboard.adminBilling.paymentsUnlock4"),
                 ],
               })
             }
           />
         ) : (
           <SecondaryCard
-            title="Default payout receiver"
+            title={t("dashboard.adminBilling.defaultPayoutReceiver")}
             description={`${payout.defaultReceiver.displayName} · ${PAYOUT_STATUS_META[payout.defaultReceiver.status].label}`}
             meta={<ReadOnlyChip />}
-            affordance="View"
+            affordance={t("dashboard.adminBilling.affordanceView")}
             onClick={() => openDrawer("payments-setup")}
           />
         )}
@@ -318,37 +323,37 @@ function BillingPage() {
       {!isFree && (
         <Grid cols="3">
           <SecondaryCard
-            title="30-day volume"
+            title={t("dashboard.adminBilling.volume30d")}
             description={payout.recentVolume30d}
-            affordance="See activity"
+            affordance={t("dashboard.adminBilling.seeActivity")}
             onClick={() => { document.querySelector("[data-billing-activity]")?.scrollIntoView({ behavior: scrollBehavior(), block: "start" }); }}
           />
           <SecondaryCard
-            title="Pending payouts"
+            title={t("dashboard.adminBilling.pendingPayouts")}
             description={payout.pendingPayouts}
-            affordance="See activity"
+            affordance={t("dashboard.adminBilling.seeActivity")}
             onClick={() => { document.querySelector("[data-billing-activity]")?.scrollIntoView({ behavior: scrollBehavior(), block: "start" }); }}
           />
           <SecondaryCard
-            title="Card acceptance"
-            description={payout.acceptCards ? "Visa · Mastercard · Amex enabled" : "Not enabled"}
-            affordance="Configure"
+            title={t("dashboard.adminBilling.cardAcceptance")}
+            description={payout.acceptCards ? t("dashboard.adminBilling.cardsEnabled") : t("dashboard.adminBilling.notEnabled")}
+            affordance={t("dashboard.adminBilling.affordanceConfigure")}
             onClick={() => openDrawer("payments-setup")}
           />
         </Grid>
       )}
 
-      <div data-billing-activity><Divider label="Recent activity" /></div>
+      <div data-billing-activity><Divider label={t("dashboard.adminBilling.recentActivity")} /></div>
 
       {isFree ? (
         <SecondaryCard
-          title="No payment activity yet"
-          description="Payments turn on at Studio. Free workspaces can still take inquiries — they just settle off-platform."
-          affordance="See plans"
+          title={t("dashboard.adminBilling.noActivityTitle")}
+          description={t("dashboard.adminBilling.noActivityDesc")}
+          affordance={t("dashboard.adminBilling.seePlans")}
           onClick={() =>
             openUpgrade({
-              feature: "Payments",
-              why: "Studio adds card acceptance + connected payout receiver.",
+              feature: t("dashboard.adminBilling.paymentsFeature"),
+              why: t("dashboard.adminBilling.noActivityUpgradeWhy"),
               requiredPlan: "studio",
             })
           }
@@ -371,6 +376,7 @@ function BillingPage() {
 function BillingActivityRow({
   row, onOpen,
 }: { row: typeof WORKSPACE_PAYMENTS[number]; onOpen: () => void }) {
+  const t = useT();
   const [hovered, setHovered] = useState(false);
   return (
     <button
@@ -404,7 +410,7 @@ function BillingActivityRow({
       <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{row.total}</div>
       <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
         {row.netPayout}
-        <div style={{ fontSize: 11 }} className="text-admin-ink-dim">fee {row.fee}</div>
+        <div style={{ fontSize: 11 }} className="text-admin-ink-dim">{interpolate(t("dashboard.adminBilling.feeLabel"), { fee: row.fee })}</div>
       </div>
       <div className="text-admin-ink-muted">{row.receiverName}</div>
       <div>
@@ -412,7 +418,7 @@ function BillingActivityRow({
       </div>
       <div style={{ textAlign: "right", fontSize: 12 }}>
         {hovered ? (
-          <span style={{ fontWeight: 600, fontSize: 11 }} className="text-admin-accent">Details →</span>
+          <span style={{ fontWeight: 600, fontSize: 11 }} className="text-admin-accent">{t("dashboard.adminBilling.details")}</span>
         ) : (
           <span className="text-admin-ink-muted">{row.date}</span>
         )}
@@ -422,6 +428,7 @@ function BillingActivityRow({
 }
 
 function BillingActivityTable() {
+  const t = useT();
   const { openDrawer } = useAdminShell();
   return (
     <div
@@ -434,13 +441,13 @@ function BillingActivityTable() {
     >
       {/* Header row */}
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1.6fr 1fr 1fr 1.2fr 1fr 0.6fr", padding: "10px 16px", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 11, fontWeight: 600 }} className="bg-admin-surface-alt text-admin-ink-muted">
-        <span>Booking</span>
-        <span>Client · brief</span>
-        <span className="text-right">Total</span>
-        <span className="text-right">Net payout</span>
-        <span>Receiver</span>
-        <span>Status</span>
-        <span className="text-right">Date</span>
+        <span>{t("dashboard.adminBilling.colBooking")}</span>
+        <span>{t("dashboard.adminBilling.colClientBrief")}</span>
+        <span className="text-right">{t("dashboard.adminBilling.colTotal")}</span>
+        <span className="text-right">{t("dashboard.adminBilling.colNetPayout")}</span>
+        <span>{t("dashboard.adminBilling.colReceiver")}</span>
+        <span>{t("dashboard.adminBilling.colStatus")}</span>
+        <span className="text-right">{t("dashboard.adminBilling.colDate")}</span>
       </div>
       {WORKSPACE_PAYMENTS.map((row) => (
         <BillingActivityRow
@@ -464,9 +471,15 @@ function BillingActivityTable() {
 // Inline in the Email & communications accordion — toggle + textarea.
 // Loads current values on mount; saves on toggle-change or textarea blur.
 
+// Stable, locale-independent default for the auto-acknowledgement reply.
+// Persisted to the DB as a fallback, so it must NOT vary by UI locale (and
+// carries no em dash per house style).
+const AUTO_ACK_DEFAULT_MESSAGE = "Thanks, we'll get back to you within 4 hours.";
+
 export function AutoAckSettingsRow() {
+  const t = useT();
   const [enabled, setEnabled] = useState<boolean>(true);
-  const [message, setMessage] = useState<string>("Thanks — we'll get back to you within 4 hours.");
+  const [message, setMessage] = useState<string>(AUTO_ACK_DEFAULT_MESSAGE);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -493,7 +506,7 @@ export function AutoAckSettingsRow() {
     startTransition(async () => {
       const res = await updateAgencyAutoAck({
         auto_ack_enabled: nextEnabled,
-        auto_ack_message: nextMessage.trim() || "Thanks — we'll get back to you within 4 hours.",
+        auto_ack_message: nextMessage.trim() || AUTO_ACK_DEFAULT_MESSAGE,
       });
       setSaving(false);
       if (res.ok) {
@@ -512,9 +525,9 @@ export function AutoAckSettingsRow() {
       {/* Toggle row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: enabled ? 10 : 0 }}>
         <div>
-          <div className="text-admin-ink text-admin-13 font-semibold">Auto-acknowledgement</div>
+          <div className="text-admin-ink text-admin-13 font-semibold">{t("dashboard.adminWorkspace.autoAckTitle")}</div>
           <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">
-            Instant reply to clients when a new inquiry is submitted.
+            {t("dashboard.adminWorkspace.autoAckDesc")}
           </div>
         </div>
         <button
@@ -562,7 +575,7 @@ export function AutoAckSettingsRow() {
           onBlur={() => save(enabled, message)}
           disabled={saving}
           maxLength={500}
-          placeholder="Thanks — we'll get back to you within 4 hours."
+          placeholder={t("dashboard.adminWorkspace.autoAckPlaceholder")}
           style={{
             width: "100%",
             boxSizing: "border-box",
@@ -581,10 +594,10 @@ export function AutoAckSettingsRow() {
 
       {/* Status line */}
       {saving && (
-        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>Saving…</div>
+        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>{t("dashboard.adminWorkspace.autoAckSaving")}</div>
       )}
       {savedOk && !saving && (
-        <div style={{ fontSize: 11, color: "#16a34a", marginTop: 4 }}>Saved</div>
+        <div style={{ fontSize: 11, color: "#16a34a", marginTop: 4 }}>{t("dashboard.adminWorkspace.autoAckSaved")}</div>
       )}
       {error && (
         <div style={{ fontSize: 11, color: "#dc2626", marginTop: 4 }}>{error}</div>
@@ -602,11 +615,11 @@ export const SETTINGS_SECTIONS = [
   { id: "workspace",    label: "Workspace",        desc: "Timezone, locale, currency, custom fields, and taxonomy.",             supportLink: "/help/settings/workspace" },
   { id: "commercial-terms", label: "Booking terms", desc: "Default deposit, refund policy, and instant booking for new offers.", supportLink: "/help/settings/booking-terms" },
   { id: "domain",       label: "Domain",           desc: "Run your storefront at your own domain.",                              supportLink: "/help/settings/domain" },
-  { id: "branding",     label: "Branding",         desc: "Logo, colors, email identity — what clients see.",                     supportLink: "/help/settings/branding" },
+  { id: "branding",     label: "Branding",         desc: "Logo, colors, email identity. What clients see.",                     supportLink: "/help/settings/branding" },
   { id: "team",         label: "Team",             desc: "Invite teammates and assign roles.",                                   supportLink: "/help/settings/team" },
   { id: "integrations", label: "Integrations",     desc: "Connect calendars, CRMs, and other tools.",                            supportLink: "/help/settings/integrations" },
   { id: "features",     label: "Feature controls", desc: "Turn platform features on or off for your workspace.",                 supportLink: "/help/settings/features" },
-  { id: "danger",       label: "Danger zone",      desc: "Irreversible operations — proceed with care.",                         supportLink: "/help/settings/danger" },
+  { id: "danger",       label: "Danger zone",      desc: "Irreversible operations. Proceed with care.",                         supportLink: "/help/settings/danger" },
 ] as const;
 type SettingsSection = typeof SETTINGS_SECTIONS[number]["id"];
 

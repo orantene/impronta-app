@@ -13,9 +13,12 @@ import {
   deletePlatformUserNote,
 } from "./actions-notes";
 import type { AdminNote } from "./actions-notes";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import type { PlatformUserRow } from "../../platform-data";
 
 export function AdminNotesSection({ user }: { user: PlatformUserRow }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const [notes, setNotes] = useState<AdminNote[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,7 +84,7 @@ export function AdminNotesSection({ user }: { user: PlatformUserRow }) {
           padding: 0,
         }}
       >
-        <SectionLabel>Admin Notes</SectionLabel>
+        <SectionLabel>{t("dashboard.platform.users.notes.title")}</SectionLabel>
         <span
           style={{
             color: HQ.inkMuted,
@@ -109,7 +112,7 @@ export function AdminNotesSection({ user }: { user: PlatformUserRow }) {
                 textAlign: "center",
               }}
             >
-              Loading notes…
+              {t("dashboard.platform.users.notes.loading")}
             </div>
           ) : (
             <div
@@ -132,7 +135,7 @@ export function AdminNotesSection({ user }: { user: PlatformUserRow }) {
                     marginBottom: 12,
                   }}
                 >
-                  No notes yet — add the first one.
+                  {t("dashboard.platform.users.notes.empty")}
                 </div>
               ) : (
                 <ul
@@ -172,7 +175,7 @@ export function AdminNotesSection({ user }: { user: PlatformUserRow }) {
                             {note.authorDisplayName || note.authorUserId}
                           </span>
                           <span style={{ color: HQ.inkDim, fontSize: 10 }}>
-                            {formatNoteDate(note.createdAt)}
+                            {formatNoteDate(note.createdAt, t)}
                           </span>
                         </div>
                         <div
@@ -191,7 +194,7 @@ export function AdminNotesSection({ user }: { user: PlatformUserRow }) {
                         type="button"
                         disabled={pending}
                         onClick={() => handleDeleteNote(note.id)}
-                        aria-label="Delete note"
+                        aria-label={t("dashboard.platform.users.notes.deleteAria")}
                         style={{
                           width: 24,
                           height: 24,
@@ -208,7 +211,7 @@ export function AdminNotesSection({ user }: { user: PlatformUserRow }) {
                           flexShrink: 0,
                           opacity: pending ? 0.6 : 1,
                         }}
-                        title="Delete note"
+                        title={t("dashboard.platform.users.notes.deleteTitle")}
                       >
                         ✕
                       </button>
@@ -229,7 +232,7 @@ export function AdminNotesSection({ user }: { user: PlatformUserRow }) {
                     value={noteBody}
                     onChange={(e) => setNoteBody(e.target.value)}
                     disabled={pending}
-                    placeholder="Add a note…"
+                    placeholder={t("dashboard.platform.users.notes.placeholder")}
                     style={{
                       width: "100%",
                       minHeight: 60,
@@ -265,7 +268,7 @@ export function AdminNotesSection({ user }: { user: PlatformUserRow }) {
                     opacity: pending || !noteBody.trim() ? 0.6 : 1,
                   }}
                 >
-                  {pending ? "Adding…" : "Add note"}
+                  {pending ? t("dashboard.platform.users.notes.adding") : t("dashboard.platform.users.notes.addNote")}
                 </button>
               </div>
             </div>
@@ -276,7 +279,7 @@ export function AdminNotesSection({ user }: { user: PlatformUserRow }) {
   );
 }
 
-function formatNoteDate(isoString: string): string {
+function formatNoteDate(isoString: string, t: (key: string) => string): string {
   try {
     const date = new Date(isoString);
     const now = new Date();
@@ -285,12 +288,12 @@ function formatNoteDate(isoString: string): string {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return "just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return "yesterday";
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    if (diffMins < 1) return t("dashboard.platform.users.notes.relJustNow");
+    if (diffMins < 60) return interpolate(t("dashboard.platform.users.notes.relMinsAgo"), { count: diffMins });
+    if (diffHours < 24) return interpolate(t("dashboard.platform.users.notes.relHoursAgo"), { count: diffHours });
+    if (diffDays === 1) return t("dashboard.platform.users.notes.relYesterday");
+    if (diffDays < 7) return interpolate(t("dashboard.platform.users.notes.relDaysAgo"), { count: diffDays });
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   } catch {
     return "—";
   }

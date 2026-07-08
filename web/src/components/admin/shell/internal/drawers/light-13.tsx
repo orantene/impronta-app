@@ -17,12 +17,15 @@ import {
   vmSmallHelpStyle,
   vmTextInputStyle
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 10 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function TalentPhoneVerifyDrawer() {
   const { state, closeDrawer, toast, createVerificationRequest, approveVerificationRequest, isVerificationMethodEnabled } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "talent-phone-verify";
   const TALENT_ID = "t1";
   const [phone, setPhone] = useState("");
@@ -33,8 +36,8 @@ export function TalentPhoneVerifyDrawer() {
 
   if (!isVerificationMethodEnabled("phone_verified")) {
     return (
-      <DrawerShell open={open} onClose={closeDrawer} title="Phone Verification" width={520}
-        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}>
+      <DrawerShell open={open} onClose={closeDrawer} title={tt("Phone Verification")} width={520}
+        footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}>
         <MethodDisabledNotice />
       </DrawerShell>
     );
@@ -42,7 +45,7 @@ export function TalentPhoneVerifyDrawer() {
 
   const sendCode = () => {
     if (!/^\+?\d{6,}$/.test(phone.replace(/\s/g, ""))) {
-      toast("Enter a valid phone number with country code");
+      toast(tt("Enter a valid phone number with country code"));
       return;
     }
     const otp = String(Math.floor(100000 + Math.random() * 900000));
@@ -57,16 +60,16 @@ export function TalentPhoneVerifyDrawer() {
     });
     setRequestId(req.id);
     setStage("code");
-    toast(`Code sent to ${phone} (demo: ${otp})`);
+    toast(copy.isSpanish ? `Código enviado a ${phone} (demo: ${otp})` : `Code sent to ${phone} (demo: ${otp})`);
   };
 
   const verifyCode = () => {
     if (code.trim() === generatedCode && requestId) {
       approveVerificationRequest(requestId);
       setStage("done");
-      toast("Phone verified");
+      toast(tt("Phone verified"));
     } else {
-      toast("Wrong code · try again");
+      toast(tt("Wrong code · try again"));
     }
   };
 
@@ -74,37 +77,37 @@ export function TalentPhoneVerifyDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Verify your phone"
-      description="Confirm a working phone number — used for security alerts. Stays internal — never shown publicly."
+      title={tt("Verify your phone")}
+      description={tt("Confirm a working phone number — used for security alerts. Stays internal — never shown publicly.")}
       width={520}
-      footer={<SecondaryButton onClick={closeDrawer}>{stage === "done" ? "Close" : "Cancel"}</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{stage === "done" ? tt("Close") : tt("Cancel")}</SecondaryButton>}
     >
       {stage === "phone" && (
         <>
-          <VmFieldLabel>Phone number</VmFieldLabel>
+          <VmFieldLabel>{tt("Phone number")}</VmFieldLabel>
           <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
             placeholder="+34 600 000 000" autoFocus style={vmTextInputStyle()} />
-          <div style={vmSmallHelpStyle()}>Include country code. Standard SMS rates apply.</div>
-          <PrimaryButton onClick={sendCode}>Send code</PrimaryButton>
+          <div style={vmSmallHelpStyle()}>{tt("Include country code. Standard SMS rates apply.")}</div>
+          <PrimaryButton onClick={sendCode}>{tt("Send code")}</PrimaryButton>
         </>
       )}
       {stage === "code" && (
         <>
           <div style={{ marginBottom: 14, padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12 }} className="bg-admin-surface text-admin-ink">
-            Code sent to <strong>{phone}</strong>. Expires in 10 min. Demo code: <strong>{generatedCode}</strong>
+            {tt("Code sent to")} <strong>{phone}</strong>. {tt("Expires in 10 min. Demo code:")} <strong>{generatedCode}</strong>
           </div>
-          <VmFieldLabel>6-digit code</VmFieldLabel>
+          <VmFieldLabel>{tt("6-digit code")}</VmFieldLabel>
           <input type="text" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             autoFocus style={{ ...vmTextInputStyle(), letterSpacing: 6, fontSize: 18, textAlign: "center" }} />
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <SecondaryButton onClick={() => setStage("phone")}>Change number</SecondaryButton>
-            <PrimaryButton onClick={verifyCode}>Verify</PrimaryButton>
+            <SecondaryButton onClick={() => setStage("phone")}>{tt("Change number")}</SecondaryButton>
+            <PrimaryButton onClick={verifyCode}>{tt("Verify")}</PrimaryButton>
           </div>
         </>
       )}
       {stage === "done" && (
         <div style={{ padding: 20, borderRadius: 12, fontSize: 13, textAlign: "center", fontWeight: 600 }} className="bg-admin-success-soft text-admin-success-deep">
-          ✓ Phone verified. Your account security level just went up.
+          ✓ {tt("Phone verified. Your account security level just went up.")}
         </div>
       )}
     </DrawerShell>
@@ -114,6 +117,8 @@ export function TalentPhoneVerifyDrawer() {
 
 export function TalentIdVerifyDrawer() {
   const { state, closeDrawer, toast, createVerificationRequest, isVerificationMethodEnabled, getVerificationMethodConfig } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "talent-id-verify";
   const TALENT_ID = "t1";
   const [docType, setDocType] = useState<"passport" | "drivers_license" | "national_id">("passport");
@@ -122,8 +127,8 @@ export function TalentIdVerifyDrawer() {
 
   if (!isVerificationMethodEnabled("id_verified")) {
     return (
-      <DrawerShell open={open} onClose={closeDrawer} title="ID Verification" width={560}
-        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}>
+      <DrawerShell open={open} onClose={closeDrawer} title={tt("ID Verification")} width={560}
+        footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}>
         <MethodDisabledNotice />
       </DrawerShell>
     );
@@ -131,7 +136,7 @@ export function TalentIdVerifyDrawer() {
   const cfg = getVerificationMethodConfig("id_verified");
   const submit = () => {
     if (cfg.evidenceRequired && !evidenceUrl.trim()) {
-      toast("Upload URL required");
+      toast(tt("Upload URL required"));
       return;
     }
     createVerificationRequest({
@@ -144,7 +149,7 @@ export function TalentIdVerifyDrawer() {
       status: "submitted",
       expiresAt: new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString(),
     });
-    toast("ID submitted · admin review within 48h");
+    toast(tt("ID submitted · admin review within 48h"));
     closeDrawer();
   };
 
@@ -152,30 +157,30 @@ export function TalentIdVerifyDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Verify your ID"
-      description="Upload a government-issued ID. Stays internal — never shown publicly. Used to confirm name + age + identity uniqueness."
+      title={tt("Verify your ID")}
+      description={tt("Upload a government-issued ID. Stays internal — never shown publicly. Used to confirm name + age + identity uniqueness.")}
       width={560}
-      footer={<><SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton><PrimaryButton onClick={submit}>Submit for review</PrimaryButton></>}
+      footer={<><SecondaryButton onClick={closeDrawer}>{tt("Cancel")}</SecondaryButton><PrimaryButton onClick={submit}>{tt("Submit for review")}</PrimaryButton></>}
     >
       <div style={{ padding: "10px 12px", borderRadius: 10, marginBottom: 14, background: "rgba(91,107,160,0.06)", border: `1px solid rgba(91,107,160,0.18)`, fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-indigo-deep">
-        🔒 Documents are encrypted, viewed only by trained reviewers, and deleted 30 days after decision.
+        🔒 {tt("Documents are encrypted, viewed only by trained reviewers, and deleted 30 days after decision.")}
       </div>
 
-      <VmFieldLabel>Document type</VmFieldLabel>
+      <VmFieldLabel>{tt("Document type")}</VmFieldLabel>
       <select value={docType} onChange={(e) => setDocType(e.target.value as "passport" | "drivers_license" | "national_id")} style={{ ...vmTextInputStyle(), cursor: "pointer" }}>
-        <option value="passport">Passport</option>
-        <option value="drivers_license">Driver&apos;s license</option>
-        <option value="national_id">National ID card</option>
+        <option value="passport">{tt("Passport")}</option>
+        <option value="drivers_license">{tt("Driver's license")}</option>
+        <option value="national_id">{tt("National ID card")}</option>
       </select>
 
-      <VmFieldLabel>Document URL{cfg.evidenceRequired ? " *" : ""}</VmFieldLabel>
+      <VmFieldLabel>{tt("Document URL")}{cfg.evidenceRequired ? " *" : ""}</VmFieldLabel>
       <input type="url" value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)}
-        placeholder="https://… secure upload link" style={vmTextInputStyle()} />
-      <div style={vmSmallHelpStyle()}>In production this is a direct upload. Prototype expects a secure URL (e.g. signed S3 / Drive link).</div>
+        placeholder={copy.isSpanish ? "https://… enlace seguro de subida" : "https://… secure upload link"} style={vmTextInputStyle()} />
+      <div style={vmSmallHelpStyle()}>{tt("In production this is a direct upload. Prototype expects a secure URL (e.g. signed S3 / Drive link).")}</div>
 
-      <VmFieldLabel>Note for reviewer (optional)</VmFieldLabel>
+      <VmFieldLabel>{tt("Note for reviewer (optional)")}</VmFieldLabel>
       <textarea value={evidenceNote} onChange={(e) => setEvidenceNote(e.target.value)} rows={3}
-        placeholder="e.g. Name in document is 'María Reyes' — same as profile."
+        placeholder={tt("e.g. Name in document is 'María Reyes' — same as profile.")}
         style={{ ...vmTextInputStyle(), resize: "vertical" }} />
     </DrawerShell>
   );
@@ -184,6 +189,8 @@ export function TalentIdVerifyDrawer() {
 
 export function TalentBusinessVerifyDrawer() {
   const { state, closeDrawer, toast, createVerificationRequest, isVerificationMethodEnabled, getVerificationMethodConfig } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "talent-business-verify";
   const TALENT_ID = "t1";
   const [legalName, setLegalName] = useState("");
@@ -192,16 +199,16 @@ export function TalentBusinessVerifyDrawer() {
 
   if (!isVerificationMethodEnabled("business_verified")) {
     return (
-      <DrawerShell open={open} onClose={closeDrawer} title="Business Verification" width={560}
-        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}>
+      <DrawerShell open={open} onClose={closeDrawer} title={tt("Business Verification")} width={560}
+        footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}>
         <MethodDisabledNotice />
       </DrawerShell>
     );
   }
   const cfg = getVerificationMethodConfig("business_verified");
   const submit = () => {
-    if (!legalName.trim() || !vat.trim()) { toast("Legal name + VAT/registration number required"); return; }
-    if (cfg.evidenceRequired && !registryUrl.trim()) { toast("Public registry URL required by platform policy"); return; }
+    if (!legalName.trim() || !vat.trim()) { toast(tt("Legal name + VAT/registration number required")); return; }
+    if (cfg.evidenceRequired && !registryUrl.trim()) { toast(tt("Public registry URL required by platform policy")); return; }
     createVerificationRequest({
       subjectType: "talent_profile", subjectId: TALENT_ID,
       requestedByUserId: "u-current-talent", context: "agency",
@@ -212,7 +219,7 @@ export function TalentBusinessVerifyDrawer() {
       status: "submitted",
       expiresAt: new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString(),
     });
-    toast("Business details submitted · review within 3 business days");
+    toast(tt("Business details submitted · review within 3 business days"));
     closeDrawer();
   };
 
@@ -220,20 +227,20 @@ export function TalentBusinessVerifyDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Verify your business"
-      description="Confirm the registered legal entity behind your work. Public badge."
+      title={tt("Verify your business")}
+      description={tt("Confirm the registered legal entity behind your work. Public badge.")}
       width={560}
-      footer={<><SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton><PrimaryButton onClick={submit}>Submit</PrimaryButton></>}
+      footer={<><SecondaryButton onClick={closeDrawer}>{tt("Cancel")}</SecondaryButton><PrimaryButton onClick={submit}>{tt("Submit")}</PrimaryButton></>}
     >
-      <VmFieldLabel>Legal entity name *</VmFieldLabel>
+      <VmFieldLabel>{tt("Legal entity name *")}</VmFieldLabel>
       <input type="text" value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder="e.g. Reyes Studio S.L." style={vmTextInputStyle()} />
 
-      <VmFieldLabel>VAT / registration number *</VmFieldLabel>
+      <VmFieldLabel>{tt("VAT / registration number *")}</VmFieldLabel>
       <input type="text" value={vat} onChange={(e) => setVat(e.target.value)} placeholder="e.g. ESB12345678" style={vmTextInputStyle()} />
 
-      <VmFieldLabel>Public registry URL{cfg.evidenceRequired ? " *" : " (optional)"}</VmFieldLabel>
-      <input type="url" value={registryUrl} onChange={(e) => setRegistryUrl(e.target.value)} placeholder="https://… link to registry record" style={vmTextInputStyle()} />
-      <div style={vmSmallHelpStyle()}>e.g. Companies House, DIC, Sociedades Mercantiles.{cfg.evidenceRequired ? " Required by platform policy." : ""}</div>
+      <VmFieldLabel>{tt("Public registry URL")}{cfg.evidenceRequired ? " *" : ` ${copy.isSpanish ? "(opcional)" : "(optional)"}`}</VmFieldLabel>
+      <input type="url" value={registryUrl} onChange={(e) => setRegistryUrl(e.target.value)} placeholder={copy.isSpanish ? "https://… enlace al registro" : "https://… link to registry record"} style={vmTextInputStyle()} />
+      <div style={vmSmallHelpStyle()}>{tt("e.g. Companies House, DIC, Sociedades Mercantiles.")}{cfg.evidenceRequired ? ` ${tt("Required by platform policy.")}` : ""}</div>
     </DrawerShell>
   );
 }
@@ -241,6 +248,8 @@ export function TalentBusinessVerifyDrawer() {
 
 export function TalentDomainVerifyDrawer() {
   const { state, closeDrawer, toast, createVerificationRequest, approveVerificationRequest, isVerificationMethodEnabled } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "talent-domain-verify";
   const TALENT_ID = "t1";
   const [domain, setDomain] = useState("");
@@ -250,15 +259,15 @@ export function TalentDomainVerifyDrawer() {
 
   if (!isVerificationMethodEnabled("domain_verified")) {
     return (
-      <DrawerShell open={open} onClose={closeDrawer} title="Domain Verification" width={560}
-        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}>
+      <DrawerShell open={open} onClose={closeDrawer} title={tt("Domain Verification")} width={560}
+        footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}>
         <MethodDisabledNotice />
       </DrawerShell>
     );
   }
   const startCheck = () => {
     if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(domain.trim())) {
-      toast("Enter a valid domain (e.g. martareyes.com)");
+      toast(tt("Enter a valid domain (e.g. martareyes.com)"));
       return;
     }
     const txt = `tulala-verify=${Math.random().toString(36).slice(2, 14)}`;
@@ -280,7 +289,7 @@ export function TalentDomainVerifyDrawer() {
     setTimeout(() => {
       if (requestId) approveVerificationRequest(requestId);
       setStage("done");
-      toast("DNS record found · domain verified");
+      toast(tt("DNS record found · domain verified"));
     }, 1500);
   };
 
@@ -288,40 +297,40 @@ export function TalentDomainVerifyDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Verify your domain"
-      description="Prove you control a domain (e.g. martareyes.com). Public badge — adds credibility."
+      title={tt("Verify your domain")}
+      description={tt("Prove you control a domain (e.g. martareyes.com). Public badge — adds credibility.")}
       width={560}
-      footer={<SecondaryButton onClick={closeDrawer}>{stage === "done" ? "Close" : "Cancel"}</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{stage === "done" ? tt("Close") : tt("Cancel")}</SecondaryButton>}
     >
       {stage === "input" && (
         <>
-          <VmFieldLabel>Domain</VmFieldLabel>
+          <VmFieldLabel>{tt("Domain")}</VmFieldLabel>
           <input type="text" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="martareyes.com" autoFocus style={vmTextInputStyle()} />
-          <div style={vmSmallHelpStyle()}>Just the domain — no https:// or paths.</div>
-          <PrimaryButton onClick={startCheck}>Get DNS instructions</PrimaryButton>
+          <div style={vmSmallHelpStyle()}>{tt("Just the domain — no https:// or paths.")}</div>
+          <PrimaryButton onClick={startCheck}>{tt("Get DNS instructions")}</PrimaryButton>
         </>
       )}
       {stage === "instructions" && (
         <>
-          <div style={{ fontSize: 13, marginBottom: 10 }} className="text-admin-ink">Add this TXT record to <strong>{domain}</strong>:</div>
+          <div style={{ fontSize: 13, marginBottom: 10 }} className="text-admin-ink">{tt("Add this TXT record to")} <strong>{domain}</strong>:</div>
           <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14, fontFamily: FONTS.mono ?? FONTS.body, fontSize: 12, lineHeight: 1.6 }} className="bg-admin-surface text-admin-ink">
-            <div><strong>Type:</strong> TXT</div>
-            <div><strong>Host:</strong> @</div>
-            <div><strong>Value:</strong> {txtValue}</div>
+            <div><strong>{tt("Type:")}</strong> TXT</div>
+            <div><strong>{tt("Host:")}</strong> @</div>
+            <div><strong>{tt("Value:")}</strong> {txtValue}</div>
             <div><strong>TTL:</strong> 3600</div>
           </div>
-          <div style={vmSmallHelpStyle()}>DNS can take 5–30 minutes to propagate. Once added, click below.</div>
-          <PrimaryButton onClick={runCheck}>I&apos;ve added the record · check now</PrimaryButton>
+          <div style={vmSmallHelpStyle()}>{tt("DNS can take 5–30 minutes to propagate. Once added, click below.")}</div>
+          <PrimaryButton onClick={runCheck}>{tt("I've added the record · check now")}</PrimaryButton>
         </>
       )}
       {stage === "checking" && (
         <div style={{ textAlign: "center", padding: 30, fontSize: 13 }} className="text-admin-ink-muted">
-          Looking up TXT record on {domain}…
+          {tt("Looking up TXT record on")} {domain}…
         </div>
       )}
       {stage === "done" && (
         <div style={{ padding: 20, borderRadius: 12, fontSize: 13, textAlign: "center", fontWeight: 600 }} className="bg-admin-success-soft text-admin-success-deep">
-          ✓ {domain} verified. Domain badge is live.
+          ✓ {domain} {tt("verified. Domain badge is live.")}
         </div>
       )}
     </DrawerShell>
@@ -331,14 +340,16 @@ export function TalentDomainVerifyDrawer() {
 
 export function TalentPaymentVerifyDrawer() {
   const { state, closeDrawer, toast, createVerificationRequest, approveVerificationRequest, isVerificationMethodEnabled } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "talent-payment-verify";
   const TALENT_ID = "t1";
   const [stage, setStage] = useState<"intro" | "running" | "done">("intro");
 
   if (!isVerificationMethodEnabled("payment_verified")) {
     return (
-      <DrawerShell open={open} onClose={closeDrawer} title="Payment Verification" width={520}
-        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}>
+      <DrawerShell open={open} onClose={closeDrawer} title={tt("Payment Verification")} width={520}
+        footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}>
         <MethodDisabledNotice />
       </DrawerShell>
     );
@@ -356,7 +367,7 @@ export function TalentPaymentVerifyDrawer() {
       });
       approveVerificationRequest(req.id);
       setStage("done");
-      toast("Payment account verified");
+      toast(tt("Payment account verified"));
     }, 1500);
   };
 
@@ -364,27 +375,27 @@ export function TalentPaymentVerifyDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Verify payment account"
-      description="Confirm a working payout method. Internal only — improves your trust score for clients."
+      title={tt("Verify payment account")}
+      description={tt("Confirm a working payout method. Internal only — improves your trust score for clients.")}
       width={520}
-      footer={<SecondaryButton onClick={closeDrawer}>{stage === "done" ? "Close" : "Cancel"}</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{stage === "done" ? tt("Close") : tt("Cancel")}</SecondaryButton>}
     >
       {stage === "intro" && (
         <>
           <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 14 }} className="text-admin-ink">
-            We&apos;ll attempt a €1 hold on your connected payout method, then immediately refund it. Nothing actually moves.
+            {tt("We'll attempt a €1 hold on your connected payout method, then immediately refund it. Nothing actually moves.")}
           </div>
-          <PrimaryButton onClick={run}>Run check</PrimaryButton>
+          <PrimaryButton onClick={run}>{tt("Run check")}</PrimaryButton>
         </>
       )}
       {stage === "running" && (
         <div style={{ textAlign: "center", padding: 30, fontSize: 13 }} className="text-admin-ink-muted">
-          Pinging Stripe…
+          {tt("Pinging Stripe…")}
         </div>
       )}
       {stage === "done" && (
         <div style={{ padding: 20, borderRadius: 12, fontSize: 13, textAlign: "center", fontWeight: 600 }} className="bg-admin-success-soft text-admin-success-deep">
-          ✓ Payment account verified.
+          ✓ {tt("Payment account verified.")}
         </div>
       )}
     </DrawerShell>
@@ -402,6 +413,8 @@ export function TalentPaymentVerifyDrawer() {
 
 export function ClientCsvBulkAddDrawer() {
   const { state, closeDrawer, bulkAddClient, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "client-csv-bulk-add";
   const [raw, setRaw] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -445,34 +458,38 @@ Net-a-Porter,Helena Ross,helena@net-a-porter.com`;
 
   const footer = (
     <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-      <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+      <SecondaryButton onClick={closeDrawer}>{tt("Cancel")}</SecondaryButton>
       <PrimaryButton
         disabled={valid === 0}
         onClick={() => {
           const created = bulkAddClient(parsed.map(r => ({ name: r.name, contact: r.contact, email: r.email })));
           if (created > 0) {
-            toast(`Imported ${created} client${created === 1 ? "" : "s"}`);
+            toast(copy.isSpanish
+              ? `${created} cliente${created === 1 ? "" : "s"} importado${created === 1 ? "" : "s"}`
+              : `Imported ${created} client${created === 1 ? "" : "s"}`);
             closeDrawer();
           } else {
-            toast("No valid rows — each row needs a name + contact or email");
+            toast(tt("No valid rows — each row needs a name + contact or email"));
           }
         }}
       >
-        Import {valid > 0 ? `${valid} client${valid === 1 ? "" : "s"}` : "clients"}
+        {copy.isSpanish
+          ? `Importar ${valid > 0 ? `${valid} cliente${valid === 1 ? "" : "s"}` : "clientes"}`
+          : `Import ${valid > 0 ? `${valid} client${valid === 1 ? "" : "s"}` : "clients"}`}
       </PrimaryButton>
     </div>
   );
 
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Bulk import clients" description="Paste or upload a CSV of clients to add to your workspace." footer={footer}>
+    <DrawerShell open={open} onClose={closeDrawer} title={tt("Bulk import clients")} description={tt("Paste or upload a CSV of clients to add to your workspace.")} footer={footer}>
       <div style={{ padding: 20, fontFamily: FONTS.body }}>
         <div style={{ padding: 14, borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14 }} className="bg-admin-surface">
           <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink">
-            Paste or upload a CSV
+            {tt("Paste or upload a CSV")}
           </div>
           <div style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
-            Headers we recognize: <code style={{ fontFamily: FONTS.mono }}>name, contact, email</code>.
-            Other column orders work too.
+            {copy.isSpanish ? "Encabezados que reconocemos:" : "Headers we recognize:"} <code style={{ fontFamily: FONTS.mono }}>name, contact, email</code>.
+            {" "}{tt("Other column orders work too.")}
           </div>
           <textarea value={raw}
             onChange={(e) => setRaw(e.target.value)}
@@ -490,19 +507,19 @@ Net-a-Porter,Helena Ross,helena@net-a-porter.com`;
               padding: "7px 12px", borderRadius: 999,
               border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink,
               fontSize: 12, fontWeight: 600, cursor: "pointer",
-            }}>📎 Upload .csv file</button>
+            }}>📎 {tt("Upload .csv file")}</button>
             <button type="button" onClick={() => setRaw(sample)} style={{
               padding: "7px 12px", borderRadius: 999,
               border: `1px dashed ${COLORS.border}`, background: "transparent",
               color: COLORS.inkMuted,
               fontSize: 12, fontWeight: 500, cursor: "pointer",
-            }}>Use sample</button>
+            }}>{tt("Use sample")}</button>
             {raw && (
               <button type="button" onClick={() => setRaw("")} style={{
                 padding: "7px 12px", borderRadius: 999, border: "none",
                 background: "transparent", color: COLORS.inkMuted,
                 fontSize: 12, fontWeight: 500, cursor: "pointer",
-              }}>Clear</button>
+              }}>{tt("Clear")}</button>
             )}
             <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: "none" }}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
@@ -517,7 +534,9 @@ Net-a-Porter,Helena Ross,helena@net-a-porter.com`;
               marginBottom: 8,
             }}>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
-                Preview · {parsed.length} row{parsed.length === 1 ? "" : "s"} ({valid} valid)
+                {copy.isSpanish
+                  ? `Vista previa · ${parsed.length} fila${parsed.length === 1 ? "" : "s"} (${valid} válida${valid === 1 ? "" : "s"})`
+                  : `Preview · ${parsed.length} row${parsed.length === 1 ? "" : "s"} (${valid} valid)`}
               </div>
             </div>
             <div style={{
@@ -551,6 +570,9 @@ Net-a-Porter,Helena Ross,helena@net-a-porter.com`;
 }
 
 
+// NOTE (Wave 17 i18n): TaxonomyDrawer is DEAD — never imported/registered in
+// drawers.tsx (the "taxonomy" case renders TalentTypesDrawer from light-02).
+// Left un-localized on purpose; delete when the god-file cleanup lands.
 export function TaxonomyDrawer() {
   const { closeDrawer } = useAdminShell();
   const taxonomies = [
@@ -599,15 +621,17 @@ export function TaxonomyDrawer() {
 
 export function WidgetsDrawer() {
   const { closeDrawer, effectiveTenant } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Embeddable widgets"
-      description="Drop your roster into any site."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Embeddable widgets")}
+      description={tt("Drop your roster into any site.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
-      <Section title="Active embeds">
+      <Section title={tt("Active embeds")}>
         <div
           style={{
             background: "#fff",
@@ -617,14 +641,14 @@ export function WidgetsDrawer() {
           }}
         >
           <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
-            Roster grid
+            {tt("Roster grid")}
           </div>
           <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-            Used on acme-models.com/talent
+            {tt("Used on")} acme-models.com/talent
           </div>
         </div>
       </Section>
-      <Section title="Embed code">
+      <Section title={tt("Embed code")}>
         <div style={{ color: "#9DD9C7", padding: 12, borderRadius: 8, fontFamily: FONTS.mono, fontSize: 11, lineHeight: 1.7, overflowX: "auto", whiteSpace: "pre" }} className="bg-admin-fill-deep">
 {`<script src="https://embed.tulala.app/v1/widget.js"
   data-tenant="${effectiveTenant.slug}"
@@ -639,20 +663,22 @@ export function WidgetsDrawer() {
 
 export function ApiKeysDrawer() {
   const { closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="API keys"
-      description="Read your roster from your own app."
+      title={tt("API keys")}
+      description={tt("Read your roster from your own app.")}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <PrimaryButton onClick={closeDrawer}>Generate key</PrimaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>
+          <PrimaryButton onClick={closeDrawer}>{tt("Generate key")}</PrimaryButton>
         </>
       }
     >
-      <Section title="Active keys">
+      <Section title={tt("Active keys")}>
         <div
           style={{
             background: "#fff",
@@ -665,10 +691,10 @@ export function ApiKeysDrawer() {
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span className="text-admin-ink">tul_pk_••••••••••a91f</span>
-            <StateChipMini label="Read only" tone="green" />
+            <StateChipMini label={tt("Read only")} tone="green" />
           </div>
           <div style={{ fontSize: 10.5, marginTop: 4, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-            Used 184× in last 7 days
+            {copy.isSpanish ? "Usada 184× en los últimos 7 días" : "Used 184× in last 7 days"}
           </div>
         </div>
       </Section>
@@ -679,22 +705,24 @@ export function ApiKeysDrawer() {
 
 export function SiteHealthDrawer() {
   const { closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const checks = [
-    { label: "Lighthouse score", value: "94", tone: "green" as const },
-    { label: "Image optimization", value: "All optimized", tone: "green" as const },
-    { label: "Broken links", value: "0", tone: "green" as const },
-    { label: "SSL", value: "Valid · auto-renew", tone: "green" as const },
-    { label: "Sitemap", value: "Generated 2h ago", tone: "green" as const },
+    { label: tt("Lighthouse score"), value: "94", tone: "green" as const },
+    { label: tt("Image optimization"), value: copy.isSpanish ? "Todo optimizado" : "All optimized", tone: "green" as const },
+    { label: tt("Broken links"), value: "0", tone: "green" as const },
+    { label: tt("SSL"), value: copy.isSpanish ? "Válido · renovación automática" : "Valid · auto-renew", tone: "green" as const },
+    { label: tt("Sitemap"), value: copy.isSpanish ? "Generado hace 2 h" : "Generated 2h ago", tone: "green" as const },
   ];
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Site health"
-      description="Lighthouse, broken links, image optimization."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Site health")}
+      description={tt("Lighthouse, broken links, image optimization.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
-      <Section title="Latest report">
+      <Section title={tt("Latest report")}>
         <div className="flex flex-col gap-1.5">
           {checks.map((c) => (
             <div

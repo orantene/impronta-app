@@ -346,6 +346,9 @@ export function renderChatCardForMessage(
           amountLabel={get<string>("amount_label", "—")}
           status="requested"
           hint={get<string>("hint", "")}
+          // Staff renderer — eligible for the Mark-paid reconciliation action
+          // (only surfaces once onMarkPaid is wired; unset today).
+          viewerRole="staff"
           // Talent is not the payer — show the requested state without a Pay CTA
           // (suppressPayCta). The client checkout lives on the client surface.
           onPayNow={ctx?.suppressPayCta ? undefined : () => toast("Open Pay-Now sheet — wire on client adapter")}

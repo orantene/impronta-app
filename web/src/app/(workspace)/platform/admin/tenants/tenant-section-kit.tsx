@@ -12,6 +12,7 @@
 import { useState, type ReactNode } from "react";
 import { HQ, HQ_F, HQ_FD } from "./hq-kit";
 import type { TenantManagementDetail } from "../../tenant-management-data";
+import { useT } from "@/i18n/use-t";
 
 export type OnChanged = () => void | Promise<void>;
 
@@ -231,6 +232,7 @@ export function ConfirmModal({
   onCancel: () => void;
   pending: boolean;
 }) {
+  const t = useT();
   if (!open) return null;
   return (
     <div
@@ -276,10 +278,10 @@ export function ConfirmModal({
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <Btn onClick={onCancel} disabled={pending}>
-            Cancel
+            {t("dashboard.platform.tenants.cancel")}
           </Btn>
           <Btn tone="danger" onClick={onConfirm} disabled={pending}>
-            {pending ? "Working…" : confirmLabel}
+            {pending ? t("dashboard.platform.tenants.working") : confirmLabel}
           </Btn>
         </div>
       </div>

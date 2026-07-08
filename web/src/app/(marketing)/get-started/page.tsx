@@ -27,9 +27,9 @@ import { validateDiscount } from "@/lib/server-actions/admin-product-discounts";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export const metadata: Metadata = {
-  title: "Start your business — free",
+  title: "Start your business, free",
   description:
-    "Build your own website in one click, get your link, and start taking bookings and payments. For agencies, networks, bands, studios, teams — or just you.",
+    "Build your own website in one click, get your link, and start taking bookings and payments. For agencies, networks, bands, studios, teams, or just you.",
 };
 
 const FREE_LINK_EXAMPLE = workspacePathHost("your-roster");
@@ -74,7 +74,7 @@ function buildHeadlineByTier(
         eyebrow: studioEyebrow(studio),
         title: "The pipeline, plus WhatsApp.",
         subtitle:
-          "Up to fifty profiles, three seats, and inquiry notifications that ping WhatsApp — where your clients actually write to you.",
+          "Up to fifty profiles, three seats, and inquiry notifications that ping WhatsApp, where your clients actually write to you.",
       },
       agency: {
         eyebrow: "Agency · 14-day trial",
@@ -92,7 +92,7 @@ function buildHeadlineByTier(
         eyebrow: "Start free",
         title: "Start your business. <span style=\"color: var(--plt-forest)\">Free.</span>",
         subtitle:
-          "Build your own website in one click, share your link, and start taking bookings and payments. Run an agency, a network, a band, a studio, a team — or just sell your own work.",
+          "Build your own website in one click, share your link, and start taking bookings and payments. Run an agency, a network, a band, a studio, a team, or just sell your own work.",
       },
     },
     es: {
@@ -106,7 +106,7 @@ function buildHeadlineByTier(
         eyebrow: studioEyebrow(studio),
         title: "El pipeline, más WhatsApp.",
         subtitle:
-          "Hasta cincuenta perfiles, tres lugares y avisos de consultas que llegan a WhatsApp — donde tus clientes de verdad te escriben.",
+          "Hasta cincuenta perfiles, tres lugares y avisos de consultas que llegan a WhatsApp, donde tus clientes de verdad te escriben.",
       },
       agency: {
         eyebrow: "Agency · prueba de 14 días",
@@ -124,7 +124,7 @@ function buildHeadlineByTier(
         eyebrow: "Empieza gratis",
         title: "Empieza tu negocio. <span style=\"color: var(--plt-forest)\">Gratis.</span>",
         subtitle:
-          "Crea tu propio sitio web en un clic, comparte tu link y empieza a recibir reservas y pagos. Lleva una agencia, una red, una banda, un estudio, un equipo — o simplemente vende tu propio trabajo.",
+          "Crea tu propio sitio web en un clic, comparte tu link y empieza a recibir reservas y pagos. Lleva una agencia, una red, una banda, un estudio, un equipo, o simplemente vende tu propio trabajo.",
       },
     },
   });
@@ -269,8 +269,8 @@ function HeroSection({
       imageCaption:
         "Agencies, bands, studios, and solo pros run their business here.",
       founderNote:
-        "Free workspaces are available immediately — claim your link, create your account, and land in your dashboard in minutes. Agency and Network plans include guided setup. No fake social proof, no growth-hack funnel — just a product we\u2019re building with the people who use it.",
-      founderSign: `— Oran, founder · ${PLATFORM_BRAND.name}`,
+        "Free workspaces are available immediately, claim your link, create your account, and land in your dashboard in minutes. Agency and Network plans include guided setup. No fake social proof, no growth-hack funnel, just a product we\u2019re building with the people who use it.",
+      founderSign: `Oran, founder · ${PLATFORM_BRAND.name}`,
       promoApplied: "Promo applied:",
       alreadyAccount: "Already have an account?",
       signIn: "Sign in",
@@ -285,8 +285,8 @@ function HeroSection({
       imageCaption:
         "Agencias, bandas, estudios y profesionales independientes llevan su negocio aquí.",
       founderNote:
-        "Los workspaces gratis están disponibles al instante — reserva tu link, crea tu cuenta y entra a tu panel en minutos. Los planes Agency y Network incluyen configuración guiada. Sin pruebas sociales falsas, sin embudos de growth-hacking — solo un producto que construimos con quienes lo usan.",
-      founderSign: `— Oran, fundador · ${PLATFORM_BRAND.name}`,
+        "Los workspaces gratis están disponibles al instante, reserva tu link, crea tu cuenta y entra a tu panel en minutos. Los planes Agency y Network incluyen configuración guiada. Sin pruebas sociales falsas, sin embudos de growth-hacking, solo un producto que construimos con quienes lo usan.",
+      founderSign: `Oran, fundador · ${PLATFORM_BRAND.name}`,
       promoApplied: "Promo aplicada:",
       alreadyAccount: "¿Ya tienes cuenta?",
       signIn: "Entrar",
@@ -443,7 +443,7 @@ function getAudiences(locale: string): Audience[] {
         key: "solo",
         eyebrow: "Solo & talent",
         title: "Sell your own work.",
-        body: `You're the talent and the business. Get a site, share your link, and take bookings and payments — without building anything or paying someone to do it for you.`,
+        body: `You're the talent and the business. Get a site, share your link, and take bookings and payments, without building anything or paying someone to do it for you.`,
         examples: "Singers, stylists, coaches, chefs, photographers, performers",
       },
       {
@@ -457,14 +457,14 @@ function getAudiences(locale: string): Audience[] {
         key: "teams",
         eyebrow: "Bands & teams",
         title: "One workspace for the crew.",
-        body: "Run the bookings, the calendar, and the money for your whole group in one place. Everyone sees the same schedule — you split the work, not the chaos.",
+        body: "Run the bookings, the calendar, and the money for your whole group in one place. Everyone sees the same schedule, you split the work, not the chaos.",
         examples: "Bands, DJ crews, event teams, production units, collectives",
       },
       {
         key: "networks",
         eyebrow: "Networks & hubs",
         title: "Many pros, one roof.",
-        body: "Bring dozens or hundreds of independents under one branded hub — filterable discovery, role-scoped access, and inquiries that route to the right person.",
+        body: "Bring dozens or hundreds of independents under one branded hub, filterable discovery, role-scoped access, and inquiries that route to the right person.",
         examples: "Local hubs, marketplaces, staffing networks, communities",
       },
     ],
@@ -473,7 +473,7 @@ function getAudiences(locale: string): Audience[] {
         key: "solo",
         eyebrow: "Solo y talento",
         title: "Vende tu propio trabajo.",
-        body: "Eres el talento y el negocio. Ten un sitio, comparte tu link y recibe reservas y pagos — sin construir nada ni pagarle a alguien para que lo haga por ti.",
+        body: "Eres el talento y el negocio. Ten un sitio, comparte tu link y recibe reservas y pagos, sin construir nada ni pagarle a alguien para que lo haga por ti.",
         examples: "Cantantes, estilistas, coaches, chefs, fotógrafos, performers",
       },
       {
@@ -487,14 +487,14 @@ function getAudiences(locale: string): Audience[] {
         key: "teams",
         eyebrow: "Bandas y equipos",
         title: "Un workspace para todo el crew.",
-        body: "Lleva las reservas, el calendario y el dinero de todo tu grupo en un solo lugar. Todos ven la misma agenda — reparten el trabajo, no el caos.",
+        body: "Lleva las reservas, el calendario y el dinero de todo tu grupo en un solo lugar. Todos ven la misma agenda, reparten el trabajo, no el caos.",
         examples: "Bandas, crews de DJ, equipos de eventos, unidades de producción, colectivos",
       },
       {
         key: "networks",
         eyebrow: "Redes y hubs",
         title: "Muchos profesionales, un solo techo.",
-        body: "Reúne a decenas o cientos de independientes bajo un hub con tu marca — directorio con filtros, accesos por rol y consultas que llegan a la persona correcta.",
+        body: "Reúne a decenas o cientos de independientes bajo un hub con tu marca, directorio con filtros, accesos por rol y consultas que llegan a la persona correcta.",
         examples: "Hubs locales, marketplaces, redes de staffing, comunidades",
       },
     ],
@@ -507,12 +507,12 @@ function WhoItsForSection({ locale }: { locale: string }) {
     en: {
       eyebrow: "Who it's for",
       heading: "Whatever you're building, start it here.",
-      subhead: `${PLATFORM_BRAND.name} is the platform for selling services and running a people business — whether that's just you, a full agency, a band, a team, or a whole network. One engine, every shape.`,
+      subhead: `${PLATFORM_BRAND.name} is the platform for selling services and running a people business, whether that's just you, a full agency, a band, a team, or a whole network. One engine, every shape.`,
     },
     es: {
       eyebrow: "Para quién es",
       heading: "Sea lo que sea que estés construyendo, empiézalo aquí.",
-      subhead: `${PLATFORM_BRAND.name} es la plataforma para vender servicios y llevar un negocio de gente — ya seas solo tú, una agencia completa, una banda, un equipo o toda una red. Un motor, todas las formas.`,
+      subhead: `${PLATFORM_BRAND.name} es la plataforma para vender servicios y llevar un negocio de gente, ya seas solo tú, una agencia completa, una banda, un equipo o toda una red. Un motor, todas las formas.`,
     },
   });
   return (
@@ -610,24 +610,24 @@ function getSteps(locale: string) {
       {
         numeral: "01",
         title: "Build your site in one click.",
-        body: `Pick your link and the page builder spins up a real website for your business in minutes — ${FREE_LINK_EXAMPLE}. No code, no credit card.`,
+        body: `Pick your link and the page builder spins up a real website for your business in minutes, ${FREE_LINK_EXAMPLE}. No code, no credit card.`,
         caption: FREE_LINK_EXAMPLE,
       },
       {
         numeral: "02",
         title: "Add your work, services, or team.",
-        body: "Your services, your prices, your roster or band — structured the same way every time, so clients can browse exactly what you offer and what it costs.",
+        body: "Your services, your prices, your roster or band, structured the same way every time, so clients can browse exactly what you offer and what it costs.",
         caption: "Services · team · prices",
       },
       {
         numeral: "03",
         title: "Share your link. Get booked.",
-        body: "Drop your link in a bio, a DM, or a pitch. Clients browse, send an inquiry, and you turn it into a confirmed booking — right inside your messages.",
+        body: "Drop your link in a bio, a DM, or a pitch. Clients browse, send an inquiry, and you turn it into a confirmed booking, right inside your messages.",
         caption: "One link. Everywhere.",
       },
       {
         numeral: "04",
-        title: "Get paid — and grow when you're ready.",
+        title: "Get paid, and grow when you're ready.",
         body: "Take payments in chat, add your own domain, bring on your team, open up to the discovery hub. Upgrade only when it starts paying for itself.",
         caption: "Payments · domain · team",
       },
@@ -636,24 +636,24 @@ function getSteps(locale: string) {
       {
         numeral: "01",
         title: "Crea tu sitio en un clic.",
-        body: `Elige tu link y el editor de páginas levanta un sitio web real para tu negocio en minutos — ${FREE_LINK_EXAMPLE}. Sin código, sin tarjeta.`,
+        body: `Elige tu link y el editor de páginas levanta un sitio web real para tu negocio en minutos, ${FREE_LINK_EXAMPLE}. Sin código, sin tarjeta.`,
         caption: FREE_LINK_EXAMPLE,
       },
       {
         numeral: "02",
         title: "Agrega tu trabajo, servicios o equipo.",
-        body: "Tus servicios, tus precios, tu roster o tu banda — estructurados igual cada vez, para que los clientes vean justo lo que ofreces y cuánto cuesta.",
+        body: "Tus servicios, tus precios, tu roster o tu banda, estructurados igual cada vez, para que los clientes vean justo lo que ofreces y cuánto cuesta.",
         caption: "Servicios · equipo · precios",
       },
       {
         numeral: "03",
         title: "Comparte tu link. Que te reserven.",
-        body: "Pon tu link en una bio, un DM o una propuesta. Los clientes ven, mandan una consulta y tú la conviertes en una reserva confirmada — dentro de tus mensajes.",
+        body: "Pon tu link en una bio, un DM o una propuesta. Los clientes ven, mandan una consulta y tú la conviertes en una reserva confirmada, dentro de tus mensajes.",
         caption: "Un link. En todos lados.",
       },
       {
         numeral: "04",
-        title: "Cobra — y crece cuando estés listo.",
+        title: "Cobra, y crece cuando estés listo.",
         body: "Recibe pagos en el chat, agrega tu propio dominio, suma a tu equipo, ábrete al hub de descubrimiento. Sube de plan solo cuando empiece a pagarse solo.",
         caption: "Pagos · dominio · equipo",
       },
@@ -668,13 +668,13 @@ function HowItWorksSection({ locale }: { locale: string }) {
       eyebrow: "How it works",
       heading: "Four steps to your first booking.",
       subhead:
-        "Most people have a real site and a shareable link before lunch — and start taking bookings the same week. Upgrade only when it pays for itself.",
+        "Most people have a real site and a shareable link before lunch, and start taking bookings the same week. Upgrade only when it pays for itself.",
     },
     es: {
       eyebrow: "Cómo funciona",
       heading: "Cuatro pasos hasta tu primera reserva.",
       subhead:
-        "La mayoría tiene un sitio real y un link para compartir antes del mediodía — y empieza a recibir reservas esa misma semana. Sube de plan solo cuando se pague solo.",
+        "La mayoría tiene un sitio real y un link para compartir antes del mediodía, y empieza a recibir reservas esa misma semana. Sube de plan solo cuando se pague solo.",
     },
   });
   return (
@@ -815,7 +815,7 @@ function PlanLadderSection({ tiers, locale }: { tiers: MarketingTier[]; locale: 
       eyebrow: "The pipeline is on every plan.",
       heading: "One product. Four sizes.",
       subhead:
-        "Every tier turns inquiries into bookings — the full pipeline ships on Free. What grows with each step is roster size, notification channels, and how branded the surface is.",
+        "Every tier turns inquiries into bookings, the full pipeline ships on Free. What grows with each step is roster size, notification channels, and how branded the surface is.",
       startFree: "Start free",
       fullComparison: "Full plan comparison",
     },
@@ -823,7 +823,7 @@ function PlanLadderSection({ tiers, locale }: { tiers: MarketingTier[]; locale: 
       eyebrow: "El pipeline está en todos los planes.",
       heading: "Un producto. Cuatro tamaños.",
       subhead:
-        "Cada plan convierte consultas en reservas — el pipeline completo viene en Free. Lo que crece en cada paso es el tamaño del roster, los canales de avisos y qué tan personalizada está la marca.",
+        "Cada plan convierte consultas en reservas, el pipeline completo viene en Free. Lo que crece en cada paso es el tamaño del roster, los canales de avisos y qué tan personalizada está la marca.",
       startFree: "Empieza gratis",
       fullComparison: "Comparación completa de planes",
     },
@@ -1032,10 +1032,10 @@ function ProductPreviewSection({ locale }: { locale: string }) {
       eyebrow: "What you get",
       heading: "A real website, not a link in bio.",
       subhead:
-        "Every account gets a branded site with structured profiles, filterable browsing, and a booking inbox — whether you're selling your own services, running an agency, or coordinating a whole team.",
+        "Every account gets a branded site with structured profiles, filterable browsing, and a booking inbox, whether you're selling your own services, running an agency, or coordinating a whole team.",
       bullets: [
         "Structured people profiles with portfolios, specs & availability",
-        "Browsable, filterable directory — clients self-serve",
+        "Browsable, filterable directory, clients self-serve",
         "Every inquiry lands as a structured record, not a chat message",
         "Editorial presentation that reads as a real business",
       ],
@@ -1044,10 +1044,10 @@ function ProductPreviewSection({ locale }: { locale: string }) {
       eyebrow: "Lo que obtienes",
       heading: "Un sitio web de verdad, no un link en la bio.",
       subhead:
-        "Cada cuenta obtiene un sitio con tu marca, perfiles estructurados, navegación con filtros y un buzón de reservas — ya sea que vendas tus propios servicios, lleves una agencia o coordines a todo un equipo.",
+        "Cada cuenta obtiene un sitio con tu marca, perfiles estructurados, navegación con filtros y un buzón de reservas, ya sea que vendas tus propios servicios, lleves una agencia o coordines a todo un equipo.",
       bullets: [
         "Perfiles estructurados con portafolio, medidas y disponibilidad",
-        "Directorio navegable y con filtros — los clientes se atienden solos",
+        "Directorio navegable y con filtros, los clientes se atienden solos",
         "Cada consulta llega como un registro estructurado, no como un mensaje de chat",
         "Una presentación editorial que se ve como un negocio de verdad",
       ],
@@ -1202,7 +1202,7 @@ function ProductPreviewSection({ locale }: { locale: string }) {
                       style={{ background: "var(--plt-forest)" }}
                       aria-hidden
                     />
-                    Request for 2 · Nov 4–9
+                    Request for 2 · Nov 4-9
                   </span>
                 </div>
               </div>
@@ -1236,14 +1236,14 @@ function ContrastSection({ locale }: { locale: string }) {
       manualRows: [
         "Profiles sent one at a time, in chats that scroll away",
         "Rates and availability re-typed for every inquiry",
-        "No structured inbox — &ldquo;did they ever reply?&rdquo;",
+        "No structured inbox, &ldquo;did they ever reply?&rdquo;",
         "Your brand looks like a contact, not a business",
         "Spreadsheets that only you can read",
       ],
       withLabel: `With ${PLATFORM_BRAND.name}`,
       withTitle: "One link. Structured. Yours.",
       withRows: [
-        "One polished directory URL — bios, specs, portfolios",
+        "One polished directory URL, bios, specs, portfolios",
         "Rates &amp; availability surfaced once, always fresh",
         "Every inquiry lands as a traceable record",
         "Editorial presentation that earns premium replies",
@@ -1260,14 +1260,14 @@ function ContrastSection({ locale }: { locale: string }) {
       manualRows: [
         "Perfiles enviados de uno en uno, en chats que se pierden",
         "Tarifas y disponibilidad re-escritas en cada consulta",
-        "Sin buzón estructurado — &ldquo;¿alguna vez respondieron?&rdquo;",
+        "Sin buzón estructurado, &ldquo;¿alguna vez respondieron?&rdquo;",
         "Tu marca parece un contacto, no un negocio",
         "Hojas de cálculo que solo tú entiendes",
       ],
       withLabel: `Con ${PLATFORM_BRAND.name}`,
       withTitle: "Un link. Estructurado. Tuyo.",
       withRows: [
-        "Un solo link de directorio pulido — bios, medidas, portafolios",
+        "Un solo link de directorio pulido, bios, medidas, portafolios",
         "Tarifas y disponibilidad publicadas una vez, siempre al día",
         "Cada consulta llega como un registro rastreable",
         "Una presentación editorial que gana respuestas premium",

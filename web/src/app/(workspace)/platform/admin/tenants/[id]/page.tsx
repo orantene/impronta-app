@@ -7,7 +7,20 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadTenantManagementDetail } from "../../../tenant-management-data";
 import { TenantDetailPageBody } from "./TenantDetailPageBody";
-import { HQ, HQ_F, HQ_FD, HQ_FM, PlanChip, StatusChip, EntityChip } from "../hq-kit";
+import {
+  HQ,
+  HQ_F,
+  HQ_FD,
+  HQ_FM,
+  PlanChip,
+  StatusChip,
+  EntityChip,
+  PLAN_TIER_LABEL_KEY,
+  WORKSPACE_STATUS_LABEL_KEY,
+} from "../hq-kit";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +50,15 @@ export default async function PlatformTenantDetailPage({
   const detail = await loadTenantManagementDetail(id);
   if (!detail) notFound();
 
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+  const planLabel = PLAN_TIER_LABEL_KEY[detail.plan] ? t(PLAN_TIER_LABEL_KEY[detail.plan]) : undefined;
+  const statusLabel = WORKSPACE_STATUS_LABEL_KEY[detail.status] ? t(WORKSPACE_STATUS_LABEL_KEY[detail.status]) : undefined;
+  const entityLabel =
+    detail.entityType === "hub"
+      ? t("dashboard.platform.tenants.entity.hub")
+      : t("dashboard.platform.tenants.entity.agency");
+
   return (
     <div style={{ maxWidth: 880, margin: "0 auto" }}>
       {/* Header */}
@@ -54,7 +76,7 @@ export default async function PlatformTenantDetailPage({
             marginBottom: 12,
           }}
         >
-          ← All tenants
+          {t("dashboard.platform.tenants.backToTenants")}
         </Link>
         <div
           style={{
@@ -92,19 +114,19 @@ export default async function PlatformTenantDetailPage({
                 {detail.slug}
               </span>
               <span style={{ color: HQ.inkDim }}>·</span>
-              <PlanChip plan={detail.plan} />
-              <StatusChip status={detail.status} />
-              <EntityChip entityType={detail.entityType} />
+              <PlanChip plan={detail.plan} label={planLabel} />
+              <StatusChip status={detail.status} label={statusLabel} />
+              <EntityChip entityType={detail.entityType} label={entityLabel} />
               {detail.override && (
                 <span style={{ fontSize: 11, color: HQ.green, fontWeight: 600 }}>
-                  ● override active
+                  ● {t("dashboard.platform.tenants.overrideActive")}
                 </span>
               )}
             </div>
             <div style={{ marginTop: 4, fontSize: 12, color: HQ.inkMuted }}>
               {detail.owner
-                ? `Owner — ${detail.owner.displayName} · ${detail.owner.email}`
-                : "No owner assigned"}
+                ? interpolate(t("dashboard.platform.tenants.ownerLine"), { name: detail.owner.displayName, email: detail.owner.email })
+                : t("dashboard.platform.tenants.noOwnerAssigned")}
             </div>
           </div>
 
@@ -115,7 +137,7 @@ export default async function PlatformTenantDetailPage({
               rel="noreferrer"
               style={headerLink}
             >
-              Public site ↗
+              {t("dashboard.platform.tenants.linkPublicSite")}
             </a>
             <a
               href={detail.urls.adminDashboard}
@@ -123,16 +145,16 @@ export default async function PlatformTenantDetailPage({
               rel="noreferrer"
               style={headerLink}
             >
-              Admin ↗
+              {t("dashboard.platform.tenants.linkAdmin")}
             </a>
             <Link href={`/platform/admin/tenants/${detail.id}/catalog`} style={headerLink}>
-              Catalog →
+              {t("dashboard.platform.tenants.catalog")}
             </Link>
             <Link
               href={`/platform/admin/tenants/${detail.id}/registration-fields`}
               style={headerLink}
             >
-              Registration fields →
+              {t("dashboard.platform.tenants.registrationFields")}
             </Link>
           </div>
         </div>

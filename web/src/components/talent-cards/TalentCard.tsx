@@ -114,16 +114,26 @@ function Photo({
           priority={priority}
         />
       ) : (
-        // Editorial monogram fallback — the talent's name set in the display
-        // face, never initials-in-a-box (product rule: imagery, never a
-        // placeholder block).
+        // No-photo fallback — a quiet, letter-free line-art silhouette on the
+        // card surface. Never the name-as-text and never initials-in-a-box
+        // (product rule: imagery, never a placeholder block).
         <div
           aria-hidden
           data-card-monogram
-          className="flex h-full items-center justify-center px-4 text-center font-display text-sm tracking-[0.18em]"
-          style={{ color: TALENT_CARD_VARS.muted }}
+          className="flex h-full items-center justify-center"
         >
-          {data.name}
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="h-2/5 w-2/5"
+            style={{ color: TALENT_CARD_VARS.muted, opacity: 0.5 }}
+          >
+            <circle cx="12" cy="8.2" r="3.6" fill="currentColor" />
+            <path
+              d="M4.6 19.4c0-3.7 3.2-6.2 7.4-6.2s7.4 2.5 7.4 6.2c0 .5-.4.8-.9.8H5.5c-.5 0-.9-.3-.9-.8Z"
+              fill="currentColor"
+            />
+          </svg>
         </div>
       )}
     </div>

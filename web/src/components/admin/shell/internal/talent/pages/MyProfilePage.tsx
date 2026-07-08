@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { Divider, Icon, PrimaryButton, SecondaryButton, SecondaryCard } from "../../primitives";
-import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PROFILES_BY_ID, TAXONOMY, applyProfileOverride, buildFreshTalentProfile, clearPendingReview, computeProfileCompleteness, getPendingReviewForRoster, getProfileById, useAdminShell, usePendingReviewSubscription, useProfileOverrideSubscription } from "../../state";
+import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PROFILES_BY_ID, TAXONOMY, TAXONOMY_PARENT_LABEL_KEYS, applyProfileOverride, buildFreshTalentProfile, clearPendingReview, computeProfileCompleteness, getPendingReviewForRoster, getProfileById, useAdminShell, usePendingReviewSubscription, useProfileOverrideSubscription } from "../../state";
 import { PageHeader } from "../shared/page-chrome-1";
 import { TierBreakdown } from "../shared/profile-1";
 import { AllSectionsGrid, EngagementStrip, ProfileHero } from "../shared/profile-sections-1";
@@ -11,6 +13,7 @@ import { PersonalPageBand } from "../shared/profile-sections-2";
 
 
 export function MyProfilePage() {
+  const t = useT();
   const { openDrawer, toast, bridgeTalentSelfProfile, tenantSlug } = useAdminShell();
   // Use the real profile id from the bridge when available; fall back to mock.
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
@@ -81,12 +84,23 @@ export function MyProfilePage() {
   // Phase C4 — derive role labels for the page header. Primary +
   // secondary roles render as "Model · also Host" so the multi-role
   // identity is obvious at the top of the dashboard.
-  const primaryRoleLabel = TAXONOMY.find(t => t.id === p.primaryType)?.label ?? "Talent";
+  // Localized: resolve the taxonomy PARENT label via its catalog key when one
+  // exists (dashboard.enums.talentRole.*), falling back to the English fixture
+  // label for any id without a key. `t()` returns the key itself on a miss, so
+  // guard against that and fall back to the English label too.
+  const roleLabelFor = (id: string | undefined): string | undefined => {
+    const parent = TAXONOMY.find(tx => tx.id === id);
+    if (!parent) return undefined;
+    const key = TAXONOMY_PARENT_LABEL_KEYS[parent.id];
+    const localized = key ? t(key) : "";
+    return localized && localized !== key ? localized : parent.label;
+  };
+  const primaryRoleLabel = roleLabelFor(p.primaryType) ?? t("dashboard.talentMyProfile.roleFallback");
   const secondaryRoleLabels = p.secondaryTypes
-    .map(id => TAXONOMY.find(t => t.id === id)?.label)
+    .map(id => roleLabelFor(id))
     .filter((l): l is string => !!l);
   const roleSummary = secondaryRoleLabels.length > 0
-    ? `${primaryRoleLabel} · also ${secondaryRoleLabels.join(" · ")}`
+    ? `${primaryRoleLabel} · ${t("dashboard.talentMyProfile.roleAlso")} ${secondaryRoleLabels.join(" · ")}`
     : primaryRoleLabel;
 
   return (
@@ -103,12 +117,12 @@ export function MyProfilePage() {
           <>
             <SecondaryButton size="sm" onClick={() => openDrawer("talent-public-preview")}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <Icon name="external" size={11} /> Preview as client
+                <Icon name="external" size={11} /> {t("dashboard.talentMyProfile.previewAsClient")}
               </span>
             </SecondaryButton>
             <PrimaryButton size="sm" onClick={() => openSection("identity")}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <Icon name="pencil" size={11} /> Edit profile
+                <Icon name="pencil" size={11} /> {t("dashboard.talentMyProfile.editProfile")}
               </span>
             </PrimaryButton>
           </>
@@ -136,17 +150,17 @@ export function MyProfilePage() {
           <span aria-hidden className="text-sm">⏳</span>
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 13, fontWeight: 600, color: "#1f4d8a" }}>
-              Submitted to your agency · waiting for review
+              {t("dashboard.talentMyProfile.pendingTitle")}
             </div>
             <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
-              {pendingMine.note} · usually reviewed within 1 business day.
+              {pendingMine.note} · {t("dashboard.talentMyProfile.pendingNoteSuffix")}
             </div>
           </div>
           <button
             type="button"
             onClick={() => {
               clearPendingReview(pendingMine.talentId);
-              toast("Submission withdrawn — your changes are still saved");
+              toast(t("dashboard.talentMyProfile.withdrawToast"));
             }}
             style={{
               padding: "5px 11px",
@@ -161,7 +175,7 @@ export function MyProfilePage() {
               whiteSpace: "nowrap",
             }}
           >
-            Withdraw
+            {t("dashboard.talentMyProfile.withdraw")}
           </button>
         </div>
       )}
@@ -220,10 +234,15 @@ export function MyProfilePage() {
 
             <div className="flex-1 min-w-0">
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }} className="text-admin-ink">
-                Profile {p.completeness}% complete
+                {interpolate(t("dashboard.talentMyProfile.completeTitle"), { percent: p.completeness })}
               </div>
               <div className="text-admin-ink-muted text-admin-12h">
-                {missingFieldRoutes.length} field{missingFieldRoutes.length === 1 ? "" : "s"} left · tap to see what&apos;s missing
+                {interpolate(
+                  t(missingFieldRoutes.length === 1
+                    ? "dashboard.talentMyProfile.fieldsLeftOne"
+                    : "dashboard.talentMyProfile.fieldsLeftMany"),
+                  { count: missingFieldRoutes.length },
+                )}
               </div>
             </div>
 
@@ -286,7 +305,7 @@ export function MyProfilePage() {
       <ProfileHero />
 
       {/* ── All sections — primary nav into the profile shell ─────── */}
-      <Divider label="Edit sections" />
+      <Divider label={t("dashboard.talentMyProfile.editSections")} />
       <AllSectionsGrid openSection={openSection} />
 
       {/* ── Engagement strip ──────────────────────────────────────── */}
@@ -297,11 +316,11 @@ export function MyProfilePage() {
       {/* ── Public profile URL ────────────────────────────────────── */}
       <div className="mt-3">
         <SecondaryCard
-          title="Public profile"
+          title={t("dashboard.talentMyProfile.publicProfileTitle")}
           description={p.publicUrl
-            ? `Lives at ${p.publicUrl}. Always reflects your latest published edits.`
-            : "Not published yet — fill in the essentials to get a public URL."}
-          affordance={p.publicUrl ? "Open in new tab" : undefined}
+            ? interpolate(t("dashboard.talentMyProfile.publicProfileLive"), { url: p.publicUrl })
+            : t("dashboard.talentMyProfile.publicProfileNotPublished")}
+          affordance={p.publicUrl ? t("dashboard.talentMyProfile.openInNewTab") : undefined}
           onClick={p.publicUrl ? () => window.open(`https://${p.publicUrl}`, "_blank") : undefined}
         >
           {p.publicUrl && (
@@ -314,7 +333,7 @@ export function MyProfilePage() {
       </div>
 
       {/* ── Personal page (premium subscription tier) ─────────────── */}
-      <Divider label="Personal page" />
+      <Divider label={t("dashboard.talentMyProfile.personalPage")} />
       <PersonalPageBand />
     </>
   );

@@ -50,7 +50,7 @@ const CHANNEL_LABEL_OVERRIDES: Record<string, string> = {
   direct_client_dashboard: "Client dashboard",
   discover_single_talent: "Discover · single talent",
   discover_shortlist: "Discover · shortlist fan-out",
-  saved_talent: "Saved talent (cart)",
+  saved_talent: "Saved talent (lineup)",
   public_talent_profile: "Public talent profile",
   agency_site: "Agency website",
   hub_site: "Hub website",

@@ -21,17 +21,23 @@ import {
   SaveNotice,
 } from "../[fieldKey]/field-detail-editor-parts";
 import { HqCard, HQ, F, FD, CopyableId } from "../_ui";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+const K = "dashboard.platform.catalog";
 
 export function GroupDetailView({
   group,
   saved,
   error,
   variant = "page",
+  t,
 }: {
   group: GroupDetail | null;
   saved?: string;
   error?: string;
   variant: "page" | "drawer";
+  t: Translate;
 }) {
   const isNew = group === null;
 
@@ -42,7 +48,7 @@ export function GroupDetailView({
           href="/platform/admin/catalog?tab=groups"
           style={{ color: HQ.inkMuted, textDecoration: "none" }}
         >
-          ← Profile Fields
+          {t(`${K}.detailBackToFields`)}
         </Link>
       </div>
     ) : null;
@@ -51,10 +57,10 @@ export function GroupDetailView({
     return (
       <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
         {breadcrumb}
-        <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600 }}>Group not found</h1>
-        <HqCard title="Unavailable">
+        <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600 }}>{t(`${K}.groupDetailNotFoundTitle`)}</h1>
+        <HqCard title={t(`${K}.unavailableTitle`)}>
           <div style={{ fontSize: 13, color: HQ.inkMuted }}>
-            Could not load this field group. It may not exist or the service client is unavailable.
+            {t(`${K}.groupDetailNotFoundBody`)}
           </div>
         </HqCard>
       </div>
@@ -81,14 +87,14 @@ export function GroupDetailView({
               padding: "1px 8px",
             }}
           >
-            {group.is_active ? "Active" : "Archived"}
+            {group.is_active ? t(`${K}.lifecycleActive`) : t(`${K}.typeArchived`)}
           </span>
         </div>
       )}
 
       <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 16 }}>
         <h1 style={{ fontFamily: FD, fontSize: 22, fontWeight: 600, margin: 0 }}>
-          {isNew ? "New field group" : group.name_en}
+          {isNew ? t(`${K}.groupDetailNewTitle`) : group.name_en}
         </h1>
         {group && (
           <span
@@ -105,11 +111,11 @@ export function GroupDetailView({
 
       {/* Edit / Create form */}
       <HqCard
-        title={isNew ? "Create group" : "Group"}
+        title={isNew ? t(`${K}.createGroup`) : t(`${K}.groupDetailGroupTitle`)}
         subtitle={
           isNew
-            ? "Adds a new canonical profile field group to the platform engine."
-            : "Edits the profile_field_groups row. Save writes audit history and refreshes every catalog surface."
+            ? t(`${K}.groupDetailCreateSubtitle`)
+            : t(`${K}.groupDetailEditSubtitle`)
         }
       >
         <form
@@ -126,36 +132,36 @@ export function GroupDetailView({
             }}
           >
             <FieldInput
-              label="Slug"
+              label={t(`${K}.fieldSlug`)}
               name="slug"
               defaultValue={group?.slug}
-              placeholder="e.g. appearance"
+              placeholder={t(`${K}.groupDetailSlugPlaceholder`)}
             />
             <FieldInput
-              label="Sort order"
+              label={t(`${K}.fieldSortOrder`)}
               name="sort_order"
               type="number"
               defaultValue={group?.sort_order ?? 100}
             />
             <FieldInput
-              label="Name EN"
+              label={t(`${K}.fieldNameEn`)}
               name="name_en"
               defaultValue={group?.name_en}
-              placeholder="e.g. Appearance"
+              placeholder={t(`${K}.groupDetailNameEnPlaceholder`)}
             />
             <FieldInput
-              label="Name ES"
+              label={t(`${K}.fieldNameEs`)}
               name="name_es"
               defaultValue={group?.name_es}
-              placeholder="e.g. Apariencia"
+              placeholder={t(`${K}.groupDetailNameEsPlaceholder`)}
             />
             <FieldTextarea
-              label="Description EN"
+              label={t(`${K}.fieldDescriptionEn`)}
               name="description_en"
               defaultValue={group?.description_en}
             />
             <FieldTextarea
-              label="Description ES"
+              label={t(`${K}.fieldDescriptionEs`)}
               name="description_es"
               defaultValue={group?.description_es}
             />
@@ -171,13 +177,13 @@ export function GroupDetailView({
                 background: HQ.cardSoft,
               }}
             >
-              <Check name="is_active" label="Active" defaultChecked={group.is_active} />
+              <Check name="is_active" label={t(`${K}.checkActive`)} defaultChecked={group.is_active} />
             </div>
           )}
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <SubmitButton>
-              {isNew ? "Create field group" : "Save group"}
+              {isNew ? t(`${K}.groupDetailCreateSubmit`) : t(`${K}.saveGroup`)}
             </SubmitButton>
           </div>
         </form>
@@ -186,8 +192,8 @@ export function GroupDetailView({
       {/* Stats — only for existing groups */}
       {group && (
         <HqCard
-          title="Usage"
-          subtitle="Fields in this group and the talent types they are mapped to."
+          title={t(`${K}.groupDetailUsageTitle`)}
+          subtitle={t(`${K}.groupDetailUsageSubtitle`)}
         >
           <div
             style={{
@@ -207,7 +213,7 @@ export function GroupDetailView({
                 minWidth: 110,
               }}
             >
-              <div style={{ fontSize: 11, color: HQ.inkMuted, letterSpacing: 0.3 }}>Fields</div>
+              <div style={{ fontSize: 11, color: HQ.inkMuted, letterSpacing: 0.3 }}>{t(`${K}.colFields`)}</div>
               <div
                 style={{
                   fontFamily: FD,
@@ -233,7 +239,7 @@ export function GroupDetailView({
                   letterSpacing: 0.3,
                 }}
               >
-                Mapped to
+                {t(`${K}.groupDetailMappedTo`)}
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {group.mapped_talent_types.map((name) => (
@@ -256,7 +262,7 @@ export function GroupDetailView({
             </div>
           ) : (
             <div style={{ fontSize: 12, color: HQ.inkDim }}>
-              No taxonomy mappings found for fields in this group.
+              {t(`${K}.groupDetailNoMappings`)}
             </div>
           )}
         </HqCard>
@@ -265,8 +271,8 @@ export function GroupDetailView({
       {/* Lifecycle — only for existing groups */}
       {group && (
         <HqCard
-          title="Lifecycle"
-          subtitle="Archive hides the group from the field engine; stored field values remain intact."
+          title={t(`${K}.lifecycleTitle`)}
+          subtitle={t(`${K}.groupDetailLifecycleSubtitle`)}
         >
           <div
             style={{
@@ -277,25 +283,25 @@ export function GroupDetailView({
             }}
           >
             <div style={{ fontSize: 12.5, color: HQ.inkMuted }}>
-              Status:{" "}
+              {t(`${K}.lifecycleStatus`)}{" "}
               <strong style={{ color: group.is_active ? HQ.green : HQ.red }}>
-                {group.is_active ? "Active" : "Archived"}
+                {group.is_active ? t(`${K}.lifecycleActive`) : t(`${K}.typeArchived`)}
               </strong>
               {" · "}
-              {group.field_count} field{group.field_count === 1 ? "" : "s"}
+              {interpolate(t(`${K}.${group.field_count === 1 ? "sfSectionMetaOne" : "sfSectionMetaMany"}`), { count: group.field_count })}
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <form action={setPlatformFieldGroupLifecycleAction}>
                 <input type="hidden" name="id" value={group.id} />
                 <input type="hidden" name="mode" value={group.is_active ? "archive" : "restore"} />
                 <SubmitButton tone={group.is_active ? "danger" : "neutral"}>
-                  {group.is_active ? "Archive group" : "Restore group"}
+                  {group.is_active ? t(`${K}.archiveGroup`) : t(`${K}.restoreGroup`)}
                 </SubmitButton>
               </form>
               <form action={deletePlatformFieldGroupAction}>
                 <input type="hidden" name="id" value={group.id} />
-                <ConfirmSubmitButton message="Permanently delete this field group? Member fields will be detached (not deleted). This cannot be undone.">
-                  Permanently remove
+                <ConfirmSubmitButton message={t(`${K}.confirmDeleteGroup`)}>
+                  {t(`${K}.permanentlyRemove`)}
                 </ConfirmSubmitButton>
               </form>
             </div>

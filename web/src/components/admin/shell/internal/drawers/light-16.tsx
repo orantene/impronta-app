@@ -18,12 +18,15 @@ import {
   Toggle,
   useAdminShell
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function TopPerformersDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "top-performers";
   // Honest stub — per-talent / per-client revenue rankings need a real
   // analytics aggregation that isn't wired yet. Showing fabricated revenue
@@ -32,15 +35,15 @@ export function TopPerformersDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Top performers"
-      description="Talent and client rankings by booking revenue."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Top performers")}
+      description={tt("Talent and client rankings by booking revenue.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
       defaultSize="half"
     >
       <EmptyState
         icon="sparkle"
-        title="Coming soon"
-        body="Revenue-ranked talent and client leaderboards aren't live yet. They'll appear here once booking analytics are wired up."
+        title={tt("Coming soon")}
+        body={tt("Revenue-ranked talent and client leaderboards aren't live yet. They'll appear here once booking analytics are wired up.")}
       />
     </DrawerShell>
   );
@@ -49,6 +52,8 @@ export function TopPerformersDrawer() {
 
 export function CoordinatorWorkloadDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "coordinator-workload";
   // Honest stub — per-coordinator load / reply-time metrics have no real
   // source yet; the old hardcoded percentages (e.g. "Oran 85%") were demo data.
@@ -56,15 +61,15 @@ export function CoordinatorWorkloadDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Team workload"
-      description="Active load, messages, and reply time per coordinator."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Team workload")}
+      description={tt("Active load, messages, and reply time per coordinator.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
       defaultSize="half"
     >
       <EmptyState
         icon="team"
-        title="Coming soon"
-        body="Per-coordinator workload and response-time analytics aren't live yet. We'll surface them here once the data is tracked."
+        title={tt("Coming soon")}
+        body={tt("Per-coordinator workload and response-time analytics aren't live yet. We'll surface them here once the data is tracked.")}
       />
     </DrawerShell>
   );
@@ -77,6 +82,8 @@ export function CoordinatorWorkloadDrawer() {
 
 export function MyQueueDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "my-queue";
   // Honest stub — this feature has no backend yet; the previous body showed
   // hardcoded demo data. Surface a clear "coming soon" instead.
@@ -84,14 +91,14 @@ export function MyQueueDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="My queue"
-      description="Your assigned inquiries, sorted by urgency."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("My queue")}
+      description={tt("Your assigned inquiries, sorted by urgency.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <EmptyState
         icon="info"
-        title="Coming soon"
-        body="Your personal, SLA-ranked work queue isn't live yet. For now, your inquiries live in Messages and the Pipeline view."
+        title={tt("Coming soon")}
+        body={tt("Your personal, SLA-ranked work queue isn't live yet. For now, your inquiries live in Messages and the Pipeline view.")}
       />
     </DrawerShell>
   );
@@ -100,6 +107,8 @@ export function MyQueueDrawer() {
 
 export function SlaTimersDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "sla-timers";
   // Honest stub — this feature has no backend yet; the previous body showed
   // hardcoded demo data. Surface a clear "coming soon" instead.
@@ -107,14 +116,14 @@ export function SlaTimersDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="SLA timers"
-      description="Response deadlines across active inquiries."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("SLA timers")}
+      description={tt("Response deadlines across active inquiries.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <EmptyState
         icon="calendar"
-        title="Coming soon"
-        body="Response-deadline (SLA) tracking isn't live yet. Inquiry age is shown in Messages and the Pipeline in the meantime."
+        title={tt("Coming soon")}
+        body={tt("Response-deadline (SLA) tracking isn't live yet. Inquiry age is shown in Messages and the Pipeline in the meantime.")}
       />
     </DrawerShell>
   );
@@ -123,6 +132,8 @@ export function SlaTimersDrawer() {
 
 export function RulesBuilderDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "rules-builder";
   // Honest stub — this feature has no backend yet; the previous body showed
   // hardcoded demo data. Surface a clear "coming soon" instead.
@@ -130,14 +141,14 @@ export function RulesBuilderDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Automation rules"
-      description="Trigger-action rules that run automatically."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Automation rules")}
+      description={tt("Trigger-action rules that run automatically.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <EmptyState
         icon="info"
-        title="Coming soon"
-        body="Automation rules (trigger \u2192 action) aren't available yet. We'll add a rule builder here when it ships."
+        title={tt("Coming soon")}
+        body={tt("Automation rules (trigger \u2192 action) aren't available yet. We'll add a rule builder here when it ships.")}
       />
     </DrawerShell>
   );
@@ -146,6 +157,8 @@ export function RulesBuilderDrawer() {
 
 export function SavedRepliesDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "saved-replies";
   // Honest stub — this feature has no backend yet; the previous body showed
   // hardcoded demo data. Surface a clear "coming soon" instead.
@@ -153,14 +166,14 @@ export function SavedRepliesDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Saved replies"
-      description="Reusable message templates."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Saved replies")}
+      description={tt("Reusable message templates.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <EmptyState
         icon="mail"
-        title="Coming soon"
-        body="Reusable reply templates aren't available yet \u2014 we'll add them here so you can insert and edit canned responses."
+        title={tt("Coming soon")}
+        body={tt("Reusable reply templates aren't available yet. We'll add them here so you can insert and edit canned responses.")}
       />
     </DrawerShell>
   );

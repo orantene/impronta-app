@@ -9,6 +9,8 @@
 
 import { loadPlatformIntegrationDefaults } from "./platform-integration-actions";
 import { PlatformIntegrationCard } from "./PlatformIntegrationEditors";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,8 @@ const F = '"Inter", system-ui, sans-serif';
 const FD = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
 export default async function PlatformIntegrationsPage() {
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const view = await loadPlatformIntegrationDefaults();
 
   return (
@@ -36,18 +40,16 @@ export default async function PlatformIntegrationsPage() {
             margin: 0,
           }}
         >
-          Integration defaults
+          {t("dashboard.platform.integrations.title")}
         </h1>
         <p style={{ fontFamily: F, fontSize: 13, color: HQ.inkMuted, margin: "5px 0 0" }}>
-          The platform&apos;s own integration keys. Every workspace INHERITS these unless it sets
-          its own. Resolution order: tenant-custom → these HQ defaults → environment variable.
-          When a default is unset here the runtime falls back to the env var exactly as before.
+          {t("dashboard.platform.integrations.subtitle")}
         </p>
       </div>
 
       {!view.ok ? (
         <div style={{ fontFamily: F, fontSize: 13, color: HQ.inkMuted }}>
-          You don&apos;t have access to platform integration defaults.
+          {t("dashboard.platform.integrations.noAccess")}
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>

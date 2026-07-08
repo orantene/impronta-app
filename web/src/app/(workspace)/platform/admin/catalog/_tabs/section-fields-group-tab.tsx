@@ -9,21 +9,26 @@ import { SaveNotice } from "../[fieldKey]/field-detail-editor-parts";
 import { loadEditorLayoutAdmin } from "./editor-layout-admin-data";
 import { EditorSectionReorderPanel } from "./editor-section-reorder-panel";
 import { SectionRow, monoStyle } from "./section-editor-shared";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+const K = "dashboard.platform.catalog";
 
 export async function SectionFieldsGroupTab({
   sp,
+  t,
 }: {
   sp: Record<string, string | undefined>;
+  t: Translate;
 }) {
   const data = await loadEditorLayoutAdmin();
 
   if (!data.ok) {
     return (
-      <HqCard title="Section Fields Group">
+      <HqCard title={t(`${K}.sfgUnavailableTitle`)}>
         <SaveNotice saved={sp.saved} error={sp.error} />
         <div style={{ fontSize: 13, color: HQ.inkMuted }}>
-          Could not load the profile-editor layout. The service client may be
-          unavailable, or the layout tables are empty.
+          {t(`${K}.sectionEditorUnavailableBody`)}
         </div>
       </HqCard>
     );
@@ -38,17 +43,17 @@ export async function SectionFieldsGroupTab({
         style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}
       >
         <Stat
-          label="Sections"
+          label={t(`${K}.sfgStatSections`)}
           value={`${data.counts.activeSections}/${data.counts.sections}`}
         />
-        <Stat label="Groups" value={data.counts.groups} />
+        <Stat label={t(`${K}.sfgStatGroups`)} value={data.counts.groups} />
         <Stat
-          label="Orphan sections"
+          label={t(`${K}.sfgStatOrphan`)}
           value={data.orphanSections.length}
           tone={data.orphanSections.length > 0 ? HQ.amber : undefined}
         />
         <Stat
-          label="Archived"
+          label={t(`${K}.sfgStatArchived`)}
           value={data.counts.archivedSections}
           tone={data.counts.archivedSections > 0 ? HQ.amber : undefined}
         />
@@ -82,7 +87,7 @@ export async function SectionFieldsGroupTab({
                 {group.label_es}
               </span>
             )}
-            <span style={monoStyle}>slug: {group.slug}</span>
+            <span style={monoStyle}>{interpolate(t(`${K}.groupSlugLine`), { slug: group.slug })}</span>
             <span
               style={{
                 fontSize: 10,
@@ -96,13 +101,12 @@ export async function SectionFieldsGroupTab({
                 marginLeft: "auto",
               }}
             >
-              {group.is_active ? "active" : "inactive"}
+              {group.is_active ? t(`${K}.badgeActive`) : t(`${K}.badgeInactive`)}
             </span>
             <span
               style={{ fontSize: 11, color: HQ.inkMuted, whiteSpace: "nowrap" }}
             >
-              {group.sections.length} section
-              {group.sections.length === 1 ? "" : "s"}
+              {interpolate(t(`${K}.${group.sections.length === 1 ? "sfgSectionsCountOne" : "sfgSectionsCountMany"}`), { count: group.sections.length })}
             </span>
           </div>
 
@@ -115,7 +119,7 @@ export async function SectionFieldsGroupTab({
                 marginBottom: 8,
               }}
             >
-              No sections in this group.
+              {t(`${K}.sfgNoSectionsInGroup`)}
             </div>
           ) : (
             /* Two columns: section edit cards (left) + section reorder (right) */
@@ -133,14 +137,14 @@ export async function SectionFieldsGroupTab({
                   <HqAccordion
                     key={section.id}
                     title={`${section.emoji ? `${section.emoji} ` : ""}${section.label_en}`}
-                    meta={`slug: ${section.slug} · #${section.sort_order}`}
+                    meta={interpolate(t(`${K}.sfgSectionMeta`), { slug: section.slug, order: section.sort_order })}
                     badge={{
                       text:
                         section.archived_at
-                          ? "archived"
+                          ? t(`${K}.badgeArchived`)
                           : section.is_active
-                            ? "active"
-                            : "inactive",
+                            ? t(`${K}.badgeActive`)
+                            : t(`${K}.badgeInactive`),
                       tone: section.archived_at || !section.is_active ? HQ.red : HQ.green,
                     }}
                   >
@@ -149,6 +153,7 @@ export async function SectionFieldsGroupTab({
                       groupOptions={data.groupOptions}
                       showFields={false}
                       embedded
+                      t={t}
                     />
                   </HqAccordion>
                 ))}
@@ -158,8 +163,8 @@ export async function SectionFieldsGroupTab({
               <div style={{ position: "sticky", top: 12, minWidth: 0 }}>
                 {group.sections.length >= 2 ? (
                   <HqCard
-                    title="Section order"
-                    subtitle={`Drag to reorder sections within ${group.label_en}.`}
+                    title={t(`${K}.sectionOrderTitle`)}
+                    subtitle={interpolate(t(`${K}.sectionOrderSubtitle`), { group: group.label_en })}
                   >
                     <EditorSectionReorderPanel
                       sectionGroupId={group.id}
@@ -174,9 +179,9 @@ export async function SectionFieldsGroupTab({
                     />
                   </HqCard>
                 ) : (
-                  <HqCard title="Section order">
+                  <HqCard title={t(`${K}.sectionOrderTitle`)}>
                     <div style={{ fontSize: 12, color: HQ.inkDim }}>
-                      Add a second section to enable drag-reordering.
+                      {t(`${K}.sectionOrderAddSecond`)}
                     </div>
                   </HqCard>
                 )}
@@ -189,16 +194,16 @@ export async function SectionFieldsGroupTab({
       {/* Orphan sections — no group FK */}
       {data.orphanSections.length > 0 && (
         <HqCard
-          title="Ungrouped sections"
-          subtitle="These sections have no group and will not render in the rail. Move them into a group."
+          title={t(`${K}.sfgUngroupedTitle`)}
+          subtitle={t(`${K}.sfgUngroupedSubtitle`)}
         >
           {data.orphanSections.map((section) => (
             <HqAccordion
               key={section.id}
               title={`${section.emoji ? `${section.emoji} ` : ""}${section.label_en}`}
-              meta={`slug: ${section.slug}`}
+              meta={interpolate(t(`${K}.sfgUngroupedMeta`), { slug: section.slug })}
               badge={{
-                text: section.is_active ? "active" : "inactive",
+                text: section.is_active ? t(`${K}.badgeActive`) : t(`${K}.badgeInactive`),
                 tone: section.is_active ? HQ.green : HQ.red,
               }}
             >
@@ -207,6 +212,7 @@ export async function SectionFieldsGroupTab({
                 groupOptions={data.groupOptions}
                 showFields={false}
                 embedded
+                t={t}
               />
             </HqAccordion>
           ))}

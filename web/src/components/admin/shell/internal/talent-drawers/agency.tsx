@@ -9,6 +9,8 @@
 // ════════════════════════════════════════════════════════════════════
 
 import { useEffect, useState } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import {
   CLIENT_TRUST_LEVELS,
   CLIENT_TRUST_META,
@@ -44,6 +46,7 @@ import { KvRow, SaveErrorBanner, StandardFooter, ToggleRow } from "./shared";
 
 export function TalentAgencyRelationshipDrawer() {
   const { state, closeDrawer, openDrawer, toast, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-agency-relationship";
   const mode = state.drawer.payload?.mode;
 
@@ -62,39 +65,39 @@ export function TalentAgencyRelationshipDrawer() {
   const handleSetPrimary = async () => {
     const talentProfileId = bridgeTalentSelfProfile?.id;
     const agencyId = bridgeAgency?.id ?? payloadAgencyId;
-    if (!talentProfileId || !agencyId) { setPrimaryError("Unable to identify profile or agency."); return; }
+    if (!talentProfileId || !agencyId) { setPrimaryError(t("dashboard.talentDrawers.agency.cannotIdentify")); return; }
     setSettingPrimary(true);
     setPrimaryError(null);
     const result = await selfSetPrimaryAgency({ talent_profile_id: talentProfileId, agency_id: agencyId });
     setSettingPrimary(false);
     if (!result.ok) { setPrimaryError(result.error); return; }
-    toast("Primary agency updated");
+    toast(t("dashboard.talentDrawers.agency.primaryUpdated"));
     closeDrawer();
   };
 
   const handleConfirmExclusivity = async () => {
     const talentProfileId = bridgeTalentSelfProfile?.id;
     const agencyId = bridgeAgency?.id ?? payloadAgencyId;
-    if (!talentProfileId || !agencyId) { setPrimaryError("Unable to identify profile or agency."); return; }
+    if (!talentProfileId || !agencyId) { setPrimaryError(t("dashboard.talentDrawers.agency.cannotIdentify")); return; }
     setRespondingExclusivity(true);
     setPrimaryError(null);
     const result = await confirmAgencyExclusivity({ talent_profile_id: talentProfileId, agency_id: agencyId });
     setRespondingExclusivity(false);
     if (!result.ok) { setPrimaryError(result.error); return; }
-    toast("Exclusivity confirmed");
+    toast(t("dashboard.talentDrawers.agency.exclusivityConfirmed"));
     closeDrawer();
   };
 
   const handleDeclineExclusivity = async () => {
     const talentProfileId = bridgeTalentSelfProfile?.id;
     const agencyId = bridgeAgency?.id ?? payloadAgencyId;
-    if (!talentProfileId || !agencyId) { setPrimaryError("Unable to identify profile or agency."); return; }
+    if (!talentProfileId || !agencyId) { setPrimaryError(t("dashboard.talentDrawers.agency.cannotIdentify")); return; }
     setRespondingExclusivity(true);
     setPrimaryError(null);
     const result = await declineAgencyExclusivity({ talent_profile_id: talentProfileId, agency_id: agencyId });
     setRespondingExclusivity(false);
     if (!result.ok) { setPrimaryError(result.error); return; }
-    toast("Exclusivity declined — relationship continues as non-exclusive");
+    toast(t("dashboard.talentDrawers.agency.exclusivityDeclined"));
     closeDrawer();
   };
 
@@ -106,13 +109,13 @@ export function TalentAgencyRelationshipDrawer() {
       <DrawerShell
         open={open}
         onClose={closeDrawer}
-        title="Add another agency"
-        description="On Tulala, agencies invite talent — not the other way around. Share your public profile with an agency and they can request you onto their roster."
+        title={t("dashboard.talentDrawers.agency.addAnother")}
+        description={t("dashboard.talentDrawers.agency.addAnotherDesc")}
         width={520}
-        footer={<SecondaryButton onClick={closeDrawer}>Got it</SecondaryButton>}
+        footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.gotIt")}</SecondaryButton>}
       >
         <div style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.6, marginBottom: 14 }} className="text-admin-ink">
-          Share this link with any agency you&apos;d like to work with. When they add you to their roster, you&apos;ll get an invite in your inbox.
+          {t("dashboard.talentDrawers.agency.addAnotherBody")}
         </div>
         <div className="flex items-center gap-2">
           <div style={{ flex: 1, padding: "10px 12px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, fontFamily: FONTS.mono, fontSize: 12 }} className="bg-admin-surface-alt text-admin-ink">
@@ -120,10 +123,10 @@ export function TalentAgencyRelationshipDrawer() {
           </div>
           <button
             type="button"
-            onClick={() => { void navigator.clipboard.writeText(`https://${publicUrl}`); toast("Link copied"); }}
+            onClick={() => { void navigator.clipboard.writeText(`https://${publicUrl}`); toast(t("dashboard.talentDrawers.agency.linkCopied")); }}
             style={{ padding: "8px 12px", background: COLORS.fill, color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: FONTS.body, whiteSpace: "nowrap" }}
           >
-            Copy
+            {t("dashboard.talentDrawers.copy")}
           </button>
         </div>
       </DrawerShell>
@@ -139,23 +142,23 @@ export function TalentAgencyRelationshipDrawer() {
   const planTier   = (bridgeAgency?.plan ?? mockAgency.planTier) as "free" | "studio" | "agency";
   const commissionRate = mockAgency.commissionRate; // bridge doesn't carry this yet
 
-  const planLabel = planTier === "free" ? "Free plan" : planTier === "studio" ? "Studio plan" : "Agency plan";
+  const planLabel = planTier === "free" ? t("dashboard.talentDrawers.agency.planFree") : planTier === "studio" ? t("dashboard.talentDrawers.agency.planStudio") : t("dashboard.talentDrawers.agency.planAgency");
   const commissionLabel = commissionRate === 0
-    ? "No commission · friend / free-plan agency"
-    : `${Math.round(commissionRate * 100)}% on bookings ${name} brings`;
+    ? t("dashboard.talentDrawers.agency.commissionNone")
+    : interpolate(t("dashboard.talentDrawers.agency.commissionOnBookings"), { pct: Math.round(commissionRate * 100), name });
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title={name}
-      description={`${status === "exclusive" ? "Exclusive" : "Non-exclusive"} relationship · joined ${joinedAt}`}
+      description={interpolate(t("dashboard.talentDrawers.agency.relDescription"), { relationship: status === "exclusive" ? t("dashboard.talentDrawers.agency.relExclusive") : t("dashboard.talentDrawers.agency.relNonExclusive"), date: joinedAt })}
       width={540}
       footer={
         <StandardFooter
           onSave={() => closeDrawer()}
-          saveLabel="Done"
-          destructive={{ label: "Pause or leave", onClick: () => openDrawer("representation", { focusAgencyId: payloadAgencyId }) }}
+          saveLabel={t("dashboard.talentDrawers.done")}
+          destructive={{ label: t("dashboard.talentDrawers.agency.pauseOrLeave"), onClick: () => openDrawer("representation", { focusAgencyId: payloadAgencyId }) }}
         />
       }
     >
@@ -201,14 +204,11 @@ export function TalentAgencyRelationshipDrawer() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <span className="text-sm" aria-hidden>🔔</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#7C5A14" }}>
-                Exclusivity request pending
+                {t("dashboard.talentDrawers.agency.exclusivityPending")}
               </span>
             </div>
             <div style={{ fontSize: 12.5, lineHeight: 1.5, marginBottom: 10 }} className="text-admin-ink">
-              <strong>{name}</strong> added you as their <strong>exclusive talent</strong>.
-              Confirm to keep them as your primary agency (they pitch you to
-              clients + take {commissionRate > 0 ? `${Math.round(commissionRate * 100)}%` : "their commission"} on bookings they bring),
-              or decline to continue the relationship as non-exclusive.
+              {interpolate(t("dashboard.talentDrawers.agency.exclusivityPrompt"), { name, commission: commissionRate > 0 ? `${Math.round(commissionRate * 100)}%` : t("dashboard.talentDrawers.agency.exclusivityCommissionFallback") })}
             </div>
             <div className="flex gap-2">
               <button
@@ -228,7 +228,7 @@ export function TalentAgencyRelationshipDrawer() {
                   opacity: respondingExclusivity ? 0.7 : 1,
                 }}
               >
-                {respondingExclusivity ? "Saving…" : "Confirm exclusivity"}
+                {respondingExclusivity ? t("dashboard.talentDrawers.saving") : t("dashboard.talentDrawers.agency.confirmExclusivity")}
               </button>
               <button
                 type="button"
@@ -247,17 +247,17 @@ export function TalentAgencyRelationshipDrawer() {
                   opacity: respondingExclusivity ? 0.7 : 1,
                 }}
               >
-                Decline
+                {t("dashboard.talentDrawers.agency.decline")}
               </button>
             </div>
           </div>
         )}
 
         <div className="flex flex-col gap-2">
-          <KvRow label="Status" value={status} />
-          <KvRow label="Joined" value={joinedAt} />
-          <KvRow label="Primary" value={isPrimary ? "Yes" : "No"} />
-          <KvRow label="Take rate" value={commissionRate === 0 ? "—" : `${Math.round(commissionRate * 100)}%`} />
+          <KvRow label={t("dashboard.talentDrawers.agency.statusLabel")} value={status} />
+          <KvRow label={t("dashboard.talentDrawers.agency.joinedLabel")} value={joinedAt} />
+          <KvRow label={t("dashboard.talentDrawers.agency.primaryLabel")} value={isPrimary ? t("dashboard.talentDrawers.agency.yes") : t("dashboard.talentDrawers.agency.no")} />
+          <KvRow label={t("dashboard.talentDrawers.agency.takeRateLabel")} value={commissionRate === 0 ? "—" : `${Math.round(commissionRate * 100)}%`} />
         </div>
 
         {!isPrimary && (
@@ -278,23 +278,23 @@ export function TalentAgencyRelationshipDrawer() {
               cursor: "pointer",
             }}
           >
-            {settingPrimary ? "Setting…" : `Set ${name} as primary`}
+            {settingPrimary ? t("dashboard.talentDrawers.agency.setting") : interpolate(t("dashboard.talentDrawers.agency.setAsPrimary"), { name })}
           </button>
         )}
         {status === "exclusive" && (
           <div style={{ fontFamily: FONTS.body, fontSize: 11.5, fontStyle: "italic" }} className="text-admin-ink-dim">
-            To switch exclusivity to a different agency, end this relationship first.
+            {t("dashboard.talentDrawers.agency.switchExclusivityNote")}
           </div>
         )}
 
-        <Divider label="What this agency can do" />
+        <Divider label={t("dashboard.talentDrawers.agency.whatAgencyCanDo")} />
         <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink">
-          <li>Pitch you to clients (you confirm before anything is booked)</li>
-          <li>List you on their public roster</li>
-          <li>Hold dates on your calendar with your approval</li>
-          <li>Send you direct messages via the inbox</li>
+          <li>{t("dashboard.talentDrawers.agency.canDoBullet1")}</li>
+          <li>{t("dashboard.talentDrawers.agency.canDoBullet2")}</li>
+          <li>{t("dashboard.talentDrawers.agency.canDoBullet3")}</li>
+          <li>{t("dashboard.talentDrawers.agency.canDoBullet4")}</li>
           {commissionRate > 0 && (
-            <li>Take {Math.round(commissionRate * 100)}% of any booking they bring you</li>
+            <li>{interpolate(t("dashboard.talentDrawers.agency.canDoBullet5"), { pct: Math.round(commissionRate * 100) })}</li>
           )}
         </ul>
       </div>
@@ -306,6 +306,7 @@ export function TalentAgencyRelationshipDrawer() {
 
 export function TalentLeaveAgencyDrawer() {
   const { state, closeDrawer, openDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-leave-agency";
   const agencyId = state.drawer.payload?.agencyId as string | undefined;
 
@@ -313,28 +314,27 @@ export function TalentLeaveAgencyDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Pause or leave"
-      description="Relationship changes are managed in your representation settings."
+      title={t("dashboard.talentDrawers.agency.pauseOrLeave")}
+      description={t("dashboard.talentDrawers.agency.pauseOrLeaveDesc")}
       width={520}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.cancel")}</SecondaryButton>
           <PrimaryButton
             onClick={() => {
               closeDrawer();
               openDrawer("representation", { focusAgencyId: agencyId });
             }}
           >
-            Open representation
+            {t("dashboard.talentDrawers.agency.openRepresentation")}
           </PrimaryButton>
         </>
       }
     >
       <div style={{ fontFamily: FONTS.body, fontSize: 13.5, lineHeight: 1.6 }} className="text-admin-ink">
-        <strong>Pause distribution</strong> stops new pitches and listings immediately — you can resume anytime.
-        Active bookings already confirmed still pay out.
+        <strong>{t("dashboard.talentDrawers.agency.leaveBodyPause")}</strong> {t("dashboard.talentDrawers.agency.leaveBodyPauseRest")}
         <br /><br />
-        <strong>Leave permanently</strong> removes you from the agency roster. They would have to re-invite you.
+        <strong>{t("dashboard.talentDrawers.agency.leaveBodyLeave")}</strong> {t("dashboard.talentDrawers.agency.leaveBodyLeaveRest")}
       </div>
     </DrawerShell>
   );
@@ -344,6 +344,7 @@ export function TalentLeaveAgencyDrawer() {
 
 export function TalentPrivacyDrawer() {
   const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-privacy";
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
 
@@ -354,7 +355,7 @@ export function TalentPrivacyDrawer() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleSave = async () => {
-    if (!talentProfileId) { setSaveError("No talent profile loaded — reload and try again."); return; }
+    if (!talentProfileId) { setSaveError(t("dashboard.talentDrawers.noProfileLoaded")); return; }
     setSaving(true);
     setSaveError(null);
     const result = await updateSelfPrivacy({
@@ -374,33 +375,33 @@ export function TalentPrivacyDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Privacy"
-      description="Where you appear, and who can see your full profile."
+      title={t("dashboard.talentDrawers.agency.privacy")}
+      description={t("dashboard.talentDrawers.agency.privacyDesc")}
       width={520}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.cancel")}</SecondaryButton>
           <PrimaryButton onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("dashboard.talentDrawers.saving") : t("dashboard.talentDrawers.save")}
           </PrimaryButton>
         </>
       }
     >
       {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
       <div className="flex flex-col gap-2">
-        <ToggleRow label="Tulala hub (curated discovery)" hint="Only featured talent are shown." defaultOn={hubVisible} onChange={setHubVisible} />
-        <ToggleRow label="Acme Models public roster" defaultOn={true} />
-        <ToggleRow label="Praline London public roster" defaultOn={true} />
+        <ToggleRow label={t("dashboard.talentDrawers.agency.privacyHub")} hint={t("dashboard.talentDrawers.agency.privacyHubHint")} defaultOn={hubVisible} onChange={setHubVisible} />
+        <ToggleRow label={interpolate(t("dashboard.talentDrawers.agency.privacyRoster"), { agency: "Acme Models" })} defaultOn={true} />
+        <ToggleRow label={interpolate(t("dashboard.talentDrawers.agency.privacyRoster"), { agency: "Praline London" })} defaultOn={true} />
         <ToggleRow
-          label="Search engines (Google etc.)"
-          hint="Lets people find your public page from a Google search."
+          label={t("dashboard.talentDrawers.agency.privacySearch")}
+          hint={t("dashboard.talentDrawers.agency.privacySearchHint")}
           defaultOn={searchIndexable}
           onChange={setSearchIndexable}
         />
-        <Divider label="Sensitive data" />
+        <Divider label={t("dashboard.talentDrawers.agency.privacySensitive")} />
         <ToggleRow
-          label="Show measurements publicly"
-          hint="Off = only agencies + clients you accept can see them."
+          label={t("dashboard.talentDrawers.agency.privacyMeasurements")}
+          hint={t("dashboard.talentDrawers.agency.privacyMeasurementsHint")}
           defaultOn={showMeasurements}
           onChange={setShowMeasurements}
         />
@@ -418,6 +419,7 @@ export function TalentPrivacyDrawer() {
 
 export function TalentContactPreferencesDrawer() {
   const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-contact-preferences";
   const defaultPolicy = bridgeTalentSelfProfile?.contactPolicy ?? MY_TALENT_PROFILE.contactPolicy;
   const [policy, setPolicy] = useState<TalentContactPolicy>(defaultPolicy as TalentContactPolicy);
@@ -438,7 +440,7 @@ export function TalentContactPreferencesDrawer() {
   const onSave = async () => {
     const talentProfileId = bridgeTalentSelfProfile?.id;
     if (!talentProfileId) {
-      setSaveError("No talent profile loaded — reload and try again.");
+      setSaveError(t("dashboard.talentDrawers.noProfileLoaded"));
       return;
     }
     setSaving(true);
@@ -453,14 +455,14 @@ export function TalentContactPreferencesDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Contact preferences"
-      description="Decide which client trust tiers can send you inquiries. Your agency still sees everything internally — this gates inbound contact, not visibility."
+      title={t("dashboard.talentDrawers.agency.contactPreferences")}
+      description={t("dashboard.talentDrawers.agency.contactPreferencesDesc")}
       width={560}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer} disabled={saving}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer} disabled={saving}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
           <PrimaryButton onClick={onSave} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("dashboard.talentDrawers.saving") : t("dashboard.talentDrawers.save")}
           </PrimaryButton>
         </>
       }
@@ -481,24 +483,21 @@ export function TalentContactPreferencesDrawer() {
           marginBottom: 18,
         }}
       >
-        <CapsLabel>How this works</CapsLabel>
+        <CapsLabel>{t("dashboard.talentDrawers.agency.howThisWorks")}</CapsLabel>
         <div style={{ fontFamily: FONTS.body, fontSize: 13, marginTop: 6, lineHeight: 1.55 }} className="text-admin-ink">
-          Higher-trust clients have completed verification or funded their
-          account on Tulala. You decide which tiers can reach you. Lower-trust
-          tiers always have your agency&apos;s roster page available — they just
-          can&apos;t drop straight into your inbox.
+          {t("dashboard.talentDrawers.agency.howThisWorksBody")}
         </div>
       </div>
 
       {/* Presets — quick way to flip without micromanaging four toggles. */}
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         <PresetButton
-          label="Open to everyone"
+          label={t("dashboard.talentDrawers.agency.presetOpen")}
           active={JSON.stringify(policy) === JSON.stringify(DEFAULT_CONTACT_POLICY)}
           onClick={() => setPolicy({ ...DEFAULT_CONTACT_POLICY })}
         />
         <PresetButton
-          label="Verified clients only"
+          label={t("dashboard.talentDrawers.agency.presetVerified")}
           active={JSON.stringify(policy) === JSON.stringify(SELECTIVE_CONTACT_POLICY)}
           onClick={() => setPolicy({ ...SELECTIVE_CONTACT_POLICY })}
         />
@@ -524,7 +523,7 @@ export function TalentContactPreferencesDrawer() {
               <div className="flex-1 min-w-0">
                 <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
                   <ClientTrustChip level={tier} compact withDot={false} />
-                  Allow inquiries from {meta.label} clients
+                  {interpolate(t("dashboard.talentDrawers.agency.allowInquiriesFrom"), { tier: meta.label })}
                 </div>
                 <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">
                   {meta.rationale}
@@ -542,9 +541,7 @@ export function TalentContactPreferencesDrawer() {
       {/* What changes — a soft note about the consequence of selectivity. */}
       {!allOn && (
         <div style={{ marginTop: 14, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
-          Blocked tiers can still see your roster page. They&apos;ll be invited to
-          verify or fund their account before they can send you a direct
-          inquiry. Your agency&apos;s coordinator inbox is unaffected.
+          {t("dashboard.talentDrawers.agency.selectivityNote")}
         </div>
       )}
     </DrawerShell>

@@ -19,6 +19,8 @@ import { useState, useTransition } from "react";
 import type { TrialOffer } from "@/lib/plan-trials/offers";
 import { upsertTrialOffer } from "@/lib/server-actions/admin-trial-offers";
 import { PLAN_CATALOG, type PlanKey } from "@/lib/access/plan-catalog";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { HQ, F, FD } from "./_tokens";
 import { SectionLabel, Field, Toggle, inputStyle, EmptyHint } from "./_primitives";
 
@@ -27,6 +29,7 @@ function planLabel(planKey: string): string {
 }
 
 export function TrialsTab({ offers }: { offers: TrialOffer[] }) {
+  const t = useT();
   const workspace = offers.filter((o) => o.audience === "workspace");
   const talent = offers.filter((o) => o.audience === "talent");
 
@@ -44,21 +47,18 @@ export function TrialsTab({ offers }: { offers: TrialOffer[] }) {
           color: HQ.inkMuted,
         }}
       >
-        These control free trials end-to-end. <b style={{ color: HQ.ink }}>Trial
-        length</b> is the default a granted trial runs for. <b style={{ color: HQ.ink }}>
-        Show CTA</b> decides whether the &ldquo;start a trial&rdquo; nudge appears
-        in a workspace&rsquo;s plan badge. The <b style={{ color: HQ.ink }}>headline</b>{" "}
-        and <b style={{ color: HQ.ink }}>subtext</b> are the live copy users read
-        there — edits apply immediately, no deploy.
+        {t("dashboard.platform.pricing.trialsTab.intro")}
       </div>
 
       <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <SectionLabel
-          title="Workspace plans"
-          hint="Studio · Agency · Network — the badge on the admin top bar."
+          title={t("dashboard.platform.pricing.trialsTab.workspaceTitle")}
+          hint={t("dashboard.platform.pricing.trialsTab.workspaceHint")}
         />
         {workspace.length === 0 ? (
-          <EmptyHint text="No workspace trial offers configured yet." />
+          <EmptyHint
+            text={t("dashboard.platform.pricing.trialsTab.workspaceEmpty")}
+          />
         ) : (
           workspace.map((o) => (
             <TrialOfferRow key={`${o.audience}:${o.planKey}`} offer={o} />
@@ -68,11 +68,13 @@ export function TrialsTab({ offers }: { offers: TrialOffer[] }) {
 
       <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <SectionLabel
-          title="Talent plans"
-          hint="Pro · Max — the talent page upgrade surface."
+          title={t("dashboard.platform.pricing.trialsTab.talentTitle")}
+          hint={t("dashboard.platform.pricing.trialsTab.talentHint")}
         />
         {talent.length === 0 ? (
-          <EmptyHint text="No talent trial offers configured yet." />
+          <EmptyHint
+            text={t("dashboard.platform.pricing.trialsTab.talentEmpty")}
+          />
         ) : (
           talent.map((o) => (
             <TrialOfferRow key={`${o.audience}:${o.planKey}`} offer={o} />
@@ -86,6 +88,7 @@ export function TrialsTab({ offers }: { offers: TrialOffer[] }) {
 // ─── TrialOfferRow ───────────────────────────────────────────────────────────
 
 function TrialOfferRow({ offer }: { offer: TrialOffer }) {
+  const t = useT();
   const [trialDays, setTrialDays] = useState(String(offer.trialDays));
   const [isEnabled, setIsEnabled] = useState(offer.isEnabled);
   const [headline, setHeadline] = useState(offer.ctaHeadline ?? "");
@@ -171,7 +174,9 @@ function TrialOfferRow({ offer }: { offer: TrialOffer }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {state === "saved" && (
-            <span style={{ fontSize: 11.5, color: HQ.green }}>✓ Saved</span>
+            <span style={{ fontSize: 11.5, color: HQ.green }}>
+              ✓ {t("dashboard.platform.pricing.trialsTab.saved")}
+            </span>
           )}
           {state === "error" && (
             <span style={{ fontSize: 11.5, color: HQ.red }}>{errorMsg}</span>
@@ -192,13 +197,15 @@ function TrialOfferRow({ offer }: { offer: TrialOffer }) {
               cursor: canSave ? "pointer" : "default",
             }}
           >
-            {state === "saving" ? "Saving…" : "Save"}
+            {state === "saving"
+              ? t("dashboard.platform.pricing.trialsTab.saving")
+              : t("dashboard.platform.pricing.trialsTab.save")}
           </button>
         </div>
       </div>
 
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
-        <Field label="Trial length (days, 1-365)">
+        <Field label={t("dashboard.platform.pricing.trialsTab.trialLength")}>
           <input
             type="text"
             inputMode="numeric"
@@ -213,29 +220,32 @@ function TrialOfferRow({ offer }: { offer: TrialOffer }) {
           />
         </Field>
         <Toggle
-          label="Show self-serve CTA"
+          label={t("dashboard.platform.pricing.trialsTab.showCta")}
           checked={isEnabled}
           onChange={setIsEnabled}
-          hint="Off = grant-only (no in-app trial nudge)"
+          hint={t("dashboard.platform.pricing.trialsTab.showCtaHint")}
         />
       </div>
 
-      <Field label="CTA headline">
+      <Field label={t("dashboard.platform.pricing.trialsTab.ctaHeadline")}>
         <input
           type="text"
           value={headline}
           onChange={(e) => setHeadline(e.target.value)}
-          placeholder={`Try ${planLabel(offer.planKey)} free for ${trialDays || "14"} days`}
+          placeholder={interpolate(
+            t("dashboard.platform.pricing.trialsTab.ctaHeadlinePlaceholder"),
+            { plan: planLabel(offer.planKey), days: trialDays || "14" },
+          )}
           maxLength={120}
           style={inputStyle()}
         />
       </Field>
-      <Field label="CTA subtext">
+      <Field label={t("dashboard.platform.pricing.trialsTab.ctaSubtext")}>
         <input
           type="text"
           value={subtext}
           onChange={(e) => setSubtext(e.target.value)}
-          placeholder="Everything in the plan, free for the trial window."
+          placeholder={t("dashboard.platform.pricing.trialsTab.ctaSubtextPlaceholder")}
           maxLength={280}
           style={inputStyle()}
         />

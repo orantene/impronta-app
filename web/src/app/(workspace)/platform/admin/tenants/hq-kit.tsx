@@ -75,6 +75,41 @@ export function Chip({
   );
 }
 
+// ─── i18n key-maps ──────────────────────────────────────────────────────────
+//
+// These chips render from server components (the full page) and client
+// components (table + drawer), so hq-kit stays hook-free. Localized consumers
+// resolve a label with the maps below and pass it as the `label` prop; callers
+// that have no translator fall back to the chip's built-in text.
+
+export const PLAN_TIER_LABEL_KEY: Record<string, string> = {
+  free: "dashboard.platform.tier.free",
+  studio: "dashboard.platform.tier.studio",
+  agency: "dashboard.platform.tier.agency",
+  network: "dashboard.platform.tier.network",
+};
+
+export const WORKSPACE_ROLE_LABEL_KEY: Record<string, string> = {
+  owner: "dashboard.platform.role.owner",
+  admin: "dashboard.platform.role.admin",
+  coordinator: "dashboard.platform.role.coordinator",
+  editor: "dashboard.platform.role.editor",
+  talent: "dashboard.platform.role.talent",
+  member: "dashboard.platform.role.member",
+};
+
+export const WORKSPACE_STATUS_LABEL_KEY: Record<string, string> = {
+  active: "dashboard.platform.tenants.status.active",
+  trial: "dashboard.platform.tenants.status.trial",
+  onboarding: "dashboard.platform.tenants.status.onboarding",
+  draft: "dashboard.platform.tenants.status.draft",
+  past_due: "dashboard.platform.tenants.status.past_due",
+  restricted: "dashboard.platform.tenants.status.restricted",
+  suspended: "dashboard.platform.tenants.status.suspended",
+  cancelled: "dashboard.platform.tenants.status.cancelled",
+  archived: "dashboard.platform.tenants.status.archived",
+};
+
 // ─── Plan ─────────────────────────────────────────────────────────────────────
 
 const PLAN_COLORS: Record<string, { bg: string; color: string }> = {
@@ -84,11 +119,20 @@ const PLAN_COLORS: Record<string, { bg: string; color: string }> = {
   network: { bg: "rgba(160,122,224,0.15)", color: HQ.purple },
 };
 
-export function PlanChip({ plan, title }: { plan: string; title?: string }) {
+export function PlanChip({
+  plan,
+  title,
+  label,
+}: {
+  plan: string;
+  title?: string;
+  /** Localized label; defaults to the raw plan key when omitted. */
+  label?: string;
+}) {
   const c = PLAN_COLORS[plan] ?? PLAN_COLORS.free;
   return (
     <Chip bg={c.bg} color={c.color} title={title}>
-      {plan}
+      {label ?? plan}
     </Chip>
   );
 }
@@ -118,7 +162,7 @@ export function statusMeta(status: string) {
   );
 }
 
-export function StatusDot({ status }: { status: string }) {
+export function StatusDot({ status, label }: { status: string; label?: string }) {
   const m = statusMeta(status);
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -131,16 +175,16 @@ export function StatusDot({ status }: { status: string }) {
           flexShrink: 0,
         }}
       />
-      <span style={{ color: HQ.inkMuted, fontSize: 12.5 }}>{m.label}</span>
+      <span style={{ color: HQ.inkMuted, fontSize: 12.5 }}>{label ?? m.label}</span>
     </span>
   );
 }
 
-export function StatusChip({ status }: { status: string }) {
+export function StatusChip({ status, label }: { status: string; label?: string }) {
   const m = statusMeta(status);
   return (
     <Chip bg={m.soft} color={m.color}>
-      {m.label}
+      {label ?? m.label}
     </Chip>
   );
 }
@@ -155,17 +199,24 @@ const ROLE_COLORS: Record<string, string> = {
   viewer: HQ.inkDim,
 };
 
-export function RoleChip({ role }: { role: string }) {
-  return <Chip color={ROLE_COLORS[role] ?? HQ.inkMuted}>{role}</Chip>;
+export function RoleChip({ role, label }: { role: string; label?: string }) {
+  return <Chip color={ROLE_COLORS[role] ?? HQ.inkMuted}>{label ?? role}</Chip>;
 }
 
 // ─── Entity type ───────────────────────────────────────────────────────────────
 
-export function EntityChip({ entityType }: { entityType: string }) {
+export function EntityChip({
+  entityType,
+  label,
+}: {
+  entityType: string;
+  /** Localized label (icon included); defaults to the built-in EN label. */
+  label?: string;
+}) {
   const isHub = entityType === "hub";
   return (
     <Chip outline color={HQ.inkMuted}>
-      {isHub ? "·•· Hub" : "▣ Agency"}
+      {label ?? (isHub ? "·•· Hub" : "▣ Agency")}
     </Chip>
   );
 }

@@ -7,6 +7,8 @@ import {
   type DiscountCodeSummary,
   type CreateDiscountCodeArgs,
 } from "./actions";
+import { useT } from "@/i18n/use-t";
+import { interpolate, type Translator } from "@/i18n/interpolate";
 
 const HQ = {
   card:       "#16161A",
@@ -25,18 +27,35 @@ const F = '"Inter", system-ui, sans-serif';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function describeDiscount(code: DiscountCodeSummary): string {
-  if (code.percentOff != null) return `${code.percentOff}% off`;
+function describeDiscount(code: DiscountCodeSummary, t: Translator): string {
+  if (code.percentOff != null)
+    return interpolate(t("dashboard.platform.billing.discountCodes.descPercentOff"), {
+      value: code.percentOff,
+    });
   if (code.amountOffCents != null && code.currency)
-    return `${(code.amountOffCents / 100).toLocaleString("en-US", { style: "currency", currency: code.currency.toUpperCase() })} off`;
+    return interpolate(t("dashboard.platform.billing.discountCodes.descAmountOff"), {
+      amount: (code.amountOffCents / 100).toLocaleString("en-US", {
+        style: "currency",
+        currency: code.currency.toUpperCase(),
+      }),
+    });
   return "—";
 }
 
-function describeDuration(code: DiscountCodeSummary): string {
-  if (code.duration === "once") return "First invoice only";
-  if (code.duration === "forever") return "Every renewal";
+function describeDuration(code: DiscountCodeSummary, t: Translator): string {
+  if (code.duration === "once")
+    return t("dashboard.platform.billing.discountCodes.durFirstInvoice");
+  if (code.duration === "forever")
+    return t("dashboard.platform.billing.discountCodes.durEveryRenewal");
   if (code.duration === "repeating" && code.durationInMonths)
-    return `${code.durationInMonths} month${code.durationInMonths === 1 ? "" : "s"}`;
+    return interpolate(
+      t(
+        code.durationInMonths === 1
+          ? "dashboard.platform.billing.discountCodes.durMonthsOne"
+          : "dashboard.platform.billing.discountCodes.durMonthsMany",
+      ),
+      { count: code.durationInMonths },
+    );
   return code.duration;
 }
 
@@ -49,6 +68,7 @@ export function DiscountCodeShell({
   initialCodes: DiscountCodeSummary[];
   stripeReady: boolean;
 }) {
+  const t = useT();
   const [codes, setCodes] = React.useState<DiscountCodeSummary[]>(initialCodes);
   const [showForm, setShowForm] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
@@ -59,7 +79,15 @@ export function DiscountCodeShell({
   const archivedCodes = codes.filter((c) => !c.active);
 
   function handleDisable(promotionCodeId: string, code: string) {
-    if (!confirm(`Disable "${code}"? Existing redemptions stay active; new redemptions will be rejected.`)) return;
+    if (
+      !confirm(
+        interpolate(
+          t("dashboard.platform.billing.discountCodes.disablePrompt"),
+          { code },
+        ),
+      )
+    )
+      return;
     setError(null);
     startTransition(async () => {
       const result = await disablePlatformDiscountCode(promotionCodeId);
@@ -67,7 +95,12 @@ export function DiscountCodeShell({
         setCodes((prev) =>
           prev.map((c) => (c.promotionCodeId === promotionCodeId ? { ...c, active: false } : c)),
         );
-        setSuccess(`Disabled ${code}.`);
+        setSuccess(
+          interpolate(
+            t("dashboard.platform.billing.discountCodes.disabledToast"),
+            { code },
+          ),
+        );
       } else {
         setError(result.error);
       }
@@ -76,7 +109,11 @@ export function DiscountCodeShell({
 
   function handleCreated(newCode: DiscountCodeSummary) {
     setCodes((prev) => [newCode, ...prev]);
-    setSuccess(`Minted ${newCode.code}.`);
+    setSuccess(
+      interpolate(t("dashboard.platform.billing.discountCodes.mintedToast"), {
+        code: newCode.code,
+      }),
+    );
     setShowForm(false);
   }
 
@@ -105,10 +142,15 @@ export function DiscountCodeShell({
             opacity: stripeReady ? 1 : 0.5,
           }}
         >
-          {showForm ? "Cancel" : "+ Mint new code"}
+          {showForm
+            ? t("dashboard.platform.billing.discountCodes.cancel")
+            : t("dashboard.platform.billing.discountCodes.mintNew")}
         </button>
         <span style={{ fontSize: 12, color: HQ.inkDim, fontFamily: F }}>
-          {visibleCodes.length} active · {archivedCodes.length} disabled
+          {interpolate(
+            t("dashboard.platform.billing.discountCodes.countSummary"),
+            { active: visibleCodes.length, disabled: archivedCodes.length },
+          )}
         </span>
       </div>
 
@@ -162,11 +204,24 @@ export function DiscountCodeShell({
       )}
 
       {/* Active codes */}
-      <CodeList title="Active" codes={visibleCodes} pending={pending} onDisable={handleDisable} />
+      <CodeList
+        title="Active"
+        label={t("dashboard.platform.billing.discountCodes.titleActive")}
+        codes={visibleCodes}
+        pending={pending}
+        onDisable={handleDisable}
+      />
 
       {/* Archived */}
       {archivedCodes.length > 0 && (
-        <CodeList title="Disabled" codes={archivedCodes} pending={pending} onDisable={() => {}} hideActions />
+        <CodeList
+          title="Disabled"
+          label={t("dashboard.platform.billing.discountCodes.titleDisabled")}
+          codes={archivedCodes}
+          pending={pending}
+          onDisable={() => {}}
+          hideActions
+        />
       )}
     </div>
   );
@@ -181,6 +236,7 @@ function CreateForm({
   onSubmit: (args: CreateDiscountCodeArgs) => void;
   pending: boolean;
 }) {
+  const t = useT();
   const [code, setCode] = React.useState("");
   const [percentOff, setPercentOff] = React.useState("100");
   const [duration, setDuration] = React.useState<"once" | "forever" | "repeating">("forever");
@@ -222,16 +278,16 @@ function CreateForm({
         fontFamily: F,
       }}
     >
-      <Field label="Code">
+      <Field label={t("dashboard.platform.billing.discountCodes.codeField")}>
         <input
           required
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          placeholder="FRIENDS_FREE"
+          placeholder={t("dashboard.platform.billing.discountCodes.codePlaceholder")}
           style={inputStyle()}
         />
       </Field>
-      <Field label="Percent off (1–100)">
+      <Field label={t("dashboard.platform.billing.discountCodes.percentField")}>
         <input
           required
           type="number"
@@ -243,19 +299,19 @@ function CreateForm({
         />
       </Field>
 
-      <Field label="Duration">
+      <Field label={t("dashboard.platform.billing.discountCodes.durationField")}>
         <select
           value={duration}
           onChange={(e) => setDuration(e.target.value as "once" | "forever" | "repeating")}
           style={inputStyle()}
         >
-          <option value="forever">Forever (every renewal)</option>
-          <option value="once">Once (first invoice only)</option>
-          <option value="repeating">Repeating (N months)</option>
+          <option value="forever">{t("dashboard.platform.billing.discountCodes.durationForever")}</option>
+          <option value="once">{t("dashboard.platform.billing.discountCodes.durationOnce")}</option>
+          <option value="repeating">{t("dashboard.platform.billing.discountCodes.durationRepeating")}</option>
         </select>
       </Field>
       {duration === "repeating" ? (
-        <Field label="Duration in months">
+        <Field label={t("dashboard.platform.billing.discountCodes.durationMonthsField")}>
           <input
             type="number"
             min={1}
@@ -268,17 +324,17 @@ function CreateForm({
         <div />
       )}
 
-      <Field label="Max redemptions (optional)">
+      <Field label={t("dashboard.platform.billing.discountCodes.maxRedemptionsField")}>
         <input
           type="number"
           min={1}
           value={maxRedemptions}
           onChange={(e) => setMaxRedemptions(e.target.value)}
-          placeholder="leave blank for unlimited"
+          placeholder={t("dashboard.platform.billing.discountCodes.maxRedemptionsPlaceholder")}
           style={inputStyle()}
         />
       </Field>
-      <Field label="Expires at (optional)">
+      <Field label={t("dashboard.platform.billing.discountCodes.expiresField")}>
         <input
           type="datetime-local"
           value={expiresAt}
@@ -287,11 +343,11 @@ function CreateForm({
         />
       </Field>
 
-      <Field label="Internal note (optional, for audit)" full>
+      <Field label={t("dashboard.platform.billing.discountCodes.noteField")} full>
         <input
           value={internalNote}
           onChange={(e) => setInternalNote(e.target.value)}
-          placeholder="What's this code for?"
+          placeholder={t("dashboard.platform.billing.discountCodes.notePlaceholder")}
           style={inputStyle()}
         />
       </Field>
@@ -312,10 +368,12 @@ function CreateForm({
             opacity: pending ? 0.6 : 1,
           }}
         >
-          {pending ? "Minting…" : "Mint code"}
+          {pending
+            ? t("dashboard.platform.billing.discountCodes.minting")
+            : t("dashboard.platform.billing.discountCodes.mintCode")}
         </button>
         <span style={{ fontSize: 11, color: HQ.inkDim }}>
-          Saves to Stripe. Usable immediately in any checkout.
+          {t("dashboard.platform.billing.discountCodes.mintNote")}
         </span>
       </div>
     </form>
@@ -326,17 +384,22 @@ function CreateForm({
 
 function CodeList({
   title,
+  label,
   codes,
   pending,
   onDisable,
   hideActions,
 }: {
+  /** Logic discriminant (stable, never localized): "Active" | "Disabled". */
   title: string;
+  /** Localized heading shown to the user. */
+  label: string;
   codes: DiscountCodeSummary[];
   pending: boolean;
   onDisable: (id: string, code: string) => void;
   hideActions?: boolean;
 }) {
+  const t = useT();
   if (codes.length === 0 && title === "Active") {
     return (
       <div
@@ -351,7 +414,7 @@ function CodeList({
           fontFamily: F,
         }}
       >
-        No active discount codes yet.
+        {t("dashboard.platform.billing.discountCodes.emptyActive")}
       </div>
     );
   }
@@ -370,7 +433,7 @@ function CodeList({
           fontFamily: F,
         }}
       >
-        {title}
+        {label}
       </div>
       <div
         style={{
@@ -398,9 +461,21 @@ function CodeList({
                 {code.code}
               </div>
               <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 3 }}>
-                {describeDiscount(code)} · {describeDuration(code)} ·{" "}
-                {code.timesRedeemed}/{code.maxRedemptions ?? "∞"} redeemed
-                {code.expiresAt && ` · expires ${new Date(code.expiresAt).toLocaleDateString()}`}
+                {describeDiscount(code, t)} · {describeDuration(code, t)} ·{" "}
+                {interpolate(
+                  t("dashboard.platform.billing.discountCodes.redeemedSuffix"),
+                  {
+                    redeemed: code.timesRedeemed,
+                    max:
+                      code.maxRedemptions ??
+                      t("dashboard.platform.billing.discountCodes.unlimited"),
+                  },
+                )}
+                {code.expiresAt &&
+                  ` · ${interpolate(
+                    t("dashboard.platform.billing.discountCodes.expiresSuffix"),
+                    { date: new Date(code.expiresAt).toLocaleDateString() },
+                  )}`}
               </div>
               {code.metadata.internal_note && (
                 <div style={{ fontSize: 11, color: HQ.inkDim, marginTop: 4, fontStyle: "italic" }}>
@@ -425,7 +500,7 @@ function CodeList({
                   cursor: pending ? "not-allowed" : "pointer",
                 }}
               >
-                Disable
+                {t("dashboard.platform.billing.discountCodes.disable")}
               </button>
             )}
           </div>

@@ -23,16 +23,25 @@ import type {
   TenantManagementDetail,
   TenantManagementDomain,
 } from "../../tenant-management-data";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
 
 // ─── Domain management ────────────────────────────────────────────────────────
 
-const KIND_LABEL: Record<string, string> = {
-  subdomain: "Subdomain",
-  custom: "Custom",
-  marketing: "Marketing",
-  app: "App",
-  hub: "Hub",
+const DOMAIN_KIND_LABEL_KEY: Record<string, string> = {
+  subdomain: "dashboard.platform.tenants.domainKindSubdomain",
+  custom: "dashboard.platform.tenants.domainKindCustom",
+  marketing: "dashboard.platform.tenants.domainKindMarketing",
+  app: "dashboard.platform.tenants.domainKindApp",
+  hub: "dashboard.platform.tenants.domainKindHub",
 };
+
+function domainKindLabel(t: Translate, kind: string): string {
+  const key = DOMAIN_KIND_LABEL_KEY[kind];
+  return key ? t(key) : kind;
+}
 
 const STATUS_COLOR: Record<string, string> = {
   active: HQ.green,
@@ -50,6 +59,7 @@ function DomainRow({
   tenantId: string;
   onChanged: OnChanged;
 }) {
+  const t = useT();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const [confirm, setConfirm] = useState<"remove" | null>(null);
@@ -59,7 +69,7 @@ function DomainRow({
     start(async () => {
       const res = await fn();
       if (res.ok) { setConfirm(null); await onChanged(); }
-      else { setMsg({ tone: "err", text: res.error ?? "Action failed." }); setConfirm(null); }
+      else { setMsg({ tone: "err", text: res.error ?? t("dashboard.platform.tenants.actionFailed") }); setConfirm(null); }
     });
   }
 
@@ -86,13 +96,13 @@ function DomainRow({
             {domain.hostname}
             {domain.isPrimary && (
               <span style={{ fontSize: 10, fontWeight: 700, color: HQ.green, letterSpacing: 0.5, textTransform: "uppercase", fontFamily: HQ_F }}>
-                PRIMARY
+                {t("dashboard.platform.tenants.domainPrimary")}
               </span>
             )}
           </div>
           <div style={{ marginTop: 3, display: "flex", gap: 5, flexWrap: "wrap" }}>
             <span style={{ fontSize: 10.5, color: HQ.inkDim, fontFamily: HQ_F }}>
-              {KIND_LABEL[domain.kind] ?? domain.kind}
+              {domainKindLabel(t, domain.kind)}
             </span>
             <span style={{ fontSize: 10.5, color: STATUS_COLOR[domain.status] ?? HQ.inkDim }}>
               · {domain.status}
@@ -102,12 +112,12 @@ function DomainRow({
         <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
           {canSetPrimary && (
             <Btn size="sm" onClick={() => run(() => actionSetPrimaryDomain({ tenantId, domainId: domain.id }))} disabled={pending}>
-              Set primary
+              {t("dashboard.platform.tenants.setPrimary")}
             </Btn>
           )}
           {canRemove && (
             <Btn size="sm" tone="danger" onClick={() => setConfirm("remove")} disabled={pending}>
-              Remove
+              {t("dashboard.platform.tenants.remove")}
             </Btn>
           )}
         </div>
@@ -115,9 +125,9 @@ function DomainRow({
       <Feedback msg={msg} />
       <ConfirmModal
         open={confirm === "remove"}
-        title="Remove domain"
-        body={<>Remove <strong>{domain.hostname}</strong> from this workspace? Visitors using this hostname will see a 404.</>}
-        confirmLabel="Remove domain"
+        title={t("dashboard.platform.tenants.removeDomainTitle")}
+        body={interpolate(t("dashboard.platform.tenants.removeDomainBody"), { hostname: domain.hostname })}
+        confirmLabel={t("dashboard.platform.tenants.removeDomainConfirm")}
         pending={pending}
         onCancel={() => setConfirm(null)}
         onConfirm={() => run(() => actionRemoveDomain({ tenantId, domainId: domain.id }))}
@@ -127,6 +137,7 @@ function DomainRow({
 }
 
 function AddDomainForm({ detail, onChanged }: { detail: TenantManagementDetail; onChanged: OnChanged }) {
+  const t = useT();
   const [hostname, setHostname] = useState("");
   const [kind, setKind] = useState("custom");
   const [pending, start] = useTransition();
@@ -136,7 +147,7 @@ function AddDomainForm({ detail, onChanged }: { detail: TenantManagementDetail; 
     setMsg(null);
     start(async () => {
       const res = await actionAddDomain({ tenantId: detail.id, hostname, kind });
-      if (res.ok) { setHostname(""); setMsg({ tone: "ok", text: "Domain added." }); await onChanged(); }
+      if (res.ok) { setHostname(""); setMsg({ tone: "ok", text: t("dashboard.platform.tenants.domainAdded") }); await onChanged(); }
       else setMsg({ tone: "err", text: res.error });
     });
   }
@@ -144,27 +155,27 @@ function AddDomainForm({ detail, onChanged }: { detail: TenantManagementDetail; 
   return (
     <div style={{ marginTop: 10, padding: "10px 12px", background: HQ.cardSofter, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10 }}>
       <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: HQ.inkDim, marginBottom: 8 }}>
-        Add domain
+        {t("dashboard.platform.tenants.addDomain")}
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <input
           type="text"
-          placeholder="example.com or sub.tulala.digital"
+          placeholder={t("dashboard.platform.tenants.addDomainPlaceholder")}
           value={hostname}
           disabled={pending}
           onChange={(e) => setHostname(e.target.value)}
           style={{ ...inputStyle, flex: "1 1 200px" }}
         />
         <select value={kind} disabled={pending} onChange={(e) => setKind(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
-          <option value="custom">Custom domain</option>
-          <option value="subdomain">Subdomain</option>
+          <option value="custom">{t("dashboard.platform.tenants.domainCustom")}</option>
+          <option value="subdomain">{t("dashboard.platform.tenants.domainSubdomain")}</option>
         </select>
         <Btn tone="primary" onClick={submit} disabled={pending || !hostname.trim()}>
-          {pending ? "Adding…" : "Add"}
+          {pending ? t("dashboard.platform.tenants.adding") : t("dashboard.platform.tenants.add")}
         </Btn>
       </div>
       <p style={{ fontSize: 10.5, color: HQ.inkDim, margin: "6px 0 0" }}>
-        Custom domains require DNS configuration pointing to Vercel. Subdomains are auto-verified.
+        {t("dashboard.platform.tenants.addDomainNote")}
       </p>
       <Feedback msg={msg} />
     </div>
@@ -172,16 +183,17 @@ function AddDomainForm({ detail, onChanged }: { detail: TenantManagementDetail; 
 }
 
 export function DomainSection({ detail, onChanged, defaultOpen }: SectionProps) {
+  const t = useT();
   return (
     <Accordion
-      title="Domains"
+      title={t("dashboard.platform.tenants.sectionDomains")}
       hint={`${detail.domains.length}`}
       defaultOpen={defaultOpen ?? false}
     >
       <div style={{ paddingTop: 2 }}>
         {detail.domains.length === 0 ? (
           <div style={{ padding: "12px 0", fontSize: 12.5, color: HQ.inkMuted }}>
-            No domains registered. The workspace is accessible via path-based routing only.
+            {t("dashboard.platform.tenants.noDomains")}
           </div>
         ) : (
           detail.domains.map((d) => (
@@ -202,6 +214,7 @@ export function DomainSection({ detail, onChanged, defaultOpen }: SectionProps) 
 // ─── Workspace settings + danger zone ─────────────────────────────────────────
 
 export function TenantSettingsSection({ detail, onChanged, defaultOpen }: SectionProps) {
+  const t = useT();
   const [name, setName] = useState(detail.name);
   const [kind, setKind] = useState(detail.entityType);
   const [pendingSettings, startSettings] = useTransition();
@@ -221,7 +234,7 @@ export function TenantSettingsSection({ detail, onChanged, defaultOpen }: Sectio
     setMsgSettings(null);
     startSettings(async () => {
       const res = await actionUpdateTenantSettings({ tenantId: detail.id, displayName: name, kind });
-      if (res.ok) { setMsgSettings({ tone: "ok", text: "Settings saved." }); await onChanged(); }
+      if (res.ok) { setMsgSettings({ tone: "ok", text: t("dashboard.platform.tenants.settingsSaved") }); await onChanged(); }
       else setMsgSettings({ tone: "err", text: res.error });
     });
   }
@@ -233,7 +246,7 @@ export function TenantSettingsSection({ detail, onChanged, defaultOpen }: Sectio
       if (res.ok) {
         setConfirmStatus(null);
         setStatusReason("");
-        setMsgStatus({ tone: "ok", text: `Status set to ${status}.` });
+        setMsgStatus({ tone: "ok", text: interpolate(t("dashboard.platform.tenants.statusSetTo"), { status }) });
         await onChanged();
       } else {
         setMsgStatus({ tone: "err", text: res.error });
@@ -248,7 +261,7 @@ export function TenantSettingsSection({ detail, onChanged, defaultOpen }: Sectio
       const res = await actionDeleteTenant({ tenantId: detail.id, confirmSlug: deleteSlug });
       if (res.ok) {
         setConfirmDelete(false);
-        setMsgDelete({ tone: "ok", text: "Workspace cancelled." });
+        setMsgDelete({ tone: "ok", text: t("dashboard.platform.tenants.workspaceCancelled") });
         await onChanged();
       } else {
         setMsgDelete({ tone: "err", text: res.error });
@@ -261,16 +274,16 @@ export function TenantSettingsSection({ detail, onChanged, defaultOpen }: Sectio
   const isSuspended = detail.status === "suspended";
 
   return (
-    <Accordion title="Settings & danger zone" defaultOpen={defaultOpen ?? false}>
+    <Accordion title={t("dashboard.platform.tenants.sectionSettingsDanger")} defaultOpen={defaultOpen ?? false}>
       <div style={{ paddingTop: 8, display: "flex", flexDirection: "column", gap: 12 }}>
 
         {/* Display name + entity type */}
         <div style={{ padding: "10px 12px", background: HQ.cardSofter, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: HQ.inkDim }}>
-            Display settings
+            {t("dashboard.platform.tenants.displaySettings")}
           </div>
           <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-            Display name
+            {t("dashboard.platform.tenants.fieldDisplayNameLabel")}
             <input
               type="text"
               value={name}
@@ -280,14 +293,14 @@ export function TenantSettingsSection({ detail, onChanged, defaultOpen }: Sectio
             />
           </label>
           <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-            Workspace type
+            {t("dashboard.platform.tenants.fieldWorkspaceType")}
             <select
               value={kind}
               disabled={pendingSettings}
               onChange={(e) => setKind(e.target.value)}
               style={{ ...inputStyle, marginTop: 3 }}
             >
-              <option value="agency">Agency</option>
+              <option value="agency">{t("dashboard.platform.tier.agency")}</option>
               <option value="hub">Hub</option>
             </select>
           </label>
@@ -296,7 +309,7 @@ export function TenantSettingsSection({ detail, onChanged, defaultOpen }: Sectio
             onClick={saveSettings}
             disabled={pendingSettings || (!name.trim() || (name === detail.name && kind === detail.entityType))}
           >
-            {pendingSettings ? "Saving…" : "Save settings"}
+            {pendingSettings ? t("dashboard.platform.tenants.saving") : t("dashboard.platform.tenants.saveSettings")}
           </Btn>
           <Feedback msg={msgSettings} />
         </div>
@@ -304,20 +317,20 @@ export function TenantSettingsSection({ detail, onChanged, defaultOpen }: Sectio
         {/* Status controls */}
         <div style={{ padding: "10px 12px", background: HQ.cardSofter, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: HQ.inkDim }}>
-            Status control — current: <span style={{ color: isSuspended ? HQ.red : isActive ? HQ.green : HQ.amber }}>{detail.status}</span>
+            {t("dashboard.platform.tenants.statusControlCurrent")} <span style={{ color: isSuspended ? HQ.red : isActive ? HQ.green : HQ.amber }}>{detail.status}</span>
           </div>
           {!isActive && (
             <Btn tone="primary" onClick={() => setConfirmStatus("active")} disabled={pendingStatus}>
-              Activate workspace
+              {t("dashboard.platform.tenants.activateWorkspace")}
             </Btn>
           )}
           {!isSuspended && (
             <>
               <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-                Reason (shown on suspend)
+                {t("dashboard.platform.tenants.reasonOnSuspend")}
                 <input
                   type="text"
-                  placeholder="e.g. payment overdue, policy violation"
+                  placeholder={t("dashboard.platform.tenants.reasonSuspendPlaceholder")}
                   value={statusReason}
                   disabled={pendingStatus}
                   onChange={(e) => setStatusReason(e.target.value)}
@@ -325,13 +338,13 @@ export function TenantSettingsSection({ detail, onChanged, defaultOpen }: Sectio
                 />
               </label>
               <Btn tone="danger" onClick={() => setConfirmStatus("suspended")} disabled={pendingStatus}>
-                Freeze (suspend) workspace
+                {t("dashboard.platform.tenants.freezeSuspend")}
               </Btn>
             </>
           )}
           {isSuspended && (
             <Btn tone="danger" onClick={() => setConfirmStatus("archived")} disabled={pendingStatus}>
-              Archive workspace
+              {t("dashboard.platform.tenants.archiveWorkspace")}
             </Btn>
           )}
           <Feedback msg={msgStatus} />
@@ -340,13 +353,13 @@ export function TenantSettingsSection({ detail, onChanged, defaultOpen }: Sectio
         {/* Danger: cancel */}
         <div style={{ padding: "10px 12px", background: "rgba(243,103,114,0.06)", border: "1px solid rgba(243,103,114,0.2)", borderRadius: 10, display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: HQ.red }}>
-            Cancel workspace
+            {t("dashboard.platform.tenants.cancelWorkspace")}
           </div>
           <p style={{ fontSize: 11.5, color: HQ.inkMuted, margin: 0, lineHeight: 1.55 }}>
-            Sets status to <strong>cancelled</strong>. All access is blocked. Data is retained. This action is logged with emergency severity.
+            {t("dashboard.platform.tenants.cancelWorkspaceDesc")}
           </p>
           <Btn tone="danger" onClick={() => setConfirmDelete(true)} disabled={pendingDelete}>
-            Cancel workspace…
+            {t("dashboard.platform.tenants.cancelWorkspaceEllipsis")}
           </Btn>
           <Feedback msg={msgDelete} />
         </div>
@@ -355,15 +368,15 @@ export function TenantSettingsSection({ detail, onChanged, defaultOpen }: Sectio
       {/* Status confirm */}
       <ConfirmModal
         open={Boolean(confirmStatus)}
-        title={confirmStatus === "active" ? "Activate workspace" : confirmStatus === "suspended" ? "Freeze workspace" : "Archive workspace"}
+        title={confirmStatus === "active" ? t("dashboard.platform.tenants.activateWorkspace") : confirmStatus === "suspended" ? t("dashboard.platform.tenants.freezeWorkspace") : t("dashboard.platform.tenants.archiveWorkspace")}
         body={
           confirmStatus === "active"
-            ? <>Activate <strong>{detail.name}</strong>? It will be immediately accessible to its members and the public.</>
+            ? interpolate(t("dashboard.platform.tenants.confirmActivateBody"), { workspace: detail.name })
             : confirmStatus === "suspended"
-            ? <><strong>{detail.name}</strong> will be immediately inaccessible. The owner will see a suspension notice. Reason: {statusReason || "(none)"}</>
-            : <>Archive <strong>{detail.name}</strong>? It will be hidden from all surfaces.</>
+            ? interpolate(t("dashboard.platform.tenants.confirmSuspendBody"), { workspace: detail.name, reason: statusReason || t("dashboard.platform.tenants.reasonNone") })
+            : interpolate(t("dashboard.platform.tenants.confirmArchiveBody"), { workspace: detail.name })
         }
-        confirmLabel={confirmStatus === "active" ? "Activate" : confirmStatus === "suspended" ? "Freeze" : "Archive"}
+        confirmLabel={confirmStatus === "active" ? t("dashboard.platform.tenants.activate") : confirmStatus === "suspended" ? t("dashboard.platform.tenants.freeze") : t("dashboard.platform.tenants.archive")}
         pending={pendingStatus}
         onCancel={() => setConfirmStatus(null)}
         onConfirm={() => confirmStatus && setStatus(confirmStatus)}
@@ -372,11 +385,11 @@ export function TenantSettingsSection({ detail, onChanged, defaultOpen }: Sectio
       {/* Cancel confirm */}
       <ConfirmModal
         open={confirmDelete}
-        title="Cancel workspace — type slug to confirm"
+        title={t("dashboard.platform.tenants.cancelWorkspaceConfirmTitle")}
         body={
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <p style={{ margin: 0, fontSize: 13, color: HQ.inkMuted }}>
-              This cancels <strong>{detail.name}</strong> permanently. Type the slug <code style={{ fontFamily: HQ_FM, color: HQ.red }}>{detail.slug}</code> to confirm.
+              {interpolate(t("dashboard.platform.tenants.cancelWorkspaceConfirmBody"), { workspace: detail.name, slug: detail.slug })}
             </p>
             <input
               type="text"
@@ -387,7 +400,7 @@ export function TenantSettingsSection({ detail, onChanged, defaultOpen }: Sectio
             />
           </div>
         }
-        confirmLabel="Cancel workspace"
+        confirmLabel={t("dashboard.platform.tenants.cancelWorkspace")}
         pending={pendingDelete}
         onCancel={() => { setConfirmDelete(false); setDeleteSlug(""); }}
         onConfirm={doDelete}

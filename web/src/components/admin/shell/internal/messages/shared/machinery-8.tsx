@@ -3,6 +3,8 @@ import { logServerError } from "@/lib/server/safe-error";
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { createAgencyInquiry } from "@/lib/server-actions/admin-inquiries";
 import { FONTS, COLORS, useAdminShell, type InquiryRecord, type InquiryUnitType } from "../../state";
 import { ghostBtn, primaryBtn } from "./machinery-13";
@@ -183,6 +185,7 @@ export function InquiryComposer({
   submitDisabled?: boolean;
 }) {
   const { toast } = useAdminShell();
+  const t = useT();
   const [draft, setDraft] = useState<ComposerDraft>(() => ({
     title: "",
     clientName: mode === "client" ? defaultClientName ?? "" : "",
@@ -204,7 +207,7 @@ export function InquiryComposer({
   const send = async () => {
     if (submitDisabled) return;
     if (!draft.briefSummary.trim()) {
-      toast("Add a brief so the agency can triage");
+      toast(t("dashboard.talentThread.composerToastAddBrief"));
       return;
     }
     if (isSaving) return;
@@ -221,11 +224,11 @@ export function InquiryComposer({
       const contactName = (draft.contactName || draft.clientName || "").trim();
       const contactEmail = (draft.contactEmail || "").trim();
       if (!contactName) {
-        toast("Add a client name");
+        toast(t("dashboard.talentThread.composerToastAddClientName"));
         return;
       }
       if (!contactEmail) {
-        toast("Add a client email");
+        toast(t("dashboard.talentThread.composerToastAddClientEmail"));
         return;
       }
 
@@ -247,10 +250,10 @@ export function InquiryComposer({
           talent_profile_ids: (draft.talent ?? []).join(","),
         });
         if (!result.ok) {
-          toast(result.error || "Couldn't create inquiry — try again.");
+          toast(result.error || t("dashboard.talentThread.composerToastCreateFailed"));
           return;
         }
-        toast("Inquiry created");
+        toast(t("dashboard.talentThread.composerToastInquiryCreated"));
         // Refresh server data so Messages + Calendar surface the new row.
         router.refresh();
         onSubmit(draft);
@@ -258,7 +261,7 @@ export function InquiryComposer({
         // Network / unexpected error — keep the drawer open so the user
         // can retry without losing their draft.
         logServerError("createagencyinquiry", err);
-        toast("Couldn't create inquiry — try again.");
+        toast(t("dashboard.talentThread.composerToastCreateFailed"));
       } finally {
         setIsSaving(false);
       }
@@ -283,17 +286,17 @@ export function InquiryComposer({
         }}>
           <div className="flex-1">
             <div className="text-admin-ink-muted text-admin-10h font-bold">
-              {mode === "client" ? "New inquiry" : mode === "hub" ? "Hub inquiry" : "Manual inquiry"}
+              {mode === "client" ? t("dashboard.talentThread.composerNewInquiry") : mode === "hub" ? t("dashboard.talentThread.composerHubInquiry") : t("dashboard.talentThread.composerManualInquiry")}
             </div>
             <h2 style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, fontFamily: FONTS.display }} className="text-admin-ink">
-              What do you need?
+              {t("dashboard.talentThread.composerHeadline")}
             </h2>
           </div>
-          <button type="button" onClick={onCancel} aria-label="Close" style={{
+          <button type="button" onClick={onCancel} aria-label={t("dashboard.talentThread.composerCloseAria")} style={{
             padding: "6px 10px", borderRadius: 999,
             border: `1px solid ${COLORS.border}`, background: "transparent",
             color: COLORS.ink, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-          }}>× Close</button>
+          }}>{t("dashboard.talentThread.composerClose")}</button>
         </div>
       )}
 
@@ -303,13 +306,13 @@ export function InquiryComposer({
             "Booking as <Profile>" picker. Producer/multi-Profile users
             need to confirm WHICH Profile this inquiry is on behalf of. */}
         {mode === "client" && (
-          <ComposerSection title="Booking as" subtitle="Which profile are you sending this from?">
+          <ComposerSection title={t("dashboard.talentThread.composerBookingAs")} subtitle={t("dashboard.talentThread.composerBookingAsSubtitle")}>
             <ComposerSelect
               value={draft.clientName || "Martina Beach Club"}
               onChange={v => update("clientName", v)}
               options={[
-                { value: "Martina Beach Club", label: "Martina Beach Club · Business" },
-                { value: "The Gringo",         label: "The Gringo · Personal" },
+                { value: "Martina Beach Club", label: `Martina Beach Club · ${t("dashboard.talentThread.composerBusinessSuffix")}` },
+                { value: "The Gringo",         label: `The Gringo · ${t("dashboard.talentThread.composerPersonalSuffix")}` },
               ]}
             />
           </ComposerSection>
@@ -320,17 +323,17 @@ export function InquiryComposer({
             #28 — Multi-talent group: opt-in. Default is single category.
             Picking "Mixed group" reveals a row-builder for "3 hosts +
             2 models + 1 DJ" style group inquiries. */}
-        <ComposerSection title="1. What do you need" subtitle="Pick a category — or build a mixed group.">
+        <ComposerSection title={t("dashboard.talentThread.composerStep1Title")} subtitle={t("dashboard.talentThread.composerStep1Subtitle")}>
           <div className="flex flex-wrap gap-1.5">
             {[
-              { id: "models",        label: "Models",        emoji: "👤" },
-              { id: "hosts",         label: "Hosts",         emoji: "🎤" },
-              { id: "chefs",         label: "Chefs",         emoji: "👨‍🍳" },
-              { id: "artists",       label: "Artists",       emoji: "🎨" },
-              { id: "djs",           label: "DJs",           emoji: "🎧" },
-              { id: "photographers", label: "Photographers", emoji: "📷" },
-              { id: "performers",    label: "Performers",    emoji: "✨" },
-              { id: "mixed",         label: "Mixed group",   emoji: "✦" },
+              { id: "models",        label: t("dashboard.talentThread.composerCatModels"),        emoji: "👤" },
+              { id: "hosts",         label: t("dashboard.talentThread.composerCatHosts"),         emoji: "🎤" },
+              { id: "chefs",         label: t("dashboard.talentThread.composerCatChefs"),         emoji: "👨‍🍳" },
+              { id: "artists",       label: t("dashboard.talentThread.composerCatArtists"),       emoji: "🎨" },
+              { id: "djs",           label: t("dashboard.talentThread.composerCatDjs"),           emoji: "🎧" },
+              { id: "photographers", label: t("dashboard.talentThread.composerCatPhotographers"), emoji: "📷" },
+              { id: "performers",    label: t("dashboard.talentThread.composerCatPerformers"),    emoji: "✨" },
+              { id: "mixed",         label: t("dashboard.talentThread.composerCatMixed"),   emoji: "✦" },
             ].map(c => {
               const active = (draft.title || "models") === c.id;
               return (
@@ -361,48 +364,48 @@ export function InquiryComposer({
 
         {/* Client (admin/hub mode only — client mode covered above) */}
         {mode !== "client" && (
-          <ComposerSection title="2. Who's it for" subtitle="Search or add a new client.">
-            <ComposerInput placeholder="Search clients by name, email…" value={draft.clientName} onChange={v => update("clientName", v)} />
+          <ComposerSection title={t("dashboard.talentThread.composerWhoTitle")} subtitle={t("dashboard.talentThread.composerWhoSubtitle")}>
+            <ComposerInput placeholder={t("dashboard.talentThread.composerSearchClients")} value={draft.clientName} onChange={v => update("clientName", v)} />
             <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr", marginTop: 8 }}>
-              <ComposerInput placeholder="Contact name" value={draft.contactName} onChange={v => update("contactName", v)} />
-              <ComposerInput placeholder="Contact email" value={draft.contactEmail} onChange={v => update("contactEmail", v)} />
+              <ComposerInput placeholder={t("dashboard.talentThread.composerContactName")} value={draft.contactName} onChange={v => update("contactName", v)} />
+              <ComposerInput placeholder={t("dashboard.talentThread.composerContactEmail")} value={draft.contactEmail} onChange={v => update("contactEmail", v)} />
             </div>
           </ComposerSection>
         )}
 
         {/* Schedule */}
-        <ComposerSection title="2. When" subtitle="One-day or range. Use TBC if flexible.">
+        <ComposerSection title={t("dashboard.talentThread.composerWhenTitle")} subtitle={t("dashboard.talentThread.composerWhenSubtitle")}>
           <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
-            <ComposerInput placeholder="Start (e.g. May 6)" value={draft.scheduleStart} onChange={v => update("scheduleStart", v)} />
-            <ComposerInput placeholder="End (optional)" value={draft.scheduleEnd} onChange={v => update("scheduleEnd", v)} />
+            <ComposerInput placeholder={t("dashboard.talentThread.composerStartPlaceholder")} value={draft.scheduleStart} onChange={v => update("scheduleStart", v)} />
+            <ComposerInput placeholder={t("dashboard.talentThread.composerEndPlaceholder")} value={draft.scheduleEnd} onChange={v => update("scheduleEnd", v)} />
           </div>
         </ComposerSection>
 
         {/* Location */}
-        <ComposerSection title="3. Where" subtitle="City + venue. Address can come later.">
+        <ComposerSection title={t("dashboard.talentThread.composerWhereTitle")} subtitle={t("dashboard.talentThread.composerWhereSubtitle")}>
           <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
-            <ComposerInput placeholder="City" value={draft.locationCity} onChange={v => update("locationCity", v)} />
-            <ComposerInput placeholder="Venue / location name" value={draft.locationVenue} onChange={v => update("locationVenue", v)} />
+            <ComposerInput placeholder={t("dashboard.talentThread.composerCity")} value={draft.locationCity} onChange={v => update("locationCity", v)} />
+            <ComposerInput placeholder={t("dashboard.talentThread.composerVenue")} value={draft.locationVenue} onChange={v => update("locationVenue", v)} />
           </div>
         </ComposerSection>
 
         {/* Talent */}
-        <ComposerSection title="4. Who you want" subtitle={mode === "client" ? "Pick from the directory or leave blank — we'll suggest." : "Invite represented talent. Search by code or name."}>
-          <ComposerInput placeholder="Search talent…" value={"" /* stub */} onChange={() => {}} />
+        <ComposerSection title={t("dashboard.talentThread.composerTalentTitle")} subtitle={mode === "client" ? t("dashboard.talentThread.composerTalentSubtitleClient") : t("dashboard.talentThread.composerTalentSubtitleStaff")}>
+          <ComposerInput placeholder={t("dashboard.talentThread.composerSearchTalent")} value={"" /* stub */} onChange={() => {}} />
           <div style={{ marginTop: 8, fontSize: 11.5 }} className="text-admin-ink-dim">
-            {draft.talent.length === 0 ? "No talent added yet." : `${draft.talent.length} added`}
+            {draft.talent.length === 0 ? t("dashboard.talentThread.composerNoTalentYet") : interpolate(t("dashboard.talentThread.composerTalentAdded"), { count: draft.talent.length })}
           </div>
         </ComposerSection>
 
         {/* Brief */}
-        <ComposerSection title="5. The ask" subtitle="One line for triage. Long brief in notes.">
+        <ComposerSection title={t("dashboard.talentThread.composerAskTitle")} subtitle={t("dashboard.talentThread.composerAskSubtitle")}>
           <ComposerInput
-            placeholder={mode === "client" ? "e.g. 3 promo models for a beach club launch" : "Brief headline for triage"}
+            placeholder={mode === "client" ? t("dashboard.talentThread.composerAskPlaceholderClient") : t("dashboard.talentThread.composerAskPlaceholderStaff")}
             value={draft.briefSummary} onChange={v => update("briefSummary", v)}
           />
           <div className="mt-2">
             <ComposerTextarea
-              placeholder="Notes — timing, dress code, languages, deliverables…"
+              placeholder={t("dashboard.talentThread.composerNotesPlaceholder")}
               value={draft.briefNotes} onChange={v => update("briefNotes", v)}
             />
           </div>
@@ -410,21 +413,21 @@ export function InquiryComposer({
 
         {/* Budget */}
         <ComposerSection
-          title="6. Budget"
+          title={t("dashboard.talentThread.composerBudgetTitle")}
           subtitle={mode === "client"
-            ? "Optional but recommended — gives the agency a faster path to your offer."
-            : "Optional. Leave empty to let talent propose."}
+            ? t("dashboard.talentThread.composerBudgetSubtitleClient")
+            : t("dashboard.talentThread.composerBudgetSubtitleStaff")}
         >
           <div style={{ display: "grid", gap: 8, gridTemplateColumns: "120px 110px 1fr" }}>
-            <ComposerInput placeholder="Amount" value={draft.budgetAmount} onChange={v => update("budgetAmount", v)} />
+            <ComposerInput placeholder={t("dashboard.talentThread.composerAmount")} value={draft.budgetAmount} onChange={v => update("budgetAmount", v)} />
             <ComposerSelect
               value={draft.budgetUnit}
               onChange={v => update("budgetUnit", v as InquiryUnitType)}
               options={[
-                { value: "hour", label: "per hour" },
-                { value: "day", label: "per day" },
-                { value: "contract", label: "total contract" },
-                { value: "event", label: "per event" },
+                { value: "hour", label: t("dashboard.talentThread.composerPerHour") },
+                { value: "day", label: t("dashboard.talentThread.composerPerDay") },
+                { value: "contract", label: t("dashboard.talentThread.composerTotalContract") },
+                { value: "event", label: t("dashboard.talentThread.composerPerEvent") },
               ]}
             />
             <ComposerSelect
@@ -440,7 +443,7 @@ export function InquiryComposer({
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 12, cursor: "pointer" }} className="text-admin-ink-muted">
             <input type="checkbox" checked={draft.budgetPerPerson} onChange={e => update("budgetPerPerson", e.target.checked)} />
-            Budget is per talent (not group total)
+            {t("dashboard.talentThread.composerBudgetPerPerson")}
           </label>
         </ComposerSection>
       </div>
@@ -453,19 +456,19 @@ export function InquiryComposer({
         background: embedded ? "transparent" : "rgba(255,255,255,0.96)",
         display: "flex", gap: 8, justifyContent: "flex-end",
       }}>
-        <button type="button" onClick={onCancel} style={ghostBtn()}>Cancel</button>
+        <button type="button" onClick={onCancel} style={ghostBtn()}>{t("dashboard.talentThread.composerCancel")}</button>
         <button
           type="button"
           onClick={send}
           disabled={submitDisabled}
-          title={submitDisabled ? "Inquiry sending coming soon" : undefined}
+          title={submitDisabled ? t("dashboard.talentThread.composerSendingSoon") : undefined}
           style={{
             ...primaryBtn(COLORS.accent),
             cursor: submitDisabled ? "not-allowed" : "pointer",
             opacity: submitDisabled ? 0.45 : 1,
           }}
         >
-          {mode === "client" ? "Send to agency" : "Save inquiry"}
+          {mode === "client" ? t("dashboard.talentThread.composerSendToAgency") : t("dashboard.talentThread.composerSaveInquiry")}
         </button>
       </div>
     </div>
@@ -495,20 +498,21 @@ export type ComposerDraft = {
 export function MixedGroupBuilder({
   rows, onChange,
 }: { rows: { id: string; category: string; count: number }[]; onChange: (r: { id: string; category: string; count: number }[]) => void }) {
+  const t = useT();
   const update = (id: string, patch: Partial<{ category: string; count: number }>) =>
     onChange(rows.map(r => r.id === id ? { ...r, ...patch } : r));
   const remove = (id: string) => onChange(rows.filter(r => r.id !== id));
   const add = () => onChange([...rows, { id: `g${rows.length + 1}-${Math.random().toString(36).slice(2, 6)}`, category: "models", count: 1 }]);
   const total = rows.reduce((s, r) => s + (r.count || 0), 0);
   const categoryOptions = [
-    { value: "models",        label: "Models" },
-    { value: "hosts",         label: "Hosts" },
-    { value: "chefs",         label: "Chefs" },
-    { value: "artists",       label: "Artists" },
-    { value: "djs",           label: "DJs" },
-    { value: "photographers", label: "Photographers" },
-    { value: "performers",    label: "Performers" },
-    { value: "promoters",     label: "Promoters" },
+    { value: "models",        label: t("dashboard.talentThread.composerCatModels") },
+    { value: "hosts",         label: t("dashboard.talentThread.composerCatHosts") },
+    { value: "chefs",         label: t("dashboard.talentThread.composerCatChefs") },
+    { value: "artists",       label: t("dashboard.talentThread.composerCatArtists") },
+    { value: "djs",           label: t("dashboard.talentThread.composerCatDjs") },
+    { value: "photographers", label: t("dashboard.talentThread.composerCatPhotographers") },
+    { value: "performers",    label: t("dashboard.talentThread.composerCatPerformers") },
+    { value: "promoters",     label: t("dashboard.talentThread.composerCatPromoters") },
   ];
   return (
     <div data-tulala-mixed-builder style={{
@@ -522,13 +526,13 @@ export function MixedGroupBuilder({
       }}>
         <div>
           <div className="text-admin-indigo-deep text-xs font-semibold">
-            Mixed group
+            {t("dashboard.talentThread.mixedTitle")}
           </div>
           <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
-            One inquiry · multiple categories. Coordinator routes each category to the right talent.
+            {t("dashboard.talentThread.mixedSubtitle")}
           </div>
         </div>
-        <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 999, background: "#fff", fontVariantNumeric: "tabular-nums" }} className="text-admin-indigo-deep">{total} talent</span>
+        <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 999, background: "#fff", fontVariantNumeric: "tabular-nums" }} className="text-admin-indigo-deep">{interpolate(t("dashboard.talentThread.mixedTalentCount"), { count: total })}</span>
       </div>
       <div className="flex flex-col gap-2">
         {rows.map((r) => (
@@ -556,7 +560,7 @@ export function MixedGroupBuilder({
               {categoryOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             {rows.length > 1 && (
-              <button type="button" onClick={() => remove(r.id)} aria-label="Remove" style={{
+              <button type="button" onClick={() => remove(r.id)} aria-label={t("dashboard.talentThread.mixedRemoveAria")} style={{
                 background: "transparent", border: "none", cursor: "pointer",
                 padding: 4, color: COLORS.inkMuted, lineHeight: 1,
               }}>
@@ -573,7 +577,7 @@ export function MixedGroupBuilder({
         border: `1px dashed ${COLORS.indigoDeep}40`, background: "transparent",
         color: COLORS.indigoDeep, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
         cursor: "pointer", width: "100%",
-      }}>+ Add another category</button>
+      }}>{t("dashboard.talentThread.mixedAddCategory")}</button>
     </div>
   );
 }

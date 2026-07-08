@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { interpolate } from "@/i18n/interpolate";
+import { useT } from "@/i18n/use-t";
 import { cancelPitchAction, loadPitchDetailAction, regeneratePitchShareLinkAction } from "@/app/(workspace)/[tenantSlug]/admin/pitches/actions";
 import type { PitchDetail, RegeneratedPitchLink } from "@/app/(workspace)/[tenantSlug]/admin/pitches/actions";
 import { DrawerShell, Eyebrow, GhostButton, PrimaryButton } from "../primitives";
 import { COLORS } from "../state";
-import { PITCH_ACTIVE, PITCH_STATUS_TONE, fmtPitchDate } from "./PitchesPage-1";
+import { PITCH_ACTIVE, PITCH_STATUS_LABEL_KEYS, fmtPitchDate } from "./PitchesPage-1";
 
 
 // Detail drawer — uses the Drawer primitive so it picks up the prototype's
@@ -32,6 +34,14 @@ export function PitchDetailDrawerInline({
   const [copied, setCopied] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelPending, setCancelPending] = useState(false);
+  const t = useT();
+  // Keep the translator in a ref so the loader effect can read the current
+  // locale's fallback string without listing `t` (which changes identity on
+  // locale switch) in its deps and needlessly refetching pitch detail.
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,7 +52,7 @@ export function PitchDetailDrawerInline({
       if (cancelled) return;
       setLoading(false);
       if (!r.ok) {
-        setError(r.message ?? "Could not load pitch detail.");
+        setError(r.message ?? tRef.current("dashboard.adminPitches.errLoadDetail"));
         return;
       }
       setDetail(r.data);
@@ -53,17 +63,17 @@ export function PitchDetailDrawerInline({
   }, [tenantSlug, pitchId]);
 
   return (
-    <DrawerShell open onClose={onClose} title="Pitch detail" defaultSize="half" width={580}>
+    <DrawerShell open onClose={onClose} title={t("dashboard.adminPitches.detailTitle")} defaultSize="half" width={580}>
       {loading ? (
-        <p className="text-admin-ink-muted text-admin-13">Loading…</p>
+        <p className="text-admin-ink-muted text-admin-13">{t("dashboard.adminPitches.loading")}</p>
       ) : error ? (
         <p style={{ color: "#b91c1c", fontSize: 13 }}>{error}</p>
       ) : detail ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-          <PitchDetailRecipient detail={detail} />
-          {detail.pitch.personal_note ? <PitchDetailNote note={detail.pitch.personal_note} /> : null}
-          <PitchDetailBrief detail={detail} />
-          <PitchDetailTalents detail={detail} />
+          <PitchDetailRecipient detail={detail} t={t} />
+          {detail.pitch.personal_note ? <PitchDetailNote note={detail.pitch.personal_note} t={t} /> : null}
+          <PitchDetailBrief detail={detail} t={t} />
+          <PitchDetailTalents detail={detail} t={t} />
           <PitchDetailActions
             detail={detail}
             tenantSlug={tenantSlug}
@@ -73,13 +83,14 @@ export function PitchDetailDrawerInline({
             copied={copied}
             confirmCancel={confirmCancel}
             cancelPending={cancelPending}
+            t={t}
             onRegenerate={async () => {
               setLinkLoading(true);
               setLinkError(null);
               const r = await regeneratePitchShareLinkAction(tenantSlug, pitchId);
               setLinkLoading(false);
               if (!r.ok) {
-                setLinkError(r.message ?? "Could not generate link.");
+                setLinkError(r.message ?? t("dashboard.adminPitches.errGenerateLink"));
                 return;
               }
               setLink(r.data);
@@ -104,25 +115,25 @@ export function PitchDetailDrawerInline({
               }
             }}
           />
-          <PitchDetailTimeline detail={detail} />
+          <PitchDetailTimeline detail={detail} t={t} />
         </div>
       ) : null}
     </DrawerShell>
   );
 }
 
-function PitchDetailRecipient({ detail }: { detail: PitchDetail }) {
+function PitchDetailRecipient({ detail, t }: { detail: PitchDetail; t: ReturnType<typeof useT> }) {
   const recipient = detail.pitch.recipient_contact ?? {};
   const name =
     (typeof recipient.name === "string" && recipient.name.trim()) ||
     (typeof recipient.email === "string" && recipient.email.trim()) ||
-    "Unaddressed";
+    t("dashboard.adminPitches.recipientUnaddressed");
   const company = typeof recipient.company === "string" ? recipient.company.trim() : null;
   const phone = typeof recipient.phone === "string" ? recipient.phone.trim() : null;
   const email = typeof recipient.email === "string" ? recipient.email.trim() : null;
   return (
     <div>
-      <Eyebrow>Recipient</Eyebrow>
+      <Eyebrow>{t("dashboard.adminPitches.recipientEyebrow")}</Eyebrow>
       <div style={{ marginTop: 4, fontSize: 16, fontWeight: 600 }} className="text-admin-ink">{name}</div>
       {company ? <div style={{ fontSize: 13, marginTop: 2 }} className="text-admin-ink-muted">{company}</div> : null}
       {(phone || email) && (
@@ -131,26 +142,26 @@ function PitchDetailRecipient({ detail }: { detail: PitchDetail }) {
         </div>
       )}
       <div style={{ marginTop: 10, display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12 }} className="text-admin-ink-muted">
-        <span>Status: <strong className="text-admin-ink">{PITCH_STATUS_TONE[detail.pitch.status].label}</strong></span>
-        <span>Created: <strong className="text-admin-ink">{fmtPitchDate(detail.pitch.created_at)}</strong></span>
-        {detail.pitch.sent_at ? <span>Sent: <strong className="text-admin-ink">{fmtPitchDate(detail.pitch.sent_at)}</strong></span> : null}
-        {detail.pitch.expires_at ? <span>Expires: <strong className="text-admin-ink">{fmtPitchDate(detail.pitch.expires_at)}</strong></span> : null}
-        {detail.pitch.view_count > 0 ? <span>Views: <strong className="text-admin-ink">{detail.pitch.view_count}</strong></span> : null}
+        <span>{t("dashboard.adminPitches.metaStatus")} <strong className="text-admin-ink">{t(PITCH_STATUS_LABEL_KEYS[detail.pitch.status])}</strong></span>
+        <span>{t("dashboard.adminPitches.metaCreated")} <strong className="text-admin-ink">{fmtPitchDate(detail.pitch.created_at)}</strong></span>
+        {detail.pitch.sent_at ? <span>{t("dashboard.adminPitches.metaSent")} <strong className="text-admin-ink">{fmtPitchDate(detail.pitch.sent_at)}</strong></span> : null}
+        {detail.pitch.expires_at ? <span>{t("dashboard.adminPitches.metaExpires")} <strong className="text-admin-ink">{fmtPitchDate(detail.pitch.expires_at)}</strong></span> : null}
+        {detail.pitch.view_count > 0 ? <span>{t("dashboard.adminPitches.metaViews")} <strong className="text-admin-ink">{detail.pitch.view_count}</strong></span> : null}
       </div>
     </div>
   );
 }
 
-function PitchDetailNote({ note }: { note: string }) {
+function PitchDetailNote({ note, t }: { note: string; t: ReturnType<typeof useT> }) {
   return (
     <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, padding: "12px 14px" }} className="bg-admin-fill">
-      <Eyebrow>Personal note</Eyebrow>
+      <Eyebrow>{t("dashboard.adminPitches.personalNote")}</Eyebrow>
       <p style={{ margin: "6px 0 0", fontSize: 13, whiteSpace: "pre-wrap", lineHeight: 1.5 }} className="text-admin-ink">{note}</p>
     </div>
   );
 }
 
-function PitchDetailBrief({ detail }: { detail: PitchDetail }) {
+function PitchDetailBrief({ detail, t }: { detail: PitchDetail; t: ReturnType<typeof useT> }) {
   const b = detail.pitch.brief ?? {};
   const date = typeof b.event_date === "string" ? b.event_date : null;
   const loc = typeof b.event_location === "string" ? b.event_location : null;
@@ -158,23 +169,23 @@ function PitchDetailBrief({ detail }: { detail: PitchDetail }) {
   if (!date && !loc && !rate) return null;
   return (
     <div>
-      <Eyebrow>Brief</Eyebrow>
+      <Eyebrow>{t("dashboard.adminPitches.briefEyebrow")}</Eyebrow>
       <dl style={{ margin: "6px 0 0", fontSize: 13, color: COLORS.ink, display: "flex", flexDirection: "column", gap: 4 }}>
         {date ? (
           <div className="flex gap-3">
-            <dt style={{ width: 80, color: COLORS.inkMuted, flexShrink: 0 }}>Date</dt>
+            <dt style={{ width: 80, color: COLORS.inkMuted, flexShrink: 0 }}>{t("dashboard.adminPitches.briefDate")}</dt>
             <dd style={{ margin: 0 }}>{date}</dd>
           </div>
         ) : null}
         {loc ? (
           <div className="flex gap-3">
-            <dt style={{ width: 80, color: COLORS.inkMuted, flexShrink: 0 }}>Location</dt>
+            <dt style={{ width: 80, color: COLORS.inkMuted, flexShrink: 0 }}>{t("dashboard.adminPitches.briefLocation")}</dt>
             <dd style={{ margin: 0 }}>{loc}</dd>
           </div>
         ) : null}
         {rate ? (
           <div className="flex gap-3">
-            <dt style={{ width: 80, color: COLORS.inkMuted, flexShrink: 0 }}>Rate</dt>
+            <dt style={{ width: 80, color: COLORS.inkMuted, flexShrink: 0 }}>{t("dashboard.adminPitches.briefRate")}</dt>
             <dd style={{ margin: 0 }}>{rate}</dd>
           </div>
         ) : null}
@@ -183,18 +194,20 @@ function PitchDetailBrief({ detail }: { detail: PitchDetail }) {
   );
 }
 
-function PitchDetailTalents({ detail }: { detail: PitchDetail }) {
-  const active = detail.talents.filter((t) => !t.removedByClientAt);
-  const removed = detail.talents.filter((t) => t.removedByClientAt);
+function PitchDetailTalents({ detail, t }: { detail: PitchDetail; t: ReturnType<typeof useT> }) {
+  const active = detail.talents.filter((row) => !row.removedByClientAt);
+  const removed = detail.talents.filter((row) => row.removedByClientAt);
   return (
     <div>
       <Eyebrow>
-        Talents ({active.length}{removed.length > 0 ? ` · ${removed.length} removed` : ""})
+        {removed.length > 0
+          ? interpolate(t("dashboard.adminPitches.talentsWithRemoved"), { count: active.length, removed: removed.length })
+          : interpolate(t("dashboard.adminPitches.talentsWithCount"), { count: active.length })}
       </Eyebrow>
       <ol style={{ margin: "8px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
-        {detail.talents.map((t) => (
+        {detail.talents.map((row) => (
           <li
-            key={t.pitchTalentId}
+            key={row.pitchTalentId}
             style={{
               display: "flex",
               gap: 10,
@@ -202,25 +215,25 @@ function PitchDetailTalents({ detail }: { detail: PitchDetail }) {
               padding: "8px 12px",
               borderRadius: 8,
               border: `1px solid ${COLORS.borderSoft}`,
-              background: t.removedByClientAt ? "rgba(11,11,13,0.03)" : "#fff",
+              background: row.removedByClientAt ? "rgba(11,11,13,0.03)" : "#fff",
               fontSize: 13,
               color: COLORS.ink,
-              opacity: t.removedByClientAt ? 0.6 : 1,
+              opacity: row.removedByClientAt ? 0.6 : 1,
             }}
           >
-            <span style={{ width: 22, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-dim">{t.position + 1}.</span>
+            <span style={{ width: 22, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-dim">{row.position + 1}.</span>
             <div className="flex-1">
               <div className="font-semibold">
-                {t.displayName}
-                {t.removedByClientAt ? (
+                {row.displayName}
+                {row.removedByClientAt ? (
                   <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500 }} className="text-admin-ink-muted">
-                    removed {fmtPitchDate(t.removedByClientAt)}
+                    {interpolate(t("dashboard.adminPitches.talentRemovedOn"), { date: fmtPitchDate(row.removedByClientAt) })}
                   </span>
                 ) : null}
               </div>
-              {t.adminNote ? (
+              {row.adminNote ? (
                 <div style={{ marginTop: 3, fontSize: 12, fontStyle: "italic" }} className="text-admin-ink-muted">
-                  &ldquo;{t.adminNote}&rdquo;
+                  &ldquo;{row.adminNote}&rdquo;
                 </div>
               ) : null}
             </div>
@@ -245,6 +258,7 @@ function PitchDetailActions({
   onCancelConfirm,
   onCancelDeny,
   onCancel,
+  t,
 }: {
   detail: PitchDetail;
   tenantSlug: string;
@@ -259,18 +273,19 @@ function PitchDetailActions({
   onCancelConfirm: () => void;
   onCancelDeny: () => void;
   onCancel: () => void;
+  t: ReturnType<typeof useT>;
 }) {
   const isActive = PITCH_ACTIVE.includes(detail.pitch.status);
   return (
     <div>
-      <Eyebrow>Actions</Eyebrow>
+      <Eyebrow>{t("dashboard.adminPitches.actionsEyebrow")}</Eyebrow>
       <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 10 }}>
         {detail.pitch.converted_inquiry_id ? (
           <Link
             href={`/${tenantSlug}/admin/work/${detail.pitch.converted_inquiry_id}`}
             style={{ textDecoration: "none" }}
           >
-            <PrimaryButton size="sm">View converted inquiry →</PrimaryButton>
+            <PrimaryButton size="sm">{t("dashboard.adminPitches.viewConvertedInquiry")}</PrimaryButton>
           </Link>
         ) : null}
 
@@ -297,7 +312,7 @@ function PitchDetailActions({
                 width: "fit-content",
               }}
             >
-              {linkLoading ? "Generating link…" : link ? "Regenerate share link" : "Get share link"}
+              {linkLoading ? t("dashboard.adminPitches.generatingLink") : link ? t("dashboard.adminPitches.regenerateShareLink") : t("dashboard.adminPitches.getShareLink")}
             </button>
 
             {link ? (
@@ -333,7 +348,7 @@ function PitchDetailActions({
                       cursor: "pointer",
                     }}
                   >
-                    {copied ? "Copied!" : "Copy"}
+                    {copied ? t("dashboard.adminPitches.copied") : t("dashboard.adminPitches.copy")}
                   </button>
                 </div>
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
@@ -357,7 +372,7 @@ function PitchDetailActions({
                         borderRadius: 6,
                       }}
                     >
-                      💬 WhatsApp
+                      💬 {t("dashboard.adminPitches.whatsapp")}
                     </a>
                   ) : null}
                   {link.emailDeepLink ? (
@@ -381,12 +396,12 @@ function PitchDetailActions({
                         borderRadius: 6,
                       }}
                     >
-                      ✉️ Email
+                      ✉️ {t("dashboard.adminPitches.email")}
                     </a>
                   ) : null}
                 </div>
                 <div style={{ marginTop: 8, fontSize: 11 }} className="text-admin-ink-dim">
-                  Link valid until {fmtPitchDate(link.expiresAt)}.
+                  {interpolate(t("dashboard.adminPitches.linkValidUntil"), { date: fmtPitchDate(link.expiresAt) })}
                 </div>
               </div>
             ) : null}
@@ -394,9 +409,9 @@ function PitchDetailActions({
 
             {confirmCancel ? (
               <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8, padding: "10px 12px", background: "#fff" }}>
-                <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">Cancel this pitch?</p>
+                <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{t("dashboard.adminPitches.confirmCancelTitle")}</p>
                 <p style={{ margin: "4px 0 8px", fontSize: 12 }} className="text-admin-ink-muted">
-                  The share link is invalidated immediately. This can&apos;t be undone.
+                  {t("dashboard.adminPitches.confirmCancelBody")}
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -415,7 +430,7 @@ function PitchDetailActions({
                       opacity: cancelPending ? 0.6 : 1,
                     }}
                   >
-                    {cancelPending ? "Cancelling…" : "Yes, cancel"}
+                    {cancelPending ? t("dashboard.adminPitches.cancelling") : t("dashboard.adminPitches.confirmYesCancel")}
                   </button>
                   <button
                     type="button"
@@ -432,12 +447,12 @@ function PitchDetailActions({
                       cursor: "pointer",
                     }}
                   >
-                    Keep
+                    {t("dashboard.adminPitches.keep")}
                   </button>
                 </div>
               </div>
             ) : (
-              <GhostButton size="sm" onClick={onCancelConfirm}>Cancel pitch</GhostButton>
+              <GhostButton size="sm" onClick={onCancelConfirm}>{t("dashboard.adminPitches.cancelPitch")}</GhostButton>
             )}
           </>
         ) : null}
@@ -446,30 +461,33 @@ function PitchDetailActions({
   );
 }
 
-function PitchDetailTimeline({ detail }: { detail: PitchDetail }) {
+// Maps each pitch-event discriminant to its catalog key (additive pattern).
+// Unknown event types fall through to the raw DB value at the render site.
+const PITCH_EVENT_LABEL_KEYS: Record<string, string> = {
+  created: "dashboard.adminPitches.eventCreated",
+  updated: "dashboard.adminPitches.eventUpdated",
+  sent: "dashboard.adminPitches.eventSent",
+  viewed: "dashboard.adminPitches.eventViewed",
+  talent_removed: "dashboard.adminPitches.eventTalentRemoved",
+  declined: "dashboard.adminPitches.eventDeclined",
+  converted: "dashboard.adminPitches.eventConverted",
+  cancelled: "dashboard.adminPitches.eventCancelled",
+  expired: "dashboard.adminPitches.eventExpired",
+  pitch_curated_override: "dashboard.adminPitches.eventCuratedOverride",
+};
+
+function PitchDetailTimeline({ detail, t }: { detail: PitchDetail; t: ReturnType<typeof useT> }) {
   if (detail.events.length === 0) {
     return (
       <div>
-        <Eyebrow>Timeline</Eyebrow>
-        <p style={{ marginTop: 8, fontSize: 12 }} className="text-admin-ink-muted">No events recorded.</p>
+        <Eyebrow>{t("dashboard.adminPitches.timelineEyebrow")}</Eyebrow>
+        <p style={{ marginTop: 8, fontSize: 12 }} className="text-admin-ink-muted">{t("dashboard.adminPitches.timelineEmpty")}</p>
       </div>
     );
   }
-  const labels: Record<string, string> = {
-    created: "Pitch created",
-    updated: "Pitch updated",
-    sent: "Sent to recipient",
-    viewed: "Recipient viewed",
-    talent_removed: "Recipient removed talent",
-    declined: "Recipient declined",
-    converted: "Converted to inquiry",
-    cancelled: "Cancelled by admin",
-    expired: "Expired",
-    pitch_curated_override: "Trust-policy bypassed (curated)",
-  };
   return (
     <div>
-      <Eyebrow>Timeline</Eyebrow>
+      <Eyebrow>{t("dashboard.adminPitches.timelineEyebrow")}</Eyebrow>
       <ol
         style={{
           marginTop: 8,
@@ -503,7 +521,7 @@ function PitchDetailTimeline({ detail }: { detail: PitchDetail }) {
               }}
             />
             <div style={{ fontWeight: 600 }} className="text-admin-ink">
-              {labels[e.event_type] ?? e.event_type}
+              {PITCH_EVENT_LABEL_KEYS[e.event_type] ? t(PITCH_EVENT_LABEL_KEYS[e.event_type]) : e.event_type}
               <span style={{ marginLeft: 8, fontWeight: 400 }} className="text-admin-ink-dim">{e.actor_role}</span>
             </div>
             <div style={{ fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">

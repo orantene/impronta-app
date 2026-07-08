@@ -15,13 +15,14 @@
  */
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/i18n/use-t";
 import {
   loadTalentBookingTerms,
   updateTalentBookingTerms,
 } from "@/lib/talent/talent-booking-terms-actions";
 import {
-  REFUND_POLICY_DESCRIPTIONS,
-  REFUND_POLICY_LABELS,
+  REFUND_POLICY_DESCRIPTION_KEYS,
+  REFUND_POLICY_LABEL_KEYS,
   type RefundPolicyKey,
   type TalentBookingTerms,
 } from "@/lib/billing/commercial-terms-types";
@@ -66,12 +67,13 @@ function inputToCents(raw: string): number | null {
 }
 
 export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
+  const t = useT();
   const [terms, setTerms] = useState<TalentBookingTerms>(EMPTY);
   const [rateInput, setRateInput] = useState("");
   const [depositInput, setDepositInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ field: "rate" | "deposit" | "refund" | "instantBook"; message: string } | null>(null);
   const [savedOk, setSavedOk] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -91,7 +93,7 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
     return () => { cancelled = true; };
   }, [talentId]);
 
-  function persist(next: TalentBookingTerms) {
+  function persist(next: TalentBookingTerms, field: "rate" | "deposit" | "refund" | "instantBook") {
     const previous = terms;
     setTerms(next); // optimistic
     setSaving(true);
@@ -110,23 +112,31 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
         setTerms(previous); // rollback
         setRateInput(centsToInput(previous.fixedRateCents));
         setDepositInput(previous.depositPct === null ? "" : String(previous.depositPct));
-        setError(res.error);
+        setError({ field, message: res.error });
       }
     });
   }
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div
+        aria-hidden
+        style={{ width: "100%", minHeight: 148, marginBottom: 16, borderRadius: 12, background: "#fff", border: `1px solid ${C.borderSoft}`, fontFamily: FONT }}
+      />
+    );
+  }
 
-  const inputStyle = {
-    fontSize: 13,
-    color: C.ink,
-    fontFamily: FONT,
-    background: saving ? C.surface : "#fff",
-    border: `1px solid ${error ? C.errorSoft : C.border}`,
-    borderRadius: 8,
-    padding: "6px 10px",
-    outline: "none",
-  } as const;
+  const fieldStyle = (field: "rate" | "deposit" | "refund" | "instantBook") =>
+    ({
+      fontSize: 13,
+      color: C.ink,
+      fontFamily: FONT,
+      background: saving ? C.surface : "#fff",
+      border: `1px solid ${error?.field === field ? C.errorSoft : C.border}`,
+      borderRadius: 8,
+      padding: "6px 10px",
+      outline: "none",
+    }) as const;
 
   const labelStyle = {
     fontSize: 11,
@@ -167,11 +177,9 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
           ◷
         </span>
         <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>Booking terms (preferences)</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{t("dashboard.talentBookingTerms.cardTitle")}</div>
           <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2, lineHeight: 1.45 }}>
-            Your defaults — they inform offers and show on your page. The binding
-            deposit and terms for each booking are still set per-offer in the
-            booking flow.
+            {t("dashboard.talentBookingTerms.cardDescription")}
           </div>
         </div>
       </div>
@@ -179,37 +187,37 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 16 }}>
         {/* Fixed rate */}
         <label style={{ display: "flex", flexDirection: "column", gap: 5, flex: "1 1 180px", minWidth: 0 }}>
-          <span style={labelStyle}>Fixed rate (optional)</span>
+          <span style={labelStyle}>{t("dashboard.talentBookingTerms.fixedRateLabel")}</span>
           <input
             type="number"
             inputMode="decimal"
             min={0}
             step="0.01"
-            placeholder="e.g. 1500"
+            placeholder={t("dashboard.talentBookingTerms.fixedRatePlaceholder")}
             value={rateInput}
             disabled={saving}
             onChange={(e) => setRateInput(e.target.value)}
             onBlur={() => {
               const cents = inputToCents(rateInput);
-              if (cents !== terms.fixedRateCents) persist({ ...terms, fixedRateCents: cents });
+              if (cents !== terms.fixedRateCents) persist({ ...terms, fixedRateCents: cents }, "rate");
             }}
-            style={{ ...inputStyle, width: "100%" }}
+            style={{ ...fieldStyle("rate"), width: "100%" }}
           />
           <span style={{ fontSize: 10.5, color: C.inkMuted }}>
-            A starting price clients see as &ldquo;From …&rdquo;. Leave blank for quote-only.
+            {t("dashboard.talentBookingTerms.fixedRateHint")}
           </span>
         </label>
 
         {/* Preferred deposit % */}
         <label style={{ display: "flex", flexDirection: "column", gap: 5, flex: "1 1 160px", minWidth: 0 }}>
-          <span style={labelStyle}>Preferred deposit %</span>
+          <span style={labelStyle}>{t("dashboard.talentBookingTerms.depositLabel")}</span>
           <input
             type="number"
             inputMode="numeric"
             min={0}
             max={100}
             step="1"
-            placeholder="e.g. 25"
+            placeholder={t("dashboard.talentBookingTerms.depositPlaceholder")}
             value={depositInput}
             disabled={saving}
             onChange={(e) => setDepositInput(e.target.value)}
@@ -217,40 +225,40 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
               const t = depositInput.trim();
               const next = t === "" ? null : Math.min(100, Math.max(0, Math.round(Number(t))));
               const normalized = next !== null && Number.isFinite(next) ? next : null;
-              if (normalized !== terms.depositPct) persist({ ...terms, depositPct: normalized });
+              if (normalized !== terms.depositPct) persist({ ...terms, depositPct: normalized }, "deposit");
             }}
-            style={{ ...inputStyle, width: "100%" }}
+            style={{ ...fieldStyle("deposit"), width: "100%" }}
           />
           <span style={{ fontSize: 10.5, color: C.inkMuted }}>
-            Suggested upfront share. Not binding.
+            {t("dashboard.talentBookingTerms.depositHint")}
           </span>
         </label>
 
         {/* Refund policy preset */}
         <label style={{ display: "flex", flexDirection: "column", gap: 5, flex: "1 1 200px", minWidth: 0 }}>
-          <span style={labelStyle}>Preferred refund policy</span>
+          <span style={labelStyle}>{t("dashboard.talentBookingTerms.refundLabel")}</span>
           <select
             value={terms.refundPolicy ?? ""}
             disabled={saving}
             onChange={(e) => {
               const v = e.target.value;
               const next = (REFUND_KEYS as string[]).includes(v) ? (v as RefundPolicyKey) : null;
-              persist({ ...terms, refundPolicy: next });
+              persist({ ...terms, refundPolicy: next }, "refund");
             }}
-            style={{ ...inputStyle, width: "100%", cursor: saving ? "wait" : "pointer" }}
+            style={{ ...fieldStyle("refund"), width: "100%", cursor: saving ? "wait" : "pointer" }}
           >
-            <option value="">No preference</option>
+            <option value="">{t("dashboard.talentBookingTerms.refundNoPreference")}</option>
             {REFUND_KEYS.map((k) => (
-              <option key={k} value={k}>{REFUND_POLICY_LABELS[k]}</option>
+              <option key={k} value={k}>{t(REFUND_POLICY_LABEL_KEYS[k])}</option>
             ))}
           </select>
           {terms.refundPolicy ? (
             <span style={{ fontSize: 10.5, color: C.inkMuted }}>
-              {REFUND_POLICY_DESCRIPTIONS[terms.refundPolicy]}
+              {t(REFUND_POLICY_DESCRIPTION_KEYS[terms.refundPolicy])}
             </span>
           ) : (
             <span style={{ fontSize: 10.5, color: C.inkMuted }}>
-              Fall back to your agency&apos;s policy.
+              {t("dashboard.talentBookingTerms.refundFallback")}
             </span>
           )}
         </label>
@@ -270,23 +278,22 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
           type="checkbox"
           checked={terms.instantBookOptIn}
           disabled={saving}
-          onChange={(e) => persist({ ...terms, instantBookOptIn: e.target.checked })}
+          onChange={(e) => persist({ ...terms, instantBookOptIn: e.target.checked }, "instantBook")}
           style={{ marginTop: 2, accentColor: C.accentDeep, width: 16, height: 16, flexShrink: 0 }}
         />
         <span>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>Open to instant booking</span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>{t("dashboard.talentBookingTerms.instantBookTitle")}</span>
           <span style={{ display: "block", fontSize: 10.5, color: C.inkMuted, marginTop: 1, lineHeight: 1.45 }}>
-            Signals you&apos;re happy to be booked without a back-and-forth. Whether
-            instant-book is offered still depends on your agency and the project.
+            {t("dashboard.talentBookingTerms.instantBookHint")}
           </span>
         </span>
       </label>
 
       {/* Async state */}
       <div style={{ minHeight: 16, marginTop: 10 }}>
-        {saving && <span style={{ fontSize: 11, color: C.inkMuted }}>Saving…</span>}
-        {savedOk && !saving && <span style={{ fontSize: 11, color: C.success }}>Saved</span>}
-        {error && <span style={{ fontSize: 11, color: C.error }}>{error}</span>}
+        {saving && <span style={{ fontSize: 11, color: C.inkMuted }}>{t("dashboard.talentBookingTerms.saving")}</span>}
+        {savedOk && !saving && <span style={{ fontSize: 11, color: C.success }}>{t("dashboard.talentBookingTerms.saved")}</span>}
+        {error && <span style={{ fontSize: 11, color: C.error }}>{error.message}</span>}
       </div>
     </div>
   );

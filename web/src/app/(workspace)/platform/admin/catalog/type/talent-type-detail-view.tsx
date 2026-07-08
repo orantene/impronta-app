@@ -28,6 +28,10 @@ import {
   SaveNotice,
 } from "../[fieldKey]/field-detail-editor-parts";
 import { HqCard, Stat, CopyableId, HQ, F, FD } from "../_ui";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+const K = "dashboard.platform.catalog";
 
 export function TalentTypeDetailView({
   detail,
@@ -35,6 +39,7 @@ export function TalentTypeDetailView({
   saved,
   error,
   variant = "page",
+  t,
 }: {
   detail: TalentTypeDetailResult;
   /** The termId param (undefined when creating new). */
@@ -42,12 +47,13 @@ export function TalentTypeDetailView({
   saved?: string;
   error?: string;
   variant?: "page" | "drawer";
+  t: Translate;
 }) {
   const breadcrumb =
     variant === "page" ? (
       <div style={{ marginBottom: 16, fontFamily: F, fontSize: 12 }}>
         <Link href="/platform/admin/catalog?tab=types" style={{ color: HQ.inkMuted, textDecoration: "none" }}>
-          ← Profile Fields
+          {t(`${K}.detailBackToFields`)}
         </Link>
       </div>
     ) : null;
@@ -57,17 +63,17 @@ export function TalentTypeDetailView({
     return (
       <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
         {breadcrumb}
-        <SaveNotice saved={saved} error={error} />
+        <SaveNotice saved={saved} error={error} t={t} />
 
         <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 16 }}>
           <h1 style={{ fontFamily: FD, fontSize: 22, fontWeight: 600, margin: 0 }}>
-            New talent type
+            {t(`${K}.typeDetailNewTitle`)}
           </h1>
         </div>
 
         <HqCard
-          title="Create talent type"
-          subtitle="Adds a new canonical talent type to the platform taxonomy engine."
+          title={t(`${K}.typeDetailCreateTitle`)}
+          subtitle={t(`${K}.typeDetailCreateSubtitle`)}
         >
           <form action={createPlatformTaxonomyTermAction} style={{ display: "grid", gap: 14 }}>
             {/* Fixed hidden fields for the taxonomy action */}
@@ -81,16 +87,16 @@ export function TalentTypeDetailView({
                 gap: 12,
               }}
             >
-              <FieldInput label="Slug" name="slug" placeholder="e.g. chef" />
-              <FieldInput label="Icon (emoji)" name="icon" placeholder="👨‍🍳" />
-              <FieldInput label="Name EN" name="name_en" placeholder="e.g. Chef" />
-              <FieldInput label="Name ES" name="name_es" placeholder="e.g. Chef" />
-              <FieldInput label="Plural name" name="plural_name" placeholder="e.g. Chefs" />
-              <FieldInput label="Sort order" name="sort_order" type="number" defaultValue={100} />
+              <FieldInput label={t(`${K}.fieldSlug`)} name="slug" placeholder={t(`${K}.typeSlugPlaceholder`)} />
+              <FieldInput label={t(`${K}.fieldIcon`)} name="icon" placeholder="👨‍🍳" />
+              <FieldInput label={t(`${K}.fieldNameEn`)} name="name_en" placeholder={t(`${K}.typeNameEnPlaceholder`)} />
+              <FieldInput label={t(`${K}.fieldNameEs`)} name="name_es" placeholder={t(`${K}.typeNameEsPlaceholder`)} />
+              <FieldInput label={t(`${K}.fieldPluralName`)} name="plural_name" placeholder={t(`${K}.typePluralPlaceholder`)} />
+              <FieldInput label={t(`${K}.fieldSortOrder`)} name="sort_order" type="number" defaultValue={100} />
               <FieldTextarea
-                label="Description"
+                label={t(`${K}.fieldDescription`)}
                 name="description"
-                placeholder="Brief description of this talent type"
+                placeholder={t(`${K}.typeDescriptionPlaceholder`)}
               />
             </div>
 
@@ -105,14 +111,14 @@ export function TalentTypeDetailView({
                 background: HQ.cardSoft,
               }}
             >
-              <Check name="is_public_filter" label="Public filter" />
-              <Check name="is_profile_badge" label="Profile badge" />
-              <Check name="is_visible_by_default" label="Visible by default" />
-              <Check name="is_restricted" label="Restricted" tone="danger" />
+              <Check name="is_public_filter" label={t(`${K}.checkPublicFilter`)} />
+              <Check name="is_profile_badge" label={t(`${K}.checkProfileBadge`)} />
+              <Check name="is_visible_by_default" label={t(`${K}.checkVisibleByDefault`)} />
+              <Check name="is_restricted" label={t(`${K}.checkRestricted`)} tone="danger" />
             </div>
 
             <div>
-              <SubmitButton>Create talent type</SubmitButton>
+              <SubmitButton>{t(`${K}.typeDetailCreateTitle`)}</SubmitButton>
             </div>
           </form>
         </HqCard>
@@ -126,12 +132,11 @@ export function TalentTypeDetailView({
       <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
         {breadcrumb}
         <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600 }}>
-          {(detail as { notFound?: boolean }).notFound ? "Talent type not found" : "Unavailable"}
+          {(detail as { notFound?: boolean }).notFound ? t(`${K}.typeDetailNotFoundTitle`) : t(`${K}.unavailableTitle`)}
         </h1>
-        <HqCard title="Error">
+        <HqCard title={t(`${K}.errorCardTitle`)}>
           <div style={{ fontSize: 13, color: HQ.inkMuted }}>
-            Could not load this talent type. The service client may be unavailable or the term does
-            not exist. Retry shortly.
+            {t(`${K}.typeDetailNotFoundBody`)}
           </div>
         </HqCard>
       </div>
@@ -172,7 +177,7 @@ export function TalentTypeDetailView({
   return (
     <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
       {breadcrumb}
-      <SaveNotice saved={saved} error={error} />
+      <SaveNotice saved={saved} error={error} t={t} />
 
       {/* ID pill + status badge */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -188,7 +193,7 @@ export function TalentTypeDetailView({
             padding: "1px 8px",
           }}
         >
-          {isArchived ? "Archived" : term.is_active ? "Active" : "Inactive"}
+          {isArchived ? t(`${K}.typeArchived`) : term.is_active ? t(`${K}.lifecycleActive`) : t(`${K}.statusInactive`)}
         </span>
       </div>
 
@@ -210,8 +215,8 @@ export function TalentTypeDetailView({
 
       {/* Card 1: Edit form */}
       <HqCard
-        title="Talent type"
-        subtitle="Edits the taxonomy_terms row. Save refreshes every catalog surface that resolves this type."
+        title={t(`${K}.typeDetailEditTitle`)}
+        subtitle={t(`${K}.typeDetailEditSubtitle`)}
       >
         <form action={updatePlatformTaxonomyTermAction} style={{ display: "grid", gap: 14 }}>
           <input type="hidden" name="id" value={term.id} />
@@ -225,19 +230,19 @@ export function TalentTypeDetailView({
               gap: 12,
             }}
           >
-            <FieldInput label="Slug" name="slug" defaultValue={term.slug} />
-            <FieldInput label="Icon (emoji)" name="icon" defaultValue={term.icon} placeholder="👨‍🍳" />
-            <FieldInput label="Name EN" name="name_en" defaultValue={term.name_en} />
-            <FieldInput label="Name ES" name="name_es" defaultValue={term.name_es} />
-            <FieldInput label="Plural name" name="plural_name" defaultValue={term.plural_name} />
+            <FieldInput label={t(`${K}.fieldSlug`)} name="slug" defaultValue={term.slug} />
+            <FieldInput label={t(`${K}.fieldIcon`)} name="icon" defaultValue={term.icon} placeholder="👨‍🍳" />
+            <FieldInput label={t(`${K}.fieldNameEn`)} name="name_en" defaultValue={term.name_en} />
+            <FieldInput label={t(`${K}.fieldNameEs`)} name="name_es" defaultValue={term.name_es} />
+            <FieldInput label={t(`${K}.fieldPluralName`)} name="plural_name" defaultValue={term.plural_name} />
             <FieldInput
-              label="Sort order"
+              label={t(`${K}.fieldSortOrder`)}
               name="sort_order"
               type="number"
               defaultValue={term.sort_order}
             />
             <FieldTextarea
-              label="Description"
+              label={t(`${K}.fieldDescription`)}
               name="description"
               defaultValue={term.description}
             />
@@ -256,68 +261,69 @@ export function TalentTypeDetailView({
           >
             <Check
               name="is_public_filter"
-              label="Public filter"
+              label={t(`${K}.checkPublicFilter`)}
               defaultChecked={term.is_public_filter}
             />
             <Check
               name="is_profile_badge"
-              label="Profile badge"
+              label={t(`${K}.checkProfileBadge`)}
               defaultChecked={term.is_profile_badge}
             />
             <Check
               name="is_visible_by_default"
-              label="Visible by default"
+              label={t(`${K}.checkVisibleByDefault`)}
               defaultChecked={term.is_visible_by_default}
             />
             <Check
               name="is_restricted"
-              label="Restricted"
+              label={t(`${K}.checkRestricted`)}
               defaultChecked={term.is_restricted}
               tone="danger"
             />
           </div>
 
           <div>
-            <SubmitButton>Save talent type</SubmitButton>
+            <SubmitButton>{t(`${K}.typeDetailSaveSubmit`)}</SubmitButton>
           </div>
         </form>
       </HqCard>
 
       {/* Card 2: Mapped fields */}
       <HqCard
-        title="Mapped fields"
-        subtitle="Fields displayed for this talent type in the profile engine. Direct mappings only — parent terms also affect this type through the resolver."
+        title={t(`${K}.typeMappedFieldsTitle`)}
+        subtitle={t(`${K}.typeMappedFieldsSubtitle`)}
       >
         <TaxonomyFieldMappingPanel
           term={{ id: term.id, slug: term.slug, name_en: term.name_en }}
           mappings={mappings}
           fieldOptions={fieldOptions}
+          t={t}
         />
       </HqCard>
 
       {/* Card 3: Analytics */}
       <HqCard
-        title="Analytics"
-        subtitle="Counts computed from talent_profile_taxonomy and agency_talent_roster. Read-only."
+        title={t(`${K}.analyticsTitle`)}
+        subtitle={t(`${K}.typeAnalyticsSubtitle`)}
       >
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           <Stat
-            label="Agencies using this type"
+            label={t(`${K}.typeStatAgenciesUsing`)}
             value={detail.agencyCount}
             tone={detail.agencyCount > 0 ? HQ.green : HQ.inkDim}
           />
           <Stat
-            label="Talents assigned"
+            label={t(`${K}.typeStatTalentsAssigned`)}
             value={detail.talentCount}
             tone={detail.talentCount > 0 ? HQ.green : HQ.inkDim}
           />
           <Stat
-            label="Mapped fields"
+            label={t(`${K}.typeStatMappedFields`)}
             value={detail.mappedFieldCount}
             tone={detail.mappedFieldCount > 0 ? HQ.green : HQ.inkDim}
           />
           <Stat
-            label="Required mappings"
+            label={t(`${K}.typeStatRequiredMappings`)}
             value={detail.requiredMappingCount}
             tone={detail.requiredMappingCount > 0 ? HQ.amber : HQ.inkDim}
           />
@@ -336,30 +342,30 @@ export function TalentTypeDetailView({
           }}
         >
           <div style={{ fontSize: 12.5, color: HQ.inkMuted }}>
-            Lifecycle:{" "}
+            {t(`${K}.lifecycleLabel`)}{" "}
             <strong style={{ color: isArchived ? HQ.red : HQ.green }}>
               {isArchived
-                ? `Archived since ${term.archived_at}`
+                ? interpolate(t(`${K}.lifecycleArchivedSince`), { date: term.archived_at ?? "" })
                 : term.is_active
-                  ? "Active"
-                  : "Inactive"}
+                  ? t(`${K}.lifecycleActive`)
+                  : t(`${K}.statusInactive`)}
             </strong>
             {" · "}
-            {detail.talentCount} talent{detail.talentCount === 1 ? "" : "s"} assigned
+            {interpolate(t(`${K}.${detail.talentCount === 1 ? "typeLifecycleAssignedOne" : "typeLifecycleAssignedMany"}`), { count: detail.talentCount })}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <form action={setPlatformTaxonomyLifecycleAction}>
               <input type="hidden" name="id" value={term.id} />
               <input type="hidden" name="mode" value={isArchived ? "restore" : "archive"} />
               <SubmitButton tone={isArchived ? "neutral" : "danger"}>
-                {isArchived ? "Restore type" : "Archive type"}
+                {isArchived ? t(`${K}.typeLifecycleRestore`) : t(`${K}.typeLifecycleArchive`)}
               </SubmitButton>
             </form>
             <form action={deletePlatformTaxonomyTermAction}>
               <input type="hidden" name="id" value={term.id} />
               <input type="hidden" name="return_to" value="/platform/admin/catalog/type" />
-              <ConfirmSubmitButton message="Permanently delete this talent type? This removes its field mappings and unlinks it from all talent profiles. This cannot be undone.">
-                Permanently remove
+              <ConfirmSubmitButton message={t(`${K}.typeConfirmDelete`)}>
+                {t(`${K}.permanentlyRemove`)}
               </ConfirmSubmitButton>
             </form>
           </div>

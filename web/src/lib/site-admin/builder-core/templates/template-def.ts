@@ -264,13 +264,15 @@ export const TEMPLATE_PREVIEW_DEMO_FIXTURE: TemplatePreviewDemoFixture = {
     "Editorial and commercial model with 8 years of experience across fashion, beauty, and lifestyle campaigns. Known for strong conceptual range and precise direction-taking.",
   homeCity: "Mexico City",
   serviceNames: ["Editorial", "Commercial", "Beauty & Skincare"],
-  headshotUrl: "https://picsum.photos/seed/talent-hero/800/1000",
+  // In-repo editorial demo assets (the same set other builder previews use).
+  // Never random external stock (picsum.photos) — CSP-fragile and off-brand.
+  headshotUrl: "/talent-templates/demo/impronta-2026/portrait-1.jpg",
   galleryUrls: [
-    "https://picsum.photos/seed/gal1/800/1000",
-    "https://picsum.photos/seed/gal2/900/600",
-    "https://picsum.photos/seed/gal3/700/900",
-    "https://picsum.photos/seed/gal4/800/800",
-    "https://picsum.photos/seed/gal5/900/700",
-    "https://picsum.photos/seed/gal6/750/950",
+    "/talent-templates/demo/impronta-2026/portrait-2.jpg",
+    "/talent-templates/demo/impronta-2026/lifestyle-1.jpg",
+    "/talent-templates/demo/impronta-2026/portrait-3.jpg",
+    "/talent-templates/demo/impronta-2026/lifestyle-2.jpg",
+    "/talent-templates/demo/impronta-2026/portrait-4.jpg",
+    "/talent-templates/demo/impronta-2026/lifestyle-3.jpg",
   ],
 };

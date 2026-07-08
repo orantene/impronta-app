@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import {
   COLORS,
   FONTS,
@@ -17,8 +19,49 @@ import {
 import { SaveErrorBanner } from "./shared";
 import {
   representationChipCopy,
+  type EffectiveVisibility,
   type RepresentationEntry,
+  type RepresentationKind,
 } from "@/lib/talent/representation";
+
+// Localized chip labels keyed by (effective visibility × actor). The English
+// copy still lives in `representationChipCopy` for non-localized consumers; here
+// we resolve the same states through the catalog (additive i18n pattern).
+const CHIP_LABEL_KEYS: Record<
+  Exclude<EffectiveVisibility, "removed">,
+  { talent: string; agency: string }
+> = {
+  live: {
+    talent: "dashboard.talentDrawers.representation.chipLive",
+    agency: "dashboard.talentDrawers.representation.chipLiveAgency",
+  },
+  you_hid: {
+    talent: "dashboard.talentDrawers.representation.chipYouHid",
+    agency: "dashboard.talentDrawers.representation.chipYouHidAgency",
+  },
+  agency_hidden: {
+    talent: "dashboard.talentDrawers.representation.chipAgencyHidden",
+    agency: "dashboard.talentDrawers.representation.chipAgencyHiddenAgency",
+  },
+  winding_down: {
+    talent: "dashboard.talentDrawers.representation.chipWindingDown",
+    agency: "dashboard.talentDrawers.representation.chipWindingDownAgency",
+  },
+  pending: {
+    talent: "dashboard.talentDrawers.representation.chipPending",
+    agency: "dashboard.talentDrawers.representation.chipPendingAgency",
+  },
+  global_hidden: {
+    talent: "dashboard.talentDrawers.representation.chipGlobalHidden",
+    agency: "dashboard.talentDrawers.representation.chipGlobalHiddenAgency",
+  },
+};
+
+const KIND_LABEL_KEYS: Record<RepresentationKind, string> = {
+  hub: "dashboard.talentDrawers.representation.kindHub",
+  self_page: "dashboard.talentDrawers.representation.kindSelfPage",
+  agency: "dashboard.talentDrawers.representation.kindAgency",
+};
 import type { RepresentationLoadResult } from "@/lib/talent/load-representation";
 import {
   selfPauseAgency,
@@ -51,10 +94,12 @@ function VisibilityChip({
   entry: RepresentationEntry;
   actor: "talent" | "agency";
 }) {
+  const t = useT();
   const copy = representationChipCopy(entry.effective, actor);
   if (!copy) return null;
   const styles = chipStyles(copy.tone);
-  const label = actor === "talent" ? copy.talent : copy.agency;
+  const labelKeys = CHIP_LABEL_KEYS[entry.effective as Exclude<EffectiveVisibility, "removed">];
+  const label = t(actor === "talent" ? labelKeys.talent : labelKeys.agency);
   return (
     <span
       style={{
@@ -95,6 +140,7 @@ function RepresentationRow({
   onMutated: () => void;
 }) {
   const { toast } = useAdminShell();
+  const t = useT();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -110,15 +156,14 @@ function RepresentationRow({
     const res = await fn();
     setPending(false);
     if (!res.ok) {
-      setError(res.error ?? "Something went wrong.");
+      setError(res.error ?? t("dashboard.talentDrawers.representation.genericError"));
       return;
     }
-    toast("Saved");
+    toast(t("dashboard.talentDrawers.representation.savedToast"));
     onMutated();
   };
 
-  const kindLabel =
-    entry.kind === "hub" ? "HUB" : entry.kind === "self_page" ? "YOUR PAGE" : "AGENCY";
+  const kindLabel = t(KIND_LABEL_KEYS[entry.kind]);
 
   return (
     <div
@@ -222,8 +267,8 @@ function RepresentationRow({
 
           <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.55, margin: "12px 0" }}>
             {isSelf
-              ? "Owned by you · Controlled by your Talent plan."
-              : "Pitch to clients (you confirm), list on public roster, hold dates (with your approval), DM via inbox."}
+              ? t("dashboard.talentDrawers.representation.selfCapabilities")
+              : t("dashboard.talentDrawers.representation.agencyCapabilities")}
           </div>
 
           {entry.publicUrl ? (
@@ -234,13 +279,13 @@ function RepresentationRow({
                 rel="noopener noreferrer"
                 style={{ fontSize: 12, fontWeight: 600, color: COLORS.accentDeep }}
               >
-                Preview / Visit profile →
+                {t("dashboard.talentDrawers.representation.previewVisit")} →
               </a>
               <button
                 type="button"
                 onClick={() => {
                   void navigator.clipboard.writeText(entry.publicUrl);
-                  toast("Link copied");
+                  toast(t("dashboard.talentDrawers.representation.linkCopiedToast"));
                 }}
                 style={{
                   fontSize: 12,
@@ -252,7 +297,7 @@ function RepresentationRow({
                   fontFamily: FONTS.body,
                 }}
               >
-                Copy URL
+                {t("dashboard.talentDrawers.representation.copyUrl")}
               </button>
             </div>
           ) : null}
@@ -260,7 +305,7 @@ function RepresentationRow({
           {actor === "talent" && !isSelf ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 12, fontWeight: 600 }}>Show on this site</span>
+                <span style={{ fontSize: 12, fontWeight: 600 }}>{t("dashboard.talentDrawers.representation.showOnThisSite")}</span>
                 <Toggle
                   on={shown}
                   onChange={(next) => {
@@ -284,11 +329,11 @@ function RepresentationRow({
               </div>
               {globalHidden ? (
                 <p style={{ fontSize: 11, color: "#b91c1c", margin: 0 }}>
-                  You&apos;re hidden everywhere — turn that off first.
+                  {t("dashboard.talentDrawers.representation.hiddenEverywhereNote")}
                 </p>
               ) : agencyBlocksEye ? (
                 <p style={{ fontSize: 11, color: "#b91c1c", margin: 0 }}>
-                  {entry.name} controls this — they haven&apos;t published you on their site. Ask them to feature you.
+                  {interpolate(t("dashboard.talentDrawers.representation.agencyControlsNote"), { name: entry.name })}
                 </p>
               ) : null}
 
@@ -305,7 +350,7 @@ function RepresentationRow({
                     )
                   }
                 >
-                  Set as primary
+                  {t("dashboard.talentDrawers.representation.setAsPrimary")}
                 </SecondaryButton>
               ) : null}
 
@@ -322,7 +367,7 @@ function RepresentationRow({
                     )
                   }
                 >
-                  Resume distribution
+                  {t("dashboard.talentDrawers.representation.resumeDistribution")}
                 </PrimaryButton>
               ) : (
                 <SecondaryButton
@@ -337,14 +382,14 @@ function RepresentationRow({
                     )
                   }
                 >
-                  Pause distribution
+                  {t("dashboard.talentDrawers.representation.pauseDistribution")}
                 </SecondaryButton>
               )}
 
               {confirmRemove ? (
                 <div style={{ padding: 10, background: "rgba(220,38,38,0.06)", borderRadius: 8 }}>
                   <p style={{ fontSize: 12, margin: "0 0 8px", lineHeight: 1.5 }}>
-                    This removes you from {entry.name}&apos;s roster permanently. They&apos;d have to re-invite you.
+                    {interpolate(t("dashboard.talentDrawers.representation.removeConfirmBody"), { name: entry.name })}
                   </p>
                   <div style={{ display: "flex", gap: 8 }}>
                     <PrimaryButton
@@ -359,10 +404,10 @@ function RepresentationRow({
                         )
                       }
                     >
-                      Leave permanently
+                      {t("dashboard.talentDrawers.representation.leavePermanently")}
                     </PrimaryButton>
                     <SecondaryButton size="sm" onClick={() => setConfirmRemove(false)}>
-                      Cancel
+                      {t("dashboard.talentDrawers.cancel")}
                     </SecondaryButton>
                   </div>
                 </div>
@@ -381,7 +426,7 @@ function RepresentationRow({
                     fontFamily: FONTS.body,
                   }}
                 >
-                  Leave permanently…
+                  {t("dashboard.talentDrawers.representation.leavePermanentlyLink")}
                 </button>
               )}
             </div>
@@ -390,7 +435,7 @@ function RepresentationRow({
           {actor === "agency" && focusTenantId === entry.tenantId && tenantSlug ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 12, fontWeight: 600 }}>List on your public site</span>
+                <span style={{ fontSize: 12, fontWeight: 600 }}>{t("dashboard.talentDrawers.representation.listOnPublicSite")}</span>
                 <Toggle
                   on={entry.agencyVisibility !== "roster_only"}
                   onChange={(next) => {
@@ -401,17 +446,17 @@ function RepresentationRow({
                         talentProfileId,
                         next,
                       );
-                      if (!res) return { ok: false as const, error: "Update failed" };
+                      if (!res) return { ok: false as const, error: t("dashboard.talentDrawers.representation.updateFailed") };
                       return res.success
                         ? { ok: true as const }
-                        : { ok: false as const, error: res.error ?? "Update failed" };
+                        : { ok: false as const, error: res.error ?? t("dashboard.talentDrawers.representation.updateFailed") };
                     });
                   }}
                 />
               </div>
               {entry.talentSiteHidden ? (
                 <p style={{ fontSize: 11, color: "#b91c1c", margin: 0 }}>
-                  Talent hid their profile on your roster — you can&apos;t override that.
+                  {t("dashboard.talentDrawers.representation.talentHidNote")}
                 </p>
               ) : null}
             </div>
@@ -434,6 +479,7 @@ export function RepresentationDrawer() {
   } = useAdminShell();
 
   const router = useRouter();
+  const t = useT();
   const open = state.drawer.drawerId === "representation";
   const payload = state.drawer.payload ?? {};
   const actor: "talent" | "agency" =
@@ -509,7 +555,7 @@ export function RepresentationDrawer() {
       setGlobalError(res.error);
       return;
     }
-    toast("Visibility updated");
+    toast(t("dashboard.talentDrawers.representation.visibilityUpdatedToast"));
     onMutated();
   };
 
@@ -518,12 +564,12 @@ export function RepresentationDrawer() {
       <DrawerShell
         open={open}
         onClose={closeDrawer}
-        title="Representation"
-        description="Sign in as a talent to manage where you appear."
+        title={t("dashboard.talentDrawers.representation.signInTitle")}
+        description={t("dashboard.talentDrawers.representation.signInDesc")}
         width={520}
-        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+        footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
       >
-        <p style={{ fontSize: 13, color: COLORS.inkMuted }}>No talent profile in context.</p>
+        <p style={{ fontSize: 13, color: COLORS.inkMuted }}>{t("dashboard.talentDrawers.representation.noProfileInContext")}</p>
       </DrawerShell>
     );
   }
@@ -532,14 +578,18 @@ export function RepresentationDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title={actor === "agency" ? "Talent representation" : "Where you appear"}
+      title={
+        actor === "agency"
+          ? t("dashboard.talentDrawers.representation.agencyTitle")
+          : t("dashboard.talentDrawers.representation.talentTitle")
+      }
       description={
         actor === "agency"
-          ? "How this talent appears on your roster and across Tulala."
-          : "Every place your profile is listed, with true visibility."
+          ? t("dashboard.talentDrawers.representation.agencyDesc")
+          : t("dashboard.talentDrawers.representation.talentDesc")
       }
       width={560}
-      footer={<SecondaryButton onClick={closeDrawer}>Done</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.done")}</SecondaryButton>}
     >
       {actor === "talent" ? (
         <div style={{ marginBottom: 16 }}>
@@ -555,9 +605,9 @@ export function RepresentationDrawer() {
             }}
           >
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>Show my profile everywhere</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{t("dashboard.talentDrawers.representation.showEverywhere")}</div>
               <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
-                Turn off to hide on every roster and the directory.
+                {t("dashboard.talentDrawers.representation.showEverywhereHint")}
               </div>
             </div>
             <Toggle
@@ -575,14 +625,14 @@ export function RepresentationDrawer() {
             />
           ) : null}
           <p style={{ fontSize: 11, color: COLORS.inkMuted, margin: "8px 0 0" }}>
-            Directory search updates within ~15 minutes after changes.
+            {t("dashboard.talentDrawers.representation.directoryLagNote")}
           </p>
         </div>
       ) : null}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {entries.length === 0 ? (
-          <p style={{ fontSize: 13, color: COLORS.inkMuted }}>No representation entries yet.</p>
+          <p style={{ fontSize: 13, color: COLORS.inkMuted }}>{t("dashboard.talentDrawers.representation.noEntries")}</p>
         ) : (
           entries.map((entry) => (
             <RepresentationRow

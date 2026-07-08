@@ -12,6 +12,9 @@ import {
   type PlatformRevenueByCurrency,
 } from "@/lib/billing/platform-revenue";
 import { listHeldPayouts } from "@/lib/payments/booking-payouts-ledger";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 import { HeldPayoutsSection } from "./HeldPayoutsSection";
 
 function fmtMoney(cents: number, currency: string): string {
@@ -158,12 +161,14 @@ const PLAN_PALETTE: Record<string, string> = {
 };
 
 export default async function PlatformBillingPage() {
-  const [planDist, stats, revenue, heldPayouts] = await Promise.all([
+  const [planDist, stats, revenue, heldPayouts, locale] = await Promise.all([
     loadPlatformPlanDistribution(),
     loadPlatformStats(),
     loadPlatformBookingRevenue(),
     listHeldPayouts(),
+    getRequestLocale(),
   ]);
+  const t = createTranslator(locale);
 
   // Primary currency = the one with the most platform-fee revenue.
   const primary: PlatformRevenueByCurrency | null = revenue.byCurrency[0] ?? null;
@@ -196,7 +201,7 @@ export default async function PlatformBillingPage() {
             margin: 0,
           }}
         >
-          Billing
+          {t("dashboard.platform.billing.title")}
         </h1>
         <p
           style={{
@@ -206,8 +211,7 @@ export default async function PlatformBillingPage() {
             margin: "5px 0 0",
           }}
         >
-          Booking revenue from the commission engine, plan MRR, and commission
-          controls. Subscription invoicing/dunning is still estimated.
+          {t("dashboard.platform.billing.subtitle")}
         </p>
         <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link
@@ -227,7 +231,7 @@ export default async function PlatformBillingPage() {
               textDecoration: "none",
             }}
           >
-            Discount codes →
+            {t("dashboard.platform.billing.discountCodesLink")}
           </Link>
           <Link
             href="/platform/admin/billing/commission"
@@ -246,7 +250,7 @@ export default async function PlatformBillingPage() {
               textDecoration: "none",
             }}
           >
-            Commission config →
+            {t("dashboard.platform.billing.commissionLink")}
           </Link>
         </div>
       </div>
@@ -261,35 +265,41 @@ export default async function PlatformBillingPage() {
         }}
       >
         <StatCard
-          label="Estimated MRR"
+          label={t("dashboard.platform.billing.stat.estimatedMrr")}
           value={estimatedMrr}
-          caption="from active paid plans"
+          caption={t("dashboard.platform.billing.stat.estimatedMrrCaption")}
           tone={estimatedMrrCents > 0 ? "green" : "dim"}
         />
         <StatCard
-          label="Paid tenants"
+          label={t("dashboard.platform.billing.stat.paidTenants")}
           value={paidTenants}
-          caption={`of ${totalActiveTenants} active`}
+          caption={interpolate(
+            t("dashboard.platform.billing.stat.paidTenantsCaption"),
+            { total: totalActiveTenants },
+          )}
           tone={paidTenants > 0 ? "ink" : "dim"}
         />
         <StatCard
-          label="Churn (30d)"
+          label={t("dashboard.platform.billing.stat.churn")}
           value="—"
-          caption="Stripe integration pending"
+          caption={t("dashboard.platform.billing.stat.churnCaption")}
           tone="dim"
         />
         <StatCard
-          label="Failed payments"
+          label={t("dashboard.platform.billing.stat.failedPayments")}
           value="0"
-          caption="No active billing yet"
+          caption={t("dashboard.platform.billing.stat.failedPaymentsCaption")}
           tone="green"
         />
       </div>
 
       {/* Plan breakdown — real data */}
       <HqCard
-        title="Plan distribution"
-        subtitle={`${stats.totalTenants} total tenants · ${totalActiveTenants} active`}
+        title={t("dashboard.platform.billing.planDistribution.title")}
+        subtitle={interpolate(
+          t("dashboard.platform.billing.planDistribution.subtitle"),
+          { total: stats.totalTenants, active: totalActiveTenants },
+        )}
       >
         {planDist.map((row) => {
           const color = PLAN_PALETTE[row.plan] ?? "rgba(245,242,235,0.38)";
@@ -387,15 +397,35 @@ export default async function PlatformBillingPage() {
 
       {/* Booking revenue — real money from the commission engine */}
       <HqCard
-        title="Booking revenue"
+        title={t("dashboard.platform.billing.bookingRevenue.title")}
         subtitle={
           revenue.hasData
-            ? `Realized across ${revenue.totalBookings} paid booking${revenue.totalBookings === 1 ? "" : "s"}${
-                revenue.totalRefundedBookings > 0
-                  ? ` · ${revenue.totalRefundedBookings} refunded`
-                  : ""
-              }${revenue.truncated ? " · showing a partial total (volume cap hit)" : ""}`
-            : "Platform commission from paid bookings will appear here"
+            ? interpolate(
+                t("dashboard.platform.billing.bookingRevenue.subtitleData"),
+                {
+                  count: revenue.totalBookings,
+                  bookings: t(
+                    revenue.totalBookings === 1
+                      ? "dashboard.platform.billing.bookingRevenue.bookingOne"
+                      : "dashboard.platform.billing.bookingRevenue.bookingMany",
+                  ),
+                  refunded:
+                    revenue.totalRefundedBookings > 0
+                      ? interpolate(
+                          t(
+                            "dashboard.platform.billing.bookingRevenue.refundedSuffix",
+                          ),
+                          { count: revenue.totalRefundedBookings },
+                        )
+                      : "",
+                  truncated: revenue.truncated
+                    ? t(
+                        "dashboard.platform.billing.bookingRevenue.truncatedSuffix",
+                      )
+                    : "",
+                },
+              )
+            : t("dashboard.platform.billing.bookingRevenue.subtitleEmpty")
         }
       >
         {!revenue.hasData || !primary ? (
@@ -408,9 +438,7 @@ export default async function PlatformBillingPage() {
               fontFamily: F,
             }}
           >
-            No paid bookings yet. Once a client pays an offer, the platform fee,
-            talent payout, and workspace margin land here — split by the
-            talent-protected commission model.
+            {t("dashboard.platform.billing.bookingRevenue.empty")}
           </div>
         ) : (
           <>
@@ -424,25 +452,42 @@ export default async function PlatformBillingPage() {
               }}
             >
               <StatCard
-                label={`Platform fees (${primary.currency.toUpperCase()})`}
+                label={interpolate(
+                  t("dashboard.platform.billing.bookingRevenue.platformFees"),
+                  { currency: primary.currency.toUpperCase() },
+                )}
                 value={fmtMoney(primary.platformFeeCents, primary.currency)}
-                caption="our take — surcharge + seller share"
+                caption={t(
+                  "dashboard.platform.billing.bookingRevenue.platformFeesCaption",
+                )}
                 tone="green"
               />
               <StatCard
-                label="Gross processed"
+                label={t(
+                  "dashboard.platform.billing.bookingRevenue.grossProcessed",
+                )}
                 value={fmtMoney(primary.grossChargedCents, primary.currency)}
-                caption="total charged to clients"
+                caption={t(
+                  "dashboard.platform.billing.bookingRevenue.grossProcessedCaption",
+                )}
               />
               <StatCard
-                label="Paid to talent"
+                label={t(
+                  "dashboard.platform.billing.bookingRevenue.paidToTalent",
+                )}
                 value={fmtMoney(primary.talentNetCents, primary.currency)}
-                caption="full quotes — never reduced"
+                caption={t(
+                  "dashboard.platform.billing.bookingRevenue.paidToTalentCaption",
+                )}
               />
               <StatCard
-                label="Workspace margins"
+                label={t(
+                  "dashboard.platform.billing.bookingRevenue.workspaceMargins",
+                )}
                 value={fmtMoney(primary.workspaceFeeCents, primary.currency)}
-                caption="agency margin + base fees"
+                caption={t(
+                  "dashboard.platform.billing.bookingRevenue.workspaceMarginsCaption",
+                )}
               />
             </div>
 
@@ -465,7 +510,13 @@ export default async function PlatformBillingPage() {
                   borderBottom: `1px solid ${HQ.borderSoft}`,
                 }}
               >
-                {["Currency", "Platform fee", "Gross", "Talent", "Workspace"].map((h, i) => (
+                {[
+                  t("dashboard.platform.billing.bookingRevenue.colCurrency"),
+                  t("dashboard.platform.billing.bookingRevenue.colPlatformFee"),
+                  t("dashboard.platform.billing.bookingRevenue.colGross"),
+                  t("dashboard.platform.billing.bookingRevenue.colTalent"),
+                  t("dashboard.platform.billing.bookingRevenue.colWorkspace"),
+                ].map((h, i) => (
                   <span
                     key={h}
                     style={{
@@ -521,9 +572,7 @@ export default async function PlatformBillingPage() {
               ))}
             </div>
             <p style={{ fontSize: 11, color: HQ.inkDim, margin: "10px 0 0", fontFamily: F }}>
-              Realized from paid bookings via the commission snapshots. Refunded
-              platform fees are shown as a deduction. MRR above is separate —
-              estimated from subscription plan × catalog price.
+              {t("dashboard.platform.billing.bookingRevenue.footnote")}
             </p>
           </>
         )}

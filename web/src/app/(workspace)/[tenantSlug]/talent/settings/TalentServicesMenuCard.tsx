@@ -16,6 +16,8 @@
  */
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import {
   loadTalentServicesMenu,
   updateTalentServicesMenu,
@@ -26,8 +28,8 @@ import {
 } from "@/lib/talent/services-menu-actions";
 import {
   SERVICE_PRICING_TYPES,
-  SERVICE_PRICING_LABELS,
-  SERVICE_PRICING_SUFFIX,
+  SERVICE_PRICING_LABEL_KEYS,
+  SERVICE_PRICING_SUFFIX_KEYS,
   SERVICE_VISIBILITIES,
   pricingTypeRequiresAmount,
   type ServiceMenuItem,
@@ -37,12 +39,13 @@ import {
   type ServiceTier,
 } from "@/lib/talent/services-menu-types";
 
-const VISIBILITY_LABELS: Record<ServiceVisibility, string> = {
-  public: "Public — shown on your page",
-  agency_only: "Agency only — staff see it, clients don't",
-  on_request: "On request — name shown, price hidden",
-};
 import { DEFAULT_CURRENCY_OPTIONS, CURRENCY_LABELS } from "@/lib/billing/currencies";
+
+const VISIBILITY_LABEL_KEYS: Record<ServiceVisibility, string> = {
+  public: "dashboard.talentServices.visibilityPublic",
+  agency_only: "dashboard.talentServices.visibilityAgencyOnly",
+  on_request: "dashboard.talentServices.visibilityOnRequest",
+};
 
 const C = {
   ink: "#0B0B0D",
@@ -103,6 +106,7 @@ function blankService(defaultCurrency: string, sortOrder: number): ServiceMenuIt
 }
 
 export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
+  const t = useT();
   const [items, setItems] = useState<ServiceMenuItem[]>([]);
   const [disciplines, setDisciplines] = useState<TalentDiscipline[]>([]);
   const [perf, setPerf] = useState<Record<string, ServicePerformanceStat>>({});
@@ -190,7 +194,14 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
     persist(next.map((it, i) => ({ ...it, sortOrder: i })));
   };
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div
+        aria-hidden
+        style={{ width: "100%", minHeight: 132, marginBottom: 16, borderRadius: 12, background: "#fff", border: `1px solid ${C.borderSoft}`, fontFamily: FONT }}
+      />
+    );
+  }
 
   const inputStyle = {
     fontSize: 13,
@@ -212,17 +223,16 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <span aria-hidden style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", background: C.accentSoft, color: C.accentDeep, fontSize: 15 }}>≡</span>
         <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>Services &amp; pricing</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{t("dashboard.talentServices.cardTitle")}</div>
           <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2, lineHeight: 1.45 }}>
-            Your menu of services — each priced by hour, day, event, person, package, or as a custom quote.
-            Clients see these on your page; a selected service pre-fills an offer.
+            {t("dashboard.talentServices.cardDescription")}
           </div>
         </div>
       </div>
 
       {items.length === 0 ? (
         <div style={{ marginTop: 14, padding: "14px 16px", borderRadius: 10, background: C.surface, border: `1px dashed ${C.border}`, fontSize: 12.5, color: C.inkMuted, lineHeight: 1.5 }}>
-          No services yet. Add your first — e.g. &ldquo;DJ set&rdquo; at a per-hour rate, or a flat-package &ldquo;Full wedding&rdquo;.
+          {t("dashboard.talentServices.emptyBody")}
           {legacyImportable && (
             <div style={{ marginTop: 10 }}>
               <button
@@ -231,10 +241,10 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                 onClick={importLegacy}
                 style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff", color: C.accentDeep, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: saving ? "wait" : "pointer" }}
               >
-                Import my existing packages &amp; rate
+                {t("dashboard.talentServices.importPackages")}
               </button>
               <div style={{ fontSize: 10.5, color: C.inkMuted, marginTop: 5 }}>
-                We&rsquo;ll turn your current packages and fixed rate into editable services. You can tweak them after.
+                {t("dashboard.talentServices.importHint")}
               </div>
             </div>
           )}
@@ -248,21 +258,21 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
                   <input
                     type="text"
-                    placeholder="Service name (e.g. DJ set)"
+                    placeholder={t("dashboard.talentServices.serviceNamePlaceholder")}
                     defaultValue={it.name}
                     disabled={saving}
                     onBlur={(e) => { if (e.target.value.trim() !== it.name) patchItem(it.id, { name: e.target.value.trim() }); }}
                     style={{ ...inputStyle, flex: 1, fontWeight: 600 }}
                   />
-                  <button type="button" aria-label="Move up" disabled={saving || idx === 0} onClick={() => move(it.id, -1)} style={{ ...inputStyle, padding: "6px 8px", cursor: "pointer", opacity: idx === 0 ? 0.4 : 1 }}>↑</button>
-                  <button type="button" aria-label="Move down" disabled={saving || idx === items.length - 1} onClick={() => move(it.id, 1)} style={{ ...inputStyle, padding: "6px 8px", cursor: "pointer", opacity: idx === items.length - 1 ? 0.4 : 1 }}>↓</button>
-                  <button type="button" aria-label="Remove service" disabled={saving} onClick={() => removeService(it.id)} style={{ ...inputStyle, padding: "6px 9px", cursor: "pointer", color: C.error, borderColor: C.errorSoft }}>✕</button>
+                  <button type="button" aria-label={t("dashboard.talentServices.moveUp")} disabled={saving || idx === 0} onClick={() => move(it.id, -1)} style={{ ...inputStyle, padding: "6px 8px", cursor: "pointer", opacity: idx === 0 ? 0.4 : 1 }}>↑</button>
+                  <button type="button" aria-label={t("dashboard.talentServices.moveDown")} disabled={saving || idx === items.length - 1} onClick={() => move(it.id, 1)} style={{ ...inputStyle, padding: "6px 8px", cursor: "pointer", opacity: idx === items.length - 1 ? 0.4 : 1 }}>↓</button>
+                  <button type="button" aria-label={t("dashboard.talentServices.removeService")} disabled={saving} onClick={() => removeService(it.id)} style={{ ...inputStyle, padding: "6px 9px", cursor: "pointer", color: C.error, borderColor: C.errorSoft }}>✕</button>
                 </div>
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                   {/* pricing unit (S5) */}
                   <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 150px", minWidth: 0 }}>
-                    <span style={labelStyle}>Priced</span>
+                    <span style={labelStyle}>{t("dashboard.talentServices.priced")}</span>
                     <select
                       value={it.pricingType}
                       disabled={saving}
@@ -272,8 +282,8 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                       }}
                       style={{ ...inputStyle, width: "100%", cursor: saving ? "wait" : "pointer" }}
                     >
-                      {SERVICE_PRICING_TYPES.map((t) => (
-                        <option key={t} value={t}>{SERVICE_PRICING_LABELS[t]}</option>
+                      {SERVICE_PRICING_TYPES.map((pt) => (
+                        <option key={pt} value={pt}>{t(SERVICE_PRICING_LABEL_KEYS[pt])}</option>
                       ))}
                     </select>
                   </label>
@@ -281,7 +291,7 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                   {/* amount (hidden for custom) */}
                   {needsAmount && (
                     <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 120px", minWidth: 0 }}>
-                      <span style={labelStyle}>Price</span>
+                      <span style={labelStyle}>{t("dashboard.talentServices.price")}</span>
                       <input
                         key={`amt-${it.id}-${it.amountCents ?? "x"}`}
                         type="number"
@@ -303,7 +313,7 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                   {/* currency (S17) */}
                   {needsAmount && (
                     <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 1 110px", minWidth: 0 }}>
-                      <span style={labelStyle}>Currency</span>
+                      <span style={labelStyle}>{t("dashboard.talentServices.currency")}</span>
                       <select
                         value={(DEFAULT_CURRENCY_OPTIONS as readonly string[]).includes(it.currency) ? it.currency : defaultCurrency}
                         disabled={saving}
@@ -320,7 +330,7 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
 
                 <input
                   type="text"
-                  placeholder="Short description (optional)"
+                  placeholder={t("dashboard.talentServices.descriptionPlaceholder")}
                   defaultValue={it.description ?? ""}
                   disabled={saving}
                   onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== it.description) patchItem(it.id, { description: v }); }}
@@ -330,12 +340,12 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 10 }}>
                   <label style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: saving ? "wait" : "pointer", fontSize: 11.5, color: C.inkMuted }}>
                     <input type="checkbox" checked={it.isActive} disabled={saving} onChange={(e) => patchItem(it.id, { isActive: e.target.checked })} style={{ accentColor: C.accentDeep, width: 15, height: 15 }} />
-                    Active (shown to clients)
+                    {t("dashboard.talentServices.activeLabel")}
                   </label>
                   <span style={{ fontSize: 12, fontWeight: 600, color: it.pricingType === "custom" ? C.inkMuted : C.accentDeep }}>
                     {it.pricingType === "custom"
-                      ? "Quote on request"
-                      : `${fmtMoney(it.amountCents, it.currency)} ${SERVICE_PRICING_SUFFIX[it.pricingType]}`.trim()}
+                      ? t("dashboard.talentServices.quoteOnRequest")
+                      : `${fmtMoney(it.amountCents, it.currency)} ${t(SERVICE_PRICING_SUFFIX_KEYS[it.pricingType])}`.trim()}
                   </span>
                 </div>
 
@@ -344,12 +354,12 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                 {perf[it.id] && perf[it.id].timesQuoted > 0 && (
                   <div style={{ marginTop: 8, fontSize: 11, color: C.inkMuted }}>
                     <span style={{ fontWeight: 600, color: C.accentDeep }}>
-                      Quoted {perf[it.id].timesQuoted}×
+                      {interpolate(t("dashboard.talentServices.quotedTimes"), { count: perf[it.id].timesQuoted })}
                     </span>
                     {" · "}
-                    Booked {perf[it.id].timesBooked}×
+                    {interpolate(t("dashboard.talentServices.bookedTimes"), { count: perf[it.id].timesBooked })}
                     <span style={{ color: C.inkMuted }}>
-                      {" "}({Math.round((perf[it.id].timesBooked / perf[it.id].timesQuoted) * 100)}% convert)
+                      {" "}{interpolate(t("dashboard.talentServices.convertSuffix"), { percent: Math.round((perf[it.id].timesBooked / perf[it.id].timesQuoted) * 100) })}
                     </span>
                   </div>
                 )}
@@ -358,7 +368,7 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px dashed ${C.borderSoft}`, display: "flex", flexDirection: "column", gap: 12 }}>
                   {/* S7 — visibility */}
                   <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <span style={labelStyle}>Visibility</span>
+                    <span style={labelStyle}>{t("dashboard.talentServices.visibility")}</span>
                     <select
                       value={it.visibility}
                       disabled={saving}
@@ -366,59 +376,59 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                       style={{ ...inputStyle, width: "100%", cursor: saving ? "wait" : "pointer" }}
                     >
                       {SERVICE_VISIBILITIES.map((v) => (
-                        <option key={v} value={v}>{VISIBILITY_LABELS[v]}</option>
+                        <option key={v} value={v}>{t(VISIBILITY_LABEL_KEYS[v])}</option>
                       ))}
                     </select>
                   </label>
 
                   {/* S8 — add-ons */}
                   <div>
-                    <span style={labelStyle}>Add-ons (optional extras)</span>
+                    <span style={labelStyle}>{t("dashboard.talentServices.addOnsLabel")}</span>
                     {it.addOns.map((a) => (
                       <div key={a.id} style={{ display: "flex", gap: 6, marginTop: 6 }}>
                         <input
-                          type="text" placeholder="e.g. Overtime, Travel" defaultValue={a.label} disabled={saving}
+                          type="text" placeholder={t("dashboard.talentServices.addOnPlaceholder")} defaultValue={a.label} disabled={saving}
                           onBlur={(e) => patchItem(it.id, { addOns: it.addOns.map((x) => x.id === a.id ? { ...x, label: e.target.value.trim() } : x) })}
                           style={{ ...inputStyle, flex: 1 }}
                         />
                         <input
-                          key={`ao-${a.id}-${a.amountCents ?? "x"}`} type="number" min={0} step="0.01" placeholder="0"
+                          key={`ao-${a.id}-${a.amountCents ?? "x"}`} type="number" inputMode="decimal" min={0} step="0.01" placeholder="0"
                           defaultValue={a.amountCents == null ? "" : (a.amountCents / 100).toString()} disabled={saving}
                           onBlur={(e) => { const c = inputToCents(e.target.value); patchItem(it.id, { addOns: it.addOns.map((x) => x.id === a.id ? { ...x, amountCents: c } : x) }); }}
                           style={{ ...inputStyle, width: 92 }}
                         />
-                        <button type="button" aria-label="Remove add-on" disabled={saving} onClick={() => patchItem(it.id, { addOns: it.addOns.filter((x) => x.id !== a.id) })} style={{ ...inputStyle, padding: "6px 9px", cursor: "pointer", color: C.error, borderColor: C.errorSoft }}>✕</button>
+                        <button type="button" aria-label={t("dashboard.talentServices.removeAddOn")} disabled={saving} onClick={() => patchItem(it.id, { addOns: it.addOns.filter((x) => x.id !== a.id) })} style={{ ...inputStyle, padding: "6px 9px", cursor: "pointer", color: C.error, borderColor: C.errorSoft }}>✕</button>
                       </div>
                     ))}
-                    <button type="button" disabled={saving} onClick={() => patchItem(it.id, { addOns: [...it.addOns, { id: clientId(), label: "", pricingType: "flat_package" as ServicePricingType, amountCents: null } as ServiceAddOn] })} style={{ marginTop: 6, padding: "5px 10px", borderRadius: 7, border: `1px solid ${C.border}`, background: "#fff", color: C.inkMuted, fontSize: 11.5, cursor: saving ? "wait" : "pointer", fontFamily: FONT }}>+ Add-on</button>
+                    <button type="button" disabled={saving} onClick={() => patchItem(it.id, { addOns: [...it.addOns, { id: clientId(), label: "", pricingType: "flat_package" as ServicePricingType, amountCents: null } as ServiceAddOn] })} style={{ marginTop: 6, padding: "5px 10px", borderRadius: 7, border: `1px solid ${C.border}`, background: "#fff", color: C.inkMuted, fontSize: 11.5, cursor: saving ? "wait" : "pointer", fontFamily: FONT }}>{t("dashboard.talentServices.addAddOn")}</button>
                   </div>
 
                   {/* S9 — tiers */}
                   <div>
-                    <span style={labelStyle}>Tiers (e.g. 2h / 4h / full-day)</span>
-                    {it.tiers.map((t) => (
-                      <div key={t.id} style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                    <span style={labelStyle}>{t("dashboard.talentServices.tiersLabel")}</span>
+                    {it.tiers.map((tier) => (
+                      <div key={tier.id} style={{ display: "flex", gap: 6, marginTop: 6 }}>
                         <input
-                          type="text" placeholder="Tier label" defaultValue={t.label} disabled={saving}
-                          onBlur={(e) => patchItem(it.id, { tiers: it.tiers.map((x) => x.id === t.id ? { ...x, label: e.target.value.trim() } : x) })}
+                          type="text" placeholder={t("dashboard.talentServices.tierPlaceholder")} defaultValue={tier.label} disabled={saving}
+                          onBlur={(e) => patchItem(it.id, { tiers: it.tiers.map((x) => x.id === tier.id ? { ...x, label: e.target.value.trim() } : x) })}
                           style={{ ...inputStyle, flex: 1 }}
                         />
                         <input
-                          key={`tr-${t.id}-${t.amountCents ?? "x"}`} type="number" min={0} step="0.01" placeholder="0"
-                          defaultValue={t.amountCents == null ? "" : (t.amountCents / 100).toString()} disabled={saving}
-                          onBlur={(e) => { const c = inputToCents(e.target.value); patchItem(it.id, { tiers: it.tiers.map((x) => x.id === t.id ? { ...x, amountCents: c } : x) }); }}
+                          key={`tr-${tier.id}-${tier.amountCents ?? "x"}`} type="number" inputMode="decimal" min={0} step="0.01" placeholder="0"
+                          defaultValue={tier.amountCents == null ? "" : (tier.amountCents / 100).toString()} disabled={saving}
+                          onBlur={(e) => { const c = inputToCents(e.target.value); patchItem(it.id, { tiers: it.tiers.map((x) => x.id === tier.id ? { ...x, amountCents: c } : x) }); }}
                           style={{ ...inputStyle, width: 92 }}
                         />
-                        <button type="button" aria-label="Remove tier" disabled={saving} onClick={() => patchItem(it.id, { tiers: it.tiers.filter((x) => x.id !== t.id) })} style={{ ...inputStyle, padding: "6px 9px", cursor: "pointer", color: C.error, borderColor: C.errorSoft }}>✕</button>
+                        <button type="button" aria-label={t("dashboard.talentServices.removeTier")} disabled={saving} onClick={() => patchItem(it.id, { tiers: it.tiers.filter((x) => x.id !== tier.id) })} style={{ ...inputStyle, padding: "6px 9px", cursor: "pointer", color: C.error, borderColor: C.errorSoft }}>✕</button>
                       </div>
                     ))}
-                    <button type="button" disabled={saving} onClick={() => patchItem(it.id, { tiers: [...it.tiers, { id: clientId(), label: "", amountCents: null } as ServiceTier] })} style={{ marginTop: 6, padding: "5px 10px", borderRadius: 7, border: `1px solid ${C.border}`, background: "#fff", color: C.inkMuted, fontSize: 11.5, cursor: saving ? "wait" : "pointer", fontFamily: FONT }}>+ Tier</button>
+                    <button type="button" disabled={saving} onClick={() => patchItem(it.id, { tiers: [...it.tiers, { id: clientId(), label: "", amountCents: null } as ServiceTier] })} style={{ marginTop: 6, padding: "5px 10px", borderRadius: 7, border: `1px solid ${C.border}`, background: "#fff", color: C.inkMuted, fontSize: 11.5, cursor: saving ? "wait" : "pointer", fontFamily: FONT }}>{t("dashboard.talentServices.addTier")}</button>
                   </div>
 
                   {/* S6 — discipline scoping (only when the talent has >1 discipline) */}
                   {disciplines.length > 1 && (
                     <div>
-                      <span style={labelStyle}>Applies to</span>
+                      <span style={labelStyle}>{t("dashboard.talentServices.appliesTo")}</span>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 6 }}>
                         {disciplines.map((d) => {
                           const checked = (it.taxonomyTermIds ?? []).includes(d.id);
@@ -435,7 +445,7 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                         })}
                       </div>
                       <div style={{ fontSize: 10.5, color: C.inkMuted, marginTop: 5 }}>
-                        Leave all unchecked to apply to every discipline.
+                        {t("dashboard.talentServices.appliesToHint")}
                       </div>
                     </div>
                   )}
@@ -443,7 +453,7 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                   {/* S10 — bundle: pick included services (flat_package only) */}
                   {it.pricingType === "flat_package" && items.length > 1 && (
                     <div>
-                      <span style={labelStyle}>Included in this package</span>
+                      <span style={labelStyle}>{t("dashboard.talentServices.includedInPackage")}</span>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 6 }}>
                         {items.filter((o) => o.id !== it.id).map((o) => {
                           const checked = (it.childServiceIds ?? []).includes(o.id);
@@ -454,7 +464,7 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                                 onChange={(e) => { const cur = it.childServiceIds ?? []; const next = e.target.checked ? [...cur, o.id] : cur.filter((x) => x !== o.id); patchItem(it.id, { childServiceIds: next.length ? next : null }); }}
                                 style={{ accentColor: C.accentDeep }}
                               />
-                              {o.name || "(unnamed)"}
+                              {o.name || t("dashboard.talentServices.unnamed")}
                             </label>
                           );
                         })}
@@ -474,12 +484,12 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
         onClick={addService}
         style={{ marginTop: 14, padding: "8px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.accentSoft, color: C.accentDeep, fontSize: 12.5, fontWeight: 600, fontFamily: FONT, cursor: saving ? "wait" : "pointer" }}
       >
-        + Add service
+        {t("dashboard.talentServices.addService")}
       </button>
 
       <div style={{ minHeight: 16, marginTop: 10 }}>
-        {saving && <span style={{ fontSize: 11, color: C.inkMuted }}>Saving…</span>}
-        {savedOk && !saving && <span style={{ fontSize: 11, color: C.success }}>Saved</span>}
+        {saving && <span style={{ fontSize: 11, color: C.inkMuted }}>{t("dashboard.talentServices.saving")}</span>}
+        {savedOk && !saving && <span style={{ fontSize: 11, color: C.success }}>{t("dashboard.talentServices.saved")}</span>}
         {error && <span style={{ fontSize: 11, color: C.error }}>{error}</span>}
       </div>
     </div>
