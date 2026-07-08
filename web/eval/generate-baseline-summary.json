@@ -1,0 +1,9 @@
+{
+  "cases_total": 18,
+  "cases_ok": 18,
+  "cases_expectations_pass": 18,
+  "mean_score": 89.28,
+  "mean_errors": 0,
+  "mean_warns": 2,
+  "mean_judge": 4.51
+}
