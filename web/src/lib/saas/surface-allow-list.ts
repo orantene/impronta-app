@@ -99,6 +99,13 @@ const SHARED_API_PREFIXES = [
 const COMPLIANCE_PREFIXES = [
   "/unsubscribe",
   "/api/unsubscribe",
+  // STANDING reviews — the emailed review-invite landing at
+  // `/review/<invite_token>`. Like unsubscribe, the per-recipient token in the
+  // URL is the only credential and the link can be opened from any host context
+  // (platform apex, agency vanity domain, or app host), so it must never 404 on
+  // a tenant host. Identity is auth-matched server-side inside the action; the
+  // token is never trusted for identity.
+  "/review",
 ] as const;
 
 /**

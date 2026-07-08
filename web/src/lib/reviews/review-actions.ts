@@ -24,6 +24,7 @@ import {
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { emitNotificationToUsers } from "@/lib/notifications/emit";
+import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import type {
   ReviewableBooking,
   ReviewableCounterparty,
@@ -258,7 +259,64 @@ export async function submitTalentReviewAction(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
+  // Tell the talent a review just published, through the EXISTING notification
+  // engine (dispatcher honors email_suppressions, the `reviews` category
+  // preference, unsubscribe headers, and localized copy). Best-effort + fully
+  // swallowed: the review is already stored, so a notify failure never fails the
+  // submit. Resolves the talent's account from talent_profiles.user_id; a review
+  // for an unclaimed profile (no user_id) silently notifies nobody.
+  await notifyReviewReceived({
+    tenantId,
+    talentProfileId: cleanTalentId,
+    bookingId: cleanBookingId,
+    eventTitle: booking.title,
+    eventDate: booking.event_date,
+  });
+
   return { ok: true };
+}
+
+/**
+ * Fire the review-received notification through the EXISTING engine (not
+ * exported — the "use server" rule bars a non-async export, but a local helper
+ * is fine). Resolves the reviewed talent's account from talent_profiles.user_id
+ * and dispatches `review.published`; the `review.received.talent` catalog entry
+ * emails the talent + drops an in-app bell. Fully swallowed and best-effort.
+ */
+async function notifyReviewReceived(params: {
+  tenantId: string;
+  talentProfileId: string;
+  bookingId: string;
+  eventTitle: string | null;
+  eventDate: string | null;
+}): Promise<void> {
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return;
+    const { data } = await admin
+      .from("talent_profiles")
+      .select("user_id, display_name")
+      .eq("id", params.talentProfileId)
+      .maybeSingle();
+    const talent = data as { user_id: string | null; display_name: string | null } | null;
+    if (!talent?.user_id) return; // unclaimed profile — nobody to notify
+
+    await dispatchEventNotifications({
+      type: "review.published",
+      tenantId: params.tenantId,
+      userId: talent.user_id,
+      // One notification per (booking, talent); a re-submit / edit is a dedupe
+      // no-op on the dispatch_log rather than re-notifying the talent.
+      eventId: `review-received:${params.bookingId}:${params.talentProfileId}`,
+      payload: {
+        talentName: talent.display_name,
+        eventTitle: params.eventTitle,
+        eventDate: params.eventDate,
+      },
+    });
+  } catch (err) {
+    logServerError("reviews/submit/notify", err);
+  }
 }
 
 /**

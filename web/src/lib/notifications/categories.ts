@@ -100,13 +100,21 @@ export const NOTIFICATION_CATEGORIES: Record<NotificationCategory, CategoryDefin
     defaultChannels: ["in_app"],
     order: 8,
   },
+  reviews: {
+    id: "reviews",
+    label: "Reviews",
+    description: "Review invitations, reminders, and reviews you receive.",
+    required: false,
+    defaultChannels: ["email", "in_app"],
+    order: 9,
+  },
   platform_alerts: {
     id: "platform_alerts",
     label: "Platform alerts",
     description: "Operational alerts for platform administrators.",
     required: false,
     defaultChannels: ["email", "in_app"],
-    order: 9,
+    order: 10,
   },
   marketing: {
     id: "marketing",
@@ -114,7 +122,7 @@ export const NOTIFICATION_CATEGORIES: Record<NotificationCategory, CategoryDefin
     description: "Occasional product updates and best-practice tips.",
     required: false,
     defaultChannels: [], // off by default — opt-in
-    order: 10,
+    order: 11,
   },
 };
 
