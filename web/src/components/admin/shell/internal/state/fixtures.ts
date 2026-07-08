@@ -278,7 +278,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   today:       { label: "Today" },
   messages:    { label: "Messages" },
   profile:     { label: "Profile" },
-  services:    { label: "Services" },
+  services:    { label: "Catalog & Pricing" },
   reviews:     { label: "Reviews" },
   inbox:       { label: "Inbox" },         // legacy
   calendar:    { label: "Calendar" },

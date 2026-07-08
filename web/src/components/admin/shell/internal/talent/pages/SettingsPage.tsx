@@ -102,7 +102,7 @@ export function SettingsPage() {
           onClick={() => setTalentPage("services")}
           style={{ display: "block", width: "100%", textAlign: "left", padding: "14px 16px", borderRadius: 12, background: "#fff", border: "1px solid rgba(24,24,27,0.08)", cursor: "pointer", fontFamily: '"Inter", system-ui, sans-serif', marginBottom: 16 }}
         >
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#0B0B0D" }}>Services &amp; pricing → moved to your Services tab</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#0B0B0D" }}>Services &amp; pricing → moved to your Catalog &amp; Pricing tab</div>
           <div style={{ fontSize: 11.5, color: "rgba(11,11,13,0.62)", marginTop: 2 }}>Manage everything clients can book or buy from your page in one place.</div>
         </button>
       )}

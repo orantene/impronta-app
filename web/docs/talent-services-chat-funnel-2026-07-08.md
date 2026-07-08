@@ -1,6 +1,8 @@
 # Services × Chat — the inquiry-to-booking funnel (W2)
 
 **Date:** 2026-07-08 · **Branch:** `feat/talent-services-storefront` (wave 2)
+**Naming (final, owner-decided):** the talent tab is **"Catalog & Pricing"** (was "Services"; before that "Storefront"). Bare "Catalog" was rejected — "Catalog Model" is a talent type in the taxonomy, a real vernacular collision; "Pricing" alone undersold the presentation half. Route stays `/talent/services`; the item noun stays "service"; the public heading stays adaptive ("Services & pricing").
+
 **Companions:** `talent-services-qa-report-2026-07-08.md` (wave-1 build+QA) · `talent-storefront-build-plan-2026-07-08.md` (product plan)
 
 ## 1. The chat IS the funnel — audit of the rail with services integrated

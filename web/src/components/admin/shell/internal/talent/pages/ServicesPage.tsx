@@ -19,8 +19,8 @@ export function ServicesPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Storefront"
-        title="Services"
+        eyebrow="Catalog"
+        title="Catalog & Pricing"
         subtitle="What clients can book or buy from your page — you choose per service whether they inquire first or reserve instantly."
       />
       {bridgeTalentSelfProfile ? (
