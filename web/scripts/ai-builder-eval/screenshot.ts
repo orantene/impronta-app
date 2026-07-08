@@ -102,7 +102,16 @@ async function main() {
       const again = await p.screenshot({ fullPage: true });
       const delta = countByteDifferences(firstBuffers[0]!, again);
       await ctx.close();
-      console.log(`determinism: re-capture of ${first} desktop → ${delta} byte diffs`);
+      // A re-capture of the same page in the same run must be near-identical. A
+      // lenient threshold tolerates sub-pixel encoder jitter but flags a genuine
+      // non-deterministic render (a real signal, not just a log line).
+      const THRESHOLD = 2000;
+      if (delta > THRESHOLD) {
+        console.error(`NON-DETERMINISTIC render: ${first} desktop re-capture differs by ${delta} bytes (> ${THRESHOLD})`);
+        process.exitCode = 1;
+      } else {
+        console.log(`determinism OK: re-capture of ${first} desktop → ${delta} byte diffs (<= ${THRESHOLD})`);
+      }
     }
   } finally {
     await browser.close();

@@ -165,6 +165,11 @@ export function EmptyCanvasStarter({
           scope: aiMode,
           surface: textToPageSurface,
           locale,
+          // AIQ-12 — the active theme's background mode drives the model's
+          // light/dark color guidance. Read from the builder DOM (the canvas the
+          // user is looking at); server maps it to polarity.
+          backgroundMode:
+            document.documentElement.getAttribute("data-token-background-mode") ?? undefined,
         });
         if (!generated.ok) {
           return {
