@@ -197,6 +197,19 @@ export type StartGuestChatInput = {
   honeypot?: string | null;
   /** Optional Turnstile token when a velocity challenge was shown (Lane B / L3). */
   captchaToken?: string | null;
+  /**
+   * Storefront provenance — the offering the guest clicked before chatting.
+   * Persisted verbatim onto inquiries.source_context.offering so the
+   * coordinator/composer knows exactly which service was requested.
+   */
+  offering?: {
+    offering_id: string;
+    title: string;
+    amount_cents: number | null;
+    currency: string;
+    price_type: string;
+    kind: string;
+  } | null;
 };
 
 export type StartGuestChatResult =

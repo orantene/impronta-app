@@ -23,6 +23,10 @@ export type InstantBookFormPayload = {
   eventDate?: string | null;
   eventLocation?: string | null;
   sourcePage?: string | null;
+  /** Storefront direct booking — the chosen talent_offerings.id. */
+  offeringId?: string | null;
+  /** Client chose "pay at the appointment" (honored only if the offering allows it). */
+  payInPerson?: boolean;
 };
 
 export type InstantBookActionResult =
@@ -51,6 +55,8 @@ export async function createInstantBookingAction(
       eventLocation: payload.eventLocation ?? null,
       sourcePage: payload.sourcePage ?? null,
       currencyCode: operatingCurrency,
+      offeringId: payload.offeringId ?? null,
+      payInPerson: payload.payInPerson === true,
     });
 
     if (!res.ok) {

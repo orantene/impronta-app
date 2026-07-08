@@ -588,7 +588,19 @@ export async function startGuestChatInquiry(
     input.contactName?.trim() ||
     [contactFirstName, contactLastName].filter(Boolean).join(" ");
   const contactEmail = input.contactEmail?.trim() ?? "";
-  const firstMessage = input.firstMessage?.trim() ?? "";
+  // Storefront carry: when the guest clicked a specific offering, make the
+  // request VISIBLE in the thread (coordinator + guest both see exactly what
+  // was asked for) and persist the structured payload in source_context below.
+  const offering = input.offering ?? null;
+  const offeringPrefix = offering
+    ? `Requesting: ${offering.title}${
+        offering.amount_cents != null
+          ? ` (${offering.currency} ${(offering.amount_cents / 100).toLocaleString()})`
+          : ""
+      }\n\n`
+    : "";
+  const rawFirstMessage = input.firstMessage?.trim() ?? "";
+  const firstMessage = rawFirstMessage ? `${offeringPrefix}${rawFirstMessage}` : rawFirstMessage;
 
   const missing: string[] = [];
   if (!contactFirstName) missing.push("requester.first_name");
@@ -769,6 +781,7 @@ export async function startGuestChatInquiry(
       referrer_page: input.sourcePage,
       tenant_id: tenantId,
       ...(capture.eventType ? { ai_event_type: capture.eventType } : {}),
+      ...(offering ? { offering } : {}),
     },
     requester: {
       name: contactName,

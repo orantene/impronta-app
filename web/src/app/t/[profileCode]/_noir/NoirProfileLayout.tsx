@@ -41,6 +41,8 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 
 import { ServicesBlock } from "../_light/ServicesBlock";
 import { ServiceMenuBlock } from "../_light/ServiceMenuBlock";
+import { TalentStorefront } from "../_shared/TalentStorefront";
+import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { SkillsExperienceBlock } from "../_light/SkillsExperienceBlock";
 import { AvailabilityWidget } from "../_light/AvailabilityWidget";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
@@ -272,6 +274,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
     startingFrom,
     bookingNote,
     serviceMenuItems,
+    storefrontOfferings,
     disciplineLabels,
     fitLabels,
     skills,
@@ -335,7 +338,8 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
       serviceAreas.length > 0 ||
       Boolean(startingFrom) ||
       Boolean(bookingNote));
-  const hasServiceMenu = !isFreePlan && serviceMenuItems.length > 0;
+  const hasStorefront = !isFreePlan && storefrontOfferings.length > 0;
+  const hasServiceMenu = hasStorefront || (!isFreePlan && serviceMenuItems.length > 0);
   const showClients = fieldVisibility.showIndustries && industries.length > 0;
 
   const labels = {
@@ -540,12 +544,20 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
           ) : null}
           {hasServiceMenu ? (
             <div style={{ marginTop: hasServices ? 28 : 0 }}>
-              <ServiceMenuBlock
-                items={serviceMenuItems}
-                locale={locale}
-                heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
-                disciplineLabels={disciplineLabels}
-              />
+              {hasStorefront ? (
+                <TalentStorefront
+                  offerings={storefrontOfferings}
+                  locale={locale}
+                  heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
+                />
+              ) : (
+                <ServiceMenuBlock
+                  items={serviceMenuItems}
+                  locale={locale}
+                  heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
+                  disciplineLabels={disciplineLabels}
+                />
+              )}
             </div>
           ) : null}
         </section>

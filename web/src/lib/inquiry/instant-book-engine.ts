@@ -48,6 +48,7 @@ import {
 } from "@/lib/bookings/transactions";
 import { parseTalentBookingTerms, parseTenantCommercialTerms } from "@/lib/billing/commercial-terms";
 import { normalizeServicesMenu, findInstantBookService } from "@/lib/talent/services-menu-types";
+import { rowToOffering, offeringIsDirectlyBookable, type TalentOfferingRow } from "@/lib/talent/offerings-types";
 
 export type InstantBookInput = {
   tenantId: string;
@@ -62,6 +63,20 @@ export type InstantBookInput = {
   sourcePage?: string | null;
   sourceWorkspaceId?: string | null;
   currencyCode?: string;
+  /**
+   * Storefront direct booking: book THIS offering (talent_offerings.id) instead
+   * of the legacy single instant-book menu item / fixed rate. The offering must
+   * pass offeringIsDirectlyBookable (booking_mode=instant, published, exact
+   * price) — a quote/custom offering is uncharge-able by construction.
+   */
+  offeringId?: string | null;
+  /**
+   * Client chose "pay at the appointment" (honored ONLY when the offering has
+   * allow_pay_in_person). The booking + transaction are still created; the
+   * card payment request is skipped — staff/talent collect in person and mark
+   * paid (payment_method cash) from the Messages shell.
+   */
+  payInPerson?: boolean;
 };
 
 export type InstantBookReason =
@@ -190,17 +205,41 @@ export async function createInstantBooking(
     const menuItem = findInstantBookService(
       normalizeServicesMenu((tp as { services_menu?: unknown } | null)?.services_menu),
     );
-    const optIn = talentTerms?.instantBookOptIn === true || menuItem != null;
-    if (!optIn || tenantTerms?.instantBookEnabled !== true) {
+    // ── Storefront direct booking (offering-driven) ─────────────────────────
+    // A talent_offerings row with booking_mode='instant' IS the talent's
+    // per-service opt-in; the tenant gate stays respected when EXPLICITLY
+    // disabled (instantBookEnabled === false blocks; unset allows — the
+    // per-service choice is the sharper signal).
+    let offering: ReturnType<typeof rowToOffering> | null = null;
+    if (input.offeringId) {
+      const { data: offRow } = await (admin as unknown as SupabaseClient)
+        .from("talent_offerings")
+        .select("*")
+        .eq("id", input.offeringId)
+        .eq("talent_profile_id", input.talentProfileId)
+        .maybeSingle();
+      if (!offRow) return { ok: false, reason: "no_fixed_rate" };
+      offering = rowToOffering(offRow as TalentOfferingRow);
+      if (!offeringIsDirectlyBookable(offering)) {
+        return { ok: false, reason: "instant_book_not_enabled" };
+      }
+      if (tenantTerms?.instantBookEnabled === false) {
+        return { ok: false, reason: "instant_book_not_enabled" };
+      }
+    }
+
+    const optIn = offering != null || talentTerms?.instantBookOptIn === true || menuItem != null;
+    if (!optIn || (offering == null && tenantTerms?.instantBookEnabled !== true)) {
       return { ok: false, reason: "instant_book_not_enabled" };
     }
-    const fixedRateCents = menuItem?.amountCents ?? talentTerms?.fixedRateCents ?? null;
+    const fixedRateCents = offering?.amountCents ?? menuItem?.amountCents ?? talentTerms?.fixedRateCents ?? null;
     if (fixedRateCents == null || fixedRateCents <= 0) {
       return { ok: false, reason: "no_fixed_rate" };
     }
     const fixedRateDollars = fixedRateCents / 100;
-    const currency = (input.currencyCode ?? "USD").toUpperCase();
+    const currency = (offering?.currency ?? input.currencyCode ?? "USD").toUpperCase();
     const talentName = (tp?.display_name as string | null)?.trim() || "Talent";
+    const payInPerson = input.payInPerson === true && offering?.allowPayInPerson === true;
 
     const staffActor = await resolveTenantStaffActor(admin, input.tenantId);
     if (!staffActor) return { ok: false, reason: "engine_error", error: "No staff actor for tenant." };
@@ -214,6 +253,19 @@ export async function createInstantBooking(
       event_location: input.eventLocation ?? null,
       source_page: input.sourcePage ?? null,
       source_channel: "instant_book",
+      source_context: offering
+        ? {
+            offering: {
+              offering_id: offering.id,
+              title: offering.title,
+              amount_cents: offering.amountCents,
+              currency: offering.currency,
+              price_type: offering.priceType,
+              kind: offering.kind,
+              pay_in_person: payInPerson,
+            },
+          }
+        : undefined,
       client_user_id: input.clientUserId,
       talent_profile_ids: [input.talentProfileId],
       actorUserId: input.clientUserId,
@@ -221,7 +273,7 @@ export async function createInstantBooking(
       tenant_id: input.tenantId,
       source_workspace_id: input.sourceWorkspaceId ?? input.tenantId,
       quantity: 1,
-      message: "Instant booking",
+      message: offering ? `Direct booking: ${offering.title}` : "Instant booking",
     });
     if (!(inq as { success?: boolean }).success) {
       return { ok: false, reason: "engine_error", error: "submit:" + JSON.stringify(inq) };
@@ -262,16 +314,16 @@ export async function createInstantBooking(
       lineItems: [
         {
           talent_profile_id: input.talentProfileId,
-          // S16 — name the line after the booked service when menu-driven.
-          label: menuItem?.name ?? talentName,
-          pricing_unit: "event",
+          // Name the line after the booked offering/service when driven by one.
+          label: offering?.title ?? menuItem?.name ?? talentName,
+          pricing_unit: offering?.priceType ?? "event",
           units: 1,
           unit_price: fixedRateDollars,
           total_price: fixedRateDollars,
           talent_cost: fixedRateDollars,
           notes: null,
           sort_order: 0,
-          source_service_id: menuItem?.id ?? null, // S18 — audit stamp
+          source_service_id: offering?.id ?? menuItem?.id ?? null, // S18 — audit stamp
         },
       ],
     });
@@ -449,14 +501,26 @@ export async function createInstantBooking(
       bookingId,
       supabase: admin,
     });
-    const talentCand = candidates.find((c) => c.receiverKind === "talent");
+    // Prefer the talent's own payout account; fall back to any other candidate
+    // (the workspace is the seller-of-record — Connect transfers fan out from
+    // it), so a card "Book now" still produces a payment request when the
+    // talent hasn't connected Stripe yet. No candidate at all → the txn stays
+    // draft and staff request payment from the Messages Offer tab.
+    const talentCand =
+      candidates.find((c) => c.receiverKind === "talent") ?? candidates[0] ?? null;
     if (talentCand) {
       await setTransactionPayoutReceiver({
         transactionId: txn.data.id,
         payoutAccountId: talentCand.payoutAccountId,
         sourceTenantId: input.tenantId,
       });
-      await requestPayment(txn.data.id);
+      // Pay-in-person: the reservation stands (booking confirmed, transaction
+      // drafted with the surcharge-inclusive gross) but NO card request is
+      // emitted — staff/talent collect at the appointment and mark it paid
+      // (payment_method cash) from the Messages shell.
+      if (!payInPerson) {
+        await requestPayment(txn.data.id);
+      }
     }
 
     return { ok: true, inquiryId, bookingId, transactionId: txn.data.id };

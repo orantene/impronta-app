@@ -101,8 +101,10 @@ import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
 import { loadInstantBookEligibility } from "@/lib/inquiry/instant-book-engine";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
+import { OfferingInstantMount } from "./_shared/OfferingInstantMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
@@ -1647,6 +1649,11 @@ export default async function PublicTalentProfilePage({
     instantBook.currencyCode || "USD",
   ).filter((it) => it.isActive && it.visibility !== "agency_only");
 
+  // Storefront — the offerings catalog (talent_offerings). When present it
+  // REPLACES the legacy services menu on the layouts; when empty the legacy
+  // ServiceMenuBlock keeps rendering (zero-regression fallback).
+  const storefrontOfferings = await loadPublicOfferingsForProfile(profile.id, locale);
+
   // S6 — id → label for any discipline a service is scoped to (talent_type terms).
   const disciplineLabels: Record<string, string> = {};
   for (const term of flattenTaxonomy(profile.talent_profile_taxonomy ?? [])) {
@@ -2118,6 +2125,7 @@ export default async function PublicTalentProfilePage({
         startingFrom={profile.starting_from ?? null}
         bookingNote={profile.booking_note ?? null}
         serviceMenuItems={serviceMenuItems}
+        storefrontOfferings={storefrontOfferings}
         disciplineLabels={disciplineLabels}
         fitLabels={fitLabels}
         skills={skills}
@@ -2282,6 +2290,15 @@ export default async function PublicTalentProfilePage({
           CTA; renders only on the agency surface AND when the tenant has guest
           chat enabled + shown on talent profiles (tenant_guest_chat_settings).
           Self-positions fixed bottom-right, so DOM placement here is logical. */}
+      {/* Storefront direct booking — consumes "tulala:offering-instant" from a
+          card's Book now / Buy click; agency surface only (needs a tenant). */}
+      {hostCtx.kind === "agency" && (
+        <OfferingInstantMount
+          tenantId={hostCtx.tenantId}
+          sourcePage={`/t/${profile.profile_code}`}
+          locale={locale}
+        />
+      )}
       {guestChatSettings.enabled && guestChatSettings.showOnTalent && (
         <TalentProfileChatLauncherMount
           talentProfileId={profile.id}

@@ -54,6 +54,7 @@ export const TALENT_PAGES: TalentPage[] = [
   "messages",
   "public-page",
   "profile",
+  "services",
   "reviews",
   "calendar",
   "money",
@@ -277,6 +278,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   today:       { label: "Today" },
   messages:    { label: "Messages" },
   profile:     { label: "Profile" },
+  services:    { label: "Services" },
   reviews:     { label: "Reviews" },
   inbox:       { label: "Inbox" },         // legacy
   calendar:    { label: "Calendar" },

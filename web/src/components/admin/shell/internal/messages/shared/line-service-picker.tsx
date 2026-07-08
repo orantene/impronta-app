@@ -14,6 +14,9 @@
 
 import { useEffect, useState } from "react";
 import { loadTalentServicesMenu } from "@/lib/talent/services-menu-actions";
+import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
+import { offeringIsOfferPriceable } from "@/lib/talent/offerings-offer";
+import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { isServiceOfferPriceable } from "@/lib/talent/services-menu-offer";
 import { SERVICE_PRICING_LABELS, type ServiceMenuItem } from "@/lib/talent/services-menu-types";
 
@@ -31,9 +34,39 @@ export function LineServicePicker({
     let cancelled = false;
     setLoading(true);
     setItems(null);
-    loadTalentServicesMenu(talentProfileId)
-      .then((r) => {
-        if (!cancelled) setItems(r.ok ? r.items : []);
+    // Offerings (the Services storefront) are the primary source; the legacy
+    // services menu remains as a fallback. Offerings are adapted into the
+    // ServiceMenuItem shape so onPick/machinery need no changes — the offering
+    // id lands in source_service_id exactly like a menu id did.
+    Promise.all([
+      loadTalentOfferingsForEditor(talentProfileId).catch(() => ({ ok: false as const, error: "" })),
+      loadTalentServicesMenu(talentProfileId).catch(() => ({ ok: false as const, error: "" })),
+    ])
+      .then(([off, menu]) => {
+        if (cancelled) return;
+        const offeringItems: ServiceMenuItem[] =
+          off.ok
+            ? off.items
+                .filter((o: TalentOffering) => o.status === "published" && offeringIsOfferPriceable(o))
+                .map((o: TalentOffering) => ({
+                  id: o.id,
+                  name: o.title,
+                  description: o.description,
+                  pricingType: o.priceType,
+                  amountCents: o.amountCents,
+                  currency: o.currency,
+                  taxonomyTermIds: null,
+                  addOns: [],
+                  tiers: [],
+                  isActive: true,
+                  visibility: "public" as const,
+                  sortOrder: o.sortOrder,
+                  isInstantBook: o.bookingMode === "instant",
+                  childServiceIds: null,
+                }))
+            : [];
+        const menuItems = menu.ok ? menu.items : [];
+        setItems([...offeringItems, ...menuItems]);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

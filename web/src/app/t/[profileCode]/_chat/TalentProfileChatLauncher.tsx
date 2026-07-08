@@ -16,6 +16,7 @@
  *     cookie, is resolved server-side inside those actions).
  */
 
+import { setPendingOffering } from "./pending-offering-store";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
@@ -134,6 +135,19 @@ export function TalentProfileChatLauncher({
 }: TalentProfileChatLauncherLocalProps) {
   const mounted = useClientMounted();
   const [open, setOpen] = useState(false);
+
+  // Storefront CTA seam: a service card's "Book/Request/Ask for quote" opens
+  // this launcher carrying the clicked offering (structured provenance +
+  // visible "Requesting: …" first-message prefix downstream).
+  useEffect(() => {
+    const onOfferingRequest = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && typeof detail === "object") setPendingOffering(detail);
+      setOpen(true);
+    };
+    window.addEventListener("tulala:offering-request", onOfferingRequest);
+    return () => window.removeEventListener("tulala:offering-request", onOfferingRequest);
+  }, []);
   // Jon 360 Phase 7 — wire the pill's (previously dead) transform transition to a
   // real hover/active lift. Reduced-motion-safe: the transitions/transforms are
   // suppressed under prefers-reduced-motion below.
