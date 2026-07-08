@@ -14,7 +14,12 @@ import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicTenantScope, getPublicPathPrefix } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
-import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
+import {
+  BuilderNodeFontLinks,
+  BuilderNodeRendererStyles,
+  collectPresentNodeKinds,
+} from "@/lib/site-admin/builder-node/render";
+import { renderFreeformPageRootTree } from "@/lib/site-admin/builder-node/freeform-page-blocks";
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
@@ -88,16 +93,33 @@ export async function generateMetadata({
   const publicScope = await getPublicTenantScope();
   if (!publicScope) return { title: "Not found" };
 
+  const metaCols =
+    "title,meta_title,meta_description,og_title,og_description,og_image_url,noindex,canonical_url,locale,slug";
   const { data } = await supabase
     .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
-    .select(
-      "title,meta_title,meta_description,og_title,og_description,og_image_url,noindex,canonical_url,locale,slug",
-    )
+    .select(metaCols)
     .eq("locale", locale)
     .eq("slug", slugPath)
     .maybeSingle();
 
-  const page = data as CmsPagePublic | null;
+  let page = data as CmsPagePublic | null;
+  // Draft metadata for staff/preview viewers — mirrors the page body's
+  // draft-reader gate so an unpublished draft doesn't tab-title as "Not found"
+  // for the person editing it. Anonymous visitors still get "Not found".
+  if (!page) {
+    const draftReader =
+      (await isPreviewActiveForTenant(publicScope.tenantId)) || (await requireStaff()).ok;
+    if (draftReader) {
+      const draft = await supabase
+        .from("cms_pages")
+        .select(metaCols)
+        .eq("tenant_id", publicScope.tenantId)
+        .eq("locale", locale)
+        .eq("slug", slugPath)
+        .maybeSingle();
+      page = (draft.data as CmsPagePublic | null) ?? null;
+    }
+  }
   if (!page) return { title: "Not found" };
 
   const pathnameEn = `/p/${slugPath}`;
@@ -246,10 +268,22 @@ export default async function CmsPublicPage({
           ) : null}
           <JsonLdScript script={jsonLdScript} />
           <PublicHeader />
+          {/* Renderer styles + fonts once at page level — the root-tree helper
+              below sets includeRendererStyles/includeFontLinks=false per block
+              (same composition as /t/[code]/[pageSlug]). */}
+          <BuilderNodeRendererStyles kinds={collectPresentNodeKinds(blocks)} />
+          <BuilderNodeFontLinks nodes={blocks} />
           <main id="main-content" className="w-full flex-1" data-theme-canvas-root="">
-            {renderBuilderNodes(blocks, {
+            {/* renderFreeformPageRootTree, NOT bare renderBuilderNodes: the
+                generic freeform path renders root `section` nodes as null, so a
+                section-rooted page (every AI-generated page, any Add-Gallery
+                custom section) rendered an EMPTY main here — published AND
+                draft. The root-tree helper wraps each root section and renders
+                its children (the fix the talent pages already use). */}
+            {renderFreeformPageRootTree(blocks, {
               publicPathPrefix,
               mode: "freeform",
+              includeRendererStyles: false,
               componentStyleDefaults,
               ...experimentContext,
               renderSectionEmbed: makeSectionEmbedRenderer({
