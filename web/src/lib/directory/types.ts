@@ -75,12 +75,22 @@ export type DirectoryCardDTO = {
    * `agencyName` + `isExclusive`: primary-roster ownership; null = independent.
    * `nextAvailableDate`: ISO yyyy-mm-dd (or null when no signal exists).
    * `availableDaysInNext30`: 0-30 (or null when unknown).
+   *
+   * Review / craft-standing signal (additive; see lib/reviews/craft-standing):
+   * `ratingAvg`: mean published rating (or null when no eligible reviews).
+   * `ratingCount`: count of published reviews used for `ratingAvg`.
+   * `ratingAllCount`: total reviews incl. any not counted in the average.
+   * `wouldBookAgainPct`: 0-100 (or null when no signal exists).
    */
   trustTier?: string | null;
   agencyName?: string | null;
   isExclusive?: boolean;
   nextAvailableDate?: string | null;
   availableDaysInNext30?: number | null;
+  ratingAvg?: number | null;
+  ratingCount?: number | null;
+  ratingAllCount?: number | null;
+  wouldBookAgainPct?: number | null;
 };
 
 /**

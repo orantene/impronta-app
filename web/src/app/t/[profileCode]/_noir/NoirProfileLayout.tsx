@@ -46,6 +46,7 @@ import { AvailabilityWidget } from "../_light/AvailabilityWidget";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
 import { PublicFeaturedMedia } from "@/components/talent/connections/PublicFeaturedMedia";
 import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
+import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { NoirReveal } from "./NoirReveal";
@@ -282,6 +283,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
     otherDetailRows,
     ratingSummary,
     talentReviews,
+    testimonials = [],
     agencyName,
     agencyDisplayName,
     similarTalent,
@@ -614,6 +616,17 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
             theme="dark"
             heading=""
           />
+        </section>
+      ) : null}
+
+      {/* ── 8b. INVITED TESTIMONIALS (separate from verified reviews) ────── */}
+      {testimonials.length > 0 ? (
+        <section
+          className="nf-wrap nf-section"
+          data-profile-section="testimonials"
+          data-nf-reveal
+        >
+          <TestimonialsSection testimonials={testimonials} theme="dark" />
         </section>
       ) : null}
 

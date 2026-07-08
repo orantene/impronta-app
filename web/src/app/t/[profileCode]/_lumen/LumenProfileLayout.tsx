@@ -45,6 +45,7 @@ import { AvailabilityWidget } from "../_light/AvailabilityWidget";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
 import { PublicFeaturedMedia } from "@/components/talent/connections/PublicFeaturedMedia";
 import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
+import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { buildAdaptiveThemeStyle } from "../_shared/profile-theme";
@@ -252,6 +253,7 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
     otherDetailRows,
     ratingSummary,
     talentReviews,
+    testimonials = [],
     agencyName,
     agencyDisplayName,
     similarTalent,
@@ -618,6 +620,16 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
                 reviews={talentReviews}
                 theme={isDark ? "dark" : "light"}
                 heading=""
+              />
+            </section>
+          ) : null}
+
+          {/* Invited testimonials — separate from verified reviews. */}
+          {testimonials.length > 0 ? (
+            <section data-profile-section="testimonials" aria-label="Invited testimonials">
+              <TestimonialsSection
+                testimonials={testimonials}
+                theme={isDark ? "dark" : "light"}
               />
             </section>
           ) : null}

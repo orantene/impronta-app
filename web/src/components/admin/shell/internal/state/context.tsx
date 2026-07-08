@@ -830,6 +830,7 @@ function talentPageToSegment(p: TalentPage): string {
     messages:  "inbox",  // messages → inbox canonical route
     inbox:     "inbox",
     profile:   "profile",
+    reviews:   "reviews",
     calendar:  "calendar",
     money:     "money",
     payouts:   "payouts",

@@ -679,15 +679,20 @@ async function notifyStaffOfReport(
 /**
  * Staff / platform admin hide or unhide a review (status='hidden'|'published').
  * Works for either direction.
+ *
+ * `reasonCode` is an optional moderation reason recorded on the audit trail; it
+ * is additive and backward-compatible (existing callers that omit it still
+ * work — it defaults to null).
  */
 export async function adminHideReviewAction(
   kind: ReviewSubjectKind,
   reviewId: string,
   hidden: boolean,
+  reasonCode?: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const cleanId = (reviewId ?? "").trim();
   if (!cleanId) return { ok: false, error: "Missing review." };
@@ -696,13 +701,14 @@ export async function adminHideReviewAction(
   const nextStatus = hidden ? "hidden" : "published";
 
   // RLS gates the UPDATE to staff/platform for the row's tenant — a non-staff
-  // caller updates 0 rows.
+  // caller updates 0 rows. We select tenant_id back so the moderation event is
+  // filed against the row's tenant.
   const { data, error } = await supabase
     .from(table)
     .update({ status: nextStatus })
     .eq("id", cleanId)
-    .select("id")
-    .returns<{ id: string }[]>();
+    .select("id, tenant_id")
+    .returns<{ id: string; tenant_id: string }[]>();
 
   if (error) {
     logServerError("reviews/admin-hide", error);
@@ -711,5 +717,25 @@ export async function adminHideReviewAction(
   if (!data || data.length === 0) {
     return { ok: false, error: "Not authorized." };
   }
+
+  // Record the moderation event for the audit trail. Best-effort and additive —
+  // the hide/unhide already succeeded, so a failure here must not fail the
+  // action. RLS on review_moderation_events allows the insert for staff of the
+  // row's tenant (is_staff_of_tenant).
+  const cleanReason = (reasonCode ?? "").trim() || null;
+  const { error: auditErr } = await supabase
+    .from("review_moderation_events")
+    .insert({
+      review_kind: kind,
+      review_id: cleanId,
+      tenant_id: data[0].tenant_id,
+      actor_user_id: user.id,
+      action: hidden ? "hide" : "unhide",
+      reason_code: cleanReason,
+    });
+  if (auditErr) {
+    logServerError("reviews/admin-hide/audit", auditErr);
+  }
+
   return { ok: true };
 }

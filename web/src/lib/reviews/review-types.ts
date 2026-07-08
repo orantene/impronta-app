@@ -22,7 +22,28 @@ export type TalentReview = {
 export type TalentRatingSummary = {
   average: number;
   count: number;
+  /** 0-100 STANDING "would book again" signal from verified reviews; null when unknown. */
+  wouldBookAgainPct?: number | null;
 };
+
+/**
+ * An INVITED testimonial — a quote attested/imported by agency staff about a
+ * talent. Walled off from verified booking reviews: the optional `rating` is
+ * DISPLAY-ONLY and MUST NEVER be blended into a talent's star average or any
+ * STANDING signal. Rendered in a clearly-labeled block distinct from reviews.
+ */
+export type Testimonial = {
+  id: string;
+  authorName: string | null;
+  authorRole: string | null;
+  body: string;
+  /** Display-only, per-card. Never aggregated. Null when not provided. */
+  rating: number | null;
+  createdAt: string;
+};
+
+/** How a testimonial entered the system (provenance, informational only). */
+export type TestimonialSource = "requested" | "imported" | "manual";
 
 export type ReviewableBooking = {
   bookingId: string;
