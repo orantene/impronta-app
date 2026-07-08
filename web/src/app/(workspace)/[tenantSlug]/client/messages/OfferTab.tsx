@@ -619,27 +619,37 @@ function DecisionRibbon({
 }) {
   const t = useT();
   const [confirming, setConfirming] = useState<"approve" | "counter" | "decline" | null>(null);
+  // Once a terminal decision (approve/decline) is submitted successfully, lock the
+  // whole ribbon until the parent refresh unmounts it. Without this, the drawer
+  // closes on success but the ribbon reappears with stale offer.status for a beat,
+  // letting a second decision fire (a confusing version-conflict, or a double action).
+  const [finalizing, setFinalizing] = useState(false);
+  const lock = (base: React.CSSProperties): React.CSSProperties =>
+    finalizing ? { ...base, opacity: 0.5, cursor: "wait" } : base;
   return (
     <>
       <div className="flex gap-2 flex-wrap">
         <button
           type="button"
           onClick={() => setConfirming("approve")}
-          style={primaryBtn}
+          disabled={finalizing}
+          style={lock(primaryBtn)}
         >
           {t("dashboard.clientOffer.approveLock")}
         </button>
         <button
           type="button"
           onClick={() => setConfirming("counter")}
-          style={ghostBtn}
+          disabled={finalizing}
+          style={lock(ghostBtn)}
         >
           {t("dashboard.clientOffer.counter")}
         </button>
         <button
           type="button"
           onClick={() => setConfirming("decline")}
-          style={ghostBtn}
+          disabled={finalizing}
+          style={lock(ghostBtn)}
         >
           {t("dashboard.clientOffer.decline")}
         </button>
@@ -657,6 +667,11 @@ function DecisionRibbon({
           {t("dashboard.clientOffer.askQuestion")}
         </a>
       </div>
+      {finalizing && (
+        <div style={{ marginTop: 8, fontSize: 12, color: C.inkMuted }}>
+          {t("dashboard.clientOffer.finalizingDecision")}
+        </div>
+      )}
 
       {confirming === "approve" && (
         <ApproveDrawer
@@ -664,6 +679,7 @@ function DecisionRibbon({
           tenantSlug={tenantSlug}
           onClose={() => setConfirming(null)}
           onAfterAction={onAfterAction}
+          onFinalize={() => setFinalizing(true)}
         />
       )}
       {confirming === "counter" && (
@@ -680,6 +696,7 @@ function DecisionRibbon({
           tenantSlug={tenantSlug}
           onClose={() => setConfirming(null)}
           onAfterAction={onAfterAction}
+          onFinalize={() => setFinalizing(true)}
         />
       )}
     </>
@@ -781,11 +798,14 @@ function ApproveDrawer({
   tenantSlug,
   onClose,
   onAfterAction,
+  onFinalize,
 }: {
   details: ClientInquiryDetails;
   tenantSlug: string;
   onClose: () => void;
   onAfterAction?: () => void;
+  /** Fired on success so the parent ribbon locks against a second decision. */
+  onFinalize?: () => void;
 }) {
   const t = useT();
   const offer = details.offer!;
@@ -797,10 +817,11 @@ function ApproveDrawer({
 
   useEffect(() => {
     if (state.kind === "approved") {
+      onFinalize?.();
       onAfterAction?.();
       onClose();
     }
-  }, [state, onClose, onAfterAction]);
+  }, [state, onClose, onAfterAction, onFinalize]);
 
   // ESC close
   useEffect(() => {
@@ -904,11 +925,14 @@ function DeclineDrawer({
   tenantSlug,
   onClose,
   onAfterAction,
+  onFinalize,
 }: {
   details: ClientInquiryDetails;
   tenantSlug: string;
   onClose: () => void;
   onAfterAction?: () => void;
+  /** Fired on success so the parent ribbon locks against a second decision. */
+  onFinalize?: () => void;
 }) {
   const t = useT();
   const offer = details.offer!;
@@ -922,10 +946,11 @@ function DeclineDrawer({
 
   useEffect(() => {
     if (state.kind === "rejected") {
+      onFinalize?.();
       onAfterAction?.();
       onClose();
     }
-  }, [state, onClose, onAfterAction]);
+  }, [state, onClose, onAfterAction, onFinalize]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };

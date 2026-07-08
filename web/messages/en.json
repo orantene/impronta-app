@@ -1354,6 +1354,7 @@
       "tbd": "TBD",
       "approveHint": "Approving locks the lineup and confirms you agree to the booking terms above. You can still ask questions in Chat.",
       "approving": "Approving…",
+      "finalizingDecision": "Finalizing your decision…",
       "declineTitle": "Decline offer",
       "declineSubtitle": "Tell the coordinator what’s not working.",
       "reason": "Reason",
