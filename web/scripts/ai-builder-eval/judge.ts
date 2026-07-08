@@ -39,7 +39,20 @@ export function serializeTree(tree: ReadonlyArray<BuilderNode>): string {
       p.variant,
       p.tone,
     ].filter(Boolean);
-    const line = `${"  ".repeat(depth)}${n.kind}${bits.length ? ` [${bits.join(" · ")}]` : ""}`;
+    let line = `${"  ".repeat(depth)}${n.kind}${bits.length ? ` [${bits.join(" · ")}]` : ""}`;
+    // Data-array props are the CONTENT of these kinds — without serializing them
+    // the judge sees an "empty placeholder" and scores component_fit ~2 for a
+    // fully-populated table/form (verified on the first live run).
+    if (n.kind === "pricing_table" && Array.isArray(p.tiers)) {
+      for (const t of p.tiers as Array<Record<string, unknown>>) {
+        line += `\n${"  ".repeat(depth + 1)}tier [${[t.name, t.price, t.period, t.highlighted ? "highlighted" : null, Array.isArray(t.features) ? `${(t.features as unknown[]).length} features` : null, t.ctaLabel].filter(Boolean).join(" · ")}]`;
+      }
+    }
+    if (n.kind === "form" && Array.isArray(p.fields)) {
+      for (const f of p.fields as Array<Record<string, unknown>>) {
+        line += `\n${"  ".repeat(depth + 1)}field [${[f.type, f.label, f.required ? "required" : null].filter(Boolean).join(" · ")}]`;
+      }
+    }
     const kids = (n as { children?: BuilderNode[] }).children ?? [];
     return [line, ...kids.map((c) => walk(c, depth + 1))].join("\n");
   };

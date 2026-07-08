@@ -134,8 +134,8 @@ async function main() {
       continue;
     }
     writeFileSync(resolve(outDir, `${c.id}.json`), JSON.stringify(gen.tree, null, 2), "utf8");
-    const card = scoreGeneratedTree(gen.tree);
-    const graded = evaluateExpectations(gen.tree, c.expect);
+    const card = scoreGeneratedTree(gen.tree, { scope: c.scope });
+    const graded = evaluateExpectations(gen.tree, c.expect, { scope: c.scope });
     // AIQ-19 — optional LLM-judge pass (one Opus call per case). Off by default.
     const judge = flags.judge ? await judgeCase(c.brief, gen.tree) : undefined;
     const row: Row = {
