@@ -3622,30 +3622,34 @@ export function RepresentationCard({
   representation: RepresentationStatus;
   talentName: string;
 }) {
+  const t = useT();
+  const surfaceAgency = t("dashboard.adminDrawers.repSurfaceAgencyPage");
+  const surfaceHub = t("dashboard.adminDrawers.repSurfaceHubPage");
+  const surfacePersonal = t("dashboard.adminDrawers.repSurfacePersonalPage");
   const subtitle =
     representation.kind === "exclusive"
-      ? `Represented exclusively by ${representation.agencyName}.`
+      ? interpolate(t("dashboard.adminDrawers.repSubtitleExclusive"), { agency: representation.agencyName })
       : representation.kind === "non-exclusive"
-        ? `Represented non-exclusively by ${representation.agencyNames.join(", ")}.`
-        : `${talentName} is freelance — no active agency representation.`;
+        ? interpolate(t("dashboard.adminDrawers.repSubtitleNonExclusive"), { agencies: representation.agencyNames.join(", ") })
+        : interpolate(t("dashboard.adminDrawers.repSubtitleFreelance"), { talent: talentName });
 
   const ownershipBullets =
     representation.kind === "freelance"
       ? [
-          { surface: "Agency page", owner: "—" },
-          { surface: "Hub page", owner: `Hub operator · ${talentName} notified` },
-          { surface: "Personal page", owner: `${talentName} (no agency notified)` },
+          { surface: surfaceAgency, owner: "—" },
+          { surface: surfaceHub, owner: interpolate(t("dashboard.adminDrawers.repOwnerHubFreelance"), { talent: talentName }) },
+          { surface: surfacePersonal, owner: interpolate(t("dashboard.adminDrawers.repOwnerPersonalFreelance"), { talent: talentName }) },
         ]
       : representation.kind === "exclusive"
         ? [
-            { surface: "Agency page", owner: representation.agencyName },
-            { surface: "Hub page", owner: `Hub operator · ${talentName} + ${representation.agencyName} notified` },
-            { surface: "Personal page", owner: `${talentName} · ${representation.agencyName} notified` },
+            { surface: surfaceAgency, owner: representation.agencyName },
+            { surface: surfaceHub, owner: interpolate(t("dashboard.adminDrawers.repOwnerHubExclusive"), { talent: talentName, agency: representation.agencyName }) },
+            { surface: surfacePersonal, owner: interpolate(t("dashboard.adminDrawers.repOwnerPersonalExclusive"), { talent: talentName, agency: representation.agencyName }) },
           ]
         : [
-            { surface: "Agency page", owner: "Whichever agency the page belongs to" },
-            { surface: "Hub page", owner: `Hub operator · ${talentName} + all representing agencies notified` },
-            { surface: "Personal page", owner: `${talentName} · representing agencies notified` },
+            { surface: surfaceAgency, owner: t("dashboard.adminDrawers.repOwnerAgencyNonExclusive") },
+            { surface: surfaceHub, owner: interpolate(t("dashboard.adminDrawers.repOwnerHubNonExclusive"), { talent: talentName }) },
+            { surface: surfacePersonal, owner: interpolate(t("dashboard.adminDrawers.repOwnerPersonalNonExclusive"), { talent: talentName }) },
           ];
 
   return (
@@ -3663,7 +3667,7 @@ export function RepresentationCard({
       <p style={{ fontFamily: FONTS.body, fontSize: 12.5, margin: "0 0 12px", lineHeight: 1.55 }} className="text-admin-ink">
         {subtitle}
       </p>
-      <CapsLabel>Inquiry routing by source</CapsLabel>
+      <CapsLabel>{t("dashboard.adminDrawers.repInquiryRoutingBySource")}</CapsLabel>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
         {ownershipBullets.map((row) => (
           <div
@@ -3770,6 +3774,7 @@ export function RadioCardGroup({ options, defaultId }: { options: { id: string; 
 
 
 export function InquiryTrustPanel({ clientName, talentNames }: { clientName: string; talentNames: string[] }) {
+  const t = useT();
   const { getTrustSummary, getRiskScore } = useAdminShell();
   const allRoster = [...ROSTER_AGENCY, ...ROSTER_FREE];
   // Resolve first talent (most inquiries are single-talent for the demo)
@@ -3782,7 +3787,7 @@ export function InquiryTrustPanel({ clientName, talentNames }: { clientName: str
   const clientRisk = getRiskScore("client_profile", clientId);
   const talentRisk = talentId ? getRiskScore("talent_profile", talentId) : null;
   return (
-    <Section title="Trust state">
+    <Section title={t("dashboard.adminDrawers.trustPanelTitle")}>
       <div style={{
         display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
         fontFamily: FONTS.body,
@@ -3791,24 +3796,24 @@ export function InquiryTrustPanel({ clientName, talentNames }: { clientName: str
           padding: 12, borderRadius: 10,
           background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
         }}>
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-muted">Client</div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-muted">{t("dashboard.adminDrawers.trustPanelClient")}</div>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink">{clientName}</div>
           <TrustBadgeGroup trust={clientTrust} surface="coordinator_workspace" size="sm" max={3} />
-          <div className="mt-2"><RiskScorePill score={clientRisk} label="Score" /></div>
+          <div className="mt-2"><RiskScorePill score={clientRisk} label={t("dashboard.adminDrawers.trustPanelScore")} /></div>
         </div>
         <div style={{
           padding: 12, borderRadius: 10,
           background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
         }}>
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-muted">Talent</div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-muted">{t("dashboard.adminDrawers.trustPanelTalent")}</div>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink">{talentName ?? "—"}</div>
           {talentTrust ? (
             <>
               <TrustBadgeGroup trust={talentTrust} surface="coordinator_workspace" size="sm" max={3} />
-              {talentRisk !== null && <div className="mt-2"><RiskScorePill score={talentRisk} label="Score" /></div>}
+              {talentRisk !== null && <div className="mt-2"><RiskScorePill score={talentRisk} label={t("dashboard.adminDrawers.trustPanelScore")} /></div>}
             </>
           ) : (
-            <span className="text-admin-ink-muted text-admin-11">Not on roster</span>
+            <span className="text-admin-ink-muted text-admin-11">{t("dashboard.adminDrawers.trustPanelNotOnRoster")}</span>
           )}
         </div>
       </div>
@@ -4234,6 +4239,16 @@ export const VR_STATUS_LABEL_KEYS: Record<VerificationRequestStatus, string> = {
   needs_more_info:     "dashboard.adminDrawers.vrStatusNeedsMoreInfo",
 };
 
+// ExistingRequestRow uses its own action-oriented headings (distinct from
+// the neutral VR_STATUS_META labels above). Only the four statuses the row
+// can render have a key; any other status falls back to the raw value.
+export const EXISTING_REQUEST_HEADING_KEYS: Partial<Record<VerificationRequestStatus, string>> = {
+  pending_user_action: "dashboard.adminDrawers.existingReqHeadingPendingUserAction",
+  submitted:           "dashboard.adminDrawers.existingReqHeadingSubmitted",
+  in_review:           "dashboard.adminDrawers.existingReqHeadingInReview",
+  needs_more_info:     "dashboard.adminDrawers.existingReqHeadingNeedsMoreInfo",
+};
+
 // Activity log — timeline derived from a request's lifecycle fields.
 // We don't store full event history yet; instead we synthesize the
 // likely sequence from createdAt/updatedAt/reviewedAt + current status.
@@ -4416,27 +4431,35 @@ export function ExistingRequestRow({
   onMarkSent: () => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const tone = request.status === "needs_more_info" ? "amber" : "amber";
-  const heading =
-    request.status === "pending_user_action" ? "Almost there — send the DM"
-    : request.status === "submitted" ? "Submitted · awaiting admin review"
-    : request.status === "in_review" ? "In review"
-    : request.status === "needs_more_info" ? "Needs more info"
-    : request.status;
+  const headingKey = EXISTING_REQUEST_HEADING_KEYS[request.status];
+  const heading = headingKey ? t(headingKey) : request.status;
   return (
     <div style={{ padding: "12px 14px", borderRadius: 10, fontFamily: FONTS.body }} className="bg-admin-amber-soft">
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 600, marginBottom: 6 }} className="text-admin-amber-deep">
         <span>◌</span>
         {heading}
       </div>
-      {request.claimedIdentifier && request.verificationCode && (
-        <div style={{ fontSize: 11.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink">
-          DM <strong>@tulala.digital</strong> from <strong>{request.claimedIdentifier}</strong> with code <strong style={{ fontFamily: FONTS.mono ?? FONTS.body, letterSpacing: 1 }}>{request.verificationCode}</strong>
-        </div>
-      )}
+      {request.claimedIdentifier && request.verificationCode && (() => {
+        // Split the localized sentence on the {code} token so the code
+        // keeps its mono/letter-spaced styling; the surrounding text stays
+        // one translatable string with correct per-locale word order.
+        const parts = t("dashboard.adminDrawers.existingReqDmLine").split("{code}");
+        const before = parts[0];
+        const after = parts[1] ?? "";
+        const fill = (s: string) => interpolate(s, { handle: "@tulala.digital", identifier: request.claimedIdentifier });
+        return (
+          <div style={{ fontSize: 11.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink">
+            {fill(before)}
+            <strong style={{ fontFamily: FONTS.mono ?? FONTS.body, letterSpacing: 1 }}>{request.verificationCode}</strong>
+            {fill(after)}
+          </div>
+        );
+      })()}
       {request.publicMessage && (
         <div style={{ fontSize: 11.5, marginTop: 4, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink">
-          <strong>Note:</strong> {request.publicMessage}
+          <strong>{t("dashboard.adminDrawers.existingReqNoteLabel")}</strong> {request.publicMessage}
         </div>
       )}
       <div className="flex gap-1.5">
@@ -4445,14 +4468,14 @@ export function ExistingRequestRow({
             padding: "7px 12px", borderRadius: 999, border: "none",
             background: COLORS.fill, color: "#fff",
             fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-          }}>I sent the DM</button>
+          }}>{t("dashboard.adminDrawers.existingReqSentDm")}</button>
         )}
         <button type="button" onClick={onCancel} style={{
           padding: "7px 12px", borderRadius: 999,
           background: "transparent", color: COLORS.inkMuted,
           border: `1px solid ${COLORS.borderSoft}`,
           fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
-        }}>Cancel request</button>
+        }}>{t("dashboard.adminDrawers.existingReqCancel")}</button>
       </div>
     </div>
   );
@@ -4478,6 +4501,7 @@ export function InstagramVerificationInstructions({
   // lazy initializer (the render-body Math.random() call tripped
   // react-hooks/purity, and re-rolling on every render would flicker).
   const [previewCode] = useState(() => "TUL-" + Math.floor(1000 + Math.random() * 9000));
+  const t = useT();
   return (
     <div onClick={onCancel} style={{
       position: "fixed", inset: 0, zIndex: 220,
@@ -4497,23 +4521,23 @@ export function InstagramVerificationInstructions({
           color: "#fff", fontSize: 10.5, fontWeight: 700,
           marginBottom: 10, letterSpacing: 0.5, textTransform: "uppercase",
         }}>
-          <span aria-hidden className="text-admin-11">📸</span> Instagram Verified
+          <span aria-hidden className="text-admin-11">📸</span> {t("dashboard.adminDrawers.igVerifyBadge")}
         </div>
-        <div style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 600, letterSpacing: -0.2, marginBottom: 6 }} className="text-admin-ink">Verify your Instagram</div>
+        <div style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 600, letterSpacing: -0.2, marginBottom: 6 }} className="text-admin-ink">{t("dashboard.adminDrawers.igVerifyTitle")}</div>
         <div style={{ fontSize: 12.5, marginBottom: 16, lineHeight: 1.5 }} className="text-admin-ink-muted">
-          Send a DM from your Instagram account to <strong>@tulala.digital</strong> with the code we&apos;ll generate. Tulala admins manually confirm the DM matches before approving.
+          {interpolate(t("dashboard.adminDrawers.igVerifyIntro"), { handle: "@tulala.digital" })}
         </div>
 
         {/* Step 1: handle */}
         <div className="mb-3.5">
           <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6, display: "block" }} className="text-admin-ink-muted">
-            1 · Your Instagram handle
+            {t("dashboard.adminDrawers.igVerifyStep1Label")}
           </label>
           <input
             type="text"
             value={existingHandle}
             onChange={(e) => onChangeHandle(e.target.value)}
-            placeholder="@yourname"
+            placeholder={t("dashboard.adminDrawers.igVerifyHandlePlaceholder")}
             autoFocus
             style={{
               width: "100%", boxSizing: "border-box",
@@ -4527,34 +4551,34 @@ export function InstagramVerificationInstructions({
         {/* Step 2: send DM */}
         <div className="mb-3.5">
           <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6, display: "block" }} className="text-admin-ink-muted">
-            2 · Send this DM
+            {t("dashboard.adminDrawers.igVerifyStep2Label")}
           </label>
           <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="bg-admin-surface text-admin-ink">
             <div className="mb-1.5">
-              To: <strong>@tulala.digital</strong>
+              {interpolate(t("dashboard.adminDrawers.igVerifyDmTo"), { handle: "@tulala.digital" })}
             </div>
             <div style={{ fontFamily: FONTS.mono ?? FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">
-              Verify my Tulala profile:<br />
+              {t("dashboard.adminDrawers.igVerifyDmBody")}<br />
               https://atelier-roma.tulala.app/{(existingHandle || "marta").replace("@", "")}<br />
               <br />
-              Verification code: <strong className="text-admin-ink">{previewCode}</strong>
+              {t("dashboard.adminDrawers.igVerifyDmCodeLine")} <strong className="text-admin-ink">{previewCode}</strong>
             </div>
           </div>
           <div style={{ fontSize: 10.5, marginTop: 6 }} className="text-admin-ink-dim">
-            ↗ Code is locked when you confirm. Expires in 72h.
+            {t("dashboard.adminDrawers.igVerifyCodeLocked")}
           </div>
         </div>
 
         {/* Step 3: optional evidence */}
         <div className="mb-3.5">
           <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6, display: "block" }} className="text-admin-ink-muted">
-            3 · Evidence (optional · speeds up review)
+            {t("dashboard.adminDrawers.igVerifyStep3Label")}
           </label>
           <input
             type="url"
             value={evidenceUrl}
             onChange={(e) => onChangeEvidenceUrl(e.target.value)}
-            placeholder="https://… screenshot or proof URL"
+            placeholder={t("dashboard.adminDrawers.igVerifyEvidenceUrlPlaceholder")}
             style={{
               width: "100%", boxSizing: "border-box",
               padding: "9px 12px", borderRadius: 10,
@@ -4566,7 +4590,7 @@ export function InstagramVerificationInstructions({
           <textarea
             value={evidenceNote}
             onChange={(e) => onChangeEvidenceNote(e.target.value)}
-            placeholder="Note for the reviewer — e.g. 'DM sent at 14:02 GMT from @marta.studio'"
+            placeholder={t("dashboard.adminDrawers.igVerifyEvidenceNotePlaceholder")}
             rows={2}
             style={{
               width: "100%", boxSizing: "border-box",
@@ -4580,7 +4604,7 @@ export function InstagramVerificationInstructions({
 
         {/* Step 4: confirm */}
         <div style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(91,107,160,0.08)", fontFamily: FONTS.body, fontSize: 11, lineHeight: 1.5, marginBottom: 14 }} className="text-admin-indigo-deep">
-          <strong>4 · Confirm.</strong> Tulala admins verify the DM was received from your handle and matches the code. Most decisions in &lt;24h.
+          <strong>{t("dashboard.adminDrawers.igVerifyStep4Lead")}</strong> {t("dashboard.adminDrawers.igVerifyStep4Body")}
         </div>
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -4588,14 +4612,14 @@ export function InstagramVerificationInstructions({
             padding: "9px 16px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
             background: "transparent", color: COLORS.ink,
             fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-          }}>Cancel</button>
+          }}>{t("dashboard.adminDrawers.igVerifyCancel")}</button>
           <button type="button" onClick={onSubmit} disabled={!existingHandle.trim().startsWith("@")} style={{
             padding: "9px 16px", borderRadius: 999, border: "none",
             background: existingHandle.trim().startsWith("@") ? COLORS.fill : "rgba(11,11,13,0.10)",
             color: existingHandle.trim().startsWith("@") ? "#fff" : COLORS.inkDim,
             fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
             cursor: existingHandle.trim().startsWith("@") ? "pointer" : "default",
-          }}>Generate code & continue</button>
+          }}>{t("dashboard.adminDrawers.igVerifyGenerate")}</button>
         </div>
       </div>
     </div>
