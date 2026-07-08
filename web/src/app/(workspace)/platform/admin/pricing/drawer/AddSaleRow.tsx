@@ -19,6 +19,8 @@
 
 import { useState, useTransition } from "react";
 import { addTierPrice } from "@/lib/server-actions/admin-product-pricing";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { HQ, F } from "../_tokens";
 import { Field, inputStyle } from "../_primitives";
 
@@ -33,6 +35,7 @@ export function AddSaleRow({
   eligibleCombos: string[];
   stripeConfigured: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   if (eligibleCombos.length === 0) {
@@ -50,7 +53,7 @@ export function AddSaleRow({
           fontFamily: F,
         }}
       >
-        + Add sale price — add a canonical price first
+        {t("dashboard.platform.pricing.addSale.needCanonical")}
       </div>
     );
   }
@@ -72,7 +75,7 @@ export function AddSaleRow({
           textAlign: "left",
         }}
       >
-        + Add sale price (time-bounded discount)
+        {t("dashboard.platform.pricing.addSale.addSale")}
       </button>
     );
   }
@@ -98,6 +101,7 @@ function AddSaleForm({
   stripeConfigured: boolean;
   onCancel: () => void;
 }) {
+  const t = useT();
   // Decompose "USD|month" → { currency, interval }
   const [combo, setCombo] = useState(eligibleCombos[0] ?? "");
   const [amountInput, setAmountInput] = useState("");
@@ -156,7 +160,10 @@ function AddSaleForm({
       }
       if (res.stripe.stub) {
         setState("stub");
-        setStubMsg(res.stripe.reason ?? "Saved in DB only.");
+        setStubMsg(
+          res.stripe.reason ??
+            t("dashboard.platform.pricing.addSale.savedDbOnlyDefault"),
+        );
         setTimeout(onCancel, 2500);
       } else {
         setState("saved");
@@ -186,11 +193,11 @@ function AddSaleForm({
           letterSpacing: 0.8,
         }}
       >
-        Add a time-bounded sale price
+        {t("dashboard.platform.pricing.addSale.title")}
       </div>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Field label="Discount applies to">
+        <Field label={t("dashboard.platform.pricing.addSale.appliesTo")}>
           <select
             value={combo}
             onChange={(e) => setCombo(e.target.value)}
@@ -203,7 +210,7 @@ function AddSaleForm({
             ))}
           </select>
         </Field>
-        <Field label="Sale amount (major units)">
+        <Field label={t("dashboard.platform.pricing.addSale.saleAmount")}>
           <input
             type="text"
             inputMode="decimal"
@@ -217,7 +224,7 @@ function AddSaleForm({
       </div>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Field label="Starts at (UTC, optional)">
+        <Field label={t("dashboard.platform.pricing.addSale.startsAt")}>
           <input
             type="datetime-local"
             value={startsAt}
@@ -225,7 +232,7 @@ function AddSaleForm({
             style={{ ...inputStyle(), width: 220 }}
           />
         </Field>
-        <Field label="Ends at (UTC, optional)">
+        <Field label={t("dashboard.platform.pricing.addSale.endsAt")}>
           <input
             type="datetime-local"
             value={endsAt}
@@ -237,13 +244,12 @@ function AddSaleForm({
 
       {!windowSet && amountInput !== "" && (
         <div style={{ fontSize: 11, color: HQ.amber }}>
-          Set at least one of start / end — otherwise this would overwrite
-          the canonical price.
+          {t("dashboard.platform.pricing.addSale.windowRequired")}
         </div>
       )}
       {!startsBeforeEnds && (
         <div style={{ fontSize: 11, color: HQ.amber }}>
-          Start must be before end.
+          {t("dashboard.platform.pricing.addSale.startBeforeEnd")}
         </div>
       )}
 
@@ -264,7 +270,9 @@ function AddSaleForm({
             fontWeight: 600,
           }}
         >
-          {state === "saving" ? "Creating sale…" : "Create sale price"}
+          {state === "saving"
+            ? t("dashboard.platform.pricing.addSale.creating")
+            : t("dashboard.platform.pricing.addSale.createSale")}
         </button>
         <button
           type="button"
@@ -281,29 +289,32 @@ function AddSaleForm({
             cursor: state === "saving" ? "default" : "pointer",
           }}
         >
-          Cancel
+          {t("dashboard.platform.pricing.addSale.cancel")}
         </button>
 
         {state === "saved" && (
           <span style={{ fontSize: 11, color: HQ.green }}>
-            Sale created — Stripe Price added.
+            {t("dashboard.platform.pricing.addSale.createdStripe")}
           </span>
         )}
         {state === "stub" && (
           <span style={{ fontSize: 11, color: HQ.amber, lineHeight: 1.4 }}>
-            ✓ Sale saved in DB. {stubMsg}
+            ✓{" "}
+            {interpolate(t("dashboard.platform.pricing.addSale.savedDbOnly"), {
+              detail: stubMsg ?? "",
+            })}
           </span>
         )}
         {state === "error" && (
           <span style={{ fontSize: 11, color: HQ.red, lineHeight: 1.4 }}>
-            {errorMsg ?? "Save failed."}
+            {errorMsg ?? t("dashboard.platform.pricing.addSale.saveFailed")}
           </span>
         )}
       </div>
 
       {!stripeConfigured && (
         <div style={{ fontSize: 10.5, color: HQ.inkDim }}>
-          Stripe not connected — sale saves in DB only.
+          {t("dashboard.platform.pricing.addSale.notConnectedHint")}
         </div>
       )}
     </div>

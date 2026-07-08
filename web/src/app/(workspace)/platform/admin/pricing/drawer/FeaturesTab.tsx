@@ -26,6 +26,7 @@ import {
   archiveFeature,
   reorderFeature,
 } from "@/lib/server-actions/admin-product-features";
+import { useT } from "@/i18n/use-t";
 import { HQ, F } from "../_tokens";
 import {
   SectionLabel,
@@ -36,6 +37,7 @@ import {
 } from "../_primitives";
 
 export function FeaturesTab({ tier }: { tier: PricingTierRow }) {
+  const t = useT();
   // Group features by category (null grouped together as 'highlights').
   const byCategory = new Map<string, PricingTierRow["features"]>();
   for (const f of tier.features) {
@@ -55,12 +57,12 @@ export function FeaturesTab({ tier }: { tier: PricingTierRow }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <SectionLabel
-        title="Features"
-        hint="Edit per-tier feature rows. Categories group rows on the marketing compare table."
+        title={t("dashboard.platform.pricing.featuresTab.title")}
+        hint={t("dashboard.platform.pricing.featuresTab.hint")}
       />
 
       {tier.features.length === 0 ? (
-        <EmptyHint text="No features yet. Add one below." />
+        <EmptyHint text={t("dashboard.platform.pricing.featuresTab.empty")} />
       ) : (
         orderedCats
           .filter((cat) => (byCategory.get(cat) ?? []).length > 0)
@@ -87,6 +89,7 @@ function CategoryGroup({
   category: string;
   rows: PricingTierRow["features"];
 }) {
+  const t = useT();
   const isNoCategory = category === "__none__";
   return (
     <div
@@ -110,7 +113,9 @@ function CategoryGroup({
           paddingBottom: 4,
         }}
       >
-        {isNoCategory ? "Highlights / general" : category}
+        {isNoCategory
+          ? t("dashboard.platform.pricing.featuresTab.highlightsGeneral")
+          : category}
       </div>
       {rows.map((f, i) => (
         <FeatureRow
@@ -135,6 +140,7 @@ function FeatureRow({
   isFirst: boolean;
   isLast: boolean;
 }) {
+  const t = useT();
   const [label, setLabel] = useState(feature.label);
   const [included, setIncluded] = useState(feature.included);
   const [highlight, setHighlight] = useState(feature.highlight);
@@ -224,7 +230,7 @@ function FeatureRow({
           onChange={(e) => setLabel(e.target.value)}
           maxLength={120}
           style={{ ...inputStyle(), flex: 1, fontSize: 12.5 }}
-          aria-label="Feature label"
+          aria-label={t("dashboard.platform.pricing.featuresTab.featureLabelAria")}
         />
         <ReorderBtn
           direction="up"
@@ -240,8 +246,8 @@ function FeatureRow({
           type="button"
           onClick={doArchive}
           disabled={state === "archiving"}
-          aria-label="Archive feature"
-          title="Archive feature"
+          aria-label={t("dashboard.platform.pricing.featuresTab.archiveFeatureAria")}
+          title={t("dashboard.platform.pricing.featuresTab.archiveFeatureAria")}
           style={{
             background: "transparent",
             color: HQ.inkDim,
@@ -284,7 +290,7 @@ function FeatureRow({
             checked={included}
             onChange={(e) => setIncluded(e.target.checked)}
           />
-          Included
+          {t("dashboard.platform.pricing.featuresTab.included")}
         </label>
         <label
           style={{
@@ -301,15 +307,15 @@ function FeatureRow({
             checked={highlight}
             onChange={(e) => setHighlight(e.target.checked)}
           />
-          Highlight ★
+          {t("dashboard.platform.pricing.featuresTab.highlight")}
         </label>
         <input
           type="text"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          placeholder="Category (e.g. pipeline)"
+          placeholder={t("dashboard.platform.pricing.featuresTab.categoryPlaceholder")}
           maxLength={40}
-          aria-label="Category"
+          aria-label={t("dashboard.platform.pricing.featuresTab.categoryAria")}
           style={{
             ...inputStyle(),
             fontSize: 11,
@@ -321,9 +327,9 @@ function FeatureRow({
           type="text"
           value={valueText}
           onChange={(e) => setValueText(e.target.value)}
-          placeholder='value_text (e.g. "Up to 50")'
+          placeholder={t("dashboard.platform.pricing.featuresTab.valueTextPlaceholder")}
           maxLength={80}
-          aria-label="Value text"
+          aria-label={t("dashboard.platform.pricing.featuresTab.valueTextAria")}
           style={{
             ...inputStyle(),
             fontSize: 11,
@@ -352,14 +358,18 @@ function FeatureRow({
               fontWeight: 600,
             }}
           >
-            {state === "saving" ? "Saving…" : "Save"}
+            {state === "saving"
+              ? t("dashboard.platform.pricing.featuresTab.saving")
+              : t("dashboard.platform.pricing.featuresTab.save")}
           </button>
           {state === "saved" && (
-            <Pill color={HQ.green}>Saved</Pill>
+            <Pill color={HQ.green}>
+              {t("dashboard.platform.pricing.featuresTab.saved")}
+            </Pill>
           )}
           {state === "error" && (
             <span style={{ fontSize: 10.5, color: HQ.red }}>
-              {errorMsg ?? "Save failed."}
+              {errorMsg ?? t("dashboard.platform.pricing.featuresTab.saveFailed")}
             </span>
           )}
         </div>
@@ -377,13 +387,18 @@ function ReorderBtn({
   disabled: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
+  const label =
+    direction === "up"
+      ? t("dashboard.platform.pricing.featuresTab.moveUp")
+      : t("dashboard.platform.pricing.featuresTab.moveDown");
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label={direction === "up" ? "Move up" : "Move down"}
-      title={direction === "up" ? "Move up" : "Move down"}
+      aria-label={label}
+      title={label}
       style={{
         background: "transparent",
         color: disabled ? HQ.inkDim : HQ.inkMuted,
@@ -407,6 +422,7 @@ function ReorderBtn({
 // ─── AddFeatureRow ───────────────────────────────────────────────────────────
 
 function AddFeatureRow({ tierId }: { tierId: string }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
@@ -425,7 +441,7 @@ function AddFeatureRow({ tierId }: { tierId: string }) {
           textAlign: "left",
         }}
       >
-        + Add feature
+        {t("dashboard.platform.pricing.featuresTab.addFeature")}
       </button>
     );
   }
@@ -439,6 +455,7 @@ function AddFeatureForm({
   tierId: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const [label, setLabel] = useState("");
   const [included, setIncluded] = useState(true);
   const [highlight, setHighlight] = useState(false);
@@ -495,15 +512,15 @@ function AddFeatureForm({
           textTransform: "uppercase",
         }}
       >
-        Add feature
+        {t("dashboard.platform.pricing.featuresTab.addFeatureTitle")}
       </div>
-      <Field label="Label">
+      <Field label={t("dashboard.platform.pricing.featuresTab.labelField")}>
         <input
           type="text"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           maxLength={120}
-          placeholder="WhatsApp inquiry notifications"
+          placeholder={t("dashboard.platform.pricing.featuresTab.labelPlaceholder")}
           style={inputStyle()}
           autoFocus
         />
@@ -524,7 +541,7 @@ function AddFeatureForm({
             checked={included}
             onChange={(e) => setIncluded(e.target.checked)}
           />
-          Included
+          {t("dashboard.platform.pricing.featuresTab.included")}
         </label>
         <label
           style={{
@@ -541,26 +558,26 @@ function AddFeatureForm({
             checked={highlight}
             onChange={(e) => setHighlight(e.target.checked)}
           />
-          Highlight ★
+          {t("dashboard.platform.pricing.featuresTab.highlight")}
         </label>
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Field label="Category">
+        <Field label={t("dashboard.platform.pricing.featuresTab.categoryField")}>
           <input
             type="text"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            placeholder="pipeline"
+            placeholder={t("dashboard.platform.pricing.featuresTab.categoryFieldPlaceholder")}
             maxLength={40}
             style={{ ...inputStyle(), width: 200 }}
           />
         </Field>
-        <Field label='Value text (overrides ✓/—)'>
+        <Field label={t("dashboard.platform.pricing.featuresTab.valueTextField")}>
           <input
             type="text"
             value={valueText}
             onChange={(e) => setValueText(e.target.value)}
-            placeholder="Up to 50"
+            placeholder={t("dashboard.platform.pricing.featuresTab.valueTextFieldPlaceholder")}
             maxLength={80}
             style={{ ...inputStyle(), width: 200 }}
           />
@@ -583,7 +600,9 @@ function AddFeatureForm({
             fontWeight: 600,
           }}
         >
-          {state === "saving" ? "Adding…" : "Add feature"}
+          {state === "saving"
+            ? t("dashboard.platform.pricing.featuresTab.adding")
+            : t("dashboard.platform.pricing.featuresTab.addFeatureBtn")}
         </button>
         <button
           type="button"
@@ -600,9 +619,13 @@ function AddFeatureForm({
             cursor: state === "saving" ? "default" : "pointer",
           }}
         >
-          Cancel
+          {t("dashboard.platform.pricing.featuresTab.cancel")}
         </button>
-        {state === "saved" && <Pill color={HQ.green}>Added</Pill>}
+        {state === "saved" && (
+          <Pill color={HQ.green}>
+            {t("dashboard.platform.pricing.featuresTab.added")}
+          </Pill>
+        )}
         {state === "error" && (
           <span style={{ fontSize: 11, color: HQ.red }}>{errorMsg}</span>
         )}

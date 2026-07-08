@@ -7,6 +7,7 @@
  */
 
 import type { PricingTierRow } from "@/lib/pricing/pricing-types";
+import { useT } from "@/i18n/use-t";
 import { HQ } from "../_tokens";
 import {
   SectionLabel,
@@ -25,6 +26,7 @@ export function StripeTab({
   stripeConfigured: boolean;
   testMode: boolean;
 }) {
+  const t = useT();
   const dashboardBase = testMode
     ? "https://dashboard.stripe.com/test"
     : "https://dashboard.stripe.com";
@@ -35,10 +37,10 @@ export function StripeTab({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <SectionLabel
-        title="Stripe"
-        hint="Read-only. Stripe Prices are immutable — edits in the Pricing tab create new IDs and archive the old ones."
+        title={t("dashboard.platform.pricing.stripeTab.title")}
+        hint={t("dashboard.platform.pricing.stripeTab.hint")}
       />
-      <Field label="Stripe Product ID">
+      <Field label={t("dashboard.platform.pricing.stripeTab.productId")}>
         {tier.stripeProductId ? (
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <code style={codeStyle()}>{tier.stripeProductId}</code>
@@ -48,23 +50,26 @@ export function StripeTab({
               rel="noopener noreferrer"
               style={linkStyle()}
             >
-              Open in Stripe ↗
+              {t("dashboard.platform.pricing.stripeTab.openInStripe")}
             </a>
           </div>
         ) : (
           <span style={{ fontSize: 12, color: HQ.amber }}>
-            Not linked — create the product in Stripe to enable sync.
+            {t("dashboard.platform.pricing.stripeTab.notLinked")}
           </span>
         )}
       </Field>
 
-      <SectionLabel title="Active Price IDs" hint="One per (currency × interval)." />
+      <SectionLabel
+        title={t("dashboard.platform.pricing.stripeTab.activePriceIds")}
+        hint={t("dashboard.platform.pricing.stripeTab.activePriceIdsHint")}
+      />
       {linkedPrices.length === 0 ? (
         <EmptyHint
           text={
             stripeConfigured
-              ? "No Stripe Prices linked yet."
-              : "Connect Stripe to populate."
+              ? t("dashboard.platform.pricing.stripeTab.noPricesLinked")
+              : t("dashboard.platform.pricing.stripeTab.connectToPopulate")
           }
         />
       ) : (
@@ -93,7 +98,7 @@ export function StripeTab({
                 rel="noopener noreferrer"
                 style={linkStyle()}
               >
-                Open ↗
+                {t("dashboard.platform.pricing.stripeTab.open")}
               </a>
             </div>
           ))}
