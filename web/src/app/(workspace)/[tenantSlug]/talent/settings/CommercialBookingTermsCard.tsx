@@ -73,7 +73,7 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
   const [depositInput, setDepositInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ field: "rate" | "deposit" | "refund" | "instantBook"; message: string } | null>(null);
   const [savedOk, setSavedOk] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -93,7 +93,7 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
     return () => { cancelled = true; };
   }, [talentId]);
 
-  function persist(next: TalentBookingTerms) {
+  function persist(next: TalentBookingTerms, field: "rate" | "deposit" | "refund" | "instantBook") {
     const previous = terms;
     setTerms(next); // optimistic
     setSaving(true);
@@ -112,7 +112,7 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
         setTerms(previous); // rollback
         setRateInput(centsToInput(previous.fixedRateCents));
         setDepositInput(previous.depositPct === null ? "" : String(previous.depositPct));
-        setError(res.error);
+        setError({ field, message: res.error });
       }
     });
   }
@@ -126,16 +126,17 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
     );
   }
 
-  const inputStyle = {
-    fontSize: 13,
-    color: C.ink,
-    fontFamily: FONT,
-    background: saving ? C.surface : "#fff",
-    border: `1px solid ${error ? C.errorSoft : C.border}`,
-    borderRadius: 8,
-    padding: "6px 10px",
-    outline: "none",
-  } as const;
+  const fieldStyle = (field: "rate" | "deposit" | "refund" | "instantBook") =>
+    ({
+      fontSize: 13,
+      color: C.ink,
+      fontFamily: FONT,
+      background: saving ? C.surface : "#fff",
+      border: `1px solid ${error?.field === field ? C.errorSoft : C.border}`,
+      borderRadius: 8,
+      padding: "6px 10px",
+      outline: "none",
+    }) as const;
 
   const labelStyle = {
     fontSize: 11,
@@ -198,9 +199,9 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
             onChange={(e) => setRateInput(e.target.value)}
             onBlur={() => {
               const cents = inputToCents(rateInput);
-              if (cents !== terms.fixedRateCents) persist({ ...terms, fixedRateCents: cents });
+              if (cents !== terms.fixedRateCents) persist({ ...terms, fixedRateCents: cents }, "rate");
             }}
-            style={{ ...inputStyle, width: "100%" }}
+            style={{ ...fieldStyle("rate"), width: "100%" }}
           />
           <span style={{ fontSize: 10.5, color: C.inkMuted }}>
             {t("dashboard.talentBookingTerms.fixedRateHint")}
@@ -224,9 +225,9 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
               const t = depositInput.trim();
               const next = t === "" ? null : Math.min(100, Math.max(0, Math.round(Number(t))));
               const normalized = next !== null && Number.isFinite(next) ? next : null;
-              if (normalized !== terms.depositPct) persist({ ...terms, depositPct: normalized });
+              if (normalized !== terms.depositPct) persist({ ...terms, depositPct: normalized }, "deposit");
             }}
-            style={{ ...inputStyle, width: "100%" }}
+            style={{ ...fieldStyle("deposit"), width: "100%" }}
           />
           <span style={{ fontSize: 10.5, color: C.inkMuted }}>
             {t("dashboard.talentBookingTerms.depositHint")}
@@ -242,9 +243,9 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
             onChange={(e) => {
               const v = e.target.value;
               const next = (REFUND_KEYS as string[]).includes(v) ? (v as RefundPolicyKey) : null;
-              persist({ ...terms, refundPolicy: next });
+              persist({ ...terms, refundPolicy: next }, "refund");
             }}
-            style={{ ...inputStyle, width: "100%", cursor: saving ? "wait" : "pointer" }}
+            style={{ ...fieldStyle("refund"), width: "100%", cursor: saving ? "wait" : "pointer" }}
           >
             <option value="">{t("dashboard.talentBookingTerms.refundNoPreference")}</option>
             {REFUND_KEYS.map((k) => (
@@ -277,7 +278,7 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
           type="checkbox"
           checked={terms.instantBookOptIn}
           disabled={saving}
-          onChange={(e) => persist({ ...terms, instantBookOptIn: e.target.checked })}
+          onChange={(e) => persist({ ...terms, instantBookOptIn: e.target.checked }, "instantBook")}
           style={{ marginTop: 2, accentColor: C.accentDeep, width: 16, height: 16, flexShrink: 0 }}
         />
         <span>
@@ -292,7 +293,7 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
       <div style={{ minHeight: 16, marginTop: 10 }}>
         {saving && <span style={{ fontSize: 11, color: C.inkMuted }}>{t("dashboard.talentBookingTerms.saving")}</span>}
         {savedOk && !saving && <span style={{ fontSize: 11, color: C.success }}>{t("dashboard.talentBookingTerms.saved")}</span>}
-        {error && <span style={{ fontSize: 11, color: C.error }}>{error}</span>}
+        {error && <span style={{ fontSize: 11, color: C.error }}>{error.message}</span>}
       </div>
     </div>
   );
