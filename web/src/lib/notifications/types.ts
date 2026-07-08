@@ -25,6 +25,7 @@ export type NotificationCategory =
   | "payments" // received, settled, refunded
   | "roster_activity" // talent invited, accepted, declined, removed
   | "workspace_activity" // team invited, coordinator assigned, approvals
+  | "reviews" // review invites, reminders, and review-received notices
   | "platform_alerts" // platform admin: new workspace, over-quota
   | "marketing"; // future, off by default
 

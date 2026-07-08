@@ -615,6 +615,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
             reviews={talentReviews}
             theme="dark"
             heading=""
+            talentName={name}
           />
         </section>
       ) : null}

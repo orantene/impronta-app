@@ -1,40 +1,28 @@
 "use client";
 
 /**
- * LeaveReviewCard — client→talent review form.
+ * ReviewTokenForm — the public review form behind /review/{token}.
  *
- * Captures the full STANDING signal: the required 1–5 star rating, an optional
- * note, a "would you book them again?" control, four optional attribute star-
- * rows, a fixed-set trait chip multi-select, a private note only the talent
- * sees, and a "post anonymously" toggle. Explicit save state
- * (idle/saving/saved/error). When `existingReview` is present the form prefills
- * and re-labels to "Edit your review".
+ * Captures the full STANDING signal (required 1–5 rating + optional would-book-
+ * again, four attribute stars, trait chips, private note, anonymous toggle),
+ * matching the in-workspace LeaveReviewCard so a review filed from an invite is
+ * indistinguishable from one filed in the dashboard. Submits via
+ * submitReviewViaTokenAction; on a needsAuth result it surfaces a sign-in CTA to
+ * /login?next=/review/{token} (never trusting the token for identity). On
+ * success it renders a thank-you state.
  *
- * Consumes the reviews contract:
- *   submitTalentReviewAction(tenantSlug, bookingId, talentProfileId, rating,
- *     body, standing?) → { ok: true } | { ok: false; error: string }
- * where `standing` carries would_book_again / attr_* / traits / private_note /
- * anon — exactly the client-writable columns the DB edit-guard allows.
- *
- * Edit window: reviews are editable for 48h from `publishedAt`. The card shows
- * "You can edit for N more hours" and renders read-only once elapsed (the DB
- * enforces the same window; this is the client-side affordance).
- *
- * Visual language matches the client shell (blue accent #1D4ED8, white card
- * on faint-cool ground, Inter type). Stars are keyboard-selectable (radiogroup
- * semantics + arrow-key navigation).
+ * Standalone visual language (no workspace chrome): white card, blue accent,
+ * Inter type, gold stars — matching the review family. Stars are keyboard-
+ * selectable (radiogroup + arrow keys).
  */
 
 import { useId, useState } from "react";
-import {
-  submitTalentReviewAction,
-  type TalentReviewStanding,
-} from "@/lib/reviews/review-actions";
-import type { ReviewableBooking } from "@/lib/reviews/review-types";
+import Link from "next/link";
+import { submitReviewViaTokenAction } from "@/lib/reviews/review-token-actions";
 
 const FONT = '"Inter", system-ui, sans-serif';
 
-/** Fixed trait set offered as chips. */
+/** Fixed trait set — same options as the workspace LeaveReviewCard. */
 const TRAIT_OPTIONS = [
   "On time",
   "Great communication",
@@ -51,21 +39,6 @@ const ATTRIBUTES = [
 ] as const;
 
 type AttrKey = (typeof ATTRIBUTES)[number]["key"];
-
-const EDIT_WINDOW_HOURS = 48;
-
-/**
- * Hours left in the edit window given the first-publish timestamp. Returns null
- * when there is no publish anchor yet (a brand-new review — always editable).
- */
-function hoursLeftInWindow(publishedAt: string | null | undefined): number | null {
-  if (!publishedAt) return null;
-  const published = new Date(publishedAt).getTime();
-  if (!Number.isFinite(published)) return null;
-  const elapsedMs = Date.now() - published;
-  const leftMs = EDIT_WINDOW_HOURS * 60 * 60 * 1000 - elapsedMs;
-  return leftMs / (60 * 60 * 1000);
-}
 
 const C = {
   ink: "#0B0B0D",
@@ -89,38 +62,27 @@ const MAX_PRIVATE_NOTE = 1000;
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-/** The full STANDING signal captured by the form, mirrored back on save. */
-export type LeaveReviewSaved = {
-  rating: number;
-  body: string | null;
-  standing: Required<TalentReviewStanding>;
-};
-
-export function LeaveReviewCard({
-  tenantSlug,
-  booking,
-  onClose,
-  onSaved,
+export function ReviewTokenForm({
+  token,
+  talentName,
+  talentProfileCode,
+  /** True when the invite's payer could not be confirmed for THIS session yet. */
+  verifiable,
 }: {
-  tenantSlug: string;
-  booking: ReviewableBooking;
-  /** Collapse the form back to the CTA without submitting. */
-  onClose?: () => void;
-  /** Called after a successful save with the new rating + body + STANDING so the parent can update its local copy. */
-  onSaved?: (saved: LeaveReviewSaved) => void;
+  token: string;
+  talentName: string;
+  talentProfileCode: string | null;
+  verifiable: boolean;
 }) {
-  const existing = booking.existingReview;
-  const [rating, setRating] = useState<number>(existing?.rating ?? 0);
+  const [rating, setRating] = useState<number>(0);
   const [hover, setHover] = useState<number>(0);
-  const [body, setBody] = useState<string>(existing?.body ?? "");
-  const [wouldBookAgain, setWouldBookAgain] = useState<boolean | null>(
-    existing?.wouldBookAgain ?? null,
-  );
+  const [body, setBody] = useState<string>("");
+  const [wouldBookAgain, setWouldBookAgain] = useState<boolean | null>(null);
   const [attrs, setAttrs] = useState<Record<AttrKey, number>>({
-    professionalism: existing?.attrProfessionalism ?? 0,
-    skill: existing?.attrSkill ?? 0,
-    communication: existing?.attrCommunication ?? 0,
-    reliability: existing?.attrReliability ?? 0,
+    professionalism: 0,
+    skill: 0,
+    communication: 0,
+    reliability: 0,
   });
   const [attrHover, setAttrHover] = useState<Record<AttrKey, number>>({
     professionalism: 0,
@@ -128,75 +90,24 @@ export function LeaveReviewCard({
     communication: 0,
     reliability: 0,
   });
-  const [traits, setTraits] = useState<string[]>(existing?.traits ?? []);
-  const [privateNote, setPrivateNote] = useState<string>(existing?.privateNote ?? "");
-  const [anon, setAnon] = useState<boolean>(existing?.anon ?? false);
+  const [traits, setTraits] = useState<string[]>([]);
+  const [privateNote, setPrivateNote] = useState<string>("");
+  const [anon, setAnon] = useState<boolean>(false);
   const [state, setState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [needsAuth, setNeedsAuth] = useState<boolean>(false);
 
-  const isEdit = existing != null;
   const groupId = useId();
-  const talentLabel = booking.talentName ?? "this talent";
-
   const display = hover || rating;
-
-  // Edit-window affordance. A brand-new review (no publishedAt) is always
-  // editable; an existing review is editable for 48h from first publish.
-  const hoursLeft = hoursLeftInWindow(existing?.publishedAt ?? null);
-  const windowClosed = isEdit && hoursLeft != null && hoursLeft <= 0;
-  const hoursLeftLabel =
-    hoursLeft != null && hoursLeft > 0 ? Math.max(1, Math.ceil(hoursLeft)) : 0;
+  const loginHref = `/login?next=${encodeURIComponent(`/review/${token}`)}`;
 
   function toggleTrait(t: string) {
     setTraits((prev) =>
       prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
     );
   }
-
   function setAttr(key: AttrKey, value: number) {
     setAttrs((prev) => ({ ...prev, [key]: prev[key] === value ? 0 : value }));
-  }
-
-  async function handleSubmit() {
-    if (windowClosed) return;
-    if (rating < 1 || rating > 5) {
-      setError("Please pick a star rating (1 to 5).");
-      setState("error");
-      return;
-    }
-    setState("saving");
-    setError(null);
-    const trimmed = body.trim();
-    const trimmedNote = privateNote.trim();
-    const standing: Required<TalentReviewStanding> = {
-      wouldBookAgain,
-      attrProfessionalism: attrs.professionalism || null,
-      attrSkill: attrs.skill || null,
-      attrCommunication: attrs.communication || null,
-      attrReliability: attrs.reliability || null,
-      traits: traits.length > 0 ? traits : null,
-      privateNote: trimmedNote.length > 0 ? trimmedNote : null,
-      anon,
-    };
-    const res = await submitTalentReviewAction(
-      tenantSlug,
-      booking.bookingId,
-      booking.talentProfileId,
-      rating,
-      trimmed.length > 0 ? trimmed : "",
-      standing,
-    );
-    if (res.ok) {
-      setState("saved");
-      onSaved?.({
-        rating,
-        body: trimmed.length > 0 ? trimmed : null,
-        standing,
-      });
-    } else {
-      setError(res.error || "Could not save your review. Please try again.");
-      setState("error");
-    }
   }
 
   function onStarKeyDown(e: React.KeyboardEvent) {
@@ -215,124 +126,107 @@ export function LeaveReviewCard({
     }
   }
 
-  // ─── Saved confirmation ──────────────────────────────────────────────
+  async function handleSubmit() {
+    if (rating < 1 || rating > 5) {
+      setError("Please pick a star rating (1 to 5).");
+      setState("error");
+      return;
+    }
+    setState("saving");
+    setError(null);
+    setNeedsAuth(false);
+    const trimmed = body.trim();
+    const trimmedNote = privateNote.trim();
+    const res = await submitReviewViaTokenAction(token, {
+      rating,
+      body: trimmed.length > 0 ? trimmed : undefined,
+      wouldBookAgain,
+      attrs: {
+        professionalism: attrs.professionalism || null,
+        skill: attrs.skill || null,
+        communication: attrs.communication || null,
+        reliability: attrs.reliability || null,
+      },
+      traits: traits.length > 0 ? traits : null,
+      privateNote: trimmedNote.length > 0 ? trimmedNote : null,
+      anon,
+    });
+    if (res.ok) {
+      setState("saved");
+      return;
+    }
+    if ("needsAuth" in res && res.needsAuth) {
+      setNeedsAuth(true);
+      setState("error");
+      return;
+    }
+    setError(
+      ("error" in res && res.error) ||
+        "Could not save your review. Please try again.",
+    );
+    setState("error");
+  }
+
+  // ─── Saved / thank-you ───────────────────────────────────────────────
   if (state === "saved") {
     return (
       <div
         style={{
           background: C.greenSoft,
-          border: `1px solid rgba(26,115,72,0.20)`,
-          borderRadius: 12,
-          padding: "16px 18px",
+          border: "1px solid rgba(26,115,72,0.20)",
+          borderRadius: 14,
+          padding: "22px 22px",
           fontFamily: FONT,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
+          textAlign: "center",
         }}
       >
         <div
           style={{
-            display: "flex",
+            display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            width: 30,
-            height: 30,
+            width: 42,
+            height: 42,
             borderRadius: 999,
             background: "rgba(26,115,72,0.16)",
             color: C.greenDeep,
-            flexShrink: 0,
+            marginBottom: 12,
           }}
           aria-hidden
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6 9 17l-5-5" />
           </svg>
         </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: C.greenDeep, letterSpacing: -0.1 }}>
-            Thanks for reviewing {talentLabel}.
-          </div>
-          <div style={{ fontSize: 12, color: "rgba(26,115,72,0.75)", marginTop: 2 }}>
-            Your {rating}-star review is now published.
-          </div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: C.greenDeep, letterSpacing: -0.2 }}>
+          Thank you for reviewing {talentName}.
         </div>
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
+        <div style={{ fontSize: 13, color: "rgba(26,115,72,0.8)", marginTop: 6, lineHeight: 1.5 }}>
+          Your {rating}-star review is now published on their page.
+        </div>
+        {talentProfileCode && (
+          <Link
+            href={`/t/${talentProfileCode}`}
             style={{
-              marginLeft: "auto",
-              fontSize: 12,
+              display: "inline-block",
+              marginTop: 16,
+              padding: "9px 16px",
+              fontSize: 12.5,
               fontWeight: 600,
               color: C.greenDeep,
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: 4,
+              textDecoration: "none",
+              border: "1px solid rgba(26,115,72,0.30)",
+              borderRadius: 9,
               fontFamily: FONT,
             }}
           >
-            Done
-          </button>
+            View {talentName}&rsquo;s page
+          </Link>
         )}
       </div>
     );
   }
 
-  // ─── Read-only: the 48h edit window has closed ───────────────────────
-  if (windowClosed) {
-    return (
-      <div
-        style={{
-          background: C.surface,
-          border: `1px solid ${C.borderSoft}`,
-          borderRadius: 12,
-          padding: "16px 18px",
-          fontFamily: FONT,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, letterSpacing: -0.1 }}>
-            Your review
-          </div>
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close review"
-              style={{
-                fontSize: 18,
-                lineHeight: 1,
-                color: C.inkDim,
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                padding: 2,
-                fontFamily: FONT,
-              }}
-            >
-              ×
-            </button>
-          )}
-        </div>
-        <div style={{ display: "inline-flex", gap: 3, marginBottom: 8 }} aria-label={`${rating} out of 5 stars`}>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <svg key={n} width="20" height="20" viewBox="0 0 24 24" fill={n <= rating ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round" aria-hidden style={{ color: n <= rating ? C.star : C.starDim }}>
-              <path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.58 1.11 6.47L12 17.4l-5.8 3.05 1.1-6.47L2.6 9.35l6.5-.95L12 2.5z" />
-            </svg>
-          ))}
-        </div>
-        {body.trim().length > 0 && (
-          <p style={{ margin: "0 0 8px", fontSize: 13, lineHeight: 1.5, color: C.ink }}>{body.trim()}</p>
-        )}
-        <div style={{ fontSize: 11.5, color: C.inkMuted }}>
-          The edit window has closed, so this review is now final.
-        </div>
-      </div>
-    );
-  }
-
-  // ─── Form ────────────────────────────────────────────────────────────
   const saving = state === "saving";
 
   return (
@@ -340,70 +234,27 @@ export function LeaveReviewCard({
       style={{
         background: C.cardBg,
         border: `1px solid ${C.borderSoft}`,
-        borderRadius: 12,
-        padding: "16px 18px",
+        borderRadius: 14,
+        padding: "20px 22px",
         fontFamily: FONT,
+        boxShadow: "0 1px 2px rgba(11,11,13,0.04)",
       }}
     >
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-        <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, letterSpacing: -0.1 }}>
-          {isEdit ? "Edit your review" : `Rate ${talentLabel}`}
-        </div>
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            aria-label="Close review form"
-            style={{
-              fontSize: 18,
-              lineHeight: 1,
-              color: C.inkDim,
-              background: "transparent",
-              border: "none",
-              cursor: saving ? "default" : "pointer",
-              padding: 2,
-              fontFamily: FONT,
-            }}
-          >
-            ×
-          </button>
-        )}
+      <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, letterSpacing: -0.2, marginBottom: 4 }}>
+        Rate {talentName}
+      </div>
+      <div style={{ fontSize: 12.5, color: C.inkMuted, marginBottom: 16, lineHeight: 1.5 }}>
+        Your honest experience helps other clients decide. It takes a minute.
       </div>
 
-      {/* Edit-window affordance */}
-      {isEdit && hoursLeft != null && hoursLeftLabel > 0 && (
-        <div
-          style={{
-            marginBottom: 12,
-            padding: "7px 11px",
-            fontSize: 11.5,
-            fontWeight: 500,
-            color: C.accent,
-            background: C.accentSoft,
-            border: `1px solid rgba(29,78,216,0.18)`,
-            borderRadius: 8,
-          }}
-        >
-          You can edit for {hoursLeftLabel} more hour{hoursLeftLabel === 1 ? "" : "s"}.
-        </div>
-      )}
-
-      {/* Star picker — radiogroup */}
+      {/* Star picker — required */}
       <div
         role="radiogroup"
-        aria-label={`Star rating for ${talentLabel}`}
+        aria-label={`Star rating for ${talentName}`}
         tabIndex={0}
         onKeyDown={onStarKeyDown}
         onBlur={() => setHover(0)}
-        style={{
-          display: "inline-flex",
-          gap: 4,
-          padding: "2px 2px 4px",
-          borderRadius: 8,
-          outline: "none",
-          marginBottom: 14,
-        }}
+        style={{ display: "inline-flex", gap: 4, padding: "2px 2px 4px", borderRadius: 8, outline: "none", marginBottom: 14 }}
       >
         {[1, 2, 3, 4, 5].map((n) => {
           const active = n <= display;
@@ -426,10 +277,10 @@ export function LeaveReviewCard({
                 padding: 1,
                 lineHeight: 0,
                 color: active ? C.star : C.starDim,
-                transition: "color 0.12s ease, transform 0.08s ease",
+                transition: "color 0.12s ease",
               }}
             >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round" aria-hidden>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round" aria-hidden>
                 <path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.58 1.11 6.47L12 17.4l-5.8 3.05 1.1-6.47L2.6 9.35l6.5-.95L12 2.5z" />
               </svg>
             </button>
@@ -450,11 +301,8 @@ export function LeaveReviewCard({
         </span>
       </div>
 
-      {/* Optional text */}
-      <label
-        htmlFor={`${groupId}-body`}
-        style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 5, letterSpacing: 0.1 }}
-      >
+      {/* Optional note */}
+      <label htmlFor={`${groupId}-body`} style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 5, letterSpacing: 0.1 }}>
         Add a note (optional)
       </label>
       <textarea
@@ -463,7 +311,7 @@ export function LeaveReviewCard({
         disabled={saving}
         maxLength={MAX_BODY}
         onChange={(e) => setBody(e.target.value)}
-        placeholder={`What stood out about working with ${talentLabel}?`}
+        placeholder={`What stood out about working with ${talentName}?`}
         rows={3}
         style={{
           width: "100%",
@@ -489,11 +337,7 @@ export function LeaveReviewCard({
 
       {/* Would you book them again? */}
       <div style={{ marginTop: 16 }}>
-        <div
-          role="group"
-          aria-label={`Would you book ${talentLabel} again?`}
-          style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 7, letterSpacing: 0.1 }}
-        >
+        <div role="group" aria-label={`Would you book ${talentName} again?`} style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 7, letterSpacing: 0.1 }}>
           Would you book them again?
         </div>
         <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
@@ -530,7 +374,7 @@ export function LeaveReviewCard({
         </div>
       </div>
 
-      {/* Optional attribute star-rows */}
+      {/* Attribute star-rows */}
       <div style={{ marginTop: 18 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 8, letterSpacing: 0.1 }}>
           Rate specific qualities (optional)
@@ -541,12 +385,7 @@ export function LeaveReviewCard({
             const hoverV = attrHover[key];
             const shown = hoverV || value;
             return (
-              <div
-                key={key}
-                role="radiogroup"
-                aria-label={`${label} rating`}
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}
-              >
+              <div key={key} role="radiogroup" aria-label={`${label} rating`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                 <span style={{ fontSize: 12.5, color: C.ink }}>{label}</span>
                 <span style={{ display: "inline-flex", gap: 2 }} onMouseLeave={() => setAttrHover((p) => ({ ...p, [key]: 0 }))}>
                   {[1, 2, 3, 4, 5].map((n) => {
@@ -629,11 +468,8 @@ export function LeaveReviewCard({
 
       {/* Private note — talent-only */}
       <div style={{ marginTop: 18 }}>
-        <label
-          htmlFor={`${groupId}-private`}
-          style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 5, letterSpacing: 0.1 }}
-        >
-          Private note. Only {talentLabel} sees this, to help them improve.
+        <label htmlFor={`${groupId}-private`} style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 5, letterSpacing: 0.1 }}>
+          Private note. Only {talentName} sees this, to help them improve.
         </label>
         <textarea
           id={`${groupId}-private`}
@@ -667,38 +503,62 @@ export function LeaveReviewCard({
       </div>
 
       {/* Post anonymously */}
-      <label
-        htmlFor={`${groupId}-anon`}
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 9,
-          marginTop: 14,
-          cursor: saving ? "default" : "pointer",
-        }}
-      >
+      <label htmlFor={`${groupId}-anon`} style={{ display: "flex", alignItems: "flex-start", gap: 9, marginTop: 14, cursor: saving ? "default" : "pointer" }}>
         <input
           id={`${groupId}-anon`}
           type="checkbox"
           checked={anon}
           disabled={saving}
           onChange={(e) => setAnon(e.target.checked)}
-          style={{
-            width: 16,
-            height: 16,
-            marginTop: 1,
-            accentColor: C.accent,
-            cursor: saving ? "default" : "pointer",
-            flexShrink: 0,
-          }}
+          style={{ width: 16, height: 16, marginTop: 1, accentColor: C.accent, cursor: saving ? "default" : "pointer", flexShrink: 0 }}
         />
         <span style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.4 }}>
-          Post anonymously (show as Verified client)
+          Post anonymously (show as {verifiable ? "Verified client" : "a client"})
         </span>
       </label>
 
+      {/* Needs-auth prompt */}
+      {needsAuth && (
+        <div
+          role="alert"
+          style={{
+            marginTop: 12,
+            padding: "12px 14px",
+            fontSize: 12.5,
+            color: C.accent,
+            background: C.accentSoft,
+            border: "1px solid rgba(29,78,216,0.20)",
+            borderRadius: 10,
+            lineHeight: 1.5,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 6, color: C.ink }}>
+            Please sign in to publish your review.
+          </div>
+          <div style={{ color: C.inkMuted, marginBottom: 10 }}>
+            To keep reviews honest, we confirm it&rsquo;s really you before publishing. Sign in with the account this invite was sent to.
+          </div>
+          <Link
+            href={loginHref}
+            style={{
+              display: "inline-block",
+              padding: "8px 16px",
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: "#fff",
+              background: C.accent,
+              textDecoration: "none",
+              borderRadius: 9,
+              fontFamily: FONT,
+            }}
+          >
+            Sign in and continue
+          </Link>
+        </div>
+      )}
+
       {/* Error */}
-      {state === "error" && error && (
+      {state === "error" && !needsAuth && error && (
         <div
           role="alert"
           style={{
@@ -708,7 +568,7 @@ export function LeaveReviewCard({
             fontWeight: 500,
             color: C.errorDeep,
             background: C.errorSoft,
-            border: `1px solid rgba(180,35,24,0.18)`,
+            border: "1px solid rgba(180,35,24,0.18)",
             borderRadius: 8,
           }}
         >
@@ -716,8 +576,8 @@ export function LeaveReviewCard({
         </div>
       )}
 
-      {/* Actions */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
+      {/* Submit */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16 }}>
         <button
           type="button"
           onClick={handleSubmit}
@@ -726,8 +586,8 @@ export function LeaveReviewCard({
             display: "inline-flex",
             alignItems: "center",
             gap: 7,
-            padding: "9px 16px",
-            fontSize: 12.5,
+            padding: "10px 18px",
+            fontSize: 13,
             fontWeight: 600,
             fontFamily: FONT,
             color: "#fff",
@@ -744,26 +604,8 @@ export function LeaveReviewCard({
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
           )}
-          {saving ? "Saving…" : isEdit ? "Update review" : "Publish review"}
+          {saving ? "Publishing…" : "Publish review"}
         </button>
-        {onClose && !saving && (
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              fontSize: 12.5,
-              fontWeight: 600,
-              color: C.inkMuted,
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: "9px 4px",
-              fontFamily: FONT,
-            }}
-          >
-            Cancel
-          </button>
-        )}
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

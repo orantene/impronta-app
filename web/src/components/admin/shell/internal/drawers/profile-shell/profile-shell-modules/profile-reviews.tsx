@@ -30,6 +30,7 @@ import {
   adminHideReviewAction,
   reportReviewAction,
 } from "@/lib/reviews/review-actions";
+import { reviewsEnabledForTenantAction } from "@/lib/reviews/review-request-actions";
 import { loadOwnerReceivedReviewsAction } from "@/lib/reviews/review-owner-actions";
 import type {
   TalentRatingSummary,
@@ -37,6 +38,7 @@ import type {
 } from "@/lib/reviews/review-types";
 import { StaticStars } from "@/components/reviews/star-rating";
 import { COLORS, FONTS } from "../../drawer-shared";
+import { useAdminShell } from "../../../state";
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -47,6 +49,20 @@ function formatDate(iso: string): string {
     day: "numeric",
   });
 }
+
+/**
+ * Fixed set of moderation reason codes a staffer picks when HIDING a review.
+ * Recorded (as `reason_code`) on the immutable review_moderation_events audit
+ * row by adminHideReviewAction. Unhide needs no reason. Keep this list in sync
+ * with the reported-reviews queue's picker (review-moderation-queue.tsx).
+ */
+const HIDE_REASON_CODES = [
+  { code: "off_topic", label: "Off topic" },
+  { code: "abusive", label: "Abusive / harassment" },
+  { code: "spam", label: "Spam" },
+  { code: "policy", label: "Policy violation" },
+  { code: "other", label: "Other" },
+] as const;
 
 type RowBusy = "hide" | "report" | null;
 
@@ -62,15 +78,32 @@ function ReviewRow({
   const [busy, setBusy] = React.useState<RowBusy>(null);
   const [reported, setReported] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  // When hiding, the staffer must pick a reason code first. `picking` opens the
+  // compact reason picker; unhide skips it (no reason needed).
+  const [picking, setPicking] = React.useState(false);
 
   const hidden = review.status === "hidden";
 
-  async function toggleHide() {
+  // Hide requires a reason code; unhide runs immediately with none.
+  async function unhide() {
     setBusy("hide");
     setError(null);
-    const res = await adminHideReviewAction("talent", review.id, !hidden);
+    const res = await adminHideReviewAction("talent", review.id, false);
     if (res.ok) {
-      onChanged({ ...review, status: hidden ? "published" : "hidden" });
+      onChanged({ ...review, status: "published" });
+    } else {
+      setError(res.error || "Could not update the review.");
+    }
+    setBusy(null);
+  }
+
+  async function hideWithReason(reasonCode: string) {
+    setBusy("hide");
+    setError(null);
+    const res = await adminHideReviewAction("talent", review.id, true, reasonCode);
+    if (res.ok) {
+      onChanged({ ...review, status: "hidden" });
+      setPicking(false);
     } else {
       setError(res.error || "Could not update the review.");
     }
@@ -139,26 +172,107 @@ function ReviewRow({
         <div style={{ fontSize: 11, color: COLORS.red }}>{error}</div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         {!isSelf ? (
-          <button
-            type="button"
-            onClick={toggleHide}
-            disabled={busy === "hide"}
-            style={{
-              padding: "5px 11px",
-              fontSize: 11,
-              fontWeight: 600,
-              borderRadius: 7,
-              border: `1px solid ${COLORS.border}`,
-              background: "#fff",
-              color: COLORS.inkMuted,
-              cursor: busy === "hide" ? "wait" : "pointer",
-              fontFamily: FONTS.body,
-            }}
-          >
-            {busy === "hide" ? "Saving…" : hidden ? "Unhide" : "Hide"}
-          </button>
+          hidden ? (
+            <button
+              type="button"
+              onClick={unhide}
+              disabled={busy === "hide"}
+              style={{
+                padding: "5px 11px",
+                fontSize: 11,
+                fontWeight: 600,
+                borderRadius: 7,
+                border: `1px solid ${COLORS.border}`,
+                background: "#fff",
+                color: COLORS.inkMuted,
+                cursor: busy === "hide" ? "wait" : "pointer",
+                fontFamily: FONTS.body,
+              }}
+            >
+              {busy === "hide" ? "Saving…" : "Unhide"}
+            </button>
+          ) : picking ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
+                Reason:
+              </span>
+              <select
+                aria-label="Reason for hiding this review"
+                disabled={busy === "hide"}
+                defaultValue=""
+                onChange={(e) => {
+                  const code = e.target.value;
+                  if (code) void hideWithReason(code);
+                }}
+                style={{
+                  padding: "5px 9px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  borderRadius: 7,
+                  border: `1px solid ${COLORS.border}`,
+                  background: "#fff",
+                  color: COLORS.ink,
+                  cursor: busy === "hide" ? "wait" : "pointer",
+                  fontFamily: FONTS.body,
+                }}
+              >
+                <option value="" disabled>
+                  Pick a reason…
+                </option>
+                {HIDE_REASON_CODES.map((r) => (
+                  <option key={r.code} value={r.code}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setPicking(false)}
+                disabled={busy === "hide"}
+                style={{
+                  padding: "5px 9px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  borderRadius: 7,
+                  border: "none",
+                  background: "transparent",
+                  color: COLORS.inkMuted,
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPicking(true)}
+              disabled={busy === "hide"}
+              style={{
+                padding: "5px 11px",
+                fontSize: 11,
+                fontWeight: 600,
+                borderRadius: 7,
+                border: `1px solid ${COLORS.border}`,
+                background: "#fff",
+                color: COLORS.inkMuted,
+                cursor: busy === "hide" ? "wait" : "pointer",
+                fontFamily: FONTS.body,
+              }}
+            >
+              {busy === "hide" ? "Saving…" : "Hide"}
+            </button>
+          )
         ) : reported ? (
           <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.green }}>
             Reported — staff will review it.
@@ -196,6 +310,12 @@ export function ProfileReviewsEditor({
   /** True when the talent views their OWN drawer (Report) vs admin (Hide). */
   isSelf?: boolean;
 }) {
+  // Surface workspace slug, read from the drawer's shell context, used to check
+  // the PREMIUM reviews entitlement. When present and the workspace is not
+  // entitled, the module renders a short "not enabled" note instead of the list.
+  // If no slug is in scope we do NOT guess — the gate stays unresolved (the
+  // per-row server actions still fail closed), so the drawer never breaks.
+  const { tenantSlug } = useAdminShell();
   const [reviews, setReviews] = React.useState<TalentReview[]>([]);
   const [summary, setSummary] = React.useState<TalentRatingSummary>({
     average: 0,
@@ -203,6 +323,29 @@ export function ProfileReviewsEditor({
   });
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
+  // Premium gate. null = unresolved (or no slug to check); false = not enabled.
+  const [entitled, setEntitled] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!tenantSlug) {
+      // No tenant handle in scope — leave the gate unresolved (fail-open here so
+      // the drawer never breaks); server actions on each row still fail closed.
+      setEntitled(null);
+      return;
+    }
+    setEntitled(null);
+    reviewsEnabledForTenantAction(tenantSlug)
+      .then((ok) => {
+        if (!cancelled) setEntitled(ok);
+      })
+      .catch(() => {
+        if (!cancelled) setEntitled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantSlug]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -224,6 +367,25 @@ export function ProfileReviewsEditor({
       cancelled = true;
     };
   }, [talentId]);
+
+  if (entitled === false) {
+    return (
+      <div
+        style={{
+          padding: 14,
+          borderRadius: 10,
+          border: `1px solid ${COLORS.borderSoft}`,
+          fontSize: 12,
+          lineHeight: 1.5,
+          fontFamily: FONTS.body,
+        }}
+        className="text-admin-ink-muted"
+      >
+        Reviews are not enabled on this workspace. They appear here once the
+        premium reviews feature is turned on.
+      </div>
+    );
+  }
 
   if (loading) {
     return (

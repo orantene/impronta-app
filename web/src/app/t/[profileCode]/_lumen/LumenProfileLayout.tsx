@@ -620,6 +620,7 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
                 reviews={talentReviews}
                 theme={isDark ? "dark" : "light"}
                 heading=""
+                talentName={name}
               />
             </section>
           ) : null}

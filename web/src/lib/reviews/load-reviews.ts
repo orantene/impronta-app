@@ -39,6 +39,8 @@ type ReviewRow = {
   status: "published" | "hidden";
   created_at: string;
   anon?: boolean | null;
+  reply_body?: string | null;
+  reply_at?: string | null;
 };
 
 /**
@@ -90,20 +92,24 @@ async function resolveClientFirstNames(
 export async function loadTalentReviews(
   talentProfileId: string,
   limit = 12,
+  offset = 0,
 ): Promise<TalentReview[]> {
   if (!talentProfileId) return [];
   const supabase = createPublicSupabaseClient();
   if (!supabase) return [];
 
+  const from = Math.max(0, offset);
+  const to = from + limit - 1;
+
   const { data, error } = await supabase
     .from("talent_reviews")
     .select(
-      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, anon",
+      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, anon, reply_body, reply_at",
     )
     .eq("talent_profile_id", talentProfileId)
     .eq("status", "published")
     .order("created_at", { ascending: false })
-    .limit(limit)
+    .range(from, to)
     .returns<ReviewRow[]>();
 
   if (error || !data || data.length === 0) return [];
@@ -120,6 +126,8 @@ export async function loadTalentReviews(
     body: r.body,
     status: r.status,
     createdAt: r.created_at,
+    replyBody: r.reply_body ?? null,
+    replyAt: r.reply_at ?? null,
   }));
 }
 
@@ -193,6 +201,12 @@ export async function loadTalentRatingSummary(
   const supabase = createPublicSupabaseClient();
   if (!supabase) return empty;
 
+  // Star histogram + per-attribute means over the SAME published+verified rows
+  // the public average is derived from (migration 20261110040000: public
+  // aggregate = status='published' AND verified_paid). Computed in one grouped
+  // read and merged onto whichever count/average path is taken below.
+  const breakdown = await loadTalentRatingBreakdown(supabase, talentProfileId);
+
   // Fast path — denormalized cache columns.
   const { data: profileRow } = await supabase
     .from("talent_profiles")
@@ -208,9 +222,13 @@ export async function loadTalentRatingSummary(
       average: Number.isFinite(avg) ? Math.round(avg * 10) / 10 : 0,
       count: cachedCount,
       wouldBookAgainPct: profileRow?.would_book_again_pct ?? null,
+      distribution: breakdown.distribution,
+      attrAverages: breakdown.attrAverages,
     };
   }
-  if (cachedCount === 0) return empty;
+  if (cachedCount === 0) {
+    return { ...empty, distribution: null, attrAverages: null };
+  }
 
   // Fallback — aggregate published rows directly.
   const { data, error } = await supabase
@@ -220,10 +238,91 @@ export async function loadTalentRatingSummary(
     .eq("status", "published")
     .returns<{ rating: number }[]>();
 
-  if (error || !data || data.length === 0) return empty;
+  if (error || !data || data.length === 0) {
+    return { ...empty, distribution: null, attrAverages: null };
+  }
   const sum = data.reduce((acc, r) => acc + (r.rating || 0), 0);
   const average = Math.round((sum / data.length) * 10) / 10;
-  return { average, count: data.length };
+  return {
+    average,
+    count: data.length,
+    distribution: breakdown.distribution,
+    attrAverages: breakdown.attrAverages,
+  };
+}
+
+type RatingBreakdownRow = {
+  rating: number | null;
+  attr_professionalism: number | null;
+  attr_skill: number | null;
+  attr_communication: number | null;
+  attr_reliability: number | null;
+};
+
+/**
+ * Star histogram (5..1) and per-attribute means over the published + verified
+ * rows the public average uses. Returns both null when there are no such rows
+ * (count 0), so a talent with no verified reviews shows no breakdown.
+ */
+async function loadTalentRatingBreakdown(
+  supabase: NonNullable<ReturnType<typeof createPublicSupabaseClient>>,
+  talentProfileId: string,
+): Promise<{
+  distribution: { stars: number; count: number }[] | null;
+  attrAverages: TalentRatingSummary["attrAverages"];
+}> {
+  const { data, error } = await supabase
+    .from("talent_reviews")
+    .select(
+      "rating, attr_professionalism, attr_skill, attr_communication, attr_reliability",
+    )
+    .eq("talent_profile_id", talentProfileId)
+    .eq("status", "published")
+    .eq("verified_paid", true)
+    .returns<RatingBreakdownRow[]>();
+
+  if (error || !data || data.length === 0) {
+    return { distribution: null, attrAverages: null };
+  }
+
+  const counts = new Map<number, number>([
+    [5, 0],
+    [4, 0],
+    [3, 0],
+    [2, 0],
+    [1, 0],
+  ]);
+  for (const r of data) {
+    const star = Math.round(Number(r.rating));
+    if (counts.has(star)) counts.set(star, (counts.get(star) ?? 0) + 1);
+  }
+  const distribution = [5, 4, 3, 2, 1].map((stars) => ({
+    stars,
+    count: counts.get(stars) ?? 0,
+  }));
+
+  const mean = (key: keyof RatingBreakdownRow): number | null => {
+    let sum = 0;
+    let n = 0;
+    for (const r of data) {
+      const v = r[key];
+      if (typeof v === "number" && Number.isFinite(v)) {
+        sum += v;
+        n += 1;
+      }
+    }
+    return n === 0 ? null : Math.round((sum / n) * 10) / 10;
+  };
+
+  return {
+    distribution,
+    attrAverages: {
+      professionalism: mean("attr_professionalism"),
+      skill: mean("attr_skill"),
+      communication: mean("attr_communication"),
+      reliability: mean("attr_reliability"),
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -341,7 +440,7 @@ export async function loadReviewsAuthoredByUser(
   const { data, error } = await supabase
     .from("talent_reviews")
     .select(
-      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at",
+      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, reply_body, reply_at",
     )
     .eq("client_user_id", userId)
     .order("created_at", { ascending: false })
@@ -361,6 +460,8 @@ export async function loadReviewsAuthoredByUser(
     body: r.body,
     status: r.status,
     createdAt: r.created_at,
+    replyBody: r.reply_body ?? null,
+    replyAt: r.reply_at ?? null,
   }));
 }
 
@@ -380,7 +481,7 @@ export async function loadTalentReviewsForOwner(
   const { data, error } = await supabase
     .from("talent_reviews")
     .select(
-      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, reported_at, anon",
+      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, reported_at, anon, reply_body, reply_at",
     )
     .eq("talent_profile_id", talentProfileId)
     .order("created_at", { ascending: false })
@@ -402,6 +503,8 @@ export async function loadTalentReviewsForOwner(
     body: r.body,
     status: r.status,
     createdAt: r.created_at,
+    replyBody: r.reply_body ?? null,
+    replyAt: r.reply_at ?? null,
   }));
 }
 

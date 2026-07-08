@@ -17,6 +17,10 @@ export type TalentReview = {
   body: string | null;
   status: "published" | "hidden";
   createdAt: string;
+  /** Talent's public right-of-reply body; null until the talent has replied. */
+  replyBody: string | null;
+  /** When the talent's reply was posted (ISO); null until they reply. */
+  replyAt: string | null;
 };
 
 export type TalentRatingSummary = {
@@ -24,6 +28,22 @@ export type TalentRatingSummary = {
   count: number;
   /** 0-100 STANDING "would book again" signal from verified reviews; null when unknown. */
   wouldBookAgainPct?: number | null;
+  /**
+   * Star histogram over the SAME published+verified rows the public average uses,
+   * ordered 5..1. Null when there are no such rows.
+   */
+  distribution?: { stars: number; count: number }[] | null;
+  /**
+   * Mean of each per-attribute score (1-5) over the same published+verified rows.
+   * Each attribute is null when no row scored it; the whole object is null when
+   * the review count is 0.
+   */
+  attrAverages?: {
+    professionalism: number | null;
+    skill: number | null;
+    communication: number | null;
+    reliability: number | null;
+  } | null;
 };
 
 /**
@@ -51,7 +71,27 @@ export type ReviewableBooking = {
   talentName: string | null;
   eventTitle: string | null;
   eventDate: string | null;
-  existingReview: { rating: number; body: string | null } | null;
+  /**
+   * The caller-client's existing review of this talent on this booking, with the
+   * full STANDING signal so the form prefills in edit mode. `publishedAt` anchors
+   * the DB-enforced 48h client edit window (the form shows a countdown + locks
+   * read-only when elapsed). Null when no review exists yet.
+   */
+  existingReview:
+    | {
+        rating: number;
+        body: string | null;
+        wouldBookAgain: boolean | null;
+        attrProfessionalism: number | null;
+        attrSkill: number | null;
+        attrCommunication: number | null;
+        attrReliability: number | null;
+        traits: string[] | null;
+        privateNote: string | null;
+        anon: boolean;
+        publishedAt: string | null;
+      }
+    | null;
 };
 
 // ---------------------------------------------------------------------------

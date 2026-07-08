@@ -504,6 +504,7 @@ export function LightProfileLayout({
                     reviews={talentReviews}
                     theme="light"
                     heading={pickLocale(locale, { en: "Reviews", es: "Reseñas" })}
+                    talentName={name}
                   />
                 </div>
               </section>

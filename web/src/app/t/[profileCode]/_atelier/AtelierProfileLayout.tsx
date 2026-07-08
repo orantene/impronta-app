@@ -620,6 +620,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
             reviews={talentReviews}
             theme={reviewsTheme}
             heading=""
+            talentName={name}
           />
         </section>
       ) : null}

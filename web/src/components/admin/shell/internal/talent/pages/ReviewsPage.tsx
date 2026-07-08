@@ -21,10 +21,16 @@
 
 import { useEffect, useState } from "react";
 import { reportReviewAction } from "@/lib/reviews/review-actions";
-import { createReviewRequestAction } from "@/lib/reviews/review-request-actions";
+import {
+  createReviewRequestAction,
+  reviewsEnabledForTenantAction,
+} from "@/lib/reviews/review-request-actions";
 import {
   loadOwnerPrivateNoteThemesAction,
   loadOwnerReceivedReviewsAction,
+  loadReviewAnalyticsAction,
+  submitReviewReplyAction,
+  type ReviewAnalytics,
 } from "@/lib/reviews/review-owner-actions";
 import type { OwnerPrivateNote } from "@/lib/reviews/load-reviews";
 import type {
@@ -38,7 +44,7 @@ import {
   wouldBookAgainPhrase,
 } from "@/lib/reviews/craft-standing";
 import { StaticStars } from "@/components/reviews/star-rating";
-import { useAdminShell } from "../../state";
+import { COLORS, FONTS, RADIUS, useAdminShell } from "../../state";
 import { PageHeader } from "../shared/page-chrome-1";
 
 function formatDate(iso: string | null): string {
@@ -114,6 +120,79 @@ function StandingHeader({ summary }: { summary: TalentRatingSummary }) {
   );
 }
 
+// ─── Light reputation analytics (3-4 inline numbers, not a dashboard) ───────
+
+/**
+ * A compact inline stat strip under the reputation header: a couple of
+ * lifetime numbers a talent can read at a glance. Deliberately LIGHT — three
+ * small stats, no chart. Individual stats hide when their signal is null.
+ * Renders nothing if there's nothing meaningful to show yet.
+ */
+function AnalyticsStrip({ analytics }: { analytics: ReviewAnalytics }) {
+  const stats: { label: string; value: string }[] = [];
+
+  stats.push({
+    label: "Lifetime rating",
+    value:
+      analytics.ratingCount > 0 && analytics.lifetimeAvg != null
+        ? `${analytics.lifetimeAvg.toFixed(1)} (${analytics.ratingCount})`
+        : "—",
+  });
+
+  if (analytics.wouldBookAgainPct != null) {
+    stats.push({
+      label: "Would book again",
+      value: `${analytics.wouldBookAgainPct}%`,
+    });
+  }
+
+  if (analytics.responseRatePct != null) {
+    stats.push({
+      label: "Reviews per completed booking",
+      value: `${analytics.responseRatePct}%`,
+    });
+  }
+
+  if (stats.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 20,
+        padding: "12px 20px",
+        borderRadius: RADIUS.md,
+        border: `1px solid ${COLORS.borderSoft}`,
+        background: COLORS.surfaceAlt,
+        fontFamily: FONTS.body,
+      }}
+    >
+      {stats.map((s) => (
+        <div
+          key={s.label}
+          style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}
+        >
+          <span style={{ fontSize: 15, fontWeight: 700 }} className="text-admin-ink">
+            {s.value}
+          </span>
+          <span
+            style={{
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+            }}
+            className="text-admin-ink-muted"
+          >
+            {s.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Growth notes (private coaching, talent-only) ───────────────────────────
 
 /**
@@ -157,14 +236,28 @@ function GrowthNotesCard({ notes }: { notes: OwnerPrivateNote[] }) {
 
 // ─── A single received review with a Report action (no edit / delete) ───────
 
-type RowBusy = "report" | null;
+type RowBusy = "report" | "reply" | null;
 
 function ReceivedReviewRow({ review }: { review: TalentReview }) {
   const [busy, setBusy] = useState<RowBusy>(null);
   const [reported, setReported] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Reply-once. Seed from whatever the loader already returned, then track the
+  // just-submitted reply locally so the composer disappears on success without
+  // a reload.
+  const [reply, setReply] = useState<{ body: string; at: string | null }>(() =>
+    review.replyBody
+      ? { body: review.replyBody, at: review.replyAt }
+      : { body: "", at: null },
+  );
+  const [composing, setComposing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [replyError, setReplyError] = useState<string | null>(null);
+
   const hidden = review.status === "hidden";
+  const hasReply = reply.body.trim().length > 0;
+  const canSubmitReply = draft.trim().length > 0 && busy !== "reply";
 
   async function report() {
     setBusy("report");
@@ -174,6 +267,22 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
       setReported(true);
     } else {
       setError(res.error || "Could not report the review.");
+    }
+    setBusy(null);
+  }
+
+  async function submitReply() {
+    const body = draft.trim();
+    if (!body) return;
+    setBusy("reply");
+    setReplyError(null);
+    const res = await submitReviewReplyAction(review.id, body);
+    if (res.ok) {
+      setReply({ body, at: new Date().toISOString() });
+      setComposing(false);
+      setDraft("");
+    } else {
+      setReplyError(res.error || "Could not post your reply.");
     }
     setBusy(null);
   }
@@ -205,9 +314,135 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
         </div>
       )}
 
-      {error && <div className="text-admin-11h text-admin-red">{error}</div>}
+      {/* Your public reply — renders inline once posted (reply-once). */}
+      {hasReply && (
+        <div
+          style={{
+            marginTop: 2,
+            padding: "10px 12px",
+            borderRadius: RADIUS.sm,
+            borderLeft: `2px solid ${COLORS.accent}`,
+            background: COLORS.accentSoft,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700 }} className="text-admin-ink">
+              Your response
+            </span>
+            {reply.at && (
+              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
+                {formatDate(reply.at)}
+              </span>
+            )}
+          </div>
+          <span style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
+            {reply.body}
+          </span>
+        </div>
+      )}
 
-      <div className="flex items-center gap-[8px]">
+      {error && <div style={{ fontSize: 11.5, color: COLORS.red }}>{error}</div>}
+
+      {/* Public reply composer — only for a review that has no reply yet. */}
+      {!hasReply && composing && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 2 }}>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Thank the client or add helpful context. This reply is public on your profile."
+            disabled={busy === "reply"}
+            rows={3}
+            autoFocus
+            style={{
+              width: "100%",
+              padding: "9px 11px",
+              fontSize: 12.5,
+              lineHeight: 1.5,
+              borderRadius: RADIUS.sm,
+              border: `1px solid ${COLORS.border}`,
+              background: "#fff",
+              color: COLORS.ink,
+              fontFamily: FONTS.body,
+              resize: "vertical",
+              minHeight: 64,
+              boxSizing: "border-box",
+            }}
+          />
+          {replyError && (
+            <div style={{ fontSize: 11.5, color: COLORS.red }}>{replyError}</div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              type="button"
+              onClick={submitReply}
+              disabled={!canSubmitReply}
+              style={{
+                padding: "6px 14px",
+                fontSize: 11.5,
+                fontWeight: 700,
+                borderRadius: 7,
+                border: "none",
+                background: canSubmitReply ? COLORS.accent : COLORS.surfaceAlt,
+                color: canSubmitReply ? "#fff" : COLORS.inkDim,
+                cursor: canSubmitReply ? "pointer" : "not-allowed",
+                fontFamily: FONTS.body,
+              }}
+            >
+              {busy === "reply" ? "Posting…" : "Post reply"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setComposing(false);
+                setDraft("");
+                setReplyError(null);
+              }}
+              disabled={busy === "reply"}
+              style={{
+                padding: "6px 12px",
+                fontSize: 11.5,
+                fontWeight: 600,
+                borderRadius: 7,
+                border: `1px solid ${COLORS.border}`,
+                background: "#fff",
+                color: COLORS.inkMuted,
+                cursor: busy === "reply" ? "wait" : "pointer",
+                fontFamily: FONTS.body,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {/* Reply publicly — hidden once a reply exists or the composer is open. */}
+        {!hasReply && !composing && (
+          <button
+            type="button"
+            onClick={() => {
+              setComposing(true);
+              setReplyError(null);
+            }}
+            style={{
+              padding: "5px 11px",
+              fontSize: 11.5,
+              fontWeight: 600,
+              borderRadius: 7,
+              border: `1px solid ${COLORS.accentSoft}`,
+              background: COLORS.accentSoft,
+              color: COLORS.accentDeep,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+            }}
+          >
+            Reply publicly
+          </button>
+        )}
         {reported ? (
           <span className="text-admin-11h font-semibold text-admin-green">
             Reported. Staff will look into it.
@@ -369,17 +604,44 @@ export function ReviewsPage() {
     summary: TalentRatingSummary;
   } | null>(null);
   const [growthNotes, setGrowthNotes] = useState<OwnerPrivateNote[]>([]);
+  const [analytics, setAnalytics] = useState<ReviewAnalytics | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Reviews are a PREMIUM capability, gated on the workspace's entitlement.
+  // null = not yet resolved (avoid flashing the upsell); false = show upsell.
+  const [entitled, setEntitled] = useState<boolean | null>(null);
+
+  // Resolve the premium gate independently of the reviews load. Fails closed
+  // (false) so a non-entitled workspace sees the upsell, never the content.
+  useEffect(() => {
+    let cancelled = false;
+    if (!tenantSlug) {
+      setEntitled(false);
+      return;
+    }
+    setEntitled(null);
+    reviewsEnabledForTenantAction(tenantSlug)
+      .then((ok) => {
+        if (!cancelled) setEntitled(ok);
+      })
+      .catch(() => {
+        if (!cancelled) setEntitled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantSlug]);
 
   useEffect(() => {
     let cancelled = false;
     if (!talentId) {
       setData({ reviews: [], summary: { average: 0, count: 0 } });
       setGrowthNotes([]);
+      setAnalytics(null);
       return;
     }
     setData(null);
     setGrowthNotes([]);
+    setAnalytics(null);
     setLoadError(null);
     loadOwnerReceivedReviewsAction(talentId)
       .then((res) => {
@@ -397,6 +659,15 @@ export function ReviewsPage() {
       .catch(() => {
         if (!cancelled) setGrowthNotes([]);
       });
+    // Light reputation analytics load independently — fail closed so a failure
+    // never blocks the reviews list; the strip simply stays hidden.
+    loadReviewAnalyticsAction(talentId)
+      .then((res) => {
+        if (!cancelled) setAnalytics(res.ok ? res.data : null);
+      })
+      .catch(() => {
+        if (!cancelled) setAnalytics(null);
+      });
     return () => {
       cancelled = true;
     };
@@ -410,17 +681,57 @@ export function ReviewsPage() {
         subtitle="What clients say after working with you, and the standing they build."
       />
 
-      {loadError ? (
-        <div className="rounded-admin-md border border-admin-border-soft p-[16px] font-admin-body text-admin-13 text-admin-ink-muted">
+      {entitled === false ? (
+        <div
+          style={{
+            padding: 20,
+            borderRadius: RADIUS.lg,
+            border: `1px solid ${COLORS.border}`,
+            background: COLORS.card,
+            fontFamily: FONTS.body,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
+            Reviews are a premium feature on this workspace.
+          </span>
+          <span style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
+            Once it is enabled, client reviews and your public standing will
+            appear here.
+          </span>
+        </div>
+      ) : loadError ? (
+        <div
+          style={{
+            padding: 16,
+            borderRadius: RADIUS.md,
+            border: `1px solid ${COLORS.borderSoft}`,
+            fontFamily: FONTS.body,
+            fontSize: 13,
+          }}
+          className="text-admin-ink-muted"
+        >
           {loadError}
         </div>
-      ) : data === null ? (
-        <div className="p-[16px] font-admin-body text-admin-13 text-admin-ink-muted">
+      ) : data === null || entitled === null ? (
+        <div
+          style={{
+            padding: 16,
+            fontFamily: FONTS.body,
+            fontSize: 13,
+          }}
+          className="text-admin-ink-muted"
+        >
           Loading reviews…
         </div>
       ) : (
         <div className="flex flex-col gap-[16px] font-admin-body">
           <StandingHeader summary={data.summary} />
+
+          {/* Light reputation analytics. Renders nothing when unresolved/empty. */}
+          {analytics && <AnalyticsStrip analytics={analytics} />}
 
           {/* Private coaching notes, talent-only. Renders nothing when empty. */}
           <GrowthNotesCard notes={growthNotes} />
