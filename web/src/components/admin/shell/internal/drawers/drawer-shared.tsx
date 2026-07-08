@@ -4,6 +4,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
 import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import { addTalentToRoster, bulkAddTalentToRoster } from "../actions";
 import { parseTalentCsv } from "../csv-parser";
@@ -457,10 +458,11 @@ export const InquiryComposerLazyD = dynamic(
   { ssr: false },
 );
 
-export function useSaveAndClose(message = "Saved") {
+export function useSaveAndClose(message?: string) {
   const { closeDrawer, toast } = useAdminShell();
+  const t = useT();
   return () => {
-    toast(message);
+    toast(message ?? t("dashboard.adminDrawers.saved"));
     closeDrawer();
   };
 }
@@ -474,7 +476,7 @@ export function openSupportEmail(subject: string, body: string) {
 
 export function StandardFooter({
   onSave,
-  saveLabel = "Save",
+  saveLabel,
   destructive,
   disabled = false,
 }: {
@@ -486,6 +488,7 @@ export function StandardFooter({
   disabled?: boolean;
 }) {
   const { closeDrawer } = useAdminShell();
+  const t = useT();
   return (
     <>
       {destructive && (
@@ -505,10 +508,10 @@ export function StandardFooter({
           {destructive.label}
         </button>
       )}
-      <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+      <SecondaryButton onClick={closeDrawer}>{t("dashboard.adminDrawers.cancel")}</SecondaryButton>
       {onSave && (
         <PrimaryButton onClick={onSave} disabled={disabled}>
-          {saveLabel}
+          {saveLabel ?? t("dashboard.adminDrawers.save")}
         </PrimaryButton>
       )}
     </>
@@ -1847,6 +1850,7 @@ export function RequiredPill({
   // Phase E — workspace override may flip required-ness. Subscribe so
   // the pill re-renders when an admin changes settings.
   useWorkspaceFieldOverrideSubscription();
+  const t = useT();
   // Catalog wins for type-specific applicability; workspace override
   // wins on top for required-ness. Accepts either a single type id or
   // the multi-role array — required-ness is union'd across all roles.
@@ -1876,14 +1880,14 @@ export function RequiredPill({
     : catalogRequired !== null ? !catalogRequired
     : !!field.optional;
   return isOptional ? (
-    <span style={{ padding: "1px 6px", borderRadius: 999, background: "rgba(11,11,13,0.04)", fontSize: 9.5, fontWeight: 600, letterSpacing: 0.3 }} className="text-admin-ink-dim">OPTIONAL</span>
+    <span style={{ padding: "1px 6px", borderRadius: 999, background: "rgba(11,11,13,0.04)", fontSize: 9.5, fontWeight: 600, letterSpacing: 0.3 }} className="text-admin-ink-dim">{t("dashboard.adminDrawers.optional")}</span>
   ) : (
     <span style={{
       padding: "1px 6px", borderRadius: 999,
       background: "rgba(15,79,62,0.08)",
       color: COLORS.accentDeep ?? COLORS.accent,
       fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3,
-    }}>REQUIRED</span>
+    }}>{t("dashboard.adminDrawers.required")}</span>
   );
 }
 
@@ -2351,6 +2355,7 @@ export function ConfirmDialog({ title, body, confirmLabel, onConfirm, onCancel }
   title: string; body: string; confirmLabel: string;
   onConfirm: () => void; onCancel: () => void;
 }) {
+  const t = useT();
   return (
     <div onClick={onCancel} style={{
       position: "fixed", inset: 0, zIndex: 250,
@@ -2370,7 +2375,7 @@ export function ConfirmDialog({ title, body, confirmLabel, onConfirm, onCancel }
             padding: "9px 14px", borderRadius: 999,
             border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink,
             fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
-          }}>Cancel</button>
+          }}>{t("dashboard.adminDrawers.cancel")}</button>
           <button type="button" onClick={onConfirm} style={{
             padding: "9px 16px", borderRadius: 999, border: "none",
             background: COLORS.fill, color: "#fff",
@@ -2763,6 +2768,7 @@ export function ToggleControl({ value, onChange, label, disabled }: { value: boo
   // control (live-category-fields-editor.tsx) so a toggle reads the
   // same everywhere and the state is a literal word, not an inferred
   // switch position.
+  const t = useT();
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, opacity: disabled ? 0.55 : 1 }}>
       <button
@@ -2781,7 +2787,7 @@ export function ToggleControl({ value, onChange, label, disabled }: { value: boo
           color: value ? COLORS.ink : COLORS.inkMuted, flexShrink: 0,
         }}
       >
-        {value ? "Yes" : "No"}
+        {value ? t("dashboard.adminDrawers.yes") : t("dashboard.adminDrawers.no")}
         <span style={{
           width: 30, height: 18, borderRadius: 999,
           background: value ? COLORS.accent : "rgba(11,11,13,0.18)",
