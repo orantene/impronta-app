@@ -1204,6 +1204,7 @@ function ThreadPaneWithTabs({
           inquiryStatus={inq.status}
           hasOffer={!!details?.offer?.exists}
           details={details}
+          messages={messages}
           onTyping={setTyping}
           onSent={(msg) => onMessagesChange((prev) => [...prev, msg])}
           onReconcileSent={(tempId, realId) =>
@@ -1545,6 +1546,12 @@ function detectMentionPrefix(text: string, caretPos: number): string | null {
 
 // ─── Inline composer ─────────────────────────────────────────────────────
 
+/** Normalize a message/chip for dedupe: lowercase, collapse whitespace, drop
+ *  trailing punctuation so "Any update?" matches "any update". */
+function normalizeReply(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, " ").replace(/[.?!¿¡…]+$/u, "");
+}
+
 function ChatComposer({
   inquiryId,
   tenantSlug,
@@ -1552,6 +1559,7 @@ function ChatComposer({
   inquiryStatus,
   hasOffer,
   details,
+  messages,
   onTyping,
   onSent,
   onReconcileSent,
@@ -1562,6 +1570,10 @@ function ChatComposer({
   inquiryStatus?: string;
   hasOffer?: boolean;
   details?: ClientInquiryDetails | null;
+  /** Recent thread messages — used to suppress a smart-reply chip the client
+   *  already sent (chips are keyed off coarse status, so one can re-suggest a
+   *  message just sent via that same chip). */
+  messages?: WorkspaceMessage[];
   /** Ephemeral typing-presence beat. true on keystroke, false on send/blur. */
   onTyping?: (isTyping: boolean) => void;
   onSent: (msg: WorkspaceMessage) => void;
@@ -1673,40 +1685,48 @@ function ChatComposer({
   // sending). Hidden once the user has typed something.
   const smartReplies = useMemo(() => {
     if (body.trim().length > 0) return [];
-    switch (inquiryStatus) {
-      case "submitted":
-        return [
-          t("dashboard.clientMessages.smartThanksPickup"),
-          t("dashboard.clientMessages.smartAnyTalentUpdate"),
-          t("dashboard.clientMessages.smartHopCall"),
-        ];
-      case "coordination":
-        return hasOffer
-          ? [t("dashboard.clientMessages.smartLookingOffer"), t("dashboard.clientMessages.smartDateFlexibility")]
-          : [
-            t("dashboard.clientMessages.smartLookingProposal"),
+    const base: string[] = (() => {
+      switch (inquiryStatus) {
+        case "submitted":
+          return [
+            t("dashboard.clientMessages.smartThanksPickup"),
             t("dashboard.clientMessages.smartAnyTalentUpdate"),
-            t("dashboard.clientMessages.smartAdjustBudget"),
+            t("dashboard.clientMessages.smartHopCall"),
           ];
-      case "offer_pending":
-      case "offer_sent":
-        return [
-          t("dashboard.clientMessages.smartReviewGetBack"),
-          t("dashboard.clientMessages.smartAdjustRate"),
-          t("dashboard.clientMessages.smartCheckTeam"),
-        ];
-      case "approved":
-      case "booked":
-      case "converted":
-        return [
-          t("dashboard.clientMessages.smartLookingDay"),
-          t("dashboard.clientMessages.smartPrep"),
-          t("dashboard.clientMessages.smartTalentContact"),
-        ];
-      default:
-        return [];
-    }
-  }, [body, inquiryStatus, hasOffer, t]);
+        case "coordination":
+          return hasOffer
+            ? [t("dashboard.clientMessages.smartLookingOffer"), t("dashboard.clientMessages.smartDateFlexibility")]
+            : [
+              t("dashboard.clientMessages.smartLookingProposal"),
+              t("dashboard.clientMessages.smartAnyTalentUpdate"),
+              t("dashboard.clientMessages.smartAdjustBudget"),
+            ];
+        case "offer_pending":
+        case "offer_sent":
+          return [
+            t("dashboard.clientMessages.smartReviewGetBack"),
+            t("dashboard.clientMessages.smartAdjustRate"),
+            t("dashboard.clientMessages.smartCheckTeam"),
+          ];
+        case "approved":
+        case "booked":
+        case "converted":
+          return [
+            t("dashboard.clientMessages.smartLookingDay"),
+            t("dashboard.clientMessages.smartPrep"),
+            t("dashboard.clientMessages.smartTalentContact"),
+          ];
+        default:
+          return [];
+      }
+    })();
+    // Suppress any chip the client already sent (verbatim) — chips are keyed off
+    // coarse status, so without this a just-sent chip re-appears next render.
+    const alreadySent = new Set(
+      (messages ?? []).filter((m) => m.is_mine).slice(-8).map((m) => normalizeReply(m.body)),
+    );
+    return alreadySent.size === 0 ? base : base.filter((chip) => !alreadySent.has(normalizeReply(chip)));
+  }, [body, inquiryStatus, hasOffer, t, messages]);
 
   function submit() {
     const trimmed = body.trim();
