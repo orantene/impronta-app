@@ -4,6 +4,7 @@
 // displaying a short label. Shared across the Profile Fields hub tabs.
 
 import { useState } from "react";
+import { useT } from "@/i18n/use-t";
 
 const C = {
   inkDim: "rgba(245,242,235,0.38)",
@@ -15,6 +16,7 @@ const C = {
 const F = '"Inter", system-ui, sans-serif';
 
 export function CopyableId({ id, label }: { id: string; label?: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const text = label ?? `${id.slice(0, 8)}…`;
 
@@ -52,7 +54,7 @@ export function CopyableId({ id, label }: { id: string; label?: string }) {
       }}
     >
       <span style={{ fontFamily: F, display: "none" }} aria-hidden />
-      {copied ? "copied ✓" : text}
+      {copied ? t("dashboard.platform.catalog.copyableCopied") : text}
     </button>
   );
 }

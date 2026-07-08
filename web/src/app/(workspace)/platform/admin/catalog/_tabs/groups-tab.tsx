@@ -23,6 +23,10 @@ import {
 import { ConfirmSubmitButton } from "../confirm-submit-button";
 import { FieldGroupsReorderPanel } from "../groups/field-groups-reorder-panel";
 import { byLabel } from "@/lib/field-engine/sort-comparators";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+const K = "dashboard.platform.catalog";
 
 // ---------------------------------------------------------------------------
 // Data
@@ -205,7 +209,7 @@ const formGridStyle: React.CSSProperties = {
 // "+ New field group" collapsed form
 // ---------------------------------------------------------------------------
 
-function NewFieldGroupForm() {
+function NewFieldGroupForm({ t }: { t: Translate }) {
   return (
     <details
       className="hq-acc"
@@ -226,7 +230,7 @@ function NewFieldGroupForm() {
           padding: "10px 14px",
         }}
       >
-        + New field group
+        {t(`${K}.newFieldGroup`)}
       </summary>
       <div style={{ padding: "0 14px 14px" }}>
         <form
@@ -234,22 +238,22 @@ function NewFieldGroupForm() {
           style={{ display: "grid", gap: 10 }}
         >
           <div style={formGridStyle}>
-            <FieldInput label="Slug *" name="slug" placeholder="e.g. appearance" />
+            <FieldInput label={t(`${K}.fieldSlugRequired`)} name="slug" placeholder="e.g. appearance" />
             <FieldInput
-              label="Name EN *"
+              label={t(`${K}.fieldNameEnRequired`)}
               name="name_en"
               placeholder="e.g. Appearance"
             />
-            <FieldInput label="Name ES" name="name_es" />
+            <FieldInput label={t(`${K}.fieldNameEs`)} name="name_es" />
             <FieldInput
-              label="Sort order"
+              label={t(`${K}.fieldSortOrder`)}
               name="sort_order"
               type="number"
               placeholder="100"
             />
           </div>
           <div>
-            <SubmitButton>Create group</SubmitButton>
+            <SubmitButton>{t(`${K}.createGroup`)}</SubmitButton>
           </div>
         </form>
       </div>
@@ -261,7 +265,7 @@ function NewFieldGroupForm() {
 // Per-group inline edit card (rendered inside HqAccordion)
 // ---------------------------------------------------------------------------
 
-function GroupInlineEdit({ g }: { g: GroupListRow }) {
+function GroupInlineEdit({ g, t }: { g: GroupListRow; t: Translate }) {
   return (
     <div style={{ opacity: g.is_active ? 1 : 0.75 }}>
       {/* ID + slug line */}
@@ -274,7 +278,7 @@ function GroupInlineEdit({ g }: { g: GroupListRow }) {
           marginBottom: 10,
         }}
       >
-        <span style={monoStyle}>slug: {g.slug}</span>
+        <span style={monoStyle}>{interpolate(t(`${K}.groupSlugLine`), { slug: g.slug })}</span>
         <CopyableId id={g.id} />
       </div>
 
@@ -285,11 +289,11 @@ function GroupInlineEdit({ g }: { g: GroupListRow }) {
       >
         <input type="hidden" name="id" value={g.id} />
         <div style={formGridStyle}>
-          <FieldInput label="Name EN" name="name_en" defaultValue={g.name_en} />
-          <FieldInput label="Name ES" name="name_es" defaultValue={g.name_es} />
-          <FieldInput label="Slug" name="slug" defaultValue={g.slug} />
+          <FieldInput label={t(`${K}.fieldNameEn`)} name="name_en" defaultValue={g.name_en} />
+          <FieldInput label={t(`${K}.fieldNameEs`)} name="name_es" defaultValue={g.name_es} />
+          <FieldInput label={t(`${K}.fieldSlug`)} name="slug" defaultValue={g.slug} />
           <FieldInput
-            label="Sort order"
+            label={t(`${K}.fieldSortOrder`)}
             name="sort_order"
             type="number"
             defaultValue={g.sort_order}
@@ -297,13 +301,13 @@ function GroupInlineEdit({ g }: { g: GroupListRow }) {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, alignItems: "end" }}>
           <FieldTextarea
-            label="Description EN"
+            label={t(`${K}.fieldDescriptionEn`)}
             name="description_en"
             defaultValue={g.description_en}
             rows={2}
           />
           <FieldTextarea
-            label="Description ES"
+            label={t(`${K}.fieldDescriptionEs`)}
             name="description_es"
             defaultValue={g.description_es}
             rows={2}
@@ -317,8 +321,8 @@ function GroupInlineEdit({ g }: { g: GroupListRow }) {
             flexWrap: "wrap",
           }}
         >
-          <Check name="is_active" label="Active" defaultChecked={g.is_active} />
-          <SubmitButton>Save group</SubmitButton>
+          <Check name="is_active" label={t(`${K}.checkActive`)} defaultChecked={g.is_active} />
+          <SubmitButton>{t(`${K}.saveGroup`)}</SubmitButton>
         </div>
       </form>
 
@@ -340,13 +344,13 @@ function GroupInlineEdit({ g }: { g: GroupListRow }) {
             value={g.is_active ? "archive" : "restore"}
           />
           <SubmitButton tone={g.is_active ? "danger" : "primary"}>
-            {g.is_active ? "Archive group" : "Restore group"}
+            {g.is_active ? t(`${K}.archiveGroup`) : t(`${K}.restoreGroup`)}
           </SubmitButton>
         </form>
         <form action={deletePlatformFieldGroupAction}>
           <input type="hidden" name="id" value={g.id} />
-          <ConfirmSubmitButton message="Permanently delete this field group? Member fields are detached (not deleted). This cannot be undone.">
-            Permanently remove
+          <ConfirmSubmitButton message={t(`${K}.confirmDeleteGroup`)}>
+            {t(`${K}.permanentlyRemove`)}
           </ConfirmSubmitButton>
         </form>
       </div>
@@ -360,13 +364,13 @@ function GroupInlineEdit({ g }: { g: GroupListRow }) {
           fontWeight: 600,
         }}
       >
-        Fields ({g.field_count})
+        {interpolate(t(`${K}.groupFieldsCount`), { count: g.field_count })}
       </div>
       {g.fields.length === 0 ? (
         <div
           style={{ fontSize: 11, color: HQ.inkDim, padding: "4px 0" }}
         >
-          No fields in this group.
+          {t(`${K}.groupNoFields`)}
         </div>
       ) : (
         <div style={{ display: "grid", gap: 4 }}>
@@ -410,11 +414,12 @@ function GroupInlineEdit({ g }: { g: GroupListRow }) {
             marginTop: 10,
           }}
         >
-          Mapped types:{" "}
-          {g.mapped_talent_types.slice(0, 8).join(" · ")}
           {g.mapped_talent_types.length > 8
-            ? ` +${g.mapped_talent_types.length - 8} more`
-            : ""}
+            ? interpolate(t(`${K}.mappedTypesMore`), {
+                types: interpolate(t(`${K}.mappedTypes`), { types: g.mapped_talent_types.slice(0, 8).join(" · ") }),
+                count: g.mapped_talent_types.length - 8,
+              })
+            : interpolate(t(`${K}.mappedTypes`), { types: g.mapped_talent_types.join(" · ") })}
         </div>
       )}
     </div>
@@ -427,18 +432,19 @@ function GroupInlineEdit({ g }: { g: GroupListRow }) {
 
 export async function GroupsTab({
   sp,
+  t,
 }: {
   sp: Record<string, string | undefined>;
+  t: Translate;
 }) {
   const groups = await loadGroupList();
 
   if (groups === null) {
     return (
-      <HqCard title="Field Groups">
+      <HqCard title={t(`${K}.groupsUnavailableTitle`)}>
         <SaveNotice saved={sp.saved} error={sp.error} />
         <div style={{ fontSize: 13, color: HQ.inkMuted }}>
-          Could not load field groups (service client unavailable or query
-          failed). Retry shortly.
+          {t(`${K}.groupsUnavailableBody`)}
         </div>
       </HqCard>
     );
@@ -446,7 +452,7 @@ export async function GroupsTab({
 
   const activeGroups = groups.filter((g) => g.is_active);
   const archivedGroups = groups.filter((g) => !g.is_active);
-  const totalFields = groups.reduce((s, g) => s + g.field_count, 0);
+  const totalFields = groups.reduce((sum, g) => sum + g.field_count, 0);
 
   return (
     <div>
@@ -457,12 +463,12 @@ export async function GroupsTab({
         style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}
       >
         <Stat
-          label="Groups active/total"
+          label={t(`${K}.statGroupsActiveTotal`)}
           value={`${activeGroups.length}/${groups.length}`}
         />
-        <Stat label="Total fields" value={totalFields} />
+        <Stat label={t(`${K}.statTotalFields`)} value={totalFields} />
         <Stat
-          label="Archived groups"
+          label={t(`${K}.statArchivedGroups`)}
           value={archivedGroups.length}
           tone={archivedGroups.length > 0 ? HQ.amber : undefined}
         />
@@ -470,12 +476,10 @@ export async function GroupsTab({
 
       {groups.length === 0 ? (
         <>
-          <NewFieldGroupForm />
-          <HqCard title="No groups yet">
+          <NewFieldGroupForm t={t} />
+          <HqCard title={t(`${K}.groupsNoneTitle`)}>
             <div style={{ fontSize: 12.5, color: HQ.inkMuted }}>
-              Create your first field group using the form above. Groups
-              organise profile fields into logical sections for the engine and
-              the talent editor.
+              {t(`${K}.groupsNoneBody`)}
             </div>
           </HqCard>
         </>
@@ -491,19 +495,19 @@ export async function GroupsTab({
         >
           {/* LEFT — new group form + group edit accordions */}
           <div style={{ minWidth: 0 }}>
-            <NewFieldGroupForm />
+            <NewFieldGroupForm t={t} />
 
             {groups.map((g) => (
               <HqAccordion
                 key={g.id}
                 title={g.name_en}
-                meta={`slug: ${g.slug} · ${g.field_count} field${g.field_count === 1 ? "" : "s"} · #${g.sort_order}`}
+                meta={interpolate(t(`${K}.${g.field_count === 1 ? "groupMetaOne" : "groupMetaMany"}`), { slug: g.slug, count: g.field_count, order: g.sort_order })}
                 badge={{
-                  text: g.is_active ? "active" : "archived",
+                  text: g.is_active ? t(`${K}.badgeActive`) : t(`${K}.badgeArchived`),
                   tone: g.is_active ? HQ.green : HQ.red,
                 }}
               >
-                <GroupInlineEdit g={g} />
+                <GroupInlineEdit g={g} t={t} />
               </HqAccordion>
             ))}
           </div>
@@ -512,8 +516,8 @@ export async function GroupsTab({
           <div style={{ position: "sticky", top: 12, minWidth: 0 }}>
             {groups.length >= 2 ? (
               <HqCard
-                title="Group order"
-                subtitle="Drag to set the platform default group order."
+                title={t(`${K}.groupOrderTitle`)}
+                subtitle={t(`${K}.groupOrderSubtitle`)}
               >
                 <FieldGroupsReorderPanel
                   groups={groups.map((g) => ({
