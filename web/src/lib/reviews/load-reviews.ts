@@ -430,7 +430,11 @@ type PrivateNoteRow = {
 
 /**
  * Recent non-empty `private_note` values on the talent's OWN received reviews,
- * newest first. Owner-scoped by RLS. Returns [] when none (or unconfigured).
+ * newest first. private_note is column-privilege protected (migration
+ * 20261110070000): anon + authenticated cannot SELECT it at all, so this read
+ * runs on the SERVICE-ROLE client AFTER an explicit ownership check — the
+ * authed caller must be the profile's owner (owner-only by contract: the UI
+ * promises "Only you can see these"). Returns [] when none (or unauthorized).
  */
 export async function loadOwnerPrivateNoteThemes(
   talentProfileId: string,
@@ -440,7 +444,24 @@ export async function loadOwnerPrivateNoteThemes(
   const supabase = await getCachedServerSupabase();
   if (!supabase) return [];
 
-  const { data, error } = await supabase
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const svc = createServiceRoleClient();
+  if (!svc) return [];
+
+  // Ownership check — the caller must be the subject talent.
+  const { data: profileRow } = await svc
+    .from("talent_profiles")
+    .select("user_id")
+    .eq("id", talentProfileId)
+    .returns<{ user_id: string | null }[]>()
+    .maybeSingle();
+  if (!profileRow?.user_id || profileRow.user_id !== user.id) return [];
+
+  const { data, error } = await svc
     .from("talent_reviews")
     .select("id, private_note, created_at")
     .eq("talent_profile_id", talentProfileId)
