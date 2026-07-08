@@ -68,8 +68,8 @@ export interface BuilderNodeStyleValue {
   marginTop?: "none" | "s" | "m" | "l";
   marginBottom?: "none" | "s" | "m" | "l";
   paddingX?: "none" | "s" | "m" | "l";
-  paddingY?: "none" | "s" | "m" | "l";
-  background?: "none" | "surface" | "contrast";
+  paddingY?: "none" | "s" | "m" | "l" | "xl";
+  background?: "none" | "surface" | "contrast" | "accent" | "muted";
   radius?: "none" | "sm" | "md" | "lg" | "pill";
   objectFit?: "cover" | "contain";
   // Focal point for cropped images (object-fit:cover). Free CSS object-position

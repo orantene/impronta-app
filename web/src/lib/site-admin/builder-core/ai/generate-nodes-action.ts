@@ -30,6 +30,7 @@ import {
   generateBuilderNodes,
   type GenerateScope,
   type ModelGenerateFn,
+  type ModelGenerateReason,
 } from "./generate-nodes";
 import { composePageFromBrief, type TextToPageSurface } from "./text-to-page";
 import {
@@ -76,13 +77,14 @@ function buildModelGenerator(
   scope: GenerateScope,
   model: GenerationModelId,
 ): ModelGenerateFn {
-  return async ({ systemPrompt, userMessage, jsonSchema, maxTokens }) => {
+  return async ({ systemPrompt, userMessage, jsonSchema, maxTokens, repairNote }) => {
     const startedAt = Date.now();
     try {
       const adapter = await resolveAiChatAdapter();
       const result = await adapter.chatCompletion({
         systemPrompt,
-        userMessage,
+        // AIQ-21 — the corrective retry appends a failure-specific repair note.
+        userMessage: repairNote ? `${userMessage}\n\n${repairNote}` : userMessage,
         jsonSchema,
         maxTokens,
         model,
@@ -90,6 +92,9 @@ function buildModelGenerator(
         // composition; no-ops on providers/models that don't support it. Thinking
         // tokens count toward maxTokens (see GEN_MAX_TOKENS headroom).
         thinking: true,
+        // AIQ-14 — run the taste/structure-sensitive generation at max reasoning
+        // depth (gated to the adaptive family inside the adapter).
+        effort: "xhigh",
       });
       void recordAiGenerationUsage({
         provider: adapter.id,
@@ -100,10 +105,19 @@ function buildModelGenerator(
         scope,
         latencyMs: Date.now() - startedAt,
       });
-      return result.ok ? result.text : null;
+      if (result.ok) {
+        // Surface truncation so the orchestrator can raise the cap + retry (AIQ-15).
+        return { text: result.text, reason: result.stopReason === "max_tokens" ? "truncated" : "ok" };
+      }
+      const reason: ModelGenerateReason =
+        result.code === "truncated" ? "truncated"
+        : result.code === "refusal" ? "refusal"
+        : result.code === "empty_response" ? "empty"
+        : "error";
+      return { text: null, reason };
     } catch (err) {
       logServerError("ai-generate-nodes/model", err);
-      return null;
+      return { text: null, reason: "error" };
     }
   };
 }
@@ -155,6 +169,12 @@ export async function generateBuilderNodesAction(input: {
     const generated = await generateBuilderNodes({
       brief: input.brief,
       scope: input.scope,
+      // Copy is written in the surface's locale (AIQ-3).
+      locale: input.locale,
+      // themePolarity/palette (AIQ-12) are intentionally unset here: this action
+      // holds no tenant handle and there is no ready live-branding reader, so
+      // resolving the tenant's active theme polarity is a separate, verified
+      // follow-up. Unset preserves the exact "polarity unknown" prompt wording.
       // actor_profile_id FKs to profiles.id, which equals the auth user id in
       // this schema (every other actor_profile_id writer passes session.user.id).
       generateWithModel: buildModelGenerator(auth.user.id, input.scope, model),
