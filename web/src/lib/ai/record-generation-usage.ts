@@ -1,6 +1,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import { estimateCostUsd } from "@/lib/ai/ai-model-costs";
+import { recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
 import { logServerError } from "@/lib/server/safe-error";
 import type { AiUsage } from "@/lib/ai/provider";
 
@@ -44,6 +45,12 @@ export async function recordAiGenerationUsage(input: {
         cost_usd: costUsd,
       },
     });
+    // Also roll the spend into ai_usage_monthly so the tenant spend-cap gate
+    // (assertAiInvocationAllowed) sees this generation. Only successful, costed
+    // calls count. min 1 cent so a near-zero call still registers a request.
+    if (input.ok && costUsd > 0) {
+      await recordAiUsageEstimate(DEFAULT_AI_TENANT_ID, Math.max(1, Math.round(costUsd * 100)));
+    }
   } catch (err) {
     logServerError("ai-generate-nodes/record-usage", err);
   }

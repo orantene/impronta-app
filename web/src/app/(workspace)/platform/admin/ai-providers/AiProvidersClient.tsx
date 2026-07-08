@@ -10,13 +10,21 @@
 
 import { useState, useTransition } from "react";
 
-import { saveAiProviderKeyAction, setAiProviderActiveAction } from "./actions";
+import {
+  saveAiProviderKeyAction,
+  setAiGenerationModelAction,
+  setAiProviderActiveAction,
+  setAiSpendCapAction,
+} from "./actions";
 import type {
   AiUsageSummary,
   PlatformAiProviderState,
   ProviderConfigKind,
   ProviderRow,
+  TenantSpendStatus,
 } from "@/lib/ai/ai-provider-admin";
+
+type ModelOption = { id: string; label: string; hint: string };
 
 const HQ = {
   bg: "#0f0f12",
@@ -63,11 +71,19 @@ function compact(n: number): string {
 export function AiProvidersClient({
   state,
   usage,
+  spend,
+  modelOptions,
 }: {
   state: PlatformAiProviderState;
   usage: AiUsageSummary;
+  spend: TenantSpendStatus;
+  modelOptions: ModelOption[];
 }) {
   const byKind = new Map(state.providers.map((p) => [p.kind, p] as const));
+  const overWarn =
+    spend.capCents != null &&
+    spend.warnThresholdPercent != null &&
+    spend.percentUsed >= spend.warnThresholdPercent;
 
   return (
     <div style={{ minHeight: "100%", background: HQ.bg, color: HQ.ink, padding: "28px 32px 64px" }}>
@@ -113,6 +129,13 @@ export function AiProvidersClient({
             active provider.
           </Banner>
         ) : null}
+        {overWarn ? (
+          <Banner tone="warn">
+            <strong>AI spend at {spend.percentUsed}% of the monthly cap.</strong>{" "}
+            {money(spend.currentSpendCents / 100)} of {money((spend.capCents ?? 0) / 100)} used this
+            month. {spend.hardStop ? "Generation is blocked once the cap is reached." : "Generation continues past the cap (warn-only)."}
+          </Banner>
+        ) : null}
 
         {/* Provider cards */}
         <section style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 6 }}>
@@ -120,6 +143,12 @@ export function AiProvidersClient({
             <ProviderCard key={p.kind} def={p} row={byKind.get(p.kind)} />
           ))}
         </section>
+
+        {/* Generation model picker */}
+        <GenerationModelCard current={state.generationModel} options={modelOptions} />
+
+        {/* Monthly spend cap */}
+        <SpendCapCard spend={spend} />
 
         {/* Usage */}
         <UsagePanel usage={usage} />
@@ -345,6 +374,211 @@ function Pill({ tone, children }: { tone: "green" | "muted" | "faint"; children:
     >
       {children}
     </span>
+  );
+}
+
+function GenerationModelCard({
+  current,
+  options,
+}: {
+  current: string;
+  options: ModelOption[];
+}) {
+  const [selected, setSelected] = useState(current);
+  const [error, setError] = useState<string | null>(null);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function choose(id: string) {
+    if (id === selected || pending) return;
+    const prev = selected;
+    setSelected(id); // optimistic
+    setError(null);
+    setOkMsg(null);
+    startTransition(async () => {
+      const r = await setAiGenerationModelAction({ model: id });
+      if (r.ok) {
+        setOkMsg("Saved.");
+      } else {
+        setSelected(prev);
+        setError(r.error);
+      }
+    });
+  }
+
+  return (
+    <section style={{ marginTop: 14 }}>
+      <div style={{ background: HQ.card, border: `1px solid ${HQ.border}`, borderRadius: 14, padding: 16 }}>
+        <div style={{ fontSize: 15, fontWeight: 650 }}>Generation model</div>
+        <div style={{ fontSize: 12, color: HQ.inkMuted, marginTop: 4 }}>
+          Which Claude model the AI page builder composes with. Applies to every generation.
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 10,
+            marginTop: 12,
+          }}
+        >
+          {options.map((o) => {
+            const isSel = o.id === selected;
+            return (
+              <button
+                key={o.id}
+                type="button"
+                disabled={pending}
+                onClick={() => choose(o.id)}
+                style={{
+                  textAlign: "left",
+                  cursor: pending ? "default" : "pointer",
+                  background: isSel ? HQ.accentSoft : HQ.cardHi,
+                  border: `1px solid ${isSel ? "rgba(139,92,246,0.55)" : HQ.border}`,
+                  borderRadius: 10,
+                  padding: "11px 13px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 650, color: isSel ? HQ.accent : HQ.ink }}>
+                    {o.label}
+                  </span>
+                  {isSel ? <Pill tone="green">Active</Pill> : null}
+                </div>
+                <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 4, lineHeight: 1.45 }}>
+                  {o.hint}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        {error ? (
+          <div style={{ fontSize: 12, color: HQ.rose, marginTop: 8 }}>{error}</div>
+        ) : okMsg ? (
+          <div style={{ fontSize: 12, color: HQ.green, marginTop: 8 }}>{okMsg}</div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function SpendCapCard({ spend }: { spend: TenantSpendStatus }) {
+  const [capDollars, setCapDollars] = useState(
+    spend.capCents != null ? String(spend.capCents / 100) : "",
+  );
+  const [warnPct, setWarnPct] = useState(
+    spend.warnThresholdPercent != null ? String(spend.warnThresholdPercent) : "",
+  );
+  const [hardStop, setHardStop] = useState(spend.hardStop);
+  const [error, setError] = useState<string | null>(null);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    fontSize: 13,
+    padding: "8px 10px",
+    borderRadius: 8,
+    background: HQ.cardHi,
+    border: `1px solid ${HQ.border}`,
+    color: HQ.ink,
+    outline: "none",
+  };
+
+  function save() {
+    setError(null);
+    setOkMsg(null);
+    const capTrim = capDollars.trim();
+    const capCents = capTrim === "" ? null : Math.round(Number(capTrim) * 100);
+    if (capCents != null && (!Number.isFinite(capCents) || capCents < 0)) {
+      setError("Enter a valid cap amount.");
+      return;
+    }
+    const warnTrim = warnPct.trim();
+    const warn = warnTrim === "" ? null : Math.round(Number(warnTrim));
+    if (warn != null && (!Number.isFinite(warn) || warn < 1 || warn > 100)) {
+      setError("Warn threshold must be 1-100.");
+      return;
+    }
+    startTransition(async () => {
+      const r = await setAiSpendCapAction({ capCents, warnThresholdPercent: warn, hardStop });
+      if (r.ok) setOkMsg("Saved.");
+      else setError(r.error);
+    });
+  }
+
+  const pct = Math.min(100, spend.percentUsed);
+  const barColor = spend.percentUsed >= 90 ? HQ.rose : spend.percentUsed >= 60 ? HQ.amber : HQ.green;
+
+  return (
+    <section style={{ marginTop: 14 }}>
+      <div style={{ background: HQ.card, border: `1px solid ${HQ.border}`, borderRadius: 14, padding: 16 }}>
+        <div style={{ fontSize: 15, fontWeight: 650 }}>Monthly spend cap</div>
+        <div style={{ fontSize: 12, color: HQ.inkMuted, marginTop: 4 }}>
+          A guardrail on AI page-builder spend. With hard-stop on, generation is blocked once the cap
+          is reached this month.
+        </div>
+
+        {spend.capCents != null ? (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: HQ.inkMuted }}>
+              <span>{money(spend.currentSpendCents / 100)} spent</span>
+              <span>
+                {money(spend.capCents / 100)} cap · {spend.percentUsed}%
+              </span>
+            </div>
+            <div style={{ height: 8, borderRadius: 999, background: HQ.cardHi, marginTop: 6, overflow: "hidden" }}>
+              <div style={{ width: `${pct}%`, height: "100%", background: barColor }} />
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginTop: 10, fontSize: 12, color: HQ.inkFaint }}>
+            No cap set — AI spend is unlimited.
+          </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
+          <label style={{ fontSize: 11, color: HQ.inkFaint }}>
+            <span style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>Monthly cap (USD)</span>
+            <input value={capDollars} onChange={(e) => setCapDollars(e.target.value)} placeholder="e.g. 100 (blank = none)" inputMode="decimal" style={{ ...inputStyle, marginTop: 5 }} />
+          </label>
+          <label style={{ fontSize: 11, color: HQ.inkFaint }}>
+            <span style={{ textTransform: "uppercase", letterSpacing: "0.08em" }}>Warn at (%)</span>
+            <input value={warnPct} onChange={(e) => setWarnPct(e.target.value)} placeholder="e.g. 80" inputMode="numeric" style={{ ...inputStyle, marginTop: 5 }} />
+          </label>
+        </div>
+
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 12.5, color: HQ.inkMuted, cursor: "pointer" }}>
+          <input type="checkbox" checked={hardStop} onChange={(e) => setHardStop(e.target.checked)} />
+          Hard-stop generation when the cap is reached
+        </label>
+
+        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={save}
+            style={{
+              fontSize: 13,
+              fontWeight: 650,
+              padding: "8px 16px",
+              borderRadius: 9,
+              cursor: pending ? "default" : "pointer",
+              border: "none",
+              background: HQ.accent,
+              color: "#fff",
+              opacity: pending ? 0.6 : 1,
+            }}
+          >
+            {pending ? "Saving…" : "Save cap"}
+          </button>
+          {error ? (
+            <span style={{ fontSize: 12, color: HQ.rose }}>{error}</span>
+          ) : okMsg ? (
+            <span style={{ fontSize: 12, color: HQ.green }}>{okMsg}</span>
+          ) : null}
+        </div>
+      </div>
+    </section>
   );
 }
 

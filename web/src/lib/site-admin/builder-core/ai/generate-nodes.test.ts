@@ -214,6 +214,208 @@ test("coerce hardens hostile model output into a valid tree", () => {
   }
 });
 
+test("a token-width content column is centered (margin-inline auto), full is not", () => {
+  const tree = coerceToSections({
+    sections: [
+      {
+        kind: "section",
+        label: "Hero",
+        children: [
+          // reading-width column → must center in its full-bleed parent
+          {
+            kind: "container",
+            props: { layout: "stack", style: { maxWidth: "reading", paddingY: "l" } },
+            children: [{ kind: "heading", props: { text: "Centered hero", level: 1 } }],
+          },
+          // full-width column → must NOT get centering escapes (it already spans)
+          {
+            kind: "container",
+            props: { layout: "grid", columns: 3, style: { maxWidth: "full" } },
+            children: [{ kind: "paragraph", props: { text: "row" } }],
+          },
+        ],
+      },
+    ],
+  });
+  const validation = validateBuilderNodeTree(tree);
+  assert.equal(validation.ok, true, "centered tree must still validate");
+
+  const containers = collectNodes(validation.tree).filter((n) => n.kind === "container");
+  const reading = containers.find(
+    (n) => (n.props as { style?: { maxWidth?: string } }).style?.maxWidth === "reading",
+  );
+  const full = containers.find(
+    (n) => (n.props as { style?: { maxWidth?: string } }).style?.maxWidth === "full",
+  );
+  assert.ok(reading, "reading-width container survived");
+  assert.ok(full, "full-width container survived");
+
+  const rs = (reading!.props as unknown as { style: Record<string, unknown> }).style;
+  assert.equal(rs.marginLeftFree, "auto");
+  assert.equal(rs.marginRightFree, "auto");
+  assert.equal(rs.width, "100%");
+
+  const fs = (full!.props as unknown as { style: Record<string, unknown> }).style;
+  assert.equal(fs.marginLeftFree, undefined, "full width must not be centered");
+  assert.equal(fs.width, undefined);
+});
+
+test("color safety: contrast band dropped, orphan color dropped, paired colors kept", () => {
+  const tree = coerceToSections({
+    sections: [
+      {
+        kind: "section",
+        label: "Bands",
+        children: [
+          // theme-relative "contrast" band + hardcoded light text = the live
+          // unreadable case → background token dropped, orphan textColor dropped.
+          {
+            kind: "container",
+            props: { layout: "stack", style: { background: "contrast", textColor: "#f3ece0" } },
+            children: [{ kind: "heading", props: { text: "Orphan light text", level: 2, style: { textColor: "#f3ece0" } } }],
+          },
+          // self-consistent hex PAIR on one block → kept (readable on any theme).
+          {
+            kind: "container",
+            props: { layout: "stack", style: { backgroundColor: "#15120e", textColor: "#f3ece0" } },
+            children: [{ kind: "paragraph", props: { text: "Paired band copy" } }],
+          },
+        ],
+      },
+    ],
+  });
+  const validation = validateBuilderNodeTree(tree);
+  assert.equal(validation.ok, true);
+
+  const containers = collectNodes(validation.tree).filter((n) => n.kind === "container");
+  // First container: background token gone, orphan textColor gone.
+  const bandA = containers[0]!.props as { style?: Record<string, unknown> };
+  assert.equal(bandA.style?.background, undefined, "theme-relative contrast band must be dropped");
+  assert.equal(bandA.style?.textColor, undefined, "orphan text color must be dropped");
+  // The heading child's orphan textColor is also dropped (inherits the theme).
+  const heading = collectNodes(validation.tree).find((n) => n.kind === "heading");
+  assert.equal((heading!.props as { style?: Record<string, unknown> }).style?.textColor, undefined);
+
+  // Second container: the self-consistent pair survives intact.
+  const bandB = containers[1]!.props as { style?: Record<string, unknown> };
+  assert.equal(bandB.style?.backgroundColor, "#15120e");
+  assert.equal(bandB.style?.textColor, "#f3ece0");
+});
+
+test("richer kinds: accordion + items coerce to a valid, editable subtree", () => {
+  const tree = coerceToSections({
+    sections: [
+      {
+        kind: "section",
+        label: "FAQ",
+        children: [
+          {
+            kind: "accordion",
+            // model-supplied defaultOpenItemIds must NOT survive (it would orphan)
+            props: { allowMultiple: false, defaultOpenItemIds: ["item-1"] },
+            children: [
+              { kind: "accordion_item", props: { title: "Do you travel?" }, children: [{ kind: "paragraph", props: { text: "Across the peninsula and beyond." } }] },
+              { kind: "accordion_item", props: { title: "How do bookings work?" }, children: [{ kind: "paragraph", props: { text: "A founder handles every booking." } }] },
+              // an accordion_item with no title is dropped
+              { kind: "accordion_item", props: {}, children: [{ kind: "paragraph", props: { text: "orphan" } }] },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  const validation = validateBuilderNodeTree(tree);
+  assert.equal(validation.ok, true, "accordion tree must validate");
+  const nodes = collectNodes(validation.tree);
+  const accordion = nodes.find((n) => n.kind === "accordion");
+  assert.ok(accordion, "accordion survived");
+  assert.equal((accordion!.props as { defaultOpenItemIds?: unknown }).defaultOpenItemIds, undefined, "id-referential field must be dropped");
+  const items = nodes.filter((n) => n.kind === "accordion_item");
+  assert.equal(items.length, 2, "the titled items survive, the untitled one is dropped");
+});
+
+test("richer kinds: form coerces to unique-id fields and drops bad types", () => {
+  const tree = coerceToSections({
+    sections: [
+      {
+        kind: "section",
+        label: "Contact",
+        children: [
+          {
+            kind: "form",
+            props: {
+              method: "post",
+              fields: [
+                { name: "name", type: "text", label: "Your name" },
+                { name: "name", type: "email", label: "Email" }, // duplicate name → de-duped
+                { type: "sql", label: "Injection" }, // invalid type → dropped
+                { name: "send", type: "submit", label: "Send inquiry" },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  });
+  const validation = validateBuilderNodeTree(tree);
+  assert.equal(validation.ok, true, "form tree must validate");
+  const form = collectNodes(validation.tree).find((n) => n.kind === "form");
+  assert.ok(form, "form survived");
+  const fields = (form!.props as { fields: Array<{ id: string; name: string; type: string }> }).fields;
+  assert.equal(fields.length, 3, "3 valid fields (bad type dropped)");
+  assert.equal(new Set(fields.map((f) => f.id)).size, 3, "field ids are unique");
+  assert.equal(new Set(fields.map((f) => f.name)).size, 3, "field names are unique");
+  assert.ok(fields.some((f) => f.type === "submit"), "submit field present");
+});
+
+test("richer kinds: pricing_table keeps 2-4 valid tiers, drops when under-filled", () => {
+  const ok = coerceToSections({
+    sections: [
+      {
+        kind: "section",
+        label: "Pricing",
+        children: [
+          {
+            kind: "pricing_table",
+            props: {
+              tiers: [
+                { name: "Starter", price: "$29", period: "month", features: [{ label: "1 shoot", included: true }] },
+                { name: "Pro", price: "$79", period: "month", highlighted: true, ctaHref: "javascript:alert(1)" },
+                { name: "No price" }, // missing price → dropped
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  });
+  const okValidation = validateBuilderNodeTree(ok);
+  assert.equal(okValidation.ok, true);
+  const table = collectNodes(okValidation.tree).find((n) => n.kind === "pricing_table");
+  assert.ok(table, "pricing_table survived");
+  const tiers = (table!.props as { tiers: Array<{ id: string; ctaHref?: string }> }).tiers;
+  assert.equal(tiers.length, 2, "only the 2 priced tiers survive");
+  assert.equal(new Set(tiers.map((t) => t.id)).size, 2, "tier ids unique");
+  for (const t of tiers) {
+    if (t.ctaHref) assert.ok(!/^javascript:/i.test(t.ctaHref), "dangerous ctaHref neutralized");
+  }
+
+  // A pricing_table that can't reach 2 valid tiers is dropped entirely.
+  const under = coerceToSections({
+    sections: [
+      {
+        kind: "section",
+        label: "Pricing",
+        children: [
+          { kind: "pricing_table", props: { tiers: [{ name: "Only one", price: "$10" }] } },
+          { kind: "paragraph", props: { text: "keeps the section alive" } },
+        ],
+      },
+    ],
+  });
+  assert.equal(collectNodes(validateBuilderNodeTree(under).tree).some((n) => n.kind === "pricing_table"), false, "under-filled pricing_table dropped");
+});
+
 test("empty model output resolves to EMPTY (caller falls back)", async () => {
   const result = await generateBuilderNodes({
     brief: "a homepage",

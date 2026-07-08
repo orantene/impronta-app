@@ -78,7 +78,11 @@ const BUTTON_LABEL_MAX = 80;
 const HREF_MAX = 500;
 const ALT_MAX = 240;
 const LABEL_MAX = 120;
-const GEN_MAX_TOKENS = 8000;
+// Headroom for adaptive thinking: thinking tokens + the JSON output both count
+// toward this cap. A full page is ~2-3k output tokens; the extra budget lets the
+// model think without truncating the JSON. Still safe non-streaming (< the ~16k
+// where SDK HTTP timeouts start to matter).
+const GEN_MAX_TOKENS = 16000;
 
 // ── Prompt ────────────────────────────────────────────────────────────────
 
@@ -127,23 +131,28 @@ export function buildGenerationSystemPrompt(): string {
     `- icon       props:{icon:${GENERATION_ICON_NAMES.map((n) => `"${n}"`).join("|")}, size:"sm"|"md"|"lg"|"xl"}.`,
     '- divider    props:{tone:"default"|"muted"}.',
     '- spacer     props:{size:"s"|"m"|"l"}.',
+    '- accordion  props:{allowMultiple:true|false}  children:[accordion_item, ...]. A stack of expandable rows — perfect for an FAQ. Do not try to set an open-by-default row.',
+    '- accordion_item  props:{title:"A real question?"}  children:[paragraph, ...]. One row of an accordion; title is the always-visible header, children are the revealed answer. Only valid inside an accordion.',
+    '- form       props:{method:"post", fields:[{name:"email", type:"email"|"text"|"tel"|"textarea"|"submit", label:"...", placeholder:"...", required:true}, ...]}. Use for a contact / inquiry section. 2-6 fields, ending with one type:"submit" field. No children.',
+    '- pricing_table  props:{tiers:[{name:"...", price:"$49", period:"month", description:"...", highlighted:true, features:[{label:"...", included:true}], ctaLabel:"Choose", ctaHref:"/inquire"}, ...]}. 2-4 tiers; mark the recommended one highlighted:true. Prices are strings ("$49" or "Custom"). No children.',
     "",
     "OPTIONAL style object on any block's props (all keys optional — omit unless it earns its place). Only these keys/values survive; anything else is dropped, so do not invent CSS:",
     '  align:"left"|"center"|"right"',
     '  size:"sm"|"md"|"lg"|"xl"|"display"      (heading scale)',
     '  maxWidth:"narrow"|"reading"|"wide"|"full"',
     '  paddingX,paddingY,marginTop,marginBottom: "none"|"s"|"m"|"l"',
-    '  background:"none"|"surface"|"contrast"   (contrast = dark band)',
+    '  background:"none"|"surface"   (surface = a subtle theme-paired raised panel)',
     '  radius:"none"|"sm"|"md"|"lg"|"pill"',
     '  textColor,backgroundColor: a short CSS color — hex like "#1a1a1a" or a keyword, under ~40 chars',
     "  fontWeight: 100-900",
     '  textTransform:"none"|"uppercase"|"lowercase"|"capitalize"   fontStyle:"normal"|"italic"   tone:"default"|"muted"|"strong"',
     '  objectFit:"cover"|"contain"   aspectRatio:"auto"|"1:1"|"4:3"|"3:4"|"16:9"|"21:9"',
     "",
-    'COLOR: default to a warm editorial palette. For a dark band use background:"contrast" (or backgroundColor near "#15120e") with light text (textColor near "#f3ece0"). Cream surfaces use backgroundColor near "#f3efe7" with ink text near "#1b1713". Use at most one accent hex for eyebrows/rules. Never put light text on a light background or dark on dark.',
+    'COLOR: the tenant theme already supplies a coherent, readable palette — LEAVE MOST BLOCKS UNCOLORED and let the theme paint them. The theme\'s polarity is unknown to you (a page can be light OR dark), so a hardcoded color is a gamble. Two safe moves only: (1) leave color unset (recommended for nearly every block); (2) to make ONE deliberate colored band, set backgroundColor AND textColor together on the SAME container as a self-consistent pair — e.g. a dark band backgroundColor:"#15120e" with textColor:"#f3ece0", or a cream band backgroundColor:"#f3efe7" with textColor:"#1b1713"; its text children then inherit that color, so leave them uncolored. NEVER set a text color without a matching background on the same block, or a background without its text color — a lone color is DROPPED. Never light-on-light or dark-on-dark.',
     "",
     "RULES",
-    "- Copy: write real, specific, on-brand copy — never lorem ipsum or placeholder text. Headlines are short and declarative (5-9 words); body is one or two real sentences. Give the business a plausible concrete name and voice.",
+    "- Copy: write real, specific, on-brand copy, never lorem ipsum or placeholder text. Headlines are short and declarative (5-9 words); body is one or two real sentences. Give the business a plausible concrete name and voice.",
+    "- Punctuation: NEVER use em dashes or en dashes (— or –) in any copy. Use a comma, period, colon, or the word 'and' instead. This is a strict brand style rule.",
     "- Hierarchy: EXACTLY ONE heading with level:1 on the whole page — it lives in the hero. Every other section opens with a level:2 heading; cards use level:3. Never skip levels.",
     "- Rhythm: prefer 2-4 blocks per section. Alternate texture — a text-led section, then a media or card section — rather than stacking identical card grids.",
     "- Layout: one idea per section. Do not nest deeper than 3 levels below a section.",
@@ -293,9 +302,37 @@ function sanitizeStyle(raw: unknown): Record<string, unknown> | undefined {
   for (const key of CURATED_STYLE_COLOR_KEYS) {
     if (isSafeStyleColor(style[key])) out[key] = style[key];
   }
+  // Colors survive only as a self-consistent PAIR (a background with its own
+  // readable foreground). A LONE text color sits on the theme's own surface —
+  // whose polarity the model can't see — and a lone background leaves the text
+  // at the theme default; either can invert to unreadable on a given tenant
+  // theme (verified live: cream text with no background rendered invisible on a
+  // light theme). Drop the orphan so the theme paints a guaranteed-readable
+  // default; keep the pair, which is readable on any theme.
+  if (
+    (typeof out.textColor === "string") !==
+    (typeof out.backgroundColor === "string")
+  ) {
+    delete out.textColor;
+    delete out.backgroundColor;
+  }
   const weight = style[CURATED_STYLE_FONT_WEIGHT_KEY];
   if (typeof weight === "number" && Number.isInteger(weight) && weight >= 100 && weight <= 900) {
     out[CURATED_STYLE_FONT_WEIGHT_KEY] = weight;
+  }
+  // Center any bounded-width content column. The `maxWidth` TOKEN only sets
+  // `max-width`; it never adds `margin-inline: auto`, so a token-width block
+  // floats to the LEFT of its full-bleed parent (a cramped column instead of a
+  // centered one — verified live on generated heroes). The shipped page-designs
+  // avoid this by pairing `maxWidthFree` with explicit `marginLeftFree/RightFree:
+  // "auto"`; we do the same here so generated columns center like the presets.
+  // `full` is excluded (it already spans the row). These keys are validated
+  // free-style escapes (registry `builderNodeStyleValueSchema`), so they never
+  // drop the node.
+  if (out.maxWidth === "narrow" || out.maxWidth === "reading" || out.maxWidth === "wide") {
+    out.width = "100%";
+    out.marginLeftFree = "auto";
+    out.marginRightFree = "auto";
   }
   return Object.keys(out).length > 0 ? out : undefined;
 }
@@ -450,6 +487,98 @@ function coerceNode(
         size: size === "s" || size === "m" || size === "l" ? size : "m",
       });
       return emit(props);
+    }
+    case "accordion": {
+      // Only accordion_item children are valid (drop-policy); coerceChildren
+      // enforces it. We deliberately DO NOT emit defaultOpenItemIds: it is
+      // id-referential and cloneBuilderTreeWithFreshIds re-mints ids downstream,
+      // which would orphan the reference. An all-closed accordion is valid.
+      const props: Record<string, unknown> = withStyle({});
+      const allowMultiple = rawProps.allowMultiple;
+      if (typeof allowMultiple === "boolean") props.allowMultiple = allowMultiple;
+      const children = coerceChildren();
+      if (children.length === 0) return null; // an accordion with no items is useless
+      return emit(props, children);
+    }
+    case "accordion_item": {
+      const title = clampString(rawProps.title ?? node.title, 180);
+      if (!title) return null; // title is required by the schema
+      return emit(withStyle({ title }), coerceChildren());
+    }
+    case "form": {
+      const rawFields = Array.isArray(rawProps.fields) ? rawProps.fields : [];
+      const fields: Array<Record<string, unknown>> = [];
+      const seenFieldIds = new Set<string>();
+      const seenNames = new Set<string>();
+      for (const raw of rawFields.slice(0, 24)) {
+        const field = asObject(raw);
+        if (!field) continue;
+        const type = field.type;
+        if (type !== "text" && type !== "email" && type !== "tel" && type !== "textarea" && type !== "submit") {
+          continue;
+        }
+        const label = clampString(field.label, 120) ?? (type === "submit" ? "Send" : "Field");
+        // Derive a stable, unique id + name from whatever the model gave (or the label).
+        let id = clampString(field.id ?? field.name ?? label, 120) ?? `field-${fields.length + 1}`;
+        while (seenFieldIds.has(id)) id = `${id}-${fields.length + 1}`;
+        let name = clampString(field.name ?? id, 80) ?? id;
+        while (seenNames.has(name)) name = `${name}-${fields.length + 1}`;
+        seenFieldIds.add(id);
+        seenNames.add(name);
+        const out: Record<string, unknown> = { id, name, type, label };
+        const placeholder = clampString(field.placeholder, 160);
+        if (placeholder) out.placeholder = placeholder;
+        if (typeof field.required === "boolean") out.required = field.required;
+        fields.push(out);
+      }
+      if (fields.length === 0) return null; // schema requires >= 1 field
+      const props: Record<string, unknown> = withStyle({ fields });
+      const method = rawProps.method;
+      if (method === "get" || method === "post") props.method = method;
+      const honeypotName = clampString(rawProps.honeypotName, 80);
+      if (honeypotName) props.honeypotName = honeypotName;
+      // action left unset → the form falls back to the tenant's default inquiry sink.
+      return emit(props);
+    }
+    case "pricing_table": {
+      const rawTiers = Array.isArray(rawProps.tiers) ? rawProps.tiers : [];
+      const tiers: Array<Record<string, unknown>> = [];
+      const seenTierIds = new Set<string>();
+      for (const raw of rawTiers.slice(0, 4)) {
+        const tier = asObject(raw);
+        if (!tier) continue;
+        const name = clampString(tier.name, 120);
+        const price = clampString(tier.price, 80);
+        if (!name || !price) continue; // name + price are required
+        let id = clampString(tier.id ?? name, 80) ?? `tier-${tiers.length + 1}`;
+        while (seenTierIds.has(id)) id = `${id}-${tiers.length + 1}`;
+        seenTierIds.add(id);
+        const out: Record<string, unknown> = { id, name, price };
+        const description = clampString(tier.description, 500);
+        if (description) out.description = description;
+        const period = clampString(tier.period, 80);
+        if (period) out.period = period;
+        const ctaLabel = clampString(tier.ctaLabel, 80);
+        if (ctaLabel) out.ctaLabel = ctaLabel;
+        let ctaHref = clampString(tier.ctaHref, 500);
+        if (ctaHref && /^\s*(?:javascript|data|vbscript):/i.test(ctaHref)) ctaHref = "/inquire";
+        if (ctaHref) out.ctaHref = ctaHref;
+        if (typeof tier.highlighted === "boolean") out.highlighted = tier.highlighted;
+        const rawFeatures = Array.isArray(tier.features) ? tier.features : [];
+        const features: Array<Record<string, unknown>> = [];
+        for (const rawFeature of rawFeatures.slice(0, 20)) {
+          const f = asObject(rawFeature);
+          const flabel = clampString(f?.label, 240);
+          if (!flabel) continue;
+          const feat: Record<string, unknown> = { label: flabel };
+          if (typeof f?.included === "boolean") feat.included = f.included;
+          features.push(feat);
+        }
+        if (features.length > 0) out.features = features;
+        tiers.push(out);
+      }
+      if (tiers.length < 2) return null; // schema requires 2-4 tiers
+      return emit(withStyle({ tiers }));
     }
     default:
       return null;
