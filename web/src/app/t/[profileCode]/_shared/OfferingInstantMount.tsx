@@ -39,6 +39,18 @@ export function OfferingInstantMount({
       const price =
         d.amountCents != null ? formatOfferingPrice(d.amountCents, d.currency, locale) : "";
       const es = locale === "es";
+      const reserveLine =
+        d.reserveMode === "free"
+          ? es
+            ? "Reserva sin pago — pagas después."
+            : "Reserve now, pay later — nothing charged today."
+          : d.reserveMode === "deposit" && d.depositPct && d.amountCents
+            ? es
+              ? `Hoy pagas un depósito del ${d.depositPct}% (~${formatOfferingPrice(Math.round((d.amountCents * d.depositPct) / 100), d.currency, locale)}); el resto después.`
+              : `A ${d.depositPct}% deposit (~${formatOfferingPrice(Math.round((d.amountCents * d.depositPct) / 100), d.currency, locale)}) reserves it; balance later.`
+            : es
+              ? "El total final (con tarifas) se muestra al pagar."
+              : "The final total (with fees) is shown at payment.";
 
       // Payment-method choice (only when the talent allows pay-in-person).
       let payInPerson = false;
@@ -51,8 +63,8 @@ export function OfferingInstantMount({
       } else if (
         !window.confirm(
           es
-            ? `¿Reservar "${d.title}" por ${price}? El total final (con tarifas) se muestra al pagar.`
-            : `Book "${d.title}" for ${price}? The final total (with fees) is shown at payment.`,
+            ? `¿Reservar "${d.title}" por ${price}?\n\n${reserveLine}`
+            : `Book "${d.title}" for ${price}?\n\n${reserveLine}`,
         )
       ) {
         return;

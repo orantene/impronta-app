@@ -20,12 +20,14 @@ export type OfferingRequestDetail = {
   offeringId: string;
   talentProfileId: string;
   title: string;
-  kind: TalentOffering["kind"];
-  priceType: TalentOffering["priceType"];
+  kind: string;
+  priceType: string;
   amountCents: number | null;
   currency: string;
   durationMinutes: number | null;
   allowPayInPerson: boolean;
+  reserveMode: "full" | "deposit" | "free";
+  depositPct: number | null;
   imageUrl: string | null;
   /** 'request' → inquiry/chat · 'instant' → direct booking */
   intent: "request" | "instant";
@@ -63,6 +65,8 @@ export function OfferingCta({
       currency: offering.currency,
       durationMinutes: offering.durationMinutes,
       allowPayInPerson: offering.allowPayInPerson,
+      reserveMode: offering.reserveMode,
+      depositPct: offering.depositPct,
       imageUrl: offering.imageUrls[0] ?? null,
       intent: instant ? "instant" : "request",
     };

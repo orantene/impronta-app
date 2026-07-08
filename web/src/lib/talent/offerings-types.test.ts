@@ -25,6 +25,8 @@ function row(over: Partial<TalentOfferingRow> = {}): TalentOfferingRow {
     amount_cents: 12000,
     currency: "USD",
     booking_mode: "request",
+    reserve_mode: "full",
+    deposit_pct: null,
     allow_pay_in_person: false,
     duration_minutes: 60,
     category: null,

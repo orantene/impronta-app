@@ -240,6 +240,12 @@ export async function createInstantBooking(
     const currency = (offering?.currency ?? input.currencyCode ?? "USD").toUpperCase();
     const talentName = (tp?.display_name as string | null)?.trim() || "Talent";
     const payInPerson = input.payInPerson === true && offering?.allowPayInPerson === true;
+    // Reserve mode (W2-A): free = confirm the reservation without a card
+    // request (staff collect later); deposit = bill offering.depositPct now via
+    // the existing deposit/balance rail (offer terms drive Step 8's split).
+    const freeReserve = offering?.reserveMode === "free";
+    const offeringDepositPct =
+      offering?.reserveMode === "deposit" && offering.depositPct ? offering.depositPct : null;
 
     const staffActor = await resolveTenantStaffActor(admin, input.tenantId);
     if (!staffActor) return { ok: false, reason: "engine_error", error: "No staff actor for tenant." };
@@ -329,6 +335,18 @@ export async function createInstantBooking(
     });
     if (!(upd as { success?: boolean }).success) {
       return { ok: false, reason: "engine_error", error: "updateOffer:" + JSON.stringify(upd) };
+    }
+
+    // Offering-chosen deposit: stamp the offer terms BEFORE send/convert so the
+    // existing Step-8 deposit derivation (readOfferTermsFromRow) bills exactly
+    // the talent's configured reserve percentage.
+    if (offeringDepositPct != null) {
+      const { error: depTermErr } = await admin
+        .from("inquiry_offers")
+        .update({ deposit_pct: offeringDepositPct })
+        .eq("id", offerId)
+        .eq("tenant_id", input.tenantId);
+      if (depTermErr) logServerError("instantBook.offering_deposit_terms", depTermErr);
     }
 
     // ── Step 4 — send the offer (seeds approvals; staff) ────────────────────
@@ -518,7 +536,7 @@ export async function createInstantBooking(
       // drafted with the surcharge-inclusive gross) but NO card request is
       // emitted — staff/talent collect at the appointment and mark it paid
       // (payment_method cash) from the Messages shell.
-      if (!payInPerson) {
+      if (!payInPerson && !freeReserve) {
         await requestPayment(txn.data.id);
       }
     }

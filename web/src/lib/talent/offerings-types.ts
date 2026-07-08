@@ -34,6 +34,14 @@ export const OFFERING_PRICE_DISPLAYS: readonly OfferingPriceDisplay[] = ["exact"
 export type OfferingBookingMode = "request" | "instant";
 export const OFFERING_BOOKING_MODES: readonly OfferingBookingMode[] = ["request", "instant"];
 
+/**
+ * What a DIRECT booking collects up front (the talent's choice):
+ *  full = whole total · deposit = deposit_pct now, balance later · free = reserve
+ *  without payment (staff request later / cash at the appointment).
+ */
+export type OfferingReserveMode = "full" | "deposit" | "free";
+export const OFFERING_RESERVE_MODES: readonly OfferingReserveMode[] = ["full", "deposit", "free"];
+
 export type OfferingStatus = "draft" | "published" | "archived";
 export type OfferingVisibility = "public" | "agency_only" | "on_request";
 export type OfferingModerationState = "pending" | "approved" | "rejected";
@@ -52,6 +60,9 @@ export type TalentOffering = {
   amountCents: number | null;
   currency: string;
   bookingMode: OfferingBookingMode;
+  reserveMode: OfferingReserveMode;
+  /** Percent of the total collected up front when reserveMode === 'deposit'. */
+  depositPct: number | null;
   allowPayInPerson: boolean;
   durationMinutes: number | null;
   category: string | null;
@@ -81,6 +92,8 @@ export type TalentOfferingRow = {
   amount_cents: number | null;
   currency: string;
   booking_mode: string;
+  reserve_mode: string;
+  deposit_pct: number | null;
   allow_pay_in_person: boolean;
   duration_minutes: number | null;
   category: string | null;
@@ -140,6 +153,11 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
     amountCents: clampCents(row.amount_cents),
     currency: (row.currency || "USD").toUpperCase().slice(0, 8),
     bookingMode: isOneOf(row.booking_mode, OFFERING_BOOKING_MODES) ? row.booking_mode : "request",
+    reserveMode: isOneOf(row.reserve_mode, OFFERING_RESERVE_MODES) ? row.reserve_mode : "full",
+    depositPct:
+      typeof row.deposit_pct === "number" && Number.isFinite(row.deposit_pct) && row.deposit_pct > 0 && row.deposit_pct < 100
+        ? Math.round(row.deposit_pct)
+        : null,
     allowPayInPerson: row.allow_pay_in_person === true,
     durationMinutes: posInt(row.duration_minutes),
     category: str(row.category, 80),
@@ -175,6 +193,8 @@ export function offeringToRowPatch(o: TalentOffering): Omit<TalentOfferingRow, "
     amount_cents: o.priceDisplay === "quote" || o.priceType === "custom" ? clampCents(o.amountCents) : clampCents(o.amountCents),
     currency: (o.currency || "USD").toUpperCase().slice(0, 8),
     booking_mode: o.bookingMode,
+    reserve_mode: o.reserveMode,
+    deposit_pct: o.reserveMode === "deposit" && o.depositPct ? Math.round(o.depositPct) : null,
     allow_pay_in_person: o.allowPayInPerson === true,
     duration_minutes: posInt(o.durationMinutes),
     category: str(o.category, 80),
@@ -202,6 +222,9 @@ export function validateOffering(o: TalentOffering): string[] {
     if (quoteOnly || o.amountCents == null || o.amountCents <= 0 || o.priceDisplay !== "exact") {
       errors.push(`Direct booking needs one fixed price — set an exact amount on “${o.title}” or switch it to “Inquiry to book.”`);
     }
+  }
+  if (o.bookingMode === "instant" && o.reserveMode === "deposit" && (o.depositPct == null || o.depositPct <= 0 || o.depositPct >= 100)) {
+    errors.push(`Set the deposit percent (1–99) for “${o.title}” — or switch it to full payment / free reserve.`);
   }
   if (!o.currency || o.currency.length < 3) errors.push("Pick a currency.");
   return errors;
@@ -285,6 +308,8 @@ export function blankOffering(talentProfileId: string, defaultCurrency: string, 
     amountCents: null,
     currency: defaultCurrency,
     bookingMode: "request",
+    reserveMode: "full",
+    depositPct: null,
     allowPayInPerson: false,
     durationMinutes: null,
     category: null,

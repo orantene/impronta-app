@@ -32,6 +32,7 @@ import {
   validateOffering,
   type TalentOffering,
   type OfferingKind,
+  type OfferingReserveMode,
 } from "@/lib/talent/offerings-types";
 import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 import { DEFAULT_CURRENCY_OPTIONS, CURRENCY_LABELS } from "@/lib/billing/currencies";
@@ -280,16 +281,56 @@ function OfferingForm({
           </button>
         </div>
         {value.bookingMode === "instant" && (
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 10, fontSize: 12.5, color: C.inkMuted, cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={value.allowPayInPerson}
-              disabled={saving}
-              onChange={(e) => onPatch({ allowPayInPerson: e.target.checked })}
-              style={{ accentColor: C.accentDeep, width: 15, height: 15 }}
-            />
-            Also allow “pay at the appointment” (cash / in person) — card stays the default
-          </label>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+            <span style={{ ...labelStyle, marginBottom: 0 }}>To reserve, clients pay</span>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              {(
+                [
+                  { v: "full", l: "Full amount" },
+                  { v: "deposit", l: "A deposit" },
+                  { v: "free", l: "Nothing — free reserve" },
+                ] as { v: OfferingReserveMode; l: string }[]
+              ).map((m) => (
+                <button
+                  key={m.v}
+                  type="button"
+                  disabled={saving}
+                  onClick={() => onPatch({ reserveMode: m.v, depositPct: m.v === "deposit" ? (value.depositPct ?? 30) : null })}
+                  style={pillStyle(value.reserveMode === m.v)}
+                >
+                  {m.l}
+                </button>
+              ))}
+              {value.reserveMode === "deposit" && (
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.inkMuted }}>
+                  <input
+                    key={`dep-${value.id}-${value.depositPct ?? "x"}`}
+                    type="number"
+                    min={1}
+                    max={99}
+                    defaultValue={value.depositPct ?? 30}
+                    disabled={saving}
+                    onBlur={(e) => {
+                      const n = Math.round(Number(e.target.value));
+                      if (Number.isFinite(n) && n > 0 && n < 100 && n !== value.depositPct) onPatch({ depositPct: n });
+                    }}
+                    style={{ ...inputStyle, width: 64, fontWeight: 700 }}
+                  />
+                  % up front, balance later
+                </label>
+              )}
+            </div>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: C.inkMuted, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={value.allowPayInPerson}
+                disabled={saving}
+                onChange={(e) => onPatch({ allowPayInPerson: e.target.checked })}
+                style={{ accentColor: C.accentDeep, width: 15, height: 15 }}
+              />
+              Also allow “pay at the appointment” (cash / in person) — card stays the default
+            </label>
+          </div>
         )}
       </div>
 
@@ -723,7 +764,9 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
                       </span>
                       {it.bookingMode === "instant" && (
                         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: C.accentSoft, color: C.accentDeep }}>
-                          Direct booking{it.allowPayInPerson ? " · cash ok" : ""}
+                          Direct booking
+                          {it.reserveMode === "deposit" ? ` · ${it.depositPct ?? ""}% deposit` : it.reserveMode === "free" ? " · free reserve" : ""}
+                          {it.allowPayInPerson ? " · cash ok" : ""}
                         </span>
                       )}
                     </div>

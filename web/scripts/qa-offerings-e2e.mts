@@ -75,11 +75,17 @@ async function main() {
     ok("   commission snapshot persisted", d.snaps.length > 0, `${d.snaps.length} rows`);
     ok("   MONEY INVARIANT gross > raw 12000", gross > 12000, `gross=${gross}`);
     const t = d.txns[0];
-    // Rule: auto payment-request fires only when a payout receiver exists.
-    // Morena has NO payout account → txn correctly stays draft (staff request
-    // from Messages). The payment_requested proof runs on More (4b).
     ok("   card txn drafted (no payout account → staff requests later)", t && ["draft", "payment_requested"].includes(String(t.status)), `status=${t?.status} gross=${t?.gross_amount_cents}`);
-    ok("   charge = snapshot gross (never raw)", t && Number(t.gross_amount_cents) === gross, `${t?.gross_amount_cents} vs ${gross}`);
+    // W2-A: the offering reserves with a 30% DEPOSIT → the billed slice must be
+    // checkout_type='deposit' at ~30% of the snapshot gross (never the raw price).
+    ok("   W2-A deposit reserve: checkout_type=deposit @30% of gross",
+       t && t.checkout_type === "deposit" && Math.abs(Number(t.gross_amount_cents) - Math.round(gross * 0.3)) <= 1,
+       `type=${t?.checkout_type} billed=${t?.gross_amount_cents} vs 30% of ${gross}=${Math.round(gross*0.3)}`);
+    // Deposit-aware: the billed slice must derive from the SNAPSHOT gross
+    // (full for 'full' reserve, pct-of-gross for 'deposit') — never the raw price.
+    ok("   charge derives from snapshot gross (never raw)",
+       t && (Number(t.gross_amount_cents) === gross || Math.abs(Number(t.gross_amount_cents) - Math.round(gross * 0.3)) <= 1),
+       `billed=${t?.gross_amount_cents} gross=${gross}`);
     const stamped = d.inqLines.find((l) => l.source_service_id === OFF_BRIDAL_TRIAL);
     ok("   offer line stamped source_service_id + unit", !!stamped && stamped.pricing_unit === "per_contact", `${stamped?.label} · ${stamped?.pricing_unit} · ${stamped?.unit_price}`);
     const { data: inq } = await admin.from("inquiries").select("source_channel,source_context,status").eq("id", r1.inquiryId).maybeSingle();
@@ -140,6 +146,9 @@ async function main() {
     ok("   DJ gross > raw 40000", gross > 40000, `gross=${gross}`);
     const { data: line } = await admin.from("inquiry_offer_line_items").select("pricing_unit,source_service_id").eq("talent_profile_id", DJ_TALENT).eq("source_service_id", OFF_DJ_SET).limit(1);
     ok("   DJ line unit=event + stamp", (line ?? [])[0]?.pricing_unit === "event");
+    // W2-A: DJ set is FREE RESERVE → booking stands, txn drafted, no payment request.
+    const { data: djTx } = await admin.from("booking_transactions").select("status,checkout_type").eq("booking_id", r4.bookingId);
+    ok("   W2-A free reserve: txn stays draft (no card request)", (djTx ?? [])[0]?.status === "draft", `status=${(djTx ?? [])[0]?.status}`);
   }
 
   // ════ 4b. CARD + payout-account talent — payment_requested proof (More) ════

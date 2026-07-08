@@ -380,6 +380,22 @@ export type GuestThreadStatus =
 //     cookie (server-resolved); only an inquiry the cookie OWNS is ever returned.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** W2-B — a talent service rendered as an in-chat request chip. */
+export type GuestChatOffering = {
+  offeringId: string;
+  talentProfileId: string;
+  title: string;
+  kind: "service" | "package" | "product";
+  priceType: string;
+  amountCents: number | null;
+  currency: string;
+  durationMinutes: number | null;
+  allowPayInPerson: boolean;
+  reserveMode: "full" | "deposit" | "free";
+  depositPct: number | null;
+  imageUrl: string | null;
+};
+
 /** The resumable thread + prefill for the inline name/email gate. */
 export type ActiveGuestInquiry = {
   /** inquiries.id to reopen — the panel mounts straight into the thread stage. */
@@ -560,6 +576,8 @@ export type MiniChatPanelProps = {
    * Pre-fill for the inline name/email gate when known (e.g. returning guest
    * whose cookie maps to a prior contact). All optional.
    */
+  /** W2-B — the talent's published services, shown as in-chat request chips. */
+  offerings?: GuestChatOffering[];
   prefill?: {
     name?: string | null;
     firstName?: string | null;
@@ -642,6 +660,8 @@ export type TalentChatLauncherProps = {
   brand: MiniChatBrand;
   existingInquiryId?: string | null;
   prefill?: MiniChatPanelProps["prefill"];
+  /** W2-B — the talent's published services, shown as in-chat request chips. */
+  offerings?: GuestChatOffering[];
 
   /** Injected actions, forwarded to the panel. */
   onStartInquiry: OnStartInquiryCallback;

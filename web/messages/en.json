@@ -820,7 +820,8 @@
       "pickerStartNew": "Start a new inquiry with just {name}",
       "pickerStartingNew": "Starting...",
       "pickerTrigger": "Add {name}",
-      "switcherNewMessageSuffix": "new message"
+      "switcherNewMessageSuffix": "new message",
+      "customQuoteChip": "Custom quote"
     }
   },
   "dashboard": {
