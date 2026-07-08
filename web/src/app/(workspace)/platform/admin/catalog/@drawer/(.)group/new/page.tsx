@@ -5,6 +5,8 @@
 
 import { FieldDrawer } from "../../../field-drawer";
 import { GroupDetailView } from "../../../group/group-detail-view";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +16,12 @@ export default async function InterceptedNewGroupDrawer({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
+  const t = createTranslator(await getRequestLocale());
+  const K = "dashboard.platform.catalog";
 
   return (
-    <FieldDrawer title="New field group" ariaLabel="New field group editor">
-      <GroupDetailView group={null} saved={undefined} error={error} variant="drawer" />
+    <FieldDrawer title={t(`${K}.groupDetailNewTitle`)} ariaLabel={t(`${K}.groupNewDrawerAriaEditor`)}>
+      <GroupDetailView group={null} saved={undefined} error={error} variant="drawer" t={t} />
     </FieldDrawer>
   );
 }

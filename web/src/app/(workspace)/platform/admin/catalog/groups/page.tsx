@@ -2,6 +2,12 @@ import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { updatePlatformFieldGroupAction } from "../actions";
 import { FieldGroupsReorderPanel } from "./field-groups-reorder-panel";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+const K = "dashboard.platform.catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -109,7 +115,7 @@ function Textarea({
   );
 }
 
-function GroupForm({ group }: { group: GroupRow }) {
+function GroupForm({ group, t }: { group: GroupRow; t: Translate }) {
   return (
     <form action={updatePlatformFieldGroupAction} style={{ display: "grid", gap: 12 }}>
       <input type="hidden" name="id" value={group.id} />
@@ -117,22 +123,22 @@ function GroupForm({ group }: { group: GroupRow }) {
         <div>
           <div style={{ fontSize: 14, color: HQ.ink, fontWeight: 700 }}>{group.name_en}</div>
           <div style={{ fontSize: 11, color: HQ.inkDim, fontFamily: "ui-monospace, monospace" }}>
-            {group.slug} · {group.field_count} field{group.field_count === 1 ? "" : "s"}
+            {group.slug} · {interpolate(t(`${K}.${group.field_count === 1 ? "sfSectionMetaOne" : "sfSectionMetaMany"}`), { count: group.field_count })}
           </div>
         </div>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 7, color: group.is_active ? HQ.green : HQ.red, fontSize: 12, fontWeight: 700 }}>
           <input type="checkbox" name="is_active" defaultChecked={group.is_active} />
-          Active
+          {t(`${K}.checkActive`)}
         </label>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
-        <Input label="Slug" name="slug" defaultValue={group.slug} />
-        <Input label="Sort order" name="sort_order" type="number" defaultValue={group.sort_order} />
-        <Input label="Name EN" name="name_en" defaultValue={group.name_en} />
-        <Input label="Name ES" name="name_es" defaultValue={group.name_es} />
-        <Textarea label="Description EN" name="description_en" defaultValue={group.description_en} />
-        <Textarea label="Description ES" name="description_es" defaultValue={group.description_es} />
+        <Input label={t(`${K}.fieldSlug`)} name="slug" defaultValue={group.slug} />
+        <Input label={t(`${K}.fieldSortOrder`)} name="sort_order" type="number" defaultValue={group.sort_order} />
+        <Input label={t(`${K}.fieldNameEn`)} name="name_en" defaultValue={group.name_en} />
+        <Input label={t(`${K}.fieldNameEs`)} name="name_es" defaultValue={group.name_es} />
+        <Textarea label={t(`${K}.fieldDescriptionEn`)} name="description_en" defaultValue={group.description_en} />
+        <Textarea label={t(`${K}.fieldDescriptionEs`)} name="description_es" defaultValue={group.description_es} />
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -150,10 +156,10 @@ function GroupForm({ group }: { group: GroupRow }) {
             cursor: "pointer",
           }}
         >
-          Save group
+          {t(`${K}.saveGroup`)}
         </button>
         <span style={{ color: HQ.inkDim, fontSize: 11.5 }}>
-          Order controls the platform default; tenants can override supported ordering later.
+          {t(`${K}.groupsBuilderOrderHint`)}
         </span>
       </div>
     </form>
@@ -207,25 +213,26 @@ export default async function PlatformFieldGroupsBuilderPage({
 }) {
   const params = await searchParams;
   const groups = await loadGroups();
+  const t = createTranslator(await getRequestLocale());
 
   return (
     <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
       <div style={{ marginBottom: 16, fontSize: 12 }}>
         <Link href="/platform/admin/catalog" style={{ color: HQ.inkMuted, textDecoration: "none" }}>
-          ← Profile Fields
+          {t(`${K}.detailBackToFields`)}
         </Link>
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontFamily: FD, fontSize: 22, fontWeight: 600, margin: 0 }}>Field Groups Builder</h1>
+        <h1 style={{ fontFamily: FD, fontSize: 22, fontWeight: 600, margin: 0 }}>{t(`${K}.navFieldGroupsBuilder`)}</h1>
         <div style={{ fontSize: 12.5, color: HQ.inkMuted, marginTop: 4 }}>
-          Edit group order, bilingual names, descriptions, and lifecycle state for the Tulala profile engine.
+          {t(`${K}.groupsBuilderSubtitle`)}
         </div>
       </div>
 
       {params.saved && (
         <div style={{ border: "1px solid rgba(93,211,160,0.28)", background: "rgba(93,211,160,0.10)", color: HQ.green, borderRadius: 10, padding: "9px 12px", fontSize: 12.5, marginBottom: 14 }}>
-          Saved group.
+          {interpolate(t(`${K}.saveNoticeSaved`), { what: t(`${K}.createFieldGroup`).toLowerCase() })}
         </div>
       )}
       {params.error && (
@@ -235,14 +242,14 @@ export default async function PlatformFieldGroupsBuilderPage({
       )}
 
       {!groups ? (
-        <HqCard title="Unavailable" subtitle="Could not load field groups.">
-          <div style={{ color: HQ.inkMuted, fontSize: 12 }}>Retry shortly.</div>
+        <HqCard title={t(`${K}.unavailableTitle`)} subtitle={t(`${K}.groupsBuilderUnavailableSubtitle`)}>
+          <div style={{ color: HQ.inkMuted, fontSize: 12 }}>{t(`${K}.groupsBuilderRetry`)}</div>
         </HqCard>
       ) : (
         <>
           <HqCard
-            title="Default group order"
-            subtitle="Drag groups into the order the resolver should use before tenant overrides."
+            title={t(`${K}.groupsBuilderOrderTitle`)}
+            subtitle={t(`${K}.groupsBuilderOrderSubtitle`)}
           >
             <FieldGroupsReorderPanel groups={groups} />
           </HqCard>
@@ -251,9 +258,9 @@ export default async function PlatformFieldGroupsBuilderPage({
             <HqCard
               key={group.id}
               title={group.name_en}
-              subtitle={`${group.slug} · ${group.field_count} field${group.field_count === 1 ? "" : "s"} · ${group.is_active ? "active" : "archived"}`}
+              subtitle={`${group.slug} · ${interpolate(t(`${K}.${group.field_count === 1 ? "sfSectionMetaOne" : "sfSectionMetaMany"}`), { count: group.field_count })} · ${group.is_active ? t(`${K}.badgeActive`) : t(`${K}.badgeArchived`)}`}
             >
-              <GroupForm group={group} />
+              <GroupForm group={group} t={t} />
             </HqCard>
           ))}
         </>

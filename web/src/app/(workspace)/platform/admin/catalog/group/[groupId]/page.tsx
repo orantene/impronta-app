@@ -5,6 +5,8 @@
 
 import { loadFieldGroupDetail } from "../group-detail-data";
 import { GroupDetailView } from "../group-detail-view";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +20,9 @@ export default async function FieldGroupDetailPage({
   const { groupId } = await params;
   const { saved, error } = await searchParams;
   const group = await loadFieldGroupDetail(groupId);
+  const t = createTranslator(await getRequestLocale());
 
   return (
-    <GroupDetailView group={group} saved={saved} error={error} variant="page" />
+    <GroupDetailView group={group} saved={saved} error={error} variant="page" t={t} />
   );
 }
