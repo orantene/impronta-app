@@ -46,15 +46,15 @@ the `published_homepage_snapshot` row to restore.
 
 ---
 
-## 2. Fix the fragmented stats band (medium, tree edit)
+## 2. Stats band — NO CHANGE NEEDED (verified 2026-07-08)
 
-The stats render as separate single-character heading nodes: `120` `+` `6` `2019`
-`EN` `/` `ES` (confirmed in the live tree). They read fine today but are brittle
-(breakpoint wrap risk) and sloppy. Recompose into whole stat cells
-("120+ faces represented", "6 cities on call", "Est. 2019", "EN · ES"), or swap
-the band for a curated `stats` `section_embed`. This is a structural tree edit —
-do it via the composer or an extension of the noir stats factory
-(`composition-preset-factories-noir-stats.ts`), not a raw single-char merge.
+The audit flagged the stats as "fragmented single-char heading nodes with wrap
+risk." Direct inspection of the live tree disproves both halves: the split into
+`120` / `+` (and `EN` / `/` / `ES`) is a DELIBERATE two-tone design (figures in
+ink, separators in italic gold accent), and each stat cell already carries
+`flexWrap: "nowrap"` + `alignItems: "baseline"` + forced `layout: "row"` on
+mobile/tablet, so the fragments cannot wrap apart. Do not "fix" this — merging
+the nodes would destroy the intentional styling.
 
 ## 3. Featured board → curated `featured_talent` section_embed (medium/high)
 
