@@ -13,6 +13,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { HQ, HQ_F, HQ_FM } from "../tenants/hq-kit";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import {
   applyTalentPlanOverride,
   removeTalentPlanOverride,
@@ -34,10 +36,12 @@ import type {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+type Translate = (key: string) => string;
+
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
-  return d.toLocaleDateString("en-US", {
+  return d.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -51,16 +55,18 @@ function subStatusColor(status: string): string {
   return HQ.inkMuted;
 }
 
-function planLabel(key: string): string {
-  const labels: Record<string, string> = {
-    talent_basic: "Basic (free)",
-    talent_pro: "Pro",
-    talent_portfolio: "Portfolio",
-    standard: "Standard",
-    pro: "Pro",
-    enterprise: "Enterprise",
-  };
-  return labels[key] ?? key;
+const PLAN_LABEL_KEY: Record<string, string> = {
+  talent_basic: "dashboard.platform.users.plan.talent_basic",
+  talent_pro: "dashboard.platform.users.plan.talent_pro",
+  talent_portfolio: "dashboard.platform.users.plan.talent_portfolio",
+  standard: "dashboard.platform.users.plan.standard",
+  pro: "dashboard.platform.users.plan.pro",
+  enterprise: "dashboard.platform.users.plan.enterprise",
+};
+
+function planLabel(key: string, t: Translate): string {
+  const labelKey = PLAN_LABEL_KEY[key];
+  return labelKey ? t(labelKey) : key;
 }
 
 function StripeCopyRow({
@@ -70,6 +76,7 @@ function StripeCopyRow({
   label: string;
   value: string | null;
 }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   if (!value) {
     return (
@@ -114,7 +121,7 @@ function StripeCopyRow({
             flexShrink: 0,
           }}
         >
-          {copied ? "✓" : "copy"}
+          {copied ? "✓" : t("dashboard.platform.users.billing.copy")}
         </button>
       </span>
     </>
@@ -130,6 +137,7 @@ function TalentSubPanel({
   sub: TalentSubscriptionInfo | null;
   planKey: string | null;
 }) {
+  const t = useT();
   const effectivePlan = sub?.planKey ?? planKey ?? "talent_basic";
   const stripeCustomerId = sub?.stripeCustomerId ?? null;
   const stripeBaseUrl = "https://dashboard.stripe.com";
@@ -148,12 +156,12 @@ function TalentSubPanel({
         marginBottom: 10,
       }}
     >
-      <span style={{ color: HQ.inkDim }}>Talent plan</span>
-      <span style={{ color: HQ.ink, fontWeight: 600 }}>{planLabel(effectivePlan)}</span>
+      <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.billing.talentPlan")}</span>
+      <span style={{ color: HQ.ink, fontWeight: 600 }}>{planLabel(effectivePlan, t)}</span>
 
       {sub ? (
         <>
-          <span style={{ color: HQ.inkDim }}>Sub status</span>
+          <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.billing.subStatus")}</span>
           <span
             style={{
               color: subStatusColor(sub.status),
@@ -164,33 +172,33 @@ function TalentSubPanel({
             {sub.status}
             {sub.cancelAtPeriodEnd && (
               <span style={{ color: HQ.amber, marginLeft: 6, fontSize: 11 }}>
-                · cancels at period end
+                · {t("dashboard.platform.users.billing.cancelsAtPeriodEnd")}
               </span>
             )}
             {sub.status === "past_due" && (
               <span style={{ color: HQ.red, marginLeft: 6, fontSize: 11, fontWeight: 700 }}>
-                ⚠ PAST DUE
+                ⚠ {t("dashboard.platform.users.billing.pastDue")}
               </span>
             )}
           </span>
 
-          <span style={{ color: HQ.inkDim }}>Period ends</span>
+          <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.billing.periodEnds")}</span>
           <span style={{ color: HQ.ink }}>{formatDate(sub.currentPeriodEnd)}</span>
 
-          <StripeCopyRow label="Stripe sub ID" value={sub.stripeSubscriptionId} />
+          <StripeCopyRow label={t("dashboard.platform.users.billing.stripeSubId")} value={sub.stripeSubscriptionId} />
         </>
       ) : (
         <>
-          <span style={{ color: HQ.inkDim }}>Stripe sub</span>
-          <span style={{ color: HQ.inkDim }}>No active subscription</span>
+          <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.billing.stripeSub")}</span>
+          <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.billing.noActiveSubscription")}</span>
         </>
       )}
 
-      <StripeCopyRow label="Stripe customer" value={stripeCustomerId} />
+      <StripeCopyRow label={t("dashboard.platform.users.billing.stripeCustomer")} value={stripeCustomerId} />
 
       {stripeCustomerId && (
         <>
-          <span style={{ color: HQ.inkDim }}>Stripe link</span>
+          <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.billing.stripeLink")}</span>
           <a
             href={`${stripeBaseUrl}/customers/${stripeCustomerId}`}
             target="_blank"
@@ -201,7 +209,7 @@ function TalentSubPanel({
               fontFamily: HQ_FM,
             }}
           >
-            Open in Stripe ↗
+            {t("dashboard.platform.users.billing.openInStripe")}
           </a>
         </>
       )}
@@ -212,6 +220,7 @@ function TalentSubPanel({
 // ─── Client subscription panel ────────────────────────────────────────────────
 
 function ClientSubPanel({ sub }: { sub: ClientSubscriptionInfo }) {
+  const t = useT();
   const stripeBaseUrl = "https://dashboard.stripe.com";
   return (
     <div
@@ -227,29 +236,29 @@ function ClientSubPanel({ sub }: { sub: ClientSubscriptionInfo }) {
         marginBottom: 10,
       }}
     >
-      <span style={{ color: HQ.inkDim }}>Client tier</span>
-      <span style={{ color: HQ.ink, fontWeight: 600 }}>{planLabel(sub.tier)}</span>
+      <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.billing.clientTier")}</span>
+      <span style={{ color: HQ.ink, fontWeight: 600 }}>{planLabel(sub.tier, t)}</span>
 
-      <span style={{ color: HQ.inkDim }}>Status</span>
+      <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.billing.subStatus")}</span>
       <span style={{ color: subStatusColor(sub.status), fontWeight: 600, fontSize: 12 }}>
         {sub.status}
       </span>
 
-      <span style={{ color: HQ.inkDim }}>Renews</span>
+      <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.billing.renews")}</span>
       <span style={{ color: HQ.ink }}>{formatDate(sub.currentPeriodEnd)}</span>
 
-      <StripeCopyRow label="Stripe customer" value={sub.stripeCustomerId} />
+      <StripeCopyRow label={t("dashboard.platform.users.billing.stripeCustomer")} value={sub.stripeCustomerId} />
 
       {sub.stripeCustomerId && (
         <>
-          <span style={{ color: HQ.inkDim }}>Stripe link</span>
+          <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.billing.stripeLink")}</span>
           <a
             href={`${stripeBaseUrl}/customers/${sub.stripeCustomerId}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: HQ.blue, fontSize: 11.5, fontFamily: HQ_FM }}
           >
-            Open in Stripe ↗
+            {t("dashboard.platform.users.billing.openInStripe")}
           </a>
         </>
       )}
@@ -260,15 +269,15 @@ function ClientSubPanel({ sub }: { sub: ClientSubscriptionInfo }) {
 // ─── Plan override panel ──────────────────────────────────────────────────────
 
 const TALENT_PLANS = [
-  { key: "talent_basic", label: "Basic" },
-  { key: "talent_pro", label: "Pro" },
-  { key: "talent_portfolio", label: "Portfolio" },
+  { key: "talent_basic", labelKey: "dashboard.platform.users.plan.talent_basic_short" },
+  { key: "talent_pro", labelKey: "dashboard.platform.users.plan.talent_pro" },
+  { key: "talent_portfolio", labelKey: "dashboard.platform.users.plan.talent_portfolio" },
 ] as const;
 
 const GRANT_KINDS = [
-  { key: "comp", label: "Comp" },
-  { key: "trial", label: "Trial" },
-  { key: "promo", label: "Promo" },
+  { key: "comp", labelKey: "dashboard.platform.users.grant.comp" },
+  { key: "trial", labelKey: "dashboard.platform.users.grant.trial" },
+  { key: "promo", labelKey: "dashboard.platform.users.grant.promo" },
 ] as const;
 
 function TalentOverridePanel({
@@ -280,6 +289,7 @@ function TalentOverridePanel({
   activeOverride: TalentPlanOverrideInfo | null;
   onDone: () => void;
 }) {
+  const t = useT();
   const [mode, setMode] = useState<"idle" | "apply" | "revoking">("idle");
   const [selectedPlan, setSelectedPlan] = useState<string>("talent_pro");
   const [grantKind, setGrantKind] = useState<"comp" | "trial" | "promo">("comp");
@@ -305,7 +315,12 @@ function TalentOverridePanel({
         grantKind,
       });
       if (res.ok) {
-        setResult({ ok: true, msg: `Override applied. Expires: ${res.data.expiresAt ? formatDate(res.data.expiresAt) : "never"}` });
+        setResult({
+          ok: true,
+          msg: res.data.expiresAt
+            ? interpolate(t("dashboard.platform.users.billing.overrideAppliedExpires"), { date: formatDate(res.data.expiresAt) })
+            : t("dashboard.platform.users.billing.overrideAppliedNever"),
+        });
         setMode("idle");
         onDone();
       } else {
@@ -319,7 +334,7 @@ function TalentOverridePanel({
     startTransition(async () => {
       const res = await removeTalentPlanOverride(talentProfileId);
       if (res.ok) {
-        setResult({ ok: true, msg: `Override removed. Restored to ${planLabel(res.data.restoredPlanKey)}.` });
+        setResult({ ok: true, msg: interpolate(t("dashboard.platform.users.billing.overrideRemoved"), { plan: planLabel(res.data.restoredPlanKey, t) }) });
         setMode("idle");
         onDone();
       } else {
@@ -340,7 +355,7 @@ function TalentOverridePanel({
           marginBottom: 8,
         }}
       >
-        Talent plan override
+        {t("dashboard.platform.users.billing.overrideTitle")}
       </div>
 
       {activeOverride && mode === "idle" && (
@@ -355,17 +370,17 @@ function TalentOverridePanel({
           }}
         >
           <div style={{ fontWeight: 600, color: HQ.amber, marginBottom: 4 }}>
-            Active override: {planLabel(activeOverride.overridePlanKey)}
+            {t("dashboard.platform.users.billing.activeOverridePrefix")} {planLabel(activeOverride.overridePlanKey, t)}
           </div>
           <div style={{ color: HQ.inkMuted, fontSize: 11.5 }}>
-            Base: {planLabel(activeOverride.basePlanKey)}
+            {t("dashboard.platform.users.billing.basePrefix")} {planLabel(activeOverride.basePlanKey, t)}
             {activeOverride.expiresAt
-              ? ` · Expires ${formatDate(activeOverride.expiresAt)}`
-              : " · No expiry"}
+              ? ` · ${t("dashboard.platform.users.billing.expiresPrefix")} ${formatDate(activeOverride.expiresAt)}`
+              : ` · ${t("dashboard.platform.users.billing.noExpiry")}`}
           </div>
           {activeOverride.reason && (
             <div style={{ color: HQ.inkMuted, fontSize: 11.5, marginTop: 2 }}>
-              Reason: {activeOverride.reason}
+              {t("dashboard.platform.users.billing.reasonPrefix")} {activeOverride.reason}
             </div>
           )}
           <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
@@ -374,7 +389,7 @@ function TalentOverridePanel({
               onClick={() => setMode("apply")}
               style={smallBtn}
             >
-              Change
+              {t("dashboard.platform.users.billing.change")}
             </button>
             <button
               type="button"
@@ -382,7 +397,7 @@ function TalentOverridePanel({
               onClick={handleRevoke}
               style={{ ...smallBtn, color: HQ.amber, borderColor: "rgba(229,181,103,0.35)" }}
             >
-              {pending ? "Removing…" : "Remove override"}
+              {pending ? t("dashboard.platform.users.billing.removingOverride") : t("dashboard.platform.users.billing.removeOverride")}
             </button>
           </div>
         </div>
@@ -394,7 +409,7 @@ function TalentOverridePanel({
           onClick={() => setMode("apply")}
           style={smallBtn}
         >
-          Apply plan override
+          {t("dashboard.platform.users.billing.applyOverride")}
         </button>
       )}
 
@@ -410,7 +425,7 @@ function TalentOverridePanel({
         >
           {/* Plan picker */}
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, color: HQ.inkDim, marginBottom: 6 }}>Plan</div>
+            <div style={{ fontSize: 11, color: HQ.inkDim, marginBottom: 6 }}>{t("dashboard.platform.users.billing.plan")}</div>
             <div style={{ display: "flex", gap: 6 }}>
               {TALENT_PLANS.map((p) => (
                 <button
@@ -429,7 +444,7 @@ function TalentOverridePanel({
                     cursor: "pointer",
                   }}
                 >
-                  {p.label}
+                  {t(p.labelKey)}
                 </button>
               ))}
             </div>
@@ -437,7 +452,7 @@ function TalentOverridePanel({
 
           {/* Grant type picker */}
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, color: HQ.inkDim, marginBottom: 6 }}>Grant type</div>
+            <div style={{ fontSize: 11, color: HQ.inkDim, marginBottom: 6 }}>{t("dashboard.platform.users.billing.grantType")}</div>
             <div style={{ display: "flex", gap: 6 }}>
               {GRANT_KINDS.map((g) => (
                 <button
@@ -462,22 +477,22 @@ function TalentOverridePanel({
                     cursor: "pointer",
                   }}
                 >
-                  {g.label}
+                  {t(g.labelKey)}
                 </button>
               ))}
             </div>
             <div style={{ marginTop: 6, fontSize: 11, color: HQ.inkDim, lineHeight: 1.45 }}>
               {grantKind === "trial"
-                ? "Drives a live countdown + post-expiry upgrade nudge on the talent page. Needs an end date."
+                ? t("dashboard.platform.users.billing.grantTrialHint")
                 : grantKind === "promo"
-                  ? "A silent promotional grant — no countdown shown to the talent."
-                  : "A silent courtesy grant — no countdown shown to the talent."}
+                  ? t("dashboard.platform.users.billing.grantPromoHint")
+                  : t("dashboard.platform.users.billing.grantCompHint")}
             </div>
           </div>
 
           {/* Duration picker */}
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, color: HQ.inkDim, marginBottom: 6 }}>Duration</div>
+            <div style={{ fontSize: 11, color: HQ.inkDim, marginBottom: 6 }}>{t("dashboard.platform.users.billing.duration")}</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {OVERRIDE_DURATIONS.map((d) => {
                 const disabled = grantKind === "trial" && d.key === "indefinite";
@@ -486,7 +501,7 @@ function TalentOverridePanel({
                     key={d.key}
                     type="button"
                     disabled={disabled}
-                    title={disabled ? "A trial needs an end date" : undefined}
+                    title={disabled ? t("dashboard.platform.users.billing.durationTrialTitle") : undefined}
                     onClick={() => setSelectedDuration(d.key)}
                     style={{
                       padding: "4px 8px",
@@ -530,12 +545,12 @@ function TalentOverridePanel({
             )}
             {previewExpiry && (
               <div style={{ marginTop: 6, fontSize: 11, color: HQ.inkDim }}>
-                Expires: {formatDate(previewExpiry)}
+                {t("dashboard.platform.users.billing.expiresLabel")} {formatDate(previewExpiry)}
               </div>
             )}
             {!previewExpiry && selectedDuration === "indefinite" && (
               <div style={{ marginTop: 6, fontSize: 11, color: HQ.inkDim }}>
-                No expiry — will remain until manually removed.
+                {t("dashboard.platform.users.billing.noExpiryHint")}
               </div>
             )}
           </div>
@@ -543,13 +558,13 @@ function TalentOverridePanel({
           {/* Reason */}
           <div style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 11, color: HQ.inkDim, marginBottom: 4 }}>
-              Reason (optional)
+              {t("dashboard.platform.users.billing.reasonOptional")}
             </div>
             <input
               type="text"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. comp for beta feedback"
+              placeholder={t("dashboard.platform.users.billing.reasonPlaceholder")}
               style={{
                 width: "100%",
                 boxSizing: "border-box",
@@ -576,14 +591,14 @@ function TalentOverridePanel({
                 cursor: pending ? "not-allowed" : "pointer",
               }}
             >
-              {pending ? "Applying…" : "Apply override"}
+              {pending ? t("dashboard.platform.users.billing.applying") : t("dashboard.platform.users.billing.applyOverrideBtn")}
             </button>
             <button
               type="button"
               onClick={() => { setMode("idle"); setResult(null); }}
               style={{ ...smallBtn, color: HQ.inkMuted }}
             >
-              Cancel
+              {t("dashboard.platform.users.billing.cancel")}
             </button>
           </div>
         </div>
@@ -621,6 +636,7 @@ const smallBtn: React.CSSProperties = {
 // ─── Main section ─────────────────────────────────────────────────────────────
 
 export function BillingSection({ user }: { user: PlatformUserRow }) {
+  const t = useT();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<PersonBillingSnapshot | null>(null);
@@ -685,7 +701,7 @@ export function BillingSection({ user }: { user: PlatformUserRow }) {
         }}
       >
         <span style={{ fontSize: 11 }}>{isOpen ? "▼" : "▶"}</span>
-        Billing & Subscriptions
+        {t("dashboard.platform.users.billing.title")}
       </div>
 
       {isOpen && (
@@ -693,7 +709,7 @@ export function BillingSection({ user }: { user: PlatformUserRow }) {
           {loading && !loaded ? (
             <LoadingState />
           ) : !snapshot ? (
-            <EmptyState text="Could not load billing data." />
+            <EmptyState text={t("dashboard.platform.users.billing.loadError")} />
           ) : (
             <div>
               {/* Talent subscription */}
@@ -709,7 +725,7 @@ export function BillingSection({ user }: { user: PlatformUserRow }) {
                       marginBottom: 6,
                     }}
                   >
-                    Talent subscription
+                    {t("dashboard.platform.users.billing.talentSubscription")}
                   </div>
                   <TalentSubPanel
                     sub={snapshot.talentSubscription}
@@ -731,7 +747,7 @@ export function BillingSection({ user }: { user: PlatformUserRow }) {
                       marginBottom: 6,
                     }}
                   >
-                    Client subscription
+                    {t("dashboard.platform.users.billing.clientSubscription")}
                   </div>
                   <ClientSubPanel sub={snapshot.clientSubscription} />
                 </div>
@@ -748,7 +764,7 @@ export function BillingSection({ user }: { user: PlatformUserRow }) {
 
               {/* No billing at all */}
               {!hasTalent && !snapshot.clientSubscription && (
-                <EmptyState text="No active subscriptions for this user." />
+                <EmptyState text={t("dashboard.platform.users.billing.noSubscriptions")} />
               )}
             </div>
           )}
@@ -759,21 +775,8 @@ export function BillingSection({ user }: { user: PlatformUserRow }) {
 }
 
 function LoadingState() {
-  return (
-    <div
-      style={{
-        padding: "14px",
-        background: HQ.cardSoft,
-        border: `1px dashed ${HQ.borderSoft}`,
-        borderRadius: 10,
-        fontSize: 12.5,
-        color: HQ.inkDim,
-        textAlign: "center",
-      }}
-    >
-      Loading…
-    </div>
-  );
+  const t = useT();
+  return <EmptyState text={t("dashboard.platform.users.billing.loading")} />;
 }
 
 function EmptyState({ text }: { text: string }) {

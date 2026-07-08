@@ -15,6 +15,7 @@
 
 import { useEffect, useState } from "react";
 import { HQ, HQ_F, HQ_FD } from "../tenants/hq-kit";
+import { useT } from "@/i18n/use-t";
 
 interface Props {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export function ConfirmDestructiveModal({
   warningText,
   isPending = false,
 }: Props) {
+  const t = useT();
   const [typed, setTyped] = useState("");
 
   useEffect(() => {
@@ -120,9 +122,9 @@ export function ConfirmDestructiveModal({
             letterSpacing: 0.2,
           }}
         >
-          Type{" "}
+          {t("dashboard.platform.users.confirmModal.typePrefix")}{" "}
           <strong style={{ color: HQ.ink, fontWeight: 700 }}>{targetName}</strong>{" "}
-          to confirm
+          {t("dashboard.platform.users.confirmModal.typeSuffix")}
         </label>
         <input
           type="text"
@@ -165,7 +167,7 @@ export function ConfirmDestructiveModal({
               letterSpacing: 0.2,
             }}
           >
-            Cancel
+            {t("dashboard.platform.users.confirmModal.cancel")}
           </button>
           <button
             type="button"
@@ -185,7 +187,7 @@ export function ConfirmDestructiveModal({
               letterSpacing: 0.2,
             }}
           >
-            {isPending ? "Working…" : actionLabel}
+            {isPending ? t("dashboard.platform.users.confirmModal.working") : actionLabel}
           </button>
         </div>
       </div>
