@@ -963,6 +963,57 @@ function synthOpeningMessage(inquiryId: string, messageId: string, body: string)
 // 3b. sendGuestMessageAction
 // ═════════════════════════════════════════════════════════════════════════════
 
+/**
+ * W3-5 — attach a tapped service to a LIVE guest thread as STRUCTURED data
+ * (inquiries.source_context.offerings[]), not just visible text. Guest-cookie
+ * ownership gated exactly like sendGuestMessageAction. Best-effort UX: the
+ * chip tap also prefills the composer, so a failure here only loses analytics
+ * provenance, never the conversation.
+ */
+export async function attachOfferingToGuestInquiry(input: {
+  inquiryId: string;
+  offering: {
+    offering_id: string;
+    title: string;
+    amount_cents: number | null;
+    currency: string;
+    price_type: string;
+    kind: string;
+  };
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input?.inquiryId || !input.offering?.offering_id) {
+    return { ok: false, error: "Missing conversation or service." };
+  }
+  const guest = await resolveGuestContext();
+  if (!guest.ok) return { ok: false, error: "Not your conversation." };
+  const { admin, guestSessionId } = guest.ctx;
+  const owned = await loadOwnedInquiry(admin, input.inquiryId, guestSessionId);
+  if (!owned.ok) return { ok: false, error: "Not your conversation." };
+
+  const { data: row } = await admin
+    .from("inquiries")
+    .select("source_context")
+    .eq("id", input.inquiryId)
+    .maybeSingle();
+  const ctx = (row?.source_context ?? {}) as Record<string, unknown>;
+  const existing = Array.isArray(ctx.offerings) ? (ctx.offerings as Record<string, unknown>[]) : [];
+  if (existing.some((o) => o.offering_id === input.offering.offering_id)) return { ok: true };
+  const next = {
+    ...ctx,
+    ...(ctx.offering ? {} : { offering: input.offering }),
+    offerings: [...existing, { ...input.offering, attached_at: new Date().toISOString() }].slice(0, 10),
+  };
+  const { error } = await admin
+    .from("inquiries")
+    .update({ source_context: next })
+    .eq("id", input.inquiryId);
+  if (error) {
+    logServerError("guestChat.attachOffering", error);
+    return { ok: false, error: "Could not attach the service." };
+  }
+  return { ok: true };
+}
+
 export async function sendGuestMessageAction(
   input: SendGuestMessageInput,
 ): Promise<SendGuestMessageResult> {

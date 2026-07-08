@@ -38,6 +38,7 @@ import {
 // Real Lane A server actions (the build stub was removed at integration). These
 // match the contract callbacks 1:1, so they pass straight into the launcher.
 import {
+  attachOfferingToGuestInquiry,
   getActiveGuestInquiry,
   getGuestThreadMessages,
   sendGuestClaimToEmail,
@@ -185,6 +186,7 @@ export async function TalentProfileChatLauncherMount({
       existingInquiryId={active?.inquiryId ?? null}
       prefill={active?.prefill ?? null}
       offerings={chatOfferings}
+      onAttachOffering={attachOfferingToGuestInquiry}
       onStartInquiry={startGuestChatInquiry}
       onSendMessage={sendGuestMessageAction}
       fetchMessages={getGuestThreadMessages}

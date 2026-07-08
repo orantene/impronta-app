@@ -45,6 +45,7 @@ function DurationChip({ minutes, locale }: { minutes: number; locale: string }) 
 }
 
 function ServiceRow({ it, locale }: { it: TalentOffering; locale: string }) {
+  const soldOut = it.kind === "product" && it.inventoryQty === 0;
   return (
     <div
       className="flex items-center gap-3 border-b py-3 last:border-b-0"
@@ -70,7 +71,13 @@ function ServiceRow({ it, locale }: { it: TalentOffering; locale: string }) {
       <p className="shrink-0 text-sm font-medium tabular-nums" style={{ color: "var(--plt-ink)" }}>
         {offeringPriceLabel(it, locale)}
       </p>
-      <OfferingCta offering={it} locale={locale} compact />
+      {soldOut ? (
+        <span className="plt-mono inline-flex shrink-0 items-center rounded-full border px-2 py-1 text-[0.625rem] uppercase tracking-[0.1em]" style={{ borderColor: "var(--plt-hairline-strong)", color: "var(--plt-muted-soft)" }}>
+          {locale === "es" ? "Agotado" : "Sold out"}
+        </span>
+      ) : (
+        <OfferingCta offering={it} locale={locale} compact />
+      )}
     </div>
   );
 }
@@ -108,6 +115,7 @@ function PackageCard({ it, locale }: { it: TalentOffering; locale: string }) {
 }
 
 function ProductTile({ it, locale }: { it: TalentOffering; locale: string }) {
+  const soldOut = it.kind === "product" && it.inventoryQty === 0;
   // A product with no image degrades to a service-style row upstream; here we
   // always have an image or render a quiet ground (never an empty gray box).
   return (
@@ -129,7 +137,13 @@ function ProductTile({ it, locale }: { it: TalentOffering; locale: string }) {
           {offeringPriceLabel(it, locale)}
         </p>
         <div className="mt-2">
-          <OfferingCta offering={it} locale={locale} compact />
+          {soldOut ? (
+            <span className="plt-mono inline-flex items-center rounded-full border px-2 py-1 text-[0.625rem] uppercase tracking-[0.1em]" style={{ borderColor: "var(--plt-hairline-strong)", color: "var(--plt-muted-soft)" }}>
+              {locale === "es" ? "Agotado" : "Sold out"}
+            </span>
+          ) : (
+            <OfferingCta offering={it} locale={locale} compact />
+          )}
         </div>
       </div>
     </div>

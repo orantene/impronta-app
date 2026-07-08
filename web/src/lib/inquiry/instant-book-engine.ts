@@ -228,6 +228,24 @@ export async function createInstantBooking(
       }
     }
 
+    // W3-8 — PRODUCT stock: atomically reserve one unit before any money step;
+    // a sold-out product refuses cleanly (no inquiry/offer/charge is created).
+    // Compensation: released on any later engine failure in this call.
+    let stockReserved = false;
+    if (offering && offering.kind === "product" && offering.inventoryQty != null) {
+      const { data: got } = await (admin as unknown as SupabaseClient).rpc("reserve_offering_stock", {
+        p_offering_id: offering.id,
+        p_qty: 1,
+      });
+      if (got !== true) return { ok: false, reason: "no_fixed_rate", error: "sold_out" };
+      stockReserved = true;
+    }
+    const releaseStock = async () => {
+      if (stockReserved && offering) {
+        await (admin as unknown as SupabaseClient).rpc("release_offering_stock", { p_offering_id: offering.id, p_qty: 1 });
+      }
+    };
+
     const optIn = offering != null || talentTerms?.instantBookOptIn === true || menuItem != null;
     if (!optIn || (offering == null && tenantTerms?.instantBookEnabled !== true)) {
       return { ok: false, reason: "instant_book_not_enabled" };
@@ -282,6 +300,7 @@ export async function createInstantBooking(
       message: offering ? `Direct booking: ${offering.title}` : "Instant booking",
     });
     if (!(inq as { success?: boolean }).success) {
+      await releaseStock();
       return { ok: false, reason: "engine_error", error: "submit:" + JSON.stringify(inq) };
     }
     const inquiryId = (inq as { data: { inquiryId: string } }).data.inquiryId;
@@ -299,6 +318,7 @@ export async function createInstantBooking(
       currencyCode: currency,
     });
     if (!(off as { success?: boolean }).success) {
+      await releaseStock();
       return { ok: false, reason: "engine_error", error: "createOffer:" + JSON.stringify(off) };
     }
     const offerId = (off as { data: { offerId: string } }).data.offerId;
@@ -334,6 +354,7 @@ export async function createInstantBooking(
       ],
     });
     if (!(upd as { success?: boolean }).success) {
+      await releaseStock();
       return { ok: false, reason: "engine_error", error: "updateOffer:" + JSON.stringify(upd) };
     }
 
@@ -361,6 +382,7 @@ export async function createInstantBooking(
       offerExpectedVersion: Number((offV2.data as { version: number } | null)?.version ?? 1),
     });
     if (!(sent as { success?: boolean }).success) {
+      await releaseStock();
       return { ok: false, reason: "engine_error", error: "sendOffer:" + JSON.stringify(sent) };
     }
 

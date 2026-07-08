@@ -105,6 +105,7 @@ export function TalentProfileChatLauncher({
   existingInquiryId = null,
   prefill = null,
   offerings = [],
+  onAttachOffering = null,
   onStartInquiry,
   onSendMessage,
   fetchMessages,
@@ -666,6 +667,7 @@ export function TalentProfileChatLauncher({
 
       <MiniChatPanel
         offerings={offerings}
+        onAttachOffering={onAttachOffering}
         open={open}
         onClose={() => {
           setOpen(false);

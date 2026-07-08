@@ -578,6 +578,8 @@ export type MiniChatPanelProps = {
    */
   /** W2-B — the talent's published services, shown as in-chat request chips. */
   offerings?: GuestChatOffering[];
+  /** W3-5 — attach a tapped service to a LIVE thread as structured provenance. */
+  onAttachOffering?: ((input: { inquiryId: string; offering: { offering_id: string; title: string; amount_cents: number | null; currency: string; price_type: string; kind: string } }) => Promise<{ ok: boolean; error?: string }>) | null;
   prefill?: {
     name?: string | null;
     firstName?: string | null;
@@ -659,6 +661,8 @@ export type TalentChatLauncherProps = {
   tenantId?: string | null;
   brand: MiniChatBrand;
   existingInquiryId?: string | null;
+  /** W3-5 — attach a tapped service to a LIVE thread as structured provenance. */
+  onAttachOffering?: MiniChatPanelProps["onAttachOffering"];
   prefill?: MiniChatPanelProps["prefill"];
   /** W2-B — the talent's published services, shown as in-chat request chips. */
   offerings?: GuestChatOffering[];

@@ -24,7 +24,7 @@ import {
 } from "@/lib/talent/offerings-types";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { isStaffRole } from "@/lib/auth-flow";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -69,13 +69,33 @@ async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> 
     return { ok: false, error: "Profile not found." };
   }
 
-  const isStaff = !!session.profile && isStaffRole(session.profile.app_role);
   const isOwner = tp.user_id === session.user.id;
-  if (!isOwner && !isStaff) return { ok: false, error: "Forbidden." };
 
-  let tenantId: string | null = null;
+  // TENANT-SCOPED staff check (W3-7): staff may edit only talents on THEIR
+  // active tenant's roster — a staff role on tenant A grants nothing on
+  // tenant B (closes the global-staff footgun class).
+  let isStaff = false;
+  let staffTenantId: string | null = null;
+  if (!isOwner) {
+    const staff = await requireStaffTenantAction();
+    if (!staff.ok) return { ok: false, error: "Forbidden." };
+    const adminForCheck = createServiceRoleClient();
+    if (!adminForCheck) return { ok: false, error: "Server configuration error." };
+    const { data: rosterRow } = await adminForCheck
+      .from("agency_talent_roster")
+      .select("id")
+      .eq("tenant_id", staff.tenantId)
+      .eq("talent_profile_id", talentProfileId)
+      .neq("status", "removed")
+      .maybeSingle();
+    if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+    isStaff = true;
+    staffTenantId = staff.tenantId;
+  }
+
+  let tenantId: string | null = staffTenantId;
   const admin = createServiceRoleClient();
-  if (admin) {
+  if (admin && !tenantId) {
     const { data: rosterRows } = await admin
       .from("agency_talent_roster")
       .select("tenant_id, is_primary")
@@ -96,18 +116,18 @@ async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> 
 }
 
 /** Resolve hero-first image URLs for a set of offerings in one query. */
-async function loadImageUrls(
+async function loadImageAssets(
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
   offeringIds: string[],
-): Promise<Map<string, string[]>> {
-  const out = new Map<string, string[]>();
+): Promise<Map<string, { id: string; url: string }[]>> {
+  const out = new Map<string, { id: string; url: string }[]>();
   if (offeringIds.length === 0) return out;
   const { data } = await offeringMediaTable(admin)
-.select("offering_id, sort_order, media_assets:media_asset_id ( public_url, bucket_id, storage_path )")
+.select("offering_id, sort_order, media_asset_id, media_assets:media_asset_id ( public_url, bucket_id, storage_path )")
     .in("offering_id", offeringIds)
     .order("sort_order", { ascending: true });
-  type MediaJoin = { public_url: string | null; bucket_id: string | null; storage_path: string | null };
-  type Row = { offering_id: string; sort_order: number; media_assets: MediaJoin | MediaJoin[] | null };
+  type MediaJoin = { id?: string; public_url: string | null; bucket_id: string | null; storage_path: string | null };
+  type Row = { offering_id: string; sort_order: number; media_asset_id: string; media_assets: MediaJoin | MediaJoin[] | null };
   for (const r of (data ?? []) as Row[]) {
     const m = Array.isArray(r.media_assets) ? r.media_assets[0] : r.media_assets;
     if (!m) continue;
@@ -117,7 +137,7 @@ async function loadImageUrls(
     }
     if (!url) continue;
     const list = out.get(r.offering_id) ?? [];
-    list.push(url);
+    list.push({ id: r.media_asset_id, url });
     out.set(r.offering_id, list);
   }
   return out;
@@ -145,8 +165,13 @@ export async function loadTalentOfferingsForEditor(talentProfileId: string): Pro
       return { ok: false, error: "Could not load your services." };
     }
     const rows = (data ?? []) as TalentOfferingRow[];
-    const images = await loadImageUrls(admin, rows.map((r) => r.id));
-    const items = rows.map((r) => rowToOffering(r, "en", images.get(r.id) ?? []));
+    const images = await loadImageAssets(admin, rows.map((r) => r.id));
+    const items = rows.map((r) => {
+      const assets = images.get(r.id) ?? [];
+      const item = rowToOffering(r, "en", assets.map((a) => a.url));
+      item.imageAssets = assets;
+      return item;
+    });
 
     // Offer a one-shot legacy import only when the catalog is empty AND any
     // legacy pricing exists (services_menu, fixed rate, teasers, rate blobs).

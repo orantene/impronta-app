@@ -28,6 +28,7 @@ export type OfferingRequestDetail = {
   allowPayInPerson: boolean;
   reserveMode: "full" | "deposit" | "free";
   depositPct: number | null;
+  cancellationHours?: number | null;
   imageUrl: string | null;
   /** 'request' → inquiry/chat · 'instant' → direct booking */
   intent: "request" | "instant";
@@ -67,6 +68,7 @@ export function OfferingCta({
       allowPayInPerson: offering.allowPayInPerson,
       reserveMode: offering.reserveMode,
       depositPct: offering.depositPct,
+      cancellationHours: offering.cancellationHours,
       imageUrl: offering.imageUrls[0] ?? null,
       intent: instant ? "instant" : "request",
     };

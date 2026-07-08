@@ -85,6 +85,7 @@ export function MiniChatPanel({
   existingInquiryId = null,
   prefill = null,
   offerings = [],
+  onAttachOffering = null,
   onStartInquiry,
   onSendMessage,
   onAddClaimEmail = null,
@@ -776,6 +777,20 @@ export function MiniChatPanel({
           setPendingOffering({ ...o, intent: "request" });
           if (sentNote) setSentNote(false);
           setDraft(offeringDraftPrefix(o, brand.locale ?? "en"));
+          // Live thread → also attach as structured provenance (best-effort).
+          if (inquiryId && onAttachOffering) {
+            void onAttachOffering({
+              inquiryId,
+              offering: {
+                offering_id: o.offeringId,
+                title: o.title,
+                amount_cents: o.amountCents,
+                currency: o.currency,
+                price_type: o.priceType,
+                kind: o.kind,
+              },
+            });
+          }
         }}
       />
     </div>

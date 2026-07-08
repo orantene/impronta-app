@@ -64,6 +64,8 @@ export type TalentOffering = {
   /** Percent of the total collected up front when reserveMode === 'deposit'. */
   depositPct: number | null;
   allowPayInPerson: boolean;
+  /** Hours before the appointment when free cancellation ends (null = flexible). */
+  cancellationHours: number | null;
   durationMinutes: number | null;
   category: string | null;
   /** null = unlimited (services); int = stock (products; Phase-3 checkout). */
@@ -77,6 +79,8 @@ export type TalentOffering = {
   attributes: Record<string, unknown>;
   /** Resolved gallery, hero first (media_assets.public_url). */
   imageUrls: string[];
+  /** Editor-only: gallery with asset ids (drives upload/remove). Public loads omit it. */
+  imageAssets?: { id: string; url: string }[];
 };
 
 /** DB row shape (snake_case) as read/written by the actions. */
@@ -95,6 +99,7 @@ export type TalentOfferingRow = {
   reserve_mode: string;
   deposit_pct: number | null;
   allow_pay_in_person: boolean;
+  cancellation_hours: number | null;
   duration_minutes: number | null;
   category: string | null;
   inventory_qty: number | null;
@@ -159,6 +164,10 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
         ? Math.round(row.deposit_pct)
         : null,
     allowPayInPerson: row.allow_pay_in_person === true,
+    cancellationHours:
+      typeof row.cancellation_hours === "number" && Number.isFinite(row.cancellation_hours) && row.cancellation_hours >= 0
+        ? Math.round(row.cancellation_hours)
+        : null,
     durationMinutes: posInt(row.duration_minutes),
     category: str(row.category, 80),
     inventoryQty:
@@ -196,6 +205,7 @@ export function offeringToRowPatch(o: TalentOffering): Omit<TalentOfferingRow, "
     reserve_mode: o.reserveMode,
     deposit_pct: o.reserveMode === "deposit" && o.depositPct ? Math.round(o.depositPct) : null,
     allow_pay_in_person: o.allowPayInPerson === true,
+    cancellation_hours: o.cancellationHours != null && o.cancellationHours >= 0 ? Math.round(o.cancellationHours) : null,
     duration_minutes: posInt(o.durationMinutes),
     category: str(o.category, 80),
     inventory_qty: o.inventoryQty != null && o.inventoryQty >= 0 ? Math.round(o.inventoryQty) : null,
@@ -311,6 +321,7 @@ export function blankOffering(talentProfileId: string, defaultCurrency: string, 
     reserveMode: "full",
     depositPct: null,
     allowPayInPerson: false,
+    cancellationHours: null,
     durationMinutes: null,
     category: null,
     inventoryQty: null,

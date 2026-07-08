@@ -25,7 +25,10 @@ import {
   deleteTalentOffering,
   reorderTalentOfferings,
   importLegacyToOfferings,
+  setOfferingImages,
 } from "@/lib/talent/offerings-actions";
+import { loadTalentServicePerformance, type ServicePerformanceStat } from "@/lib/talent/services-menu-actions";
+import { actionUploadAndAssignMedia } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import {
   blankOffering,
   offeringPriceLabel,
@@ -155,6 +158,7 @@ function OfferingForm({
   defaultCurrency,
   onSaveDraft,
   onCancelDraft,
+  onImages,
 }: {
   value: TalentOffering;
   onPatch: (p: Partial<TalentOffering>) => void;
@@ -163,12 +167,57 @@ function OfferingForm({
   defaultCurrency: string;
   onSaveDraft?: () => void;
   onCancelDraft?: () => void;
+  /** Local-state updater after an image attach/remove (join rows, not the row). */
+  onImages?: (offeringId: string, assets: { id: string; url: string }[]) => void;
 }) {
   const { inputStyle, labelStyle, pillStyle } = makeStyles(saving);
   const mode = toPriceMode(value);
   const showAmount = mode !== "contact";
   const [detailsOpen, setDetailsOpen] = useState(!isDraft);
   const [moreUnits, setMoreUnits] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const assets = value.imageAssets ?? [];
+  async function uploadPhoto(file: File) {
+    if (!value.id) return; // drafts save first
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      const up = await actionUploadAndAssignMedia(fd, value.talentProfileId, "gallery");
+      if (!up.ok) {
+        setUploadError(up.error);
+        return;
+      }
+      const next = [...assets, { id: up.data.id, url: up.data.publicUrl }];
+      const res = await setOfferingImages(value.talentProfileId, value.id, next.map((a) => a.id));
+      if (!res.ok) {
+        setUploadError(res.error ?? "Failed to attach the photo.");
+        return;
+      }
+      onImages?.(value.id, next);
+    } finally {
+      setUploading(false);
+    }
+  }
+  async function removePhoto(assetId: string) {
+    if (!value.id) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const next = assets.filter((a) => a.id !== assetId);
+      const res = await setOfferingImages(value.talentProfileId, value.id, next.map((a) => a.id));
+      if (!res.ok) {
+        setUploadError(res.error ?? "Failed to remove the photo.");
+        return;
+      }
+      onImages?.(value.id, next);
+    } finally {
+      setUploading(false);
+    }
+  }
   const unitOptions = moreUnits ? [...UNIT_PILLS, ...UNIT_MORE] : UNIT_PILLS;
   const priceSentence =
     mode === "contact"
@@ -193,6 +242,59 @@ function OfferingForm({
           }}
           style={{ ...inputStyle, width: "100%", fontWeight: 600, fontSize: 14 }}
         />
+      </div>
+
+      {/* Photos — optional, but it sells */}
+      <div data-testid="offering-photos">
+        <span style={labelStyle}>
+          Photos <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>— optional, but it sells. First photo is the cover.</span>
+        </span>
+        {value.id ? (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {assets.map((a, i) => (
+              <span key={a.id} style={{ position: "relative", display: "inline-block" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={a.url} alt="" style={{ width: 64, height: 64, borderRadius: 9, objectFit: "cover", border: `1px solid ${C.borderSoft}` }} />
+                {i === 0 && (
+                  <span style={{ position: "absolute", left: 4, bottom: 4, fontSize: 8.5, fontWeight: 700, background: C.accentDeep, color: "#fff", padding: "2px 5px", borderRadius: 4, letterSpacing: 0.3 }}>
+                    Cover
+                  </span>
+                )}
+                <button
+                  type="button"
+                  aria-label="Remove photo"
+                  disabled={uploading}
+                  onClick={() => void removePhoto(a.id)}
+                  style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: 9, border: `1px solid ${C.border}`, background: "#fff", color: C.error, fontSize: 10, lineHeight: "15px", cursor: "pointer", padding: 0 }}
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+            <label
+              style={{ width: 64, height: 64, borderRadius: 9, border: `1.5px dashed ${C.border}`, background: C.surface, display: "inline-flex", alignItems: "center", justifyContent: "center", color: C.inkSoft, fontSize: 20, cursor: uploading ? "wait" : "pointer" }}
+            >
+              {uploading ? "…" : "＋"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                disabled={uploading}
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void uploadPhoto(f);
+                }}
+              />
+            </label>
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, color: C.inkSoft, padding: "8px 0 2px" }}>Save the service first, then add photos.</div>
+        )}
+        <div style={{ minHeight: 13, marginTop: 4 }}>
+          {uploading && <span style={{ fontSize: 11, color: C.inkMuted }}>Uploading…</span>}
+          {uploadError && <span style={{ fontSize: 11, color: C.error }}>{uploadError}</span>}
+        </div>
       </div>
 
       {/* Price + mode */}
@@ -421,6 +523,24 @@ function OfferingForm({
                 <option value="agency_only">Agency only</option>
               </select>
             </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 1 170px" }}>
+              <span style={labelStyle}>Free cancel until (h)</span>
+              <input
+                key={`cx-${value.id}-${value.cancellationHours ?? "x"}`}
+                type="number"
+                min={0}
+                placeholder="e.g. 48"
+                defaultValue={value.cancellationHours ?? ""}
+                disabled={saving}
+                onBlur={(e) => {
+                  const raw = e.target.value.trim();
+                  const n = raw === "" ? null : Math.round(Number(raw));
+                  const v = n != null && Number.isFinite(n) && n >= 0 ? n : null;
+                  if (v !== value.cancellationHours) onPatch({ cancellationHours: v });
+                }}
+                style={{ ...inputStyle, width: "100%" }}
+              />
+            </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 150px" }}>
               <span style={labelStyle}>Category (optional)</span>
               <input
@@ -485,6 +605,8 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
   const [openId, setOpenId] = useState<string | null>(null);
   /** The new-item draft being composed (not yet persisted). */
   const [draft, setDraft] = useState<TalentOffering | null>(null);
+  /** Per-offering quoted/booked stats (source_service_id analytics). */
+  const [perf, setPerf] = useState<Record<string, ServicePerformanceStat>>({});
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -504,6 +626,18 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
       .catch(() => {
         if (!cancelled) setLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
+  }, [talentId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadTalentServicePerformance(talentId)
+      .then((res) => {
+        if (!cancelled && res.ok) setPerf(res.stats);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -774,6 +908,11 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
                       {KIND_LABELS[it.kind]}
                       {it.durationMinutes ? ` · ${it.durationMinutes} min` : ""}
                       {it.category ? ` · ${it.category}` : ""}
+                      {perf[it.id] && perf[it.id].timesQuoted > 0 ? (
+                        <span style={{ color: C.accentDeep, fontWeight: 600 }}>
+                          {" "}· Quoted {perf[it.id].timesQuoted}× · Booked {perf[it.id].timesBooked}×
+                        </span>
+                      ) : null}
                     </div>
                   </button>
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
@@ -793,6 +932,13 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
                       saving={saving}
                       defaultCurrency={defaultCurrency}
                       onPatch={(p) => patchItem(it.id, p)}
+                      onImages={(id, assets) =>
+                        setItems((cur) =>
+                          cur.map((x) =>
+                            x.id === id ? { ...x, imageAssets: assets, imageUrls: assets.map((a) => a.url) } : x,
+                          ),
+                        )
+                      }
                     />
                     <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap", borderTop: `1px dashed ${C.borderSoft}`, paddingTop: 12 }}>
                       <button type="button" disabled={saving} onClick={() => patchItem(it.id, { status: live ? "draft" : "published" })} style={{ ...pillStyle(false) }}>
