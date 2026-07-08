@@ -9,6 +9,7 @@ import {
   parseModelJson,
   GENERATION_PROMPT_IMAGE_ROLES,
   GENERATION_PROMPT_KINDS,
+  type ModelGenerateFn,
 } from "./generate-nodes";
 import {
   GENERATION_ALLOWED_KINDS,
@@ -36,9 +37,9 @@ function collectNodes(tree: BuilderNodeTree): BuilderNode[] {
   return out;
 }
 
-function stubModel(payload: unknown) {
+function stubModel(payload: unknown): ModelGenerateFn {
   const text = typeof payload === "string" ? payload : JSON.stringify(payload);
-  return async () => text;
+  return async () => ({ text, reason: "ok" });
 }
 
 // ── Drift: the prompt vocabulary must match the real registry ──────────────
@@ -603,11 +604,38 @@ test("empty model output resolves to EMPTY (caller falls back)", async () => {
   const result = await generateBuilderNodes({
     brief: "a homepage",
     scope: "page",
-    generateWithModel: async () => null,
+    generateWithModel: async () => ({ text: null, reason: "empty" }),
   });
   assert.equal(result.ok, false);
   if (result.ok) return;
   assert.equal(result.code, "EMPTY");
+});
+
+test("a truncated first pass retries with a higher token cap (AIQ-15)", async () => {
+  const seen: number[] = [];
+  const model: ModelGenerateFn = async ({ maxTokens }) => {
+    seen.push(maxTokens);
+    return seen.length === 1
+      ? { text: '{"sections":[', reason: "truncated" } // cut-off JSON
+      : { text: JSON.stringify(HERO_AND_SERVICES), reason: "ok" };
+  };
+  const result = await generateBuilderNodes({ brief: "a homepage", scope: "page", generateWithModel: model });
+  assert.equal(result.ok, true);
+  assert.deepEqual(seen, [16000, 24000], "second pass raised the cap");
+});
+
+test("corrective retry appends a repair note keyed to the first failure (AIQ-21)", async () => {
+  const notes: (string | undefined)[] = [];
+  const model: ModelGenerateFn = async ({ repairNote }) => {
+    notes.push(repairNote);
+    return notes.length === 1
+      ? { text: "not json at all", reason: "ok" } // parse_failed
+      : { text: JSON.stringify(HERO_AND_SERVICES), reason: "ok" };
+  };
+  const result = await generateBuilderNodes({ brief: "a homepage", scope: "page", generateWithModel: model });
+  assert.equal(result.ok, true);
+  assert.equal(notes[0], undefined, "first pass carries no note");
+  assert.match(notes[1]!, /not valid JSON/, "retry carries the parse-repair note");
 });
 
 test("too-short brief is rejected before any model call", async () => {
@@ -617,7 +645,7 @@ test("too-short brief is rejected before any model call", async () => {
     scope: "page",
     generateWithModel: async () => {
       called = true;
-      return "{}";
+      return { text: "{}", reason: "ok" };
     },
   });
   assert.equal(result.ok, false);

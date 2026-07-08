@@ -518,7 +518,7 @@ async function run() {
     const res = await generateBuilderNodes({
       brief: c.brief,
       scope: "page",
-      generateWithModel: async () => JSON.stringify(c.modelOutput),
+      generateWithModel: async () => ({ text: JSON.stringify(c.modelOutput), reason: "ok" }),
     });
     if (!res.ok) {
       console.error(`[FAIL] ${c.name}: ${res.code} — ${res.error}`);

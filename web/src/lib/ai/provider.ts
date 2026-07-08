@@ -34,6 +34,13 @@ export type ChatCompletionInput = {
    * is still extracted normally (thinking blocks are skipped).
    */
   thinking?: boolean;
+  /**
+   * Reasoning effort for the adaptive-thinking model family (AIQ-14). Only the
+   * Anthropic adapter honors it, only on the adaptive-capable models, and only
+   * via an untyped request-body field (`output_config.effort`) the pinned ^0.39
+   * SDK types don't expose. Ignored elsewhere. Pairs with `thinking`.
+   */
+  effort?: "low" | "medium" | "high" | "xhigh";
 };
 
 /** Token usage returned by a provider, when available. */
@@ -43,7 +50,14 @@ export type AiUsage = {
 };
 
 export type ChatCompletionResult =
-  | { ok: true; text: string; usage?: AiUsage; model?: string }
+  | {
+      ok: true;
+      text: string;
+      usage?: AiUsage;
+      model?: string;
+      /** Raw provider stop reason ("max_tokens" = truncated). Anthropic only; null when unknown (AIQ-15). */
+      stopReason?: string | null;
+    }
   | { ok: false; code: string; message: string };
 
 export type AiProviderAdapter = {

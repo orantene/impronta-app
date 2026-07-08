@@ -5,6 +5,7 @@ import type {
   ChatCompletionInput,
   ChatCompletionResult,
 } from "@/lib/ai/provider";
+import { logServerError } from "@/lib/server/safe-error";
 
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 
@@ -41,6 +42,50 @@ function modelSupportsAdaptiveThinking(model: string): boolean {
   return modelRejectsSamplingParams(model);
 }
 
+/**
+ * True when the served model is a genuinely different family than requested
+ * (AIQ-31). A snapshot suffix (requested `claude-opus-4-8`, served
+ * `claude-opus-4-8-20260115`) is NOT drift; only a family change (served
+ * `claude-sonnet-...`) is. Bidirectional startsWith covers alias↔snapshot both ways.
+ */
+export function isModelDrift(requested: string, served: string): boolean {
+  return Boolean(served) && !served.startsWith(requested) && !requested.startsWith(served);
+}
+
+/**
+ * Build the Anthropic request params (extracted so the cache/effort/thinking
+ * shaping is unit-testable without a live call). `output_config.effort` (AIQ-14)
+ * is set via a cast — the ^0.39 SDK predates the field but the API honors it;
+ * both effort and adaptive thinking are gated to the model family that accepts
+ * them so other callers/models never 400. The system block is cache-marked so
+ * repeat/retry generations reuse the static prefix at ~10% input cost (AIQ-22);
+ * the marker is a safe no-op when the prefix is below a tier's cache minimum.
+ */
+export function buildAnthropicParams(
+  input: ChatCompletionInput,
+  model: string,
+  systemWithSchema: string,
+): Anthropic.MessageCreateParamsNonStreaming {
+  const params: Anthropic.MessageCreateParamsNonStreaming = {
+    model,
+    max_tokens: input.maxTokens ?? 4096,
+    system: [{ type: "text", text: systemWithSchema, cache_control: { type: "ephemeral" } }],
+    messages: [{ role: "user", content: input.userMessage }],
+  };
+  if (!modelRejectsSamplingParams(model)) {
+    params.temperature = input.temperature ?? 0.2;
+  }
+  if (input.thinking && modelSupportsAdaptiveThinking(model)) {
+    (params as unknown as { thinking?: unknown }).thinking = { type: "adaptive" };
+  }
+  if (input.effort && modelSupportsAdaptiveThinking(model)) {
+    (params as unknown as { output_config?: { effort?: string } }).output_config = {
+      effort: input.effort,
+    };
+  }
+  return params;
+}
+
 function schemaInstruction(jsonSchema?: ChatCompletionInput["jsonSchema"]): string {
   if (!jsonSchema) return "";
   return [
@@ -74,41 +119,39 @@ export function createAnthropicChatAdapter(apiKey?: string | null): AiProviderAd
       try {
         const client = new Anthropic({ apiKey: key });
         const model = modelId(input.model);
-        const params: Anthropic.MessageCreateParamsNonStreaming = {
-          model,
-          max_tokens: input.maxTokens ?? 4096,
-          system: systemWithSchema,
-          messages: [{ role: "user", content: input.userMessage }],
-        };
-        // Only the pre-4.7 models accept sampling params; the 4.7+/5 family 400s.
-        if (!modelRejectsSamplingParams(model)) {
-          params.temperature = input.temperature ?? 0.2;
-        }
-        // Opt into adaptive extended thinking when the caller requests it and the
-        // model supports it. The installed SDK (^0.39) predates the "adaptive"
-        // thinking type, so set it via a cast — the API honors the request-body
-        // field regardless of the client's TS types, and the text-block
-        // extraction below already skips the returned thinking block(s). (Sampling
-        // params are already omitted for this family, so there's no conflict.)
-        if (input.thinking && modelSupportsAdaptiveThinking(model)) {
-          (params as unknown as { thinking?: unknown }).thinking = { type: "adaptive" };
-        }
+        const params = buildAnthropicParams(input, model, systemWithSchema);
         const msg = await client.messages.create(params);
 
         const block = msg.content.find((b) => b.type === "text");
         const text =
           block && block.type === "text" ? block.text.trim() : "";
         if (!text) {
+          // A truncated response (thinking spent the whole budget before any
+          // text) is distinct from a hard empty — the orchestrator can raise the
+          // cap and retry rather than dropping to the preset fallback (AIQ-15).
+          const truncated = msg.stop_reason === "max_tokens";
           return {
             ok: false,
-            code: "empty_response",
-            message: "Claude returned no text.",
+            code: truncated ? "truncated" : "empty_response",
+            message: truncated
+              ? "Claude hit the token cap before emitting text."
+              : "Claude returned no text.",
           };
+        }
+        // AIQ-31 — log (never fail) when the served snapshot is a different
+        // family than requested, so usage/quality attribution stays honest.
+        const served = msg.model ?? "";
+        if (isModelDrift(model, served)) {
+          logServerError(
+            "anthropic-adapter/model-drift",
+            new Error(`requested "${model}" but served "${served}"`),
+          );
         }
         return {
           ok: true,
           text,
-          model,
+          model: served || model, // served id → accurate usage dashboard (AIQ-31)
+          stopReason: msg.stop_reason, // "max_tokens" ⇒ truncated (AIQ-15)
           usage: {
             inputTokens: msg.usage?.input_tokens ?? null,
             outputTokens: msg.usage?.output_tokens ?? null,

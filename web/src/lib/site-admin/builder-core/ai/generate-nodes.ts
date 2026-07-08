@@ -54,13 +54,23 @@ import {
 
 export type GenerateScope = "page" | "section";
 
-/** Injected model call — returns the raw text (a JSON object) or null on any provider failure. */
+/** Why a model call ended — a provider stop reason mapped to a small tag (AIQ-15). */
+export type ModelGenerateReason = "ok" | "truncated" | "refusal" | "empty" | "error";
+
+/** Injected model call result — text plus WHY it ended, so the orchestrator can act (AIQ-15). */
+export type ModelGenerateResult = { text: string | null; reason: ModelGenerateReason };
+
+/** Orchestrator-internal failure tags (produced by runOnce), a superset of the model reasons. */
+export type GenFailReason = ModelGenerateReason | "parse_failed" | "no_valid_nodes";
+
 export type ModelGenerateFn = (input: {
   systemPrompt: string;
   userMessage: string;
   jsonSchema: JsonSchemaForChat;
   maxTokens: number;
-}) => Promise<string | null>;
+  /** Appended to the user message on the corrective retry (AIQ-21). */
+  repairNote?: string;
+}) => Promise<ModelGenerateResult>;
 
 export type ThemePolarity = "light" | "dark";
 
@@ -110,6 +120,10 @@ const LABEL_MAX = 120;
 // model think without truncating the JSON. Still safe non-streaming (< the ~16k
 // where SDK HTTP timeouts start to matter).
 const GEN_MAX_TOKENS = 16000;
+// AIQ-15: truncation headroom on the corrective pass. Stays inside the SDK's
+// non-streaming HTTP-timeout safety; streaming via .finalMessage() is the
+// documented follow-up if 24k proves insufficient in the eval.
+const GEN_MAX_TOKENS_RETRY = 24000;
 
 // ── Prompt ────────────────────────────────────────────────────────────────
 
@@ -656,11 +670,34 @@ export function coerceToSections(parsed: unknown): BuilderNode[] {
 
 // ── Orchestrate ─────────────────────────────────────────────────────────────
 
+/**
+ * AIQ-21 — a targeted repair instruction appended to the user message on the
+ * corrective retry, so the second attempt is NOT byte-identical to the first.
+ * Keyed by the first pass's failure reason. Returns undefined when a plain
+ * resend is the best available move.
+ */
+function repairNoteFor(reason: GenFailReason): string | undefined {
+  switch (reason) {
+    case "truncated":
+      return "RETRY: your previous reply was cut off before the JSON closed. Return a COMPLETE, valid JSON object, and prefer fewer sections over an unfinished one.";
+    case "parse_failed":
+      return 'RETRY: your previous reply was not valid JSON. Return ONLY the {"sections":[...]} object, with no prose, no markdown fences, and no trailing commas.';
+    case "no_valid_nodes":
+      return 'RETRY: your previous reply had no usable sections. Every top-level item must be {"kind":"section","children":[...]} with at least one valid block child, per the grammar.';
+    case "refusal":
+      return "RETRY: rephrase as a neutral, professional talent-agency page. Keep the copy brand-safe and on topic.";
+    default:
+      return undefined; // "empty" / "error" / "ok" — a plain resend is the best we can do
+  }
+}
+
 async function runOnce(
   input: GenerateNodesInput,
   brief: string,
-): Promise<{ tree: BuilderNodeTree; repaired: boolean } | null> {
-  const text = await input.generateWithModel({
+  maxTokens: number,
+  repairNote?: string,
+): Promise<{ tree: BuilderNodeTree; repaired: boolean } | { fail: GenFailReason }> {
+  const res = await input.generateWithModel({
     systemPrompt: buildGenerationSystemPrompt({
       locale: input.locale,
       themePolarity: input.themePolarity,
@@ -668,13 +705,16 @@ async function runOnce(
     }),
     userMessage: buildGenerationUserMessage(input.scope, brief, input.locale),
     jsonSchema: GENERATION_OUTPUT_SCHEMA,
-    maxTokens: GEN_MAX_TOKENS,
+    maxTokens,
+    repairNote,
   });
-  const parsed = parseModelJson(text);
-  if (parsed == null) return null;
+  const parsed = parseModelJson(res.text);
+  // A non-"ok" reason (truncated/refusal/empty/error) is more actionable than a
+  // generic parse failure — surface it so the retry can target the real cause.
+  if (parsed == null) return { fail: res.reason === "ok" ? "parse_failed" : res.reason };
 
   const coerced = coerceToSections(parsed);
-  if (coerced.length === 0) return null;
+  if (coerced.length === 0) return { fail: "no_valid_nodes" };
 
   // Re-mint every id (the model's ids may collide/repeat) BEFORE validate, which
   // rejects duplicate ids, then run the same gate the gallery-insert path uses.
@@ -684,7 +724,7 @@ async function runOnce(
   // Invalid nodes are dropped; the repaired tree still validates. Use it when
   // it kept at least one section.
   if (validation.tree.length > 0) return { tree: validation.tree, repaired: true };
-  return null;
+  return { fail: "no_valid_nodes" };
 }
 
 function countNodes(tree: BuilderNodeTree): number {
@@ -712,10 +752,17 @@ export async function generateBuilderNodes(
   }
   const clipped = brief.slice(0, MAX_BRIEF_LEN);
 
-  // One generate + one retry. `runOnce` returns null on empty/parse failure.
-  let result = await runOnce(input, clipped);
-  if (!result) result = await runOnce(input, clipped);
-  if (!result) {
+  // One generate + one corrective retry. On a TRUNCATED first pass, retry with a
+  // higher token cap (thinking + JSON share the budget) so a good-but-cut page is
+  // recovered instead of silently dropping to the preset composer (AIQ-15). The
+  // retry also carries a failure-specific repair note (AIQ-21).
+  let result = await runOnce(input, clipped, GEN_MAX_TOKENS);
+  if ("fail" in result) {
+    const firstFail = result.fail;
+    const retryTokens = firstFail === "truncated" ? GEN_MAX_TOKENS_RETRY : GEN_MAX_TOKENS;
+    result = await runOnce(input, clipped, retryTokens, repairNoteFor(firstFail));
+  }
+  if ("fail" in result) {
     return { ok: false, code: "EMPTY", error: "The AI could not build that — try rephrasing." };
   }
   return {
