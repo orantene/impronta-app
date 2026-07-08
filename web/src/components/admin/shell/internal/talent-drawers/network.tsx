@@ -10,6 +10,7 @@
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
+import { useT } from "@/i18n/use-t";
 import { COLORS, FONTS, TRANSITION, useAdminShell } from "../state";
 import {
   Divider,
@@ -28,6 +29,7 @@ import { KvRow } from "./shared";
 
 export function TalentNetworkDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-network";
   // Honest stub — the talent-to-talent network has no backend yet. Showing a
   // fabricated peer list (with dead follow/refer buttons) would misrepresent a
@@ -36,15 +38,15 @@ export function TalentNetworkDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Your network"
-      description="Follow other talents, see who's working where, and hand off briefs you can't take."
+      title={t("dashboard.talentDrawers.network.networkTitle")}
+      description={t("dashboard.talentDrawers.network.networkDesc")}
       width={620}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <EmptyState
         icon="team"
-        title="Coming soon"
-        body="The talent network, following peers and one-tap fully-attributed brief hand-offs, isn't live yet. We'll let you know when it opens."
+        title={t("dashboard.talentDrawers.comingSoon")}
+        body={t("dashboard.talentDrawers.network.networkComingBody")}
       />
     </DrawerShell>
   );
@@ -59,6 +61,7 @@ export function TalentNetworkDrawer() {
 
 export function TalentVoiceReplyDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-voice-reply";
   // Honest stub — the hold-to-talk recorder never submitted (the "Send reply"
   // button was permanently disabled), so letting a talent record a message
@@ -69,15 +72,15 @@ export function TalentVoiceReplyDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Voice reply"
-      description="Reply to an inquiry with a quick voice note instead of typing."
+      title={t("dashboard.talentDrawers.network.voiceTitle")}
+      description={t("dashboard.talentDrawers.network.voiceDesc")}
       width={460}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <EmptyState
         icon="sparkle"
-        title="Coming soon"
-        body="Hold-to-talk voice replies with automatic transcription aren't live yet. We'll let you know when they open."
+        title={t("dashboard.talentDrawers.comingSoon")}
+        body={t("dashboard.talentDrawers.network.voiceComingBody")}
       />
     </DrawerShell>
   );
@@ -94,6 +97,7 @@ export function TalentVoiceReplyDrawer() {
 
 export function TalentMultiAgencyPickerDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-multi-agency-picker";
   // Honest stub — the in-drawer multi-agency picker was demo-only (it never
   // actually switched workspace). Real workspace switching already lives in
@@ -102,15 +106,15 @@ export function TalentMultiAgencyPickerDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Switch workspace"
-      description="On the Network plan you can own multiple agencies, each with its own roster and commission."
+      title={t("dashboard.talentDrawers.network.switchWorkspaceTitle")}
+      description={t("dashboard.talentDrawers.network.switchWorkspaceDesc")}
       width={520}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <EmptyState
         icon="team"
-        title="Coming soon"
-        body="Switching between agencies you own from here isn't live yet. For now, use the workspace switcher in the top bar."
+        title={t("dashboard.talentDrawers.comingSoon")}
+        body={t("dashboard.talentDrawers.network.switchWorkspaceComingBody")}
       />
     </DrawerShell>
   );
@@ -137,24 +141,25 @@ const REPLY_TEMPLATES = [
 
 export function ReplyTemplatesDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "reply-templates";
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Reply with template"
-      description="Tap a template to insert it into the reply box. You can still edit before sending."
+      title={t("dashboard.talentDrawers.network.templatesTitle")}
+      description={t("dashboard.talentDrawers.network.templatesDesc")}
       width={560}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
         </>
       }
     >
       <div className="flex flex-col gap-2">
-        {REPLY_TEMPLATES.map((t) => (
+        {REPLY_TEMPLATES.map((tpl) => (
           <button
-            key={t.id}
+            key={tpl.id}
             type="button"
             onClick={closeDrawer}
             style={{
@@ -174,9 +179,9 @@ export function ReplyTemplatesDrawer() {
             onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.accent)}
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
           >
-            <div className="text-admin-ink text-admin-13 font-semibold">{t.title}</div>
+            <div className="text-admin-ink text-admin-13 font-semibold">{tpl.title}</div>
             <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              {t.body.length > 120 ? `${t.body.slice(0, 118)}…` : t.body}
+              {tpl.body.length > 120 ? `${tpl.body.slice(0, 118)}…` : tpl.body}
             </div>
           </button>
         ))}
@@ -187,17 +192,18 @@ export function ReplyTemplatesDrawer() {
 
 export function TalentChatArchiveDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-chat-archive";
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Archive this thread"
-      description="Generate a timestamped PDF with the full message history + attachments index. Yours to keep, outside Tulala."
+      title={t("dashboard.talentDrawers.network.archiveTitle")}
+      description={t("dashboard.talentDrawers.network.archiveDesc")}
       width={520}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.cancel")}</SecondaryButton>
           <button
             type="button"
             disabled
@@ -212,25 +218,25 @@ export function TalentChatArchiveDrawer() {
               color: COLORS.inkMuted,
               cursor: "not-allowed",
             }}
-            title="PDF export coming soon"
+            title={t("dashboard.talentDrawers.network.generatePdfComingTitle")}
           >
-            Generate PDF
+            {t("dashboard.talentDrawers.network.generatePdf")}
           </button>
         </>
       }
     >
       <div className="flex flex-col gap-3">
-        <KvRow label="Thread" value="Mango · Spring campaign" />
-        <KvRow label="Messages" value="42 · April 2 to April 19" />
-        <KvRow label="Attachments" value="3 files · 2 PDFs + 1 image" />
-        <KvRow label="Format" value="PDF · sealed timestamp" />
-        <Divider label="Includes" />
+        <KvRow label={t("dashboard.talentDrawers.network.archiveThread")} value="Mango · Spring campaign" />
+        <KvRow label={t("dashboard.talentDrawers.network.archiveMessages")} value="42 · April 2 to April 19" />
+        <KvRow label={t("dashboard.talentDrawers.network.archiveAttachments")} value="3 files · 2 PDFs + 1 image" />
+        <KvRow label={t("dashboard.talentDrawers.network.archiveFormat")} value={t("dashboard.talentDrawers.network.archiveFormatValue")} />
+        <Divider label={t("dashboard.talentDrawers.network.archiveIncludes")} />
         <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
           {[
-            "Full message history with timestamps + sender labels",
-            "All client + agency replies in original order",
-            "Attachment index with filenames + upload dates",
-            "Booking summary card (dates, rate, scope, status)",
+            t("dashboard.talentDrawers.network.archiveInc1"),
+            t("dashboard.talentDrawers.network.archiveInc2"),
+            t("dashboard.talentDrawers.network.archiveInc3"),
+            t("dashboard.talentDrawers.network.archiveInc4"),
           ].map((line, idx) => (
             <li key={idx} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
               <span style={{ marginTop: 4, width: 4, height: 4, borderRadius: "50%", flexShrink: 0 }} />
@@ -249,7 +255,7 @@ export function TalentChatArchiveDrawer() {
             fontSize: 11.5,
             color: COLORS.green,
             lineHeight: 1.5, }} className="bg-admin-green">
-          The PDF is generated server-side and signed with a timestamp hash, useful as evidence if there&apos;s a dispute.
+          {t("dashboard.talentDrawers.network.archiveEvidenceNote")}
         </div>
       </div>
     </DrawerShell>
