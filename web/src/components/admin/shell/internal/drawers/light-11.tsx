@@ -19,12 +19,15 @@ import {
   VerificationType,
   useAdminShell
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 2 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function TrustVerificationQueueDrawer() {
   const { closeDrawer, verificationRequests, approveVerificationRequest, rejectVerificationRequest, updateVerificationRequest, toast, isVerificationMethodEnabled } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   type Tab = "all" | "submitted" | "in_review" | "needs_more_info" | "approved" | "rejected";
   const [activeTab, setActiveTab] = useState<Tab>("submitted");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -57,29 +60,33 @@ export function TrustVerificationQueueDrawer() {
 
   const cur = activeId ? verificationRequests.find(r => r.id === activeId) ?? null : (filtered[0] ?? null);
   const tabs: { id: Tab; label: string; count: number }[] = [
-    { id: "submitted",       label: "Pending",     count: verificationRequests.filter(r => r.status === "submitted" || r.status === "pending_user_action").length },
-    { id: "in_review",       label: "In review",   count: verificationRequests.filter(r => r.status === "in_review").length },
-    { id: "needs_more_info", label: "Needs info",  count: verificationRequests.filter(r => r.status === "needs_more_info").length },
-    { id: "approved",        label: "Approved",    count: verificationRequests.filter(r => r.status === "approved").length },
-    { id: "rejected",        label: "Rejected",    count: verificationRequests.filter(r => r.status === "rejected").length },
-    { id: "all",             label: "All",         count: verificationRequests.length },
+    { id: "submitted",       label: tt("Pending"),     count: verificationRequests.filter(r => r.status === "submitted" || r.status === "pending_user_action").length },
+    { id: "in_review",       label: tt("In review"),   count: verificationRequests.filter(r => r.status === "in_review").length },
+    { id: "needs_more_info", label: tt("Needs info"),  count: verificationRequests.filter(r => r.status === "needs_more_info").length },
+    { id: "approved",        label: tt("Approved"),    count: verificationRequests.filter(r => r.status === "approved").length },
+    { id: "rejected",        label: tt("Rejected"),    count: verificationRequests.filter(r => r.status === "rejected").length },
+    { id: "all",             label: tt("All"),         count: verificationRequests.length },
   ];
 
   const talentNameFor = (id: string) => talentNameForId(id);
 
   const onApprove = (req: VerificationRequest) => {
     approveVerificationRequest(req.id);
-    toast(`Approved ${VERIFICATION_TYPE_META[req.verificationType].label} for ${talentNameFor(req.subjectId)}`);
+    toast(copy.isSpanish
+      ? `${VERIFICATION_TYPE_META[req.verificationType].label} aprobado para ${talentNameFor(req.subjectId)}`
+      : `Approved ${VERIFICATION_TYPE_META[req.verificationType].label} for ${talentNameFor(req.subjectId)}`);
   };
   const onMarkInReview = (req: VerificationRequest) => {
     updateVerificationRequest(req.id, { status: "in_review" });
-    toast(`Marked in review`);
+    toast(tt("Marked in review"));
   };
   const onRequestMoreInfo = (req: VerificationRequest) => {
-    const msg = window.prompt("What does the talent need to add or fix?");
+    const msg = window.prompt(tt("What does the talent need to add or fix?"));
     if (!msg) return;
     updateVerificationRequest(req.id, { status: "needs_more_info", publicMessage: msg });
-    toast(`Asked ${talentNameFor(req.subjectId)} for more info`);
+    toast(copy.isSpanish
+      ? `Se le pidió más información a ${talentNameFor(req.subjectId)}`
+      : `Asked ${talentNameFor(req.subjectId)} for more info`);
   };
   const startReject = (req: VerificationRequest) => {
     setRejectReason("");
@@ -89,11 +96,13 @@ export function TrustVerificationQueueDrawer() {
   const [, setRejectModalOpen] = useState(false);
   const confirmReject = () => {
     if (!rejectReasonModal || !rejectReason.trim()) {
-      toast("Add a reason — talent will see it");
+      toast(tt("Add a reason — talent will see it"));
       return;
     }
     rejectVerificationRequest(rejectReasonModal.id, rejectReason, rejectReason);
-    toast(`Rejected — reason sent to ${rejectReasonModal.talent}`);
+    toast(copy.isSpanish
+      ? `Rechazado · motivo enviado a ${rejectReasonModal.talent}`
+      : `Rejected — reason sent to ${rejectReasonModal.talent}`);
     setRejectReasonModal(null);
     setRejectReason("");
   };
@@ -103,10 +112,12 @@ export function TrustVerificationQueueDrawer() {
       <DrawerShell
         open
         onClose={closeDrawer}
-        title="Trust & Verification queue"
-        description={`${verificationRequests.length} total requests · ${tabs[0].count} need your review`}
+        title={tt("Trust & Verification queue")}
+        description={copy.isSpanish
+          ? `${verificationRequests.length} solicitudes en total · ${tabs[0].count} necesitan tu revisión`
+          : `${verificationRequests.length} total requests · ${tabs[0].count} need your review`}
         width={760}
-        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+        footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
       >
         {/* Tabs */}
         <div style={{
@@ -147,7 +158,7 @@ export function TrustVerificationQueueDrawer() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, IG handle, code, type…"
+              placeholder={tt("Search by name, IG handle, code, type…")}
               style={{
                 width: "100%", boxSizing: "border-box",
                 padding: "8px 30px 8px 32px", borderRadius: 999,
@@ -157,7 +168,7 @@ export function TrustVerificationQueueDrawer() {
               }}
             />
             {search && (
-              <button type="button" onClick={() => setSearch("")} aria-label="Clear" style={{
+              <button type="button" onClick={() => setSearch("")} aria-label={tt("Clear")} style={{
                 position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
                 width: 22, height: 22, borderRadius: "50%", border: "none",
                 background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
@@ -170,7 +181,7 @@ export function TrustVerificationQueueDrawer() {
             background: "#fff", color: COLORS.ink, fontFamily: FONTS.body, fontSize: 12,
             cursor: "pointer",
           }}>
-            <option value="all">All methods</option>
+            <option value="all">{tt("All methods")}</option>
             {(["instagram_verified","tulala_verified","agency_confirmed","phone_verified","id_verified","business_verified","domain_verified","payment_verified"] as const)
               .filter(t => isVerificationMethodEnabled(t))
               .map(t => (
@@ -180,23 +191,25 @@ export function TrustVerificationQueueDrawer() {
           {bulkSelected.size > 0 && (
             <>
               <span className="text-admin-ink-muted text-admin-11h font-medium">
-                {bulkSelected.size} selected
+                {bulkSelected.size} {tt("selected")}
               </span>
               <button type="button" onClick={() => {
                 bulkSelected.forEach((id) => approveVerificationRequest(id));
-                toast(`Approved ${bulkSelected.size} requests`);
+                toast(copy.isSpanish
+                  ? `${bulkSelected.size} solicitudes aprobadas`
+                  : `Approved ${bulkSelected.size} requests`);
                 setBulkSelected(new Set());
               }} style={{
                 padding: "5px 11px", borderRadius: 999, border: "none",
                 background: COLORS.accent, color: "#fff",
                 fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-              }}>Approve all</button>
+              }}>{tt("Approve all")}</button>
               <button type="button" onClick={() => setBulkSelected(new Set())} style={{
                 padding: "5px 11px", borderRadius: 999,
                 background: "transparent", color: COLORS.inkMuted,
                 border: `1px solid ${COLORS.borderSoft}`,
                 fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
-              }}>Clear</button>
+              }}>{tt("Clear")}</button>
             </>
           )}
         </div>
@@ -216,7 +229,7 @@ export function TrustVerificationQueueDrawer() {
           }}>
             {filtered.length === 0 ? (
               <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">
-                Nothing here.
+                {tt("Nothing here.")}
               </div>
             ) : filtered.map((r, i) => {
               const isActive = (cur?.id) === r.id;
@@ -244,7 +257,7 @@ export function TrustVerificationQueueDrawer() {
                           return next;
                         });
                       }}
-                      aria-label={isSelected ? "Deselect" : "Select for bulk"}
+                      aria-label={isSelected ? tt("Deselect") : tt("Select for bulk")}
                       style={{
                         width: 16, height: 16, borderRadius: 4, marginTop: 2,
                         border: `1.5px solid ${isSelected ? COLORS.accent : COLORS.borderSoft}`,
@@ -272,7 +285,7 @@ export function TrustVerificationQueueDrawer() {
                       {r.claimedIdentifier && <span className="text-admin-ink-dim">· {r.claimedIdentifier}</span>}
                     </div>
                     <div className="text-admin-ink-dim text-admin-10h">
-                      {new Date(r.createdAt).toLocaleDateString()} · code {r.verificationCode ?? "—"}
+                      {new Date(r.createdAt).toLocaleDateString()} · {tt("code")} {r.verificationCode ?? "—"}
                     </div>
                   </button>
                 </div>
@@ -287,7 +300,7 @@ export function TrustVerificationQueueDrawer() {
             fontFamily: FONTS.body,
           }}>
             {!cur ? (
-              <div className="text-admin-ink-muted text-xs">Select a request to review.</div>
+              <div className="text-admin-ink-muted text-xs">{tt("Select a request to review.")}</div>
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -298,31 +311,31 @@ export function TrustVerificationQueueDrawer() {
                 </div>
                 <div style={{ fontSize: 12, marginBottom: 16 }} className="text-admin-ink-muted">
                   {VERIFICATION_TYPE_META[cur.verificationType].emoji} {VERIFICATION_TYPE_META[cur.verificationType].label}
-                  {" · "}via {cur.method.replace(/_/g, " ")}
+                  {" · "}{tt("via")} {cur.method.replace(/_/g, " ")}
                 </div>
 
                 {/* Profile preview */}
                 {cur.method === "instagram_dm" && (
                   <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14, fontFamily: FONTS.body }} className="bg-admin-surface">
                     <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6, textTransform: "uppercase" }} className="text-admin-ink-muted">
-                      What talent was instructed to do
+                      {tt("What talent was instructed to do")}
                     </div>
                     <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink">
-                      Send a DM from <strong>{cur.claimedIdentifier ?? "(handle)"}</strong> to <strong>@tulala.digital</strong> with this code:
+                      {tt("Send a DM from")} <strong>{cur.claimedIdentifier ?? "(handle)"}</strong> {tt("to")} <strong>@tulala.digital</strong> {tt("with this code:")}
                     </div>
                     <div style={{ marginTop: 8, padding: "8px 12px", background: "#fff", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.mono ?? FONTS.body, fontSize: 14, fontWeight: 700, textAlign: "center", letterSpacing: 1 }} className="text-admin-ink">{cur.verificationCode ?? "—"}</div>
                     <div style={{ marginTop: 8, fontSize: 11 }} className="text-admin-ink-muted">
-                      Profile: <a href={cur.targetUrl ?? "#"} style={{ color: COLORS.accentDeep, textDecoration: "none" }}>{cur.targetUrl ?? "—"}</a>
+                      {tt("Profile:")} <a href={cur.targetUrl ?? "#"} style={{ color: COLORS.accentDeep, textDecoration: "none" }}>{cur.targetUrl ?? "—"}</a>
                     </div>
                     <div style={{ marginTop: 6, fontSize: 11 }} className="text-admin-ink-dim">
-                      Manual review: confirm DM was received, sender matches handle, code matches.
+                      {tt("Manual review: confirm DM was received, sender matches handle, code matches.")}
                     </div>
                   </div>
                 )}
 
                 {cur.method === "manual_review" && (
                   <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-surface text-admin-ink">
-                    <strong>Manual review.</strong> Open the profile and confirm: 3+ photos, bio, primary type, no suspicious content.
+                    <strong>{tt("Manual review.")}</strong> {tt("Open the profile and confirm: 3+ photos, bio, primary type, no suspicious content.")}
                   </div>
                 )}
 
@@ -331,7 +344,7 @@ export function TrustVerificationQueueDrawer() {
                     marginBottom: 14, padding: "10px 12px", borderRadius: 10,
                     background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
                   }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }} className="text-admin-ink-dim">Evidence from talent</div>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }} className="text-admin-ink-dim">{tt("Evidence from talent")}</div>
                     {cur.evidenceUrl && (
                       <div style={{ marginBottom: cur.evidenceNote ? 6 : 0, fontSize: 12 }}>
                         <a href={cur.evidenceUrl} target="_blank" rel="noopener noreferrer" style={{
@@ -351,12 +364,12 @@ export function TrustVerificationQueueDrawer() {
 
                 {cur.publicMessage && (
                   <div style={{ marginBottom: 14, fontSize: 11.5 }} className="text-admin-ink-muted">
-                    <strong>Public message:</strong> {cur.publicMessage}
+                    <strong>{tt("Public message:")}</strong> {cur.publicMessage}
                   </div>
                 )}
                 {cur.adminNotes && (
                   <div style={{ marginBottom: 14, padding: "8px 11px", borderRadius: 8, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-amber-soft text-admin-amber-deep">
-                    <strong>Admin notes:</strong> {cur.adminNotes}
+                    <strong>{tt("Admin notes:")}</strong> {cur.adminNotes}
                   </div>
                 )}
 
@@ -370,26 +383,26 @@ export function TrustVerificationQueueDrawer() {
                 {(cur.status === "submitted" || cur.status === "in_review" || cur.status === "needs_more_info") && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 16 }}>
                     {cur.status !== "in_review" && (
-                      <SecondaryButton onClick={() => onMarkInReview(cur)}>Mark in review</SecondaryButton>
+                      <SecondaryButton onClick={() => onMarkInReview(cur)}>{tt("Mark in review")}</SecondaryButton>
                     )}
-                    <SecondaryButton onClick={() => onRequestMoreInfo(cur)}>Request more info</SecondaryButton>
-                    <SecondaryButton onClick={() => startReject(cur)}>Reject</SecondaryButton>
-                    <PrimaryButton onClick={() => onApprove(cur)}>Approve</PrimaryButton>
+                    <SecondaryButton onClick={() => onRequestMoreInfo(cur)}>{tt("Request more info")}</SecondaryButton>
+                    <SecondaryButton onClick={() => startReject(cur)}>{tt("Reject")}</SecondaryButton>
+                    <PrimaryButton onClick={() => onApprove(cur)}>{tt("Approve")}</PrimaryButton>
                   </div>
                 )}
                 {cur.status === "approved" && cur.reviewedAt && (
                   <div style={{ padding: "10px 12px", borderRadius: 10, marginTop: 16, fontSize: 12, fontWeight: 600 }} className="bg-admin-success-soft text-admin-success-deep">
-                    ✓ Approved · {new Date(cur.reviewedAt).toLocaleString()}
+                    ✓ {tt("Approved")} · {new Date(cur.reviewedAt).toLocaleString()}
                   </div>
                 )}
                 {cur.status === "rejected" && cur.rejectionReason && (
                   <div style={{ padding: "10px 12px", borderRadius: 10, marginTop: 16, background: "rgba(200,40,40,0.08)", fontSize: 12, lineHeight: 1.5 }} className="text-admin-red">
-                    <strong>Rejected.</strong> {cur.rejectionReason}
+                    <strong>{tt("Rejected.")}</strong> {cur.rejectionReason}
                   </div>
                 )}
                 {cur.status === "pending_user_action" && (
                   <div style={{ padding: "10px 12px", borderRadius: 10, marginTop: 16, fontSize: 12 }} className="bg-admin-amber-soft text-admin-amber-deep">
-                    Waiting for talent to send the DM and tap &quot;I sent it.&quot;
+                    {tt("Waiting for talent to send the DM and tap \"I sent it.\"")}
                   </div>
                 )}
               </>
@@ -411,14 +424,14 @@ export function TrustVerificationQueueDrawer() {
             background: "#fff", borderRadius: 16, padding: 22,
             boxShadow: "0 24px 80px -20px rgba(11,11,13,0.45)",
           }}>
-            <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2, marginBottom: 6 }} className="text-admin-ink">Reject {rejectReasonModal.talent}&apos;s verification?</div>
+            <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2, marginBottom: 6 }} className="text-admin-ink">{copy.isSpanish ? `¿Rechazar la verificación de ${rejectReasonModal.talent}?` : `Reject ${rejectReasonModal.talent}'s verification?`}</div>
             <div style={{ fontSize: 12.5, marginBottom: 14, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              Talent will see this reason. Be specific so they can fix it and resubmit.
+              {tt("Talent will see this reason. Be specific so they can fix it and resubmit.")}
             </div>
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="e.g. DM not received from claimed handle. Make sure you sent the message from @your-handle, not a different account."
+              placeholder={tt("e.g. DM not received from claimed handle. Make sure you sent the message from @your-handle, not a different account.")}
               rows={4} autoFocus
               style={{
                 width: "100%", boxSizing: "border-box", padding: "10px 12px",
@@ -432,14 +445,14 @@ export function TrustVerificationQueueDrawer() {
                 padding: "9px 16px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
                 background: "transparent", color: COLORS.ink,
                 fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-              }}>Cancel</button>
+              }}>{tt("Cancel")}</button>
               <button type="button" onClick={confirmReject} disabled={!rejectReason.trim()} style={{
                 padding: "9px 16px", borderRadius: 999, border: "none",
                 background: rejectReason.trim() ? COLORS.red : "rgba(11,11,13,0.10)",
                 color: rejectReason.trim() ? "#fff" : COLORS.inkDim,
                 fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
                 cursor: rejectReason.trim() ? "pointer" : "default",
-              }}>Send rejection</button>
+              }}>{tt("Send rejection")}</button>
             </div>
           </div>
         </div>
@@ -459,6 +472,8 @@ export function TrustVerificationQueueDrawer() {
 
 export function DisputedClaimsDrawer() {
   const { closeDrawer, profileClaims, resolveProfileClaimDispute, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const [activeId, setActiveId] = useState<string | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
 
@@ -471,9 +486,9 @@ export function DisputedClaimsDrawer() {
   const handleResolve = (outcome: "release" | "uphold" | "remove") => {
     if (!cur) return;
     const labels = {
-      release: "Released to talent",
-      uphold:  "Agency claim upheld",
-      remove:  "Profile removed",
+      release: tt("Released to talent"),
+      uphold:  tt("Agency claim upheld"),
+      remove:  tt("Profile removed"),
     };
     resolveProfileClaimDispute(cur.id, outcome, adminNotes || undefined);
     toast(labels[outcome]);
@@ -487,14 +502,16 @@ export function DisputedClaimsDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Disputed claims"
-      description={`${disputed.length} claim${disputed.length === 1 ? "" : "s"} need admin review`}
+      title={tt("Disputed claims")}
+      description={copy.isSpanish
+        ? `${disputed.length} ${disputed.length === 1 ? "reclamación necesita" : "reclamaciones necesitan"} revisión del admin`
+        : `${disputed.length} claim${disputed.length === 1 ? "" : "s"} need admin review`}
       width={760}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       {disputed.length === 0 ? (
         <div style={{ padding: "24px 18px", borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, textAlign: "center", fontSize: 13 }} className="bg-admin-surface text-admin-ink-muted">
-          No disputed claims. When a talent flags an agency-created profile as not theirs, it will appear here for review.
+          {tt("No disputed claims. When a talent flags an agency-created profile as not theirs, it will appear here for review.")}
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 0.9fr) 1.6fr", gap: 14 }}>
@@ -519,7 +536,7 @@ export function DisputedClaimsDrawer() {
                     {c.email ?? c.phone ?? "—"}
                   </div>
                   <div style={{ fontSize: 11, marginTop: 4, fontWeight: 600 }} className="text-admin-red">
-                    Disputed · {fmt(c.updatedAt)}
+                    {tt("Disputed")} · {fmt(c.updatedAt)}
                   </div>
                 </button>
               );
@@ -532,7 +549,7 @@ export function DisputedClaimsDrawer() {
             background: "#fff", padding: 16,
           }}>
             {!cur ? (
-              <div className="text-admin-ink-muted text-admin-12h">Pick a claim to review.</div>
+              <div className="text-admin-ink-muted text-admin-12h">{tt("Pick a claim to review.")}</div>
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
@@ -540,11 +557,11 @@ export function DisputedClaimsDrawer() {
                     {talentNameForId(cur.profileId)}
                   </div>
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-red">
-                    Disputed
+                    {tt("Disputed")}
                   </div>
                 </div>
                 <div style={{ fontSize: 12, marginBottom: 10 }} className="text-admin-ink-muted">
-                  Claim invitation {cur.id} · invited by agency on {fmt(cur.createdAt)}
+                  {tt("Claim invitation")} {cur.id} · {tt("invited by agency on")} {fmt(cur.createdAt)}
                 </div>
 
                 <div className="mb-3.5">
@@ -552,34 +569,34 @@ export function DisputedClaimsDrawer() {
                 </div>
 
                 <div style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(200,40,40,0.06)", border: `1px solid rgba(200,40,40,0.20)`, fontSize: 12.5, lineHeight: 1.5, marginBottom: 14 }} className="text-admin-ink">
-                  <strong className="text-admin-red">Talent&apos;s report.</strong> They followed the invite link, saw a profile listed under {cur.email ?? "this address"}, and flagged it as not theirs.
+                  <strong className="text-admin-red">{tt("Talent's report.")}</strong> {tt("They followed the invite link, saw a profile listed under")} {cur.email ?? tt("this address")}, {tt("and flagged it as not theirs.")}
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14, fontSize: 12 }} className="bg-admin-surface">
                   <div>
-                    <div style={{ fontSize: 11, marginBottom: 2 }} className="text-admin-ink-muted">Invite sent to</div>
+                    <div style={{ fontSize: 11, marginBottom: 2 }} className="text-admin-ink-muted">{tt("Invite sent to")}</div>
                     <div style={{ fontWeight: 600 }} className="text-admin-ink">{cur.email ?? cur.phone ?? "—"}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, marginBottom: 2 }} className="text-admin-ink-muted">Invited by</div>
+                    <div style={{ fontSize: 11, marginBottom: 2 }} className="text-admin-ink-muted">{tt("Invited by")}</div>
                     <div style={{ fontWeight: 600 }} className="text-admin-ink">{cur.invitedByAgencyId ?? "—"}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, marginBottom: 2 }} className="text-admin-ink-muted">Created</div>
+                    <div style={{ fontSize: 11, marginBottom: 2 }} className="text-admin-ink-muted">{tt("Created")}</div>
                     <div className="text-admin-ink">{fmt(cur.createdAt)}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, marginBottom: 2 }} className="text-admin-ink-muted">Disputed</div>
+                    <div style={{ fontSize: 11, marginBottom: 2 }} className="text-admin-ink-muted">{tt("Disputed")}</div>
                     <div className="text-admin-ink">{fmt(cur.updatedAt)}</div>
                   </div>
                 </div>
 
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-dim">Admin notes (internal)</div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-dim">{tt("Admin notes (internal)")}</div>
                 <textarea
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
                   rows={3}
-                  placeholder="Outcome reasoning. Visible to admins only."
+                  placeholder={tt("Outcome reasoning. Visible to admins only.")}
                   style={{
                     width: "100%", boxSizing: "border-box", padding: "10px 12px",
                     borderRadius: 10, border: `1px solid ${COLORS.border}`,
@@ -588,16 +605,16 @@ export function DisputedClaimsDrawer() {
                   }}
                 />
 
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-dim">Resolution</div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-dim">{tt("Resolution")}</div>
                 <div className="flex flex-col gap-2">
                   <button type="button" onClick={() => handleResolve("release")} style={{
                     textAlign: "left", padding: "10px 14px", borderRadius: 10,
                     border: `1px solid ${COLORS.border}`, background: "#fff",
                     cursor: "pointer", fontFamily: FONTS.body,
                   }}>
-                    <div className="text-admin-ink text-admin-13 font-semibold">Release to talent</div>
+                    <div className="text-admin-ink text-admin-13 font-semibold">{tt("Release to talent")}</div>
                     <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-                      Talent is right. Profile is freed from agency control. Status → Released.
+                      {tt("Talent is right. Profile is freed from agency control. Status → Released.")}
                     </div>
                   </button>
                   <button type="button" onClick={() => handleResolve("uphold")} style={{
@@ -605,9 +622,9 @@ export function DisputedClaimsDrawer() {
                     border: `1px solid ${COLORS.border}`, background: "#fff",
                     cursor: "pointer", fontFamily: FONTS.body,
                   }}>
-                    <div className="text-admin-ink text-admin-13 font-semibold">Uphold agency claim</div>
+                    <div className="text-admin-ink text-admin-13 font-semibold">{tt("Uphold agency claim")}</div>
                     <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-                      Agency is right (paperwork checks out). Re-issue invite. Status → Invite sent.
+                      {tt("Agency is right (paperwork checks out). Re-issue invite. Status → Invite sent.")}
                     </div>
                   </button>
                   <button type="button" onClick={() => handleResolve("remove")} style={{
@@ -615,9 +632,9 @@ export function DisputedClaimsDrawer() {
                     border: `1px solid rgba(200,40,40,0.30)`, background: "rgba(200,40,40,0.04)",
                     cursor: "pointer", fontFamily: FONTS.body,
                   }}>
-                    <div className="text-admin-red text-admin-13 font-semibold">Remove profile</div>
+                    <div className="text-admin-red text-admin-13 font-semibold">{tt("Remove profile")}</div>
                     <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-                      Neither party owns it. Take the profile down entirely.
+                      {tt("Neither party owns it. Take the profile down entirely.")}
                     </div>
                   </button>
                 </div>

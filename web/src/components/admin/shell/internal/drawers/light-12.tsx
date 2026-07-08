@@ -26,12 +26,15 @@ import {
   vmChipStyle,
   vmSelectStyle
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 3 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function TalentTrustDetailDrawer() {
   const { state, closeDrawer, toast, getTrustSummary, getRiskScore, createVerificationRequest, updateVerificationRequest, verificationRequests, isVerificationMethodEnabled, openDrawer, getTalentContactGate, setTalentContactGate } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "talent-trust-detail";
   // Demo: prototype's "current talent" is roster id t1 (Marta).
   const TALENT_ID = "t1";
@@ -61,7 +64,7 @@ export function TalentTrustDetailDrawer() {
   };
   const submitIgRequest = () => {
     if (!igHandle.trim().startsWith("@")) {
-      toast("Handle should start with @ (e.g. @yourname)");
+      toast(tt("Handle should start with @ (e.g. @yourname)"));
       return;
     }
     // Generate a TUL-XXXX code
@@ -81,15 +84,15 @@ export function TalentTrustDetailDrawer() {
       status: "pending_user_action",
       expiresAt: new Date(Date.now() + 72 * 3600 * 1000).toISOString(),
     });
-    toast(`Verification code generated · send the DM to @tulala.digital`);
+    toast(tt("Verification code generated · send the DM to @tulala.digital"));
   };
   const markIgSent = (id: string) => {
     updateVerificationRequest(id, { status: "submitted" });
-    toast(`Marked as sent · Tulala will review within 24h`);
+    toast(tt("Marked as sent · Tulala will review within 24h"));
   };
   const cancelRequest = (id: string) => {
     updateVerificationRequest(id, { status: "cancelled" });
-    toast("Request cancelled");
+    toast(tt("Request cancelled"));
   };
   const requestTulalaReview = () => {
     createVerificationRequest({
@@ -101,7 +104,7 @@ export function TalentTrustDetailDrawer() {
       verificationType: "tulala_verified",
       status: "submitted",
     });
-    toast("Tulala Review requested · admins notified");
+    toast(tt("Tulala Review requested · admins notified"));
   };
 
   return (
@@ -109,10 +112,10 @@ export function TalentTrustDetailDrawer() {
       <DrawerShell
         open={open}
         onClose={closeDrawer}
-        title="Trust & Verification"
-        description="Get verified to win more bookings. Verified profiles get 3× more inquiries on Tulala."
+        title={tt("Trust & Verification")}
+        description={tt("Get verified to win more bookings. Verified profiles get 3× more inquiries on Tulala.")}
         width={580}
-        footer={<SecondaryButton onClick={closeDrawer}>Done</SecondaryButton>}
+        footer={<SecondaryButton onClick={closeDrawer}>{tt("Done")}</SecondaryButton>}
       >
         {/* Account email — top-of-card status */}
         <div style={{
@@ -126,16 +129,16 @@ export function TalentTrustDetailDrawer() {
             color: trust.account?.emailVerified ? COLORS.successDeep : COLORS.inkMuted,
           }}>
             <span>✉</span>
-            {trust.account?.emailVerified ? "Account email verified" : "Account email not verified"}
+            {trust.account?.emailVerified ? tt("Account email verified") : tt("Account email not verified")}
           </div>
           <div style={{ fontSize: 11, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">
-            Email is account security only — it doesn&apos;t appear as a public verification badge.
+            {tt("Email is account security only — it doesn't appear as a public verification badge.")}
           </div>
         </div>
 
         {/* Profile claim status */}
         {trust.claimStatus && (
-          <Section title="Profile ownership" framed>
+          <Section title={tt("Profile ownership")} framed>
             <div style={{
               display: "flex", alignItems: "center", gap: 10,
               fontFamily: FONTS.body,
@@ -143,16 +146,16 @@ export function TalentTrustDetailDrawer() {
               <span className="text-lg">👤</span>
               <div className="flex-1">
                 <div className="text-admin-ink text-admin-13 font-semibold">
-                  {trust.claimStatus === "claimed" && "You own this profile."}
-                  {trust.claimStatus === "invite_sent" && "Claim invite pending."}
-                  {trust.claimStatus === "unclaimed" && "Profile not yet claimed."}
-                  {trust.claimStatus === "disputed" && "Disputed — admin reviewing."}
-                  {trust.claimStatus === "released" && "You released ownership."}
+                  {trust.claimStatus === "claimed" && tt("You own this profile.")}
+                  {trust.claimStatus === "invite_sent" && tt("Claim invite pending.")}
+                  {trust.claimStatus === "unclaimed" && tt("Profile not yet claimed.")}
+                  {trust.claimStatus === "disputed" && tt("Disputed — admin reviewing.")}
+                  {trust.claimStatus === "released" && tt("You released ownership.")}
                 </div>
                 <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                   {trust.claimStatus === "claimed"
-                    ? "You can edit your profile and accept inquiries directly."
-                    : "Atelier Roma created this profile. Claim it to take ownership."}
+                    ? tt("You can edit your profile and accept inquiries directly.")
+                    : `Atelier Roma ${tt("created this profile. Claim it to take ownership.")}`}
                 </div>
               </div>
             </div>
@@ -164,16 +167,16 @@ export function TalentTrustDetailDrawer() {
 
         {/* Instagram Verified */}
         {isVerificationMethodEnabled("instagram_verified") && (
-        <Section title="Instagram Verified" framed>
+        <Section title={tt("Instagram Verified")} framed>
           <div style={{ fontSize: 12, marginBottom: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-            Tulala confirms you control the Instagram account on your profile. Public badge appears on your storefront card.
+            {tt("Tulala confirms you control the Instagram account on your profile. Public badge appears on your storefront card.")}
           </div>
           {igActive && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 10, fontFamily: FONTS.body }} className="bg-admin-success-soft">
               <span className="text-lg">📸</span>
               <div className="flex-1">
-                <div className="text-admin-success-deep text-admin-13 font-semibold">Verified</div>
-                <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">Public badge live</div>
+                <div className="text-admin-success-deep text-admin-13 font-semibold">{tt("Verified")}</div>
+                <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{tt("Public badge live")}</div>
               </div>
             </div>
           )}
@@ -190,7 +193,7 @@ export function TalentTrustDetailDrawer() {
               background: COLORS.fill, color: "#fff", border: "none",
               fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
             }}>
-              📸 Verify Instagram
+              📸 {tt("Verify Instagram")}
             </button>
           )}
         </Section>
@@ -198,16 +201,16 @@ export function TalentTrustDetailDrawer() {
 
         {/* Tulala Review */}
         {isVerificationMethodEnabled("tulala_verified") && (
-        <Section title="Tulala Review" framed>
+        <Section title={tt("Tulala Review")} framed>
           <div style={{ fontSize: 12, marginBottom: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-            Tulala manually reviews your profile for authenticity, completeness, and quality. Verified profiles get featured placement and the highest trust signal.
+            {tt("Tulala manually reviews your profile for authenticity, completeness, and quality. Verified profiles get featured placement and the highest trust signal.")}
           </div>
           {tulalaActive && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 10, fontFamily: FONTS.body }} className="bg-admin-success-soft">
               <span className="text-lg">✓</span>
               <div className="flex-1">
-                <div className="text-admin-success-deep text-admin-13 font-semibold">Tulala Verified</div>
-                <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">Public badge live</div>
+                <div className="text-admin-success-deep text-admin-13 font-semibold">{tt("Tulala Verified")}</div>
+                <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{tt("Public badge live")}</div>
               </div>
             </div>
           )}
@@ -215,11 +218,11 @@ export function TalentTrustDetailDrawer() {
             <div style={{ padding: "12px 14px", borderRadius: 10, fontFamily: FONTS.body }} className="bg-admin-amber-soft">
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 600 }} className="text-admin-amber-deep">
                 <span>◌</span>
-                {tulalaRequest.status === "needs_more_info" ? "Needs more info" : "In review"}
+                {tulalaRequest.status === "needs_more_info" ? tt("Needs more info") : tt("In review")}
               </div>
               {tulalaRequest.publicMessage && (
                 <div style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }} className="text-admin-ink">
-                  <strong>Tulala&apos;s note:</strong> {tulalaRequest.publicMessage}
+                  <strong>{tt("Tulala's note:")}</strong> {tulalaRequest.publicMessage}
                 </div>
               )}
             </div>
@@ -230,7 +233,7 @@ export function TalentTrustDetailDrawer() {
               background: COLORS.fill, color: "#fff", border: "none",
               fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
             }}>
-              ✓ Request Tulala Review
+              ✓ {tt("Request Tulala Review")}
             </button>
           )}
         </Section>
@@ -243,17 +246,17 @@ export function TalentTrustDetailDrawer() {
           || isVerificationMethodEnabled("business_verified")
           || isVerificationMethodEnabled("domain_verified")
           || isVerificationMethodEnabled("payment_verified")) && (
-          <Section title="More verifications" framed>
+          <Section title={tt("More verifications")} framed>
             <div style={{ fontSize: 12, marginBottom: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              Add more trust signals. Some are private (used for security + risk scoring), others get a public badge.
+              {tt("Add more trust signals. Some are private (used for security + risk scoring), others get a public badge.")}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
               {[
-                { type: "phone_verified"   as const, drawer: "talent-phone-verify"    as const, emoji: "📱", label: "Verify phone" },
-                { type: "id_verified"      as const, drawer: "talent-id-verify"       as const, emoji: "🪪", label: "Verify ID" },
-                { type: "business_verified" as const, drawer: "talent-business-verify" as const, emoji: "🏢", label: "Verify business" },
-                { type: "domain_verified"  as const, drawer: "talent-domain-verify"   as const, emoji: "🌐", label: "Verify domain" },
-                { type: "payment_verified" as const, drawer: "talent-payment-verify"  as const, emoji: "💳", label: "Verify payment" },
+                { type: "phone_verified"   as const, drawer: "talent-phone-verify"    as const, emoji: "📱", label: tt("Verify phone") },
+                { type: "id_verified"      as const, drawer: "talent-id-verify"       as const, emoji: "🪪", label: tt("Verify ID") },
+                { type: "business_verified" as const, drawer: "talent-business-verify" as const, emoji: "🏢", label: tt("Verify business") },
+                { type: "domain_verified"  as const, drawer: "talent-domain-verify"   as const, emoji: "🌐", label: tt("Verify domain") },
+                { type: "payment_verified" as const, drawer: "talent-payment-verify"  as const, emoji: "💳", label: tt("Verify payment") },
               ].filter(m => isVerificationMethodEnabled(m.type)).map(m => {
                 const active = trust.badges.some(b => b.type === m.type && b.status === "active");
                 return (
@@ -269,7 +272,7 @@ export function TalentTrustDetailDrawer() {
                       textAlign: "left",
                     }}>
                     <span className="text-base">{m.emoji}</span>
-                    <span className="flex-1">{active ? "Verified" : m.label}</span>
+                    <span className="flex-1">{active ? tt("Verified") : m.label}</span>
                     {!active && <span aria-hidden style={{ color: COLORS.inkDim }}>→</span>}
                   </button>
                 );
@@ -279,17 +282,17 @@ export function TalentTrustDetailDrawer() {
         )}
 
         {/* Contact gate — talent decides who can DM them. Default open. */}
-        <Section title="Who can contact you" framed>
+        <Section title={tt("Who can contact you")} framed>
           <div style={{ fontSize: 12, marginBottom: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-            Restrict inquiries based on the client&apos;s trust level. Tulala blocks the Send-inquiry button for clients who don&apos;t meet your gate.
+            {tt("Restrict inquiries based on the client's trust level. Tulala blocks the Send-inquiry button for clients who don't meet your gate.")}
           </div>
           {(["open", "verified_only", "trusted_only"] as const).map(g => {
             const cur = getTalentContactGate(TALENT_ID);
             const active = cur === g;
-            const label = g === "open" ? "Anyone" : g === "verified_only" ? "Verified clients only" : "Trusted clients only (score ≥ 60)";
-            const help = g === "open" ? "Default. Any client can send an inquiry." : g === "verified_only" ? "Client must have at least one active verification badge." : "Client must have multiple trust signals (verifications + claimed status).";
+            const label = g === "open" ? tt("Anyone") : g === "verified_only" ? tt("Verified clients only") : tt("Trusted clients only (score ≥ 60)");
+            const help = g === "open" ? tt("Default. Any client can send an inquiry.") : g === "verified_only" ? tt("Client must have at least one active verification badge.") : tt("Client must have multiple trust signals (verifications + claimed status).");
             return (
-              <button key={g} type="button" onClick={() => { setTalentContactGate(TALENT_ID, g); toast(`Contact gate set to ${label}`); }}
+              <button key={g} type="button" onClick={() => { setTalentContactGate(TALENT_ID, g); toast(copy.isSpanish ? `Criterio de contacto establecido en ${label}` : `Contact gate set to ${label}`); }}
                 style={{
                   display: "flex", width: "100%", textAlign: "left", gap: 10,
                   padding: "10px 12px", borderRadius: 10, marginBottom: 6,
@@ -309,7 +312,7 @@ export function TalentTrustDetailDrawer() {
 
         {/* What admins see — informational */}
         <div style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(91,107,160,0.08)", fontFamily: FONTS.body, fontSize: 11, lineHeight: 1.5, marginTop: 8 }} className="text-admin-indigo-deep">
-          <strong>Tulala admins review every request manually.</strong> Most decisions land within 24 hours.
+          <strong>{tt("Tulala admins review every request manually.")}</strong> {tt("Most decisions land within 24 hours.")}
         </div>
       </DrawerShell>
 
@@ -333,6 +336,8 @@ export function TalentTrustDetailDrawer() {
 
 export function TalentClaimInviteDrawer() {
   const { state, closeDrawer, toast, effectiveTenant } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "talent-claim-invite";
   const [step, setStep] = useState<"review" | "claim" | "dispute">("review");
   const [email, setEmail] = useState("amelia.dorsey@example.com");
@@ -340,18 +345,20 @@ export function TalentClaimInviteDrawer() {
   const [disputeReason, setDisputeReason] = useState("");
 
   // Profile name comes from the invite payload; fall back to generic label.
-  const profileName = (state.drawer.payload?.profileName as string | undefined) ?? "Your profile";
+  const profileName = (state.drawer.payload?.profileName as string | undefined) ?? tt("Your profile");
   const agencyName = effectiveTenant.name;
 
   const accept = () => {
-    if (!agreed) { toast("Confirm you reviewed what's collected"); return; }
-    toast(`Welcome, ${profileName.split(" ")[0]} · profile is yours`);
+    if (!agreed) { toast(tt("Confirm you reviewed what's collected")); return; }
+    toast(copy.isSpanish
+      ? `Bienvenido, ${profileName.split(" ")[0]} · el perfil es tuyo`
+      : `Welcome, ${profileName.split(" ")[0]} · profile is yours`);
     closeDrawer();
   };
 
   const submitDispute = () => {
-    if (!disputeReason.trim()) { toast("Add a reason — admin will review"); return; }
-    toast("Reported · Tulala admin will resolve");
+    if (!disputeReason.trim()) { toast(tt("Add a reason — admin will review")); return; }
+    toast(tt("Reported · Tulala admin will resolve"));
     closeDrawer();
   };
 
@@ -359,29 +366,29 @@ export function TalentClaimInviteDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title={step === "review" ? `Claim ${profileName}'s profile`
-        : step === "claim" ? "Confirm + sign in"
-        : "This isn't me"}
+      title={step === "review" ? (copy.isSpanish ? `Reclamar el perfil de ${profileName}` : `Claim ${profileName}'s profile`)
+        : step === "claim" ? tt("Confirm + sign in")
+        : tt("This isn't me")}
       description={step === "review"
-        ? `${agencyName} created a profile for you on Tulala. Review and claim it.`
-        : step === "claim" ? "One last step to take ownership."
-        : "Tell us what happened."}
+        ? (copy.isSpanish ? `${agencyName} creó un perfil para ti en Tulala. Revísalo y reclámalo.` : `${agencyName} created a profile for you on Tulala. Review and claim it.`)
+        : step === "claim" ? tt("One last step to take ownership.")
+        : tt("Tell us what happened.")}
       width={520}
       footer={
         step === "review" ? (
           <>
-            <SecondaryButton onClick={() => setStep("dispute")}>This isn&apos;t me</SecondaryButton>
-            <PrimaryButton onClick={() => setStep("claim")}>Claim this profile →</PrimaryButton>
+            <SecondaryButton onClick={() => setStep("dispute")}>{tt("This isn't me")}</SecondaryButton>
+            <PrimaryButton onClick={() => setStep("claim")}>{tt("Claim this profile →")}</PrimaryButton>
           </>
         ) : step === "claim" ? (
           <>
-            <SecondaryButton onClick={() => setStep("review")}>Back</SecondaryButton>
-            <PrimaryButton onClick={accept}>Confirm + sign in</PrimaryButton>
+            <SecondaryButton onClick={() => setStep("review")}>{tt("Back")}</SecondaryButton>
+            <PrimaryButton onClick={accept}>{tt("Confirm + sign in")}</PrimaryButton>
           </>
         ) : (
           <>
-            <SecondaryButton onClick={() => setStep("review")}>Back</SecondaryButton>
-            <PrimaryButton onClick={submitDispute}>Send report</PrimaryButton>
+            <SecondaryButton onClick={() => setStep("review")}>{tt("Back")}</SecondaryButton>
+            <PrimaryButton onClick={submitDispute}>{tt("Send report")}</PrimaryButton>
           </>
         )
       }
@@ -398,12 +405,12 @@ export function TalentClaimInviteDrawer() {
               <span style={{ width: 56, height: 56, borderRadius: "50%", background: `url(https://i.pravatar.cc/200?img=23) center/cover, ${COLORS.surfaceAlt}`, flexShrink: 0, }} />
               <div>
                 <div className="text-admin-ink text-base font-bold">{profileName}</div>
-                <div className="text-admin-accent-deep text-xs font-semibold">Promotional model · Lisbon</div>
-                <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">Created by {agencyName} · 5 days ago</div>
+                <div className="text-admin-accent-deep text-xs font-semibold">{tt("Promotional model · Lisbon")}</div>
+                <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{tt("Created by")} {agencyName} · {copy.isSpanish ? "hace 5 días" : "5 days ago"}</div>
               </div>
             </div>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }} className="text-admin-ink-muted">
-              What&apos;s already on your profile
+              {tt("What's already on your profile")}
             </div>
             <div className="flex flex-wrap gap-1">
               {["3 photos", "Lisbon", "5'8\"", "EN · PT", "Trade-show staff"].map((c) => (
@@ -416,18 +423,18 @@ export function TalentClaimInviteDrawer() {
           </div>
 
           {/* Permissions / what they'll capture */}
-          <Section title={`What ${agencyName} will manage`} framed>
+          <Section title={copy.isSpanish ? `Lo que ${agencyName} gestionará` : `What ${agencyName} will manage`} framed>
             <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 8 }} className="text-admin-ink-muted">
-              By claiming, you agree this agency can edit your profile and represent you for bookings until you say otherwise.
+              {tt("By claiming, you agree this agency can edit your profile and represent you for bookings until you say otherwise.")}
             </div>
             <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, lineHeight: 1.6 }} className="text-admin-ink">
-              <li>Send inquiries on your behalf</li>
-              <li>Edit your profile fields you don&apos;t lock</li>
-              <li>Add Agency Confirmed badge to your profile</li>
-              <li>Pause/unpause your visibility</li>
+              <li>{tt("Send inquiries on your behalf")}</li>
+              <li>{tt("Edit your profile fields you don't lock")}</li>
+              <li>{tt("Add Agency Confirmed badge to your profile")}</li>
+              <li>{tt("Pause/unpause your visibility")}</li>
             </ul>
             <div style={{ fontSize: 11, marginTop: 8, lineHeight: 1.5 }} className="text-admin-ink-dim">
-              You can release ownership any time from your Talent settings.
+              {tt("You can release ownership any time from your Talent settings.")}
             </div>
           </Section>
         </>
@@ -435,16 +442,20 @@ export function TalentClaimInviteDrawer() {
 
       {step === "claim" && (
         <>
-          <FieldRow label="Your email">
+          <FieldRow label={tt("Your email")}>
             <TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
           </FieldRow>
           <div style={{ padding: 12, borderRadius: 10, border: "1px solid rgba(91,107,160,0.18)", fontSize: 11.5, lineHeight: 1.5, marginBottom: 14 }} className="bg-admin-indigo-soft text-admin-indigo-deep">
-            We&apos;ll email you a one-tap sign-in link. Once you click it, the profile is yours — {agencyName} keeps editing access until you change it.
+            {copy.isSpanish
+              ? `Te enviaremos un enlace de acceso de un toque. Cuando hagas clic, el perfil será tuyo; ${agencyName} conserva el acceso de edición hasta que lo cambies.`
+              : `We'll email you a one-tap sign-in link. Once you click it, the profile is yours — ${agencyName} keeps editing access until you change it.`}
           </div>
           <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink">
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 3 }} />
             <span>
-              I confirm I am {profileName} and I&apos;ve reviewed what {agencyName} will manage on my behalf.
+              {copy.isSpanish
+                ? `Confirmo que soy ${profileName} y que he revisado lo que ${agencyName} gestionará en mi nombre.`
+                : `I confirm I am ${profileName} and I've reviewed what ${agencyName} will manage on my behalf.`}
             </span>
           </label>
         </>
@@ -452,11 +463,11 @@ export function TalentClaimInviteDrawer() {
 
       {step === "dispute" && (
         <>
-          <Section title="What's wrong?" framed>
+          <Section title={tt("What's wrong?")} framed>
             <textarea
               value={disputeReason}
               onChange={(e) => setDisputeReason(e.target.value)}
-              placeholder="e.g. I'm not Amelia. I don't know this agency. The photos aren't mine."
+              placeholder={tt("e.g. I'm not Amelia. I don't know this agency. The photos aren't mine.")}
               rows={4}
               autoFocus
               style={{
@@ -468,7 +479,7 @@ export function TalentClaimInviteDrawer() {
             />
           </Section>
           <div style={{ padding: 12, borderRadius: 10, background: "rgba(200,40,40,0.08)", fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-red">
-            Reporting takes the profile offline immediately and notifies Tulala admins. We&apos;ll resolve within 1 business day.
+            {tt("Reporting takes the profile offline immediately and notifies Tulala admins. We'll resolve within 1 business day.")}
           </div>
         </>
       )}
@@ -487,6 +498,8 @@ export function TalentClaimInviteDrawer() {
 
 export function PlatformVerificationMethodsDrawer() {
   const { closeDrawer, verificationMethodConfigs, verificationMethodAudit, updateVerificationMethod, profileVerifications, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const [activeId, setActiveId] = useState<VerificationType | null>(null);
   const [confirmDisable, setConfirmDisable] = useState<{ type: VerificationType; label: string; activeCount: number } | null>(null);
 
@@ -507,13 +520,17 @@ export function PlatformVerificationMethodsDrawer() {
     }
     updateVerificationMethod(type, { enabled: next });
     const m = VERIFICATION_TYPE_META[type];
-    toast(`${m.label} ${next ? "enabled" : "disabled"} platform-wide`);
+    toast(copy.isSpanish
+      ? `${m.label} ${next ? "habilitado" : "deshabilitado"} en toda la plataforma`
+      : `${m.label} ${next ? "enabled" : "disabled"} platform-wide`);
   };
 
   const confirmDisableMethod = () => {
     if (!confirmDisable) return;
     updateVerificationMethod(confirmDisable.type, { enabled: false });
-    toast(`${confirmDisable.label} disabled · ${confirmDisable.activeCount} active badges remain valid until expiry`);
+    toast(copy.isSpanish
+      ? `${confirmDisable.label} deshabilitado · ${confirmDisable.activeCount} insignias activas siguen siendo válidas hasta su vencimiento`
+      : `${confirmDisable.label} disabled · ${confirmDisable.activeCount} active badges remain valid until expiry`);
     setConfirmDisable(null);
   };
 
@@ -525,13 +542,15 @@ export function PlatformVerificationMethodsDrawer() {
       <DrawerShell
         open
         onClose={closeDrawer}
-        title="Verification methods"
-        description={`${enabledCount} of ${verificationMethodConfigs.length} methods enabled · platform-wide registry`}
+        title={tt("Verification methods")}
+        description={copy.isSpanish
+          ? `${enabledCount} de ${verificationMethodConfigs.length} métodos habilitados · registro de toda la plataforma`
+          : `${enabledCount} of ${verificationMethodConfigs.length} methods enabled · platform-wide registry`}
         width={820}
-        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+        footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
       >
         <div style={{ padding: "10px 12px", borderRadius: 10, marginBottom: 14, background: "rgba(91,107,160,0.06)", border: `1px solid rgba(91,107,160,0.18)`, fontSize: 12, lineHeight: 1.55 }} className="text-admin-indigo-deep">
-          Enable methods that talent and clients can use to build trust on Tulala. Disabled methods disappear from talent CTAs and admin queues. Active badges of disabled methods stay valid until expiry.
+          {tt("Enable methods that talent and clients can use to build trust on Tulala. Disabled methods disappear from talent CTAs and admin queues. Active badges of disabled methods stay valid until expiry.")}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "minmax(260px, 1fr) 1.4fr", gap: 14 }}>
@@ -559,13 +578,13 @@ export function PlatformVerificationMethodsDrawer() {
                         fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999,
                         background: c.enabled ? "rgba(15,79,62,0.12)" : "rgba(11,11,13,0.06)",
                         color: c.enabled ? COLORS.successDeep : COLORS.inkDim,
-                      }}>{c.enabled ? "ON" : "OFF"}</span>
+                      }}>{c.enabled ? tt("ON") : tt("OFF")}</span>
                     </div>
                     <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
                       {REVIEW_MODE_LABEL[c.reviewMode]} · {c.visibleOn.map(v => VISIBILITY_LABEL[v]).join(" · ")}
                     </div>
                     <div style={{ fontSize: 10.5, marginTop: 2 }} className="text-admin-ink-dim">
-                      {c.availableToTiers.map(t => TIER_LABEL[t]).join(", ")}{c.evidenceRequired ? " · evidence" : ""}{c.expiresAfterDays ? ` · expires ${c.expiresAfterDays}d` : ""}
+                      {c.availableToTiers.map(t => TIER_LABEL[t]).join(", ")}{c.evidenceRequired ? ` · ${tt("evidence")}` : ""}{c.expiresAfterDays ? ` · ${copy.isSpanish ? `vence ${c.expiresAfterDays} d` : `expires ${c.expiresAfterDays}d`}` : ""}
                     </div>
                   </div>
                 </button>
@@ -579,7 +598,7 @@ export function PlatformVerificationMethodsDrawer() {
             background: "#fff", padding: 16,
           }}>
             {!cur ? (
-              <div className="text-admin-ink-muted text-admin-12h">Pick a method to configure.</div>
+              <div className="text-admin-ink-muted text-admin-12h">{tt("Pick a method to configure.")}</div>
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
@@ -594,9 +613,9 @@ export function PlatformVerificationMethodsDrawer() {
                 {/* Enabled toggle */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14 }} className="bg-admin-surface">
                   <div>
-                    <div className="text-admin-ink text-admin-13 font-semibold">Enabled platform-wide</div>
+                    <div className="text-admin-ink text-admin-13 font-semibold">{tt("Enabled platform-wide")}</div>
                     <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-                      {cur.enabled ? "Talent and admins can use this method." : "Hidden from talent CTAs and admin queues."}
+                      {cur.enabled ? tt("Talent and admins can use this method.") : tt("Hidden from talent CTAs and admin queues.")}
                     </div>
                   </div>
                   <button type="button" onClick={() => onToggleEnabled(cur.type, !cur.enabled)} style={{
@@ -604,7 +623,7 @@ export function PlatformVerificationMethodsDrawer() {
                     background: cur.enabled ? COLORS.successDeep : "rgba(11,11,13,0.18)",
                     border: "none", cursor: "pointer", position: "relative",
                     transition: "background 0.15s",
-                  }} aria-label="Toggle enabled">
+                  }} aria-label={tt("Toggle enabled")}>
                     <span style={{
                       position: "absolute", top: 3, left: cur.enabled ? 23 : 3,
                       width: 18, height: 18, borderRadius: "50%", background: "#fff",
@@ -614,13 +633,13 @@ export function PlatformVerificationMethodsDrawer() {
                   </button>
                 </div>
 
-                <ConfigRow label="Review mode" hint="Automated runs without a human; manual goes through the admin queue.">
+                <ConfigRow label={tt("Review mode")} hint={tt("Automated runs without a human; manual goes through the admin queue.")}>
                   <select value={cur.reviewMode} onChange={(e) => updateVerificationMethod(cur.type, { reviewMode: e.target.value as "automated" | "manual" | "hybrid" })} style={vmSelectStyle()}>
                     {(["automated", "manual", "hybrid"] as const).map(m => <option key={m} value={m}>{REVIEW_MODE_LABEL[m]}</option>)}
                   </select>
                 </ConfigRow>
 
-                <ConfigRow label="Visible on" hint="Public_profile = badge appears on storefront; admin_only = trust signal not shown publicly.">
+                <ConfigRow label={tt("Visible on")} hint={tt("Public_profile = badge appears on storefront; admin_only = trust signal not shown publicly.")}>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {(["public_profile", "admin_only", "internal"] as const).map(v => {
                       const on = cur.visibleOn.includes(v);
@@ -635,7 +654,7 @@ export function PlatformVerificationMethodsDrawer() {
                   </div>
                 </ConfigRow>
 
-                <ConfigRow label="Available to tiers" hint='"All" overrides specific tiers.'>
+                <ConfigRow label={tt("Available to tiers")} hint={tt("\"All\" overrides specific tiers.")}>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {(["all", "basic", "pro", "portfolio"] as const).map(t => {
                       const on = cur.availableToTiers.includes(t);
@@ -652,13 +671,13 @@ export function PlatformVerificationMethodsDrawer() {
                   </div>
                 </ConfigRow>
 
-                <ConfigRow label="Evidence required" hint="Talent must attach a URL or upload to submit.">
+                <ConfigRow label={tt("Evidence required")} hint={tt("Talent must attach a URL or upload to submit.")}>
                   <input type="checkbox" checked={cur.evidenceRequired}
                     onChange={(e) => updateVerificationMethod(cur.type, { evidenceRequired: e.target.checked })} />
                 </ConfigRow>
 
-                <ConfigRow label="Expires after (days)" hint="Blank = badge never expires.">
-                  <input type="number" min={0} value={cur.expiresAfterDays ?? ""} placeholder="never"
+                <ConfigRow label={tt("Expires after (days)")} hint={tt("Blank = badge never expires.")}>
+                  <input type="number" min={0} value={cur.expiresAfterDays ?? ""} placeholder={tt("never")}
                     onChange={(e) => updateVerificationMethod(cur.type, { expiresAfterDays: e.target.value === "" ? null : Number(e.target.value) })}
                     style={{ width: 120, padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12.5 }}
                   />
@@ -666,9 +685,9 @@ export function PlatformVerificationMethodsDrawer() {
 
                 {/* Audit log */}
                 <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.borderSoft}` }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-dim">Recent changes</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-dim">{tt("Recent changes")}</div>
                   {filteredAudit.length === 0 ? (
-                    <div className="text-admin-ink-dim text-xs">No changes logged.</div>
+                    <div className="text-admin-ink-dim text-xs">{tt("No changes logged.")}</div>
                   ) : (
                     <div className="flex flex-col gap-1.5">
                       {filteredAudit.slice(0, 8).map(a => (
@@ -698,22 +717,22 @@ export function PlatformVerificationMethodsDrawer() {
             boxShadow: "0 24px 80px -20px rgba(11,11,13,0.45)",
           }}>
             <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink">
-              Disable {confirmDisable.label}?
+              {copy.isSpanish ? `¿Deshabilitar ${confirmDisable.label}?` : `Disable ${confirmDisable.label}?`}
             </div>
             <div style={{ fontSize: 12.5, marginBottom: 14, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              <strong className="text-admin-ink">{confirmDisable.activeCount} active badge{confirmDisable.activeCount === 1 ? "" : "s"}</strong> will stay valid until expiry, but they&apos;ll be hidden from public profiles right away. New requests of this type will be blocked.
+              <strong className="text-admin-ink">{confirmDisable.activeCount} {copy.isSpanish ? `insignia${confirmDisable.activeCount === 1 ? "" : "s"} activa${confirmDisable.activeCount === 1 ? "" : "s"}` : `active badge${confirmDisable.activeCount === 1 ? "" : "s"}`}</strong> {tt("will stay valid until expiry, but they'll be hidden from public profiles right away. New requests of this type will be blocked.")}
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button type="button" onClick={() => setConfirmDisable(null)} style={{
                 padding: "9px 16px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
                 background: "transparent", color: COLORS.ink,
                 fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-              }}>Cancel</button>
+              }}>{tt("Cancel")}</button>
               <button type="button" onClick={confirmDisableMethod} style={{
                 padding: "9px 16px", borderRadius: 999, border: "none",
                 background: COLORS.red, color: "#fff",
                 fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-              }}>Disable</button>
+              }}>{tt("Disable")}</button>
             </div>
           </div>
         </div>
