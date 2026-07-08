@@ -22,8 +22,11 @@ import {
   SaveNotice,
 } from "../[fieldKey]/field-detail-editor-parts";
 import { HqCard, Stat, CopyableId, HQ, F, FD } from "../_ui";
+import { interpolate } from "@/i18n/interpolate";
 
 type Kind = "parent_category" | "category_group";
+type Translate = (key: string) => string;
+const K = "dashboard.platform.catalog";
 
 export function TermDetailView({
   detail,
@@ -33,6 +36,7 @@ export function TermDetailView({
   saved,
   error,
   variant = "page",
+  t,
 }: {
   detail: TaxonomyTermDetailResult | null;
   /** The termId param (undefined / null when creating new). */
@@ -44,10 +48,12 @@ export function TermDetailView({
   saved?: string;
   error?: string;
   variant?: "page" | "drawer";
+  t: Translate;
 }) {
   const resolvedKind: Kind = (detail && detail.ok ? (detail.term.term_type as Kind) : null) ?? kind ?? "parent_category";
   const isGroup = resolvedKind === "category_group";
-  const kindLabel = isGroup ? "Category group" : "Parent category";
+  const kindLabel = isGroup ? t(`${K}.termKindCategoryGroup`) : t(`${K}.termKindParentCategory`);
+  const kindLower = isGroup ? t(`${K}.termKindCategoryGroupLower`) : t(`${K}.termKindParentCategoryLower`);
 
   const breadcrumb =
     variant === "page" ? (
@@ -56,7 +62,7 @@ export function TermDetailView({
           href="/platform/admin/catalog?tab=types"
           style={{ color: HQ.inkMuted, textDecoration: "none" }}
         >
-          ← Profile Fields
+          {t(`${K}.detailBackToFields`)}
         </Link>
       </div>
     ) : null;
@@ -67,17 +73,17 @@ export function TermDetailView({
     return (
       <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
         {breadcrumb}
-        <SaveNotice saved={saved} error={error} />
+        <SaveNotice saved={saved} error={error} t={t} />
 
         <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 16 }}>
           <h1 style={{ fontFamily: FD, fontSize: 22, fontWeight: 600, margin: 0 }}>
-            New {kindLabel.toLowerCase()}
+            {interpolate(t(`${K}.termDetailNewTitle`), { kind: kindLower })}
           </h1>
         </div>
 
         <HqCard
-          title={`Create ${kindLabel.toLowerCase()}`}
-          subtitle={`Adds a new ${kindLabel.toLowerCase()} to the platform taxonomy.`}
+          title={interpolate(t(`${K}.termDetailCreateTitle`), { kind: kindLower })}
+          subtitle={interpolate(t(`${K}.termDetailCreateSubtitle`), { kind: kindLower })}
         >
           <form action={createPlatformTaxonomyTermAction} style={{ display: "grid", gap: 14 }}>
             <input type="hidden" name="term_type" value={resolvedKind} />
@@ -96,17 +102,17 @@ export function TermDetailView({
                 gap: 12,
               }}
             >
-              <FieldInput label="Slug" name="slug" placeholder="e.g. performing-arts" />
-              <FieldInput label="Icon (emoji)" name="icon" placeholder="🎭" />
-              <FieldInput label="Name EN" name="name_en" placeholder="e.g. Performing Arts" />
-              <FieldInput label="Name ES" name="name_es" placeholder="e.g. Artes escénicas" />
-              <FieldInput label="Plural name" name="plural_name" placeholder="e.g. Performing Arts" />
-              <FieldInput label="Sort order" name="sort_order" type="number" defaultValue={100} />
+              <FieldInput label={t(`${K}.fieldSlug`)} name="slug" placeholder={t(`${K}.termSlugPlaceholder`)} />
+              <FieldInput label={t(`${K}.fieldIcon`)} name="icon" placeholder="🎭" />
+              <FieldInput label={t(`${K}.fieldNameEn`)} name="name_en" placeholder={t(`${K}.termNameEnPlaceholder`)} />
+              <FieldInput label={t(`${K}.fieldNameEs`)} name="name_es" placeholder={t(`${K}.termNameEsPlaceholder`)} />
+              <FieldInput label={t(`${K}.fieldPluralName`)} name="plural_name" placeholder={t(`${K}.termPluralPlaceholder`)} />
+              <FieldInput label={t(`${K}.fieldSortOrder`)} name="sort_order" type="number" defaultValue={100} />
             </div>
             <FieldTextarea
-              label="Description"
+              label={t(`${K}.fieldDescription`)}
               name="description"
-              placeholder={`Brief description of this ${kindLabel.toLowerCase()}`}
+              placeholder={interpolate(t(`${K}.termDescriptionPlaceholder`), { kind: kindLower })}
             />
 
             <div
@@ -120,14 +126,14 @@ export function TermDetailView({
                 background: HQ.cardSoft,
               }}
             >
-              <Check name="is_public_filter" label="Public filter" />
-              <Check name="is_profile_badge" label="Profile badge" />
-              <Check name="is_visible_by_default" label="Visible by default" />
-              <Check name="is_restricted" label="Restricted" tone="danger" />
+              <Check name="is_public_filter" label={t(`${K}.checkPublicFilter`)} />
+              <Check name="is_profile_badge" label={t(`${K}.checkProfileBadge`)} />
+              <Check name="is_visible_by_default" label={t(`${K}.checkVisibleByDefault`)} />
+              <Check name="is_restricted" label={t(`${K}.checkRestricted`)} tone="danger" />
             </div>
 
             <div>
-              <SubmitButton>Create {kindLabel.toLowerCase()}</SubmitButton>
+              <SubmitButton>{interpolate(t(`${K}.termDetailCreateTitle`), { kind: kindLower })}</SubmitButton>
             </div>
           </form>
         </HqCard>
@@ -142,12 +148,11 @@ export function TermDetailView({
       <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
         {breadcrumb}
         <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600 }}>
-          {notFound ? `${kindLabel} not found` : "Unavailable"}
+          {notFound ? interpolate(t(`${K}.termDetailNotFoundTitle`), { kind: kindLabel }) : t(`${K}.unavailableTitle`)}
         </h1>
-        <HqCard title="Error">
+        <HqCard title={t(`${K}.errorCardTitle`)}>
           <div style={{ fontSize: 13, color: HQ.inkMuted }}>
-            Could not load this taxonomy term. The service client may be unavailable or the term
-            does not exist. Retry shortly.
+            {t(`${K}.termDetailNotFoundBody`)}
           </div>
         </HqCard>
       </div>
@@ -162,7 +167,7 @@ export function TermDetailView({
   return (
     <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
       {breadcrumb}
-      <SaveNotice saved={saved} error={error} />
+      <SaveNotice saved={saved} error={error} t={t} />
 
       {/* ID pill + term_type badge + status */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -180,7 +185,7 @@ export function TermDetailView({
             letterSpacing: 0.3,
           }}
         >
-          {term.term_type.replace("_", " ")}
+          {kindLower}
         </span>
         <span
           style={{
@@ -193,7 +198,7 @@ export function TermDetailView({
             padding: "1px 8px",
           }}
         >
-          {isArchived ? "Archived" : term.is_active ? "Active" : "Inactive"}
+          {isArchived ? t(`${K}.typeArchived`) : term.is_active ? t(`${K}.lifecycleActive`) : t(`${K}.statusInactive`)}
         </span>
       </div>
 
@@ -216,7 +221,7 @@ export function TermDetailView({
       {/* Card 1: Edit form */}
       <HqCard
         title={kindLabel}
-        subtitle="Edits the taxonomy_terms row. Save refreshes every catalog surface that resolves this term."
+        subtitle={t(`${K}.termDetailEditSubtitle`)}
       >
         <form action={updatePlatformTaxonomyTermAction} style={{ display: "grid", gap: 14 }}>
           <input type="hidden" name="id" value={term.id} />
@@ -234,19 +239,19 @@ export function TermDetailView({
               gap: 12,
             }}
           >
-            <FieldInput label="Slug" name="slug" defaultValue={term.slug} />
-            <FieldInput label="Icon (emoji)" name="icon" defaultValue={term.icon} placeholder="🎭" />
-            <FieldInput label="Name EN" name="name_en" defaultValue={term.name_en} />
-            <FieldInput label="Name ES" name="name_es" defaultValue={term.name_es} />
-            <FieldInput label="Plural name" name="plural_name" defaultValue={term.plural_name} />
+            <FieldInput label={t(`${K}.fieldSlug`)} name="slug" defaultValue={term.slug} />
+            <FieldInput label={t(`${K}.fieldIcon`)} name="icon" defaultValue={term.icon} placeholder="🎭" />
+            <FieldInput label={t(`${K}.fieldNameEn`)} name="name_en" defaultValue={term.name_en} />
+            <FieldInput label={t(`${K}.fieldNameEs`)} name="name_es" defaultValue={term.name_es} />
+            <FieldInput label={t(`${K}.fieldPluralName`)} name="plural_name" defaultValue={term.plural_name} />
             <FieldInput
-              label="Sort order"
+              label={t(`${K}.fieldSortOrder`)}
               name="sort_order"
               type="number"
               defaultValue={term.sort_order}
             />
           </div>
-          <FieldTextarea label="Description" name="description" defaultValue={term.description} />
+          <FieldTextarea label={t(`${K}.fieldDescription`)} name="description" defaultValue={term.description} />
 
           <div
             style={{
@@ -261,58 +266,58 @@ export function TermDetailView({
           >
             <Check
               name="is_public_filter"
-              label="Public filter"
+              label={t(`${K}.checkPublicFilter`)}
               defaultChecked={term.is_public_filter}
             />
             <Check
               name="is_profile_badge"
-              label="Profile badge"
+              label={t(`${K}.checkProfileBadge`)}
               defaultChecked={term.is_profile_badge}
             />
             <Check
               name="is_visible_by_default"
-              label="Visible by default"
+              label={t(`${K}.checkVisibleByDefault`)}
               defaultChecked={term.is_visible_by_default}
             />
             <Check
               name="is_restricted"
-              label="Restricted"
+              label={t(`${K}.checkRestricted`)}
               defaultChecked={term.is_restricted}
               tone="danger"
             />
           </div>
 
           <div>
-            <SubmitButton>Save {kindLabel.toLowerCase()}</SubmitButton>
+            <SubmitButton>{interpolate(t(`${K}.termDetailSaveSubmit`), { kind: kindLower })}</SubmitButton>
           </div>
         </form>
       </HqCard>
 
       {/* Card 2: Children list */}
       <HqCard
-        title={isGroup ? "Talent types in this group" : "Category groups"}
+        title={isGroup ? t(`${K}.termChildrenTypesTitle`) : t(`${K}.termChildrenGroupsTitle`)}
         subtitle={
           isGroup
-            ? "Talent types that belong to this group. Click to open the type editor."
-            : "Groups under this parent category. Click to open the group editor."
+            ? t(`${K}.termChildrenTypesSubtitle`)
+            : t(`${K}.termChildrenGroupsSubtitle`)
         }
       >
         {detail.children.length === 0 ? (
           <div style={{ fontSize: 13, color: HQ.inkMuted }}>
-            No children yet.{" "}
+            {t(`${K}.termChildrenEmpty`)}{" "}
             {isGroup ? (
               <Link
                 href={`/platform/admin/catalog/type/new`}
                 style={{ color: HQ.green, textDecoration: "none" }}
               >
-                + Add talent type
+                {t(`${K}.termChildrenAddType`)}
               </Link>
             ) : (
               <Link
                 href={`/platform/admin/catalog/term/new?kind=category_group&parent=${term.id}`}
                 style={{ color: HQ.green, textDecoration: "none" }}
               >
-                + Add group
+                {t(`${K}.termChildrenAddGroup`)}
               </Link>
             )}
           </div>
@@ -349,13 +354,13 @@ export function TermDetailView({
                   <span style={{ fontSize: 11, color: HQ.inkMuted }}>
                     {child.agencyCount > 0 ? (
                       <span style={{ color: HQ.green }}>
-                        {child.agencyCount} agenc{child.agencyCount === 1 ? "y" : "ies"}
+                        {interpolate(t(`${K}.${child.agencyCount === 1 ? "termChildAgenciesOne" : "termChildAgenciesMany"}`), { count: child.agencyCount })}
                       </span>
                     ) : (
-                      <span>0 agencies</span>
+                      <span>{interpolate(t(`${K}.termChildAgenciesMany`), { count: 0 })}</span>
                     )}
                     {" · "}
-                    {child.talentCount} talent{child.talentCount === 1 ? "" : "s"}
+                    {interpolate(t(`${K}.${child.talentCount === 1 ? "termChildTalentsOne" : "termChildTalentsMany"}`), { count: child.talentCount })}
                   </span>
                 </Link>
               );
@@ -371,30 +376,30 @@ export function TermDetailView({
             color: HQ.inkMuted,
           }}
         >
-          To reorder siblings, adjust{" "}
-          <span style={{ fontFamily: "ui-monospace, monospace" }}>sort_order</span> on each term&apos;s
-          edit form.
+          {t(`${K}.termReorderHintPrefix`)}{" "}
+          <span style={{ fontFamily: "ui-monospace, monospace" }}>sort_order</span>{" "}
+          {t(`${K}.termReorderHintSuffix`)}
         </div>
       </HqCard>
 
       {/* Card 3: Analytics */}
       <HqCard
-        title="Analytics"
-        subtitle="Rolled up from all descendant talent_types. Read-only."
+        title={t(`${K}.analyticsTitle`)}
+        subtitle={t(`${K}.termAnalyticsSubtitle`)}
       >
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           <Stat
-            label="Agencies (rolled up)"
+            label={t(`${K}.termStatAgenciesRolledUp`)}
             value={detail.agencyCount}
             tone={detail.agencyCount > 0 ? HQ.green : HQ.inkDim}
           />
           <Stat
-            label="Talents (rolled up)"
+            label={t(`${K}.termStatTalentsRolledUp`)}
             value={detail.talentCount}
             tone={detail.talentCount > 0 ? HQ.green : HQ.inkDim}
           />
           <Stat
-            label={isGroup ? "Talent types" : "Category groups"}
+            label={isGroup ? t(`${K}.typesStatTypes`) : t(`${K}.typesStatGroups`)}
             value={detail.children.length}
             tone={detail.children.length > 0 ? HQ.green : HQ.inkDim}
           />
@@ -413,13 +418,13 @@ export function TermDetailView({
           }}
         >
           <div style={{ fontSize: 12.5, color: HQ.inkMuted }}>
-            Lifecycle:{" "}
+            {t(`${K}.lifecycleLabel`)}{" "}
             <strong style={{ color: isArchived ? HQ.red : HQ.green }}>
               {isArchived
-                ? `Archived since ${term.archived_at}`
+                ? interpolate(t(`${K}.lifecycleArchivedSince`), { date: term.archived_at ?? "" })
                 : term.is_active
-                  ? "Active"
-                  : "Inactive"}
+                  ? t(`${K}.lifecycleActive`)
+                  : t(`${K}.statusInactive`)}
             </strong>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -427,14 +432,16 @@ export function TermDetailView({
               <input type="hidden" name="id" value={term.id} />
               <input type="hidden" name="mode" value={isArchived ? "restore" : "archive"} />
               <SubmitButton tone={isArchived ? "neutral" : "danger"}>
-                {isArchived ? `Restore ${kindLabel.toLowerCase()}` : `Archive ${kindLabel.toLowerCase()}`}
+                {isArchived
+                  ? interpolate(t(`${K}.termLifecycleRestore`), { kind: kindLower })
+                  : interpolate(t(`${K}.termLifecycleArchive`), { kind: kindLower })}
               </SubmitButton>
             </form>
             <form action={deletePlatformTaxonomyTermAction}>
               <input type="hidden" name="id" value={term.id} />
               <input type="hidden" name="return_to" value={`/platform/admin/catalog/term/${term.id}`} />
-              <ConfirmSubmitButton message="Permanently delete this term? Any child terms must be removed first. This removes field mappings and talent taxonomy links. This cannot be undone.">
-                Permanently remove
+              <ConfirmSubmitButton message={t(`${K}.termConfirmDelete`)}>
+                {t(`${K}.permanentlyRemove`)}
               </ConfirmSubmitButton>
             </form>
           </div>

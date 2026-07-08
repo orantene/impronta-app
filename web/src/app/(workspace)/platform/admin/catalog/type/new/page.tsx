@@ -4,6 +4,8 @@
 // the catalog hub.
 
 import { TalentTypeDetailView } from "../talent-type-detail-view";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +15,7 @@ export default async function NewTalentTypePage({
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const { saved, error } = await searchParams;
+  const t = createTranslator(await getRequestLocale());
 
   return (
     <TalentTypeDetailView
@@ -21,6 +24,7 @@ export default async function NewTalentTypePage({
       saved={saved}
       error={error}
       variant="page"
+      t={t}
     />
   );
 }
