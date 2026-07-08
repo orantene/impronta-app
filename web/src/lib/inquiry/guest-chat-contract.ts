@@ -197,6 +197,19 @@ export type StartGuestChatInput = {
   honeypot?: string | null;
   /** Optional Turnstile token when a velocity challenge was shown (Lane B / L3). */
   captchaToken?: string | null;
+  /**
+   * Storefront provenance — the offering the guest clicked before chatting.
+   * Persisted verbatim onto inquiries.source_context.offering so the
+   * coordinator/composer knows exactly which service was requested.
+   */
+  offering?: {
+    offering_id: string;
+    title: string;
+    amount_cents: number | null;
+    currency: string;
+    price_type: string;
+    kind: string;
+  } | null;
 };
 
 export type StartGuestChatResult =
@@ -366,6 +379,22 @@ export type GuestThreadStatus =
 //     of starting fresh after a refresh. Guest identity is the x-impronta-guest
 //     cookie (server-resolved); only an inquiry the cookie OWNS is ever returned.
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** W2-B — a talent service rendered as an in-chat request chip. */
+export type GuestChatOffering = {
+  offeringId: string;
+  talentProfileId: string;
+  title: string;
+  kind: "service" | "package" | "product";
+  priceType: string;
+  amountCents: number | null;
+  currency: string;
+  durationMinutes: number | null;
+  allowPayInPerson: boolean;
+  reserveMode: "full" | "deposit" | "free";
+  depositPct: number | null;
+  imageUrl: string | null;
+};
 
 /** The resumable thread + prefill for the inline name/email gate. */
 export type ActiveGuestInquiry = {
@@ -547,6 +576,10 @@ export type MiniChatPanelProps = {
    * Pre-fill for the inline name/email gate when known (e.g. returning guest
    * whose cookie maps to a prior contact). All optional.
    */
+  /** W2-B — the talent's published services, shown as in-chat request chips. */
+  offerings?: GuestChatOffering[];
+  /** W3-5 — attach a tapped service to a LIVE thread as structured provenance. */
+  onAttachOffering?: ((input: { inquiryId: string; offering: { offering_id: string; title: string; amount_cents: number | null; currency: string; price_type: string; kind: string } }) => Promise<{ ok: boolean; error?: string }>) | null;
   prefill?: {
     name?: string | null;
     firstName?: string | null;
@@ -628,7 +661,11 @@ export type TalentChatLauncherProps = {
   tenantId?: string | null;
   brand: MiniChatBrand;
   existingInquiryId?: string | null;
+  /** W3-5 — attach a tapped service to a LIVE thread as structured provenance. */
+  onAttachOffering?: MiniChatPanelProps["onAttachOffering"];
   prefill?: MiniChatPanelProps["prefill"];
+  /** W2-B — the talent's published services, shown as in-chat request chips. */
+  offerings?: GuestChatOffering[];
 
   /** Injected actions, forwarded to the panel. */
   onStartInquiry: OnStartInquiryCallback;

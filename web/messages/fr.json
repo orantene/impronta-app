@@ -279,7 +279,8 @@
       "pickerStartNew": "Démarrer une nouvelle demande avec seulement {name}",
       "pickerStartingNew": "Démarrage...",
       "pickerTrigger": "Ajouter {name}",
-      "switcherNewMessageSuffix": "nouveau message"
+      "switcherNewMessageSuffix": "nouveau message",
+      "customQuoteChip": "Devis sur mesure"
     }
   },
   "dashboard": {

@@ -17,9 +17,11 @@
  * submit() routes on `contactPromoted` (NOT inquiryId alone) so an un-promoted
  * early row always passes through the ContactCard gate before it can finalize.
  *
- * Pure orchestration over injected state/setters; imports no backend module.
+ * Pure orchestration over injected state/setters;
+imports no backend module.
  */
 
+import { clearPendingOffering, pendingOfferingPayload } from "./pending-offering-store";
 import { useRef } from "react";
 import type { MutableRefObject } from "react";
 
@@ -237,8 +239,10 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       firstMessage: body,
       sourcePage,
       honeypot: honeypot || null,
+      offering: pendingOfferingPayload() ?? null,
     });
     setSending(false);
+    if (res.ok) clearPendingOffering();
     if (!res.ok) {
       setRows((cur) => markRowFailed(cur, tmpId));
       setDraft(body);
@@ -289,8 +293,10 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       firstMessage: body,
       sourcePage,
       honeypot: honeypot || null,
+      offering: pendingOfferingPayload() ?? null,
     });
     setSending(false);
+    if (res.ok) clearPendingOffering();
     if (!res.ok) {
       setRows((cur) => markRowFailed(cur, tmpId));
       setDraft(body);

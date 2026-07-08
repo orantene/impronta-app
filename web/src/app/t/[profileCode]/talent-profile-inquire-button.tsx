@@ -16,6 +16,7 @@
  * instant submit) — reachable as a quiet secondary, the same inquiry expanded.
  */
 
+import { pendingOfferingPayload } from "./_chat/pending-offering-store";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { Mail } from "lucide-react";
 
@@ -174,6 +175,9 @@ export function TalentProfileInquireButton({
               referrer_page: sourcePage,
               public_profile_code: talentProfileCode,
               tenant_id: tenantId,
+              // W3-4 — carry a storefront selection into the signed-in drawer
+              // exactly like the guest chat does (structured provenance).
+              ...(pendingOfferingPayload() ? { offering: pendingOfferingPayload() } : {}),
             },
           }}
           tenantSlug={tenantSlug}

@@ -101,8 +101,10 @@ import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
 import { loadInstantBookEligibility } from "@/lib/inquiry/instant-book-engine";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
+import { OfferingInstantMount } from "./_shared/OfferingInstantMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
@@ -1647,6 +1649,33 @@ export default async function PublicTalentProfilePage({
     instantBook.currencyCode || "USD",
   ).filter((it) => it.isActive && it.visibility !== "agency_only");
 
+  // Storefront — the offerings catalog (talent_offerings). When present it
+  // REPLACES the legacy services menu on the layouts; when empty the legacy
+  // ServiceMenuBlock keeps rendering (zero-regression fallback).
+  const storefrontOfferings = await loadPublicOfferingsForProfile(profile.id, locale);
+
+  // W3-7 — schema.org Offer JSON-LD for the storefront (SEO). Only published,
+  // exactly-priced offerings are emitted; quote/on-request carry no price.
+  const offerJsonLd =
+    storefrontOfferings.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          itemListElement: storefrontOfferings
+            .filter((o) => o.amountCents != null && o.priceDisplay === "exact")
+            .slice(0, 20)
+            .map((o, i) => ({
+              "@type": "Offer",
+              position: i + 1,
+              name: o.title,
+              ...(o.description ? { description: o.description } : {}),
+              price: (o.amountCents! / 100).toFixed(2),
+              priceCurrency: o.currency,
+              availability: "https://schema.org/InStock",
+            })),
+        }
+      : null;
+
   // S6 — id → label for any discipline a service is scoped to (talent_type terms).
   const disciplineLabels: Record<string, string> = {};
   for (const term of flattenTaxonomy(profile.talent_profile_taxonomy ?? [])) {
@@ -2118,6 +2147,7 @@ export default async function PublicTalentProfilePage({
         startingFrom={profile.starting_from ?? null}
         bookingNote={profile.booking_note ?? null}
         serviceMenuItems={serviceMenuItems}
+        storefrontOfferings={storefrontOfferings}
         disciplineLabels={disciplineLabels}
         fitLabels={fitLabels}
         skills={skills}
@@ -2288,6 +2318,22 @@ export default async function PublicTalentProfilePage({
           CTA; renders only on the agency surface AND when the tenant has guest
           chat enabled + shown on talent profiles (tenant_guest_chat_settings).
           Self-positions fixed bottom-right, so DOM placement here is logical. */}
+      {offerJsonLd && offerJsonLd.itemListElement.length > 0 ? (
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(offerJsonLd) }}
+        />
+      ) : null}
+      {/* Storefront direct booking — consumes "tulala:offering-instant" from a
+          card's Book now / Buy click; agency surface only (needs a tenant). */}
+      {hostCtx.kind === "agency" && (
+        <OfferingInstantMount
+          tenantId={hostCtx.tenantId}
+          sourcePage={`/t/${profile.profile_code}`}
+          locale={locale}
+        />
+      )}
       {guestChatSettings.enabled && guestChatSettings.showOnTalent && (
         <TalentProfileChatLauncherMount
           talentProfileId={profile.id}
