@@ -26,7 +26,8 @@ import type { DirectoryV1 } from "./schema";
  *
  * The `<DirectoryCard>` itself stays pure / prop-driven (RP-1 / T2 reuse);
  * all interactivity lives in this adapter wrapper via `<TalentCardActions>`.
- * The two affordance bars are gated on the section's `showSave` /
+ * Both affordances sit in-media in the top-right cluster (favorite heart +
+ * hover-revealed inquiry pill) and are gated on the section's `showSave` /
  * `showAddToInquiry` knobs (P4 — previously always-on). The trait row
  * (fit chips + catalog lines) is projected from the DTO and trimmed by
  * `cardFieldKeys` / `maxFieldLines`.
@@ -41,6 +42,8 @@ export function DirectoryCardAdapter({
   showAddToInquiry,
   cardFieldKeys,
   maxFieldLines,
+  density = "comfortable",
+  hoverBehavior = "reveal_traits",
   priority,
   index,
 }: {
@@ -58,12 +61,19 @@ export function DirectoryCardAdapter({
   nameFallback: DirectoryV1["nameFallback"];
   /** Render the favorite (save) affordance overlay. */
   showSave: boolean;
-  /** Render the "Inquire / Added" cart bar below the card. */
+  /** Render the in-media hover-revealed "Inquire" cart pill over the card. */
   showAddToInquiry: boolean;
   /** Catalog-field allow-list + order; empty = catalog default order. */
   cardFieldKeys: DirectoryV1["cardFieldKeys"];
   /** Cap on the catalog trait lines under the chips. */
   maxFieldLines: DirectoryV1["maxFieldLines"];
+  /** Grid density — threaded to the canonical card for compact captions. */
+  density?: DirectoryV1["density"];
+  /**
+   * Hover behavior. `"reveal_traits"` (default) hides the trait row until the
+   * card is hovered / focused; every other value keeps it statically visible.
+   */
+  hoverBehavior?: DirectoryV1["hoverBehavior"];
   priority?: boolean;
   index?: number;
 }) {
@@ -82,6 +92,14 @@ export function DirectoryCardAdapter({
     maxFieldLines,
   );
 
+  // `reveal_traits` (the preset default) keeps the trait row out of the resting
+  // card and reveals it on hover / focus, so the grid reads as clean portraits
+  // until the visitor leans in. Every other hover mode (zoom / swap / none)
+  // keeps the traits statically visible. On touch devices (no hover) the row
+  // stays visible via `@media(hover:none)` so the traits are never unreachable,
+  // and focus-within keeps it keyboard-accessible.
+  const revealTraitsOnHover = hoverBehavior === "reveal_traits";
+
   return (
     <div className="group/cardwrap relative flex flex-col">
       <div className="relative" ref={mediaRef}>
@@ -91,14 +109,19 @@ export function DirectoryCardAdapter({
           show={show}
           nameFallback={nameFallback}
           aspect={cardAspect}
+          density={density}
           priority={priority}
           index={index}
         />
         {/* Top-right affordance cluster: the favorite heart (always visible)
-            and a hover-revealed gold "Inquire" pill. Replaces the old heavy
-            full-width "Inquire / Added" bar that sat under every card. On
-            touch devices (no hover) the pill stays visible so the action is
-            never hidden; on desktop it fades in on card hover / focus. */}
+            and a hover-revealed gold "Inquire" pill. This in-media pill is the
+            single inquiry affordance per card (it replaces the old heavy
+            full-width "Inquire / Added" bar that used to sit under every card).
+            It carries the portrait + photo rect so adding flies a face-focus
+            avatar to the "Message {agency}" launcher pill (plan §4.A.5), and it
+            reflects cart membership as "In lineup" with a filled pill. On touch
+            devices (no hover) the pill stays visible so the action is never
+            hidden; on desktop it fades in on card hover / focus. */}
         {showSave || showAddToInquiry ? (
           <div className="absolute right-2.5 top-2.5 z-[2] flex items-center gap-2">
             {showAddToInquiry ? (
@@ -110,6 +133,12 @@ export function DirectoryCardAdapter({
                   sourcePage={pathname}
                   variant="pill"
                   hideFavorite
+                  portraitUrl={card.thumbnail?.url ?? null}
+                  getInquiryPhotoRect={() =>
+                    mediaRef.current
+                      ?.querySelector("img")
+                      ?.getBoundingClientRect() ?? null
+                  }
                 />
               </div>
             ) : null}
@@ -129,59 +158,80 @@ export function DirectoryCardAdapter({
 
       {/* Restrained editorial trait row: a couple of fit chips + a couple of
           catalog lines. Tagged with `data-card-chip` so a card kit can
-          restyle it. Renders nothing when the DTO carries no trait data. */}
+          restyle it. Renders nothing when the DTO carries no trait data.
+          With `reveal_traits` (the preset default) the row is collapsed at
+          rest and reveals on hover / focus / touch; every other hover mode
+          keeps it statically visible. */}
       {fitChips.length > 0 || traitLines.length > 0 ? (
-        <div className="mt-2 flex flex-col gap-1.5" data-card-traits="">
-          {fitChips.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {fitChips.map((chip) => (
-                <span
-                  key={chip.slug}
-                  data-card-chip
-                  className="inline-flex max-w-full items-center truncate rounded-full border border-border px-2 py-0.5 text-[10px] font-medium tracking-wide text-[var(--token-card-muted,var(--token-color-muted,#6b7280))]"
-                >
-                  {chip.label}
-                </span>
-              ))}
+        revealTraitsOnHover ? (
+          // Collapsed at rest (0-fr grid row + faded), revealed on
+          // group-hover / focus-within / touch. The grid-rows transition
+          // avoids a hard layout jump; the inner overflow-hidden clips the
+          // row while it is collapsed.
+          <div
+            className="grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity,margin] duration-200 group-hover/cardwrap:mt-2 group-hover/cardwrap:grid-rows-[1fr] group-hover/cardwrap:opacity-100 group-focus-within/cardwrap:mt-2 group-focus-within/cardwrap:grid-rows-[1fr] group-focus-within/cardwrap:opacity-100 [@media(hover:none)]:mt-2 [@media(hover:none)]:grid-rows-[1fr] [@media(hover:none)]:opacity-100"
+            data-card-traits=""
+          >
+            <div className="flex min-h-0 flex-col gap-1.5 overflow-hidden">
+              <TraitRowBody fitChips={fitChips} traitLines={traitLines} />
             </div>
-          ) : null}
-          {traitLines.length > 0 ? (
-            <dl className="flex flex-col gap-0.5">
-              {traitLines.map((trait) => (
-                <div
-                  key={trait.key}
-                  data-card-trait-line=""
-                  className="flex items-baseline gap-1.5 text-[11px] leading-snug"
-                >
-                  <dt className="shrink-0 uppercase tracking-[0.12em] text-[var(--token-card-muted,var(--token-color-muted,#6b7280))]">
-                    {trait.label}
-                  </dt>
-                  <dd className="min-w-0 truncate text-foreground/80">
-                    {trait.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          ) : null}
+          </div>
+        ) : (
+          <div className="mt-2 flex flex-col gap-1.5" data-card-traits="">
+            <TraitRowBody fitChips={fitChips} traitLines={traitLines} />
+          </div>
+        )
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The trait-row inner content (fit chips + catalog lines), shared by the
+ * static and hover-reveal wrappers so the markup stays single-source. The
+ * `data-card-chip` / `data-card-trait-line` hooks let a card kit restyle it.
+ */
+function TraitRowBody({
+  fitChips,
+  traitLines,
+}: {
+  fitChips: DirectoryCardFitLabel[];
+  traitLines: DirectoryCardAttribute[];
+}) {
+  return (
+    <>
+      {fitChips.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {fitChips.map((chip) => (
+            <span
+              key={chip.slug}
+              data-card-chip
+              className="inline-flex max-w-full items-center truncate rounded-full border border-border px-2 py-0.5 text-[10px] font-medium tracking-wide text-[var(--token-card-muted,var(--token-color-muted,#6b7280))]"
+            >
+              {chip.label}
+            </span>
+          ))}
         </div>
       ) : null}
-
-      {/* INQUIRE / ADDED ✓ bar below the card — cart membership. Carries the
-          portrait + photo rect so adding flies a face-focus avatar to the
-          "Message {agency}" launcher pill (plan §4.A.5). */}
-      <TalentCardActions
-        talentProfileId={card.id}
-        profileCode={card.profileCode ?? ""}
-        displayName={card.displayName}
-        sourcePage="/directory"
-        hideFavorite
-        className="mt-2"
-        portraitUrl={card.thumbnail?.url ?? null}
-        getInquiryPhotoRect={() =>
-          mediaRef.current?.querySelector("img")?.getBoundingClientRect() ?? null
-        }
-      />
-    </div>
+      {traitLines.length > 0 ? (
+        <dl className="flex flex-col gap-0.5">
+          {traitLines.map((trait) => (
+            <div
+              key={trait.key}
+              data-card-trait-line=""
+              className="flex items-baseline gap-1.5 text-[11px] leading-snug"
+            >
+              <dt className="shrink-0 uppercase tracking-[0.12em] text-[var(--token-card-muted,var(--token-color-muted,#6b7280))]">
+                {trait.label}
+              </dt>
+              <dd className="min-w-0 truncate text-foreground/80">
+                {trait.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+    </>
   );
 }
 

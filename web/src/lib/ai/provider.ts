@@ -16,12 +16,48 @@ export type ChatCompletionInput = {
   userMessage: string;
   temperature?: number;
   maxTokens?: number;
+  /**
+   * Per-call model override. Lets one feature pin a specific model (e.g. the
+   * builder generator on `claude-opus-4-8`) without repurposing the shared
+   * chat default other call sites rely on. Falls back to the adapter's env
+   * default (`ANTHROPIC_CHAT_MODEL` / `OPENAI_CHAT_MODEL`) when unset.
+   */
+  model?: string;
   /** When set, OpenAI uses response_format json_schema; Claude gets schema in the prompt. */
   jsonSchema?: JsonSchemaForChat;
+  /**
+   * Opt into adaptive extended thinking for this call (quality lift on
+   * structure-/taste-sensitive work like page generation). Only honored by the
+   * Anthropic adapter, and only on the adaptive-capable model family
+   * (opus-4-8/4-7, sonnet-5, fable-5/mythos-5); ignored otherwise. Thinking
+   * tokens count toward `maxTokens`, so give headroom. The response's text block
+   * is still extracted normally (thinking blocks are skipped).
+   */
+  thinking?: boolean;
+  /**
+   * Reasoning effort for the adaptive-thinking model family (AIQ-14). Only the
+   * Anthropic adapter honors it, only on the adaptive-capable models, and only
+   * via an untyped request-body field (`output_config.effort`) the pinned ^0.39
+   * SDK types don't expose. Ignored elsewhere. Pairs with `thinking`.
+   */
+  effort?: "low" | "medium" | "high" | "xhigh";
+};
+
+/** Token usage returned by a provider, when available. */
+export type AiUsage = {
+  inputTokens: number | null;
+  outputTokens: number | null;
 };
 
 export type ChatCompletionResult =
-  | { ok: true; text: string }
+  | {
+      ok: true;
+      text: string;
+      usage?: AiUsage;
+      model?: string;
+      /** Raw provider stop reason ("max_tokens" = truncated). Anthropic only; null when unknown (AIQ-15). */
+      stopReason?: string | null;
+    }
   | { ok: false; code: string; message: string };
 
 export type AiProviderAdapter = {

@@ -64,6 +64,8 @@ export function DirectoryReactiveGrid({
   columnsDesktop,
   columnsTablet,
   columnsMobile,
+  density = "comfortable",
+  hoverBehavior = "reveal_traits",
   onFetchingChange,
   onCountChange,
 }: {
@@ -111,6 +113,17 @@ export function DirectoryReactiveGrid({
   columnsDesktop: number;
   columnsTablet: number;
   columnsMobile: number;
+  /**
+   * Grid density from the section knob. `"compact"` tightens the grid gap and
+   * the card captions; `"comfortable"` (default) is the original spacing.
+   */
+  density?: DirectoryV1["density"];
+  /**
+   * Hover behavior from the section knob. `"reveal_traits"` (default) hides the
+   * per-card trait row until the card is hovered / focused; every other value
+   * keeps the traits statically visible.
+   */
+  hoverBehavior?: DirectoryV1["hoverBehavior"];
   /** Called whenever the filter-refetch-in-flight state changes. */
   onFetchingChange?: (isFetching: boolean) => void;
   /** Called with the filtered total whenever a fresh result set arrives. */
@@ -239,8 +252,8 @@ export function DirectoryReactiveGrid({
   }, [data?.pages, initialPage.items, manualCodeOrder]);
 
   const gridClass = useMemo(
-    () => gridClassFor(columnsMobile, columnsTablet, columnsDesktop),
-    [columnsMobile, columnsTablet, columnsDesktop],
+    () => gridClassFor(columnsMobile, columnsTablet, columnsDesktop, density),
+    [columnsMobile, columnsTablet, columnsDesktop, density],
   );
 
   // Initial loading: render skeleton placeholders (delivers a slice of
@@ -347,6 +360,8 @@ export function DirectoryReactiveGrid({
                 cardFieldKeys={cardFieldKeys}
                 maxFieldLines={maxFieldLines}
                 nameFallback={nameFallback}
+                density={density}
+                hoverBehavior={hoverBehavior}
                 priority={index < 4}
                 index={index}
               />
@@ -405,16 +420,20 @@ function DirectoryCardSkeleton({
   );
 }
 
-function gridClassFor(mobile: number, tablet: number, desktop: number) {
+function gridClassFor(
+  mobile: number,
+  tablet: number,
+  desktop: number,
+  density: DirectoryV1["density"] = "comfortable",
+) {
   const m = clamp(mobile, 1, 2);
   const t = clamp(tablet, 1, 4);
   const d = clamp(desktop, 1, 6);
-  return [
-    "grid gap-3 sm:gap-4",
-    GRID_COLS_MOBILE[m],
-    GRID_COLS_TABLET[t],
-    GRID_COLS_DESKTOP[d],
-  ]
+  // Compact tightens the grid gap so a denser column count reads as one field
+  // of talent, not a loose scatter. Comfortable keeps the original spacing.
+  const gap =
+    density === "compact" ? "grid gap-2 sm:gap-2.5" : "grid gap-3 sm:gap-4";
+  return [gap, GRID_COLS_MOBILE[m], GRID_COLS_TABLET[t], GRID_COLS_DESKTOP[d]]
     .filter(Boolean)
     .join(" ");
 }

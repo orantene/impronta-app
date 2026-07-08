@@ -65,7 +65,15 @@ export function createOpenAiChatAdapter(apiKey?: string | null): AiProviderAdapt
             message: "The model returned no text.",
           };
         }
-        return { ok: true, text };
+        return {
+          ok: true,
+          text,
+          model,
+          usage: {
+            inputTokens: completion.usage?.prompt_tokens ?? null,
+            outputTokens: completion.usage?.completion_tokens ?? null,
+          },
+        };
       } catch (e: unknown) {
         const err = e as { status?: number; message?: string };
         const status = typeof err.status === "number" ? err.status : undefined;

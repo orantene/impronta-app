@@ -40,6 +40,7 @@ import { AvailabilityWidget } from "../_light/AvailabilityWidget";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
 import { PublicFeaturedMedia } from "@/components/talent/connections/PublicFeaturedMedia";
 import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
+import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { buildAdaptiveThemeStyle } from "../_shared/profile-theme";
@@ -259,6 +260,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
     otherDetailRows,
     ratingSummary,
     talentReviews,
+    testimonials = [],
     agencyName,
     agencyDisplayName,
     similarTalent,
@@ -626,7 +628,19 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
             reviews={talentReviews}
             theme={reviewsTheme}
             heading=""
+            talentName={name}
           />
+        </section>
+      ) : null}
+
+      {/* ── INVITED TESTIMONIALS (separate from verified reviews) ────────── */}
+      {testimonials.length > 0 ? (
+        <section
+          className="at-col at-section"
+          aria-label="Invited testimonials"
+          data-profile-section="testimonials"
+        >
+          <TestimonialsSection testimonials={testimonials} theme={reviewsTheme} />
         </section>
       ) : null}
 

@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { AIMatchExplanation } from "@/components/ai/ai-match-explanation";
 import { TalentCardAiMatchDrawer } from "@/components/directory/talent-card-ai-match-drawer";
+import { StaticStars } from "@/components/reviews/star-rating";
+import {
+  computeStandingTier,
+  meetsCredibilityFloor,
+  standingTierLabel,
+  wouldBookAgainPhrase,
+} from "@/lib/reviews/craft-standing";
 import type { DirectoryAiCardOverlay, DirectoryCardDTO } from "@/lib/directory/types";
 import { cn } from "@/lib/utils";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
@@ -47,7 +54,7 @@ export function TalentDirectoryListRow({
   return (
     <article
       className={cn(
-        "flex gap-4 rounded-2xl border border-white/[0.08] bg-gradient-to-r from-zinc-900/90 to-black/90 p-3 shadow-sm transition-[box-shadow] hover:shadow-md hover:shadow-[var(--impronta-gold)]/10",
+        "flex gap-4 rounded-2xl border border-border bg-card/90 p-3 shadow-sm transition-[box-shadow] hover:shadow-md hover:shadow-[var(--impronta-gold)]/10",
       )}
     >
       <Link
@@ -55,7 +62,7 @@ export function TalentDirectoryListRow({
         href={profileHref}
         aria-hidden
         tabIndex={-1}
-        className="relative h-28 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-800"
+        className="relative h-28 w-20 shrink-0 overflow-hidden rounded-xl bg-muted"
       >
         {card.thumbnail.url ? (
           <Image
@@ -93,7 +100,7 @@ export function TalentDirectoryListRow({
             aiOverlay.confidenceNote ||
             (aiOverlay.vectorSimilarity != null &&
               Number.isFinite(aiOverlay.vectorSimilarity))) ? (
-            <div className="mt-2 rounded-md border border-white/[0.06] bg-black/25 px-2 py-1.5">
+            <div className="mt-2 rounded-md border border-border/60 bg-muted/30 px-2 py-1.5">
               <div className="mb-1 flex items-start justify-between gap-2">
                 <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-[var(--impronta-muted)]">
                   {c.matchWhyPrefix}
@@ -123,6 +130,62 @@ export function TalentDirectoryListRow({
                 </p>
               ) : null}
             </div>
+          ) : null}
+          {/* Craft standing — rendered only past the credibility floor. Below
+              the floor we render NOTHING (absence is neutral: no "New"/"0.0"
+              placeholder). CSS tokens gate visibility; the markup + data hooks
+              are always emitted so the token layer can show/hide it. Cool
+              tokens to match the card, not gold-on-light. */}
+          {card.ratingAvg != null && meetsCredibilityFloor(card.ratingCount) ? (
+            (() => {
+              const ratingCount = card.ratingCount ?? 0;
+              const tier = computeStandingTier({
+                ratingCount,
+                ratingAvg: card.ratingAvg,
+                wouldBookAgainPct: card.wouldBookAgainPct ?? null,
+              });
+              const bookAgain = wouldBookAgainPhrase(
+                ratingCount,
+                card.wouldBookAgainPct ?? null,
+              );
+              return (
+                <div
+                  data-card-standing
+                  className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1"
+                >
+                  <span
+                    data-card-standing-tier
+                    className="inline-flex items-center rounded-full border border-white/[0.1] bg-white/[0.05] px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-[var(--impronta-foreground)]/90"
+                  >
+                    {standingTierLabel(tier)}
+                  </span>
+                  <span
+                    data-card-standing-signal
+                    className="inline-flex items-center gap-1.5 text-[11px] text-[var(--impronta-muted)]"
+                  >
+                    <StaticStars rating={card.ratingAvg} size={12} />
+                    <span className="text-[var(--impronta-foreground)]/90 tabular-nums">
+                      {card.ratingAvg.toFixed(1)}
+                    </span>
+                    <span aria-hidden className="text-[var(--impronta-gold-dim)]">
+                      ·
+                    </span>
+                    <span className="tabular-nums">{ratingCount}</span>
+                    {bookAgain ? (
+                      <>
+                        <span
+                          aria-hidden
+                          className="text-[var(--impronta-gold-dim)]"
+                        >
+                          ·
+                        </span>
+                        <span>{bookAgain}</span>
+                      </>
+                    ) : null}
+                  </span>
+                </div>
+              );
+            })()
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">

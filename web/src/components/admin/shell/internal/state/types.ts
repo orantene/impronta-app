@@ -56,6 +56,7 @@ export type TalentPage =
   | "today"
   | "messages"      // Chat-first inquiry/booking surface (replaces inbox)
   | "profile"
+  | "reviews"       // Received reviews + reputation standing (first-class page)
   | "inbox"         // Legacy list view — kept for URL compat, not in nav
   | "calendar"
   | "activity"      // Legacy — kept for URL compat; nav routes to settings tab
@@ -200,6 +201,14 @@ export type RequirementGroup = {
     status: LineItemStatus;
     lastSaidTs?: string;
     lastSaidSnippet?: string;
+    /**
+     * Verified global standing sourced from talent_profiles.rating_avg /
+     * rating_count (a per-profile aggregate, not per-inquiry). Optional so
+     * mock rows and unrated talents still satisfy the type; the read-only
+     * trust chip renders only when ratingCount is present and meaningful.
+     */
+    ratingAvg?: number | null;
+    ratingCount?: number | null;
   }[];
 };
 

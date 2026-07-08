@@ -26,6 +26,7 @@ import type {
   RatingSummary,
   TalentRatingSummary,
   TalentReview,
+  Testimonial,
 } from "./review-types";
 
 type ReviewRow = {
@@ -37,6 +38,9 @@ type ReviewRow = {
   body: string | null;
   status: "published" | "hidden";
   created_at: string;
+  anon?: boolean | null;
+  reply_body?: string | null;
+  reply_at?: string | null;
 };
 
 /**
@@ -88,20 +92,24 @@ async function resolveClientFirstNames(
 export async function loadTalentReviews(
   talentProfileId: string,
   limit = 12,
+  offset = 0,
 ): Promise<TalentReview[]> {
   if (!talentProfileId) return [];
   const supabase = createPublicSupabaseClient();
   if (!supabase) return [];
 
+  const from = Math.max(0, offset);
+  const to = from + limit - 1;
+
   const { data, error } = await supabase
     .from("talent_reviews")
     .select(
-      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at",
+      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, anon, reply_body, reply_at",
     )
     .eq("talent_profile_id", talentProfileId)
     .eq("status", "published")
     .order("created_at", { ascending: false })
-    .limit(limit)
+    .range(from, to)
     .returns<ReviewRow[]>();
 
   if (error || !data || data.length === 0) return [];
@@ -113,12 +121,69 @@ export async function loadTalentReviews(
     talentProfileId: r.talent_profile_id,
     bookingId: r.booking_id,
     clientUserId: r.client_user_id,
-    clientName: names.get(r.client_user_id) ?? null,
+    clientName: r.anon ? null : names.get(r.client_user_id) ?? null,
     rating: r.rating,
     body: r.body,
     status: r.status,
     createdAt: r.created_at,
+    replyBody: r.reply_body ?? null,
+    replyAt: r.reply_at ?? null,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Invited testimonials (walled off from verified reviews).
+//
+// Testimonials live in public.tenant_testimonials — quotes attested/imported by
+// agency staff. They are DISPLAY-ONLY: their optional `rating` must NEVER be
+// blended into a talent's star average or any STANDING signal. This loader is a
+// plain public read (anon client; RLS exposes only status='published'), mirrored
+// on loadTalentReviews above.
+// ---------------------------------------------------------------------------
+
+type TestimonialRow = {
+  id: string;
+  author_name: string | null;
+  author_role: string | null;
+  body: string | null;
+  rating: number | null;
+  created_at: string;
+};
+
+/**
+ * Published testimonials for a talent profile, newest first. Public-safe.
+ * Returns [] when none (or when supabase is unconfigured). The optional rating
+ * is carried through untouched for per-card display and is NEVER aggregated.
+ */
+export async function loadPublishedTestimonials(
+  talentProfileId: string,
+  limit = 12,
+): Promise<Testimonial[]> {
+  if (!talentProfileId) return [];
+  const supabase = createPublicSupabaseClient();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("tenant_testimonials")
+    .select("id, author_name, author_role, body, rating, created_at")
+    .eq("talent_profile_id", talentProfileId)
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .returns<TestimonialRow[]>();
+
+  if (error || !data || data.length === 0) return [];
+
+  return data
+    .filter((r) => (r.body ?? "").trim().length > 0)
+    .map((r) => ({
+      id: r.id,
+      authorName: r.author_name?.trim() || null,
+      authorRole: r.author_role?.trim() || null,
+      body: (r.body ?? "").trim(),
+      rating: typeof r.rating === "number" ? r.rating : null,
+      createdAt: r.created_at,
+    }));
 }
 
 /**
@@ -136,12 +201,18 @@ export async function loadTalentRatingSummary(
   const supabase = createPublicSupabaseClient();
   if (!supabase) return empty;
 
+  // Star histogram + per-attribute means over the SAME published+verified rows
+  // the public average is derived from (migration 20261110040000: public
+  // aggregate = status='published' AND verified_paid). Computed in one grouped
+  // read and merged onto whichever count/average path is taken below.
+  const breakdown = await loadTalentRatingBreakdown(supabase, talentProfileId);
+
   // Fast path — denormalized cache columns.
   const { data: profileRow } = await supabase
     .from("talent_profiles")
-    .select("rating_avg, rating_count")
+    .select("rating_avg, rating_count, would_book_again_pct")
     .eq("id", talentProfileId)
-    .returns<{ rating_avg: number | null; rating_count: number | null }[]>()
+    .returns<{ rating_avg: number | null; rating_count: number | null; would_book_again_pct: number | null }[]>()
     .maybeSingle();
 
   const cachedCount = profileRow?.rating_count ?? null;
@@ -150,9 +221,14 @@ export async function loadTalentRatingSummary(
     return {
       average: Number.isFinite(avg) ? Math.round(avg * 10) / 10 : 0,
       count: cachedCount,
+      wouldBookAgainPct: profileRow?.would_book_again_pct ?? null,
+      distribution: breakdown.distribution,
+      attrAverages: breakdown.attrAverages,
     };
   }
-  if (cachedCount === 0) return empty;
+  if (cachedCount === 0) {
+    return { ...empty, distribution: null, attrAverages: null };
+  }
 
   // Fallback — aggregate published rows directly.
   const { data, error } = await supabase
@@ -162,10 +238,91 @@ export async function loadTalentRatingSummary(
     .eq("status", "published")
     .returns<{ rating: number }[]>();
 
-  if (error || !data || data.length === 0) return empty;
+  if (error || !data || data.length === 0) {
+    return { ...empty, distribution: null, attrAverages: null };
+  }
   const sum = data.reduce((acc, r) => acc + (r.rating || 0), 0);
   const average = Math.round((sum / data.length) * 10) / 10;
-  return { average, count: data.length };
+  return {
+    average,
+    count: data.length,
+    distribution: breakdown.distribution,
+    attrAverages: breakdown.attrAverages,
+  };
+}
+
+type RatingBreakdownRow = {
+  rating: number | null;
+  attr_professionalism: number | null;
+  attr_skill: number | null;
+  attr_communication: number | null;
+  attr_reliability: number | null;
+};
+
+/**
+ * Star histogram (5..1) and per-attribute means over the published + verified
+ * rows the public average uses. Returns both null when there are no such rows
+ * (count 0), so a talent with no verified reviews shows no breakdown.
+ */
+async function loadTalentRatingBreakdown(
+  supabase: NonNullable<ReturnType<typeof createPublicSupabaseClient>>,
+  talentProfileId: string,
+): Promise<{
+  distribution: { stars: number; count: number }[] | null;
+  attrAverages: TalentRatingSummary["attrAverages"];
+}> {
+  const { data, error } = await supabase
+    .from("talent_reviews")
+    .select(
+      "rating, attr_professionalism, attr_skill, attr_communication, attr_reliability",
+    )
+    .eq("talent_profile_id", talentProfileId)
+    .eq("status", "published")
+    .eq("verified_paid", true)
+    .returns<RatingBreakdownRow[]>();
+
+  if (error || !data || data.length === 0) {
+    return { distribution: null, attrAverages: null };
+  }
+
+  const counts = new Map<number, number>([
+    [5, 0],
+    [4, 0],
+    [3, 0],
+    [2, 0],
+    [1, 0],
+  ]);
+  for (const r of data) {
+    const star = Math.round(Number(r.rating));
+    if (counts.has(star)) counts.set(star, (counts.get(star) ?? 0) + 1);
+  }
+  const distribution = [5, 4, 3, 2, 1].map((stars) => ({
+    stars,
+    count: counts.get(stars) ?? 0,
+  }));
+
+  const mean = (key: keyof RatingBreakdownRow): number | null => {
+    let sum = 0;
+    let n = 0;
+    for (const r of data) {
+      const v = r[key];
+      if (typeof v === "number" && Number.isFinite(v)) {
+        sum += v;
+        n += 1;
+      }
+    }
+    return n === 0 ? null : Math.round((sum / n) * 10) / 10;
+  };
+
+  return {
+    distribution,
+    attrAverages: {
+      professionalism: mean("attr_professionalism"),
+      skill: mean("attr_skill"),
+      communication: mean("attr_communication"),
+      reliability: mean("attr_reliability"),
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -283,7 +440,7 @@ export async function loadReviewsAuthoredByUser(
   const { data, error } = await supabase
     .from("talent_reviews")
     .select(
-      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at",
+      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, reply_body, reply_at",
     )
     .eq("client_user_id", userId)
     .order("created_at", { ascending: false })
@@ -298,11 +455,13 @@ export async function loadReviewsAuthoredByUser(
     talentProfileId: r.talent_profile_id,
     bookingId: r.booking_id,
     clientUserId: r.client_user_id,
-    clientName: names.get(r.client_user_id) ?? null,
+    clientName: r.anon ? null : names.get(r.client_user_id) ?? null,
     rating: r.rating,
     body: r.body,
     status: r.status,
     createdAt: r.created_at,
+    replyBody: r.reply_body ?? null,
+    replyAt: r.reply_at ?? null,
   }));
 }
 
@@ -322,7 +481,7 @@ export async function loadTalentReviewsForOwner(
   const { data, error } = await supabase
     .from("talent_reviews")
     .select(
-      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, reported_at",
+      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, reported_at, anon, reply_body, reply_at",
     )
     .eq("talent_profile_id", talentProfileId)
     .order("created_at", { ascending: false })
@@ -337,10 +496,90 @@ export async function loadTalentReviewsForOwner(
     talentProfileId: r.talent_profile_id,
     bookingId: r.booking_id,
     clientUserId: r.client_user_id,
-    clientName: names.get(r.client_user_id) ?? null,
+    // An anonymous reviewer is anonymous to the talent too — blank the name so
+    // the owner's own Reviews page renders "Verified client", matching public.
+    clientName: r.anon ? null : names.get(r.client_user_id) ?? null,
     rating: r.rating,
     body: r.body,
     status: r.status,
     createdAt: r.created_at,
+    replyBody: r.reply_body ?? null,
+    replyAt: r.reply_at ?? null,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Growth notes (private coaching) — owner-only read.
+//
+// `talent_reviews.private_note` is talent-only coaching feedback a client can
+// leave alongside a review. RLS (talent_reviews_merged_select_public) exposes a
+// review row to the subject talent (tp.user_id = auth.uid()), so this read MUST
+// run as the authed owner via getCachedServerSupabase() — never the anon/public
+// client. Returns the most recent non-empty notes, newest first.
+// ---------------------------------------------------------------------------
+
+/** One private coaching note left on a talent's own received review. */
+export type OwnerPrivateNote = {
+  reviewId: string;
+  note: string;
+  createdAt: string;
+};
+
+type PrivateNoteRow = {
+  id: string;
+  private_note: string | null;
+  created_at: string;
+};
+
+/**
+ * Recent non-empty `private_note` values on the talent's OWN received reviews,
+ * newest first. private_note is column-privilege protected (migration
+ * 20261110070000): anon + authenticated cannot SELECT it at all, so this read
+ * runs on the SERVICE-ROLE client AFTER an explicit ownership check — the
+ * authed caller must be the profile's owner (owner-only by contract: the UI
+ * promises "Only you can see these"). Returns [] when none (or unauthorized).
+ */
+export async function loadOwnerPrivateNoteThemes(
+  talentProfileId: string,
+  limit = 6,
+): Promise<OwnerPrivateNote[]> {
+  if (!talentProfileId) return [];
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) return [];
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const svc = createServiceRoleClient();
+  if (!svc) return [];
+
+  // Ownership check — the caller must be the subject talent.
+  const { data: profileRow } = await svc
+    .from("talent_profiles")
+    .select("user_id")
+    .eq("id", talentProfileId)
+    .returns<{ user_id: string | null }[]>()
+    .maybeSingle();
+  if (!profileRow?.user_id || profileRow.user_id !== user.id) return [];
+
+  const { data, error } = await svc
+    .from("talent_reviews")
+    .select("id, private_note, created_at")
+    .eq("talent_profile_id", talentProfileId)
+    .not("private_note", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .returns<PrivateNoteRow[]>();
+
+  if (error || !data || data.length === 0) return [];
+
+  return data
+    .map((r) => ({
+      reviewId: r.id,
+      note: (r.private_note ?? "").trim(),
+      createdAt: r.created_at,
+    }))
+    .filter((n) => n.note.length > 0);
 }

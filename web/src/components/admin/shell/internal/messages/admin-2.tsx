@@ -37,6 +37,47 @@ import { ShellHeader } from "./talent-1";
 import type { ShellHeaderInput } from "./talent-1";
 import { AdminActivityStream } from "./admin-4b";
 
+// ── Trust chip (verified standing) ──────────────────────────────────
+// Formats a talent's VERIFIED global standing (talent_profiles.rating_avg /
+// rating_count, threaded onto RequirementGroup.talents by the data-bridge)
+// into a compact "★ 4.9 · 12" label. Returns null when there is no meaningful
+// rating — absence is neutral, so the lineup never shows "0.0" or "no reviews".
+function formatTrustChip(
+  ratingAvg?: number | null,
+  ratingCount?: number | null,
+): string | null {
+  if (typeof ratingCount !== "number" || ratingCount <= 0) return null;
+  if (typeof ratingAvg !== "number" || !Number.isFinite(ratingAvg) || ratingAvg <= 0) return null;
+  return `★ ${ratingAvg.toFixed(1)} · ${ratingCount}`;
+}
+
+// Tiny read-only pill consistent with the header's other chips (muted ink on a
+// faint warm fill). The star is a glyph, not a gold accent — admin aesthetics
+// avoid gold/rust (see feedback_admin_aesthetics.md).
+function TrustChip({ label }: { label: string }) {
+  return (
+    <span
+      aria-label={`Verified standing ${label}`}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        background: COLORS.surfaceAlt,
+        color: COLORS.inkMuted,
+        border: `1px solid ${COLORS.borderSoft}`,
+        padding: "1px 7px",
+        borderRadius: 999,
+        fontSize: 10.5,
+        fontWeight: 600,
+        fontFamily: FONTS.body,
+        fontVariantNumeric: "tabular-nums",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 // ── WhosTurnBanner (D4) ─────────────────────────────────────────────
 // A slim contextual banner shown at the top of the thread content area
 // that tells every viewer whose turn it is in the inquiry flow.
@@ -326,6 +367,12 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                 }}
               >
                 <span className="inline-flex">
+                  {/* trust-strip: each lineup avatar's tooltip carries the
+                      talent's verified standing when present (see the visible
+                      per-talent chip strip rendered below the stack). Rating is
+                      threaded onto RequirementGroup.talents by the data-bridge's
+                      single batched loadTalentChipInfo read. Map var is `member`
+                      (not `t`) so the i18n translator `t` in scope is not shadowed. */}
                   {allTalents.slice(0, 5).map((member, idx) => {
                     const isAccepted = member.status === "accepted";
                     const isSuperseded = member.status === "superseded";
@@ -338,6 +385,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                       .slice(0, 2)
                       .map((s: string) => s[0]?.toUpperCase() ?? "")
                       .join("") || "·";
+                    const trust = formatTrustChip(member.ratingAvg, member.ratingCount);
                     return (
                       <span
                         key={`${member.name}-${idx}`}
@@ -349,7 +397,9 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                           position: "relative",
                           opacity: isDeclined ? 0.4 : 1,
                         }}
-                        title={`${member.name} · ${lineItemStatusLabel(member.status, t)}`}
+                        title={trust
+                          ? `${member.name} · ${lineItemStatusLabel(member.status, t)} · ${trust}`
+                          : `${member.name} · ${lineItemStatusLabel(member.status, t)}`}
                       >
                         <Avatar size={22} tone="auto" hashSeed={member.name} initials={initials} photoUrl={member.thumb || undefined} />
                         {isAccepted && (
@@ -374,6 +424,16 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                     {interpolate(t("dashboard.adminThread.lineupAcceptedSuffix"), { accepted: lineupAccepted, total: lineupTotal })}
                   </span>
                 )}
+                {/* trust-strip: read-only verified standing next to the name.
+                    Single-talent lineups (the common talent-page-origin case)
+                    show the chip inline here; multi-talent lineups surface each
+                    talent's standing via the per-avatar tooltip above (a strip of
+                    chips would overflow this single-line header). Renders nothing
+                    when the talent has no published reviews (absence is neutral). */}
+                {lineupTotal === 1 && (() => {
+                  const trust = formatTrustChip(allTalents[0]?.ratingAvg, allTalents[0]?.ratingCount);
+                  return trust ? <TrustChip label={trust} /> : null;
+                })()}
               </button>
             )}
 

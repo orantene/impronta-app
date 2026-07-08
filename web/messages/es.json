@@ -1188,6 +1188,7 @@
       "pitches": "Propuestas",
       "inquiries": "Consultas",
       "bookings": "Reservas",
+      "reviews": "Reseñas",
       "settings": "Ajustes"
     },
     "clientOverview": {
@@ -4803,6 +4804,7 @@
         "pricing": "Precios",
         "operations": "Operaciones",
         "integrations": "Integraciones",
+        "aiProviders": "IA",
         "email": "Correo",
         "catalog": "Campos de Profile",
         "taxonomy": "Taxonomía",

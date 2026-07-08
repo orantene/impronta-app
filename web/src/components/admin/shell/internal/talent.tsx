@@ -6,6 +6,7 @@ import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGES, TALENT_PAGE_META, TALEN
 import { CalendarPage } from "./talent/pages/CalendarPage";
 import { MyProfilePage } from "./talent/pages/MyProfilePage";
 import { PublicPageEditor } from "./talent/pages/PublicPageEditor";
+import { ReviewsPage } from "./talent/pages/ReviewsPage";
 import { SettingsPage } from "./talent/pages/SettingsPage";
 import { TalentPayoutsPage } from "./page-modules/TalentPayoutsPage";
 import { TalentTodayPage } from "./talent/pages/TodayPage";
@@ -268,6 +269,9 @@ function TalentRouter() {
       break;
     case "profile":
       page = <MyProfilePage />;
+      break;
+    case "reviews":
+      page = <ReviewsPage />;
       break;
     case "inbox":
       // Legacy alias → the real Messages shell. The old InboxPage rendered a

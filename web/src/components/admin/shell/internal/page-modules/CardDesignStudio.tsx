@@ -29,8 +29,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useT } from "@/i18n/use-t";
-import { interpolate } from "@/i18n/interpolate";
 import {
   type CardDesignFieldCandidate,
   readCardDesignFieldCandidates,
@@ -49,7 +47,7 @@ import {
   saveDesignDraftFromEditAction,
 } from "@/lib/site-admin/edit-mode/design-actions";
 import { EmptyState, Icon, SecondaryButton, Toggle } from "../primitives";
-import { COLORS, FONTS, RADIUS, SPACE, meetsRole, useAdminShell } from "../state";
+import { COLORS, meetsRole, useAdminShell } from "../state";
 import {
   type CardAppearance,
   type CardAspect,
@@ -78,14 +76,15 @@ import {
 // Main studio
 // ────────────────────────────────────────────────────────────────────────
 
+// Registry defaults for the reviews-on-cards template tokens. Module scope so
+// readTemplateToken's dependency array can stay honest (only draftTokens varies).
+const STANDING_DEFAULTS: Record<string, string> = {
+  "directory.card.show-standing": "off",
+  "directory.card.standing-style": "both",
+  "profile.reviews-visibility": "visible",
+};
+
 export function CardDesignStudio() {
-  const t = useT();
-  // t() is called inside useCallback closures below; keep a ref so we can read
-  // the latest translator without listing `t` in the callbacks' dep arrays.
-  const tRef = useRef(t);
-  useEffect(() => {
-    tRef.current = t;
-  }, [t]);
   const { state, toast, rosterCardBadges, setRosterCardBadge, tenantSlug } =
     useAdminShell();
   const canEdit = meetsRole(state.role, "admin");
@@ -236,11 +235,50 @@ export function CardDesignStudio() {
     [canEdit, designVersion, saveDesignDraft],
   );
 
+  // ── Reviews-on-cards template tokens (REAL persistence — same path as the
+  // color knobs above: write into the working `draftTokens` map, then save
+  // the full map through `saveDesignDraft` → `saveDesignDraftFromEditAction`.
+  // Publish promotes the draft live like every other card token). No debounce:
+  // these are discrete toggle/segmented clicks, not a dragged color picker.
+  //
+  // TODO(reviewer): `CARD_DESIGN_TOKEN_KEYS` (defined in CardDesignStudio-3.tsx,
+  // not owned by this change) does NOT list these three keys. Consequences:
+  //   1. loadDesignAction's `pick()` only seeds `draftTokens` with
+  //      CARD_DESIGN_TOKEN_KEYS, so on reload these controls fall back to the
+  //      registry defaults (off / both / visible) for their DISPLAYED state even
+  //      if a non-default value is live. The SETTING itself persists (the save
+  //      patch carries the key), it just isn't reflected back in this panel
+  //      after a refresh until CARD_DESIGN_TOKEN_KEYS includes these keys.
+  //   2. `designDirty` and the publish re-seed loop also iterate
+  //      CARD_DESIGN_TOKEN_KEYS, so a change to ONLY these tokens won't light the
+  //      publish button via `designDirty`. Editing any card-family token (kit or
+  //      color knob) makes the panel dirty and Publish then promotes ALL draft
+  //      tokens including these. Adding the three keys to CARD_DESIGN_TOKEN_KEYS
+  //      in -3 closes both gaps; that file is owned by another change.
+  const readTemplateToken = useCallback(
+    (key: string) => draftTokens[key] || STANDING_DEFAULTS[key] || "",
+    [draftTokens],
+  );
+  const setTemplateToken = useCallback(
+    (key: string, value: string) => {
+      if (!canEdit) {
+        toast("You need admin access to change the card design.");
+        return;
+      }
+      setDraftTokens((prev) => {
+        const next = { ...prev, [key]: value };
+        void saveDesignDraft(next, designVersion);
+        return next;
+      });
+    },
+    [canEdit, toast, designVersion, saveDesignDraft],
+  );
+
   // ── Apply a kit (one-click repaint of the whole card family) ──────────────
   const handleApplyKit = useCallback(
     (kit: CardKitOption) => {
       if (!canEdit) {
-        toast(tRef.current("dashboard.adminCardStudio.toastNeedAdminDesign"));
+        toast("You need admin access to change the card design.");
         return;
       }
       setPendingKit(kit.slug);
@@ -293,7 +331,7 @@ export function CardDesignStudio() {
   const handleToggleField = useCallback(
     (key: string, next: boolean) => {
       if (!canEdit) {
-        toast(tRef.current("dashboard.adminCardStudio.toastNeedAdminFields"));
+        toast("You need admin access to change card fields.");
         return;
       }
       // Optimistic flip.
@@ -309,7 +347,7 @@ export function CardDesignStudio() {
             prev ? prev.map((f) => (f.key === key ? { ...f, cardVisible: !next } : f)) : prev,
           );
           setFieldStatus((prev) => ({ ...prev, [key]: "error" }));
-          toast(res.error || tRef.current("dashboard.adminCardStudio.toastCouldNotSaveField"));
+          toast(res.error || "Could not save that field.");
           return;
         }
         setFieldStatus((prev) => ({ ...prev, [key]: "saved" }));
@@ -328,7 +366,7 @@ export function CardDesignStudio() {
   const handleToggleBadge = useCallback(
     (key: RosterCardBadgeKey, next: boolean) => {
       if (!canEdit) {
-        toast(tRef.current("dashboard.adminCardStudio.toastNeedAdminBadges"));
+        toast("You need admin access to change roster card badges.");
         return;
       }
       setBadgeStatus((prev) => ({ ...prev, [key]: "saving" }));
@@ -362,40 +400,28 @@ export function CardDesignStudio() {
   const isRoster = activeSurface === "roster";
 
   return (
-    <div data-tulala-card-design-studio style={{ fontFamily: FONTS.body, color: COLORS.ink }}>
+    <div data-tulala-card-design-studio className="font-admin-body text-admin-ink">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: SPACE.group }}>
+      <div className="mb-[24px] flex flex-wrap items-start justify-between gap-[16px]">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <h1 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 600, letterSpacing: -0.3 }}>
-              {t("dashboard.adminCardStudio.title")}
+          <div className="flex items-center gap-[8px]">
+            <h1 className="m-0 font-admin-display text-admin-22 font-semibold tracking-[-0.3px]">
+              Card Design
             </h1>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 10.5,
-                fontWeight: 700,
-                letterSpacing: 0.4,
-                textTransform: "uppercase",
-                color: COLORS.accentDeep,
-                background: COLORS.accentSoft,
-                borderRadius: 999,
-                padding: "3px 8px",
-              }}
-            >
+            <span className="inline-flex items-center gap-[4px] rounded-[999px] bg-admin-accent-soft px-[8px] py-[3px] text-admin-10h font-bold uppercase tracking-[0.4px] text-admin-accent-deep">
               <Icon name="bolt" size={11} color={COLORS.accent} />
-              {t("dashboard.adminCardStudio.engineConnected")}
+              Engine-connected
             </span>
           </div>
-          <p style={{ margin: "6px 0 0", fontSize: 13, color: COLORS.inkMuted, maxWidth: 560, lineHeight: 1.5 }}>
-            {t("dashboard.adminCardStudio.headerDescription")}
+          <p className="m-0 mt-[6px] max-w-[560px] text-admin-13 leading-[1.5] text-admin-ink-muted">
+            Control what shows on talent cards, which actions appear, and how every card looks. Card
+            fields come straight from your Tulala engine — turn one on here and it appears on every
+            card. Pick a look or tune the colors once, then Publish to sync every surface.
           </p>
         </div>
         {!canEdit ? (
-          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.inkMuted }}>
-            {t("dashboard.adminCardStudio.readOnly")}
+          <span className="text-admin-11 font-semibold uppercase tracking-[0.4px] text-admin-ink-muted">
+            Read-only
           </span>
         ) : !isRoster && designReady && !designLoadError ? (
           <PublishCluster
@@ -411,62 +437,48 @@ export function CardDesignStudio() {
       {/* Honesty banner — what saves now vs preview-only */}
       <div
         role="note"
-        style={{
-          display: "flex",
-          gap: 10,
-          alignItems: "flex-start",
-          background: COLORS.indigoSoft,
-          border: `1px solid ${COLORS.borderSoft}`,
-          borderRadius: RADIUS.md,
-          padding: "10px 12px",
-          marginBottom: SPACE.group,
-        }}
+        className="mb-[24px] flex items-start gap-[10px] rounded-admin-md border border-admin-border-soft bg-admin-indigo-soft px-[12px] py-[10px]"
       >
         <Icon name="info" size={15} color={COLORS.indigoDeep} />
-        <div style={{ fontSize: 12.5, color: COLORS.indigoDeep, lineHeight: 1.5 }}>
+        <div className="text-admin-12h leading-[1.5] text-admin-indigo-deep">
           {isRoster ? (
             <>
-              <strong style={{ fontWeight: 600 }}>{t("dashboard.adminCardStudio.bannerRosterLead")}</strong>{t("dashboard.adminCardStudio.bannerRosterRest")}
+              <strong className="font-semibold">Roster badges save instantly</strong> to this
+              workspace and show or hide on every roster card right away. The roster grid is internal —
+              only your team sees it.
             </>
           ) : (
             <>
-              <strong style={{ fontWeight: 600 }}>{t("dashboard.adminCardStudio.bannerFieldsLead")}</strong>{t("dashboard.adminCardStudio.bannerFieldsMid")} <strong style={{ fontWeight: 600 }}>{t("dashboard.adminCardStudio.bannerDesignLead")}</strong>{t("dashboard.adminCardStudio.bannerDesignMid")}{" "}
-              <strong style={{ fontWeight: 600 }}>{t("dashboard.adminCardStudio.bannerLayoutLead")}</strong>{t("dashboard.adminCardStudio.bannerLayoutRest")}
+              <strong className="font-semibold">Card fields save instantly</strong> to your engine and
+              apply everywhere. <strong className="font-semibold">Visual design</strong> (look + colors)
+              saves to a draft as you edit — Publish promotes it live across every card surface.{" "}
+              <strong className="font-semibold">Layout + show-toggles</strong> below are a live preview;
+              saving distinct layout per surface ships in the next release.
             </>
           )}
         </div>
       </div>
 
       {/* Surface tab strip + rationale */}
-      <div style={{ marginBottom: SPACE.group }}>
-        <CardSurfaceTabStrip
-          activeSurface={activeSurface}
-          onSurfaceChange={setActiveSurface}
-        />
+      <div className="mb-[24px]">
+        <CardSurfaceTabStrip activeSurface={activeSurface} onSurfaceChange={setActiveSurface} />
       </div>
 
       {/* Two-column workspace: controls (left) + preview (right) */}
       <div
         data-tulala-card-design-grid
-        style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: SPACE.section, alignItems: "start" }}
+        className="grid grid-cols-[minmax(0,1fr)_300px] items-start gap-[32px]"
       >
         {/* LEFT — controls */}
-        <div style={{ display: "flex", flexDirection: "column", gap: SPACE.group, minWidth: 0 }}>
+        <div className="flex min-w-0 flex-col gap-[24px]">
           {isRoster ? (
             /* Roster card badges — REAL per-workspace persistence (agencies.settings) */
-            <section
-              style={{
-                background: COLORS.card,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: RADIUS.lg,
-                padding: 16,
-              }}
-            >
+            <section className="rounded-admin-lg border border-admin-border bg-admin-card p-[16px]">
               <GroupHeader
-                title={t("dashboard.adminCardStudio.rosterBadgesTitle")}
-                hint={t("dashboard.adminCardStudio.rosterBadgesHint")}
+                title="Roster card badges"
+                hint="Show or hide each overlay on your roster cards. Saved instantly to this workspace — the roster grid is internal to your team."
               />
-              <div style={{ display: "flex", flexDirection: "column" }}>
+              <div className="flex flex-col">
                 {ROSTER_CARD_BADGE_META.map((meta, idx) => {
                   const on = rosterCardBadges[meta.key];
                   const status = badgeStatus[meta.key];
@@ -474,58 +486,40 @@ export function CardDesignStudio() {
                   return (
                     <div
                       key={meta.key}
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        padding: "10px 0",
-                        borderTop: idx === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
-                      }}
+                      className={`flex items-start justify-between gap-[12px] py-[10px] ${
+                        idx === 0 ? "" : "border-t border-admin-border-soft"
+                      }`}
                     >
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{meta.label}</div>
-                        <div style={{ fontSize: 11.5, color: COLORS.inkDim, marginTop: 2, lineHeight: 1.4 }}>
+                      <div className="min-w-0">
+                        <div className="text-admin-13 font-medium text-admin-ink">{meta.label}</div>
+                        <div className="mt-[2px] text-admin-11h leading-[1.4] text-admin-ink-dim">
                           {meta.description}
                         </div>
                         {showWarn ? (
-                          <div
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "flex-start",
-                              gap: 5,
-                              marginTop: 6,
-                              padding: "5px 9px",
-                              borderRadius: RADIUS.md,
-                              background: COLORS.amberSoft,
-                              color: COLORS.amberDeep,
-                              fontSize: 11,
-                              fontWeight: 600,
-                              lineHeight: 1.35,
-                            }}
-                          >
+                          <div className="mt-[6px] inline-flex items-start gap-[5px] rounded-admin-md bg-admin-amber-soft px-[9px] py-[5px] text-admin-11 font-semibold leading-[1.35] text-admin-amber-deep">
                             <Icon name="info" size={12} color={COLORS.amberDeep} />
                             <span>
-                              {t("dashboard.adminCardStudio.badgeHideEyeWarn")}
+                              Hiding the eye removes the only show / hide control from the card. You can
+                              still manage visibility from the talent drawer.
                             </span>
                           </div>
                         ) : null}
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, paddingTop: 1 }}>
+                      <div className="flex shrink-0 items-center gap-[8px] pt-px">
                         {status === "saving" ? (
-                          <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{t("dashboard.adminCardStudio.saving")}</span>
+                          <span className="text-admin-11 text-admin-ink-muted">Saving…</span>
                         ) : status === "saved" ? (
-                          <span style={{ fontSize: 11, color: COLORS.successDeep, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                          <span className="inline-flex items-center gap-[3px] text-admin-11 text-admin-success-deep">
                             <Icon name="check" size={12} color={COLORS.success} />
-                            {t("dashboard.adminCardStudio.saved")}
+                            Saved
                           </span>
                         ) : status === "error" ? (
-                          <span style={{ fontSize: 11, color: COLORS.critical }}>{t("dashboard.adminCardStudio.failed")}</span>
+                          <span className="text-admin-11 text-admin-critical">Failed</span>
                         ) : null}
                         <Toggle
                           on={on}
                           onChange={canEdit ? (v) => handleToggleBadge(meta.key, v) : undefined}
-                          label={interpolate(t("dashboard.adminCardStudio.showBadgeOnRosterAria"), { label: meta.label })}
+                          label={`Show ${meta.label} on roster cards`}
                         />
                       </div>
                     </div>
@@ -550,78 +544,64 @@ export function CardDesignStudio() {
           />
 
           {/* Actions on this surface */}
-          <section
-            style={{
-              background: COLORS.card,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: RADIUS.lg,
-              padding: 16,
-            }}
-          >
+          <section className="rounded-admin-lg border border-admin-border bg-admin-card p-[16px]">
             <GroupHeader
-              title={t("dashboard.adminCardStudio.actionsTitle")}
-              hint={t("dashboard.adminCardStudio.actionsHint")}
+              title="Actions on this surface"
+              hint="Favorite + inquiry follow Tulala's per-surface rules. Where an action is available you can still hide it."
             />
             <ToggleRow
-              label={t("dashboard.adminCardStudio.favoriteSaveLabel")}
-              hint={rule.favorite ? t("dashboard.adminCardStudio.favoriteSaveHint") : undefined}
+              label="Favorite (save)"
+              hint={rule.favorite ? "Clients can save this talent to their favorites." : undefined}
               on={appearance.showSave}
               onChange={canEdit && rule.favorite ? (v) => patchAppearance("showSave", v) : undefined}
               disabled={!canEdit}
               locked={!rule.favorite}
             />
             <ToggleRow
-              label={t("dashboard.adminCardStudio.inquiryCtaLabel")}
-              hint={rule.inquiry ? t("dashboard.adminCardStudio.inquiryCtaHint") : undefined}
+              label="Inquiry CTA"
+              hint={rule.inquiry ? "Clients can start an inquiry from the card." : undefined}
               on={appearance.showAddToInquiry}
               onChange={canEdit && rule.inquiry ? (v) => patchAppearance("showAddToInquiry", v) : undefined}
               disabled={!canEdit}
               locked={!rule.inquiry}
             />
-            <div style={{ height: 1, background: COLORS.borderSoft, margin: "10px 0" }} />
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div className="my-[10px] h-px bg-admin-border-soft" />
+            <div className="flex items-center justify-between gap-[12px]">
               <div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{t("dashboard.adminCardStudio.favoriteIconLabel")}</div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkDim, marginTop: 2 }}>
-                  {t("dashboard.adminCardStudio.tenantBrandToken")}{tenantFavoriteIcon ? interpolate(t("dashboard.adminCardStudio.liveIconSuffix"), { icon: tenantFavoriteIcon }) : ""}
+                <div className="text-admin-13 font-medium">Favorite icon</div>
+                <div className="mt-[2px] text-admin-11h text-admin-ink-dim">
+                  Tenant brand token{tenantFavoriteIcon ? ` · live: ${tenantFavoriteIcon}` : ""}
                 </div>
               </div>
               <Segmented<"heart" | "bookmark">
                 value={favoriteIcon}
                 onChange={setFavoriteIcon}
                 options={[
-                  { value: "heart", label: t("dashboard.adminCardStudio.iconHeart") },
-                  { value: "bookmark", label: t("dashboard.adminCardStudio.iconBookmark") },
+                  { value: "heart", label: "Heart" },
+                  { value: "bookmark", label: "Bookmark" },
                 ]}
               />
             </div>
           </section>
 
           {/* Appearance */}
-          <section
-            style={{
-              background: COLORS.card,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: RADIUS.lg,
-              padding: 16,
-            }}
-          >
-            <GroupHeader title={t("dashboard.adminCardStudio.layoutTitle")} hint={t("dashboard.adminCardStudio.layoutHint")} />
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.inkMuted }}>{t("dashboard.adminCardStudio.cardStyleLabel")}</span>
+          <section className="rounded-admin-lg border border-admin-border bg-admin-card p-[16px]">
+            <GroupHeader title="Layout" hint="How the card is laid out and which lines show. Live preview this release; the Look + Colors above save and publish." />
+            <div className="flex flex-col gap-[14px]">
+              <label className="flex flex-col gap-[6px]">
+                <span className="text-[12px] font-semibold text-admin-ink-muted">Card style</span>
                 <Segmented<CardStyle>
                   value={appearance.cardStyle}
                   onChange={(v) => patchAppearance("cardStyle", v)}
                   disabled={!canEdit}
                   options={[
-                    { value: "portrait", label: t("dashboard.adminCardStudio.stylePortrait") },
-                    { value: "editorial", label: t("dashboard.adminCardStudio.styleEditorial") },
+                    { value: "portrait", label: "Portrait" },
+                    { value: "editorial", label: "Editorial" },
                   ]}
                 />
               </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.inkMuted }}>{t("dashboard.adminCardStudio.imageAspectLabel")}</span>
+              <label className="flex flex-col gap-[6px]">
+                <span className="text-[12px] font-semibold text-admin-ink-muted">Image aspect</span>
                 <Segmented<CardAspect>
                   value={appearance.cardAspect}
                   onChange={(v) => patchAppearance("cardAspect", v)}
@@ -634,8 +614,8 @@ export function CardDesignStudio() {
                   ]}
                 />
               </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.inkMuted }}>{t("dashboard.adminCardStudio.hoverBehaviorLabel")}</span>
+              <label className="flex flex-col gap-[6px]">
+                <span className="text-[12px] font-semibold text-admin-ink-muted">Hover behavior</span>
                 <Segmented<HoverBehavior>
                   value={appearance.hoverBehavior}
                   onChange={(v) => patchAppearance("hoverBehavior", v)}
@@ -647,97 +627,120 @@ export function CardDesignStudio() {
                 />
               </label>
             </div>
-            <div style={{ height: 1, background: COLORS.borderSoft, margin: "14px 0 4px" }} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowName")} on={appearance.showName} onChange={canEdit ? (v) => patchAppearance("showName", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowTalentType")} on={appearance.showTalentType} onChange={canEdit ? (v) => patchAppearance("showTalentType", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowLocation")} on={appearance.showLocation} onChange={canEdit ? (v) => patchAppearance("showLocation", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowAttributes")} on={appearance.showAttributes} onChange={canEdit ? (v) => patchAppearance("showAttributes", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowAvailability")} on={appearance.showAvailability} onChange={canEdit ? (v) => patchAppearance("showAvailability", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowTrustBadges")} on={appearance.showBadges} onChange={canEdit ? (v) => patchAppearance("showBadges", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowRating")} on={appearance.showRating} onChange={canEdit ? (v) => patchAppearance("showRating", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowPriceFrom")} on={appearance.showPriceFrom} onChange={canEdit ? (v) => patchAppearance("showPriceFrom", v) : undefined} disabled={!canEdit} />
+            <div className="mx-0 mb-[4px] mt-[14px] h-px bg-admin-border-soft" />
+            <ToggleRow label="Name" on={appearance.showName} onChange={canEdit ? (v) => patchAppearance("showName", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label="Talent type" on={appearance.showTalentType} onChange={canEdit ? (v) => patchAppearance("showTalentType", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label="Location" on={appearance.showLocation} onChange={canEdit ? (v) => patchAppearance("showLocation", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label="Attributes (engine fields)" on={appearance.showAttributes} onChange={canEdit ? (v) => patchAppearance("showAttributes", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label="Availability" on={appearance.showAvailability} onChange={canEdit ? (v) => patchAppearance("showAvailability", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label="Trust badges" on={appearance.showBadges} onChange={canEdit ? (v) => patchAppearance("showBadges", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label="Rating" on={appearance.showRating} onChange={canEdit ? (v) => patchAppearance("showRating", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label="Price from" on={appearance.showPriceFrom} onChange={canEdit ? (v) => patchAppearance("showPriceFrom", v) : undefined} disabled={!canEdit} />
+
+            {/* Reviews on cards — REAL persistence (template tokens; see
+                setTemplateToken). Master on/off maps show-standing off↔compact;
+                the style picker + profile visibility mirror the price idiom. */}
+            <div className="mx-0 mb-[4px] mt-[14px] h-px bg-admin-border-soft" />
+            <div className="mx-0 mb-[2px] mt-[6px] text-[12px] font-semibold text-admin-ink-muted">
+              Reviews on cards
+            </div>
+            <ToggleRow
+              label="Show talent standing"
+              hint="Ratings / standing on directory cards. Saves to the design draft; Publish syncs every surface."
+              on={readTemplateToken("directory.card.show-standing") !== "off"}
+              onChange={canEdit ? (v) => setTemplateToken("directory.card.show-standing", v ? "compact" : "off") : undefined}
+              disabled={!canEdit}
+            />
+            {readTemplateToken("directory.card.show-standing") !== "off" ? (
+              <label className="mt-[10px] flex flex-col gap-[6px]">
+                <span className="text-[12px] font-semibold text-admin-ink-muted">Standing style</span>
+                <Segmented<"tier" | "signal" | "both">
+                  value={
+                    (readTemplateToken("directory.card.standing-style") as
+                      | "tier"
+                      | "signal"
+                      | "both") || "both"
+                  }
+                  onChange={(v) => setTemplateToken("directory.card.standing-style", v)}
+                  disabled={!canEdit}
+                  options={[
+                    { value: "tier", label: "Tier" },
+                    { value: "signal", label: "Signal" },
+                    { value: "both", label: "Both" },
+                  ]}
+                />
+              </label>
+            ) : null}
+            <div className="mt-[10px]">
+              <ToggleRow
+                label="Reviews on profile pages"
+                hint="Show or hide the whole reviews section on talent profiles."
+                on={readTemplateToken("profile.reviews-visibility") !== "hidden"}
+                onChange={canEdit ? (v) => setTemplateToken("profile.reviews-visibility", v ? "visible" : "hidden") : undefined}
+                disabled={!canEdit}
+              />
+            </div>
           </section>
 
           {/* Engine fields — REAL persistence */}
-          <section
-            style={{
-              background: COLORS.card,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: RADIUS.lg,
-              padding: 16,
-            }}
-          >
+          <section className="rounded-admin-lg border border-admin-border bg-admin-card p-[16px]">
             <GroupHeader
-              title={t("dashboard.adminCardStudio.cardFieldsTitle")}
-              hint={t("dashboard.adminCardStudio.cardFieldsHint")}
+              title="Card fields · from your Tulala engine"
+              hint="Which engine fields are eligible to render on cards everywhere. Saved instantly to this workspace."
             />
             {loading ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", fontSize: 13, color: COLORS.inkMuted }}>
-                <span
-                  style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: "50%",
-                    border: `2px solid ${COLORS.borderStrong}`,
-                    borderTopColor: COLORS.accent,
-                    animation: "tulala-spin 0.7s linear infinite",
-                  }}
-                />
-                {t("dashboard.adminCardStudio.loadingFields")}
+              <div className="flex items-center gap-[8px] py-[12px] text-admin-13 text-admin-ink-muted">
+                <span className="h-[14px] w-[14px] rounded-full border-2 border-admin-border-strong border-t-admin-accent [animation:tulala-spin_0.7s_linear_infinite]" />
+                Loading fields from the engine…
                 <style>{`@keyframes tulala-spin{to{transform:rotate(360deg)}}`}</style>
               </div>
             ) : fieldsError ? (
-              <div style={{ padding: "8px 0" }}>
-                <div style={{ fontSize: 13, color: COLORS.critical, marginBottom: 10 }}>
-                  {interpolate(t("dashboard.adminCardStudio.couldNotLoadFields"), { error: fieldsError })}
+              <div className="py-[8px]">
+                <div className="mb-[10px] text-admin-13 text-admin-critical">
+                  Couldn’t load fields: {fieldsError}
                 </div>
                 <SecondaryButton size="sm" onClick={loadFields}>
-                  {t("dashboard.adminCardStudio.retry")}
+                  Retry
                 </SecondaryButton>
               </div>
             ) : !fields || fields.length === 0 ? (
               <EmptyState
-                title={t("dashboard.adminCardStudio.fieldsEmptyTitle")}
-                body={t("dashboard.adminCardStudio.fieldsEmptyBody")}
+                title="No card-eligible fields yet"
+                body="Fields become eligible once they’re public and on the profile. Add them in your field catalog first."
               />
             ) : (
-              <div style={{ display: "flex", flexDirection: "column" }}>
+              <div className="flex flex-col">
                 {fields.map((f, idx) => {
                   const status = fieldStatus[f.key];
                   return (
                     <div
                       key={f.key}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        padding: "9px 0",
-                        borderTop: idx === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
-                      }}
+                      className={`flex items-center justify-between gap-[12px] py-[9px] ${
+                        idx === 0 ? "" : "border-t border-admin-border-soft"
+                      }`}
                     >
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{f.label}</div>
-                        <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 1 }}>
+                      <div className="min-w-0">
+                        <div className="text-admin-13 font-medium text-admin-ink">{f.label}</div>
+                        <div className="mt-px text-admin-11 text-admin-ink-dim">
                           {f.key}
                           {f.valueType ? ` · ${f.valueType}` : ""}
                         </div>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div className="flex items-center gap-[8px]">
                         {status === "saving" ? (
-                          <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{t("dashboard.adminCardStudio.saving")}</span>
+                          <span className="text-admin-11 text-admin-ink-muted">Saving…</span>
                         ) : status === "saved" ? (
-                          <span style={{ fontSize: 11, color: COLORS.successDeep, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                          <span className="inline-flex items-center gap-[3px] text-admin-11 text-admin-success-deep">
                             <Icon name="check" size={12} color={COLORS.success} />
-                            {t("dashboard.adminCardStudio.saved")}
+                            Saved
                           </span>
                         ) : status === "error" ? (
-                          <span style={{ fontSize: 11, color: COLORS.critical }}>{t("dashboard.adminCardStudio.failed")}</span>
+                          <span className="text-admin-11 text-admin-critical">Failed</span>
                         ) : null}
                         <Toggle
                           on={f.cardVisible}
                           onChange={canEdit ? (v) => handleToggleField(f.key, v) : undefined}
-                          label={interpolate(t("dashboard.adminCardStudio.showFieldOnCardsAria"), { label: f.label })}
+                          label={`Show ${f.label} on cards`}
                         />
                       </div>
                     </div>

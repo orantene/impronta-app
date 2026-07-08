@@ -113,7 +113,14 @@ import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
 import {
   loadTalentReviews,
   loadTalentRatingSummary,
+  loadPublishedTestimonials,
 } from "@/lib/reviews/load-reviews";
+import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
+import type {
+  TalentRatingSummary,
+  TalentReview,
+  Testimonial,
+} from "@/lib/reviews/review-types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1810,10 +1817,23 @@ export default async function PublicTalentProfilePage({
 
   // W7 — client→talent reviews. Published-only via public RLS; renders
   // nothing when the talent has no reviews. Safe on every surface.
-  const [ratingSummary, talentReviews] = await Promise.all([
-    loadTalentRatingSummary(profile.id),
-    loadTalentReviews(profile.id, 12),
-  ]);
+  //
+  // Testimonials are loaded alongside but kept SEPARATE — they are invited
+  // quotes, never blended into ratingSummary or any STANDING signal.
+  // Reviews are a PREMIUM capability, gated on the SURFACE tenant's entitlement
+  // (a hub controls its own surfaces independently). On the platform host there
+  // is no tenant to gate, so reviews show on Tulala's own marketplace surface.
+  const reviewsEnabled =
+    hostCtx.kind === "agency"
+      ? await tenantReviewsEnabled(hostCtx.tenantId)
+      : true;
+  const [ratingSummary, talentReviews, testimonials] = reviewsEnabled
+    ? await Promise.all([
+        loadTalentRatingSummary(profile.id),
+        loadTalentReviews(profile.id, 12),
+        loadPublishedTestimonials(profile.id, 12),
+      ])
+    : [{ average: 0, count: 0 } as TalentRatingSummary, [] as TalentReview[], [] as Testimonial[]];
 
   // Languages come solely from the canonical talent_languages table now —
   // the legacy taxonomy `grouped["language"]` fallback was retired when the
@@ -2109,6 +2129,7 @@ export default async function PublicTalentProfilePage({
         otherDetailRows={otherDetailRows}
         ratingSummary={ratingSummary}
         talentReviews={talentReviews}
+        testimonials={testimonials}
         agencyName={tenantBrand}
         agencyDisplayName={tenantBrand}
         similarTalent={similarTalent}

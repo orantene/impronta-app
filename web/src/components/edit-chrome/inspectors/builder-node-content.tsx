@@ -42,6 +42,7 @@ import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Stepper, TextInput, Toggle } from "../kit";
 import { KIT } from "./kit/tokens";
 import { MediaPickerButton } from "./kit";
+import { AiGenerateImageButton } from "./ai-generate-image-button";
 import { InlineNameInput } from "./kit/inline-name-input";
 import { MyBlocksPanel } from "./my-blocks-panel";
 import { ComponentLibraryPanel } from "./component-library-panel";
@@ -472,6 +473,15 @@ export function BuilderNodeContentInspector({
             aspect="4/5"
             variant="row"
           />
+          <div className={KIT.field}>
+            <label className={KIT.label}>Generate with AI</label>
+            <AiGenerateImageButton
+              defaultSubject={node.props.alt ?? ""}
+              onGenerated={({ url, mediaId, alt }) => {
+                void commitPatch({ src: url, mediaId, alt: node.props.alt || alt });
+              }}
+            />
+          </div>
           <div className={KIT.field}>
             <label className={KIT.label}>Alt text</label>
             <BuilderNodeLocalizableTextField

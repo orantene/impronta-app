@@ -32,6 +32,7 @@ const TABS = [
   { id: "pricing",    labelKey: "dashboard.platform.nav.pricing",      segment: "pricing"    },
   { id: "operations", labelKey: "dashboard.platform.nav.operations",   segment: "operations" },
   { id: "integrations", labelKey: "dashboard.platform.nav.integrations", segment: "integrations" },
+  { id: "ai-providers", labelKey: "dashboard.platform.nav.aiProviders", segment: "ai-providers" },
   { id: "email",      labelKey: "dashboard.platform.nav.email",        segment: "email"      },
   { id: "catalog",    labelKey: "dashboard.platform.nav.catalog",      segment: "catalog" },
   { id: "taxonomy",   labelKey: "dashboard.platform.nav.taxonomy",     segment: "taxonomy"   },

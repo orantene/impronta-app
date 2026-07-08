@@ -345,6 +345,7 @@ const TALENT_TAB_ICON: Partial<Record<TalentPage, "info" | "sparkle" | "plus" | 
   today: "bolt",
   messages: "mail",
   profile: "user",
+  reviews: "sparkle",
   calendar: "calendar",
   agencies: "team",
   "public-page": "sparkle",

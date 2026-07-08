@@ -52,25 +52,25 @@ export function AIInterpretChip({ summary }: { summary: string }) {
   return (
     <div
       data-directory-ai-chip
-      className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-2.5 text-[12px] leading-snug text-white/80"
+      className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-muted/30 px-4 py-2.5 text-[12px] leading-snug text-foreground/80"
       role="status"
       aria-live="polite"
     >
       <span
         aria-hidden
-        className="inline-flex size-1.5 shrink-0 rounded-full bg-white/70"
+        className="inline-flex size-1.5 shrink-0 rounded-full bg-[var(--dir-accent)]"
       />
       <span className="min-w-0 flex-1 truncate">
-        <span className="mr-2 text-[10px] font-medium uppercase tracking-[0.18em] text-white/45">
+        <span className="mr-2 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
           AI applied
         </span>
-        <span className="text-white/90">{summary}</span>
+        <span className="text-foreground">{summary}</span>
       </span>
       <button
         type="button"
         onClick={handleClear}
         disabled={pending}
-        className="shrink-0 rounded-full border border-white/15 bg-transparent px-3 py-1 text-[11px] font-medium tracking-wide text-white/70 outline-none transition-colors hover:border-white/35 hover:text-white focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50"
+        className="shrink-0 rounded-full border border-border bg-transparent px-3 py-1 text-[11px] font-medium tracking-wide text-muted-foreground outline-none transition-colors hover:border-foreground/35 hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50"
       >
         Clear AI
       </button>
