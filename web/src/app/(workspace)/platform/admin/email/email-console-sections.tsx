@@ -1,6 +1,8 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import type { EmailLogRow, TemplateOverrideState } from "./email-data";
 import { retryEmailRow, setTemplateOverride, clearTemplateOverride } from "./actions";
 import { HQ, FONT_DISPLAY, MONO, STICKY_THEAD_TOP, label, input, btn, relTime } from "./email-console-theme";
@@ -16,6 +18,15 @@ const STATUS_TONE: Record<string, "green" | "red" | "amber" | "blue" | "muted"> 
   skipped: "muted",
 };
 
+// enum → catalog key; render label via t(), keep the raw union as the value.
+const STATUS_LABEL_KEY: Record<string, string> = {
+  sent: "dashboard.platform.email.statusSent",
+  failed: "dashboard.platform.email.statusFailed",
+  suppressed: "dashboard.platform.email.statusSuppressed",
+  queued: "dashboard.platform.email.statusQueued",
+  skipped: "dashboard.platform.email.statusSkipped",
+};
+
 // ─── Send-log table ──────────────────────────────────────────────────────────
 export function SendLogTable({
   rows,
@@ -26,6 +37,7 @@ export function SendLogTable({
   nowMs: number;
   onChanged: () => void;
 }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [eventKind, setEventKind] = useState("all");
@@ -61,7 +73,7 @@ export function SendLogTable({
   async function retryAll() {
     if (!retryable.length) return;
     for (let i = 0; i < retryable.length; i++) {
-      setBulk(`Retrying ${i + 1}/${retryable.length}…`);
+      setBulk(interpolate(t("dashboard.platform.email.retrying"), { index: i + 1, total: retryable.length }));
       await retryEmailRow(retryable[i].id);
     }
     setBulk(null);
@@ -87,44 +99,44 @@ export function SendLogTable({
   return (
     <div style={{ marginBottom: 24 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-        <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY }}>Send log</div>
+        <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY }}>{t("dashboard.platform.email.sendLog")}</div>
         {retryable.length > 0 && (
           <button
             style={{ ...btn("rgba(106,166,243,0.15)", HQ.blue), fontSize: 12, opacity: bulk ? 0.6 : 1 }}
             disabled={!!bulk}
             onClick={retryAll}
           >
-            {bulk ?? `Retry all failed (${retryable.length})`}
+            {bulk ?? interpolate(t("dashboard.platform.email.retryAllFailed"), { count: retryable.length })}
           </button>
         )}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12, marginBottom: 14 }}>
-        <div><label style={label}>Search</label><input style={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="recipient, event, error…" /></div>
+        <div><label style={label}>{t("dashboard.platform.email.search")}</label><input style={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("dashboard.platform.email.searchLogPlaceholder")} /></div>
         <div>
-          <label style={label}>Status</label>
+          <label style={label}>{t("dashboard.platform.email.status")}</label>
           <select style={input} value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="all">All</option>
-            <option value="sent">sent</option>
-            <option value="failed">failed</option>
-            <option value="suppressed">suppressed</option>
-            <option value="queued">queued</option>
-            <option value="skipped">skipped</option>
+            <option value="all">{t("dashboard.platform.email.all")}</option>
+            <option value="sent">{t("dashboard.platform.email.statusSent")}</option>
+            <option value="failed">{t("dashboard.platform.email.statusFailed")}</option>
+            <option value="suppressed">{t("dashboard.platform.email.statusSuppressed")}</option>
+            <option value="queued">{t("dashboard.platform.email.statusQueued")}</option>
+            <option value="skipped">{t("dashboard.platform.email.statusSkipped")}</option>
           </select>
         </div>
         <div>
-          <label style={label}>Event</label>
+          <label style={label}>{t("dashboard.platform.email.event")}</label>
           <select style={input} value={eventKind} onChange={(e) => setEventKind(e.target.value)}>
-            <option value="all">All</option>
+            <option value="all">{t("dashboard.platform.email.all")}</option>
             {eventKinds.map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
         </div>
         <div>
-          <label style={label}>Date</label>
+          <label style={label}>{t("dashboard.platform.email.date")}</label>
           <select style={input} value={dateKey} onChange={(e) => setDateKey(e.target.value as DateKey)}>
-            <option value="all">All time</option>
-            <option value="24h">Last 24h</option>
-            <option value="7d">Last 7d</option>
-            <option value="30d">Last 30d</option>
+            <option value="all">{t("dashboard.platform.email.dateAll")}</option>
+            <option value="24h">{t("dashboard.platform.email.date24h")}</option>
+            <option value="7d">{t("dashboard.platform.email.date7d")}</option>
+            <option value="30d">{t("dashboard.platform.email.date30d")}</option>
           </select>
         </div>
       </div>
@@ -133,17 +145,17 @@ export function SendLogTable({
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
-              <th style={th}>When</th>
-              <th style={th}>Event</th>
-              <th style={th}>Recipient</th>
-              <th style={th}>Status</th>
-              <th style={th}>Delivery</th>
+              <th style={th}>{t("dashboard.platform.email.colWhen")}</th>
+              <th style={th}>{t("dashboard.platform.email.colEvent")}</th>
+              <th style={th}>{t("dashboard.platform.email.colRecipient")}</th>
+              <th style={th}>{t("dashboard.platform.email.colStatus")}</th>
+              <th style={th}>{t("dashboard.platform.email.colDelivery")}</th>
               <th style={th}></th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={6}><EmptyState>{rows.length === 0 ? "No emails sent yet." : "No sends match these filters."}</EmptyState></td></tr>
+              <tr><td colSpan={6}><EmptyState>{rows.length === 0 ? t("dashboard.platform.email.logEmpty") : t("dashboard.platform.email.logNoMatch")}</EmptyState></td></tr>
             )}
             {filtered.map((r, i) => {
               const isOpen = expanded === r.id;
@@ -158,20 +170,20 @@ export function SendLogTable({
               return (
                 <Fragment key={r.id}>
                   <tr style={{ borderBottom: `1px solid ${HQ.borderSoft}`, background: isOpen ? "rgba(93,211,160,0.04)" : i % 2 ? "rgba(255,255,255,0.015)" : "transparent" }}>
-                    <td style={{ ...td, color: HQ.inkMuted, whiteSpace: "nowrap" }}>{relTime(r.createdAtIso)}</td>
+                    <td style={{ ...td, color: HQ.inkMuted, whiteSpace: "nowrap" }}>{relTime(r.createdAtIso, t)}</td>
                     <td style={{ ...td, fontFamily: MONO, fontSize: 12 }}>{r.catalogEntryId ?? r.eventKind}</td>
                     <td style={{ ...td, color: HQ.inkMuted, fontFamily: MONO, fontSize: 12 }}>{r.recipientEmail ?? "—"}</td>
                     <td style={td}>
-                      <StatusBadge label={r.status} tone={STATUS_TONE[r.status] ?? "muted"} />
+                      <StatusBadge label={STATUS_LABEL_KEY[r.status] ? t(STATUS_LABEL_KEY[r.status]) : r.status} tone={STATUS_TONE[r.status] ?? "muted"} />
                       {r.attempts > 1 && (
-                        <span title={`${r.attempts} send attempts`} style={{ marginLeft: 6, fontSize: 11, color: HQ.amber }}>×{r.attempts}</span>
+                        <span title={interpolate(t("dashboard.platform.email.attemptsTitle"), { count: r.attempts })} style={{ marginLeft: 6, fontSize: 11, color: HQ.amber }}>×{r.attempts}</span>
                       )}
                     </td>
                     <td style={{ ...td, fontFamily: MONO, fontSize: 12, color: r.bouncedAtIso ? HQ.red : HQ.inkMuted }}>{deliv || "—"}</td>
                     <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
                       {canRetry && (
                         <button style={{ ...btn("rgba(106,166,243,0.15)", HQ.blue), padding: "4px 10px", fontSize: 12, opacity: busyId === r.id ? 0.5 : 1 }} disabled={busyId === r.id || !!bulk} onClick={() => doRetry(r.id)}>
-                          {busyId === r.id ? "…" : "Retry"}
+                          {busyId === r.id ? "…" : t("dashboard.platform.email.retry")}
                         </button>
                       )}
                       <button onClick={() => setExpanded(isOpen ? null : r.id)} style={{ ...btn("transparent", HQ.green), padding: "4px 8px" }}>{isOpen ? "−" : "+"}</button>
@@ -201,7 +213,7 @@ export function SendLogTable({
           </tbody>
         </table>
       </div>
-      <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>Showing {filtered.length} of {rows.length} logged sends.</div>
+      <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>{interpolate(t("dashboard.platform.email.showingLog"), { shown: filtered.length, total: rows.length })}</div>
     </div>
   );
 }
@@ -232,6 +244,7 @@ export function TemplateEditor({
    */
   adminLocales?: readonly string[];
 }) {
+  const t = useT();
   const [openId, setOpenId] = useState<string | null>(null);
   const [locale, setLocale] = useState<string>(adminLocales[0] ?? "en");
   const [q, setQ] = useState("");
@@ -277,15 +290,14 @@ export function TemplateEditor({
 
   return (
     <div style={{ marginBottom: 24 }}>
-      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 6 }}>Templates</div>
+      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: FONT_DISPLAY, marginBottom: 6 }}>{t("dashboard.platform.email.templates")}</div>
       <p style={{ color: HQ.inkMuted, fontSize: 13, margin: "0 0 12px" }}>
-        Override an email&apos;s subject + body per locale, without a deploy. Blank fields keep the
-        code default. Placeholders: <code style={{ fontFamily: MONO }}>{"{{name}}"}</code>,{" "}
-        <code style={{ fontFamily: MONO }}>{"{{brand}}"}</code>. A bad override always falls back to the code template.
+        {t("dashboard.platform.email.templatesIntroPre")} <code style={{ fontFamily: MONO }}>{"{{name}}"}</code>,{" "}
+        <code style={{ fontFamily: MONO }}>{"{{brand}}"}</code>{t("dashboard.platform.email.templatesIntroPost")}
       </p>
-      <div style={{ marginBottom: 12 }}><SearchBox value={q} onChange={setQ} placeholder="Search templates…" /></div>
+      <div style={{ marginBottom: 12 }}><SearchBox value={q} onChange={setQ} placeholder={t("dashboard.platform.email.searchTemplates")} /></div>
       <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 8, overflow: "hidden" }}>
-        {filtered.length === 0 && <EmptyState>No templates match “{q}”.</EmptyState>}
+        {filtered.length === 0 && <EmptyState>{interpolate(t("dashboard.platform.email.templatesNoMatch"), { query: q })}</EmptyState>}
         {filtered.map((e) => {
           return (
             <div key={e.id} style={{ borderBottom: `1px solid ${HQ.borderSoft}` }}>
@@ -299,7 +311,7 @@ export function TemplateEditor({
                     return (
                       <span
                         key={l}
-                        title={paused ? "Override saved but paused" : "Custom override active"}
+                        title={paused ? t("dashboard.platform.email.overridePausedTitle") : t("dashboard.platform.email.overrideActiveTitle")}
                         style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: paused ? HQ.inkDim : HQ.green, textDecoration: paused ? "line-through" : "none" }}
                       >
                         {l}
@@ -307,24 +319,24 @@ export function TemplateEditor({
                     );
                   })}
                   <button style={{ ...btn("transparent", HQ.blue), padding: "4px 10px", fontSize: 12 }} onClick={() => open(e)}>
-                    {openId === e.id ? "Close" : "Edit"}
+                    {openId === e.id ? t("dashboard.platform.email.close") : t("dashboard.platform.email.edit")}
                   </button>
                 </span>
               </div>
               {openId === e.id && (
                 <div style={{ padding: 12, background: HQ.card, display: "grid", gap: 10 }}>
                   <div>
-                    <label style={label}>Locale</label>
+                    <label style={label}>{t("dashboard.platform.email.locale")}</label>
                     <select style={{ ...input, width: 120 }} value={locale} onChange={(ev) => switchLocale(e, ev.target.value)}>
                       {adminLocales.map((l) => <option key={l} value={l}>{l}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label style={label}>Subject (blank = code default)</label>
-                    <input style={input} value={draft.subject} onChange={(ev) => setDraft({ ...draft, subject: ev.target.value })} placeholder="custom subject…" />
+                    <label style={label}>{t("dashboard.platform.email.subjectLabel")}</label>
+                    <input style={input} value={draft.subject} onChange={(ev) => setDraft({ ...draft, subject: ev.target.value })} placeholder={t("dashboard.platform.email.subjectPlaceholder")} />
                   </div>
                   <div>
-                    <label style={label}>Body (blank = code body)</label>
+                    <label style={label}>{t("dashboard.platform.email.bodyLabel")}</label>
                     <textarea
                       style={{ ...input, minHeight: 120, fontFamily: MONO, lineHeight: 1.5, resize: "vertical" }}
                       value={draft.body}
@@ -333,13 +345,13 @@ export function TemplateEditor({
                     />
                   </div>
                   <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: HQ.inkMuted }}>
-                    <input type="checkbox" checked={draft.enabled} onChange={(ev) => setDraft({ ...draft, enabled: ev.target.checked })} /> Override active
+                    <input type="checkbox" checked={draft.enabled} onChange={(ev) => setDraft({ ...draft, enabled: ev.target.checked })} /> {t("dashboard.platform.email.overrideActive")}
                   </label>
                   <div style={{ display: "flex", gap: 10 }}>
-                    <button style={{ ...btn(HQ.green, "#06281C"), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => save(e)}>Save</button>
+                    <button style={{ ...btn(HQ.green, "#06281C"), opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => save(e)}>{t("dashboard.platform.email.save")}</button>
                     {e.byLocale[locale]?.hasOverride && (
                       <button style={{ ...btn("transparent", HQ.red), border: `1px solid rgba(243,103,114,0.3)`, opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={() => reset(e)}>
-                        Reset {locale} to code default
+                        {interpolate(t("dashboard.platform.email.resetToDefault"), { locale })}
                       </button>
                     )}
                   </div>
@@ -350,7 +362,11 @@ export function TemplateEditor({
         })}
       </div>
       <div style={{ marginTop: 10, color: HQ.inkMuted, fontSize: 12 }}>
-        {customizedCount} of {entries.length} templates customized · {adminLocales.join(" / ")}.
+        {interpolate(t("dashboard.platform.email.templatesCustomized"), {
+          customized: customizedCount,
+          total: entries.length,
+          locales: adminLocales.join(" / "),
+        })}
       </div>
     </div>
   );

@@ -6,6 +6,11 @@
 import { FlagsPanel } from "./FlagsPanel";
 import { FLAG_GROUPS } from "./flags-registry";
 import { readFlagValues } from "./flags-read";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
 
 const HQ = {
   card: "#16161A",
@@ -86,29 +91,31 @@ function HqCard({
 
 type SystemJobState = "succeeded" | "failed" | "running" | "idle";
 
+// name = code identifier (kept raw). descriptionKey/lastRunKey/state resolve via
+// t() at render (state via JOB_STATE_KEY). This list is a static preview.
 const SYSTEM_JOBS: Array<{
   name: string;
-  description: string;
+  descriptionKey: string;
   state: SystemJobState;
-  lastRun: string;
+  lastRunKey: string;
 }> = [
   {
     name: "cron/daily-health-check",
-    description: "DB + edge function health ping",
+    descriptionKey: "dashboard.platform.operations.jobDailyHealth",
     state: "succeeded",
-    lastRun: "today",
+    lastRunKey: "dashboard.platform.operations.jobRunToday",
   },
   {
     name: "cron/taxonomy-cache-refresh",
-    description: "Invalidates taxonomy term cache across tenants",
+    descriptionKey: "dashboard.platform.operations.jobTaxonomyCache",
     state: "succeeded",
-    lastRun: "today",
+    lastRunKey: "dashboard.platform.operations.jobRunToday",
   },
   {
     name: "cron/inquiry-expiry",
-    description: "Expires stale open inquiries past their event date",
+    descriptionKey: "dashboard.platform.operations.jobInquiryExpiry",
     state: "succeeded",
-    lastRun: "today",
+    lastRunKey: "dashboard.platform.operations.jobRunToday",
   },
 ];
 
@@ -119,8 +126,17 @@ const JOB_COLORS: Record<SystemJobState, string> = {
   idle: HQ.inkDim,
 };
 
+// enum → catalog key; render label via t(), keep switching on the raw union.
+const JOB_STATE_KEY: Record<SystemJobState, string> = {
+  succeeded: "dashboard.platform.operations.jobStateSucceeded",
+  failed: "dashboard.platform.operations.jobStateFailed",
+  running: "dashboard.platform.operations.jobStateRunning",
+  idle: "dashboard.platform.operations.jobStateIdle",
+};
+
 export default async function PlatformOperationsPage() {
-  const flagValues = await readFlagValues();
+  const [flagValues, locale] = await Promise.all([readFlagValues(), getRequestLocale()]);
+  const t: Translate = createTranslator(locale);
 
   return (
     <>
@@ -136,7 +152,7 @@ export default async function PlatformOperationsPage() {
             margin: 0,
           }}
         >
-          Operations
+          {t("dashboard.platform.operations.title")}
         </h1>
         <p
           style={{
@@ -146,8 +162,7 @@ export default async function PlatformOperationsPage() {
             margin: "5px 0 0",
           }}
         >
-          Feature flags, system jobs, and incidents — the levers and alarms for running
-          Tulala.
+          {t("dashboard.platform.operations.subtitle")}
         </p>
       </div>
 
@@ -165,7 +180,10 @@ export default async function PlatformOperationsPage() {
         }}
       >
         {/* System jobs */}
-        <HqCard title="System jobs" badge="Preview">
+        <HqCard
+          title={t("dashboard.platform.operations.systemJobs")}
+          badge={t("dashboard.platform.operations.badgePreview")}
+        >
           {SYSTEM_JOBS.map((job) => {
             const stateColor = JOB_COLORS[job.state];
             return (
@@ -203,7 +221,10 @@ export default async function PlatformOperationsPage() {
                     {job.name}
                   </div>
                   <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>
-                    {job.description} · last run {job.lastRun}
+                    {t(job.descriptionKey)} ·{" "}
+                    {interpolate(t("dashboard.platform.operations.jobLastRun"), {
+                      when: t(job.lastRunKey),
+                    })}
                   </div>
                 </div>
                 <span
@@ -218,7 +239,7 @@ export default async function PlatformOperationsPage() {
                     borderRadius: 999,
                   }}
                 >
-                  {job.state}
+                  {t(JOB_STATE_KEY[job.state])}
                 </span>
               </div>
             );
@@ -226,7 +247,7 @@ export default async function PlatformOperationsPage() {
         </HqCard>
 
         {/* Incidents (all-clear) */}
-        <HqCard title="Incidents">
+        <HqCard title={t("dashboard.platform.operations.incidents")}>
           <div
             style={{
               display: "flex",
@@ -247,7 +268,7 @@ export default async function PlatformOperationsPage() {
               }}
             />
             <span style={{ fontSize: 13, color: HQ.inkMuted }}>
-              No active incidents. All systems operational.
+              {t("dashboard.platform.operations.incidentsAllClear")}
             </span>
           </div>
         </HqCard>
