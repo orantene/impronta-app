@@ -28,6 +28,7 @@ import {
 import {
   loadOwnerPrivateNoteThemesAction,
   loadOwnerReceivedReviewsAction,
+  submitReviewReplyAction,
 } from "@/lib/reviews/review-owner-actions";
 import type { OwnerPrivateNote } from "@/lib/reviews/load-reviews";
 import type {
@@ -205,14 +206,28 @@ function GrowthNotesCard({ notes }: { notes: OwnerPrivateNote[] }) {
 
 // ─── A single received review with a Report action (no edit / delete) ───────
 
-type RowBusy = "report" | null;
+type RowBusy = "report" | "reply" | null;
 
 function ReceivedReviewRow({ review }: { review: TalentReview }) {
   const [busy, setBusy] = useState<RowBusy>(null);
   const [reported, setReported] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Reply-once. Seed from whatever the loader already returned, then track the
+  // just-submitted reply locally so the composer disappears on success without
+  // a reload.
+  const [reply, setReply] = useState<{ body: string; at: string | null }>(() =>
+    review.replyBody
+      ? { body: review.replyBody, at: review.replyAt }
+      : { body: "", at: null },
+  );
+  const [composing, setComposing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [replyError, setReplyError] = useState<string | null>(null);
+
   const hidden = review.status === "hidden";
+  const hasReply = reply.body.trim().length > 0;
+  const canSubmitReply = draft.trim().length > 0 && busy !== "reply";
 
   async function report() {
     setBusy("report");
@@ -222,6 +237,22 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
       setReported(true);
     } else {
       setError(res.error || "Could not report the review.");
+    }
+    setBusy(null);
+  }
+
+  async function submitReply() {
+    const body = draft.trim();
+    if (!body) return;
+    setBusy("reply");
+    setReplyError(null);
+    const res = await submitReviewReplyAction(review.id, body);
+    if (res.ok) {
+      setReply({ body, at: new Date().toISOString() });
+      setComposing(false);
+      setDraft("");
+    } else {
+      setReplyError(res.error || "Could not post your reply.");
     }
     setBusy(null);
   }
@@ -272,9 +303,135 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
         </div>
       )}
 
+      {/* Your public reply — renders inline once posted (reply-once). */}
+      {hasReply && (
+        <div
+          style={{
+            marginTop: 2,
+            padding: "10px 12px",
+            borderRadius: RADIUS.sm,
+            borderLeft: `2px solid ${COLORS.accent}`,
+            background: COLORS.accentSoft,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700 }} className="text-admin-ink">
+              Your response
+            </span>
+            {reply.at && (
+              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
+                {formatDate(reply.at)}
+              </span>
+            )}
+          </div>
+          <span style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
+            {reply.body}
+          </span>
+        </div>
+      )}
+
       {error && <div style={{ fontSize: 11.5, color: COLORS.red }}>{error}</div>}
 
+      {/* Public reply composer — only for a review that has no reply yet. */}
+      {!hasReply && composing && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 2 }}>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Thank the client or add helpful context. This reply is public on your profile."
+            disabled={busy === "reply"}
+            rows={3}
+            autoFocus
+            style={{
+              width: "100%",
+              padding: "9px 11px",
+              fontSize: 12.5,
+              lineHeight: 1.5,
+              borderRadius: RADIUS.sm,
+              border: `1px solid ${COLORS.border}`,
+              background: "#fff",
+              color: COLORS.ink,
+              fontFamily: FONTS.body,
+              resize: "vertical",
+              minHeight: 64,
+              boxSizing: "border-box",
+            }}
+          />
+          {replyError && (
+            <div style={{ fontSize: 11.5, color: COLORS.red }}>{replyError}</div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              type="button"
+              onClick={submitReply}
+              disabled={!canSubmitReply}
+              style={{
+                padding: "6px 14px",
+                fontSize: 11.5,
+                fontWeight: 700,
+                borderRadius: 7,
+                border: "none",
+                background: canSubmitReply ? COLORS.accent : COLORS.surfaceAlt,
+                color: canSubmitReply ? "#fff" : COLORS.inkDim,
+                cursor: canSubmitReply ? "pointer" : "not-allowed",
+                fontFamily: FONTS.body,
+              }}
+            >
+              {busy === "reply" ? "Posting…" : "Post reply"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setComposing(false);
+                setDraft("");
+                setReplyError(null);
+              }}
+              disabled={busy === "reply"}
+              style={{
+                padding: "6px 12px",
+                fontSize: 11.5,
+                fontWeight: 600,
+                borderRadius: 7,
+                border: `1px solid ${COLORS.border}`,
+                background: "#fff",
+                color: COLORS.inkMuted,
+                cursor: busy === "reply" ? "wait" : "pointer",
+                fontFamily: FONTS.body,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {/* Reply publicly — hidden once a reply exists or the composer is open. */}
+        {!hasReply && !composing && (
+          <button
+            type="button"
+            onClick={() => {
+              setComposing(true);
+              setReplyError(null);
+            }}
+            style={{
+              padding: "5px 11px",
+              fontSize: 11.5,
+              fontWeight: 600,
+              borderRadius: 7,
+              border: `1px solid ${COLORS.accentSoft}`,
+              background: COLORS.accentSoft,
+              color: COLORS.accentDeep,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+            }}
+          >
+            Reply publicly
+          </button>
+        )}
         {reported ? (
           <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.green }}>
             Reported. Staff will look into it.

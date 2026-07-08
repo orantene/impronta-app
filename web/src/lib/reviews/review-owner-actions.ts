@@ -22,6 +22,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { TalentRatingSummary, TalentReview } from "./review-types";
 import type { OwnerPrivateNote } from "./load-reviews";
 import {
@@ -29,6 +30,8 @@ import {
   loadTalentRatingSummary,
   loadTalentReviewsForOwner,
 } from "./load-reviews";
+
+const REPLY_MAX = 2000;
 
 /**
  * A talent's received reviews (incl. hidden) plus their public rating summary,
@@ -69,4 +72,109 @@ export async function loadOwnerPrivateNoteThemesAction(
   if (!id) return [];
 
   return loadOwnerPrivateNoteThemes(id);
+}
+
+/**
+ * Post the talent's one-time public REPLY to a received review (their public
+ * right-of-reply).
+ *
+ * The DB edit-guard (migration 20261110040000) blocks authenticated talent
+ * UPDATEs of talent_reviews on every column except the reported_at path, so
+ * the reply write cannot run as the caller's session. It runs on the
+ * SERVICE-ROLE client — which the guard bypasses (auth.uid() IS NULL) — but
+ * ONLY after an explicit ownership check: the authenticated caller must own the
+ * reviewed talent's profile (talent_profiles.user_id === auth.uid()).
+ *
+ * Reply-once: rejected if reply_body is already set OR the row is already
+ * locked. On success the UPDATE stamps reply_body, reply_at = now() and
+ * locked_at = now() atomically — locked_at closes the client's edit window per
+ * the edit-guard. Never throws; always returns the result shape.
+ */
+export async function submitReviewReplyAction(
+  reviewId: string,
+  replyBody: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const auth = await requireSession();
+    if (!auth.ok) return { ok: false, error: "You must be signed in." };
+
+    const id = (reviewId ?? "").trim();
+    if (!id) return { ok: false, error: "Missing review." };
+
+    const body = (replyBody ?? "").trim();
+    if (!body) return { ok: false, error: "Reply cannot be empty." };
+    if (body.length > REPLY_MAX) {
+      return {
+        ok: false,
+        error: `Reply must be ${REPLY_MAX} characters or fewer.`,
+      };
+    }
+
+    const svc = createServiceRoleClient();
+    if (!svc) return { ok: false, error: "Not configured." };
+
+    // Service-role read the review — need the reviewed profile + current
+    // reply/lock state (both column-privilege / edit-guard protected paths).
+    const { data: review, error: readErr } = await svc
+      .from("talent_reviews")
+      .select("id, talent_profile_id, reply_body, locked_at")
+      .eq("id", id)
+      .returns<
+        {
+          id: string;
+          talent_profile_id: string;
+          reply_body: string | null;
+          locked_at: string | null;
+        }[]
+      >()
+      .maybeSingle();
+
+    if (readErr || !review) {
+      return { ok: false, error: "Review not found." };
+    }
+
+    // Ownership — the caller must own the reviewed talent's profile.
+    const { data: profileRow, error: profErr } = await svc
+      .from("talent_profiles")
+      .select("user_id")
+      .eq("id", review.talent_profile_id)
+      .returns<{ user_id: string | null }[]>()
+      .maybeSingle();
+
+    if (profErr || !profileRow?.user_id || profileRow.user_id !== auth.user.id) {
+      return { ok: false, error: "You can only reply to your own reviews." };
+    }
+
+    // Reply-once.
+    if (review.reply_body != null && review.reply_body.trim().length > 0) {
+      return { ok: false, error: "You have already replied to this review." };
+    }
+    if (review.locked_at != null) {
+      return { ok: false, error: "This review is locked and cannot be replied to." };
+    }
+
+    // Atomic reply write: set body + timestamps, and re-assert the once-only
+    // guard in the filter so a concurrent double-submit can't double-write.
+    const now = new Date().toISOString();
+    const { data: updated, error: updErr } = await svc
+      .from("talent_reviews")
+      .update({ reply_body: body, reply_at: now, locked_at: now })
+      .eq("id", id)
+      .is("reply_body", null)
+      .is("locked_at", null)
+      .select("id")
+      .returns<{ id: string }[]>();
+
+    if (updErr) {
+      return { ok: false, error: "Could not post your reply. Please try again." };
+    }
+    if (!updated || updated.length === 0) {
+      // Row moved out from under the filter (already replied/locked meanwhile).
+      return { ok: false, error: "You have already replied to this review." };
+    }
+
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Could not post your reply. Please try again." };
+  }
 }
