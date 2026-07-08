@@ -15,13 +15,15 @@ import {
   SecondaryButton,
   defaultUnlocks,
   planPrice,
-  useAdminShell
+  useAdminShell,
+  useDashboardText
 } from "./drawer-shared";
 
 // Phase 1d — public UpgradeModal (byte-for-byte). Re-exported by barrel.
 
 export function UpgradeModal() {
   const { state, closeUpgrade, setPlan, toast, openDrawer } = useAdminShell();
+  const copy = useDashboardText();
   const offer = state.upgrade;
   if (!offer.open) return null;
   const requiredPlan = offer.requiredPlan ?? "studio";
@@ -35,15 +37,15 @@ export function UpgradeModal() {
   const pricingNote =
     offer.pricingNote ??
     (requiredPlan === "network"
-      ? "Tailored to your operation."
-      : "14-day refund · Cancel any time · No card required to preview");
+      ? copy.t("Tailored to your operation.")
+      : copy.t("14-day refund · Cancel any time · No card required to preview"));
 
   return (
     <ModalShell open onClose={closeUpgrade} width={600}>
       <header style={{ padding: "22px 24px 18px", position: "relative", borderBottom: `1px solid rgba(15,79,62,0.16)` }} className="bg-admin-surface-alt">
         <button
           onClick={closeUpgrade}
-          aria-label="Close"
+          aria-label={copy.t("Close")}
           style={{
             position: "absolute",
             top: 16,
@@ -69,7 +71,7 @@ export function UpgradeModal() {
           </CapsLabel>
         </div>
         <h2 style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 500, letterSpacing: -0.5, margin: 0, lineHeight: 1.2 }} className="text-admin-ink">
-          {offer.feature ?? `Upgrade to ${meta.label}`}
+          {offer.feature ?? copy.t("Upgrade to {plan}").replace("{plan}", meta.label)}
         </h2>
         {(offer.outcome || offer.why) && (
           <p style={{ fontFamily: FONTS.body, fontSize: 13.5, margin: "6px 0 0", lineHeight: 1.55, maxWidth: 500 }} className="text-admin-ink-muted">
@@ -99,7 +101,7 @@ export function UpgradeModal() {
                 }}
               >
                 {usage.current} / {usage.cap}
-                {usageBlocking && " · at limit"}
+                {usageBlocking && ` · ${copy.t("at limit")}`}
               </span>
             </div>
             <div style={{ height: 4, borderRadius: 2, background: "rgba(11,11,13,0.06)", overflow: "hidden" }}>
@@ -118,7 +120,7 @@ export function UpgradeModal() {
 
       <div style={{ padding: "18px 24px", overflowY: "auto" }}>
         <div className="mb-2">
-          <CapsLabel>What you&apos;ll unlock</CapsLabel>
+          <CapsLabel>{copy.t("What you'll unlock")}</CapsLabel>
         </div>
         <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
           {unlocks.map((u) => (
@@ -167,28 +169,28 @@ export function UpgradeModal() {
             openDrawer("plan-compare");
           }}
         >
-          Compare plans
+          {copy.t("Compare plans")}
         </GhostButton>
-        <SecondaryButton onClick={closeUpgrade}>Not now</SecondaryButton>
+        <SecondaryButton onClick={closeUpgrade}>{copy.t("Not now")}</SecondaryButton>
         {requiredPlan === "network" ? (
           <PrimaryButton
             onClick={() => {
-              toast("We'll be in touch about Network");
+              toast(copy.t("We'll be in touch about Network"));
               closeUpgrade();
             }}
           >
-            Contact sales
+            {copy.t("Contact sales")}
           </PrimaryButton>
         ) : (
           <PrimaryButton
             onClick={() => {
               setPlan(requiredPlan);
-              toast(`Welcome to ${meta.label} — fake upgrade applied`);
+              toast(copy.t("Welcome to {plan} · upgrade applied").replace("{plan}", meta.label));
               closeUpgrade();
             }}
           >
             <span className="inline-flex items-center gap-1.5">
-              Upgrade to {meta.label}
+              {copy.t("Upgrade to {plan}").replace("{plan}", meta.label)}
               <Icon name="arrow-right" size={12} stroke={1.8} />
             </span>
           </PrimaryButton>
