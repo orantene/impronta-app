@@ -531,9 +531,9 @@ export async function GroupsTab({
                 />
               </HqCard>
             ) : (
-              <HqCard title="Group order">
+              <HqCard title={t(`${K}.groupOrderTitle`)}>
                 <div style={{ fontSize: 12, color: HQ.inkDim }}>
-                  Add a second group to enable drag-reordering.
+                  {t(`${K}.groupOrderAddSecond`)}
                 </div>
               </HqCard>
             )}
