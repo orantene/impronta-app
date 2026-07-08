@@ -59,7 +59,51 @@ type ExistingReviewRow = {
   talent_profile_id: string;
   rating: number;
   body: string | null;
+  would_book_again: boolean | null;
+  attr_professionalism: number | null;
+  attr_skill: number | null;
+  attr_communication: number | null;
+  attr_reliability: number | null;
+  traits: string[] | null;
+  private_note: string | null;
+  anon: boolean | null;
+  published_at: string | null;
 };
+
+/** The STANDING signal a client may attach to a talent review (all optional). */
+export type TalentReviewStanding = {
+  wouldBookAgain?: boolean | null;
+  attrProfessionalism?: number | null;
+  attrSkill?: number | null;
+  attrCommunication?: number | null;
+  attrReliability?: number | null;
+  traits?: string[] | null;
+  privateNote?: string | null;
+  anon?: boolean | null;
+};
+
+/** Coerce an attribute rating to a clean 1–5 SMALLINT, or null. */
+function cleanAttr(v: number | null | undefined): number | null {
+  if (v == null) return null;
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n) || n < 1 || n > 5) return null;
+  return n;
+}
+
+/** Coerce a traits input to a clean, de-duplicated, trimmed string[] (or null). */
+function cleanTraits(v: string[] | null | undefined): string[] | null {
+  if (!Array.isArray(v)) return null;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of v) {
+    if (typeof raw !== "string") continue;
+    const t = raw.trim().slice(0, 80);
+    if (!t || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out.length > 0 ? out : null;
+}
 
 /** Adapts a DB booking row to the pure eligibility predicate. */
 function bookingReviewable(b: BookingRow): boolean {
@@ -95,6 +139,7 @@ export async function submitTalentReviewAction(
   talentProfileId: string,
   rating: number,
   body: string,
+  standing?: TalentReviewStanding,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const auth = await requireClient();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -112,6 +157,20 @@ export async function submitTalentReviewAction(
   }
 
   const cleanBody = (body ?? "").trim().slice(0, 4000);
+
+  // Coerce the optional STANDING signal. All fields are client-writable per the
+  // edit-guard allowed set (would_book_again, attr_*, traits, private_note, anon).
+  const s = standing ?? {};
+  const wouldBookAgain =
+    s.wouldBookAgain === true ? true : s.wouldBookAgain === false ? false : null;
+  const attrProfessionalism = cleanAttr(s.attrProfessionalism);
+  const attrSkill = cleanAttr(s.attrSkill);
+  const attrCommunication = cleanAttr(s.attrCommunication);
+  const attrReliability = cleanAttr(s.attrReliability);
+  const traits = cleanTraits(s.traits);
+  const privateNoteRaw = (s.privateNote ?? "").trim().slice(0, 4000);
+  const privateNote = privateNoteRaw.length > 0 ? privateNoteRaw : null;
+  const anon = s.anon === true;
 
   const tenantId = await resolveTenantId(supabase, tenantSlug);
   if (!tenantId) return { ok: false, error: "Unknown workspace." };
@@ -181,6 +240,14 @@ export async function submitTalentReviewAction(
         client_user_id: user.id,
         rating: r,
         body: cleanBody || null,
+        would_book_again: wouldBookAgain,
+        attr_professionalism: attrProfessionalism,
+        attr_skill: attrSkill,
+        attr_communication: attrCommunication,
+        attr_reliability: attrReliability,
+        traits,
+        private_note: privateNote,
+        anon,
         status: "published",
       },
       { onConflict: "booking_id,talent_profile_id,client_user_id" },
@@ -233,16 +300,30 @@ export async function loadReviewableBookingsAction(
 
   const { data: existing } = await supabase
     .from("talent_reviews")
-    .select("booking_id, talent_profile_id, rating, body")
+    .select(
+      "booking_id, talent_profile_id, rating, body, would_book_again, attr_professionalism, attr_skill, attr_communication, attr_reliability, traits, private_note, anon, published_at",
+    )
     .in("booking_id", bookingIds)
     .eq("client_user_id", user.id)
     .returns<ExistingReviewRow[]>();
 
-  const existingByKey = new Map<string, { rating: number; body: string | null }>();
+  const existingByKey = new Map<
+    string,
+    NonNullable<ReviewableBooking["existingReview"]>
+  >();
   for (const e of existing ?? []) {
     existingByKey.set(`${e.booking_id}:${e.talent_profile_id}`, {
       rating: e.rating,
       body: e.body,
+      wouldBookAgain: e.would_book_again ?? null,
+      attrProfessionalism: e.attr_professionalism ?? null,
+      attrSkill: e.attr_skill ?? null,
+      attrCommunication: e.attr_communication ?? null,
+      attrReliability: e.attr_reliability ?? null,
+      traits: Array.isArray(e.traits) ? e.traits : null,
+      privateNote: e.private_note ?? null,
+      anon: e.anon ?? false,
+      publishedAt: e.published_at ?? null,
     });
   }
 

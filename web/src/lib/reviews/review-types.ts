@@ -51,7 +51,27 @@ export type ReviewableBooking = {
   talentName: string | null;
   eventTitle: string | null;
   eventDate: string | null;
-  existingReview: { rating: number; body: string | null } | null;
+  /**
+   * The caller-client's existing review of this talent on this booking, with the
+   * full STANDING signal so the form prefills in edit mode. `publishedAt` anchors
+   * the DB-enforced 48h client edit window (the form shows a countdown + locks
+   * read-only when elapsed). Null when no review exists yet.
+   */
+  existingReview:
+    | {
+        rating: number;
+        body: string | null;
+        wouldBookAgain: boolean | null;
+        attrProfessionalism: number | null;
+        attrSkill: number | null;
+        attrCommunication: number | null;
+        attrReliability: number | null;
+        traits: string[] | null;
+        privateNote: string | null;
+        anon: boolean;
+        publishedAt: string | null;
+      }
+    | null;
 };
 
 // ---------------------------------------------------------------------------

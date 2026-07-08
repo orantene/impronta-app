@@ -25,6 +25,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireTalent } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 
 /** Postgres unique-violation SQLSTATE. */
 const PG_UNIQUE_VIOLATION = "23505";
@@ -83,6 +84,12 @@ export async function createReviewRequestAction(
 
   const tenantId = await resolveTenantId(supabase, input.tenantSlug);
   if (!tenantId) return { ok: false, error: "Unknown workspace." };
+
+  // Reviews are a PREMIUM capability, gated on the surface tenant's entitlement.
+  // A non-entitled workspace cannot file review requests. Fails closed.
+  if (!(await tenantReviewsEnabled(tenantId))) {
+    return { ok: false, error: "Reviews are not enabled on this workspace." };
+  }
 
   // Insert the pending request. RLS lets the talent (talent_profiles.user_id =
   // auth.uid()) or tenant staff insert their own rows; a non-owner insert is
@@ -171,4 +178,24 @@ export async function loadReviewRequestsForOwnerAction(
     status: r.status,
     createdAt: r.created_at,
   }));
+}
+
+/**
+ * Whether the review (STANDING) capability is enabled for a workspace, addressed
+ * by slug. A thin "use server" bridge over tenantReviewsEnabled so CLIENT shell
+ * surfaces (the talent Reviews page, the admin profile-reviews drawer) can read
+ * the premium gate — they cannot import the plain server helper directly.
+ *
+ * Resolves slug → tenant id via the same session-scoped resolver the other
+ * actions here use, then defers to tenantReviewsEnabled (service-role PK lookup,
+ * FAILS CLOSED). Any resolution failure returns false.
+ */
+export async function reviewsEnabledForTenantAction(
+  tenantSlug: string,
+): Promise<boolean> {
+  const auth = await requireTalent();
+  if (!auth.ok) return false;
+  const tenantId = await resolveTenantId(auth.supabase, tenantSlug);
+  if (!tenantId) return false;
+  return tenantReviewsEnabled(tenantId);
 }

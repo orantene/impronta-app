@@ -21,7 +21,10 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import { reportReviewAction } from "@/lib/reviews/review-actions";
-import { createReviewRequestAction } from "@/lib/reviews/review-request-actions";
+import {
+  createReviewRequestAction,
+  reviewsEnabledForTenantAction,
+} from "@/lib/reviews/review-request-actions";
 import {
   loadOwnerPrivateNoteThemesAction,
   loadOwnerReceivedReviewsAction,
@@ -491,6 +494,30 @@ export function ReviewsPage() {
   } | null>(null);
   const [growthNotes, setGrowthNotes] = useState<OwnerPrivateNote[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Reviews are a PREMIUM capability, gated on the workspace's entitlement.
+  // null = not yet resolved (avoid flashing the upsell); false = show upsell.
+  const [entitled, setEntitled] = useState<boolean | null>(null);
+
+  // Resolve the premium gate independently of the reviews load. Fails closed
+  // (false) so a non-entitled workspace sees the upsell, never the content.
+  useEffect(() => {
+    let cancelled = false;
+    if (!tenantSlug) {
+      setEntitled(false);
+      return;
+    }
+    setEntitled(null);
+    reviewsEnabledForTenantAction(tenantSlug)
+      .then((ok) => {
+        if (!cancelled) setEntitled(ok);
+      })
+      .catch(() => {
+        if (!cancelled) setEntitled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantSlug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -531,7 +558,28 @@ export function ReviewsPage() {
         subtitle="What clients say after working with you, and the standing they build."
       />
 
-      {loadError ? (
+      {entitled === false ? (
+        <div
+          style={{
+            padding: 20,
+            borderRadius: RADIUS.lg,
+            border: `1px solid ${COLORS.border}`,
+            background: COLORS.card,
+            fontFamily: FONTS.body,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
+            Reviews are a premium feature on this workspace.
+          </span>
+          <span style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
+            Once it is enabled, client reviews and your public standing will
+            appear here.
+          </span>
+        </div>
+      ) : loadError ? (
         <div
           style={{
             padding: 16,
@@ -544,7 +592,7 @@ export function ReviewsPage() {
         >
           {loadError}
         </div>
-      ) : data === null ? (
+      ) : data === null || entitled === null ? (
         <div
           style={{
             padding: 16,

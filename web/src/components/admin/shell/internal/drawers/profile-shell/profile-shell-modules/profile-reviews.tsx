@@ -30,6 +30,7 @@ import {
   adminHideReviewAction,
   reportReviewAction,
 } from "@/lib/reviews/review-actions";
+import { reviewsEnabledForTenantAction } from "@/lib/reviews/review-request-actions";
 import { loadOwnerReceivedReviewsAction } from "@/lib/reviews/review-owner-actions";
 import type {
   TalentRatingSummary,
@@ -37,6 +38,7 @@ import type {
 } from "@/lib/reviews/review-types";
 import { StaticStars } from "@/components/reviews/star-rating";
 import { COLORS, FONTS } from "../../drawer-shared";
+import { useAdminShell } from "../../../state";
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -196,6 +198,12 @@ export function ProfileReviewsEditor({
   /** True when the talent views their OWN drawer (Report) vs admin (Hide). */
   isSelf?: boolean;
 }) {
+  // Surface workspace slug, read from the drawer's shell context, used to check
+  // the PREMIUM reviews entitlement. When present and the workspace is not
+  // entitled, the module renders a short "not enabled" note instead of the list.
+  // If no slug is in scope we do NOT guess — the gate stays unresolved (the
+  // per-row server actions still fail closed), so the drawer never breaks.
+  const { tenantSlug } = useAdminShell();
   const [reviews, setReviews] = React.useState<TalentReview[]>([]);
   const [summary, setSummary] = React.useState<TalentRatingSummary>({
     average: 0,
@@ -203,6 +211,29 @@ export function ProfileReviewsEditor({
   });
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
+  // Premium gate. null = unresolved (or no slug to check); false = not enabled.
+  const [entitled, setEntitled] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!tenantSlug) {
+      // No tenant handle in scope — leave the gate unresolved (fail-open here so
+      // the drawer never breaks); server actions on each row still fail closed.
+      setEntitled(null);
+      return;
+    }
+    setEntitled(null);
+    reviewsEnabledForTenantAction(tenantSlug)
+      .then((ok) => {
+        if (!cancelled) setEntitled(ok);
+      })
+      .catch(() => {
+        if (!cancelled) setEntitled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantSlug]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -224,6 +255,25 @@ export function ProfileReviewsEditor({
       cancelled = true;
     };
   }, [talentId]);
+
+  if (entitled === false) {
+    return (
+      <div
+        style={{
+          padding: 14,
+          borderRadius: 10,
+          border: `1px solid ${COLORS.borderSoft}`,
+          fontSize: 12,
+          lineHeight: 1.5,
+          fontFamily: FONTS.body,
+        }}
+        className="text-admin-ink-muted"
+      >
+        Reviews are not enabled on this workspace. They appear here once the
+        premium reviews feature is turned on.
+      </div>
+    );
+  }
 
   if (loading) {
     return (
