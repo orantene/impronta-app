@@ -255,7 +255,7 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
           <button
             type="button"
             onClick={() => setSelectedKey(null)}
-            className="rounded-full border border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--impronta-gold-bright)] transition-colors hover:bg-[var(--dir-accent-line)]"
+            className="rounded-full border border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--dir-accent)] transition-colors hover:bg-[var(--dir-accent-line)]"
           >
             {selectedCluster.label || "Selected"} · {selectedCluster.items.length} ✕
           </button>
@@ -433,7 +433,7 @@ function MapNotice({
       <button
         type="button"
         onClick={onBackToGrid}
-        className="mt-2 text-[13px] font-semibold text-[var(--impronta-gold-bright)] transition-opacity hover:opacity-80"
+        className="mt-2 text-[13px] font-semibold text-[var(--dir-accent)] transition-opacity hover:opacity-80"
       >
         Back to grid →
       </button>
