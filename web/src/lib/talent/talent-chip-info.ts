@@ -13,6 +13,15 @@ export type TalentChipInfo = {
   photoUrl: string | null;
   /** The talent's PRIMARY discipline (e.g. "Editorial Model"), or null. */
   headline: string | null;
+  /**
+   * Verified global standing: mean of PUBLISHED reviews
+   * (`talent_profiles.rating_avg`), or null when there are none. Paired with
+   * `ratingCount` so a caller can render a compact "★ 4.9 · 12" trust chip and
+   * render nothing when the count is 0 (absence is neutral).
+   */
+  ratingAvg: number | null;
+  /** Count of PUBLISHED reviews (`talent_profiles.rating_count`), or null. */
+  ratingCount: number | null;
 };
 
 /**
@@ -34,7 +43,7 @@ export async function loadTalentChipInfo(
     new Set(talentProfileIds.filter((x): x is string => typeof x === "string" && x.length > 0)),
   );
   if (ids.length === 0) return out;
-  for (const id of ids) out.set(id, { photoUrl: null, headline: null });
+  for (const id of ids) out.set(id, { photoUrl: null, headline: null, ratingAvg: null, ratingCount: null });
 
   // Photo — first approved, non-deleted 'card' crop per talent.
   try {
@@ -82,6 +91,29 @@ export async function loadTalentChipInfo(
     }
   } catch {
     // best-effort — leave headline null
+  }
+
+  // Verified standing — one batched read of the denormalized aggregate on
+  // talent_profiles (recomputed from PUBLISHED reviews). rating_count === 0 is
+  // the default for a talent with no published reviews, so the caller treats
+  // 0 as "no rating" and renders nothing (absence is neutral).
+  try {
+    const { data: standing } = await supabase
+      .from("talent_profiles")
+      .select("id, rating_avg, rating_count")
+      .in("id", ids);
+    for (const s of standing ?? []) {
+      const row = s as { id: string; rating_avg: number | null; rating_count: number | null };
+      const cur = out.get(row.id);
+      if (!cur) continue;
+      const count = typeof row.rating_count === "number" ? row.rating_count : 0;
+      if (count > 0) {
+        cur.ratingCount = count;
+        cur.ratingAvg = typeof row.rating_avg === "number" ? row.rating_avg : null;
+      }
+    }
+  } catch {
+    // best-effort — leave rating null
   }
 
   return out;

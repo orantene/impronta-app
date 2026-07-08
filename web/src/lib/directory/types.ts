@@ -9,6 +9,7 @@ export const DIRECTORY_SORT_VALUES = [
   "featured",
   "recent",
   "updated",
+  "top_rated",
 ] as const;
 
 export type DirectorySortValue = (typeof DIRECTORY_SORT_VALUES)[number];

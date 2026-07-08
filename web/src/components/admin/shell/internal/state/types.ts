@@ -201,6 +201,14 @@ export type RequirementGroup = {
     status: LineItemStatus;
     lastSaidTs?: string;
     lastSaidSnippet?: string;
+    /**
+     * Verified global standing sourced from talent_profiles.rating_avg /
+     * rating_count (a per-profile aggregate, not per-inquiry). Optional so
+     * mock rows and unrated talents still satisfy the type; the read-only
+     * trust chip renders only when ratingCount is present and meaningful.
+     */
+    ratingAvg?: number | null;
+    ratingCount?: number | null;
   }[];
 };
 
