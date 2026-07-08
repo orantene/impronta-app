@@ -26,6 +26,7 @@ import type {
   RatingSummary,
   TalentRatingSummary,
   TalentReview,
+  Testimonial,
 } from "./review-types";
 
 type ReviewRow = {
@@ -37,6 +38,7 @@ type ReviewRow = {
   body: string | null;
   status: "published" | "hidden";
   created_at: string;
+  anon?: boolean | null;
 };
 
 /**
@@ -96,7 +98,7 @@ export async function loadTalentReviews(
   const { data, error } = await supabase
     .from("talent_reviews")
     .select(
-      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at",
+      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, anon",
     )
     .eq("talent_profile_id", talentProfileId)
     .eq("status", "published")
@@ -113,12 +115,67 @@ export async function loadTalentReviews(
     talentProfileId: r.talent_profile_id,
     bookingId: r.booking_id,
     clientUserId: r.client_user_id,
-    clientName: names.get(r.client_user_id) ?? null,
+    clientName: r.anon ? null : names.get(r.client_user_id) ?? null,
     rating: r.rating,
     body: r.body,
     status: r.status,
     createdAt: r.created_at,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Invited testimonials (walled off from verified reviews).
+//
+// Testimonials live in public.tenant_testimonials — quotes attested/imported by
+// agency staff. They are DISPLAY-ONLY: their optional `rating` must NEVER be
+// blended into a talent's star average or any STANDING signal. This loader is a
+// plain public read (anon client; RLS exposes only status='published'), mirrored
+// on loadTalentReviews above.
+// ---------------------------------------------------------------------------
+
+type TestimonialRow = {
+  id: string;
+  author_name: string | null;
+  author_role: string | null;
+  body: string | null;
+  rating: number | null;
+  created_at: string;
+};
+
+/**
+ * Published testimonials for a talent profile, newest first. Public-safe.
+ * Returns [] when none (or when supabase is unconfigured). The optional rating
+ * is carried through untouched for per-card display and is NEVER aggregated.
+ */
+export async function loadPublishedTestimonials(
+  talentProfileId: string,
+  limit = 12,
+): Promise<Testimonial[]> {
+  if (!talentProfileId) return [];
+  const supabase = createPublicSupabaseClient();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("tenant_testimonials")
+    .select("id, author_name, author_role, body, rating, created_at")
+    .eq("talent_profile_id", talentProfileId)
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .returns<TestimonialRow[]>();
+
+  if (error || !data || data.length === 0) return [];
+
+  return data
+    .filter((r) => (r.body ?? "").trim().length > 0)
+    .map((r) => ({
+      id: r.id,
+      authorName: r.author_name?.trim() || null,
+      authorRole: r.author_role?.trim() || null,
+      body: (r.body ?? "").trim(),
+      rating: typeof r.rating === "number" ? r.rating : null,
+      createdAt: r.created_at,
+    }));
 }
 
 /**
@@ -139,9 +196,9 @@ export async function loadTalentRatingSummary(
   // Fast path — denormalized cache columns.
   const { data: profileRow } = await supabase
     .from("talent_profiles")
-    .select("rating_avg, rating_count")
+    .select("rating_avg, rating_count, would_book_again_pct")
     .eq("id", talentProfileId)
-    .returns<{ rating_avg: number | null; rating_count: number | null }[]>()
+    .returns<{ rating_avg: number | null; rating_count: number | null; would_book_again_pct: number | null }[]>()
     .maybeSingle();
 
   const cachedCount = profileRow?.rating_count ?? null;
@@ -150,6 +207,7 @@ export async function loadTalentRatingSummary(
     return {
       average: Number.isFinite(avg) ? Math.round(avg * 10) / 10 : 0,
       count: cachedCount,
+      wouldBookAgainPct: profileRow?.would_book_again_pct ?? null,
     };
   }
   if (cachedCount === 0) return empty;
@@ -298,7 +356,7 @@ export async function loadReviewsAuthoredByUser(
     talentProfileId: r.talent_profile_id,
     bookingId: r.booking_id,
     clientUserId: r.client_user_id,
-    clientName: names.get(r.client_user_id) ?? null,
+    clientName: r.anon ? null : names.get(r.client_user_id) ?? null,
     rating: r.rating,
     body: r.body,
     status: r.status,
@@ -337,7 +395,7 @@ export async function loadTalentReviewsForOwner(
     talentProfileId: r.talent_profile_id,
     bookingId: r.booking_id,
     clientUserId: r.client_user_id,
-    clientName: names.get(r.client_user_id) ?? null,
+    clientName: r.anon ? null : names.get(r.client_user_id) ?? null,
     rating: r.rating,
     body: r.body,
     status: r.status,

@@ -1,0 +1,84 @@
+// W8 — Client Reviews page.
+// Two-sided review surface for the client: reviews about them (talent → client)
+// and reviews they've written (client → talent). Mirrors the sibling Bookings
+// page shell (session + tenant scope + ClientPageHeader).
+
+import { notFound } from "next/navigation";
+import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { getCachedActorSession } from "@/lib/server/request-cache";
+import {
+  loadClientReviews,
+  loadClientRatingSummary,
+  loadReviewsAuthoredByUser,
+} from "@/lib/reviews/load-reviews";
+import { loadClientSelfProfile, loadWorkspaceRosterLite } from "../../_data-bridge";
+import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
+import {
+  ClientReviewsPanel,
+  type GivenReview,
+} from "../_components/ClientReviewsPanel";
+
+export const dynamic = "force-dynamic";
+type PageParams = Promise<{ tenantSlug: string }>;
+
+const FONT = '"Inter", system-ui, sans-serif';
+
+export default async function ClientReviewsPage({ params }: { params: PageParams }) {
+  const { tenantSlug } = await params;
+  const session = await getCachedActorSession();
+  if (!session.user) notFound();
+
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
+  if (!scope) notFound();
+
+  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
+  if (!clientProfile) notFound();
+
+  const [received, receivedSummary, authored, roster] = await Promise.all([
+    loadClientReviews(session.user.id),
+    loadClientRatingSummary(session.user.id),
+    loadReviewsAuthoredByUser(session.user.id),
+    loadWorkspaceRosterLite(scope.tenantId),
+  ]);
+
+  // Resolve talent-profile IDs to display names for the "reviews you've written"
+  // list. The roster carries { id, name } where id is the talent_profile id.
+  const talentNames = new Map(roster.map((r) => [r.id, r.name]));
+  const given: GivenReview[] = authored.map((r) => ({
+    id: r.id,
+    talentName: talentNames.get(r.talentProfileId) ?? null,
+    rating: r.rating,
+    body: r.body,
+    status: r.status,
+    createdAt: r.createdAt,
+  }));
+
+  const receivedCount = receivedSummary.count;
+
+  return (
+    <div style={{ fontFamily: FONT }}>
+      <ClientPageHeader
+        eyebrow="Reviews"
+        title="Reviews"
+        subtitle={
+          receivedCount === 0 && given.length === 0
+            ? "Reviews about you and the reviews you've written will appear here."
+            : `${receivedCount} about you · ${given.length} written`
+        }
+        badge={
+          receivedCount > 0 ? (
+            <HeaderBadge tone="success">
+              {receivedSummary.average.toFixed(1)} avg
+            </HeaderBadge>
+          ) : undefined
+        }
+      />
+
+      <ClientReviewsPanel
+        received={received}
+        receivedSummary={receivedSummary}
+        given={given}
+      />
+    </div>
+  );
+}

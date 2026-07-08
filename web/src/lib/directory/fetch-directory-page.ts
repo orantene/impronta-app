@@ -77,6 +77,9 @@ type TalentProfileRow = {
   profile_completeness_score: number | string | null;
   manual_rank_override: number | null;
   height_cm: number | null;
+  rating_avg: number | null;
+  rating_count: number | null;
+  would_book_again_pct: number | null;
   location_id: string | null;
   residence_city: LocationRow | LocationRow[] | null;
   legacy_location: LocationRow | LocationRow[] | null;
@@ -654,6 +657,9 @@ export async function fetchDirectoryPage(
       profile_completeness_score,
       manual_rank_override,
       height_cm,
+      rating_avg,
+      rating_count,
+      would_book_again_pct,
       location_id,
       residence_city:locations!residence_city_id (
         id,
@@ -1079,6 +1085,11 @@ export async function fetchDirectoryPage(
         indexByProfile.get(profile.id)?.next_available_date ?? null,
       available_days_in_next_30:
         indexByProfile.get(profile.id)?.available_days_in_next_30 ?? null,
+      // Review / craft-standing aggregates, sourced directly off the
+      // `talent_profiles` row (additive; null when no eligible reviews).
+      rating_avg: profile.rating_avg,
+      rating_count: profile.rating_count,
+      would_book_again_pct: profile.would_book_again_pct,
     };
   });
 

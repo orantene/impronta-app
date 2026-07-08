@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { AIMatchExplanation } from "@/components/ai/ai-match-explanation";
 import { TalentCardAiMatchDrawer } from "@/components/directory/talent-card-ai-match-drawer";
+import { StaticStars } from "@/components/reviews/star-rating";
+import {
+  computeStandingTier,
+  meetsCredibilityFloor,
+  standingTierLabel,
+  wouldBookAgainPhrase,
+} from "@/lib/reviews/craft-standing";
 import type { DirectoryAiCardOverlay, DirectoryCardDTO } from "@/lib/directory/types";
 import { cn } from "@/lib/utils";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
@@ -123,6 +130,62 @@ export function TalentDirectoryListRow({
                 </p>
               ) : null}
             </div>
+          ) : null}
+          {/* Craft standing — rendered only past the credibility floor. Below
+              the floor we render NOTHING (absence is neutral: no "New"/"0.0"
+              placeholder). CSS tokens gate visibility; the markup + data hooks
+              are always emitted so the token layer can show/hide it. Cool
+              tokens to match the card, not gold-on-light. */}
+          {card.ratingAvg != null && meetsCredibilityFloor(card.ratingCount) ? (
+            (() => {
+              const ratingCount = card.ratingCount ?? 0;
+              const tier = computeStandingTier({
+                ratingCount,
+                ratingAvg: card.ratingAvg,
+                wouldBookAgainPct: card.wouldBookAgainPct ?? null,
+              });
+              const bookAgain = wouldBookAgainPhrase(
+                ratingCount,
+                card.wouldBookAgainPct ?? null,
+              );
+              return (
+                <div
+                  data-card-standing
+                  className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1"
+                >
+                  <span
+                    data-card-standing-tier
+                    className="inline-flex items-center rounded-full border border-white/[0.1] bg-white/[0.05] px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-[var(--impronta-foreground)]/90"
+                  >
+                    {standingTierLabel(tier)}
+                  </span>
+                  <span
+                    data-card-standing-signal
+                    className="inline-flex items-center gap-1.5 text-[11px] text-[var(--impronta-muted)]"
+                  >
+                    <StaticStars rating={card.ratingAvg} size={12} />
+                    <span className="text-[var(--impronta-foreground)]/90 tabular-nums">
+                      {card.ratingAvg.toFixed(1)}
+                    </span>
+                    <span aria-hidden className="text-[var(--impronta-gold-dim)]">
+                      ·
+                    </span>
+                    <span className="tabular-nums">{ratingCount}</span>
+                    {bookAgain ? (
+                      <>
+                        <span
+                          aria-hidden
+                          className="text-[var(--impronta-gold-dim)]"
+                        >
+                          ·
+                        </span>
+                        <span>{bookAgain}</span>
+                      </>
+                    ) : null}
+                  </span>
+                </div>
+              );
+            })()
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AI page-builder eval brief set",
+  "type": "object",
+  "required": ["cases"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "note": { "type": "string" },
+    "cases": {
+      "type": "array",
+      "minItems": 15,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "brief", "scope", "expect"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "brief": { "type": "string", "minLength": 3, "maxLength": 400 },
+          "scope": { "enum": ["page", "section"] },
+          "locale": { "type": "string" },
+          "note": { "type": "string" },
+          "expect": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["minSections", "kindsPresent", "maxNodes", "singleH1", "noEmDash"],
+            "properties": {
+              "minSections": { "type": "integer", "minimum": 1 },
+              "kindsPresent": { "type": "array", "items": { "type": "string" } },
+              "kindsAbsent": { "type": "array", "items": { "type": "string" } },
+              "maxNodes": { "type": "integer", "minimum": 1, "maximum": 180 },
+              "singleH1": { "type": "boolean" },
+              "noEmDash": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

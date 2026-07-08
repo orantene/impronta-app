@@ -19,6 +19,9 @@ const C = {
   pillBg:     "rgba(11,11,13,0.06)",
 } as const;
 
+// `fallbackLabel` is used only when the i18n catalog has no
+// `dashboard.clientNav.<key>` string yet (the translator returns the raw key
+// path in that case). Existing items resolve from the catalog and omit it.
 const NAV_ITEMS = [
   { key: "messages",   path: "messages"   },
   { key: "today",      path: "today"      },
@@ -28,6 +31,7 @@ const NAV_ITEMS = [
   { key: "pitches",    path: "pitches"    },
   { key: "inquiries",  path: "inquiries"  },
   { key: "bookings",   path: "bookings"   },
+  { key: "reviews",    path: "reviews",    fallbackLabel: "Reviews" },
   { key: "settings",   path: "settings"   },
 ] as const;
 
@@ -111,10 +115,18 @@ export function ClientTopbar({
           minWidth: "100%",
         }}
       >
-        {NAV_ITEMS.map(({ key, path }) => {
+        {NAV_ITEMS.map((item) => {
+          const { key, path } = item;
           const href = `/${tenantSlug}/client/${path}`;
           const active = pathname === href || pathname.startsWith(href + "/");
-          const label = t(`dashboard.clientNav.${key}`);
+          const messageKey = `dashboard.clientNav.${key}`;
+          const translated = t(messageKey);
+          // The translator returns the raw key path when no catalog string
+          // exists; fall back to the item's explicit label in that case.
+          const label =
+            translated === messageKey && "fallbackLabel" in item
+              ? item.fallbackLabel
+              : translated;
           return (
             <Link
               key={path}

@@ -46,3 +46,8 @@ next-env.d.ts
 
 # Stripe target key-sets for scripts/stripe-target.mjs (hold secrets)
 .env.stripe.*
+
+# AI builder eval harness output (regenerable QA artifacts)
+/public/_eval/
+/eval/generate-runs/
+/scripts/ai-builder-eval/screenshots/

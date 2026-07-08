@@ -473,6 +473,10 @@ export const CARD_COLOR_KNOBS: Array<{ key: string; label: string; hint: string 
 export const CARD_DESIGN_TOKEN_KEYS: string[] = [
   CARD_FAMILY_TOKEN_KEY,
   ...CARD_COLOR_KNOBS.map((k) => k.key),
+  // STANDING reviews-on-cards controls (persist + seed the CardDesignStudio panel).
+  "directory.card.show-standing",
+  "directory.card.standing-style",
+  "profile.reviews-visibility",
 ];
 
 /**

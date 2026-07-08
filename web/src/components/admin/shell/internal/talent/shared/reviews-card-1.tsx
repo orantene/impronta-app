@@ -395,9 +395,13 @@ export function TalentReviewsCard() {
   const hasReviewables = reviewables.length > 0;
   if (!hasReceived && !hasReviewables) return null;
 
-  const visibleReceived = received.reviews
-    .filter((r) => r.status === "published")
-    .slice(0, 3);
+  const publishedReceived = received.reviews.filter((r) => r.status === "published");
+  // Teaser: show at most 2 recent reviews here; the dedicated Reviews page
+  // carries the full list + reputation standing.
+  const visibleReceived = publishedReceived.slice(0, 2);
+  const hiddenCount = Math.max(0, received.summary.count - visibleReceived.length);
+
+  const seeAllReviews = () => setTalentPage("reviews");
 
   const openProfileReviews = () => {
     if (!talentId) return;
@@ -408,6 +412,9 @@ export function TalentReviewsCard() {
       section: "reviews",
     });
   };
+  // `openProfileReviews` retained for the profile-editor deep link (report a
+  // review); reachable from the dedicated Reviews page's Report actions.
+  void openProfileReviews;
 
   return (
     <div
@@ -437,7 +444,7 @@ export function TalentReviewsCard() {
         {hasReceived && (
           <button
             type="button"
-            onClick={openProfileReviews}
+            onClick={seeAllReviews}
             style={{
               fontSize: 11.5,
               fontWeight: 600,
@@ -448,7 +455,7 @@ export function TalentReviewsCard() {
               fontFamily: FONTS.body,
             }}
           >
-            Manage in profile →
+            See all reviews →
           </button>
         )}
       </div>
@@ -491,6 +498,25 @@ export function TalentReviewsCard() {
               )}
             </div>
           ))}
+          <button
+            type="button"
+            onClick={seeAllReviews}
+            style={{
+              alignSelf: "flex-start",
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: COLORS.accent,
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+            }}
+          >
+            {hiddenCount > 0
+              ? `See all ${received.summary.count} reviews →`
+              : "See all reviews →"}
+          </button>
         </div>
       )}
 

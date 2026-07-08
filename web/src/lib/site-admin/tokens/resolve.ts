@@ -194,8 +194,11 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
     "data-token-card-ribbon",
   "directory.card.show-starting-from-price": "data-token-card-price",
   "directory.card.specialty-chips-max": "data-token-card-chips-max",
+  "directory.card.show-standing": "data-token-card-standing",
+  "directory.card.standing-style": "data-token-card-standing-style",
   "profile.sticky-inquiry-bar": "data-token-profile-sticky-bar",
   "profile.blocks-visibility": "data-token-profile-blocks",
+  "profile.reviews-visibility": "data-token-profile-reviews",
 };
 
 /**
