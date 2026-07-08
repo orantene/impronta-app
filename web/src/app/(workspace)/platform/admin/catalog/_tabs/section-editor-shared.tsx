@@ -24,11 +24,15 @@ import {
   deleteSection,
 } from "../../profile-editor/actions";
 import { ConfirmSubmitButton } from "../confirm-submit-button";
+import { interpolate } from "@/i18n/interpolate";
 import type {
   EditorSectionRow,
   EditorGroupRow,
   UnmappedSectionBucket,
 } from "./editor-layout-admin-data";
+
+type Translate = (key: string) => string;
+const K = "dashboard.platform.catalog";
 
 export const monoStyle: React.CSSProperties = {
   fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
@@ -43,7 +47,7 @@ export const formGridStyle: React.CSSProperties = {
   alignItems: "end",
 };
 
-export function ActiveBadge({ active }: { active: boolean }) {
+export function ActiveBadge({ active, t }: { active: boolean; t: Translate }) {
   return (
     <span
       style={{
@@ -57,7 +61,7 @@ export function ActiveBadge({ active }: { active: boolean }) {
         padding: "1px 8px",
       }}
     >
-      {active ? "active" : "inactive"}
+      {active ? t(`${K}.badgeActive`) : t(`${K}.badgeInactive`)}
     </span>
   );
 }
@@ -65,8 +69,10 @@ export function ActiveBadge({ active }: { active: boolean }) {
 /** Field link row — links to the field detail editor drawer. */
 export function FieldLink({
   field,
+  t,
 }: {
   field: EditorSectionRow["fields"][number];
+  t: Translate;
 }) {
   return (
     <Link
@@ -106,9 +112,9 @@ export function FieldLink({
             borderRadius: 999,
             padding: "1px 6px",
           }}
-          title="Rendered by a hand-coded editor control, not the generic catalog renderer."
+          title={t(`${K}.fieldCustomEditorTitle`)}
         >
-          custom editor
+          {t(`${K}.fieldCustomEditor`)}
         </span>
       )}
       {field.required_default && (
@@ -123,11 +129,11 @@ export function FieldLink({
             padding: "1px 6px",
           }}
         >
-          required
+          {t(`${K}.fieldRequiredBadge`)}
         </span>
       )}
       {field.deprecated && (
-        <span style={{ fontSize: 9.5, color: HQ.inkDim }}>archived</span>
+        <span style={{ fontSize: 9.5, color: HQ.inkDim }}>{t(`${K}.fieldArchivedBadge`)}</span>
       )}
     </Link>
   );
@@ -143,6 +149,7 @@ export function SectionRow({
   groupOptions,
   showFields = true,
   embedded = false,
+  t,
 }: {
   section: EditorSectionRow;
   groupOptions: { id: string; label_en: string; is_active: boolean }[];
@@ -150,6 +157,7 @@ export function SectionRow({
   /** When true the card chrome + name/badge header is dropped — the parent
    *  accordion supplies them; only a compact id/slug line + the forms render. */
   embedded?: boolean;
+  t: Translate;
 }) {
   const archived = !!section.archived_at;
   return (
@@ -169,13 +177,13 @@ export function SectionRow({
     >
       {embedded ? (
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-          <span style={monoStyle}>slug: {section.slug}</span>
+          <span style={monoStyle}>{interpolate(t(`${K}.groupSlugLine`), { slug: section.slug })}</span>
           <CopyableId id={section.id} />
           {section.is_system && (
-            <span style={{ fontSize: 10, color: HQ.inkDim }}>system</span>
+            <span style={{ fontSize: 10, color: HQ.inkDim }}>{t(`${K}.badgeSystem`)}</span>
           )}
           {archived && (
-            <span style={{ fontSize: 10, fontWeight: 800, color: HQ.red }}>ARCHIVED</span>
+            <span style={{ fontSize: 10, fontWeight: 800, color: HQ.red }}>{t(`${K}.badgeArchivedCaps`)}</span>
           )}
         </div>
       ) : (
@@ -197,16 +205,16 @@ export function SectionRow({
           {section.label_es && (
             <span style={{ fontSize: 12, color: HQ.inkMuted }}>{section.label_es}</span>
           )}
-          <span style={monoStyle}>slug: {section.slug}</span>
+          <span style={monoStyle}>{interpolate(t(`${K}.groupSlugLine`), { slug: section.slug })}</span>
           <CopyableId id={section.id} />
           {section.is_system && (
-            <span style={{ fontSize: 10, color: HQ.inkDim }}>system</span>
+            <span style={{ fontSize: 10, color: HQ.inkDim }}>{t(`${K}.badgeSystem`)}</span>
           )}
           <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-            <ActiveBadge active={section.is_active && !archived} />
+            <ActiveBadge active={section.is_active && !archived} t={t} />
             {archived && (
               <span style={{ fontSize: 10, fontWeight: 800, color: HQ.red }}>
-                ARCHIVED
+                {t(`${K}.badgeArchivedCaps`)}
               </span>
             )}
           </span>
@@ -217,13 +225,13 @@ export function SectionRow({
       <form action={updateSection} style={{ display: "grid", gap: 10, marginBottom: 10 }}>
         <input type="hidden" name="id" value={section.id} />
         <div style={formGridStyle}>
-          <FieldInput label="Label EN" name="label_en" defaultValue={section.label_en} />
-          <FieldInput label="Label ES" name="label_es" defaultValue={section.label_es} />
-          <FieldInput label="Emoji" name="emoji" defaultValue={section.emoji} />
+          <FieldInput label={t(`${K}.sectionLabelEnField`)} name="label_en" defaultValue={section.label_en} />
+          <FieldInput label={t(`${K}.sectionLabelEsField`)} name="label_es" defaultValue={section.label_es} />
+          <FieldInput label={t(`${K}.sectionEmojiField`)} name="emoji" defaultValue={section.emoji} />
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <Check name="is_active" label="Active" defaultChecked={section.is_active} />
-          <SubmitButton>Save section</SubmitButton>
+          <Check name="is_active" label={t(`${K}.checkActive`)} defaultChecked={section.is_active} />
+          <SubmitButton>{t(`${K}.saveSection`)}</SubmitButton>
         </div>
       </form>
 
@@ -248,7 +256,7 @@ export function SectionRow({
             fontWeight: 600,
           }}
         >
-          Move to group
+          {t(`${K}.moveToGroup`)}
           <select
             name="section_group_id"
             defaultValue={section.section_group_id ?? ""}
@@ -265,12 +273,12 @@ export function SectionRow({
             {groupOptions.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.label_en}
-                {g.is_active ? "" : " (inactive)"}
+                {g.is_active ? "" : t(`${K}.groupInactiveSuffix`)}
               </option>
             ))}
           </select>
         </label>
-        <SubmitButton tone="neutral">Move</SubmitButton>
+        <SubmitButton tone="neutral">{t(`${K}.move`)}</SubmitButton>
       </form>
 
       {/* Archive / restore + permanent remove */}
@@ -278,13 +286,13 @@ export function SectionRow({
         <form action={archived ? restoreSection : archiveSection}>
           <input type="hidden" name="id" value={section.id} />
           <SubmitButton tone={archived ? "primary" : "danger"}>
-            {archived ? "Restore section" : "Archive section"}
+            {archived ? t(`${K}.restoreSection`) : t(`${K}.archiveSection`)}
           </SubmitButton>
         </form>
         <form action={deleteSection}>
           <input type="hidden" name="id" value={section.id} />
-          <ConfirmSubmitButton message="Permanently delete this section? The slug reference in code will break — verify no fields depend on it. This cannot be undone.">
-            Permanently remove
+          <ConfirmSubmitButton message={t(`${K}.confirmDeleteSection`)}>
+            {t(`${K}.permanentlyRemove`)}
           </ConfirmSubmitButton>
         </form>
       </div>
@@ -294,16 +302,16 @@ export function SectionRow({
           <div
             style={{ fontSize: 11, color: HQ.inkMuted, marginBottom: 6, fontWeight: 600 }}
           >
-            Catalog fields ({section.fields.length})
+            {interpolate(t(`${K}.catalogFieldsCount`), { count: section.fields.length })}
           </div>
           {section.fields.length === 0 ? (
             <div style={{ fontSize: 11, color: HQ.inkDim, padding: "4px 0" }}>
-              No catalog fields mapped to this section.
+              {t(`${K}.sectionNoFields`)}
             </div>
           ) : (
             <div style={{ display: "grid", gap: 4 }}>
               {section.fields.map((field) => (
-                <FieldLink key={field.field_key} field={field} />
+                <FieldLink key={field.field_key} field={field} t={t} />
               ))}
             </div>
           )}
@@ -317,11 +325,13 @@ export function SectionRow({
 export function GroupEditForm({
   group,
   embedded = false,
+  t,
 }: {
   group: EditorGroupRow;
   /** When true the card chrome + name/badge header is dropped — the parent
    *  accordion supplies them; only a compact id/slug line + the forms render. */
   embedded?: boolean;
+  t: Translate;
 }) {
   const activeSections = group.sections.filter(
     (s) => s.is_active && !s.archived_at,
@@ -343,10 +353,10 @@ export function GroupEditForm({
     >
       {embedded ? (
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-          <span style={monoStyle}>slug: {group.slug}</span>
+          <span style={monoStyle}>{interpolate(t(`${K}.groupSlugLine`), { slug: group.slug })}</span>
           <CopyableId id={group.id} />
           {group.is_system && (
-            <span style={{ fontSize: 10, color: HQ.inkDim }}>system</span>
+            <span style={{ fontSize: 10, color: HQ.inkDim }}>{t(`${K}.badgeSystem`)}</span>
           )}
         </div>
       ) : (
@@ -367,10 +377,10 @@ export function GroupEditForm({
           {group.label_es && (
             <span style={{ fontSize: 12, color: HQ.inkMuted }}>{group.label_es}</span>
           )}
-          <span style={monoStyle}>slug: {group.slug}</span>
+          <span style={monoStyle}>{interpolate(t(`${K}.groupSlugLine`), { slug: group.slug })}</span>
           <CopyableId id={group.id} />
           {group.is_system && (
-            <span style={{ fontSize: 10, color: HQ.inkDim }}>system</span>
+            <span style={{ fontSize: 10, color: HQ.inkDim }}>{t(`${K}.badgeSystem`)}</span>
           )}
           <span style={{ marginLeft: "auto" }}>
             <span
@@ -385,7 +395,7 @@ export function GroupEditForm({
                 padding: "1px 8px",
               }}
             >
-              {group.is_active ? "active" : "inactive"}
+              {group.is_active ? t(`${K}.badgeActive`) : t(`${K}.badgeInactive`)}
             </span>
           </span>
         </div>
@@ -393,8 +403,9 @@ export function GroupEditForm({
 
       {group.label_en_alt && (
         <div style={{ fontSize: 11, color: HQ.inkDim, marginBottom: 8 }}>
-          alt header: &ldquo;{group.label_en_alt}&rdquo;
-          {group.label_es_alt ? ` / "${group.label_es_alt}"` : ""}
+          {group.label_es_alt
+            ? interpolate(t(`${K}.sectionAltHeaderBoth`), { en: group.label_en_alt, es: group.label_es_alt })
+            : interpolate(t(`${K}.sectionAltHeader`), { en: group.label_en_alt })}
         </div>
       )}
 
@@ -404,29 +415,29 @@ export function GroupEditForm({
       >
         <input type="hidden" name="id" value={group.id} />
         <div style={formGridStyle}>
-          <FieldInput label="Label (EN)" name="label_en" defaultValue={group.label_en} />
-          <FieldInput label="Label (ES)" name="label_es" defaultValue={group.label_es} />
+          <FieldInput label={t(`${K}.sectionGroupLabelEn`)} name="label_en" defaultValue={group.label_en} />
+          <FieldInput label={t(`${K}.sectionGroupLabelEs`)} name="label_es" defaultValue={group.label_es} />
           <FieldInput
-            label="Alt header (EN)"
+            label={t(`${K}.sectionAltHeaderEn`)}
             name="label_en_alt"
             defaultValue={group.label_en_alt}
             placeholder="e.g. Photos of work / venue"
           />
           <FieldInput
-            label="Alt header (ES)"
+            label={t(`${K}.sectionAltHeaderEs`)}
             name="label_es_alt"
             defaultValue={group.label_es_alt}
           />
           <FieldInput
-            label="Sort order"
+            label={t(`${K}.fieldSortOrder`)}
             name="sort_order"
             type="number"
             defaultValue={group.sort_order}
           />
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <Check name="is_active" label="Active" defaultChecked={group.is_active} />
-          <SubmitButton>Save group</SubmitButton>
+          <Check name="is_active" label={t(`${K}.checkActive`)} defaultChecked={group.is_active} />
+          <SubmitButton>{t(`${K}.saveGroup`)}</SubmitButton>
         </div>
       </form>
 
@@ -434,19 +445,18 @@ export function GroupEditForm({
         <form action={group.is_active ? archiveSectionGroup : restoreSectionGroup}>
           <input type="hidden" name="id" value={group.id} />
           <SubmitButton tone={group.is_active ? "danger" : "primary"}>
-            {group.is_active ? "Archive group" : "Restore group"}
+            {group.is_active ? t(`${K}.archiveGroup`) : t(`${K}.restoreGroup`)}
           </SubmitButton>
         </form>
         {group.is_active && activeSections.length > 0 && (
           <span style={{ fontSize: 11, color: HQ.inkDim }}>
-            Move or archive its {activeSections.length} active section
-            {activeSections.length === 1 ? "" : "s"} first.
+            {interpolate(t(`${K}.${activeSections.length === 1 ? "sectionGroupSaveMoveHintOne" : "sectionGroupSaveMoveHintMany"}`), { count: activeSections.length })}
           </span>
         )}
         <form action={deleteSectionGroup}>
           <input type="hidden" name="id" value={group.id} />
-          <ConfirmSubmitButton message="Permanently delete this section group? Member sections will be detached (not deleted). This cannot be undone.">
-            Permanently remove
+          <ConfirmSubmitButton message={t(`${K}.confirmDeleteSectionGroup`)}>
+            {t(`${K}.permanentlyRemove`)}
           </ConfirmSubmitButton>
         </form>
       </div>
@@ -455,7 +465,7 @@ export function GroupEditForm({
 }
 
 /** New section group creation form — collapsed by default via <details>. */
-export function NewSectionGroupForm() {
+export function NewSectionGroupForm({ t }: { t: Translate }) {
   return (
     <details
       className="hq-acc"
@@ -476,29 +486,29 @@ export function NewSectionGroupForm() {
           padding: "10px 14px",
         }}
       >
-        + New section group
+        {t(`${K}.newSectionGroup`)}
       </summary>
       <div style={{ padding: "0 14px 14px" }}>
         <form action={createSectionGroup} style={{ display: "grid", gap: 10 }}>
           <div style={formGridStyle}>
-            <FieldInput label="Slug *" name="slug" placeholder="e.g. profile" />
+            <FieldInput label={t(`${K}.fieldSlugRequired`)} name="slug" placeholder="e.g. profile" />
             <FieldInput
-              label="Label (EN) *"
+              label={t(`${K}.sectionLabelEnRequired`)}
               name="label_en"
               placeholder="e.g. Profile"
             />
-            <FieldInput label="Label (ES)" name="label_es" />
-            <FieldInput label="Alt header (EN)" name="label_en_alt" />
-            <FieldInput label="Alt header (ES)" name="label_es_alt" />
+            <FieldInput label={t(`${K}.sectionLabelEs`)} name="label_es" />
+            <FieldInput label={t(`${K}.sectionAltHeaderEn`)} name="label_en_alt" />
+            <FieldInput label={t(`${K}.sectionAltHeaderEs`)} name="label_es_alt" />
             <FieldInput
-              label="Sort order"
+              label={t(`${K}.fieldSortOrder`)}
               name="sort_order"
               type="number"
               placeholder="100"
             />
           </div>
           <div>
-            <SubmitButton>Create group</SubmitButton>
+            <SubmitButton>{t(`${K}.createSectionGroup`)}</SubmitButton>
           </div>
         </form>
       </div>
@@ -509,21 +519,23 @@ export function NewSectionGroupForm() {
 /** UnmappedCard — surfaces DB field-section values not bound to any editor section. */
 export function UnmappedCard({
   unmappedSections,
+  t,
 }: {
   unmappedSections: UnmappedSectionBucket[];
+  t: Translate;
 }) {
   if (unmappedSections.length === 0) return null;
   return (
     <HqCard
-      title="Unmapped field sections"
-      subtitle="These DB field sections aren't bound to any profile-editor section yet."
+      title={t(`${K}.unmappedTitle`)}
+      subtitle={t(`${K}.unmappedSubtitle`)}
     >
       <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginBottom: 12 }}>
-        Each entry below is a distinct{" "}
-        <span style={monoStyle}>profile_field_definitions.section</span> value
-        that doesn&apos;t appear in the section→DB-section mapping. Add the value to{" "}
-        <span style={monoStyle}>SECTION_FIELD_SECTIONS</span> in{" "}
-        <span style={monoStyle}>editor-layout-admin-data.ts</span> to assign it.
+        {interpolate(t(`${K}.unmappedBody`), {
+          col: "profile_field_definitions.section",
+          const: "SECTION_FIELD_SECTIONS",
+          file: "editor-layout-admin-data.ts",
+        })}
       </div>
       {unmappedSections.map((bucket) => (
         <div key={bucket.section} style={{ marginBottom: 14 }}>
@@ -538,13 +550,12 @@ export function UnmappedCard({
           >
             {bucket.section}{" "}
             <span style={{ fontWeight: 400, color: HQ.inkDim }}>
-              ({bucket.fields.length} field
-              {bucket.fields.length === 1 ? "" : "s"})
+              {interpolate(t(`${K}.${bucket.fields.length === 1 ? "unmappedFieldsOne" : "unmappedFieldsMany"}`), { count: bucket.fields.length })}
             </span>
           </div>
           <div style={{ display: "grid", gap: 4 }}>
             {bucket.fields.map((field) => (
-              <FieldLink key={field.field_key} field={field} />
+              <FieldLink key={field.field_key} field={field} t={t} />
             ))}
           </div>
         </div>

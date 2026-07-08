@@ -6,6 +6,9 @@
 
 import { useMemo, useState } from "react";
 import { reorderSections } from "../../profile-editor/actions";
+import { useT } from "@/i18n/use-t";
+
+const K = "dashboard.platform.catalog";
 
 type ReorderSection = {
   id: string;
@@ -47,6 +50,7 @@ export function EditorSectionReorderPanel({
   sections: ReorderSection[];
   sectionGroupId: string;
 }) {
+  const t = useT();
   const [items, setItems] = useState(sections);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const orderedIds = useMemo(
@@ -147,7 +151,7 @@ export function EditorSectionReorderPanel({
                 textTransform: "uppercase",
               }}
             >
-              {section.archived ? "archived" : `#${section.sort_order}`}
+              {section.archived ? t(`${K}.reorderSectionArchived`) : `#${section.sort_order}`}
             </span>
           </div>
         ))}
@@ -178,7 +182,7 @@ export function EditorSectionReorderPanel({
             cursor: changed ? "pointer" : "not-allowed",
           }}
         >
-          Save section order
+          {t(`${K}.reorderSaveSectionOrder`)}
         </button>
         <button
           type="button"
@@ -195,10 +199,10 @@ export function EditorSectionReorderPanel({
             cursor: changed ? "pointer" : "not-allowed",
           }}
         >
-          Reset
+          {t(`${K}.reorderReset`)}
         </button>
         <span style={{ color: colors.dim, fontSize: 10.5 }}>
-          Drag sections to set their order within this group.
+          {t(`${K}.reorderSectionHint`)}
         </span>
       </div>
     </form>

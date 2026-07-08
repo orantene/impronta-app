@@ -11,21 +11,26 @@ import {
   GroupEditForm,
   NewSectionGroupForm,
 } from "./section-editor-shared";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+const K = "dashboard.platform.catalog";
 
 export async function SectionCategoryTab({
   sp,
+  t,
 }: {
   sp: Record<string, string | undefined>;
+  t: Translate;
 }) {
   const data = await loadEditorLayoutAdmin();
 
   if (!data.ok) {
     return (
-      <HqCard title="Section Category">
+      <HqCard title={t(`${K}.sectionCatUnavailableTitle`)}>
         <SaveNotice saved={sp.saved} error={sp.error} />
         <div style={{ fontSize: 13, color: HQ.inkMuted }}>
-          Could not load the profile-editor layout. The service client may be
-          unavailable, or the layout tables are empty.
+          {t(`${K}.sectionEditorUnavailableBody`)}
         </div>
       </HqCard>
     );
@@ -40,17 +45,17 @@ export async function SectionCategoryTab({
         style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}
       >
         <Stat
-          label="Groups"
+          label={t(`${K}.statGroups`)}
           value={`${data.counts.activeGroups}/${data.counts.groups}`}
         />
         {/* Active = active ÷ live (non-archived) sections, so the archived rows
             aren't implied twice — they get their own "Archived" stat below. */}
         <Stat
-          label="Active sections"
+          label={t(`${K}.sectionStatActiveSections`)}
           value={`${data.counts.activeSections}/${data.counts.sections - data.counts.archivedSections}`}
         />
         <Stat
-          label="Archived"
+          label={t(`${K}.sectionStatArchived`)}
           value={data.counts.archivedSections}
           tone={data.counts.archivedSections > 0 ? HQ.amber : undefined}
         />
@@ -67,12 +72,12 @@ export async function SectionCategoryTab({
       >
         {/* LEFT — new group form + group edit cards */}
         <div style={{ minWidth: 0 }}>
-          <NewSectionGroupForm />
+          <NewSectionGroupForm t={t} />
 
           {data.groups.length === 0 ? (
-            <HqCard title="No section groups">
+            <HqCard title={t(`${K}.sectionCatNoGroupsTitle`)}>
               <div style={{ fontSize: 13, color: HQ.inkMuted }}>
-                No section groups defined yet. Create one above.
+                {t(`${K}.sectionCatNoGroupsBody`)}
               </div>
             </HqCard>
           ) : (
@@ -80,13 +85,13 @@ export async function SectionCategoryTab({
               <HqAccordion
                 key={group.id}
                 title={group.label_en}
-                meta={`slug: ${group.slug} · ${group.sections.length} section${group.sections.length === 1 ? "" : "s"} · #${group.sort_order}`}
+                meta={interpolate(t(`${K}.${group.sections.length === 1 ? "sectionGroupMetaOne" : "sectionGroupMetaMany"}`), { slug: group.slug, count: group.sections.length, order: group.sort_order })}
                 badge={{
-                  text: group.is_active ? "active" : "inactive",
+                  text: group.is_active ? t(`${K}.badgeActive`) : t(`${K}.badgeInactive`),
                   tone: group.is_active ? HQ.green : HQ.red,
                 }}
               >
-                <GroupEditForm group={group} embedded />
+                <GroupEditForm group={group} embedded t={t} />
               </HqAccordion>
             ))
           )}
@@ -96,8 +101,8 @@ export async function SectionCategoryTab({
         <div style={{ position: "sticky", top: 12, minWidth: 0 }}>
           {data.groups.length >= 2 ? (
             <HqCard
-              title="Group order"
-              subtitle="Drag to set the order of the profile-editor rail groups."
+              title={t(`${K}.groupOrderTitle`)}
+              subtitle={t(`${K}.sectionGroupOrderSubtitle`)}
             >
               <EditorGroupReorderPanel
                 groups={data.groups.map((g) => ({
@@ -111,9 +116,9 @@ export async function SectionCategoryTab({
               />
             </HqCard>
           ) : (
-            <HqCard title="Group order">
+            <HqCard title={t(`${K}.groupOrderTitle`)}>
               <div style={{ fontSize: 12, color: HQ.inkDim }}>
-                Add a second group to enable drag-reordering.
+                {t(`${K}.sectionGroupOrderAddSecond`)}
               </div>
             </HqCard>
           )}

@@ -808,10 +808,10 @@ export default async function PlatformCatalogMapPage({
       )}
 
       {tab === "groups" && <GroupsTab sp={params} t={t} />}
-      {tab === "types" && <TypesTab sp={params} />}
-      {tab === "editor" && <SectionCategoryTab sp={params} />}
-      {tab === "sections" && <SectionFieldsGroupTab sp={params} />}
-      {tab === "section-fields" && <SectionFieldsTab sp={params} />}
+      {tab === "types" && <TypesTab sp={params} t={t} />}
+      {tab === "editor" && <SectionCategoryTab sp={params} t={t} />}
+      {tab === "sections" && <SectionFieldsGroupTab sp={params} t={t} />}
+      {tab === "section-fields" && <SectionFieldsTab sp={params} t={t} />}
     </div>
   );
 }
