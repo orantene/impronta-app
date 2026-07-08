@@ -1,0 +1,3888 @@
+{
+  "capturedAt": "2026-07-08",
+  "pageId": "90552cf6-2230-4a40-8320-c2e303e3ee56",
+  "version": 1554,
+  "updated_at": "2026-07-08T17:47:47.443604+00:00",
+  "nodeCount": 210,
+  "snapshot": {
+    "slots": [],
+    "fields": {
+      "title": "Homepage",
+      "introTagline": null,
+      "metaDescription": null
+    },
+    "locale": "en",
+    "version": 1,
+    "builderTree": [
+      {
+        "id": "builder-container-76e87077-7e44-4e62-951f-d9cf15d4d471",
+        "kind": "container",
+        "props": {
+          "style": {
+            "gap": "0px",
+            "width": "100%",
+            "maxWidthFree": "100%",
+            "backgroundColor": "var(--token-color-background, #100e13)"
+          },
+          "layout": "stack",
+          "htmlTag": "main"
+        },
+        "children": [
+          {
+            "id": "builder-carousel-b706c2f1-748b-48c2-aeb2-d4c3893d8da4",
+            "kind": "carousel",
+            "props": {
+              "loop": true,
+              "grain": true,
+              "style": {
+                "customCss": "@media (max-width:760px){ .site-bn-hero__meta{ display:flex!important; left:0; right:0; bottom:18px; align-items:center; justify-content:center } .site-bn-hero__count, .site-bn-hero__progress{ display:none } .site-bn-hero__dots{ justify-content:center } .site-bn-hero__dot{ height:8px; width:8px; border-radius:999px } }"
+              },
+              "overlay": {
+                "tone": "dark",
+                "scrim": true,
+                "opacity": 0.6,
+                "vignette": true
+              },
+              "variant": "hero",
+              "controls": {
+                "dots": true,
+                "arrows": false,
+                "counter": true,
+                "progress": false,
+                "scrollCue": true
+              },
+              "kenBurns": true,
+              "showDots": true,
+              "autoplayMs": 5200,
+              "heightMode": "large",
+              "layerLabel": "Hero Slider",
+              "transition": "slide",
+              "contentMode": "per-slide",
+              "minHeightPx": 600,
+              "contentAlign": "bl",
+              "pauseOnHover": true,
+              "transitionMs": 900,
+              "kenBurnsAmount": 0.1
+            },
+            "children": [
+              {
+                "id": "builder-container-51e29482-4c8b-417a-ace0-93109f67c585",
+                "kind": "container",
+                "props": {
+                  "align": "stretch",
+                  "style": {
+                    "paddingTop": "38px",
+                    "paddingLeft": "7vw",
+                    "paddingRight": "7vw",
+                    "paddingBottom": "40px",
+                    "justifyContent": "flex-end",
+                    "backgroundImage": "url('/talent-templates/demo/impronta-2026/lifestyle-1.jpg')",
+                    "backgroundPosition": "center top"
+                  },
+                  "layout": "stack",
+                  "layerLabel": "Slide 1 — Columns over photo"
+                },
+                "children": [
+                  {
+                    "id": "builder-split-d06aa248-fc3a-45da-9e9b-499b99792b56",
+                    "kind": "split",
+                    "props": {
+                      "gap": "s",
+                      "ratio": "60-40",
+                      "layerLabel": "Slide 1 Columns",
+                      "collapseOnMobile": true
+                    },
+                    "children": [
+                      {
+                        "id": "builder-container-33493eb5-c232-4e6d-9d9f-f0e56861e29c",
+                        "kind": "container",
+                        "props": {
+                          "gap": "m",
+                          "layout": "stack",
+                          "layerLabel": "Content Column"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-paragraph-fc23dbef-a398-4db5-9f29-577d48360f8b",
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Talent Agency · Tulum, Mexico",
+                              "style": {
+                                "size": "sm",
+                                "align": "left",
+                                "textColor": "var(--token-color-primary)",
+                                "letterSpacing": "0.24em",
+                                "textTransform": "uppercase"
+                              },
+                              "layerLabel": "Eyebrow"
+                            }
+                          },
+                          {
+                            "id": "builder-heading-aa1e260c-a9df-4b81-b8c6-888400c8b2b0",
+                            "kind": "heading",
+                            "props": {
+                              "text": "Faces with an imprint.",
+                              "level": 1,
+                              "style": {
+                                "align": "left",
+                                "fontSize": "clamp(1.65rem, 3.6vw, 2.75rem)",
+                                "textColor": "#ffffff",
+                                "fontFamily": "Cormorant Garamond, ui-serif, Georgia, serif",
+                                "lineHeight": "1",
+                                "responsive": {
+                                  "mobile": {
+                                    "fontSize": "1.5rem",
+                                    "lineHeight": "1.1"
+                                  }
+                                }
+                              },
+                              "layerLabel": "Title"
+                            }
+                          },
+                          {
+                            "id": "builder-paragraph-1aec9a7b-58fc-41b5-8a58-a369e6a0ddb6",
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "A boutique roster of models and creative talent, managed end to end.",
+                              "style": {
+                                "align": "left",
+                                "textColor": "#e8e4dc"
+                              },
+                              "layerLabel": "Sub"
+                            }
+                          },
+                          {
+                            "id": "builder-cta_group-4df1d09a-a7e1-42c9-8fad-160c304e9f83",
+                            "kind": "cta_group",
+                            "props": {
+                              "gap": "m",
+                              "align": "start",
+                              "layout": "row",
+                              "layerLabel": "Slide 1 Buttons"
+                            },
+                            "children": [
+                              {
+                                "id": "builder-button-09cc678c-ee40-428b-b282-c626657e31dd",
+                                "kind": "button",
+                                "props": {
+                                  "href": "/directory",
+                                  "tone": "primary",
+                                  "label": "Explore the roster"
+                                }
+                              },
+                              {
+                                "id": "builder-button-dda7f1d0-b6d9-4bdd-9441-ccce7b7e9e52",
+                                "kind": "button",
+                                "props": {
+                                  "href": "/contact",
+                                  "tone": "secondary",
+                                  "label": "Start an inquiry"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "builder-container-7f2e5aba-280d-4bfd-984b-c7f8c40baed7",
+                        "kind": "container",
+                        "props": {
+                          "gap": "m",
+                          "layout": "stack",
+                          "layerLabel": "Media Column"
+                        },
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "builder-container-d77abd46-808a-42c1-9e2b-ba4092676788",
+                "kind": "container",
+                "props": {
+                  "align": "center",
+                  "style": {
+                    "paddingTop": "38px",
+                    "paddingLeft": "7vw",
+                    "paddingRight": "7vw",
+                    "paddingBottom": "40px",
+                    "justifyContent": "flex-end",
+                    "backgroundImage": "url('/talent-templates/demo/impronta-2026/lifestyle-3.jpg')",
+                    "backgroundPosition": "center top"
+                  },
+                  "layout": "stack",
+                  "layerLabel": "Slide 2 — The roster"
+                },
+                "children": [
+                  {
+                    "id": "builder-container-907bd5fc-8fda-4e57-9e9d-d83781435e23",
+                    "kind": "container",
+                    "props": {
+                      "gap": "m",
+                      "align": "center",
+                      "layout": "stack",
+                      "layerLabel": "Slide 2 — The roster Content"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-paragraph-cc3acde9-0ca5-44f1-b0be-e076d8a63661",
+                        "kind": "paragraph",
+                        "props": {
+                          "text": "The roster",
+                          "style": {
+                            "size": "sm",
+                            "align": "center",
+                            "textColor": "var(--token-color-primary)",
+                            "letterSpacing": "0.24em",
+                            "textTransform": "uppercase"
+                          },
+                          "layerLabel": "Badge"
+                        }
+                      },
+                      {
+                        "id": "builder-heading-1665b139-dd7b-42d3-ab1b-a03ed86eaff7",
+                        "kind": "heading",
+                        "props": {
+                          "text": "Faces you remember.",
+                          "level": 2,
+                          "style": {
+                            "align": "center",
+                            "fontSize": "clamp(1.65rem, 3.6vw, 2.75rem)",
+                            "textColor": "#ffffff",
+                            "fontFamily": "Cormorant Garamond, ui-serif, Georgia, serif",
+                            "lineHeight": "1",
+                            "responsive": {
+                              "mobile": {
+                                "fontSize": "1.5rem",
+                                "lineHeight": "1.1"
+                              }
+                            }
+                          },
+                          "layerLabel": "Title"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "builder-container-e3054da5-d6a8-4a25-b229-ba96071c6e37",
+                "kind": "container",
+                "props": {
+                  "align": "center",
+                  "style": {
+                    "paddingTop": "38px",
+                    "paddingLeft": "7vw",
+                    "paddingRight": "7vw",
+                    "paddingBottom": "40px",
+                    "justifyContent": "flex-end",
+                    "backgroundImage": "url('/talent-templates/demo/impronta-2026/lifestyle-4.jpg')",
+                    "backgroundPosition": "center top"
+                  },
+                  "layout": "stack",
+                  "layerLabel": "Slide 3 — Range"
+                },
+                "children": [
+                  {
+                    "id": "builder-container-98c03ff1-808a-4bca-b690-d93eaf57e1af",
+                    "kind": "container",
+                    "props": {
+                      "gap": "m",
+                      "align": "center",
+                      "layout": "stack",
+                      "layerLabel": "Slide 3 — Range Content"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-paragraph-5862dace-f1b4-461d-b765-096062a2dbc2",
+                        "kind": "paragraph",
+                        "props": {
+                          "text": "Range",
+                          "style": {
+                            "size": "sm",
+                            "align": "center",
+                            "textColor": "var(--token-color-primary)",
+                            "letterSpacing": "0.24em",
+                            "textTransform": "uppercase"
+                          },
+                          "layerLabel": "Badge"
+                        }
+                      },
+                      {
+                        "id": "builder-heading-dc5841ca-28ce-4f2f-8d4c-4df388898fee",
+                        "kind": "heading",
+                        "props": {
+                          "text": "Ready for any brief.",
+                          "level": 2,
+                          "style": {
+                            "align": "center",
+                            "fontSize": "clamp(1.65rem, 3.6vw, 2.75rem)",
+                            "textColor": "#ffffff",
+                            "fontFamily": "Cormorant Garamond, ui-serif, Georgia, serif",
+                            "lineHeight": "1",
+                            "responsive": {
+                              "mobile": {
+                                "fontSize": "1.5rem",
+                                "lineHeight": "1.1"
+                              }
+                            }
+                          },
+                          "layerLabel": "Title"
+                        }
+                      },
+                      {
+                        "id": "builder-cta_group-818c18c2-8a48-4fff-a2ba-c674c98cccc2",
+                        "kind": "cta_group",
+                        "props": {
+                          "gap": "m",
+                          "align": "center",
+                          "layout": "row",
+                          "layerLabel": "Slide 3 — Range Button"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-button-859fd8a3-d74b-4450-be38-d45f895c5972",
+                            "kind": "button",
+                            "props": {
+                              "href": "/directory",
+                              "tone": "primary",
+                              "label": "Start an inquiry"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "builder-container-366b4f3c-7a5c-45e9-b593-691c304d3337",
+                "kind": "container",
+                "props": {
+                  "align": "center",
+                  "style": {
+                    "paddingTop": "38px",
+                    "paddingLeft": "7vw",
+                    "paddingRight": "7vw",
+                    "paddingBottom": "40px",
+                    "justifyContent": "flex-end",
+                    "backgroundImage": "url('/talent-templates/demo/impronta-2026/lifestyle-2.jpg')",
+                    "backgroundPosition": "center top"
+                  },
+                  "layout": "stack",
+                  "layerLabel": "Slide 4 — Editorial"
+                },
+                "children": [
+                  {
+                    "id": "builder-container-7a7495ec-2c75-43c1-93c9-0cc949691996",
+                    "kind": "container",
+                    "props": {
+                      "gap": "m",
+                      "align": "center",
+                      "layout": "stack",
+                      "layerLabel": "Slide 4 — Editorial Content"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-paragraph-e9fdf149-1788-402d-be8b-c65007902180",
+                        "kind": "paragraph",
+                        "props": {
+                          "text": "Editorial",
+                          "style": {
+                            "size": "sm",
+                            "align": "center",
+                            "textColor": "var(--token-color-primary)",
+                            "letterSpacing": "0.24em",
+                            "textTransform": "uppercase"
+                          },
+                          "layerLabel": "Badge"
+                        }
+                      },
+                      {
+                        "id": "builder-heading-2f86569e-cbc3-4482-b236-f0092ca80be3",
+                        "kind": "heading",
+                        "props": {
+                          "text": "Light and movement.",
+                          "level": 2,
+                          "style": {
+                            "align": "center",
+                            "fontSize": "clamp(1.65rem, 3.6vw, 2.75rem)",
+                            "textColor": "#ffffff",
+                            "fontFamily": "Cormorant Garamond, ui-serif, Georgia, serif",
+                            "lineHeight": "1",
+                            "responsive": {
+                              "mobile": {
+                                "fontSize": "1.5rem",
+                                "lineHeight": "1.1"
+                              }
+                            }
+                          },
+                          "layerLabel": "Title"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "builder-container-169e1807-899e-472d-88c5-6e42ff573b50",
+                "kind": "container",
+                "props": {
+                  "align": "center",
+                  "style": {
+                    "paddingTop": "38px",
+                    "paddingLeft": "7vw",
+                    "paddingRight": "7vw",
+                    "paddingBottom": "40px",
+                    "justifyContent": "flex-end",
+                    "backgroundImage": "url('/talent-templates/demo/impronta-2026/lifestyle-5.jpg')",
+                    "backgroundPosition": "center top"
+                  },
+                  "layout": "stack",
+                  "layerLabel": "Slide 5 — Become a face"
+                },
+                "children": [
+                  {
+                    "id": "builder-container-50554dae-f6ae-4b2c-9a10-b305bc7e5bab",
+                    "kind": "container",
+                    "props": {
+                      "gap": "m",
+                      "align": "center",
+                      "layout": "stack",
+                      "layerLabel": "Slide 5 — Become a face Content"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-paragraph-f8250bb4-e54f-446d-9cf9-da827f6bc509",
+                        "kind": "paragraph",
+                        "props": {
+                          "text": "Become a face",
+                          "style": {
+                            "size": "sm",
+                            "align": "center",
+                            "textColor": "var(--token-color-primary)",
+                            "letterSpacing": "0.24em",
+                            "textTransform": "uppercase"
+                          },
+                          "layerLabel": "Badge"
+                        }
+                      },
+                      {
+                        "id": "builder-heading-b580699f-471b-44c8-a9c2-ab2ec7723a9d",
+                        "kind": "heading",
+                        "props": {
+                          "text": "Your talent deserves to leave a mark.",
+                          "level": 2,
+                          "style": {
+                            "align": "center",
+                            "fontSize": "clamp(1.65rem, 3.6vw, 2.75rem)",
+                            "textColor": "#ffffff",
+                            "fontFamily": "Cormorant Garamond, ui-serif, Georgia, serif",
+                            "lineHeight": "1",
+                            "responsive": {
+                              "mobile": {
+                                "fontSize": "1.5rem",
+                                "lineHeight": "1.1"
+                              }
+                            }
+                          },
+                          "layerLabel": "Title"
+                        }
+                      },
+                      {
+                        "id": "builder-cta_group-2b4a4b63-c1f0-407a-adc0-7b07b595099c",
+                        "kind": "cta_group",
+                        "props": {
+                          "gap": "m",
+                          "align": "center",
+                          "layout": "row",
+                          "layerLabel": "Slide 5 — Become a face Button"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-button-21e98818-ec56-4cda-8099-8393e432812f",
+                            "kind": "button",
+                            "props": {
+                              "href": "/join",
+                              "tone": "primary",
+                              "label": "Apply as talent"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "builder-container-406df3cd-2226-4a68-a14b-c118d34b4d55",
+            "kind": "container",
+            "props": {
+              "style": {
+                "overflow": "hidden",
+                "customCss": "{ border-top: 1px solid var(--token-color-primary, #c6a14e); border-bottom: 1px solid var(--token-color-primary, #c6a14e); }\n@keyframes bn-marquee-builder-container-565864c0-22db-4c0f-ba41-ab600a8e9b3e { from { transform: translateX(0); } to { transform: translateX(-50%); } }\n[data-builder-node-id=\"builder-container-565864c0-22db-4c0f-ba41-ab600a8e9b3e\"] { animation: bn-marquee-builder-container-565864c0-22db-4c0f-ba41-ab600a8e9b3e 38s linear infinite; will-change: transform; }\n[data-builder-node-id=\"builder-container-565864c0-22db-4c0f-ba41-ab600a8e9b3e\"]:hover { animation-play-state: paused; }\n@media (prefers-reduced-motion: reduce) { [data-builder-node-id=\"builder-container-565864c0-22db-4c0f-ba41-ab600a8e9b3e\"] { animation: none; transform: none; } }\n@media (max-width:640px) { [data-builder-node-id=\"builder-container-565864c0-22db-4c0f-ba41-ab600a8e9b3e\"] { animation-duration: 26s; } }",
+                "paddingTop": "16px",
+                "paddingBottom": "16px",
+                "backgroundColor": "var(--token-color-background, #100e13)"
+              },
+              "layout": "row",
+              "htmlTag": "section",
+              "responsive": {
+                "mobile": {
+                  "layout": "row"
+                },
+                "tablet": {
+                  "layout": "row"
+                }
+              }
+            },
+            "children": [
+              {
+                "id": "builder-container-565864c0-22db-4c0f-ba41-ab600a8e9b3e",
+                "kind": "container",
+                "props": {
+                  "style": {
+                    "gap": "44px",
+                    "width": "max-content",
+                    "flexWrap": "nowrap",
+                    "alignItems": "center",
+                    "responsive": {
+                      "mobile": {
+                        "gap": "24px"
+                      }
+                    }
+                  },
+                  "layout": "row",
+                  "responsive": {
+                    "mobile": {
+                      "layout": "row"
+                    },
+                    "tablet": {
+                      "layout": "row"
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "id": "builder-heading-c218ef57-3edc-4b05-b2e0-dd35ba175e6d",
+                    "i18n": {
+                      "es": {
+                        "text": "Pasarela"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Runway",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-8089ad7e-04a6-4978-88e4-e26bc4d1cb5c",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-e4427bf8-ee18-4ac8-b4df-1d133f1461dc",
+                    "i18n": {
+                      "es": {
+                        "text": "Editorial"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Editorial",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-3a517b01-9f6b-496a-939f-5838655e6499",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-6e03a2f0-3dae-4c57-b33c-b6b157843a4c",
+                    "i18n": {
+                      "es": {
+                        "text": "Campaña"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Campaign",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-7801217b-0b1d-472a-9094-ab6ae4cff87d",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-23ca4df7-e384-475c-8bba-ce3361a8a3f2",
+                    "i18n": {
+                      "es": {
+                        "text": "Lookbook"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Lookbook",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-1ada9c36-f3fa-4654-9926-3fefe6d75f71",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-8ff1fe06-8b97-4a7c-a1b6-3dcbfdca9e29",
+                    "i18n": {
+                      "es": {
+                        "text": "E-commerce"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "E-commerce",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-cfa56ebb-1c11-4fc0-8b2f-0c7d0d1d4ae2",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-003eb427-db6c-4ca2-b790-34982bbe7fc3",
+                    "i18n": {
+                      "es": {
+                        "text": "Fitness"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Fitness",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-cec2f35d-cf85-431f-9d7e-dcc19490d126",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-5fc9c1ec-4a78-4704-b8ae-bacccf83aacd",
+                    "i18n": {
+                      "es": {
+                        "text": "Hospitalidad"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Hospitality",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-a63abe32-6d50-471d-bd8a-539334e9f901",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-d457195f-2535-4d90-ab92-ab3748060639",
+                    "i18n": {
+                      "es": {
+                        "text": "Eventos"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Events",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-4320601a-07f1-4e61-8c5a-e678d44d8dc7",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-4751bdc7-26c9-434f-a007-ec91ab0fb42b",
+                    "i18n": {
+                      "es": {
+                        "text": "Pasarela"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Runway",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-8a89418e-83a3-48ad-a8ab-f34c090d8f9f",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-b9061e4f-254a-4591-bbbf-fa3e84ef4a92",
+                    "i18n": {
+                      "es": {
+                        "text": "Editorial"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Editorial",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-3282f580-7d59-4bd8-92c4-76feb85c9910",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-f140c017-b17b-4607-8bfe-7a00075defc4",
+                    "i18n": {
+                      "es": {
+                        "text": "Campaña"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Campaign",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-e0e174dc-8769-47ae-956f-ff9d41405c39",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-088d0eee-aa23-48ae-bb16-b3faa5315328",
+                    "i18n": {
+                      "es": {
+                        "text": "Lookbook"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Lookbook",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-7c5cc08e-814a-4cfe-91d1-d6a74afa64ac",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-914977d7-bb63-4a5c-b71c-4d52f7f514bc",
+                    "i18n": {
+                      "es": {
+                        "text": "E-commerce"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "E-commerce",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-3ddd4308-9468-4af2-aacd-602fa0cfd359",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-df45c086-4c3c-405e-97ef-cf67baaea7ea",
+                    "i18n": {
+                      "es": {
+                        "text": "Fitness"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Fitness",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-de97a11d-f339-4c9e-9677-1509e87436df",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-0eb3b5ab-7352-489c-9aab-5062394c14bd",
+                    "i18n": {
+                      "es": {
+                        "text": "Hospitalidad"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Hospitality",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-6359be3b-1db9-4eb0-b371-fdf84379cf92",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-0681e5ad-92b3-4c9a-8677-5578eeeb38a8",
+                    "i18n": {
+                      "es": {
+                        "text": "Eventos"
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Events",
+                      "level": 3,
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "fontStyle": "italic",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "whiteSpace": "nowrap",
+                        "letterSpacing": "0.04em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-paragraph-7164ff47-e5b9-44eb-98ed-e9cb4fbc8f47",
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "/",
+                      "style": {
+                        "fontSize": "clamp(1.5rem,2.6vw,2.3rem)",
+                        "textColor": "var(--token-color-primary, #c6a14e)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "builder-container-812bd955-abdd-428d-a933-73b494bcd8ee",
+            "kind": "container",
+            "props": {
+              "style": {
+                "customCss": "{ padding-top: clamp(48px, 6vw, 88px); padding-bottom: clamp(48px, 6vw, 88px); }",
+                "containerType": "inline-size",
+                "backgroundColor": "var(--token-color-background, #100e13)"
+              },
+              "layout": "stack",
+              "htmlTag": "section"
+            },
+            "children": [
+              {
+                "id": "builder-container-a7bd1fe6-0588-41b7-ac4c-b2e939e8bda6",
+                "kind": "container",
+                "props": {
+                  "style": {
+                    "gap": "0px",
+                    "width": "100%",
+                    "paddingLeft": "24px",
+                    "maxWidthFree": "1440px",
+                    "paddingRight": "24px",
+                    "marginLeftFree": "auto",
+                    "marginRightFree": "auto"
+                  },
+                  "layout": "stack"
+                },
+                "children": [
+                  {
+                    "id": "builder-container-b32733d3-a01a-4148-bd59-1b18c290d543",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "gap": "40px",
+                        "flexWrap": "wrap",
+                        "alignItems": "flex-end",
+                        "responsive": {
+                          "mobile": {
+                            "gap": "20px"
+                          }
+                        },
+                        "justifyContent": "space-between",
+                        "marginBottomFree": "40px"
+                      },
+                      "layout": "row"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-container-f9ee6dd5-ca4c-491c-b25a-ae0922a75980",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "gap": "0px"
+                          },
+                          "layout": "stack"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-paragraph-d64949d5-d97c-4a14-a38e-6ed8f9d4c985",
+                            "i18n": {
+                              "es": {
+                                "text": "Talento selecto"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Selected talent",
+                              "style": {
+                                "fontSize": "0.72rem",
+                                "textColor": "var(--token-color-primary, #c6a14e)",
+                                "revealOnView": "fade-up",
+                                "letterSpacing": "0.24em",
+                                "textTransform": "uppercase"
+                              }
+                            }
+                          },
+                          {
+                            "id": "builder-heading-7f92b17a-e6c1-49ab-92dc-1818b18bbb5f",
+                            "i18n": {
+                              "es": {
+                                "text": "El board, editado."
+                              }
+                            },
+                            "kind": "heading",
+                            "props": {
+                              "text": "The board, edited.",
+                              "level": 2,
+                              "style": {
+                                "fontSize": "clamp(2.4rem,4.6vw,3.8rem)",
+                                "textWrap": "balance",
+                                "textColor": "var(--token-color-ink, #ece4d3)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                "lineHeight": "1.04",
+                                "revealDelay": "0.08s",
+                                "revealOnView": "fade-up",
+                                "marginTopFree": "18px"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "builder-paragraph-93ca154c-ee35-4e29-87e5-ed71e2714425",
+                        "i18n": {
+                          "es": {
+                            "text": "Una selección curada de las mujeres y hombres que representamos esta temporada. Pasa el cursor sobre un rostro y abre el portafolio."
+                          }
+                        },
+                        "kind": "paragraph",
+                        "props": {
+                          "text": "A curated cut of the women and men we represent this season. Hover a face, then open the full portfolio.",
+                          "style": {
+                            "fontSize": "0.98rem",
+                            "alignSelf": "end",
+                            "textColor": "rgba(236,228,211,0.62)",
+                            "lineHeight": "1.7",
+                            "responsive": {
+                              "mobile": {
+                                "alignSelf": "start"
+                              }
+                            },
+                            "revealDelay": "0.16s",
+                            "maxWidthFree": "42ch",
+                            "revealOnView": "fade-up"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-container-5c585f4d-ab3e-4a0b-9353-87501a5c4355",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "gap": "14px",
+                        "containerType": "inline-size",
+                        "gridTemplateColumns": "repeat(4,1fr)"
+                      },
+                      "layout": "grid",
+                      "responsive": {
+                        "mobile": {
+                          "layout": "grid",
+                          "columns": 2,
+                          "display": "slider",
+                          "itemsPerView": 2
+                        },
+                        "tablet": {
+                          "layout": "grid",
+                          "columns": 2
+                        }
+                      },
+                      "dataBinding": {
+                        "mode": "bound",
+                        "repeat": true,
+                        "maxItems": 8,
+                        "sourceKey": "featured_talent_profiles"
+                      }
+                    },
+                    "children": [
+                      {
+                        "id": "builder-card-8545c096-f4e5-44bb-9df1-d76688f98a3b",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "customCss": "{ position: relative; overflow: hidden; background: var(--token-color-surface, #161320); border: 1px solid transparent; transition: border-color .5s ease; aspect-ratio: 4 / 5; }\n@media (hover: hover) { [data-builder-node-id=\"builder-card-8545c096-f4e5-44bb-9df1-d76688f98a3b\"]:hover { border-color: var(--token-color-border, rgba(198,161,78,0.26)); } }\n[data-builder-node-id=\"builder-image-7634562d-d918-4284-be9d-96acdb979421\"] { filter: brightness(0.92) saturate(1.05); transition: transform 1.1s ease, filter 1.1s ease; }\n@media (hover: hover) { [data-builder-node-id=\"builder-card-8545c096-f4e5-44bb-9df1-d76688f98a3b\"]:hover [data-builder-node-id=\"builder-image-7634562d-d918-4284-be9d-96acdb979421\"] { transform: scale(1.05); filter: brightness(1) saturate(1.08); } }\n[data-builder-node-id=\"builder-container-298e5fe4-3b0d-4ca9-986a-ff45b18c92c5\"] { transition: opacity .5s ease; }\n@media (hover: hover) { [data-builder-node-id=\"builder-card-8545c096-f4e5-44bb-9df1-d76688f98a3b\"]:hover [data-builder-node-id=\"builder-container-298e5fe4-3b0d-4ca9-986a-ff45b18c92c5\"] { opacity: 1; } }\n[data-builder-node-id=\"builder-container-883b78f8-be8d-45c7-9570-9c3a2e2eb729\"] { transform: translateY(6px); transition: transform .5s ease; }\n[data-builder-node-id=\"builder-paragraph-10917c75-5b18-4ce0-ac69-0ed115c9e2a4\"] { opacity: 0; transition: opacity .5s ease; }\n@media (hover: hover) { [data-builder-node-id=\"builder-card-8545c096-f4e5-44bb-9df1-d76688f98a3b\"]:hover [data-builder-node-id=\"builder-container-883b78f8-be8d-45c7-9570-9c3a2e2eb729\"] { transform: none; } [data-builder-node-id=\"builder-card-8545c096-f4e5-44bb-9df1-d76688f98a3b\"]:hover [data-builder-node-id=\"builder-paragraph-10917c75-5b18-4ce0-ac69-0ed115c9e2a4\"] { opacity: 1; } }\n@media (prefers-reduced-motion: reduce) { [data-builder-node-id=\"builder-container-883b78f8-be8d-45c7-9570-9c3a2e2eb729\"] { transform: none; } [data-builder-node-id=\"builder-paragraph-10917c75-5b18-4ce0-ac69-0ed115c9e2a4\"] { opacity: 1; } }",
+                            "revealOnView": "fade-up"
+                          },
+                          "layout": "stack"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-image-7634562d-d918-4284-be9d-96acdb979421",
+                            "kind": "image",
+                            "props": {
+                              "alt": "{{displayName}}",
+                              "src": "{{imageUrl}}",
+                              "style": {
+                                "top": "0px",
+                                "left": "0px",
+                                "width": "100%",
+                                "height": "100%",
+                                "position": "absolute",
+                                "objectFit": "cover"
+                              },
+                              "fieldBindings": {
+                                "alt": "displayName",
+                                "src": "imageUrl"
+                              }
+                            }
+                          },
+                          {
+                            "id": "builder-container-298e5fe4-3b0d-4ca9-986a-ff45b18c92c5",
+                            "kind": "container",
+                            "props": {
+                              "style": {
+                                "top": "0px",
+                                "left": "0px",
+                                "right": "0px",
+                                "bottom": "0px",
+                                "zIndex": 1,
+                                "opacity": 0.9,
+                                "position": "absolute",
+                                "pointerEvents": "none",
+                                "backgroundImage": "linear-gradient(180deg,rgba(8,7,10,0) 42%,rgba(8,7,10,0.82) 100%)"
+                              },
+                              "layout": "stack"
+                            },
+                            "children": []
+                          },
+                          {
+                            "id": "builder-container-883b78f8-be8d-45c7-9570-9c3a2e2eb729",
+                            "kind": "container",
+                            "props": {
+                              "style": {
+                                "gap": "0px",
+                                "left": "18px",
+                                "right": "18px",
+                                "bottom": "16px",
+                                "zIndex": 2,
+                                "position": "absolute",
+                                "pointerEvents": "none"
+                              },
+                              "layout": "stack"
+                            },
+                            "children": [
+                              {
+                                "id": "builder-heading-a207ab65-e763-4f2f-b96f-bd33da492f47",
+                                "kind": "heading",
+                                "props": {
+                                  "text": "{{displayName}}",
+                                  "level": 3,
+                                  "style": {
+                                    "fontSize": "clamp(1.2rem,1.7vw,1.6rem)",
+                                    "textColor": "#ffffff",
+                                    "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                    "lineHeight": "1.05"
+                                  },
+                                  "fieldBindings": {
+                                    "text": "displayName"
+                                  }
+                                }
+                              },
+                              {
+                                "id": "builder-paragraph-10917c75-5b18-4ce0-ac69-0ed115c9e2a4",
+                                "kind": "paragraph",
+                                "props": {
+                                  "text": "{{locationLabel}}",
+                                  "style": {
+                                    "fontSize": "10px",
+                                    "textColor": "var(--token-color-accent, #e0c074)",
+                                    "letterSpacing": "0.24em",
+                                    "marginTopFree": "6px",
+                                    "textTransform": "uppercase"
+                                  },
+                                  "fieldBindings": {
+                                    "text": "locationLabel"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "id": "builder-button-dd1de2b8-d923-4457-bb29-4009e361cfe4",
+                            "i18n": {
+                              "es": {
+                                "label": "Ver {{displayName}}"
+                              }
+                            },
+                            "kind": "button",
+                            "props": {
+                              "href": "{{href}}",
+                              "tone": "secondary",
+                              "label": "View {{displayName}}",
+                              "style": {
+                                "top": "0px",
+                                "left": "0px",
+                                "right": "0px",
+                                "bottom": "0px",
+                                "zIndex": 3,
+                                "opacity": 0,
+                                "position": "absolute",
+                                "customCss": "{ display: block; }"
+                              },
+                              "fieldBindings": {
+                                "href": "href",
+                                "label": "displayName"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-container-cf45cdaa-2797-4d06-a058-dea4e7c2d03a",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "revealOnView": "fade-up",
+                        "marginTopFree": "40px",
+                        "justifyContent": "center"
+                      },
+                      "layout": "row"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-button-d999ea06-7065-4ed1-81f6-87be766c478e",
+                        "i18n": {
+                          "es": {
+                            "label": "Ver todos los rostros →"
+                          }
+                        },
+                        "kind": "button",
+                        "props": {
+                          "href": "/directory",
+                          "tone": "secondary",
+                          "label": "See all faces →",
+                          "style": {
+                            "fontSize": "0.74rem",
+                            "customCss": "[data-builder-node-id=\"builder-button-d999ea06-7065-4ed1-81f6-87be766c478e\"]:hover { color: var(--token-color-accent, #e0c074); }",
+                            "textColor": "var(--token-color-ink, #ece4d3)",
+                            "paddingTop": "12px",
+                            "borderWidth": "0px",
+                            "paddingLeft": "0px",
+                            "paddingRight": "0px",
+                            "letterSpacing": "0.18em",
+                            "paddingBottom": "12px",
+                            "textTransform": "uppercase",
+                            "backgroundColor": "transparent"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "builder-container-c4706d83-489e-4ed7-a779-54251a4df2d5",
+            "kind": "container",
+            "props": {
+              "style": {
+                "customCss": "{ padding-top: clamp(48px,6vw,88px); padding-bottom: clamp(48px,6vw,88px); }\n@media (max-width: 640px) { { padding-top: 44px; padding-bottom: 44px; } }",
+                "paddingLeft": "6vw",
+                "paddingRight": "6vw",
+                "containerType": "inline-size",
+                "backgroundColor": "var(--token-color-background, #100e13)"
+              },
+              "layout": "stack",
+              "htmlTag": "section"
+            },
+            "children": [
+              {
+                "id": "builder-container-6ac6bd9f-5720-42db-b6eb-b107b4112755",
+                "kind": "container",
+                "props": {
+                  "style": {
+                    "gap": "4px",
+                    "maxWidthFree": "640px",
+                    "marginBottomFree": "28px"
+                  },
+                  "layout": "stack"
+                },
+                "children": [
+                  {
+                    "id": "builder-paragraph-21d485ac-0e7c-475e-b394-d7164b5a9cbf",
+                    "i18n": {
+                      "es": {
+                        "text": "Divisiones"
+                      }
+                    },
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "Divisions",
+                      "style": {
+                        "fontSize": "11px",
+                        "textColor": "var(--token-color-secondary, #e0c074)",
+                        "letterSpacing": "0.3em",
+                        "textTransform": "uppercase",
+                        "marginBottomFree": "14px"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-heading-2307de36-c12f-45e2-9b9f-fb6c5432c2f7",
+                    "i18n": {
+                      "es": {
+                        "text": "Encuentra tu cast."
+                      }
+                    },
+                    "kind": "heading",
+                    "props": {
+                      "text": "Find your cast.",
+                      "level": 2,
+                      "style": {
+                        "fontSize": "clamp(2.2rem,4.6vw,3.4rem)",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                        "lineHeight": "1.04"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "builder-container-80fa35fe-2492-40ff-94aa-091d8dfbdaea",
+                "kind": "container",
+                "props": {
+                  "style": {
+                    "gap": "12px",
+                    "responsive": {
+                      "mobile": {
+                        "gridTemplateColumns": "repeat(1,1fr)"
+                      },
+                      "tablet": {
+                        "gridTemplateColumns": "repeat(3,1fr)"
+                      }
+                    },
+                    "gridTemplateColumns": "repeat(5,1fr)"
+                  },
+                  "layout": "grid",
+                  "responsive": {
+                    "mobile": {
+                      "layout": "grid",
+                      "columns": 1
+                    },
+                    "tablet": {
+                      "layout": "grid",
+                      "columns": 3
+                    }
+                  },
+                  "dataBinding": {
+                    "mode": "bound",
+                    "repeat": true,
+                    "maxItems": 5,
+                    "sourceKey": "tenant_directory_search"
+                  }
+                },
+                "children": [
+                  {
+                    "id": "builder-container-aca3db02-2f57-4520-a344-6a916c639803",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "overflow": "hidden",
+                        "position": "relative",
+                        "customCss": "{ aspect-ratio: 4 / 5; border: 1px solid var(--token-color-line, rgba(198,161,78,0.26)); transition: border-color .4s ease, transform .5s cubic-bezier(.2,.7,.2,1); }\n@media (max-width: 640px) { { aspect-ratio: 16 / 9; } }\n@media (hover: hover) and (prefers-reduced-motion: no-preference) {\n  :hover { border-color: var(--token-color-secondary, #e0c074); transform: translateY(-3px); }\n}",
+                        "revealOnView": "fade-up",
+                        "justifyContent": "flex-end",
+                        "aspectRatioFree": "4 / 5",
+                        "backgroundColor": "var(--token-color-background, #100e13)"
+                      },
+                      "layout": "stack"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-container-4532df0f-c0f9-4165-a9dd-9187c3f011d0",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "top": "0",
+                            "left": "0",
+                            "right": "0",
+                            "bottom": "0",
+                            "zIndex": 0,
+                            "overflow": "hidden",
+                            "position": "absolute",
+                            "pointerEvents": "none"
+                          },
+                          "layout": "stack"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-image-a8e1654f-a766-47af-8c88-4e7491607264",
+                            "kind": "image",
+                            "props": {
+                              "alt": "{{name}}",
+                              "src": "{{imageUrl}}",
+                              "style": {
+                                "width": "100%",
+                                "height": "100%",
+                                "objectFit": "cover",
+                                "objectPosition": "center top"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "builder-container-56598869-66e6-4bb0-accf-ff16c6aec6d5",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "top": "0",
+                            "left": "0",
+                            "right": "0",
+                            "bottom": "0",
+                            "zIndex": 1,
+                            "position": "absolute",
+                            "pointerEvents": "none",
+                            "backgroundImage": "radial-gradient(130% 100% at 50% 6%, rgba(198,161,78,0.24) 0%, rgba(198,161,78,0.07) 38%, rgba(16,14,19,0) 68%), linear-gradient(180deg, rgba(16,14,19,0) 28%, rgba(16,14,19,0.46) 66%, rgba(16,14,19,0.88) 100%)"
+                          },
+                          "layout": "stack"
+                        },
+                        "children": []
+                      },
+                      {
+                        "id": "builder-container-9935e498-f40e-4e93-b803-05baa463b08e",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "top": "0",
+                            "left": "0",
+                            "zIndex": 2,
+                            "position": "absolute",
+                            "paddingTop": "18px",
+                            "paddingLeft": "18px",
+                            "paddingRight": "18px"
+                          },
+                          "layout": "stack"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-container-bfbb5389-2aca-4a37-a122-51a934410312",
+                            "kind": "container",
+                            "props": {
+                              "style": {
+                                "width": "30px",
+                                "height": "1px",
+                                "backgroundColor": "var(--token-color-secondary, #e0c074)",
+                                "marginBottomFree": "12px"
+                              },
+                              "layout": "stack"
+                            },
+                            "children": []
+                          },
+                          {
+                            "id": "builder-paragraph-a48898d4-ae89-4b0e-bd05-0f551d173809",
+                            "i18n": {
+                              "es": {
+                                "text": "División"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Division",
+                              "style": {
+                                "fontSize": "10px",
+                                "textColor": "var(--token-color-secondary, #e0c074)",
+                                "letterSpacing": "0.32em",
+                                "textTransform": "uppercase"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "builder-container-2ff249a7-ad45-4019-a800-2989c29549c0",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "gap": "0px",
+                            "left": "0",
+                            "right": "0",
+                            "bottom": "0",
+                            "zIndex": 2,
+                            "position": "absolute",
+                            "paddingTop": "18px",
+                            "paddingLeft": "18px",
+                            "paddingRight": "18px",
+                            "paddingBottom": "18px"
+                          },
+                          "layout": "stack"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-heading-c531fbb9-705a-464c-abdc-49d26c399496",
+                            "kind": "heading",
+                            "props": {
+                              "text": "{{name}}",
+                              "level": 3,
+                              "style": {
+                                "fontSize": "2rem",
+                                "textColor": "var(--token-color-ink, #ece4d3)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                "lineHeight": "1.02",
+                                "marginBottomFree": "14px"
+                              }
+                            }
+                          },
+                          {
+                            "id": "builder-container-e9a1e955-259b-477b-be78-54cf8567ca11",
+                            "kind": "container",
+                            "props": {
+                              "style": {
+                                "width": "100%",
+                                "height": "1px",
+                                "backgroundColor": "var(--token-color-line, rgba(198,161,78,0.26))",
+                                "marginBottomFree": "12px"
+                              },
+                              "layout": "stack"
+                            },
+                            "children": []
+                          },
+                          {
+                            "id": "builder-container-ab00a712-204e-45b6-9b32-184a58b586fc",
+                            "kind": "container",
+                            "props": {
+                              "style": {
+                                "gap": "10px",
+                                "width": "100%",
+                                "alignItems": "center",
+                                "justifyContent": "space-between"
+                              },
+                              "layout": "row",
+                              "responsive": {
+                                "mobile": {
+                                  "layout": "row"
+                                },
+                                "tablet": {
+                                  "layout": "row"
+                                }
+                              }
+                            },
+                            "children": [
+                              {
+                                "id": "builder-paragraph-be3b1cef-87ad-4ed5-94ea-afeeb058cf82",
+                                "i18n": {
+                                  "es": {
+                                    "text": "Explorar"
+                                  }
+                                },
+                                "kind": "paragraph",
+                                "props": {
+                                  "text": "Explore",
+                                  "style": {
+                                    "fontSize": "10.5px",
+                                    "textColor": "var(--token-color-secondary, #e0c074)",
+                                    "letterSpacing": "0.24em",
+                                    "textTransform": "uppercase"
+                                  }
+                                }
+                              },
+                              {
+                                "id": "builder-paragraph-8d052805-487f-4039-bb0e-9c70b17ad656",
+                                "kind": "paragraph",
+                                "props": {
+                                  "text": "→",
+                                  "style": {
+                                    "fontSize": "13px",
+                                    "textColor": "var(--token-color-secondary, #e0c074)"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "builder-button-655a323f-3eba-442f-8263-691a6a0b05ff",
+                        "kind": "button",
+                        "props": {
+                          "href": "/directory?tax={{id}}",
+                          "tone": "secondary",
+                          "label": "Open {{name}}",
+                          "style": {
+                            "top": "0",
+                            "left": "0",
+                            "right": "0",
+                            "bottom": "0",
+                            "zIndex": 3,
+                            "opacity": 0,
+                            "position": "absolute",
+                            "customCss": "{ display: block; }"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "builder-container-186713ee-88a2-4706-a775-a17f809d9d64",
+            "kind": "container",
+            "props": {
+              "style": {
+                "customCss": "{ padding-top: clamp(48px,6vw,88px); padding-bottom: clamp(48px,6vw,88px); }\n@media (max-width: 640px) { { padding-top: 44px; padding-bottom: 44px; } }",
+                "paddingLeft": "7vw",
+                "maxWidthFree": "1280px",
+                "paddingRight": "7vw",
+                "containerType": "inline-size",
+                "marginLeftFree": "auto",
+                "marginRightFree": "auto"
+              },
+              "layout": "stack",
+              "layerLabel": "Container"
+            },
+            "children": [
+              {
+                "id": "builder-split-f9edca29-ca4c-4516-a7a0-d8f42d37426d",
+                "kind": "split",
+                "props": {
+                  "gap": "l",
+                  "ratio": "60-40",
+                  "style": {
+                    "customCss": "@media (max-width:640px){ { gap: 1.25rem; } }",
+                    "alignItems": "center"
+                  },
+                  "layerLabel": "Split Layout",
+                  "collapseOnMobile": true
+                },
+                "children": [
+                  {
+                    "id": "builder-container-c9d0b00c-bb22-4c58-ac99-8638084d816e",
+                    "kind": "container",
+                    "props": {
+                      "gap": "m",
+                      "align": "stretch",
+                      "style": {
+                        "justifyContent": "center"
+                      },
+                      "layout": "stack",
+                      "layerLabel": "Media Column"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-card-9d052912-9808-47b8-923b-ecd64e9d3856",
+                        "kind": "card",
+                        "props": {
+                          "style": {
+                            "overflow": "hidden",
+                            "customCss": "{ position: relative; border: 1px solid rgba(224,192,116,0.45); }",
+                            "paddingTop": "14px",
+                            "borderColor": "rgba(224,192,116,0.45)",
+                            "paddingLeft": "14px",
+                            "paddingRight": "14px",
+                            "paddingBottom": "14px"
+                          },
+                          "variant": "ghost",
+                          "layerLabel": "Image Frame"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-image-f2d893c1-4c0c-47bc-a03b-9f3041ec330e",
+                            "i18n": {
+                              "es": {
+                                "alt": "Retrato de la fundadora de Impronta en el atelier"
+                              }
+                            },
+                            "kind": "image",
+                            "props": {
+                              "alt": "Portrait of the Impronta founder in the atelier",
+                              "src": "/talent-templates/demo/impronta-2026/portrait-1.jpg",
+                              "style": {
+                                "width": "100%",
+                                "filter": "brightness(0.92)",
+                                "objectFit": "cover",
+                                "aspectRatioFree": "4 / 5"
+                              },
+                              "priority": false,
+                              "layerLabel": "Story Image"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-container-536c3200-c71e-4944-984a-2e4f987dd738",
+                    "kind": "container",
+                    "props": {
+                      "gap": "m",
+                      "align": "start",
+                      "style": {
+                        "justifyContent": "center"
+                      },
+                      "layout": "stack",
+                      "layerLabel": "Content Column"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-paragraph-5fc8e4e8-242a-44af-9796-bbf184d9d2f5",
+                        "i18n": {
+                          "es": {
+                            "text": "La casa"
+                          }
+                        },
+                        "kind": "paragraph",
+                        "props": {
+                          "text": "The house",
+                          "style": {
+                            "fontSize": "12px",
+                            "customCss": "{ display: flex; align-items: center; gap: 14px; }\n[data-builder-node-id=\"builder-paragraph-5fc8e4e8-242a-44af-9796-bbf184d9d2f5\"]::before { content: \"\"; display: inline-block; width: 30px; height: 1px; background: var(--token-color-primary, #c6a14e); }",
+                            "textColor": "var(--token-color-primary, #c6a14e)",
+                            "letterSpacing": "0.28em",
+                            "textTransform": "uppercase"
+                          },
+                          "layerLabel": "Eyebrow"
+                        }
+                      },
+                      {
+                        "id": "builder-heading-c5d2fe6d-e80b-4822-b0fb-d72c8cec20eb",
+                        "i18n": {
+                          "es": {
+                            "text": "Construida sobre el instinto y la memoria."
+                          }
+                        },
+                        "kind": "heading",
+                        "props": {
+                          "text": "Built on instinct and a long memory.",
+                          "level": 2,
+                          "style": {
+                            "align": "left",
+                            "fontSize": "clamp(2.2rem,4.4vw,3.4rem)",
+                            "textWrap": "balance",
+                            "customCss": "@media (max-width:768px){ { font-size: clamp(1.9rem, 8vw, 2.4rem); line-height: 1.08; } }",
+                            "textColor": "var(--token-color-ink, #ece4d3)",
+                            "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                            "lineHeight": "1.05"
+                          },
+                          "layerLabel": "Title"
+                        }
+                      },
+                      {
+                        "id": "builder-paragraph-a2f16553-0a9e-4cdb-8783-9472a2144f34",
+                        "i18n": {
+                          "es": {
+                            "text": "Creamos Impronta para representar rostros que la industria pasa por alto y dar a los que ya ama un lugar más tranquilo y preciso para trabajar. Cada booking se empareja a mano, cada contrato se lee dos veces."
+                          }
+                        },
+                        "kind": "paragraph",
+                        "props": {
+                          "text": "We started Impronta to represent faces the industry overlooks and to give the ones it already loves a quieter, sharper place to work. Every booking is hand-matched, every contract read twice.",
+                          "style": {
+                            "align": "left",
+                            "textColor": "rgba(236,228,211,0.7)",
+                            "lineHeight": "1.7",
+                            "maxWidthFree": "50ch"
+                          },
+                          "layerLabel": "Description"
+                        }
+                      },
+                      {
+                        "id": "builder-paragraph-bf3b37df-695d-416f-85c1-9fe7771e793e",
+                        "i18n": {
+                          "es": {
+                            "text": "Un rostro deja una huella. Nuestro trabajo es que las personas correctas la recuerden."
+                          }
+                        },
+                        "kind": "paragraph",
+                        "props": {
+                          "text": "A face leaves an imprint. Our job is to make sure the right people remember it.",
+                          "style": {
+                            "align": "left",
+                            "fontSize": "clamp(1.4rem,2.4vw,1.9rem)",
+                            "customCss": "{ border-left: 2px solid var(--token-color-primary, #c6a14e); }",
+                            "fontStyle": "italic",
+                            "textColor": "var(--token-color-accent, #e0c074)",
+                            "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                            "lineHeight": "1.4",
+                            "paddingLeft": "20px"
+                          },
+                          "layerLabel": "Pull Quote"
+                        }
+                      },
+                      {
+                        "id": "builder-container-314e81e3-de42-474c-a936-1e7cdaf302ce",
+                        "kind": "container",
+                        "props": {
+                          "gap": "s",
+                          "align": "start",
+                          "layout": "stack",
+                          "layerLabel": "Signature"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-paragraph-1e766781-0615-4be8-8bfd-c8fc9c866ca1",
+                            "i18n": {
+                              "es": {
+                                "text": "Impronta"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Impronta",
+                              "style": {
+                                "align": "left",
+                                "fontSize": "1.5rem",
+                                "textColor": "var(--token-color-accent, #e0c074)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)"
+                              },
+                              "layerLabel": "Signature Name"
+                            }
+                          },
+                          {
+                            "id": "builder-paragraph-9b1fae79-e5e0-48c0-8809-47d99c8902fd",
+                            "i18n": {
+                              "es": {
+                                "text": "Fundadores, Tulum"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Founders, Tulum",
+                              "style": {
+                                "align": "left",
+                                "fontSize": "11px",
+                                "textColor": "rgba(236,228,211,0.55)",
+                                "letterSpacing": "0.2em",
+                                "textTransform": "uppercase"
+                              },
+                              "layerLabel": "Signature Role"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "builder-container-91cb35a9-6c5f-4812-a924-ed0543265b00",
+            "kind": "container",
+            "props": {
+              "style": {
+                "customCss": "{ padding-top: clamp(48px,6vw,88px); padding-bottom: clamp(48px,6vw,88px); }\n@media (max-width: 640px) { { padding-top: 44px; padding-bottom: 44px; } }",
+                "paddingLeft": "6vw",
+                "paddingRight": "6vw",
+                "containerType": "inline-size",
+                "backgroundColor": "var(--token-color-background, #f7f4ef)"
+              },
+              "layout": "stack",
+              "htmlTag": "section"
+            },
+            "children": [
+              {
+                "id": "builder-split-7bb11acf-dcbe-4d23-9250-7ccfee83ae15",
+                "kind": "split",
+                "props": {
+                  "gap": "l",
+                  "ratio": "60-40",
+                  "style": {
+                    "customCss": "@media (max-width: 640px) { { margin-bottom: 28px; } }",
+                    "alignItems": "flex-end",
+                    "marginBottomFree": "48px"
+                  },
+                  "collapseOnMobile": true
+                },
+                "children": [
+                  {
+                    "id": "builder-container-095e7c96-c277-41de-8e26-74ed98f798d2",
+                    "kind": "container",
+                    "props": {
+                      "gap": "m",
+                      "style": {
+                        "gap": "18px"
+                      },
+                      "layout": "stack"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-container-6e586d87-966e-482d-aa2b-626be07a655a",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "gap": "14px",
+                            "flexWrap": "nowrap",
+                            "alignItems": "center"
+                          },
+                          "layout": "row"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-divider-0c04c19a-600d-4877-96c1-e3ecea7d5326",
+                            "kind": "divider",
+                            "props": {
+                              "tone": "default",
+                              "style": {
+                                "width": "30px",
+                                "height": "1px",
+                                "borderWidth": "0",
+                                "backgroundColor": "var(--token-color-primary, #c6a14e)"
+                              }
+                            }
+                          },
+                          {
+                            "id": "builder-paragraph-360120d7-1998-4445-9bd9-48ce4418166e",
+                            "i18n": {
+                              "es": {
+                                "text": "Trabajo reciente"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Recent work",
+                              "style": {
+                                "fontSize": "11px",
+                                "textColor": "var(--token-color-primary, #c6a14e)",
+                                "fontWeight": 500,
+                                "letterSpacing": "0.24em",
+                                "textTransform": "uppercase"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "builder-heading-fd0c9f4b-d938-4b25-9b99-84ce16d60ebb",
+                        "i18n": {
+                          "es": {
+                            "text": "Campañas y lookbooks."
+                          }
+                        },
+                        "kind": "heading",
+                        "props": {
+                          "text": "Campaigns & lookbooks.",
+                          "level": 2,
+                          "style": {
+                            "fontSize": "clamp(2.4rem,4.4vw,3.6rem)",
+                            "textWrap": "balance",
+                            "textColor": "var(--token-color-ink, #ece4d3)",
+                            "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                            "lineHeight": "1.04",
+                            "maxWidthFree": "16ch"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-paragraph-c00e04d7-5a2e-4ddc-b827-8c4e4c1d8bd7",
+                    "i18n": {
+                      "es": {
+                        "text": "Una temporada de editoriales, pasarela y trabajo de marca en la Riviera Maya, Ciudad de México y el Mediterráneo."
+                      }
+                    },
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "A season of editorials, runway, and brand work shot across the Riviera Maya, Mexico City, and the Mediterranean.",
+                      "style": {
+                        "fontSize": "0.98rem",
+                        "textColor": "rgba(236,228,211,0.62)",
+                        "lineHeight": "1.6",
+                        "maxWidthFree": "38ch"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "builder-container-ef121a16-41fa-4b26-a193-ada8f793c805",
+                "kind": "container",
+                "props": {
+                  "style": {
+                    "gap": "18px",
+                    "flexWrap": "nowrap",
+                    "overflow": "scroll",
+                    "customCss": "{ scroll-snap-type: x mandatory; scrollbar-width: thin; scrollbar-color: var(--token-color-primary, #c6a14e) transparent; overscroll-behavior-x: contain; }\n::-webkit-scrollbar { height: 3px; }\n::-webkit-scrollbar-thumb { background: var(--token-color-primary, #c6a14e); }\n::-webkit-scrollbar-track { background: transparent; }",
+                    "alignItems": "flex-start",
+                    "paddingBottom": "18px"
+                  },
+                  "layout": "row"
+                },
+                "children": [
+                  {
+                    "id": "builder-container-7b2f0a08-52dd-4eb1-8246-0237a477ae99",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "customCss": "{ flex: 0 0 clamp(260px,30vw,380px); scroll-snap-align: start; }\n@media (hover: hover) { [data-builder-node-id=\"builder-image-e5d70f52-0581-4228-935a-75895453817b\"] { transition: transform 1s ease, filter 1s ease; } }\n@media (hover: hover) { :hover [data-builder-node-id=\"builder-image-e5d70f52-0581-4228-935a-75895453817b\"] { transform: scale(1.05); filter: brightness(1); } }\n@media (max-width: 640px) { { flex: 0 0 78vw; } }\n@media (max-width: 640px) { [data-builder-node-id=\"builder-paragraph-b29823b0-617d-4a08-92fb-8a52bb608109\"] { font-size: 1.2rem; } }",
+                        "revealDelay": "0s",
+                        "revealOnView": "fade-up",
+                        "backgroundColor": "transparent",
+                        "scrollSnapAlign": "start"
+                      },
+                      "layout": "stack",
+                      "layerLabel": "Campaign — Casa Tulum"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-container-1d6f3237-9ab1-41dd-8bda-002982d15736",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "overflow": "hidden",
+                            "customCss": "{ aspect-ratio: 4 / 5; }",
+                            "aspectRatioFree": "4 / 5",
+                            "backgroundColor": "var(--token-color-surface, #161320)"
+                          },
+                          "layout": "stack"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-image-e5d70f52-0581-4228-935a-75895453817b",
+                            "i18n": {
+                              "es": {
+                                "alt": "Campaña resort Casa Tulum — detalle de atelier en luz cálida"
+                              }
+                            },
+                            "kind": "image",
+                            "props": {
+                              "alt": "Casa Tulum resort campaign — atelier detail in warm light",
+                              "src": "/talent-templates/demo/impronta-2026/atelier-3.jpg",
+                              "style": {
+                                "width": "100%",
+                                "filter": "brightness(0.9)",
+                                "height": "100%",
+                                "objectFit": "cover"
+                              },
+                              "priority": false
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "builder-container-ddafda45-304a-48a6-a81f-aad5756df351",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "gap": "14px",
+                            "customCss": "{ border-bottom: 1px solid rgba(198,161,78,0.26); }",
+                            "alignItems": "baseline",
+                            "marginTopFree": "16px",
+                            "paddingBottom": "14px",
+                            "justifyContent": "space-between"
+                          },
+                          "layout": "row"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-paragraph-b29823b0-617d-4a08-92fb-8a52bb608109",
+                            "i18n": {
+                              "es": {
+                                "text": "Casa Tulum"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Casa Tulum",
+                              "style": {
+                                "fontSize": "1.35rem",
+                                "textColor": "var(--token-color-ink, #ece4d3)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                "lineHeight": "1.1"
+                              }
+                            }
+                          },
+                          {
+                            "id": "builder-paragraph-abca7339-633b-4df0-80a2-b7a9d5d625ec",
+                            "i18n": {
+                              "es": {
+                                "text": "Resort PV26"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Resort SS26",
+                              "style": {
+                                "fontSize": "10px",
+                                "textColor": "#e0c074",
+                                "whiteSpace": "nowrap",
+                                "letterSpacing": "0.22em",
+                                "textTransform": "uppercase"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-container-35d81625-1891-458d-ad49-5a60e339e48c",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "customCss": "{ flex: 0 0 clamp(260px,30vw,380px); scroll-snap-align: start; }\n@media (hover: hover) { [data-builder-node-id=\"builder-image-9ac4f5fc-3143-42d4-b449-5f5dccad20b8\"] { transition: transform 1s ease, filter 1s ease; } }\n@media (hover: hover) { :hover [data-builder-node-id=\"builder-image-9ac4f5fc-3143-42d4-b449-5f5dccad20b8\"] { transform: scale(1.05); filter: brightness(1); } }\n@media (max-width: 640px) { { flex: 0 0 78vw; } }\n@media (max-width: 640px) { [data-builder-node-id=\"builder-paragraph-d89051f6-d9e5-4865-a2cd-9476a16281f2\"] { font-size: 1.2rem; } }",
+                        "revealDelay": "0.08s",
+                        "revealOnView": "fade-up",
+                        "backgroundColor": "transparent",
+                        "scrollSnapAlign": "start"
+                      },
+                      "layout": "stack",
+                      "layerLabel": "Campaign — Maison Lloré"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-container-b004e0a3-1a5d-4daf-a659-6ea49a670a5e",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "overflow": "hidden",
+                            "customCss": "{ aspect-ratio: 4 / 5; }",
+                            "aspectRatioFree": "4 / 5",
+                            "backgroundColor": "var(--token-color-surface, #161320)"
+                          },
+                          "layout": "stack"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-image-9ac4f5fc-3143-42d4-b449-5f5dccad20b8",
+                            "i18n": {
+                              "es": {
+                                "alt": "Retrato editorial de alta costura Maison Lloré"
+                              }
+                            },
+                            "kind": "image",
+                            "props": {
+                              "alt": "Maison Lloré couture editorial portrait",
+                              "src": "/talent-templates/demo/impronta-2026/portrait-5.jpg",
+                              "style": {
+                                "width": "100%",
+                                "filter": "brightness(0.9)",
+                                "height": "100%",
+                                "objectFit": "cover"
+                              },
+                              "priority": false
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "builder-container-355bcb87-9681-448b-960f-0228c05b3043",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "gap": "14px",
+                            "customCss": "{ border-bottom: 1px solid rgba(198,161,78,0.26); }",
+                            "alignItems": "baseline",
+                            "marginTopFree": "16px",
+                            "paddingBottom": "14px",
+                            "justifyContent": "space-between"
+                          },
+                          "layout": "row"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-paragraph-d89051f6-d9e5-4865-a2cd-9476a16281f2",
+                            "i18n": {
+                              "es": {
+                                "text": "Maison Lloré"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Maison Lloré",
+                              "style": {
+                                "fontSize": "1.35rem",
+                                "textColor": "var(--token-color-ink, #ece4d3)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                "lineHeight": "1.1"
+                              }
+                            }
+                          },
+                          {
+                            "id": "builder-paragraph-4ac1eb9e-707f-4082-b679-ac0b8cdc87f1",
+                            "i18n": {
+                              "es": {
+                                "text": "Alta Costura OI25"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Couture FW25",
+                              "style": {
+                                "fontSize": "10px",
+                                "textColor": "#e0c074",
+                                "whiteSpace": "nowrap",
+                                "letterSpacing": "0.22em",
+                                "textTransform": "uppercase"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-container-626efd04-3d9a-4c4d-927c-3a0d23d8ef9f",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "customCss": "{ flex: 0 0 clamp(260px,30vw,380px); scroll-snap-align: start; }\n@media (hover: hover) { [data-builder-node-id=\"builder-image-807d13eb-27b8-4646-b2f1-2d733b4edfed\"] { transition: transform 1s ease, filter 1s ease; } }\n@media (hover: hover) { :hover [data-builder-node-id=\"builder-image-807d13eb-27b8-4646-b2f1-2d733b4edfed\"] { transform: scale(1.05); filter: brightness(1); } }\n@media (max-width: 640px) { { flex: 0 0 78vw; } }\n@media (max-width: 640px) { [data-builder-node-id=\"builder-paragraph-235bfc2f-1b88-4a3e-8c01-ee2be2b6b04a\"] { font-size: 1.2rem; } }",
+                        "revealDelay": "0.16s",
+                        "revealOnView": "fade-up",
+                        "backgroundColor": "transparent",
+                        "scrollSnapAlign": "start"
+                      },
+                      "layout": "stack",
+                      "layerLabel": "Campaign — Atelier Sur"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-container-9805493c-b3df-483b-bd2b-06a3aa4f8780",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "overflow": "hidden",
+                            "customCss": "{ aspect-ratio: 4 / 5; }",
+                            "aspectRatioFree": "4 / 5",
+                            "backgroundColor": "var(--token-color-surface, #161320)"
+                          },
+                          "layout": "stack"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-image-807d13eb-27b8-4646-b2f1-2d733b4edfed",
+                            "i18n": {
+                              "es": {
+                                "alt": "Retrato editorial Atelier Sur"
+                              }
+                            },
+                            "kind": "image",
+                            "props": {
+                              "alt": "Atelier Sur editorial portrait",
+                              "src": "/talent-templates/demo/impronta-2026/portrait-2.jpg",
+                              "style": {
+                                "width": "100%",
+                                "filter": "brightness(0.9)",
+                                "height": "100%",
+                                "objectFit": "cover"
+                              },
+                              "priority": false
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "builder-container-fb4d41e7-1740-4c8f-a856-ad6a28b1a39d",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "gap": "14px",
+                            "customCss": "{ border-bottom: 1px solid rgba(198,161,78,0.26); }",
+                            "alignItems": "baseline",
+                            "marginTopFree": "16px",
+                            "paddingBottom": "14px",
+                            "justifyContent": "space-between"
+                          },
+                          "layout": "row"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-paragraph-235bfc2f-1b88-4a3e-8c01-ee2be2b6b04a",
+                            "i18n": {
+                              "es": {
+                                "text": "Atelier Sur"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Atelier Sur",
+                              "style": {
+                                "fontSize": "1.35rem",
+                                "textColor": "var(--token-color-ink, #ece4d3)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                "lineHeight": "1.1"
+                              }
+                            }
+                          },
+                          {
+                            "id": "builder-paragraph-1e305776-4bd4-4f5f-a484-fe762737c164",
+                            "i18n": {
+                              "es": {
+                                "text": "Editorial"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Editorial",
+                              "style": {
+                                "fontSize": "10px",
+                                "textColor": "#e0c074",
+                                "whiteSpace": "nowrap",
+                                "letterSpacing": "0.22em",
+                                "textTransform": "uppercase"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-container-b0214c05-405a-4eed-87d8-ea8ada067cca",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "customCss": "{ flex: 0 0 clamp(260px,30vw,380px); scroll-snap-align: start; }\n@media (hover: hover) { [data-builder-node-id=\"builder-image-c46df3b4-a9f3-4a8c-ad6b-de379084a953\"] { transition: transform 1s ease, filter 1s ease; } }\n@media (hover: hover) { :hover [data-builder-node-id=\"builder-image-c46df3b4-a9f3-4a8c-ad6b-de379084a953\"] { transform: scale(1.05); filter: brightness(1); } }\n@media (max-width: 640px) { { flex: 0 0 78vw; } }\n@media (max-width: 640px) { [data-builder-node-id=\"builder-paragraph-cfce4cdf-58a4-4d05-a636-c04c594dba81\"] { font-size: 1.2rem; } }",
+                        "revealDelay": "0.24s",
+                        "revealOnView": "fade-up",
+                        "backgroundColor": "transparent",
+                        "scrollSnapAlign": "start"
+                      },
+                      "layout": "stack",
+                      "layerLabel": "Campaign — Semana CDMX"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-container-247fd717-32bf-45bc-b584-d6ff1c3d9e74",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "overflow": "hidden",
+                            "customCss": "{ aspect-ratio: 4 / 5; }",
+                            "aspectRatioFree": "4 / 5",
+                            "backgroundColor": "var(--token-color-surface, #161320)"
+                          },
+                          "layout": "stack"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-image-c46df3b4-a9f3-4a8c-ad6b-de379084a953",
+                            "i18n": {
+                              "es": {
+                                "alt": "Retrato de pasarela de la Semana de la Moda en CDMX"
+                              }
+                            },
+                            "kind": "image",
+                            "props": {
+                              "alt": "Mexico City Fashion Week runway portrait",
+                              "src": "/talent-templates/demo/impronta-2026/portrait-3.jpg",
+                              "style": {
+                                "width": "100%",
+                                "filter": "brightness(0.9)",
+                                "height": "100%",
+                                "objectFit": "cover"
+                              },
+                              "priority": false
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "builder-container-46912ec2-7edf-4720-923d-0c463daa7635",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "gap": "14px",
+                            "customCss": "{ border-bottom: 1px solid rgba(198,161,78,0.26); }",
+                            "alignItems": "baseline",
+                            "marginTopFree": "16px",
+                            "paddingBottom": "14px",
+                            "justifyContent": "space-between"
+                          },
+                          "layout": "row"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-paragraph-cfce4cdf-58a4-4d05-a636-c04c594dba81",
+                            "i18n": {
+                              "es": {
+                                "text": "Semana CDMX"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Semana CDMX",
+                              "style": {
+                                "fontSize": "1.35rem",
+                                "textColor": "var(--token-color-ink, #ece4d3)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                "lineHeight": "1.1"
+                              }
+                            }
+                          },
+                          {
+                            "id": "builder-paragraph-68f6804e-7c5a-403b-abb6-55b35cc5df37",
+                            "i18n": {
+                              "es": {
+                                "text": "Pasarela 26"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Runway 26",
+                              "style": {
+                                "fontSize": "10px",
+                                "textColor": "#e0c074",
+                                "whiteSpace": "nowrap",
+                                "letterSpacing": "0.22em",
+                                "textTransform": "uppercase"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-container-1ba91f19-7483-4919-9147-b7e0c0b7b2f5",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "customCss": "{ flex: 0 0 clamp(260px,30vw,380px); scroll-snap-align: start; }\n@media (hover: hover) { [data-builder-node-id=\"builder-image-94cc17a5-3b5e-4a66-a203-c4f7f37a11e1\"] { transition: transform 1s ease, filter 1s ease; } }\n@media (hover: hover) { :hover [data-builder-node-id=\"builder-image-94cc17a5-3b5e-4a66-a203-c4f7f37a11e1\"] { transform: scale(1.05); filter: brightness(1); } }\n@media (max-width: 640px) { { flex: 0 0 78vw; } }\n@media (max-width: 640px) { [data-builder-node-id=\"builder-paragraph-d6a1ccbf-2f81-43b6-9584-ee94251f79b6\"] { font-size: 1.2rem; } }",
+                        "revealDelay": "0.32s",
+                        "revealOnView": "fade-up",
+                        "backgroundColor": "transparent",
+                        "scrollSnapAlign": "start"
+                      },
+                      "layout": "stack",
+                      "layerLabel": "Campaign — Riviera Living"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-container-8e360507-0549-436d-abdb-79c34877b898",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "overflow": "hidden",
+                            "customCss": "{ aspect-ratio: 4 / 5; }",
+                            "aspectRatioFree": "4 / 5",
+                            "backgroundColor": "var(--token-color-surface, #161320)"
+                          },
+                          "layout": "stack"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-image-94cc17a5-3b5e-4a66-a203-c4f7f37a11e1",
+                            "i18n": {
+                              "es": {
+                                "alt": "Retrato de estilo de vida Riviera Living"
+                              }
+                            },
+                            "kind": "image",
+                            "props": {
+                              "alt": "Riviera Living lifestyle portrait",
+                              "src": "/talent-templates/demo/impronta-2026/portrait-6.jpg",
+                              "style": {
+                                "width": "100%",
+                                "filter": "brightness(0.9)",
+                                "height": "100%",
+                                "objectFit": "cover"
+                              },
+                              "priority": false
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "id": "builder-container-29f313bc-6f51-42c6-82bb-447619a4bf67",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "gap": "14px",
+                            "customCss": "{ border-bottom: 1px solid rgba(198,161,78,0.26); }",
+                            "alignItems": "baseline",
+                            "marginTopFree": "16px",
+                            "paddingBottom": "14px",
+                            "justifyContent": "space-between"
+                          },
+                          "layout": "row"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-paragraph-d6a1ccbf-2f81-43b6-9584-ee94251f79b6",
+                            "i18n": {
+                              "es": {
+                                "text": "Riviera Living"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Riviera Living",
+                              "style": {
+                                "fontSize": "1.35rem",
+                                "textColor": "var(--token-color-ink, #ece4d3)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                "lineHeight": "1.1"
+                              }
+                            }
+                          },
+                          {
+                            "id": "builder-paragraph-ee6bd5d9-4cd1-4466-a80b-6e9a1f03351f",
+                            "i18n": {
+                              "es": {
+                                "text": "Estilo de vida"
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Lifestyle",
+                              "style": {
+                                "fontSize": "10px",
+                                "textColor": "#e0c074",
+                                "whiteSpace": "nowrap",
+                                "letterSpacing": "0.22em",
+                                "textTransform": "uppercase"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "builder-container-d90bff97-3c3f-42ac-afad-d131bcc54df5",
+            "kind": "container",
+            "props": {
+              "style": {
+                "customCss": "{ border-top: 1px solid var(--token-color-primary, #c6a14e); } @media (max-width:768px){ { padding-left:16px; padding-right:16px; } .site-builder-node--heading { font-size: clamp(2rem, 9vw, 2.6rem) !important; } }",
+                "paddingTop": "16px",
+                "maxWidthFree": "1440px",
+                "containerType": "inline-size",
+                "backgroundColor": "var(--token-color-background, #100e13)"
+              },
+              "layout": "grid",
+              "columns": 4,
+              "htmlTag": "section",
+              "responsive": {
+                "mobile": {
+                  "layout": "grid",
+                  "columns": 1
+                },
+                "tablet": {
+                  "layout": "grid",
+                  "columns": 2
+                }
+              }
+            },
+            "children": [
+              {
+                "id": "builder-container-4f53076d-1651-4366-9f87-db0a343a7b72",
+                "kind": "container",
+                "props": {
+                  "style": {
+                    "customCss": "{ border-right: 1px solid var(--token-color-primary, #c6a14e); } @media (max-width:768px){ { border-right:0 !important; padding-left:0; padding-right:16px; padding-top:18px; padding-bottom:18px; } }",
+                    "alignItems": "flex-start",
+                    "paddingTop": "30px",
+                    "paddingLeft": "8px",
+                    "paddingRight": "32px",
+                    "paddingBottom": "30px"
+                  },
+                  "layout": "stack"
+                },
+                "children": [
+                  {
+                    "id": "builder-container-b882269e-2f98-4710-8165-17ef0ab92ea8",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "gap": "2px",
+                        "flexWrap": "nowrap",
+                        "alignItems": "baseline"
+                      },
+                      "layout": "row",
+                      "responsive": {
+                        "mobile": {
+                          "layout": "row"
+                        },
+                        "tablet": {
+                          "layout": "row"
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "id": "builder-heading-d244125c-ee2b-4a1b-8e91-5f7ff777cf5a",
+                        "kind": "heading",
+                        "props": {
+                          "text": "120",
+                          "level": 2,
+                          "style": {
+                            "fontSize": "clamp(2.8rem,4.8vw,4rem)",
+                            "fontStyle": "normal",
+                            "textColor": "var(--token-color-ink, #ece4d3)",
+                            "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                            "lineHeight": "1"
+                          }
+                        }
+                      },
+                      {
+                        "id": "builder-heading-24a83edb-1d75-4f19-8732-902d018aff28",
+                        "kind": "heading",
+                        "props": {
+                          "text": "+",
+                          "level": 2,
+                          "style": {
+                            "fontSize": "clamp(2.8rem,4.8vw,4rem)",
+                            "fontStyle": "italic",
+                            "textColor": "var(--token-color-accent, #e0c074)",
+                            "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                            "lineHeight": "1"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-paragraph-b989c383-25a0-42f6-b7d4-8fe8e2fc7d6a",
+                    "i18n": {
+                      "es": {
+                        "text": "Rostros representados"
+                      }
+                    },
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "Faces represented",
+                      "style": {
+                        "fontSize": "10.5px",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-body-font-family, 'Inter', system-ui, sans-serif)",
+                        "letterSpacing": "0.24em",
+                        "marginTopFree": "14px",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "builder-container-c1e48659-b48c-486b-aeb5-5724ce1b9bf7",
+                "kind": "container",
+                "props": {
+                  "style": {
+                    "customCss": "{ border-right: 1px solid var(--token-color-primary, #c6a14e); } @media (max-width:768px){ { border-right:0 !important; padding-left:0; padding-right:16px; padding-top:18px; padding-bottom:18px; } }",
+                    "alignItems": "flex-start",
+                    "paddingTop": "30px",
+                    "paddingLeft": "8px",
+                    "paddingRight": "32px",
+                    "paddingBottom": "30px"
+                  },
+                  "layout": "stack"
+                },
+                "children": [
+                  {
+                    "id": "builder-container-b82f39bb-e10b-4dbe-85c8-f73d628a931b",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "gap": "2px",
+                        "flexWrap": "nowrap",
+                        "alignItems": "baseline"
+                      },
+                      "layout": "row",
+                      "responsive": {
+                        "mobile": {
+                          "layout": "row"
+                        },
+                        "tablet": {
+                          "layout": "row"
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "id": "builder-heading-ba347e00-fcb8-45ee-aa36-6336312851bb",
+                        "kind": "heading",
+                        "props": {
+                          "text": "6",
+                          "level": 2,
+                          "style": {
+                            "fontSize": "clamp(2.8rem,4.8vw,4rem)",
+                            "fontStyle": "normal",
+                            "textColor": "var(--token-color-ink, #ece4d3)",
+                            "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                            "lineHeight": "1"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-paragraph-a2c0340d-eacb-4672-91f3-a2ab8dd919c0",
+                    "i18n": {
+                      "es": {
+                        "text": "Ciudades disponibles"
+                      }
+                    },
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "Cities on call",
+                      "style": {
+                        "fontSize": "10.5px",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-body-font-family, 'Inter', system-ui, sans-serif)",
+                        "letterSpacing": "0.24em",
+                        "marginTopFree": "14px",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "builder-container-11a729c8-303d-48e8-84c0-f1a2b5c0929d",
+                "kind": "container",
+                "props": {
+                  "style": {
+                    "customCss": "{ border-right: 1px solid var(--token-color-primary, #c6a14e); } @media (max-width:768px){ { border-right:0 !important; padding-left:0; padding-right:16px; padding-top:18px; padding-bottom:18px; } }",
+                    "alignItems": "flex-start",
+                    "paddingTop": "30px",
+                    "paddingLeft": "8px",
+                    "paddingRight": "32px",
+                    "paddingBottom": "30px"
+                  },
+                  "layout": "stack"
+                },
+                "children": [
+                  {
+                    "id": "builder-container-d7404b45-beec-430d-8811-eabb317f2012",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "gap": "2px",
+                        "flexWrap": "nowrap",
+                        "alignItems": "baseline"
+                      },
+                      "layout": "row",
+                      "responsive": {
+                        "mobile": {
+                          "layout": "row"
+                        },
+                        "tablet": {
+                          "layout": "row"
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "id": "builder-heading-572e3f79-8b78-4fe0-af46-80661a02de57",
+                        "kind": "heading",
+                        "props": {
+                          "text": "2019",
+                          "level": 2,
+                          "style": {
+                            "fontSize": "clamp(2.8rem,4.8vw,4rem)",
+                            "fontStyle": "italic",
+                            "textColor": "var(--token-color-accent, #e0c074)",
+                            "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                            "lineHeight": "1"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-paragraph-1595038e-6626-44e7-aa65-06b50eec1186",
+                    "i18n": {
+                      "es": {
+                        "text": "Fundada"
+                      }
+                    },
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "Established",
+                      "style": {
+                        "fontSize": "10.5px",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-body-font-family, 'Inter', system-ui, sans-serif)",
+                        "letterSpacing": "0.24em",
+                        "marginTopFree": "14px",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "builder-container-2786ccb4-13a6-4039-ab3d-97caf26b1472",
+                "kind": "container",
+                "props": {
+                  "style": {
+                    "customCss": "@media (max-width:768px){ { border-right:0 !important; padding-left:0; padding-right:16px; padding-top:18px; padding-bottom:18px; } }",
+                    "alignItems": "flex-start",
+                    "paddingTop": "30px",
+                    "paddingLeft": "8px",
+                    "paddingRight": "32px",
+                    "paddingBottom": "30px"
+                  },
+                  "layout": "stack"
+                },
+                "children": [
+                  {
+                    "id": "builder-container-c3ea190f-9559-4b4c-a810-a067b72984e0",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "gap": "2px",
+                        "flexWrap": "nowrap",
+                        "alignItems": "baseline"
+                      },
+                      "layout": "row",
+                      "responsive": {
+                        "mobile": {
+                          "layout": "row"
+                        },
+                        "tablet": {
+                          "layout": "row"
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "id": "builder-heading-f8431092-1ee1-4a2b-9adb-b89da148f642",
+                        "kind": "heading",
+                        "props": {
+                          "text": "EN",
+                          "level": 2,
+                          "style": {
+                            "fontSize": "clamp(2.8rem,4.8vw,4rem)",
+                            "fontStyle": "normal",
+                            "textColor": "var(--token-color-ink, #ece4d3)",
+                            "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                            "lineHeight": "1"
+                          }
+                        }
+                      },
+                      {
+                        "id": "builder-heading-0d8a9c9c-56c6-4a81-9d02-d71d13874376",
+                        "kind": "heading",
+                        "props": {
+                          "text": "/",
+                          "level": 2,
+                          "style": {
+                            "fontSize": "clamp(2.8rem,4.8vw,4rem)",
+                            "fontStyle": "italic",
+                            "textColor": "var(--token-color-accent, #e0c074)",
+                            "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                            "lineHeight": "1"
+                          }
+                        }
+                      },
+                      {
+                        "id": "builder-heading-9190d7f6-2acc-4c87-a7db-e7df111ba23f",
+                        "kind": "heading",
+                        "props": {
+                          "text": "ES",
+                          "level": 2,
+                          "style": {
+                            "fontSize": "clamp(2.8rem,4.8vw,4rem)",
+                            "fontStyle": "normal",
+                            "textColor": "var(--token-color-ink, #ece4d3)",
+                            "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                            "lineHeight": "1"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-paragraph-c97b24ec-ca03-4e0f-b9f7-dcbf023315f2",
+                    "i18n": {
+                      "es": {
+                        "text": "Reservas bilingües"
+                      }
+                    },
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "Bilingual booking",
+                      "style": {
+                        "fontSize": "10.5px",
+                        "textColor": "var(--token-color-ink, #ece4d3)",
+                        "fontFamily": "var(--token-typography-body-font-family, 'Inter', system-ui, sans-serif)",
+                        "letterSpacing": "0.24em",
+                        "marginTopFree": "14px",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "builder-container-28b03d6b-d910-47e1-90b7-8c6073299278",
+            "kind": "container",
+            "props": {
+              "style": {
+                "customCss": "{ padding-top: clamp(52px,7vw,100px); padding-bottom: clamp(52px,7vw,100px); }\n@media (max-width:640px){ { padding-top: 46px; padding-bottom: 46px; } }",
+                "textColor": "var(--token-color-ink, #ece4d3)",
+                "paddingLeft": "6vw",
+                "paddingRight": "6vw",
+                "containerType": "inline-size",
+                "backgroundColor": "var(--token-color-background, #100e13)"
+              },
+              "layout": "stack",
+              "htmlTag": "section",
+              "layerLabel": "Testimonials band"
+            },
+            "children": [
+              {
+                "id": "builder-container-7443aa58-5bcc-4d63-a3ce-e6d7c1c44bb6",
+                "kind": "container",
+                "props": {
+                  "style": {
+                    "gap": "0px",
+                    "width": "100%",
+                    "maxWidthFree": "1440px"
+                  },
+                  "layout": "stack",
+                  "layerLabel": "Content wrap"
+                },
+                "children": [
+                  {
+                    "id": "builder-container-c689b3ed-4ce3-4975-b196-df83ac19f97d",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "gap": "20px",
+                        "marginBottomFree": "48px"
+                      },
+                      "layout": "stack",
+                      "layerLabel": "Section head"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-paragraph-46136732-ec4f-41ba-a224-982cc6bca4e1",
+                        "i18n": {
+                          "es": {
+                            "text": "Palabras amables"
+                          }
+                        },
+                        "kind": "paragraph",
+                        "props": {
+                          "text": "Kind words",
+                          "style": {
+                            "fontSize": "11px",
+                            "customCss": "{ display: inline-flex; align-items: center; gap: 12px; }\n::before { content: \"\"; width: 30px; height: 1px; background: var(--token-color-primary, #c6a14e); display: inline-block; }\n@media (max-width:640px){ { letter-spacing: 0.28em; } }",
+                            "textColor": "var(--token-color-accent, #e0c074)",
+                            "fontWeight": 500,
+                            "letterSpacing": "0.36em",
+                            "textTransform": "uppercase"
+                          },
+                          "layerLabel": "Eyebrow"
+                        }
+                      },
+                      {
+                        "id": "builder-heading-571e8c11-f8e3-41f4-accb-c8498f5d3612",
+                        "i18n": {
+                          "es": {
+                            "text": "Confianza en el set."
+                          }
+                        },
+                        "kind": "heading",
+                        "props": {
+                          "text": "Trusted on set.",
+                          "level": 2,
+                          "style": {
+                            "fontSize": "clamp(2.2rem,4vw,3.4rem)",
+                            "textWrap": "balance",
+                            "textColor": "var(--token-color-ink, #ece4d3)",
+                            "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                            "fontWeight": 600,
+                            "lineHeight": "1.02",
+                            "maxWidthFree": "16ch"
+                          },
+                          "layerLabel": "Headline"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-container-fd78a0a4-4b62-4a5e-8a9b-824366b0ca69",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "gap": "18px",
+                        "responsive": {
+                          "mobile": {
+                            "gridTemplateColumns": "1fr"
+                          }
+                        }
+                      },
+                      "layout": "grid",
+                      "columns": 3,
+                      "layerLabel": "Quote grid",
+                      "responsive": {
+                        "mobile": {
+                          "columns": 1
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "id": "builder-card-716f0ccd-a533-493b-ac50-e7dff523df69",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "gap": "26px",
+                            "hover": {
+                              "translate": "0 -5px",
+                              "borderColor": "var(--token-color-primary, #c6a14e)",
+                              "backgroundColor": "var(--token-color-surface, #17141c)"
+                            },
+                            "customCss": "{ transition: background-color .5s ease, transform .5s ease, border-color .5s ease; will-change: transform; }\n@media (prefers-reduced-motion: reduce) { { transition: none; } }\n@media (max-width:640px){ { padding-left: 22px; padding-right: 22px; } }",
+                            "paddingTop": "38px",
+                            "borderColor": "var(--token-color-border, rgba(198,161,78,0.26))",
+                            "borderStyle": "solid",
+                            "borderWidth": "1px",
+                            "paddingLeft": "32px",
+                            "revealDelay": "0s",
+                            "borderRadius": "2px",
+                            "paddingRight": "32px",
+                            "revealOnView": "fade-up",
+                            "paddingBottom": "38px",
+                            "backgroundColor": "transparent"
+                          },
+                          "layout": "stack",
+                          "layerLabel": "Quote 1"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-heading-dfac7c09-4466-431f-bf3f-8b8d8422ba2e",
+                            "kind": "heading",
+                            "props": {
+                              "text": "“",
+                              "level": 3,
+                              "style": {
+                                "height": "28px",
+                                "fontSize": "4rem",
+                                "overflow": "hidden",
+                                "textColor": "var(--token-color-primary, #c6a14e)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                "lineHeight": "0.5"
+                              },
+                              "layerLabel": "Quote mark"
+                            }
+                          },
+                          {
+                            "id": "builder-paragraph-5732eb24-d8c8-4586-81e6-f3e256f450ab",
+                            "i18n": {
+                              "es": {
+                                "text": "Enviamos un brief y recibimos un board que ya entendía la campaña. La preselección fue el casting final."
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "We sent a brief and got back a board that already understood the campaign. The shortlist was the final cast.",
+                              "style": {
+                                "fontSize": "1.4rem",
+                                "textWrap": "pretty",
+                                "fontStyle": "italic",
+                                "textColor": "var(--token-color-ink, #ece4d3)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                "lineHeight": "1.42",
+                                "responsive": {
+                                  "mobile": {
+                                    "fontSize": "1.2rem"
+                                  }
+                                }
+                              },
+                              "layerLabel": "Quote body"
+                            }
+                          },
+                          {
+                            "id": "builder-container-7300537f-b1ee-4154-a46a-9991b6873f69",
+                            "kind": "container",
+                            "props": {
+                              "style": {
+                                "gap": "5px",
+                                "marginTopFree": "auto"
+                              },
+                              "layout": "stack",
+                              "layerLabel": "Attribution"
+                            },
+                            "children": [
+                              {
+                                "id": "builder-paragraph-5bdfb93d-69b8-48ea-9bfd-0d3ee13134dc",
+                                "i18n": {
+                                  "es": {
+                                    "text": "María Sandoval"
+                                  }
+                                },
+                                "kind": "paragraph",
+                                "props": {
+                                  "text": "María Sandoval",
+                                  "style": {
+                                    "fontSize": "12px",
+                                    "textColor": "var(--token-color-accent, #e0c074)",
+                                    "fontWeight": 500,
+                                    "letterSpacing": "0.14em",
+                                    "textTransform": "uppercase"
+                                  },
+                                  "layerLabel": "Name"
+                                }
+                              },
+                              {
+                                "id": "builder-paragraph-b963492d-cd56-449a-8e51-8aa4269cb509",
+                                "i18n": {
+                                  "es": {
+                                    "text": "Directora de Casting, Marea Studio"
+                                  }
+                                },
+                                "kind": "paragraph",
+                                "props": {
+                                  "text": "Casting Director, Marea Studio",
+                                  "style": {
+                                    "fontSize": "10.5px",
+                                    "textColor": "rgba(236,228,211,0.58)",
+                                    "letterSpacing": "0.18em",
+                                    "textTransform": "uppercase"
+                                  },
+                                  "layerLabel": "Role"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "builder-card-bb15d45e-dec0-4a59-acc2-c7bc74609b74",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "gap": "26px",
+                            "hover": {
+                              "translate": "0 -5px",
+                              "borderColor": "var(--token-color-primary, #c6a14e)",
+                              "backgroundColor": "var(--token-color-surface, #17141c)"
+                            },
+                            "customCss": "{ transition: background-color .5s ease, transform .5s ease, border-color .5s ease; will-change: transform; }\n@media (prefers-reduced-motion: reduce) { { transition: none; } }\n@media (max-width:640px){ { padding-left: 22px; padding-right: 22px; } }",
+                            "paddingTop": "38px",
+                            "borderColor": "var(--token-color-border, rgba(198,161,78,0.26))",
+                            "borderStyle": "solid",
+                            "borderWidth": "1px",
+                            "paddingLeft": "32px",
+                            "revealDelay": "0.08s",
+                            "borderRadius": "2px",
+                            "paddingRight": "32px",
+                            "revealOnView": "fade-up",
+                            "paddingBottom": "38px",
+                            "backgroundColor": "transparent"
+                          },
+                          "layout": "stack",
+                          "layerLabel": "Quote 2"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-heading-42dba39e-16bd-4a92-867a-db6bc0cb3433",
+                            "kind": "heading",
+                            "props": {
+                              "text": "“",
+                              "level": 3,
+                              "style": {
+                                "height": "28px",
+                                "fontSize": "4rem",
+                                "overflow": "hidden",
+                                "textColor": "var(--token-color-primary, #c6a14e)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                "lineHeight": "0.5"
+                              },
+                              "layerLabel": "Quote mark"
+                            }
+                          },
+                          {
+                            "id": "builder-paragraph-dd8eced4-02f2-451b-b307-3899697e5288",
+                            "i18n": {
+                              "es": {
+                                "text": "Cada rostro se sintió elegido, no sacado de una base de datos. Esa es la diferencia entre un board y una agencia."
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Every face felt chosen, not pulled from a database. That is the difference between a board and an agency.",
+                              "style": {
+                                "fontSize": "1.4rem",
+                                "textWrap": "pretty",
+                                "fontStyle": "italic",
+                                "textColor": "var(--token-color-ink, #ece4d3)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                "lineHeight": "1.42",
+                                "responsive": {
+                                  "mobile": {
+                                    "fontSize": "1.2rem"
+                                  }
+                                }
+                              },
+                              "layerLabel": "Quote body"
+                            }
+                          },
+                          {
+                            "id": "builder-container-ce3c951c-f701-4f9c-8ca1-d7be974ac950",
+                            "kind": "container",
+                            "props": {
+                              "style": {
+                                "gap": "5px",
+                                "marginTopFree": "auto"
+                              },
+                              "layout": "stack",
+                              "layerLabel": "Attribution"
+                            },
+                            "children": [
+                              {
+                                "id": "builder-paragraph-7b56e3f0-8a5d-4fbc-ade9-cf2d4e3699fe",
+                                "i18n": {
+                                  "es": {
+                                    "text": "Tomás Iglesias"
+                                  }
+                                },
+                                "kind": "paragraph",
+                                "props": {
+                                  "text": "Tomás Iglesias",
+                                  "style": {
+                                    "fontSize": "12px",
+                                    "textColor": "var(--token-color-accent, #e0c074)",
+                                    "fontWeight": 500,
+                                    "letterSpacing": "0.14em",
+                                    "textTransform": "uppercase"
+                                  },
+                                  "layerLabel": "Name"
+                                }
+                              },
+                              {
+                                "id": "builder-paragraph-71019634-a05d-4e6d-ba61-8e0b82c43e36",
+                                "i18n": {
+                                  "es": {
+                                    "text": "Fotógrafo, Editorial Norte"
+                                  }
+                                },
+                                "kind": "paragraph",
+                                "props": {
+                                  "text": "Photographer, Editorial Norte",
+                                  "style": {
+                                    "fontSize": "10.5px",
+                                    "textColor": "rgba(236,228,211,0.58)",
+                                    "letterSpacing": "0.18em",
+                                    "textTransform": "uppercase"
+                                  },
+                                  "layerLabel": "Role"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "builder-card-1ada2383-808b-42f5-8f2d-53051f13e7e6",
+                        "kind": "container",
+                        "props": {
+                          "style": {
+                            "gap": "26px",
+                            "hover": {
+                              "translate": "0 -5px",
+                              "borderColor": "var(--token-color-primary, #c6a14e)",
+                              "backgroundColor": "var(--token-color-surface, #17141c)"
+                            },
+                            "customCss": "{ transition: background-color .5s ease, transform .5s ease, border-color .5s ease; will-change: transform; }\n@media (prefers-reduced-motion: reduce) { { transition: none; } }\n@media (max-width:640px){ { padding-left: 22px; padding-right: 22px; } }",
+                            "paddingTop": "38px",
+                            "borderColor": "var(--token-color-border, rgba(198,161,78,0.26))",
+                            "borderStyle": "solid",
+                            "borderWidth": "1px",
+                            "paddingLeft": "32px",
+                            "revealDelay": "0.16s",
+                            "borderRadius": "2px",
+                            "paddingRight": "32px",
+                            "revealOnView": "fade-up",
+                            "paddingBottom": "38px",
+                            "backgroundColor": "transparent"
+                          },
+                          "layout": "stack",
+                          "layerLabel": "Quote 3"
+                        },
+                        "children": [
+                          {
+                            "id": "builder-heading-e3d2eaae-709f-4dcd-81b7-088c2efdf9c3",
+                            "kind": "heading",
+                            "props": {
+                              "text": "“",
+                              "level": 3,
+                              "style": {
+                                "height": "28px",
+                                "fontSize": "4rem",
+                                "overflow": "hidden",
+                                "textColor": "var(--token-color-primary, #c6a14e)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                "lineHeight": "0.5"
+                              },
+                              "layerLabel": "Quote mark"
+                            }
+                          },
+                          {
+                            "id": "builder-paragraph-e1cc717e-d3d8-4c31-b1ae-0a799d1d1815",
+                            "i18n": {
+                              "es": {
+                                "text": "Reservas, contratos y call sheets en un solo hilo. Rodamos dos campañas en el tiempo que antes tomaba una."
+                              }
+                            },
+                            "kind": "paragraph",
+                            "props": {
+                              "text": "Bookings, contracts and call sheets in one thread. We shot two campaigns in the time one used to take.",
+                              "style": {
+                                "fontSize": "1.4rem",
+                                "textWrap": "pretty",
+                                "fontStyle": "italic",
+                                "textColor": "var(--token-color-ink, #ece4d3)",
+                                "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                                "lineHeight": "1.42",
+                                "responsive": {
+                                  "mobile": {
+                                    "fontSize": "1.2rem"
+                                  }
+                                }
+                              },
+                              "layerLabel": "Quote body"
+                            }
+                          },
+                          {
+                            "id": "builder-container-ef438b11-c523-4158-95b8-c63bc30afbd4",
+                            "kind": "container",
+                            "props": {
+                              "style": {
+                                "gap": "5px",
+                                "marginTopFree": "auto"
+                              },
+                              "layout": "stack",
+                              "layerLabel": "Attribution"
+                            },
+                            "children": [
+                              {
+                                "id": "builder-paragraph-72faf0a5-62bb-4e60-a92f-65c552a56ab6",
+                                "i18n": {
+                                  "es": {
+                                    "text": "Daniela Cruz"
+                                  }
+                                },
+                                "kind": "paragraph",
+                                "props": {
+                                  "text": "Daniela Cruz",
+                                  "style": {
+                                    "fontSize": "12px",
+                                    "textColor": "var(--token-color-accent, #e0c074)",
+                                    "fontWeight": 500,
+                                    "letterSpacing": "0.14em",
+                                    "textTransform": "uppercase"
+                                  },
+                                  "layerLabel": "Name"
+                                }
+                              },
+                              {
+                                "id": "builder-paragraph-5fb0c5b1-08b4-4197-8bdf-40d036bb7d1f",
+                                "i18n": {
+                                  "es": {
+                                    "text": "Productora, Casa Lumera"
+                                  }
+                                },
+                                "kind": "paragraph",
+                                "props": {
+                                  "text": "Producer, Casa Lumera",
+                                  "style": {
+                                    "fontSize": "10.5px",
+                                    "textColor": "rgba(236,228,211,0.58)",
+                                    "letterSpacing": "0.18em",
+                                    "textTransform": "uppercase"
+                                  },
+                                  "layerLabel": "Role"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "builder-container-fb60fb47-578b-495f-886c-5982f0419eee",
+            "kind": "container",
+            "props": {
+              "style": {
+                "overflow": "hidden",
+                "position": "relative",
+                "customCss": "{ padding-top: clamp(64px,8vw,120px); padding-bottom: clamp(64px,8vw,120px); }\n@media (max-width: 640px) { { padding-top: 56px; padding-bottom: 56px; } }",
+                "paddingLeft": "24px",
+                "paddingRight": "24px",
+                "containerType": "inline-size",
+                "backgroundColor": "var(--token-color-background, #100e13)"
+              },
+              "layout": "stack",
+              "htmlTag": "section"
+            },
+            "children": [
+              {
+                "id": "builder-image-046ebd08-794b-45b8-9043-cb86dfc6a3bd",
+                "i18n": {
+                  "es": {
+                    "alt": "Talento de Impronta en pasarela"
+                  }
+                },
+                "kind": "image",
+                "props": {
+                  "alt": "Impronta talent on the runway",
+                  "src": "/talent-templates/demo/impronta-2026/band-dark.jpg",
+                  "style": {
+                    "top": "0",
+                    "left": "0",
+                    "right": "0",
+                    "width": "100%",
+                    "bottom": "0",
+                    "filter": "brightness(1.16) saturate(1.1) contrast(1.03)",
+                    "height": "100%",
+                    "zIndex": 0,
+                    "position": "absolute",
+                    "objectFit": "cover",
+                    "objectPosition": "center 35%"
+                  },
+                  "priority": true
+                }
+              },
+              {
+                "id": "builder-container-054e95af-3d7c-46c0-9d20-aa97e2aa9c98",
+                "kind": "container",
+                "props": {
+                  "style": {
+                    "top": "0",
+                    "left": "0",
+                    "right": "0",
+                    "bottom": "0",
+                    "zIndex": 1,
+                    "position": "absolute",
+                    "pointerEvents": "none",
+                    "backgroundImage": "linear-gradient(180deg, rgba(8,7,10,0.46), rgba(8,7,10,0.66))"
+                  },
+                  "layout": "stack"
+                },
+                "children": []
+              },
+              {
+                "id": "builder-container-5d34b1eb-f937-472f-98cb-0b10f01db8a3",
+                "kind": "container",
+                "props": {
+                  "style": {
+                    "zIndex": 2,
+                    "position": "relative",
+                    "customCss": "{ position: relative; }\n[data-builder-node-id=\"builder-container-5d34b1eb-f937-472f-98cb-0b10f01db8a3\"]::before { content: \"\"; position: absolute; inset: clamp(18px,3vw,40px); border: 1px solid rgba(224,192,116,0.4); pointer-events: none; }",
+                    "textColor": "#ffffff",
+                    "alignItems": "center",
+                    "maxWidthFree": "1440px",
+                    "marginLeftFree": "auto",
+                    "marginRightFree": "auto"
+                  },
+                  "layout": "stack"
+                },
+                "children": [
+                  {
+                    "id": "builder-paragraph-4eae7fd8-69bd-4a1e-a3e5-902d3c625c38",
+                    "i18n": {
+                      "es": {
+                        "text": "Trabaja con Impronta"
+                      }
+                    },
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "Work with Impronta",
+                      "style": {
+                        "align": "center",
+                        "fontSize": "11px",
+                        "textColor": "var(--token-color-secondary, #e0c074)",
+                        "revealOnView": "fade-up",
+                        "letterSpacing": "0.24em",
+                        "textTransform": "uppercase"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-container-e2ff5665-bf12-44dc-b845-541ac2f7b186",
+                    "kind": "container",
+                    "props": {
+                      "style": {
+                        "gap": "0.4ch",
+                        "flexWrap": "wrap",
+                        "alignItems": "baseline",
+                        "responsive": {
+                          "mobile": {
+                            "marginTopFree": "16px",
+                            "marginBottomFree": "10px"
+                          }
+                        },
+                        "revealDelay": "0.08s",
+                        "revealOnView": "fade-up",
+                        "marginTopFree": "22px",
+                        "justifyContent": "center",
+                        "marginBottomFree": "14px"
+                      },
+                      "layout": "row"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-heading-7c632904-0b89-4134-baa9-95e8f3999d55",
+                        "i18n": {
+                          "es": {
+                            "text": "Deja tu"
+                          }
+                        },
+                        "kind": "heading",
+                        "props": {
+                          "text": "Leave your",
+                          "level": 2,
+                          "style": {
+                            "fontSize": "clamp(2.8rem,6.4vw,5.8rem)",
+                            "textColor": "#ffffff",
+                            "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                            "fontWeight": 600,
+                            "lineHeight": "1",
+                            "responsive": {
+                              "mobile": {
+                                "fontSize": "clamp(2.1rem,8vw,2.8rem)"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "id": "builder-heading-ed7f0e06-0c3c-4be9-8e36-4fae2923e0de",
+                        "i18n": {
+                          "es": {
+                            "text": "huella."
+                          }
+                        },
+                        "kind": "heading",
+                        "props": {
+                          "text": "imprint.",
+                          "level": 2,
+                          "style": {
+                            "fontSize": "clamp(2.8rem,6.4vw,5.8rem)",
+                            "fontStyle": "italic",
+                            "textColor": "var(--token-color-secondary, #e0c074)",
+                            "fontFamily": "var(--token-typography-heading-font-family, 'Cormorant Garamond', Georgia, serif)",
+                            "fontWeight": 600,
+                            "lineHeight": "1",
+                            "responsive": {
+                              "mobile": {
+                                "fontSize": "clamp(2.1rem,8vw,2.8rem)"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "builder-paragraph-25c99ab5-15ab-4a18-b99b-472ca242f3a3",
+                    "i18n": {
+                      "es": {
+                        "text": "De la editorial a la pasarela, casteamos rostros que dejan huella. Cuéntanos sobre tu proyecto y reuniremos al talento ideal."
+                      }
+                    },
+                    "kind": "paragraph",
+                    "props": {
+                      "text": "From editorial to runway, we cast faces that leave a mark. Tell us about your project and we will line up the right talent.",
+                      "style": {
+                        "align": "center",
+                        "textColor": "rgba(255,255,255,0.84)",
+                        "lineHeight": "1.6",
+                        "responsive": {
+                          "mobile": {
+                            "marginBottomFree": "26px"
+                          }
+                        },
+                        "revealDelay": "0.16s",
+                        "maxWidthFree": "46ch",
+                        "revealOnView": "fade-up",
+                        "marginLeftFree": "auto",
+                        "marginRightFree": "auto",
+                        "marginBottomFree": "38px"
+                      }
+                    }
+                  },
+                  {
+                    "id": "builder-cta_group-0b07f8fc-5f13-422c-b3a3-18b3ede018a7",
+                    "kind": "cta_group",
+                    "props": {
+                      "gap": "m",
+                      "align": "center",
+                      "style": {
+                        "flexWrap": "wrap",
+                        "revealDelay": "0.24s",
+                        "revealOnView": "fade-up",
+                        "justifyContent": "center"
+                      },
+                      "layout": "row"
+                    },
+                    "children": [
+                      {
+                        "id": "builder-button-3f5853c5-6d8f-4dbb-8dc1-8ad59b1ee0ef",
+                        "i18n": {
+                          "es": {
+                            "label": "Castea Impronta"
+                          }
+                        },
+                        "kind": "button",
+                        "props": {
+                          "href": "/directory",
+                          "tone": "primary",
+                          "label": "Cast Impronta",
+                          "style": {
+                            "hover": {
+                              "translate": "0 -3px"
+                            },
+                            "fontSize": "12px",
+                            "textColor": "var(--token-color-background, #100e13)",
+                            "paddingTop": "16px",
+                            "responsive": {
+                              "mobile": {
+                                "width": "100%"
+                              }
+                            },
+                            "transition": "transform .35s ease",
+                            "paddingLeft": "30px",
+                            "paddingRight": "30px",
+                            "letterSpacing": "0.12em",
+                            "paddingBottom": "16px",
+                            "textTransform": "uppercase",
+                            "backgroundImage": "linear-gradient(135deg, var(--token-color-primary, #c6a14e), var(--token-color-secondary, #e0c074))"
+                          }
+                        }
+                      },
+                      {
+                        "id": "builder-button-c03b4d85-d73a-4fd3-99a3-062445566f7d",
+                        "i18n": {
+                          "es": {
+                            "label": "Ser descubierto"
+                          }
+                        },
+                        "kind": "button",
+                        "props": {
+                          "href": "/join",
+                          "tone": "secondary",
+                          "label": "Get scouted",
+                          "style": {
+                            "hover": {
+                              "color": "var(--token-color-background, #100e13)",
+                              "backgroundColor": "#ffffff"
+                            },
+                            "fontSize": "12px",
+                            "textColor": "#ffffff",
+                            "paddingTop": "16px",
+                            "responsive": {
+                              "mobile": {
+                                "width": "100%"
+                              }
+                            },
+                            "transition": "background-color .35s ease, color .35s ease",
+                            "borderColor": "rgba(255,255,255,0.55)",
+                            "borderStyle": "solid",
+                            "borderWidth": "1px",
+                            "paddingLeft": "30px",
+                            "paddingRight": "30px",
+                            "letterSpacing": "0.12em",
+                            "paddingBottom": "16px",
+                            "textTransform": "uppercase",
+                            "backgroundColor": "transparent"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "composition": [],
+    "pageVersion": 1552,
+    "publishedAt": "2026-06-22T11:44:10.317Z",
+    "templateSchemaVersion": 1
+  }
+}

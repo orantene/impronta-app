@@ -1,0 +1,11 @@
+import { createClient } from "@supabase/supabase-js";
+import { writeFileSync } from "node:fs";
+const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+const PAGE = "90552cf6-2230-4a40-8320-c2e303e3ee56";
+const OUT = "docs/backups/impronta-home-published-2026-07-08.json";
+const { data, error } = await sb.from("cms_pages").select("published_homepage_snapshot,version,updated_at").eq("id", PAGE).single();
+if (error) throw error;
+const snap = data.published_homepage_snapshot as any;
+const nodeCount = (() => { let n = 0; const w = (x: any) => { if (!x || typeof x !== "object") return; n++; const p = x.props ?? {}; const k = x.children ?? p.children ?? []; if (Array.isArray(k)) k.forEach(w); }; (snap?.builderTree ?? []).forEach(w); return n; })();
+writeFileSync(OUT, JSON.stringify({ capturedAt: "2026-07-08", pageId: PAGE, version: data.version, updated_at: data.updated_at, nodeCount, snapshot: snap }, null, 2));
+console.log(`BACKUP: ${OUT} | version=${data.version} nodes=${nodeCount}`);
