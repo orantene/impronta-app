@@ -86,6 +86,10 @@ function buildModelGenerator(
         jsonSchema,
         maxTokens,
         model,
+        // Adaptive thinking is a quality lift for structure-sensitive page
+        // composition; no-ops on providers/models that don't support it. Thinking
+        // tokens count toward maxTokens (see GEN_MAX_TOKENS headroom).
+        thinking: true,
       });
       void recordAiGenerationUsage({
         provider: adapter.id,

@@ -25,6 +25,15 @@ export type ChatCompletionInput = {
   model?: string;
   /** When set, OpenAI uses response_format json_schema; Claude gets schema in the prompt. */
   jsonSchema?: JsonSchemaForChat;
+  /**
+   * Opt into adaptive extended thinking for this call (quality lift on
+   * structure-/taste-sensitive work like page generation). Only honored by the
+   * Anthropic adapter, and only on the adaptive-capable model family
+   * (opus-4-8/4-7, sonnet-5, fable-5/mythos-5); ignored otherwise. Thinking
+   * tokens count toward `maxTokens`, so give headroom. The response's text block
+   * is still extracted normally (thinking blocks are skipped).
+   */
+  thinking?: boolean;
 };
 
 /** Token usage returned by a provider, when available. */

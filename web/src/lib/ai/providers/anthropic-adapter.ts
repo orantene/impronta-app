@@ -31,6 +31,16 @@ function modelRejectsSamplingParams(model: string): boolean {
   );
 }
 
+/**
+ * The same model family that dropped sampling params is the one that supports
+ * ADAPTIVE thinking (`thinking: {type: "adaptive"}`). Older models take
+ * `{type: "enabled", budget_tokens}` instead, so we only opt into adaptive here
+ * (and leave thinking off elsewhere) to avoid a 400.
+ */
+function modelSupportsAdaptiveThinking(model: string): boolean {
+  return modelRejectsSamplingParams(model);
+}
+
 function schemaInstruction(jsonSchema?: ChatCompletionInput["jsonSchema"]): string {
   if (!jsonSchema) return "";
   return [
@@ -73,6 +83,15 @@ export function createAnthropicChatAdapter(apiKey?: string | null): AiProviderAd
         // Only the pre-4.7 models accept sampling params; the 4.7+/5 family 400s.
         if (!modelRejectsSamplingParams(model)) {
           params.temperature = input.temperature ?? 0.2;
+        }
+        // Opt into adaptive extended thinking when the caller requests it and the
+        // model supports it. The installed SDK (^0.39) predates the "adaptive"
+        // thinking type, so set it via a cast — the API honors the request-body
+        // field regardless of the client's TS types, and the text-block
+        // extraction below already skips the returned thinking block(s). (Sampling
+        // params are already omitted for this family, so there's no conflict.)
+        if (input.thinking && modelSupportsAdaptiveThinking(model)) {
+          (params as unknown as { thinking?: unknown }).thinking = { type: "adaptive" };
         }
         const msg = await client.messages.create(params);
 

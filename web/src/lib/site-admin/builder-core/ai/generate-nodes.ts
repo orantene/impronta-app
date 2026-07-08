@@ -78,7 +78,11 @@ const BUTTON_LABEL_MAX = 80;
 const HREF_MAX = 500;
 const ALT_MAX = 240;
 const LABEL_MAX = 120;
-const GEN_MAX_TOKENS = 8000;
+// Headroom for adaptive thinking: thinking tokens + the JSON output both count
+// toward this cap. A full page is ~2-3k output tokens; the extra budget lets the
+// model think without truncating the JSON. Still safe non-streaming (< the ~16k
+// where SDK HTTP timeouts start to matter).
+const GEN_MAX_TOKENS = 16000;
 
 // ── Prompt ────────────────────────────────────────────────────────────────
 
