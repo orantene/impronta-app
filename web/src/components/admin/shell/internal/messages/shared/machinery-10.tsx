@@ -402,6 +402,25 @@ export const STAGE_LABEL: Record<OfferStage, { label: string; tone: string; bg: 
   expired:            { label: "Expired",              tone: COLORS.inkMuted,    bg: "rgba(11,11,13,0.05)", clientLabel: "Expired" },
 };
 
+// i18n sibling for STAGE_LABEL (additive — the English map above stays for
+// non-localized consumers). Localized consumers keep switching on the raw
+// `OfferStage` union but render `t(STAGE_LABEL_KEYS[stage].labelKey)` (and
+// the client variant via `clientLabelKey`). Keys live under
+// `dashboard.adminTabs.offer.stage.*`.
+export const STAGE_LABEL_KEYS: Record<OfferStage, { labelKey: string; clientLabelKey?: string }> = {
+  no_offer:           { labelKey: "dashboard.adminTabs.offer.stage.noOffer" },
+  client_budget:      { labelKey: "dashboard.adminTabs.offer.stage.budgetSubmitted",   clientLabelKey: "dashboard.adminTabs.offer.stage.clientSentAwaiting" },
+  awaiting_talent:    { labelKey: "dashboard.adminTabs.offer.stage.awaitingTalent",     clientLabelKey: "dashboard.adminTabs.offer.stage.clientTeamBuilding" },
+  talent_submitted:   { labelKey: "dashboard.adminTabs.offer.stage.talentSubmitted",    clientLabelKey: "dashboard.adminTabs.offer.stage.clientTeamBuilding" },
+  coordinator_review: { labelKey: "dashboard.adminTabs.offer.stage.coordinatorReview",  clientLabelKey: "dashboard.adminTabs.offer.stage.clientTeamBuilding" },
+  sent:               { labelKey: "dashboard.adminTabs.offer.stage.sentToClient",       clientLabelKey: "dashboard.adminTabs.offer.stage.clientAwaitingDecision" },
+  reviewing:          { labelKey: "dashboard.adminTabs.offer.stage.clientReviewing",    clientLabelKey: "dashboard.adminTabs.offer.stage.clientYoureReviewing" },
+  countered:          { labelKey: "dashboard.adminTabs.offer.stage.counterReceived",    clientLabelKey: "dashboard.adminTabs.offer.stage.clientCounterSent" },
+  accepted:           { labelKey: "dashboard.adminTabs.offer.stage.accepted",           clientLabelKey: "dashboard.adminTabs.offer.stage.accepted" },
+  rejected:           { labelKey: "dashboard.adminTabs.offer.stage.rejected",           clientLabelKey: "dashboard.adminTabs.offer.stage.clientDeclined" },
+  expired:            { labelKey: "dashboard.adminTabs.offer.stage.expired",            clientLabelKey: "dashboard.adminTabs.offer.stage.expired" },
+};
+
 export const UNIT_TYPE_LABEL: Record<UnitType, string> = {
   hour:     "/hour",
   day:      "/day",
@@ -430,15 +449,47 @@ export function rowSubtotal(r: LineupRow, side: "cost" | "client") {
   return rate * (r.units || 0);
 }
 
-// What's the next single thing this user needs to do? Drives the sticky
-// action bar at the top of the Offer tab — "what do I do now?" not
-// "every possible field at once" (per spec §11).
-export function nextActionFor(offer: Offer, pov: OfferPov): { label: string; cta?: string; ctaTone?: "primary" | "success"; secondary?: string; subtle?: boolean } {
+/**
+ * The "what do I do now?" descriptor for the sticky action bar at the top
+ * of the Offer tab (and the shell action bar in machinery-6).
+ *
+ * i18n contract (wave 26): this function is a pure logic resolver and MUST
+ * NOT return user-facing English. It returns:
+ *   - `labelKey` + `labelParams` — a STABLE catalog key + interpolation
+ *     params; each consumer renders `interpolate(t(labelKey), labelParams)`
+ *     via its OWN translator.
+ *   - `cta` / `secondary` — the raw English union values, kept because
+ *     downstream code switches on them as logic discriminants
+ *     (`next.cta === "Submit my rate"` in machinery-12, `action.cta ??
+ *     action.secondary` as a title in machinery-6). NEVER render these
+ *     directly; render `ctaKey` / `secondaryKey` instead.
+ *   - `ctaKey` / `secondaryKey` — catalog keys for the button labels.
+ *
+ * `labelParams.closureWhy` carries the runtime closure reason lifted from
+ * the timeline (fixture data, e.g. "campaign moved to Q3"); it is injected
+ * as-is and is intentionally out of the localization scope — only the
+ * surrounding template ("Offer closed · {why}") is localized. Keys live
+ * under `dashboard.adminTabs.nextAction.*`.
+ */
+export type NextAction = {
+  labelKey: string;
+  labelParams?: Record<string, string | number>;
+  cta?: string;
+  ctaKey?: string;
+  ctaTone?: "primary" | "success";
+  secondary?: string;
+  secondaryKey?: string;
+  subtle?: boolean;
+};
+const NA = "dashboard.adminTabs.nextAction";
+export function nextActionFor(offer: Offer, pov: OfferPov): NextAction {
   const s = offer.stage;
-  // Coord first name powers personalized active-state copy. Falls
-  // back to "the coordinator" so messages stay grammatical when no
+  // Coord first name powers personalized active-state copy. Passed as an
+  // interpolation param; falls back to a localized "the coordinator" token
+  // (resolved at the render site) so messages stay grammatical when no
   // coord is set (rare — most fixtures have one).
-  const coord = offer.coordinators[0]?.name?.split(" ")[0] ?? "the coordinator";
+  const coordName = offer.coordinators[0]?.name?.split(" ")[0] ?? null;
+  const coordParams: Record<string, string | number> = coordName ? { coord: coordName } : {};
   // Pull the freshest closure-tone timeline entry. When the offer is
   // dead, this carries the actual reason ("campaign moved to Q3",
   // "no response in 14 days") so we can show *why* it closed instead
@@ -454,16 +505,18 @@ export function nextActionFor(offer: Offer, pov: OfferPov): { label: string; cta
     : null;
 
   if (pov.kind === "client") {
-    if (s === "no_offer")          return { label: "Add a budget so the team can shape your offer.", cta: "Add budget", ctaTone: "primary" };
-    if (s === "client_budget")     return { label: "Budget sent — the agency is shaping your offer now.", subtle: true };
+    if (s === "no_offer")          return { labelKey: `${NA}.clientNoOffer`, cta: "Add budget", ctaKey: `${NA}.ctaAddBudget`, ctaTone: "primary" };
+    if (s === "client_budget")     return { labelKey: `${NA}.clientBudgetSent`, subtle: true };
     if (s === "awaiting_talent" || s === "talent_submitted" || s === "coordinator_review")
-                                   return { label: `${coord} is locking in talent rates · we'll ping when it's ready.`, subtle: true };
+                                   return coordName
+                                     ? { labelKey: `${NA}.clientLockingRates`, labelParams: coordParams, subtle: true }
+                                     : { labelKey: `${NA}.clientLockingRatesGeneric`, subtle: true };
     if (s === "sent" || s === "reviewing")
-                                   return { label: "Offer's ready for you · approve, request a change, or counter.", cta: "Approve", ctaTone: "success", secondary: "Request change" };
-    if (s === "countered")         return { label: "Counter in flight · agency reviewing.", subtle: true };
-    if (s === "accepted")          return { label: "Booked · call sheet on its way.", subtle: true };
-    if (s === "rejected")          return { label: closureWhy ? `Offer closed · ${closureWhy}` : "Offer closed · the talent didn't accept.", subtle: true };
-    if (s === "expired")           return { label: closureWhy ? `Offer closed · ${closureWhy}` : "Offer closed · response window ran out.", subtle: true };
+                                   return { labelKey: `${NA}.clientOfferReady`, cta: "Approve", ctaKey: `${NA}.ctaApprove`, ctaTone: "success", secondary: "Request change", secondaryKey: `${NA}.secRequestChange` };
+    if (s === "countered")         return { labelKey: `${NA}.clientCounterInFlight`, subtle: true };
+    if (s === "accepted")          return { labelKey: `${NA}.clientBooked`, subtle: true };
+    if (s === "rejected")          return closureWhy ? { labelKey: `${NA}.clientClosedWhy`, labelParams: { closureWhy }, subtle: true } : { labelKey: `${NA}.clientClosedNoAccept`, subtle: true };
+    if (s === "expired")           return closureWhy ? { labelKey: `${NA}.clientClosedWhy`, labelParams: { closureWhy }, subtle: true } : { labelKey: `${NA}.clientClosedWindow`, subtle: true };
   }
 
   if (pov.kind === "talent") {
@@ -474,66 +527,69 @@ export function nextActionFor(offer: Offer, pov: OfferPov): { label: string; cta
     // a stale action. closureWhy pulls the human reason from the
     // timeline ("campaign moved to Q3", "auto-closed · 14 days").
     if (s === "rejected") {
-      const base = myRow?.status === "declined"
-        ? "Client wouldn't budge on price"
-        : "Client passed on the offer";
-      return { label: closureWhy ? `Closed · ${closureWhy}` : `Closed · ${base}.`, subtle: true };
+      if (closureWhy) return { labelKey: `${NA}.talentClosedWhy`, labelParams: { closureWhy }, subtle: true };
+      return myRow?.status === "declined"
+        ? { labelKey: `${NA}.talentClosedNoBudge`, subtle: true }
+        : { labelKey: `${NA}.talentClosedPassed`, subtle: true };
     }
     if (s === "expired") {
-      return { label: closureWhy ? `Closed · ${closureWhy}` : "Auto-closed · client never circled back.", subtle: true };
+      return closureWhy
+        ? { labelKey: `${NA}.talentClosedWhy`, labelParams: { closureWhy }, subtle: true }
+        : { labelKey: `${NA}.talentAutoClosed`, subtle: true };
     }
     // ── Active stages, ordered by talent's row state ──────────────
     if (myRow?.status === "pending") {
       // Inquiry has a published cap → "match the cap" wording.
       // Otherwise the talent is opening the negotiation.
-      const cap = offer.clientBudget ? "Drop your rate so we can move." : "Open the conversation with your rate.";
-      return { label: cap, cta: "Submit my rate", ctaTone: "primary" };
+      return {
+        labelKey: offer.clientBudget ? `${NA}.talentDropRate` : `${NA}.talentOpenConversation`,
+        cta: "Submit my rate", ctaKey: `${NA}.ctaSubmitRate`, ctaTone: "primary",
+      };
     }
     if (myRow?.status === "submitted" && (s === "talent_submitted" || s === "coordinator_review" || s === "awaiting_talent")) {
-      return { label: `Rate received · ${coord} is finalizing before showing the client.`, subtle: true };
+      return coordName
+        ? { labelKey: `${NA}.talentRateReceived`, labelParams: coordParams, subtle: true }
+        : { labelKey: `${NA}.talentRateReceivedGeneric`, subtle: true };
     }
     if (myRow?.status === "submitted" && (s === "sent" || s === "reviewing")) {
-      return {
-        label: offer.expiresInHours !== undefined && offer.expiresInHours <= 24
-          ? `Client has the offer · they have ${offer.expiresInHours}h to decide.`
-          : "Client has the offer · expecting a decision soon.",
-        subtle: true,
-      };
+      return offer.expiresInHours !== undefined && offer.expiresInHours <= 24
+        ? { labelKey: `${NA}.talentClientHasOfferHours`, labelParams: { hours: offer.expiresInHours }, subtle: true }
+        : { labelKey: `${NA}.talentClientHasOffer`, subtle: true };
     }
-    if (myRow?.status === "submitted") return { label: "Rate is in · standing by.", subtle: true };
-    if (myRow?.status === "approved")  return { label: "Booked · contract signed and locked.", subtle: true };
+    if (myRow?.status === "submitted") return { labelKey: `${NA}.talentRateIn`, subtle: true };
+    if (myRow?.status === "approved")  return { labelKey: `${NA}.talentBooked`, subtle: true };
     if (myRow?.status === "countered") {
       return {
-        label: "Client wants to negotiate · review their counter and decide.",
-        cta: "Review counter", ctaTone: "primary",
-        secondary: "Hold firm",
+        labelKey: `${NA}.talentWantsNegotiate`,
+        cta: "Review counter", ctaKey: `${NA}.ctaReviewCounter`, ctaTone: "primary",
+        secondary: "Hold firm", secondaryKey: `${NA}.secHoldFirm`,
       };
     }
-    if (myRow?.status === "declined")  return { label: "You declined this offer · job's closed on your end.", subtle: true };
-    if (pov.isCoordinator)             return { label: "Shape the final offer and send it to the client.", cta: "Send to client", ctaTone: "primary" };
+    if (myRow?.status === "declined")  return { labelKey: `${NA}.talentYouDeclined`, subtle: true };
+    if (pov.isCoordinator)             return { labelKey: `${NA}.talentCoordShapeOffer`, cta: "Send to client", ctaKey: `${NA}.ctaSendToClient`, ctaTone: "primary" };
   }
 
   // ── Admin / coordinator workspace pov ──
-  if (s === "no_offer" || s === "client_budget") return { label: "Invite talent and gather rates to start the offer.", cta: "Add talent", ctaTone: "primary" };
+  if (s === "no_offer" || s === "client_budget") return { labelKey: `${NA}.adminInviteGather`, cta: "Add talent", ctaKey: `${NA}.ctaAddTalent`, ctaTone: "primary" };
   if (s === "awaiting_talent") {
     const pending = offer.rows.filter(r => r.status === "pending").length;
-    return {
-      label: pending > 0
-        ? `Waiting on ${pending} talent rate${pending === 1 ? "" : "s"} · ping them if it's been a while.`
-        : "Waiting on talent rates.",
-      cta: pending > 0 ? "Nudge talent" : undefined,
-      ctaTone: "primary",
-      subtle: pending === 0,
-    };
+    if (pending > 0) {
+      return {
+        labelKey: pending === 1 ? `${NA}.adminWaitingOneRate` : `${NA}.adminWaitingRates`,
+        labelParams: { pending },
+        cta: "Nudge talent", ctaKey: `${NA}.ctaNudgeTalent`, ctaTone: "primary",
+      };
+    }
+    return { labelKey: `${NA}.adminWaitingRatesIdle`, ctaTone: "primary", subtle: true };
   }
   if (s === "talent_submitted" || s === "coordinator_review")
-                                                 return { label: "All rates in · review margins and send to client.", cta: "Send to client", ctaTone: "primary" };
-  if (s === "sent" || s === "reviewing")         return { label: "Offer with client · awaiting their decision.", subtle: true };
-  if (s === "countered")                         return { label: "Client countered · review with talent and respond.", cta: "Review counter", ctaTone: "primary" };
-  if (s === "accepted")                          return { label: "Accepted · build the call sheet to lock the booking.", cta: "Call sheet", ctaTone: "success" };
-  if (s === "rejected")                          return { label: closureWhy ? `Closed · ${closureWhy}` : "Closed · client rejected.", subtle: true };
-  if (s === "expired")                           return { label: closureWhy ? `Closed · ${closureWhy}` : "Closed · response window ran out.", subtle: true };
-  return { label: "—", subtle: true };
+                                                 return { labelKey: `${NA}.adminAllRatesIn`, cta: "Send to client", ctaKey: `${NA}.ctaSendToClient`, ctaTone: "primary" };
+  if (s === "sent" || s === "reviewing")         return { labelKey: `${NA}.adminOfferWithClient`, subtle: true };
+  if (s === "countered")                         return { labelKey: `${NA}.adminClientCountered`, cta: "Review counter", ctaKey: `${NA}.ctaReviewCounter`, ctaTone: "primary" };
+  if (s === "accepted")                          return { labelKey: `${NA}.adminAccepted`, cta: "Call sheet", ctaKey: `${NA}.ctaCallSheet`, ctaTone: "success" };
+  if (s === "rejected")                          return closureWhy ? { labelKey: `${NA}.adminClosedWhy`, labelParams: { closureWhy }, subtle: true } : { labelKey: `${NA}.adminClosedRejected`, subtle: true };
+  if (s === "expired")                           return closureWhy ? { labelKey: `${NA}.adminClosedWhy`, labelParams: { closureWhy }, subtle: true } : { labelKey: `${NA}.adminClosedWindow`, subtle: true };
+  return { labelKey: `${NA}.emptyDash`, subtle: true };
 }
 
 /**

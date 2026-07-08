@@ -15,7 +15,7 @@ import type { PersistedBookingCommissionSnapshot } from "@/lib/billing/commissio
 import { useAdminShell, COLORS, FONTS } from "../../state";
 import { type Conversation } from "../../talent";
 import { applyRowOverrides, setRowOverride, useRowOverrideSubscription } from "../conversation-stash";
-import { STAGE_LABEL, fmtMoney, getOffer, nextActionFor, rowSubtotal } from "./machinery-10";
+import { STAGE_LABEL, STAGE_LABEL_KEYS, fmtMoney, getOffer, nextActionFor, rowSubtotal } from "./machinery-10";
 import type { OfferPov } from "./machinery-10";
 import { CreateOfferButton, OfferDraftEditor } from "./machinery-11";
 import { OfferTermsSummary } from "./offer-terms-ui";
@@ -589,8 +589,19 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const totalRevenue = offer.rows.reduce((s, r) => s + rowSubtotal(r, "client"), 0) + offer.agencyFee;
   const totalMargin = totalRevenue - totalCost;
   const stage = STAGE_LABEL[offer.stage];
-  const stageLabel = isClient && stage.clientLabel ? stage.clientLabel : stage.label;
+  const stageKeys = STAGE_LABEL_KEYS[offer.stage];
+  // Render the localized stage label via this consumer's own translator.
+  // Switching still keys off the raw `offer.stage` union above.
+  const stageLabel = isClient && stageKeys.clientLabelKey
+    ? t(stageKeys.clientLabelKey)
+    : t(stageKeys.labelKey);
   const next = nextActionFor(offer, pov);
+  // Localized strings from the stable keys the resolver returned. The raw
+  // `next.cta` / `next.secondary` union values are kept ONLY for the logic
+  // switches below; the button text renders these localized versions.
+  const nextLabel = interpolate(t(next.labelKey), next.labelParams ?? {});
+  const nextCtaLabel = next.ctaKey ? t(next.ctaKey) : next.cta;
+  const nextSecondaryLabel = next.secondaryKey ? t(next.secondaryKey) : next.secondary;
   const currency = offer.clientBudget?.currency ?? "USD";
   const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
   const canRunStickyPrimary = !!next.cta && (
@@ -599,8 +610,8 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   );
   const stickyPrimaryTitle = canRunStickyPrimary
     ? undefined
-    : next.cta
-      ? `${next.cta} needs a live workflow before it can run here.`
+    : nextCtaLabel
+      ? interpolate(t("dashboard.adminTabs.offer.needsLiveWorkflow"), { label: nextCtaLabel })
       : undefined;
 
   return (
@@ -622,16 +633,16 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
           </span>
         )}
         <span style={{ fontSize: 12, color: next.subtle ? COLORS.inkMuted : COLORS.ink, flex: 1, minWidth: 140 }}>
-          {next.label}
+          {nextLabel}
         </span>
         {next.secondary && (
           <button
             type="button"
             disabled
-            title={`${next.secondary} needs a live workflow before it can run here.`}
+            title={interpolate(t("dashboard.adminTabs.offer.needsLiveWorkflow"), { label: nextSecondaryLabel ?? "" })}
             style={disabledBtn(ghostBtn())}
           >
-            {next.secondary}
+            {nextSecondaryLabel}
           </button>
         )}
         {next.cta && (
@@ -670,7 +681,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               ? primaryBtn(next.ctaTone === "success" ? COLORS.success : COLORS.accent)
               : disabledBtn(primaryBtn(next.ctaTone === "success" ? COLORS.success : COLORS.accent))}
           >
-            {next.cta}
+            {nextCtaLabel}
           </button>
         )}
       </div>

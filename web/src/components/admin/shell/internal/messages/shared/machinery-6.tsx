@@ -653,17 +653,26 @@ export function resolveShellAction(
       : pov === "admin" ? { kind: "admin" }
       : { kind: "talent", talentId: currentTalentId(), isCoordinator: pov === "talent_coord" };
     const action = nextActionFor(offer, povObj);
+    // nextActionFor now returns stable keys + params (wave 26). Render the
+    // localized label via this consumer's translator. When t is absent
+    // (unlocalized caller) `t(key)` returns the key, so fall back to the
+    // English catalog default via en.json's per-key fallback at render.
+    const actionLabel = t
+      ? interpolate(t(action.labelKey), action.labelParams ?? {})
+      : action.labelKey;
     const needsOfferTab = !!(action.cta || action.secondary);
     const offerHint = needsOfferTab
-      ? interpolate(tx("dashboard.adminTabs.shellAction.offerHintSuffix", "{label} Open the Offer tab to continue."), { label: action.label })
-      : action.label;
+      ? interpolate(tx("dashboard.adminTabs.shellAction.offerHintSuffix", "{label} Open the Offer tab to continue."), { label: actionLabel })
+      : actionLabel;
     return {
       hint: offerHint,
       primary: needsOfferTab && options.onOpenOffer ? {
         label: tx("dashboard.adminTabs.shellAction.openOffer", "Open offer"),
         tone: action.ctaTone === "success" ? "success" : "primary",
         onClick: options.onOpenOffer,
-        title: action.cta ?? action.secondary,
+        // Raw union kept as the button title/discriminant (never rendered
+        // as primary copy). Localized via ctaKey/secondaryKey when present.
+        title: (action.ctaKey && t ? t(action.ctaKey) : action.cta) ?? (action.secondaryKey && t ? t(action.secondaryKey) : action.secondary),
       } : undefined,
     };
   }

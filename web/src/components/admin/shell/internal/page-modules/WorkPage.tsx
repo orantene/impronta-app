@@ -5,7 +5,7 @@ import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 import { pinNextConversation as pinNextConversationP } from "../messages";
 import { ClientTrustChip, CompactLockedCard, EmptyState, GhostButton, Icon, MoreWithSection, PrimaryButton, ReadOnlyChip, SecondaryButton, StatusPill, StatusStrip } from "../primitives";
-import { COLORS, FONTS, FREE_PLAN_VALUE, TRANSITION, describeSource, meetsRole, useAdminShell } from "../state";
+import { COLORS, FONTS, FREE_PLAN_VALUE, TRANSITION, describeSourceChannelKey, describeSourceKeys, meetsRole, useAdminShell } from "../state";
 import type { InquirySource, RichInquiry } from "../state";
 import { downloadCsv } from "../wave2";
 import { FabWithQuickCreate } from "./InboxPage";
@@ -321,16 +321,25 @@ export function WorkPage() {
 }
 
 /**
- * Origin chip rendered next to the client name on a pipeline row. Uses
- * `describeSource` so the visible text always reflects what's in state —
- * e.g. "via acme-models.com", "via Tulala Hub", "added by email".
- * Kept tiny and outline-styled so it never competes with stage colour.
+ * Origin chip rendered next to the client name on a pipeline row. Uses the
+ * localized `describeSourceKeys` sibling so the visible text always reflects
+ * what's in state, in the active locale — e.g. "via acme-models.com",
+ * "via Tulala Hub", "added by email" / "anadido por correo". Kept tiny and
+ * outline-styled so it never competes with stage colour.
  */
 function SourceChip({ source }: { source: InquirySource }) {
-  const d = describeSource(source);
+  const t = useT();
+  const k = describeSourceKeys(source);
+  // Manual sources interpolate a localized channel label into the short/long
+  // templates (the channel name itself is translated, not just the frame).
+  const channel = source.kind === "manual" ? t(describeSourceChannelKey(source)) : undefined;
+  const shortParams = { ...(k.shortParams ?? {}), ...(channel ? { channel } : {}) };
+  const longParams = { ...(k.longParams ?? {}), ...(channel ? { channel } : {}) };
+  const shortText = interpolate(t(k.shortKey), shortParams);
+  const longText = interpolate(t(k.longKey), longParams);
   return (
     <span
-      title={d.long}
+      title={longText}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -347,7 +356,7 @@ function SourceChip({ source }: { source: InquirySource }) {
         whiteSpace: "nowrap",
       }}
     >
-      {d.short}
+      {shortText}
     </span>
   );
 }
@@ -446,12 +455,13 @@ export function FreeValuePanel() {
   // Patch the static FREE_PLAN_VALUE entries that contain fixture data:
   // - "roster" → real count from bridge (cap stays 5)
   // - "storefront" → real subdomain URL
-  const freePlanItems = FREE_PLAN_VALUE.map((v) => {
+  const freePlanItems = FREE_PLAN_VALUE.map((v): typeof v & { detailOverride?: string } => {
     if (v.id === "roster" && v.used) {
       return { ...v, used: { ...v.used, current: effectiveRoster.length } };
     }
     if (v.id === "storefront") {
-      return { ...v, detail: interpolate(t("dashboard.adminWork.storefrontLivesAt"), { domain: `${effectiveTenant.slug}.tulala.digital` }) };
+      // Live subdomain replaces the fixture detail; localized frame, real host.
+      return { ...v, detailOverride: interpolate(t("dashboard.adminWork.storefrontLivesAt"), { domain: `${effectiveTenant.slug}.tulala.digital` }) };
     }
     return v;
   });
@@ -505,10 +515,10 @@ export function FreeValuePanel() {
               </span>
               <div className="flex-1 min-w-0">
                 <div className="text-admin-ink text-admin-13 font-semibold">
-                  {v.label}
+                  {t(v.labelKey)}
                 </div>
                 <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
-                  {v.detail}
+                  {v.detailOverride ?? t(v.detailKey)}
                 </div>
               </div>
               {v.used && (
@@ -521,7 +531,7 @@ export function FreeValuePanel() {
                       letterSpacing: 0.2,
                     }}
                   >
-                    {v.used.current} / {v.used.cap} {v.used.unit}
+                    {v.used.current} / {v.used.cap} {t(v.used.unitKey)}
                   </span>
                   <div
                     style={{

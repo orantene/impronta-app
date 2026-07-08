@@ -2133,6 +2133,7 @@ export type ChipsInputProps = {
 };
 
 export const ChipsInput = React.memo(function ChipsInput({ label, placeholder, values, onChange }: ChipsInputProps) {
+  const t = useT();
   const [draft, setDraft] = useState("");
   // Component-boundary normalization: never trust the caller to pass a
   // real array. A model profile (e.g. Sofía) hydrates `personality` from
@@ -2179,7 +2180,7 @@ export const ChipsInput = React.memo(function ChipsInput({ label, placeholder, v
           background: draft.trim() ? COLORS.fill : "rgba(11,11,13,0.10)",
           color: draft.trim() ? "#fff" : COLORS.inkDim,
           fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: draft.trim() ? "pointer" : "default",
-        }}>Add</button>
+        }}>{t("dashboard.adminDrawers.add")}</button>
       </div>
     </div>
   );
@@ -4753,6 +4754,7 @@ export function ConfirmTypedAction({
   tone: "amber" | "red";
   onConfirm: () => void;
 }) {
+  const t = useT();
   const [armed, setArmed] = useState(false);
   const [typed, setTyped] = useState("");
   const matches = typed.trim().toLowerCase() === confirmPhrase.toLowerCase();
@@ -4795,7 +4797,7 @@ export function ConfirmTypedAction({
       }}
     >
       <div style={{ fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
-        Type{" "}
+        {t("dashboard.adminDrawers.confirmTypePrefix")}{" "}
         <code
           style={{
             background: "#fff",
@@ -4809,7 +4811,7 @@ export function ConfirmTypedAction({
         >
           {confirmPhrase}
         </code>{" "}
-        to confirm.
+        {t("dashboard.adminDrawers.confirmTypeSuffix")}
       </div>
       <TextInput
         autoFocus
@@ -4818,7 +4820,7 @@ export function ConfirmTypedAction({
         placeholder={confirmPhrase}
       />
       <div className="flex gap-2">
-        <SecondaryButton onClick={() => { setArmed(false); setTyped(""); }}>Cancel</SecondaryButton>
+        <SecondaryButton onClick={() => { setArmed(false); setTyped(""); }}>{t("dashboard.adminDrawers.cancel")}</SecondaryButton>
         <button
           disabled={!matches}
           onClick={() => { onConfirm(); setArmed(false); setTyped(""); }}
