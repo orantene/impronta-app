@@ -19,6 +19,7 @@ import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/ex
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
+import { requireStaff } from "@/lib/server/action-guards";
 import {
   jsonLdDocumentToScript,
   type JsonLdDocument,
@@ -186,8 +187,20 @@ export default async function CmsPublicPage({
     let freeformErr = publishedRead.error;
     // Draft preview (staff): the published-only RPC won't surface a draft, so
     // read the row directly — RLS admits it for staff via is_staff_of_tenant
-    // (no tenant GUC needed). Only attempted when a preview JWT is active.
-    if (!freeformErr && !freeformPage && previewActive) {
+    // (no tenant GUC needed). Attempted when a preview JWT is active, OR for an
+    // authenticated staff SESSION (a real server-side auth check — unlike the
+    // untrusted non-HttpOnly edit cookie). Without the session fallback, an
+    // expired preview JWT mid-edit made this route 404 a staff member's OWN
+    // draft: the not-found shell rendered (404 hero + footer) and the
+    // edit-chrome canvas then mounted AFTER the footer, so the draft's blocks
+    // appeared below the site footer (verified live on /p/untitled-* drafts).
+    // The draft read stays tenant-scoped by RLS either way; staff of another
+    // tenant read nothing.
+    let draftReaderActive = previewActive;
+    if (!freeformErr && !freeformPage && !draftReaderActive) {
+      draftReaderActive = (await requireStaff()).ok;
+    }
+    if (!freeformErr && !freeformPage && draftReaderActive) {
       const draftRead = await supabase
         .from("cms_pages")
         .select(freeformCols)
@@ -204,7 +217,7 @@ export default async function CmsPublicPage({
     if (
       !freeformErr &&
       freeformPage?.is_freeform &&
-      (freeformPage.status === "published" || previewActive)
+      (freeformPage.status === "published" || draftReaderActive)
     ) {
       const blocks = (freeformPage.blocks ?? []) as BuilderNode[];
       const publicPathPrefix = await getPublicPathPrefix();
