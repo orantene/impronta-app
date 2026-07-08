@@ -621,11 +621,6 @@
       "count": 43
     }
   },
-  "src/components/admin/shell/internal/page-modules/CardDesignStudio.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 55
-    }
-  },
   "src/components/admin/shell/internal/page-modules/ClientsPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 8
@@ -1165,11 +1160,6 @@
   "src/components/admin/shell/internal/talent/shared/profile-sections-3.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 7
-    }
-  },
-  "src/components/admin/shell/internal/talent/shared/reviews-card-1.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 35
     }
   },
   "src/components/admin/shell/internal/talent/shared/settings-1.tsx": {

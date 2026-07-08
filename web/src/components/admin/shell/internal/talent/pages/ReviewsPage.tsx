@@ -19,7 +19,7 @@
  * reportReviewAction (flag). No new loaders were added.
  */
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { reportReviewAction } from "@/lib/reviews/review-actions";
 import {
   createReviewRequestAction,
@@ -74,52 +74,26 @@ function StandingHeader({ summary }: { summary: TalentRatingSummary }) {
   const bookAgain = wouldBookAgainPhrase(count, wouldBookAgainPct);
 
   return (
-    <div
-      style={{
-        borderRadius: RADIUS.lg,
-        border: `1px solid ${COLORS.border}`,
-        background: COLORS.card,
-        padding: 20,
-        fontFamily: FONTS.body,
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          flexWrap: "wrap",
-        }}
-      >
+    <div className="flex flex-col gap-[14px] rounded-admin-lg border border-admin-border bg-admin-card p-[20px] font-admin-body">
+      <div className="flex flex-wrap items-center gap-[16px]">
         {/* Standing tier badge */}
         <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "5px 12px",
-            borderRadius: 999,
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: 0.2,
-            background: credible ? COLORS.accentSoft : COLORS.surfaceAlt,
-            color: credible ? COLORS.accentDeep : COLORS.inkMuted,
-            border: `1px solid ${credible ? COLORS.accentSoft : COLORS.border}`,
-          }}
+          className={`inline-flex items-center gap-[6px] rounded-[999px] border px-[12px] py-[5px] text-[12px] font-bold tracking-[0.2px] ${
+            credible
+              ? "border-admin-accent-soft bg-admin-accent-soft text-admin-accent-deep"
+              : "border-admin-border bg-admin-surface-alt text-admin-ink-muted"
+          }`}
         >
           {credible ? tierLabel : "Building standing"}
         </span>
 
         {/* Average + count */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="flex items-center gap-[10px]">
           <StaticStars rating={Math.round(average)} size={18} />
-          <span style={{ fontSize: 22, fontWeight: 700 }} className="text-admin-ink">
+          <span className="text-admin-22 font-bold text-admin-ink">
             {count > 0 ? average.toFixed(1) : "—"}
           </span>
-          <span style={{ fontSize: 13 }} className="text-admin-ink-muted">
+          <span className="text-admin-13 text-admin-ink-muted">
             {count === 0
               ? "No reviews yet"
               : `from ${count} review${count === 1 ? "" : "s"}`}
@@ -129,13 +103,13 @@ function StandingHeader({ summary }: { summary: TalentRatingSummary }) {
 
       {/* Would book again line */}
       {bookAgain && (
-        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+        <div className="text-admin-13 font-semibold text-admin-ink">
           {bookAgain}
         </div>
       )}
 
       {/* Credibility helper — sets expectation without overselling a thin record */}
-      <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
+      <div className="text-admin-12h leading-[1.5] text-admin-ink-muted">
         {count === 0
           ? "Your standing appears here once clients start reviewing your work. Every completed booking is a chance to earn one."
           : credible
@@ -230,46 +204,27 @@ function GrowthNotesCard({ notes }: { notes: OwnerPrivateNote[] }) {
   if (notes.length === 0) return null;
 
   return (
-    <div
-      style={{
-        borderRadius: RADIUS.lg,
-        border: `1px solid ${COLORS.border}`,
-        background: COLORS.card,
-        padding: 20,
-        fontFamily: FONTS.body,
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-      }}
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
+    <div className="flex flex-col gap-[14px] rounded-admin-lg border border-admin-border bg-admin-card p-[20px] font-admin-body">
+      <div className="flex flex-col gap-[4px]">
+        <span className="text-[14px] font-bold text-admin-ink">
           Growth notes
         </span>
-        <span style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
+        <span className="text-admin-12h leading-[1.5] text-admin-ink-muted">
           Private coaching a few clients shared just for you. Only you can see
           these. Take what is useful and keep doing what already works.
         </span>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="flex flex-col gap-[10px]">
         {notes.map((n) => (
           <div
             key={n.reviewId}
-            style={{
-              padding: "12px 14px",
-              borderRadius: RADIUS.md,
-              border: `1px solid ${COLORS.borderSoft}`,
-              background: COLORS.surfaceAlt,
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-            }}
+            className="flex flex-col gap-[6px] rounded-admin-md border border-admin-border-soft bg-admin-surface-alt px-[14px] py-[12px]"
           >
-            <span style={{ fontSize: 13, lineHeight: 1.55 }} className="text-admin-ink">
+            <span className="text-admin-13 leading-[1.55] text-admin-ink">
               {n.note}
             </span>
-            <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
+            <span className="text-admin-11 text-admin-ink-muted">
               {formatDate(n.createdAt)}
             </span>
           </div>
@@ -334,46 +289,27 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
 
   return (
     <div
-      style={{
-        padding: "14px 16px",
-        borderRadius: RADIUS.md,
-        border: `1px solid ${COLORS.borderSoft}`,
-        background: hidden ? COLORS.surfaceAlt : "#fff",
-        opacity: hidden ? 0.72 : 1,
-        fontFamily: FONTS.body,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
+      className={`flex flex-col gap-[8px] rounded-admin-md border border-admin-border-soft px-[16px] py-[14px] font-admin-body ${
+        hidden ? "bg-admin-surface-alt opacity-[0.72]" : "bg-white opacity-100"
+      }`}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <div className="flex flex-wrap items-center gap-[8px]">
         <StaticStars rating={review.rating} />
-        <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+        <span className="text-admin-13 font-semibold text-admin-ink">
           {review.clientName ?? "A client"}
         </span>
-        <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
+        <span className="text-admin-11h text-admin-ink-muted">
           {formatDate(review.createdAt)}
         </span>
         {hidden && (
-          <span
-            style={{
-              fontSize: 9.5,
-              fontWeight: 700,
-              letterSpacing: 0.4,
-              textTransform: "uppercase",
-              padding: "2px 7px",
-              borderRadius: 999,
-              background: COLORS.amberSoft,
-              color: COLORS.amberDeep,
-            }}
-          >
+          <span className="rounded-[999px] bg-admin-amber-soft px-[7px] py-[2px] text-admin-9h font-bold uppercase tracking-[0.4px] text-admin-amber-deep">
             Hidden
           </span>
         )}
       </div>
 
       {review.body && (
-        <div style={{ fontSize: 13, lineHeight: 1.55 }} className="text-admin-ink">
+        <div className="text-admin-13 leading-[1.55] text-admin-ink">
           {review.body}
         </div>
       )}
@@ -508,7 +444,7 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
           </button>
         )}
         {reported ? (
-          <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.green }}>
+          <span className="text-admin-11h font-semibold text-admin-green">
             Reported. Staff will look into it.
           </span>
         ) : (
@@ -516,17 +452,9 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
             type="button"
             onClick={report}
             disabled={busy === "report"}
-            style={{
-              padding: "5px 11px",
-              fontSize: 11.5,
-              fontWeight: 600,
-              borderRadius: 7,
-              border: `1px solid ${COLORS.border}`,
-              background: "#fff",
-              color: COLORS.inkMuted,
-              cursor: busy === "report" ? "wait" : "pointer",
-              fontFamily: FONTS.body,
-            }}
+            className={`rounded-admin-sm border border-admin-border bg-white px-[11px] py-[5px] font-admin-body text-admin-11h font-semibold text-admin-ink-muted ${
+              busy === "report" ? "cursor-wait" : "cursor-pointer"
+            }`}
           >
             {busy === "report" ? "Reporting…" : "Report"}
           </button>
@@ -583,78 +511,38 @@ function AskForReviewCard({
     setBusy(false);
   }
 
-  const inputStyle: CSSProperties = {
-    width: "100%",
-    padding: "9px 11px",
-    fontSize: 13,
-    borderRadius: RADIUS.sm,
-    border: `1px solid ${COLORS.border}`,
-    background: "#fff",
-    color: COLORS.ink,
-    fontFamily: FONTS.body,
-    boxSizing: "border-box",
-  };
+  const inputClass =
+    "box-border w-full rounded-admin-sm border border-admin-border bg-white px-[11px] py-[9px] font-admin-body text-admin-13 text-admin-ink";
 
   return (
-    <div
-      style={{
-        borderRadius: RADIUS.lg,
-        border: `1px solid ${COLORS.border}`,
-        background: COLORS.card,
-        padding: 20,
-        fontFamily: FONTS.body,
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-      }}
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
+    <div className="flex flex-col gap-[14px] rounded-admin-lg border border-admin-border bg-admin-card p-[20px] font-admin-body">
+      <div className="flex flex-col gap-[4px]">
+        <span className="text-[14px] font-bold text-admin-ink">
           Ask a past client for a review
         </span>
-        <span style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
+        <span className="text-admin-12h leading-[1.5] text-admin-ink-muted">
           A quick, personal request. It takes about 20 seconds and helps future
           clients decide.
         </span>
       </div>
 
       {sent ? (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-            alignItems: "flex-start",
-          }}
-        >
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.green }}>
+        <div className="flex flex-col items-start gap-[8px]">
+          <span className="text-admin-12h font-semibold text-admin-green">
             Request saved. We will let you know when they respond.
           </span>
           <button
             type="button"
             onClick={() => setSent(false)}
-            style={{
-              padding: "5px 11px",
-              fontSize: 11.5,
-              fontWeight: 600,
-              borderRadius: 7,
-              border: `1px solid ${COLORS.border}`,
-              background: "#fff",
-              color: COLORS.inkMuted,
-              cursor: "pointer",
-              fontFamily: FONTS.body,
-            }}
+            className="cursor-pointer rounded-admin-sm border border-admin-border bg-white px-[11px] py-[5px] font-admin-body text-admin-11h font-semibold text-admin-ink-muted"
           >
             Ask someone else
           </button>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <span
-              style={{ fontSize: 11.5, fontWeight: 600 }}
-              className="text-admin-ink-muted"
-            >
+        <div className="flex flex-col gap-[10px]">
+          <label className="flex flex-col gap-[5px]">
+            <span className="text-admin-11h font-semibold text-admin-ink-muted">
               Client email
             </span>
             <input
@@ -663,15 +551,12 @@ function AskForReviewCard({
               onChange={(e) => setEmail(e.target.value)}
               placeholder="client@example.com"
               disabled={busy}
-              style={inputStyle}
+              className={inputClass}
             />
           </label>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <span
-              style={{ fontSize: 11.5, fontWeight: 600 }}
-              className="text-admin-ink-muted"
-            >
+          <label className="flex flex-col gap-[5px]">
+            <span className="text-admin-11h font-semibold text-admin-ink-muted">
               A short note (optional)
             </span>
             <textarea
@@ -680,30 +565,24 @@ function AskForReviewCard({
               placeholder="It was a pleasure working with you. Would you share a few words?"
               disabled={busy}
               rows={3}
-              style={{ ...inputStyle, resize: "vertical", minHeight: 64 }}
+              className={`${inputClass} min-h-[64px] resize-y`}
             />
           </label>
 
           {error && (
-            <div style={{ fontSize: 11.5, color: COLORS.red }}>{error}</div>
+            <div className="text-admin-11h text-admin-red">{error}</div>
           )}
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="flex items-center gap-[8px]">
             <button
               type="button"
               onClick={submit}
               disabled={!canSubmit}
-              style={{
-                padding: "8px 16px",
-                fontSize: 12.5,
-                fontWeight: 700,
-                borderRadius: 8,
-                border: "none",
-                background: canSubmit ? COLORS.accent : COLORS.surfaceAlt,
-                color: canSubmit ? "#fff" : COLORS.inkDim,
-                cursor: canSubmit ? "pointer" : "not-allowed",
-                fontFamily: FONTS.body,
-              }}
+              className={`rounded-[8px] border-none px-[16px] py-[8px] font-admin-body text-admin-12h font-bold ${
+                canSubmit
+                  ? "cursor-pointer bg-admin-accent text-white"
+                  : "cursor-not-allowed bg-admin-surface-alt text-admin-ink-dim"
+              }`}
             >
               {busy ? "Sending…" : "Send request"}
             </button>
@@ -848,7 +727,7 @@ export function ReviewsPage() {
           Loading reviews…
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        <div className="flex flex-col gap-[16px] font-admin-body">
           <StandingHeader summary={data.summary} />
 
           {/* Light reputation analytics. Renders nothing when unresolved/empty. */}
@@ -864,34 +743,17 @@ export function ReviewsPage() {
             />
           )}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <span
-              style={{
-                fontSize: 10.5,
-                fontWeight: 700,
-                letterSpacing: 0.8,
-                textTransform: "uppercase",
-              }}
-              className="text-admin-ink-muted"
-            >
+          <div className="flex flex-col gap-[10px]">
+            <span className="text-admin-10h font-bold uppercase tracking-[0.8px] text-admin-ink-muted">
               All reviews
             </span>
 
             {data.reviews.length === 0 ? (
-              <div
-                style={{
-                  padding: 18,
-                  borderRadius: RADIUS.md,
-                  border: `1px dashed ${COLORS.border}`,
-                  fontSize: 13,
-                  textAlign: "center",
-                }}
-                className="text-admin-ink-muted"
-              >
+              <div className="rounded-admin-md border border-dashed border-admin-border p-[18px] text-center text-admin-13 text-admin-ink-muted">
                 No reviews yet. Completed bookings are where they start.
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div className="flex flex-col gap-[10px]">
                 {data.reviews.map((r) => (
                   <ReceivedReviewRow key={r.id} review={r} />
                 ))}
