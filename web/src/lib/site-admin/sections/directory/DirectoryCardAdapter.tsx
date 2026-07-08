@@ -26,7 +26,8 @@ import type { DirectoryV1 } from "./schema";
  *
  * The `<DirectoryCard>` itself stays pure / prop-driven (RP-1 / T2 reuse);
  * all interactivity lives in this adapter wrapper via `<TalentCardActions>`.
- * The two affordance bars are gated on the section's `showSave` /
+ * Both affordances sit in-media in the top-right cluster (favorite heart +
+ * hover-revealed inquiry pill) and are gated on the section's `showSave` /
  * `showAddToInquiry` knobs (P4 — previously always-on). The trait row
  * (fit chips + catalog lines) is projected from the DTO and trimmed by
  * `cardFieldKeys` / `maxFieldLines`.
@@ -60,7 +61,7 @@ export function DirectoryCardAdapter({
   nameFallback: DirectoryV1["nameFallback"];
   /** Render the favorite (save) affordance overlay. */
   showSave: boolean;
-  /** Render the "Inquire / Added" cart bar below the card. */
+  /** Render the in-media hover-revealed "Inquire" cart pill over the card. */
   showAddToInquiry: boolean;
   /** Catalog-field allow-list + order; empty = catalog default order. */
   cardFieldKeys: DirectoryV1["cardFieldKeys"];
@@ -113,10 +114,14 @@ export function DirectoryCardAdapter({
           index={index}
         />
         {/* Top-right affordance cluster: the favorite heart (always visible)
-            and a hover-revealed gold "Inquire" pill. Replaces the old heavy
-            full-width "Inquire / Added" bar that sat under every card. On
-            touch devices (no hover) the pill stays visible so the action is
-            never hidden; on desktop it fades in on card hover / focus. */}
+            and a hover-revealed gold "Inquire" pill. This in-media pill is the
+            single inquiry affordance per card (it replaces the old heavy
+            full-width "Inquire / Added" bar that used to sit under every card).
+            It carries the portrait + photo rect so adding flies a face-focus
+            avatar to the "Message {agency}" launcher pill (plan §4.A.5), and it
+            reflects cart membership as "In lineup" with a filled pill. On touch
+            devices (no hover) the pill stays visible so the action is never
+            hidden; on desktop it fades in on card hover / focus. */}
         {showSave || showAddToInquiry ? (
           <div className="absolute right-2.5 top-2.5 z-[2] flex items-center gap-2">
             {showAddToInquiry ? (
@@ -128,6 +133,12 @@ export function DirectoryCardAdapter({
                   sourcePage={pathname}
                   variant="pill"
                   hideFavorite
+                  portraitUrl={card.thumbnail?.url ?? null}
+                  getInquiryPhotoRect={() =>
+                    mediaRef.current
+                      ?.querySelector("img")
+                      ?.getBoundingClientRect() ?? null
+                  }
                 />
               </div>
             ) : null}
@@ -171,22 +182,6 @@ export function DirectoryCardAdapter({
           </div>
         )
       ) : null}
-
-      {/* INQUIRE / ADDED ✓ bar below the card — cart membership. Carries the
-          portrait + photo rect so adding flies a face-focus avatar to the
-          "Message {agency}" launcher pill (plan §4.A.5). */}
-      <TalentCardActions
-        talentProfileId={card.id}
-        profileCode={card.profileCode ?? ""}
-        displayName={card.displayName}
-        sourcePage="/directory"
-        hideFavorite
-        className="mt-2"
-        portraitUrl={card.thumbnail?.url ?? null}
-        getInquiryPhotoRect={() =>
-          mediaRef.current?.querySelector("img")?.getBoundingClientRect() ?? null
-        }
-      />
     </div>
   );
 }

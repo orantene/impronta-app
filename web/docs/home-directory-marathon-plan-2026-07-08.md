@@ -57,5 +57,26 @@ implement (agent, absolute paths in this worktree) → tsc+lint gate → QA on :
 → design-study agent scores it vs spec → iterate until pass → commit. After all phases: full audit +
 revision rounds until home + directory hit the bar.
 
+## RE-BASELINE against main (CRITICAL — 2026-07-08)
+The 7-agent audit ran on the stale `feat/message-…` branch. `main` is well AHEAD; several
+audit "gaps" are ALREADY BUILT on main:
+- **Card:** ONE canonical `@/components/talent-cards/TalentCard` — token-driven (`--token-card-*`),
+  compact captions, monogram fallback, prop-driven aspect, single `<Link>` root. NOT the old
+  heavy hardcoded-dark card. `editorial-noir` family CSS exists for Impronta.
+- **Card Design Studio (CardDesignStudio + -2/-3/-4):** REAL now — persists look + colors + family
+  via `saveDesignDraftFromEditAction` draft → `publishDesign`; live token-painted preview
+  (CardDesignStudio-4). Only *per-surface layout + show-toggles* remain preview-only (and the
+  directory SECTION editor already persists those per-instance).
+- **Filters:** per-tenant sidebar layout + per-tenant field overrides ALREADY shipped
+  (migration `20260520015050_directory_multi_tenant_constraints.sql` lifted the G7 singleton).
+- **Inquire-in-media (C3):** the hover-reveal pill already exists in DirectoryCardAdapter — BUT the
+  OLD full-width bar is STILL rendered below (redundant double-affordance; incomplete refactor).
+Net: the directory/card/admin infra is mature. Remaining real value = visual ELEVATION +
+consolidation + the HOME PAGE (prod-data freeform tree).
+
 ## Progress log
-- 2026-07-08: Worktree + dev server + proxy + plan created. Starting Phase 1.
+- 2026-07-08: Setup done. Re-baselined vs main (above).
+- 2026-07-08: **Phase 1 SHIPPED + committed `4548b861a`** — theme-adaptive filter/toolbar/sidebar
+  chrome (de-gold → --dir-accent), live `density=compact`, fixed dead `hoverBehavior=reveal_traits`.
+  tsc+eslint clean; QA verified on :3210 (tokens resolve, no console errors, traits collapse at rest).
+- 2026-07-08: Next — consolidate double inquire affordance (compact one-click); deep-map home page.
