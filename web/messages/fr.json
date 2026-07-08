@@ -284,6 +284,18 @@
   },
   "dashboard": {
     "signOut": "Se déconnecter",
-    "exit": "Quitter"
+    "exit": "Quitter",
+    "clientNav": {
+      "messages": "Messages",
+      "today": "Aujourd'hui",
+      "discover": "Découvrir",
+      "favorites": "Favoris",
+      "shortlists": "Sélections",
+      "pitches": "Propositions",
+      "inquiries": "Demandes",
+      "bookings": "Réservations",
+      "reviews": "Avis",
+      "settings": "Paramètres"
+    }
   }
 }

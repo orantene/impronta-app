@@ -27,6 +27,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { notifyBookingDayOfReminder } from "@/lib/notifications/producers/booking-day-of-reminder-notify";
+import { runReviewRequestReminders } from "@/lib/notifications/producers/review-request-reminder-notify";
 import type { DispatchResult } from "@/lib/notifications/types";
 
 export const runtime = "nodejs";
@@ -114,11 +115,24 @@ export async function GET(request: Request) {
       }
     }
 
+    // Piggyback the STANDING review-request reminder sweep on this daily run
+    // (no dedicated review cron — see review-request-reminder-notify.ts). It is
+    // idempotent (reminded_at cursor + dispatch_log dedupe) and best-effort: a
+    // failure here must never fail the booking-reminder sweep above.
+    let reviewReminders = { scanned: 0, reminded: 0 };
+    try {
+      reviewReminders = await runReviewRequestReminders();
+    } catch (err) {
+      logServerError("cron/booking-reminders.review-reminders", err);
+    }
+
     const summary = {
       date: tomorrow,
       bookingsScanned: rows.length,
       bookingsReminded: eligible.length,
       bookingsSkippedNoInquiry: rows.length - eligible.length,
+      reviewRequestsScanned: reviewReminders.scanned,
+      reviewRequestsReminded: reviewReminders.reminded,
       ...totals,
     };
     void improntaLog("notif.cron.booking_reminders", summary);

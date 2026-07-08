@@ -288,7 +288,9 @@ export type DrawerId =
   | "workspace-profile"         // workspace own identity / branding summary
   // ── Media Gallery + Watermark ────────────────────────────────────────
   | "watermark-editor"          // per-image watermark position/opacity/size editor
-  | "workspace-media-gallery";  // full-screen agency media grid (Agency tier)
+  | "workspace-media-gallery"   // full-screen agency media grid (Agency tier)
+  // ── Reviews moderation (STANDING) ────────────────────────────────────
+  | "reviews-moderation";       // staff reported-review queue + rating-integrity panel
 
 export type DrawerContext = {
   drawerId: DrawerId | null;
