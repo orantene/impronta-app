@@ -29,14 +29,20 @@ pinned when `heightMode==="fixed"` (`render.tsx:3673-3676`). Flipping
 **The change:** on the one hero node (`kind:"carousel"`, `props.variant:"hero"`),
 set `props.heightMode = "large"`. Leave `minHeightPx` (inert when not fixed).
 
-**Apply (supervised, non-auto session):** a self-verifying script that asserts
-exactly one node changes and preserves the 210-node count, double-backs-up, then
-writes. (Draft was prepared during the marathon but not run — the prod write
-needs your approval.) Verify after: `curl -s -H "Host: impronta.lvh.me"
-http://localhost:3200/ | grep -o 'data-bn-height-mode="[a-z]*"'` should show
-`large`, and the page must still render 200 with all sections present.
+**Apply (supervised, non-auto session — two committed commands):**
+```
+cd web
+npx tsx --env-file=.env.local scripts/marathon-prep-home-tree.mts   # reads live tree, applies hero->large, writes /tmp/impronta-tree.json (safe, no DB write)
+npx tsx --env-file=.env.local scripts/seed-impronta-homepage.mts     # publishes it (prod write — you approve). Backs up to /tmp/impronta-pub-backup.json first
+```
+The prep script self-verifies (exactly one hero change) and aborts otherwise.
+Verify after: `curl -s -H "Host: impronta.lvh.me" http://localhost:3200/ | grep -o
+'data-bn-height-mode="[a-z]*"'` should show `large`, and the page must still render
+200 with every section present.
 
-**Rollback:** write the backed-up snapshot JSON back to the row.
+**Rollback:** the seed backs the previous snapshot up to `/tmp/impronta-pub-backup.json`
+(and prep to `/tmp/impronta-home-tree-prebackup.json`); write its `.builderTree` back to
+the `published_homepage_snapshot` row to restore.
 
 ---
 
