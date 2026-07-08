@@ -41,6 +41,7 @@ import {
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import { resolvePublicRosterDisplayCap } from "@/lib/saas/roster-seat-limit";
 import { resolveTenantSafeDirectoryTaxonomyTermIds } from "@/lib/directory/taxonomy-tenant-safety";
+import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 
 /**
  * Directory `q`: primary path is Postgres RPC `directory_search_public_talent_ids` (FTS + ILIKE + similarity).
@@ -258,6 +259,14 @@ export async function fetchDirectoryPage(
     DIRECTORY_PAGE_SIZE_MAX,
   );
   const tenantScopeId = params.tenantId ?? null;
+  // Reviews are a PREMIUM capability. Card STANDING (rating_avg / rating_count /
+  // would_book_again_pct) is gated on the SURFACE tenant's entitlement, computed
+  // ONCE per fetch and applied to every card below. With no tenant scope
+  // (platform / global marketplace host) there is nothing to gate, so standing
+  // stays ON — mirrors how the public profile gates only agency hosts.
+  const reviewsStandingEnabled = tenantScopeId
+    ? await tenantReviewsEnabled(tenantScopeId)
+    : true;
   const requestedTaxonomyTermIds = params.taxonomyTermIds?.filter(Boolean) ?? [];
   const locale = params.locale ?? "en";
   const sort = params.sort ?? "recommended";
@@ -1087,9 +1096,13 @@ export async function fetchDirectoryPage(
         indexByProfile.get(profile.id)?.available_days_in_next_30 ?? null,
       // Review / craft-standing aggregates, sourced directly off the
       // `talent_profiles` row (additive; null when no eligible reviews).
-      rating_avg: profile.rating_avg,
-      rating_count: profile.rating_count,
-      would_book_again_pct: profile.would_book_again_pct,
+      // Premium gate: null the STANDING fields for a non-entitled surface tenant
+      // so no card standing renders (boolean computed once per fetch above).
+      rating_avg: reviewsStandingEnabled ? profile.rating_avg : null,
+      rating_count: reviewsStandingEnabled ? profile.rating_count : null,
+      would_book_again_pct: reviewsStandingEnabled
+        ? profile.would_book_again_pct
+        : null,
     };
   });
 

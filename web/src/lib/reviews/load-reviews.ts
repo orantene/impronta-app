@@ -380,7 +380,7 @@ export async function loadTalentReviewsForOwner(
   const { data, error } = await supabase
     .from("talent_reviews")
     .select(
-      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, reported_at",
+      "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, reported_at, anon",
     )
     .eq("talent_profile_id", talentProfileId)
     .order("created_at", { ascending: false })
@@ -395,10 +395,67 @@ export async function loadTalentReviewsForOwner(
     talentProfileId: r.talent_profile_id,
     bookingId: r.booking_id,
     clientUserId: r.client_user_id,
+    // An anonymous reviewer is anonymous to the talent too — blank the name so
+    // the owner's own Reviews page renders "Verified client", matching public.
     clientName: r.anon ? null : names.get(r.client_user_id) ?? null,
     rating: r.rating,
     body: r.body,
     status: r.status,
     createdAt: r.created_at,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Growth notes (private coaching) — owner-only read.
+//
+// `talent_reviews.private_note` is talent-only coaching feedback a client can
+// leave alongside a review. RLS (talent_reviews_merged_select_public) exposes a
+// review row to the subject talent (tp.user_id = auth.uid()), so this read MUST
+// run as the authed owner via getCachedServerSupabase() — never the anon/public
+// client. Returns the most recent non-empty notes, newest first.
+// ---------------------------------------------------------------------------
+
+/** One private coaching note left on a talent's own received review. */
+export type OwnerPrivateNote = {
+  reviewId: string;
+  note: string;
+  createdAt: string;
+};
+
+type PrivateNoteRow = {
+  id: string;
+  private_note: string | null;
+  created_at: string;
+};
+
+/**
+ * Recent non-empty `private_note` values on the talent's OWN received reviews,
+ * newest first. Owner-scoped by RLS. Returns [] when none (or unconfigured).
+ */
+export async function loadOwnerPrivateNoteThemes(
+  talentProfileId: string,
+  limit = 6,
+): Promise<OwnerPrivateNote[]> {
+  if (!talentProfileId) return [];
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("talent_reviews")
+    .select("id, private_note, created_at")
+    .eq("talent_profile_id", talentProfileId)
+    .not("private_note", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .returns<PrivateNoteRow[]>();
+
+  if (error || !data || data.length === 0) return [];
+
+  return data
+    .map((r) => ({
+      reviewId: r.id,
+      note: (r.private_note ?? "").trim(),
+      createdAt: r.created_at,
+    }))
+    .filter((n) => n.note.length > 0);
 }
