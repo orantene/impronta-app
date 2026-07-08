@@ -5,6 +5,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import { addTalentToRoster, bulkAddTalentToRoster } from "../actions";
 import { parseTalentCsv } from "../csv-parser";
@@ -2035,6 +2036,7 @@ export function RegFieldInput({ field, value, onChange, visibility, onVisibility
  */
 
 export function ConsentTwoCol({ agencyName }: { agencyName: string }) {
+  const t = useT();
   const { effectiveFieldVisibility, customFields } = useAdminShell();
   const allFieldIds = Object.keys(PROFILE_FIELD_META) as ProfileFieldId[];
   const publicLabels: string[] = [];
@@ -2064,9 +2066,9 @@ export function ConsentTwoCol({ agencyName }: { agencyName: string }) {
         }
       `}</style>
       <div style={{ padding: "12px 14px", borderBottom: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface">
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 3 }} className="text-admin-ink-muted">Privacy · what {agencyName} will use</div>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 3 }} className="text-admin-ink-muted">{interpolate(t("dashboard.adminDrawers.consentPrivacyHeading"), { agency: agencyName })}</div>
         <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-          Tulala always captures your full profile. {agencyName} chooses what&apos;s public and what stays internal. Here&apos;s what they&apos;ve configured.
+          {interpolate(t("dashboard.adminDrawers.consentPrivacyBody"), { agency: agencyName })}
         </div>
       </div>
       <div data-cc-cols style={{
@@ -2075,11 +2077,11 @@ export function ConsentTwoCol({ agencyName }: { agencyName: string }) {
         <div style={{ padding: 12, borderRight: `1px solid ${COLORS.borderSoft}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, marginBottom: 8 }} className="text-admin-success-deep">
             <span className="text-xs">🌐</span>
-            <span style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>On {agencyName}&apos;s site</span>
+            <span style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>{interpolate(t("dashboard.adminDrawers.consentPublicColumn"), { agency: agencyName })}</span>
           </div>
           <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3 }}>
             {publicLabels.length === 0 && (
-              <li className="text-admin-ink-dim text-admin-11">None — fully internal.</li>
+              <li className="text-admin-ink-dim text-admin-11">{t("dashboard.adminDrawers.consentPublicEmpty")}</li>
             )}
             {publicLabels.map(l => (
               <li key={l} style={{ fontSize: 11.5, color: COLORS.ink, lineHeight: 1.5 }}>
@@ -2091,11 +2093,11 @@ export function ConsentTwoCol({ agencyName }: { agencyName: string }) {
         <div className="p-3">
           <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, marginBottom: 8 }} className="text-admin-amber-deep">
             <span className="text-xs">🔒</span>
-            <span style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>Agency admins see</span>
+            <span style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>{t("dashboard.adminDrawers.consentInternalColumn")}</span>
           </div>
           <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3 }}>
             {internalLabels.length === 0 && (
-              <li className="text-admin-ink-dim text-admin-11">None.</li>
+              <li className="text-admin-ink-dim text-admin-11">{t("dashboard.adminDrawers.consentInternalEmpty")}</li>
             )}
             {internalLabels.map(l => (
               <li key={l} style={{ fontSize: 11.5, color: COLORS.ink, lineHeight: 1.5 }}>
@@ -2106,7 +2108,7 @@ export function ConsentTwoCol({ agencyName }: { agencyName: string }) {
         </div>
       </div>
       <div style={{ padding: "10px 14px", borderTop: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5, lineHeight: 1.5 }} className="bg-admin-surface text-admin-ink-dim">
-        ✦ = custom field defined by {agencyName}. You can revoke this agency&apos;s access any time from your Talent settings.
+        {interpolate(t("dashboard.adminDrawers.consentFootnote"), { agency: agencyName })}
       </div>
     </div>
   );
@@ -4208,6 +4210,21 @@ export const VR_STATUS_META: Record<VerificationRequestStatus, { label: string; 
   needs_more_info:     { label: "Needs more info",  tone: "amber" },
 };
 
+// Localized labels — additive to VR_STATUS_META (whose English `.label`
+// stays for non-localized consumers). Localized render sites resolve
+// t(VR_STATUS_LABEL_KEYS[status]); the raw union above stays for tone/logic.
+export const VR_STATUS_LABEL_KEYS: Record<VerificationRequestStatus, string> = {
+  draft:               "dashboard.adminDrawers.vrStatusDraft",
+  pending_user_action: "dashboard.adminDrawers.vrStatusPendingUser",
+  submitted:           "dashboard.adminDrawers.vrStatusSubmitted",
+  in_review:           "dashboard.adminDrawers.vrStatusInReview",
+  approved:            "dashboard.adminDrawers.vrStatusApproved",
+  rejected:            "dashboard.adminDrawers.vrStatusRejected",
+  expired:             "dashboard.adminDrawers.vrStatusExpired",
+  cancelled:           "dashboard.adminDrawers.vrStatusCancelled",
+  needs_more_info:     "dashboard.adminDrawers.vrStatusNeedsMoreInfo",
+};
+
 // Activity log — timeline derived from a request's lifecycle fields.
 // We don't store full event history yet; instead we synthesize the
 // likely sequence from createdAt/updatedAt/reviewedAt + current status.
@@ -4308,6 +4325,7 @@ export function ActivityLogPanel({ request }: { request: VerificationRequest }) 
 
 
 export function TalentTrustHealthPanel({ talentId }: { talentId: string }) {
+  const t = useT();
   const { getTrustSummary, getRiskScore, listEnabledMethods, openDrawer } = useAdminShell();
   const trust = getTrustSummary("talent_profile", talentId);
   const score = getRiskScore("talent_profile", talentId);
@@ -4315,38 +4333,38 @@ export function TalentTrustHealthPanel({ talentId }: { talentId: string }) {
 
   // Build suggestions — methods enabled platform-wide that the talent
   // doesn't have yet. Ranked by approximate score lift.
-  const SUGGESTION_META: Record<VerificationType, { lift: number; emoji: string; copy: string; drawer: DrawerSuggestion }> = {
-    instagram_verified: { lift: 12, emoji: "📸", copy: "Verify your Instagram",       drawer: "talent-trust-detail" },
-    tulala_verified:    { lift: 12, emoji: "✓",  copy: "Request Tulala Review",       drawer: "talent-trust-detail" },
-    agency_confirmed:   { lift: 10, emoji: "✦",  copy: "Get agency confirmation",     drawer: "talent-trust-detail" },
-    phone_verified:     { lift: 5,  emoji: "📱", copy: "Verify your phone",           drawer: "talent-phone-verify" },
-    id_verified:        { lift: 12, emoji: "🪪", copy: "Verify your ID",              drawer: "talent-id-verify" },
-    business_verified:  { lift: 10, emoji: "🏢", copy: "Verify your business",        drawer: "talent-business-verify" },
-    domain_verified:    { lift: 8,  emoji: "🌐", copy: "Verify your domain",          drawer: "talent-domain-verify" },
-    payment_verified:   { lift: 5,  emoji: "💳", copy: "Verify payment account",      drawer: "talent-payment-verify" },
+  const SUGGESTION_META: Record<VerificationType, { lift: number; emoji: string; copyKey: string; drawer: DrawerSuggestion }> = {
+    instagram_verified: { lift: 12, emoji: "📸", copyKey: "dashboard.adminDrawers.trustSuggestInstagram", drawer: "talent-trust-detail" },
+    tulala_verified:    { lift: 12, emoji: "✓",  copyKey: "dashboard.adminDrawers.trustSuggestTulala",    drawer: "talent-trust-detail" },
+    agency_confirmed:   { lift: 10, emoji: "✦",  copyKey: "dashboard.adminDrawers.trustSuggestAgency",    drawer: "talent-trust-detail" },
+    phone_verified:     { lift: 5,  emoji: "📱", copyKey: "dashboard.adminDrawers.trustSuggestPhone",     drawer: "talent-phone-verify" },
+    id_verified:        { lift: 12, emoji: "🪪", copyKey: "dashboard.adminDrawers.trustSuggestId",        drawer: "talent-id-verify" },
+    business_verified:  { lift: 10, emoji: "🏢", copyKey: "dashboard.adminDrawers.trustSuggestBusiness",  drawer: "talent-business-verify" },
+    domain_verified:    { lift: 8,  emoji: "🌐", copyKey: "dashboard.adminDrawers.trustSuggestDomain",    drawer: "talent-domain-verify" },
+    payment_verified:   { lift: 5,  emoji: "💳", copyKey: "dashboard.adminDrawers.trustSuggestPayment",   drawer: "talent-payment-verify" },
   };
   const enabled = listEnabledMethods();
-  const hasType = (t: VerificationType) => trust.badges.some(b => b.type === t && b.status === "active");
+  const hasType = (vt: VerificationType) => trust.badges.some(b => b.type === vt && b.status === "active");
   const suggestions = enabled
-    .filter(t => !hasType(t))
-    .filter(t => SUGGESTION_META[t].drawer !== "talent-trust-detail" || t === "instagram_verified" || t === "tulala_verified")
-    .map(t => ({ type: t, ...SUGGESTION_META[t] }))
+    .filter(vt => !hasType(vt))
+    .filter(vt => SUGGESTION_META[vt].drawer !== "talent-trust-detail" || vt === "instagram_verified" || vt === "tulala_verified")
+    .map(vt => ({ type: vt, ...SUGGESTION_META[vt] }))
     .sort((a, b) => b.lift - a.lift)
     .slice(0, 3);
 
   return (
-    <Section title="Trust health" framed>
+    <Section title={t("dashboard.adminDrawers.trustHealthTitle")} framed>
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: suggestions.length > 0 ? 14 : 0 }}>
-        <RiskScorePill score={score} label="Score" />
+        <RiskScorePill score={score} label={t("dashboard.adminDrawers.trustHealthScoreLabel")} />
         <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {activeBadgeCount === 0
-            ? "No active badges yet. Verifying lifts your score and your inquiry priority."
-            : `${activeBadgeCount} active badge${activeBadgeCount === 1 ? "" : "s"}. Score blends verifications, claim status, and account history.`}
+            ? t("dashboard.adminDrawers.trustHealthNoBadges")
+            : interpolate(t(activeBadgeCount === 1 ? "dashboard.adminDrawers.trustHealthBadgesOne" : "dashboard.adminDrawers.trustHealthBadgesOther"), { count: activeBadgeCount })}
         </div>
       </div>
       {suggestions.length > 0 && (
         <>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-dim">Earn more trust</div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-dim">{t("dashboard.adminDrawers.trustHealthEarnMore")}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
             {suggestions.map(s => (
               <button key={s.type} type="button" onClick={() => openDrawer(s.drawer as DrawerSuggestion)}
@@ -4358,8 +4376,8 @@ export function TalentTrustHealthPanel({ talentId }: { talentId: string }) {
                 }}>
                 <span className="text-lg">{s.emoji}</span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-admin-ink text-admin-12h font-semibold">{s.copy}</div>
-                  <div style={{ fontSize: 11, marginTop: 1, fontWeight: 600 }} className="text-admin-success-deep">+{s.lift} score</div>
+                  <div className="text-admin-ink text-admin-12h font-semibold">{t(s.copyKey)}</div>
+                  <div style={{ fontSize: 11, marginTop: 1, fontWeight: 600 }} className="text-admin-success-deep">{interpolate(t("dashboard.adminDrawers.trustHealthScoreLift"), { lift: s.lift })}</div>
                 </div>
               </button>
             ))}
@@ -4587,10 +4605,24 @@ export const REVIEW_MODE_LABEL: Record<"automated" | "manual" | "hybrid", string
   hybrid:    "Hybrid",
 };
 
+// Localized-label sibling maps (enum → catalog key). English maps above
+// stay for non-localized consumers; localized render sites use t(...KEYS[v]).
+export const REVIEW_MODE_LABEL_KEYS: Record<"automated" | "manual" | "hybrid", string> = {
+  automated: "dashboard.adminDrawers.reviewModeAutomated",
+  manual:    "dashboard.adminDrawers.reviewModeManual",
+  hybrid:    "dashboard.adminDrawers.reviewModeHybrid",
+};
+
 export const VISIBILITY_LABEL: Record<"public_profile" | "admin_only" | "internal", string> = {
   public_profile: "Public profile",
   admin_only:     "Admin only",
   internal:       "Internal",
+};
+
+export const VISIBILITY_LABEL_KEYS: Record<"public_profile" | "admin_only" | "internal", string> = {
+  public_profile: "dashboard.adminDrawers.visibilityPublicProfile",
+  admin_only:     "dashboard.adminDrawers.visibilityAdminOnly",
+  internal:       "dashboard.adminDrawers.visibilityInternal",
 };
 
 export const TIER_LABEL: Record<"basic" | "pro" | "portfolio" | "all", string> = {
@@ -4598,6 +4630,13 @@ export const TIER_LABEL: Record<"basic" | "pro" | "portfolio" | "all", string> =
   pro:       "Pro",
   portfolio: "Portfolio",
   all:       "All tiers",
+};
+
+export const TIER_LABEL_KEYS: Record<"basic" | "pro" | "portfolio" | "all", string> = {
+  basic:     "dashboard.adminDrawers.methodTierBasic",
+  pro:       "dashboard.adminDrawers.methodTierPro",
+  portfolio: "dashboard.adminDrawers.methodTierPortfolio",
+  all:       "dashboard.adminDrawers.methodTierAll",
 };
 
 
@@ -4641,9 +4680,10 @@ export function vmChipStyle(active: boolean): React.CSSProperties {
 
 
 export function MethodDisabledNotice() {
+  const t = useT();
   return (
     <div style={{ padding: "20px 18px", borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, textAlign: "center", fontSize: 13, lineHeight: 1.55 }} className="bg-admin-surface text-admin-ink-muted">
-      This verification method isn&apos;t enabled on Tulala right now.<br />Check back later — platform admins decide which methods are available.
+      {t("dashboard.adminDrawers.methodDisabledLine1")}<br />{t("dashboard.adminDrawers.methodDisabledLine2")}
     </div>
   );
 }

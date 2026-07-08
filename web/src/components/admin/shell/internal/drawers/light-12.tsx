@@ -581,10 +581,10 @@ export function PlatformVerificationMethodsDrawer() {
                       }}>{c.enabled ? tt("ON") : tt("OFF")}</span>
                     </div>
                     <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
-                      {REVIEW_MODE_LABEL[c.reviewMode]} · {c.visibleOn.map(v => VISIBILITY_LABEL[v]).join(" · ")}
+                      {tt(REVIEW_MODE_LABEL[c.reviewMode])} · {c.visibleOn.map(v => tt(VISIBILITY_LABEL[v])).join(" · ")}
                     </div>
                     <div style={{ fontSize: 10.5, marginTop: 2 }} className="text-admin-ink-dim">
-                      {c.availableToTiers.map(t => TIER_LABEL[t]).join(", ")}{c.evidenceRequired ? ` · ${tt("evidence")}` : ""}{c.expiresAfterDays ? ` · ${copy.isSpanish ? `vence ${c.expiresAfterDays} d` : `expires ${c.expiresAfterDays}d`}` : ""}
+                      {c.availableToTiers.map(t => tt(TIER_LABEL[t])).join(", ")}{c.evidenceRequired ? ` · ${tt("evidence")}` : ""}{c.expiresAfterDays ? ` · ${copy.isSpanish ? `vence ${c.expiresAfterDays} d` : `expires ${c.expiresAfterDays}d`}` : ""}
                     </div>
                   </div>
                 </button>
@@ -635,7 +635,7 @@ export function PlatformVerificationMethodsDrawer() {
 
                 <ConfigRow label={tt("Review mode")} hint={tt("Automated runs without a human; manual goes through the admin queue.")}>
                   <select value={cur.reviewMode} onChange={(e) => updateVerificationMethod(cur.type, { reviewMode: e.target.value as "automated" | "manual" | "hybrid" })} style={vmSelectStyle()}>
-                    {(["automated", "manual", "hybrid"] as const).map(m => <option key={m} value={m}>{REVIEW_MODE_LABEL[m]}</option>)}
+                    {(["automated", "manual", "hybrid"] as const).map(m => <option key={m} value={m}>{tt(REVIEW_MODE_LABEL[m])}</option>)}
                   </select>
                 </ConfigRow>
 
@@ -648,7 +648,7 @@ export function PlatformVerificationMethodsDrawer() {
                           const next = on ? cur.visibleOn.filter(x => x !== v) : [...cur.visibleOn, v];
                           if (next.length === 0) return;
                           updateVerificationMethod(cur.type, { visibleOn: next });
-                        }} style={vmChipStyle(on)}>{VISIBILITY_LABEL[v]}</button>
+                        }} style={vmChipStyle(on)}>{tt(VISIBILITY_LABEL[v])}</button>
                       );
                     })}
                   </div>
@@ -665,7 +665,7 @@ export function PlatformVerificationMethodsDrawer() {
                             : t === "all" ? ["all" as const] : [...cur.availableToTiers.filter(x => x !== "all"), t];
                           if (next.length === 0) return;
                           updateVerificationMethod(cur.type, { availableToTiers: next });
-                        }} style={vmChipStyle(on)}>{TIER_LABEL[t]}</button>
+                        }} style={vmChipStyle(on)}>{tt(TIER_LABEL[t])}</button>
                       );
                     })}
                   </div>

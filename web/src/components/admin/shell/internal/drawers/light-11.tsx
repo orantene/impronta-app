@@ -278,7 +278,7 @@ export function TrustVerificationQueueDrawer() {
                       <span style={{ fontSize: 13, fontWeight: 600, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
                         {talentNameFor(r.subjectId)}
                       </span>
-                      <StateChipMini label={meta.label} tone={meta.tone} />
+                      <StateChipMini label={tt(meta.label)} tone={meta.tone} />
                     </div>
                     <div style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 6 }} className="text-admin-ink-muted">
                       <span>{typeMeta.emoji} {typeMeta.shortLabel}</span>
@@ -307,7 +307,7 @@ export function TrustVerificationQueueDrawer() {
                   <span style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">
                     {talentNameFor(cur.subjectId)}
                   </span>
-                  <StateChipMini label={VR_STATUS_META[cur.status].label} tone={VR_STATUS_META[cur.status].tone} />
+                  <StateChipMini label={tt(VR_STATUS_META[cur.status].label)} tone={VR_STATUS_META[cur.status].tone} />
                 </div>
                 <div style={{ fontSize: 12, marginBottom: 16 }} className="text-admin-ink-muted">
                   {VERIFICATION_TYPE_META[cur.verificationType].emoji} {VERIFICATION_TYPE_META[cur.verificationType].label}
