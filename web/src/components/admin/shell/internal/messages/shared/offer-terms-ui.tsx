@@ -23,14 +23,15 @@
 import { useState, useTransition } from "react";
 import { COLORS, FONTS } from "../../state";
 import { fmtMoney } from "./machinery-10";
+import { useT } from "@/i18n/use-t";
 import {
   type BalanceCollectionMethod,
   type RefundPolicyKey,
   type OfferCommercialTerms,
-  BALANCE_METHOD_LABELS,
-  BALANCE_METHOD_DESCRIPTIONS,
-  REFUND_POLICY_LABELS,
-  REFUND_POLICY_DESCRIPTIONS,
+  BALANCE_METHOD_LABEL_KEYS,
+  BALANCE_METHOD_DESCRIPTION_KEYS,
+  REFUND_POLICY_LABEL_KEYS,
+  REFUND_POLICY_DESCRIPTION_KEYS,
   normalizeDepositPct,
 } from "@/lib/billing/commercial-terms-types";
 
@@ -69,6 +70,7 @@ export function OfferTermsComposer({
     refundPolicy: RefundPolicyKey;
   }) => Promise<{ ok: boolean; error?: string }>;
 }) {
+  const t = useT();
   const [balanceMethod, setBalanceMethod] = useState<BalanceCollectionMethod>(initial.balanceMethod);
   const [refundPolicy, setRefundPolicy] = useState<RefundPolicyKey>(initial.refundPolicy);
   const [depositPct, setDepositPct] = useState<number>(
@@ -154,11 +156,11 @@ export function OfferTermsComposer({
           style={selectStyle}
         >
           {REFUND_POLICIES.map((p) => (
-            <option key={p} value={p}>{REFUND_POLICY_LABELS[p]}</option>
+            <option key={p} value={p}>{t(REFUND_POLICY_LABEL_KEYS[p])}</option>
           ))}
         </select>
         <span className="text-admin-ink-dim text-admin-11" style={{ lineHeight: 1.4 }}>
-          {REFUND_POLICY_DESCRIPTIONS[refundPolicy]}
+          {t(REFUND_POLICY_DESCRIPTION_KEYS[refundPolicy])}
         </span>
       </label>
 
@@ -172,11 +174,11 @@ export function OfferTermsComposer({
           style={selectStyle}
         >
           {BALANCE_METHODS.map((m) => (
-            <option key={m} value={m}>{BALANCE_METHOD_LABELS[m]}</option>
+            <option key={m} value={m}>{t(BALANCE_METHOD_LABEL_KEYS[m])}</option>
           ))}
         </select>
         <span className="text-admin-ink-dim text-admin-11" style={{ lineHeight: 1.4 }}>
-          {BALANCE_METHOD_DESCRIPTIONS[balanceMethod]}
+          {t(BALANCE_METHOD_DESCRIPTION_KEYS[balanceMethod])}
         </span>
       </label>
 
@@ -240,7 +242,7 @@ export function OfferTermsComposer({
         <PreviewStat
           label="Balance later"
           value={balanceUnits <= 0 ? "—" : fmtMoney(balanceUnits, currencyCode)}
-          sub={BALANCE_METHOD_LABELS[balanceMethod]}
+          sub={t(BALANCE_METHOD_LABEL_KEYS[balanceMethod])}
         />
       </div>
     </div>
@@ -283,6 +285,7 @@ export function OfferTermsSummary({
   currencyCode: string;
   showApprovalLine?: boolean;
 }) {
+  const t = useT();
   const pct = normalizeDepositPct(terms.balanceMethod, terms.depositPct);
   const depositUnits =
     terms.depositAmountCents != null && terms.depositAmountCents > 0
@@ -319,14 +322,14 @@ export function OfferTermsSummary({
         value={
           balanceUnits <= 0
             ? "Paid in full up front"
-            : `${fmtMoney(balanceUnits, currencyCode)} via ${BALANCE_METHOD_LABELS[terms.balanceMethod]}`
+            : `${fmtMoney(balanceUnits, currencyCode)} via ${t(BALANCE_METHOD_LABEL_KEYS[terms.balanceMethod])}`
         }
-        sub={BALANCE_METHOD_DESCRIPTIONS[terms.balanceMethod]}
+        sub={t(BALANCE_METHOD_DESCRIPTION_KEYS[terms.balanceMethod])}
       />
       <TermLine
         label="Refunds"
-        value={REFUND_POLICY_LABELS[terms.refundPolicy]}
-        sub={REFUND_POLICY_DESCRIPTIONS[terms.refundPolicy]}
+        value={t(REFUND_POLICY_LABEL_KEYS[terms.refundPolicy])}
+        sub={t(REFUND_POLICY_DESCRIPTION_KEYS[terms.refundPolicy])}
       />
 
       {showApprovalLine && (

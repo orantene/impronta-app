@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 
 import { updatePlatformCommercialDefaults } from "../tenants/commercial-terms-actions";
 import {
-  REFUND_POLICY_LABELS,
-  REFUND_POLICY_DESCRIPTIONS,
+  REFUND_POLICY_LABEL_KEYS,
+  REFUND_POLICY_DESCRIPTION_KEYS,
   type RefundPolicyKey,
 } from "@/lib/billing/commercial-terms-types";
 import { useT } from "@/i18n/use-t";
@@ -89,12 +89,12 @@ export function PlatformCommercialDefaultsCard({
         >
           {POLICY_KEYS.map((k) => (
             <option key={k} value={k}>
-              {REFUND_POLICY_LABELS[k]}
+              {t(REFUND_POLICY_LABEL_KEYS[k])}
             </option>
           ))}
         </select>
         <span style={{ color: "#6b6b76", marginTop: 2, lineHeight: 1.45, fontSize: 12 }}>
-          {REFUND_POLICY_DESCRIPTIONS[refundPolicy]}
+          {t(REFUND_POLICY_DESCRIPTION_KEYS[refundPolicy])}
         </span>
       </label>
 

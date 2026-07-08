@@ -22,8 +22,8 @@ import {
 } from "./tenant-section-kit";
 import { updateTenantCommercialTermsAsPlatform } from "./commercial-terms-actions";
 import {
-  REFUND_POLICY_LABELS,
-  REFUND_POLICY_DESCRIPTIONS,
+  REFUND_POLICY_LABEL_KEYS,
+  REFUND_POLICY_DESCRIPTION_KEYS,
   type RefundPolicyKey,
   type TenantCommercialTerms,
 } from "@/lib/billing/commercial-terms-types";
@@ -154,7 +154,7 @@ export function CommercialTermsSection({ detail, onChanged, defaultOpen }: Secti
               <option value="">{t("dashboard.platform.tenants.inheritPlatformDefault")}</option>
               {POLICY_KEYS.map((k) => (
                 <option key={k} value={k}>
-                  {REFUND_POLICY_LABELS[k]}
+                  {t(REFUND_POLICY_LABEL_KEYS[k])}
                 </option>
               ))}
             </select>
@@ -168,7 +168,7 @@ export function CommercialTermsSection({ detail, onChanged, defaultOpen }: Secti
                   lineHeight: 1.45,
                 }}
               >
-                {REFUND_POLICY_DESCRIPTIONS[refundPolicy]}
+                {t(REFUND_POLICY_DESCRIPTION_KEYS[refundPolicy])}
               </span>
             )}
           </label>
