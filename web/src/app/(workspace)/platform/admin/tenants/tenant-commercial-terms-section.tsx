@@ -27,10 +27,12 @@ import {
   type RefundPolicyKey,
   type TenantCommercialTerms,
 } from "@/lib/billing/commercial-terms-types";
+import { useT } from "@/i18n/use-t";
 
 const POLICY_KEYS: RefundPolicyKey[] = ["tiered", "flexible", "strict", "manual"];
 
 export function CommercialTermsSection({ detail, onChanged, defaultOpen }: SectionProps) {
+  const t = useT();
   const terms = detail.commercialTerms;
   const hasOverride =
     terms.depositPct !== null || terms.refundPolicy !== null || terms.instantBookEnabled;
@@ -53,7 +55,7 @@ export function CommercialTermsSection({ detail, onChanged, defaultOpen }: Secti
     if (depositPct.trim() !== "") {
       const pct = parseFloat(depositPct);
       if (!isFinite(pct) || pct < 0 || pct > 100) {
-        setMsg({ tone: "err", text: "Deposit must be between 0 and 100%." });
+        setMsg({ tone: "err", text: t("dashboard.platform.tenants.depositRangeError") });
         return;
       }
       depositValue = pct;
@@ -66,10 +68,10 @@ export function CommercialTermsSection({ detail, onChanged, defaultOpen }: Secti
     start(async () => {
       const res = await updateTenantCommercialTermsAsPlatform(detail.id, payload);
       if (res.ok) {
-        setMsg({ tone: "ok", text: "Commercial terms saved." });
+        setMsg({ tone: "ok", text: t("dashboard.platform.tenants.commercialTermsSaved") });
         await onChanged();
       } else {
-        setMsg({ tone: "err", text: res.error ?? "Could not save." });
+        setMsg({ tone: "err", text: res.error ?? t("dashboard.platform.tenants.couldNotSave") });
       }
     });
   }
@@ -86,25 +88,25 @@ export function CommercialTermsSection({ detail, onChanged, defaultOpen }: Secti
         instantBookEnabled: false,
       });
       if (res.ok) {
-        setMsg({ tone: "ok", text: "Override cleared — back to platform defaults." });
+        setMsg({ tone: "ok", text: t("dashboard.platform.tenants.commercialTermsCleared") });
         await onChanged();
       } else {
-        setMsg({ tone: "err", text: res.error ?? "Could not clear." });
+        setMsg({ tone: "err", text: res.error ?? t("dashboard.platform.tenants.couldNotClear") });
       }
     });
   }
 
   return (
     <Accordion
-      title="Commercial terms"
+      title={t("dashboard.platform.tenants.sectionCommercialTerms")}
       trailing={
         hasOverride ? (
           <Chip bg={HQ.amberSoft} color={HQ.amber}>
-            Override active
+            {t("dashboard.platform.tenants.overrideActiveChip")}
           </Chip>
         ) : (
           <Chip bg="rgba(155,168,183,0.15)" color={HQ.inkMuted}>
-            Platform default
+            {t("dashboard.platform.tenants.platformDefault")}
           </Chip>
         )
       }
@@ -112,9 +114,7 @@ export function CommercialTermsSection({ detail, onChanged, defaultOpen }: Secti
     >
       <div style={{ paddingTop: 8, display: "flex", flexDirection: "column", gap: 10 }}>
         <p style={{ fontSize: 11, color: HQ.inkMuted, margin: 0, lineHeight: 1.5 }}>
-          Override this workspace&apos;s booking terms. Leave deposit and refund
-          blank to inherit the platform defaults. Resolver precedence: talent
-          preference &gt; tenant override &gt; platform default.
+          {t("dashboard.platform.tenants.commercialTermsIntro")}
         </p>
 
         <div
@@ -129,7 +129,7 @@ export function CommercialTermsSection({ detail, onChanged, defaultOpen }: Secti
           }}
         >
           <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-            Deposit (%, blank = inherit)
+            {t("dashboard.platform.tenants.depositField")}
             <input
               type="number"
               min={0}
@@ -137,21 +137,21 @@ export function CommercialTermsSection({ detail, onChanged, defaultOpen }: Secti
               step={1}
               value={depositPct}
               disabled={pending}
-              placeholder="inherit"
+              placeholder={t("dashboard.platform.tenants.depositInherit")}
               onChange={(e) => setDepositPct(e.target.value)}
               style={{ ...inputStyle, marginTop: 3 }}
             />
           </label>
 
           <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-            Refund policy (blank = inherit)
+            {t("dashboard.platform.tenants.refundPolicyField")}
             <select
               value={refundPolicy}
               disabled={pending}
               onChange={(e) => setRefundPolicy(e.target.value as "" | RefundPolicyKey)}
               style={{ ...inputStyle, marginTop: 3 }}
             >
-              <option value="">Inherit platform default</option>
+              <option value="">{t("dashboard.platform.tenants.inheritPlatformDefault")}</option>
               {POLICY_KEYS.map((k) => (
                 <option key={k} value={k}>
                   {REFUND_POLICY_LABELS[k]}
@@ -191,21 +191,20 @@ export function CommercialTermsSection({ detail, onChanged, defaultOpen }: Secti
               style={{ marginTop: 2 }}
             />
             <span>
-              <span style={{ fontWeight: 600 }}>Enable instant booking</span>
+              <span style={{ fontWeight: 600 }}>{t("dashboard.platform.tenants.enableInstantBooking")}</span>
               <span style={{ display: "block", color: HQ.inkMuted, marginTop: 2 }}>
-                Allow this workspace&apos;s talents to be booked without an
-                approval step (config only — no booking flow changes this wave).
+                {t("dashboard.platform.tenants.instantBookingDesc")}
               </span>
             </span>
           </label>
 
           <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
             <Btn tone="primary" onClick={save} disabled={pending}>
-              {pending ? "Saving…" : "Save terms"}
+              {pending ? t("dashboard.platform.tenants.saving") : t("dashboard.platform.tenants.saveTerms")}
             </Btn>
             {hasOverride && (
               <Btn tone="danger" onClick={clearAll} disabled={pending}>
-                Clear override
+                {t("dashboard.platform.tenants.clearOverride")}
               </Btn>
             )}
           </div>

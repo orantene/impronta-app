@@ -12,12 +12,41 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { HQ, HQ_F, HQ_FM, PlanChip, StatusDot, EntityChip } from "./hq-kit";
+import {
+  HQ,
+  HQ_F,
+  HQ_FM,
+  PlanChip,
+  StatusDot,
+  EntityChip,
+  PLAN_TIER_LABEL_KEY,
+  WORKSPACE_STATUS_LABEL_KEY,
+} from "./hq-kit";
 import { TenantDrawer } from "./TenantDrawer";
 import { PLAN_TIER_RANK } from "@/lib/platform/plan-override";
 import type { PlatformTenantListRow } from "../../tenant-management-data";
 import { actionCreateTenant } from "./actions-control";
 import { byName } from "@/lib/field-engine/sort-comparators";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+
+function planLabel(t: Translate, plan: string): string {
+  const key = PLAN_TIER_LABEL_KEY[plan];
+  return key ? t(key) : plan;
+}
+
+function entityLabel(t: Translate, entityType: string): string {
+  return entityType === "hub"
+    ? t("dashboard.platform.tenants.entity.hub")
+    : t("dashboard.platform.tenants.entity.agency");
+}
+
+function statusLabel(t: Translate, status: string): string {
+  const key = WORKSPACE_STATUS_LABEL_KEY[status];
+  return key ? t(key) : status;
+}
 
 // ─── Create workspace modal ───────────────────────────────────────────────────
 
@@ -45,6 +74,7 @@ function slugify(value: string): string {
 }
 
 function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
+  const t = useT();
   const [displayName, setDisplayName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
@@ -86,15 +116,15 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ flex: 1, fontSize: 16, fontWeight: 600, color: HQ.ink }}>Create workspace</span>
-          <button type="button" onClick={onClose} style={{ width: 28, height: 28, borderRadius: 7, border: `1px solid ${HQ.borderSoft}`, background: "transparent", color: HQ.inkMuted, cursor: "pointer", fontSize: 13 }}>✕</button>
+          <span style={{ flex: 1, fontSize: 16, fontWeight: 600, color: HQ.ink }}>{t("dashboard.platform.tenants.createTitle")}</span>
+          <button type="button" onClick={onClose} aria-label={t("dashboard.platform.tenants.cancel")} style={{ width: 28, height: 28, borderRadius: 7, border: `1px solid ${HQ.borderSoft}`, background: "transparent", color: HQ.inkMuted, cursor: "pointer", fontSize: 13 }}>✕</button>
         </div>
 
         <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: HQ.inkMuted }}>
-          Display name *
+          {t("dashboard.platform.tenants.fieldDisplayName")} *
           <input
             type="text"
-            placeholder="Acme Agency"
+            placeholder={t("dashboard.platform.tenants.fieldDisplayNamePlaceholder")}
             value={displayName}
             disabled={pending}
             onChange={(e) => handleNameChange(e.target.value)}
@@ -104,10 +134,10 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
         </label>
 
         <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: HQ.inkMuted }}>
-          Slug * <span style={{ fontFamily: HQ_FM, fontSize: 10 }}>(URL path, letters/numbers/hyphens)</span>
+          {t("dashboard.platform.tenants.fieldSlug")} * <span style={{ fontFamily: HQ_FM, fontSize: 10 }}>{t("dashboard.platform.tenants.fieldSlugHint")}</span>
           <input
             type="text"
-            placeholder="acme-agency"
+            placeholder={t("dashboard.platform.tenants.fieldSlugPlaceholder")}
             value={slug}
             disabled={pending}
             onChange={(e) => { setSlug(e.target.value); setSlugEdited(true); }}
@@ -116,18 +146,18 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
         </label>
 
         <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: HQ.inkMuted }}>
-          Workspace type
+          {t("dashboard.platform.tenants.fieldWorkspaceType")}
           <select value={kind} disabled={pending} onChange={(e) => setKind(e.target.value)} style={inputStyle}>
-            <option value="agency">Agency</option>
+            <option value="agency">{t("dashboard.platform.tier.agency")}</option>
             <option value="hub">Hub</option>
           </select>
         </label>
 
         <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: HQ.inkMuted }}>
-          Owner email <span style={{ color: HQ.inkDim }}>(optional — must have a Tulala account)</span>
+          {t("dashboard.platform.tenants.fieldOwnerEmail")} <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.tenants.fieldOwnerEmailHint")}</span>
           <input
             type="email"
-            placeholder="owner@email.com"
+            placeholder={t("dashboard.platform.tenants.fieldOwnerEmailPlaceholder")}
             value={ownerEmail}
             disabled={pending}
             onChange={(e) => setOwnerEmail(e.target.value)}
@@ -143,7 +173,7 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button type="button" onClick={onClose} disabled={pending} style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${HQ.borderSoft}`, background: "transparent", color: HQ.inkMuted, fontSize: 12.5, fontFamily: HQ_F, cursor: "pointer" }}>
-            Cancel
+            {t("dashboard.platform.tenants.cancel")}
           </button>
           <button
             type="button"
@@ -162,7 +192,7 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
               opacity: (pending || !displayName.trim() || !slug.trim()) ? 0.5 : 1,
             }}
           >
-            {pending ? "Creating…" : "Create workspace"}
+            {pending ? t("dashboard.platform.tenants.creating") : t("dashboard.platform.tenants.createTitle")}
           </button>
         </div>
       </div>
@@ -183,13 +213,13 @@ const selectStyle: React.CSSProperties = {
   outline: "none",
 };
 
-function expiryLabel(iso: string | null): string {
-  if (!iso) return "no expiry";
+function expiryLabel(iso: string | null, t: Translate): string {
+  if (!iso) return t("dashboard.platform.tenants.expiryNone");
   const days = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
-  if (Number.isNaN(days)) return "expires";
-  if (days < 0) return "expired";
-  if (days === 0) return "expires today";
-  return `${days}d left`;
+  if (Number.isNaN(days)) return t("dashboard.platform.tenants.expiryExpires");
+  if (days < 0) return t("dashboard.platform.tenants.expiryExpired");
+  if (days === 0) return t("dashboard.platform.tenants.expiryToday");
+  return interpolate(t("dashboard.platform.tenants.expiryDaysLeft"), { count: days });
 }
 
 function Th({
@@ -235,6 +265,7 @@ function Th({
 }
 
 export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
+  const t = useT();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [plan, setPlan] = useState("all");
@@ -334,7 +365,7 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
       >
         <input
           type="search"
-          placeholder="Search workspace, slug, owner…"
+          placeholder={t("dashboard.platform.tenants.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
@@ -344,34 +375,34 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
           }}
         />
         <select value={plan} onChange={(e) => setPlan(e.target.value)} style={selectStyle}>
-          <option value="all">All plans</option>
-          <option value="free">Free</option>
-          <option value="studio">Studio</option>
-          <option value="agency">Agency</option>
-          <option value="network">Network</option>
+          <option value="all">{t("dashboard.platform.tenants.filterAllPlans")}</option>
+          <option value="free">{t("dashboard.platform.tier.free")}</option>
+          <option value="studio">{t("dashboard.platform.tier.studio")}</option>
+          <option value="agency">{t("dashboard.platform.tier.agency")}</option>
+          <option value="network">{t("dashboard.platform.tier.network")}</option>
         </select>
         <select value={entity} onChange={(e) => setEntity(e.target.value)} style={selectStyle}>
-          <option value="all">All types</option>
-          <option value="agency">Agency</option>
+          <option value="all">{t("dashboard.platform.tenants.filterAllTypes")}</option>
+          <option value="agency">{t("dashboard.platform.tier.agency")}</option>
           <option value="hub">Hub</option>
         </select>
         <select value={status} onChange={(e) => setStatus(e.target.value)} style={selectStyle}>
-          <option value="all">All statuses</option>
+          <option value="all">{t("dashboard.platform.tenants.filterAllStatuses")}</option>
           {statusOptions.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {statusLabel(t, s)}
             </option>
           ))}
         </select>
         <select value={owner} onChange={(e) => setOwner(e.target.value)} style={selectStyle}>
-          <option value="all">Owner: any</option>
-          <option value="has">Owner: assigned</option>
-          <option value="missing">Owner: missing</option>
+          <option value="all">{t("dashboard.platform.tenants.filterOwnerAny")}</option>
+          <option value="has">{t("dashboard.platform.tenants.filterOwnerAssigned")}</option>
+          <option value="missing">{t("dashboard.platform.tenants.filterOwnerMissing")}</option>
         </select>
         <select value={override} onChange={(e) => setOverride(e.target.value)} style={selectStyle}>
-          <option value="all">Override: any</option>
-          <option value="active">Override: active</option>
-          <option value="none">Override: none</option>
+          <option value="all">{t("dashboard.platform.tenants.filterOverrideAny")}</option>
+          <option value="active">{t("dashboard.platform.tenants.filterOverrideActive")}</option>
+          <option value="none">{t("dashboard.platform.tenants.filterOverrideNone")}</option>
         </select>
         <button
           type="button"
@@ -390,12 +421,19 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
             flexShrink: 0,
           }}
         >
-          + New workspace
+          {t("dashboard.platform.tenants.newWorkspace")}
         </button>
       </div>
 
       <div style={{ fontSize: 11.5, color: HQ.inkDim, marginBottom: 8, fontFamily: HQ_F }}>
-        {filtered.length} of {rows.length} workspace{rows.length === 1 ? "" : "s"}
+        {interpolate(
+          t(
+            rows.length === 1
+              ? "dashboard.platform.tenants.countOfWorkspacesOne"
+              : "dashboard.platform.tenants.countOfWorkspacesOther",
+          ),
+          { filtered: filtered.length, total: rows.length },
+        )}
       </div>
 
       {/* Table */}
@@ -420,16 +458,16 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
           >
             <thead>
               <tr style={{ borderBottom: `1px solid ${HQ.border}` }}>
-                <Th label="Workspace" column="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Type" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Plan" column="plan" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Language" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Owner" column="owner" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Talents" column="talents" align="right" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Types" align="right" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Staff" column="staff" align="right" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Created" column="created" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.tenants.colWorkspace")} column="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.tenants.colType")} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.tenants.colPlan")} column="plan" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.tenants.colLanguage")} lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.tenants.colOwner")} column="owner" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.tenants.colTalents")} column="talents" align="right" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.tenants.colTypes")} align="right" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.tenants.colStaff")} column="staff" align="right" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.tenants.colStatus")} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.tenants.colCreated")} column="created" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <Th label="" align="right" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               </tr>
             </thead>
@@ -446,8 +484,8 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
                     }}
                   >
                     {rows.length === 0
-                      ? "No workspaces found."
-                      : "No workspaces match these filters."}
+                      ? t("dashboard.platform.tenants.emptyNoWorkspaces")
+                      : t("dashboard.platform.tenants.emptyNoMatch")}
                   </td>
                 </tr>
               ) : (
@@ -480,14 +518,14 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
                       </div>
                     </td>
                     <td style={{ padding: "10px 12px" }}>
-                      <EntityChip entityType={r.entityType} />
+                      <EntityChip entityType={r.entityType} label={entityLabel(t, r.entityType)} />
                     </td>
                     <td style={{ padding: "10px 12px" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                        <PlanChip plan={r.plan} />
+                        <PlanChip plan={r.plan} label={planLabel(t, r.plan)} />
                         {r.hasActiveOverride && !clearedOverrides.has(r.id) && (
                           <span
-                            title={`Plan override active — ${expiryLabel(r.overrideExpiresAt)}`}
+                            title={`${t("dashboard.platform.tenants.overrideActiveTitle")} · ${expiryLabel(r.overrideExpiresAt, t)}`}
                             style={{
                               width: 6,
                               height: 6,
@@ -520,7 +558,7 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
                           </div>
                         </>
                       ) : (
-                        <span style={{ color: HQ.red, fontSize: 11.5 }}>No owner</span>
+                        <span style={{ color: HQ.red, fontSize: 11.5 }}>{t("dashboard.platform.tenants.noOwner")}</span>
                       )}
                     </td>
                     <td
@@ -555,7 +593,7 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
                       {r.staffCount}
                     </td>
                     <td style={{ padding: "10px 12px" }}>
-                      <StatusDot status={r.status} />
+                      <StatusDot status={r.status} label={statusLabel(t, r.status)} />
                     </td>
                     <td
                       className="hqt-lo"
@@ -583,7 +621,7 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
                           whiteSpace: "nowrap",
                         }}
                       >
-                        Manage
+                        {t("dashboard.platform.tenants.manage")}
                       </button>
                     </td>
                   </tr>

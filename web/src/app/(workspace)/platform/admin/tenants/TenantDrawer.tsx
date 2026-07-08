@@ -11,10 +11,21 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { HQ, HQ_F, HQ_FD, HQ_FM, PlanChip, StatusChip, EntityChip } from "./hq-kit";
+import {
+  HQ,
+  HQ_F,
+  HQ_FD,
+  HQ_FM,
+  PlanChip,
+  StatusChip,
+  EntityChip,
+  PLAN_TIER_LABEL_KEY,
+  WORKSPACE_STATUS_LABEL_KEY,
+} from "./hq-kit";
 import { TenantSectionStack } from "./tenant-sections";
 import { actionGetTenantManagementDetail } from "./actions";
 import type { TenantManagementDetail } from "../../tenant-management-data";
+import { useT } from "@/i18n/use-t";
 
 export function TenantDrawer({
   tenantId,
@@ -26,6 +37,7 @@ export function TenantDrawer({
   /** Fires after an in-drawer mutation, so the list can reconcile its row optimistically. */
   onChanged?: (tenantId: string) => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const [detail, setDetail] = useState<TenantManagementDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -125,7 +137,7 @@ export function TenantDrawer({
                   whiteSpace: "nowrap",
                 }}
               >
-                {detail?.name ?? "Workspace"}
+                {detail?.name ?? t("dashboard.platform.tenants.drawerFallbackName")}
               </div>
               {detail && (
                 <div
@@ -143,7 +155,7 @@ export function TenantDrawer({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close"
+              aria-label={t("dashboard.platform.tenants.cancel")}
               style={{
                 width: 30,
                 height: 30,
@@ -171,9 +183,22 @@ export function TenantDrawer({
                   alignItems: "center",
                 }}
               >
-                <PlanChip plan={detail.plan} />
-                <StatusChip status={detail.status} />
-                <EntityChip entityType={detail.entityType} />
+                <PlanChip
+                  plan={detail.plan}
+                  label={PLAN_TIER_LABEL_KEY[detail.plan] ? t(PLAN_TIER_LABEL_KEY[detail.plan]) : undefined}
+                />
+                <StatusChip
+                  status={detail.status}
+                  label={WORKSPACE_STATUS_LABEL_KEY[detail.status] ? t(WORKSPACE_STATUS_LABEL_KEY[detail.status]) : undefined}
+                />
+                <EntityChip
+                  entityType={detail.entityType}
+                  label={
+                    detail.entityType === "hub"
+                      ? t("dashboard.platform.tenants.entity.hub")
+                      : t("dashboard.platform.tenants.entity.agency")
+                  }
+                />
                 {detail.override && (
                   <span
                     style={{
@@ -182,7 +207,7 @@ export function TenantDrawer({
                       fontWeight: 600,
                     }}
                   >
-                    ● override active
+                    ● {t("dashboard.platform.tenants.overrideActive")}
                   </span>
                 )}
               </div>
@@ -193,7 +218,7 @@ export function TenantDrawer({
                   rel="noreferrer"
                   style={drawerLinkStyle}
                 >
-                  Public site ↗
+                  {t("dashboard.platform.tenants.linkPublicSite")}
                 </a>
                 <a
                   href={detail.urls.adminDashboard}
@@ -201,7 +226,7 @@ export function TenantDrawer({
                   rel="noreferrer"
                   style={drawerLinkStyle}
                 >
-                  Admin ↗
+                  {t("dashboard.platform.tenants.linkAdmin")}
                 </a>
                 <Link
                   href={`/platform/admin/tenants/${detail.id}`}
@@ -212,7 +237,7 @@ export function TenantDrawer({
                     borderColor: "rgba(93,211,160,0.3)",
                   }}
                 >
-                  Full detail →
+                  {t("dashboard.platform.tenants.linkFullDetail")}
                 </Link>
               </div>
             </>
@@ -223,7 +248,7 @@ export function TenantDrawer({
         <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
           {loading && (
             <div style={{ padding: "30px 0", textAlign: "center", color: HQ.inkMuted, fontSize: 13 }}>
-              Loading workspace…
+              {t("dashboard.platform.tenants.loadingWorkspace")}
             </div>
           )}
           {error && (
