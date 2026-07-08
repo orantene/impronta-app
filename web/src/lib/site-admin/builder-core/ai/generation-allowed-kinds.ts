@@ -114,14 +114,19 @@ export const CURATED_STYLE_ENUM_VALUES = {
   marginTop: ["none", "s", "m", "l"],
   marginBottom: ["none", "s", "m", "l"],
   paddingX: ["none", "s", "m", "l"],
-  paddingY: ["none", "s", "m", "l"],
+  paddingY: ["none", "s", "m", "l", "xl"],
   // "contrast" is DELIBERATELY omitted: it is a THEME-RELATIVE band (it renders
   // dark on a light theme but LIGHT on a dark theme), so a model that pairs it
   // with a hardcoded light text color produces light-on-light — unreadable
   // (verified live). Bands must instead be an explicit backgroundColor+textColor
   // PAIR (self-consistent on any theme). "surface" stays: it is a theme-paired
   // raised surface whose foreground the theme keeps readable.
-  background: ["none", "surface"],
+  // "accent" and "muted" ARE allowed (AIQ-13): unlike "contrast" they resolve to
+  // a theme-paired background WITH a guaranteed paired foreground in the renderer
+  // (accent = --token-color-primary on --token-color-surface-raised text; muted =
+  // a blended raised surface on --token-color-ink text), so they are self-
+  // consistent on any theme without the model supplying a color pair.
+  background: ["none", "surface", "accent", "muted"],
   radius: ["none", "sm", "md", "lg", "pill"],
   objectFit: ["cover", "contain"],
   aspectRatio: ["auto", "1:1", "4:3", "3:4", "16:9", "21:9"],
@@ -136,6 +141,19 @@ export const CURATED_STYLE_COLOR_KEYS = ["textColor", "backgroundColor"] as cons
 
 /** `fontWeight` — an integer 100–900. */
 export const CURATED_STYLE_FONT_WEIGHT_KEY = "fontWeight";
+
+/** `minHeight` — a bounded raw CSS length the model may set on a hero band (AIQ-7). */
+export const CURATED_STYLE_MIN_HEIGHT_KEY = "minHeight";
+
+/** Accept only a short, safe CSS length/viewport unit (blocks calc()/injection). */
+export function isSafeMinHeight(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 12 &&
+    /^\d{1,4}(px|rem|vh|svh|dvh|%)$/.test(value)
+  );
+}
 
 /** A conservative color validator: short + only characters that appear in real CSS color values. */
 export function isSafeStyleColor(value: unknown): value is string {

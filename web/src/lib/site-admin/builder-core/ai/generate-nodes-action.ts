@@ -155,6 +155,12 @@ export async function generateBuilderNodesAction(input: {
     const generated = await generateBuilderNodes({
       brief: input.brief,
       scope: input.scope,
+      // Copy is written in the surface's locale (AIQ-3).
+      locale: input.locale,
+      // themePolarity/palette (AIQ-12) are intentionally unset here: this action
+      // holds no tenant handle and there is no ready live-branding reader, so
+      // resolving the tenant's active theme polarity is a separate, verified
+      // follow-up. Unset preserves the exact "polarity unknown" prompt wording.
       // actor_profile_id FKs to profiles.id, which equals the auth user id in
       // this schema (every other actor_profile_id writer passes session.user.id).
       generateWithModel: buildModelGenerator(auth.user.id, input.scope, model),

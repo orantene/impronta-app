@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   buildGenerationSystemPrompt,
+  buildGenerationUserMessage,
   coerceToSections,
   generateBuilderNodes,
   parseModelJson,
@@ -13,8 +14,10 @@ import {
   GENERATION_ALLOWED_KINDS,
   GENERATION_ICON_NAMES,
   IMAGE_ROLE_TO_PHOTO,
+  CURATED_STYLE_ENUM_VALUES,
+  isSafeMinHeight,
 } from "./generation-allowed-kinds";
-import { BUILDER_NODE_REGISTRY } from "@/lib/site-admin/builder-node/registry";
+import { BUILDER_NODE_REGISTRY, builderNodeStyleValueSchema } from "@/lib/site-admin/builder-node/registry";
 import { BUILDER_ICON_NAMES } from "@/lib/site-admin/builder-node/icon-registry";
 import { PAGE_DESIGN_PHOTOS } from "@/lib/site-admin/builder-node/page-designs/photos";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
@@ -56,6 +59,156 @@ test("prompt grammar text names every allowed kind and image role", () => {
   for (const role of GENERATION_PROMPT_IMAGE_ROLES) {
     assert.ok(prompt.includes(`"${role}"`), `prompt omits image role ${role}`);
   }
+});
+
+test("user message names the target language (AIQ-3)", () => {
+  assert.ok(buildGenerationUserMessage("page", "a modeling agency", "en").includes("in English"));
+  const es = buildGenerationUserMessage("page", "una agencia", "es");
+  assert.ok(es.includes("in Español"), "Spanish named");
+  assert.ok(es.includes("Write ALL user-visible copy"), "explicit all-copy rule present");
+  // default (no locale) → English, byte-stable
+  assert.ok(buildGenerationUserMessage("page", "x").includes("in English"));
+});
+
+test("system prompt carries the Language rule + ES few-shot only for es (AIQ-3)", () => {
+  const base = buildGenerationSystemPrompt();
+  assert.ok(base.includes("- Language:"), "Language RULES bullet present");
+  assert.ok(base.includes("in English"), "default names English");
+  assert.ok(!base.includes("Reserva tu próxima campaña"), "no ES few-shot in default prompt");
+  const es = buildGenerationSystemPrompt({ locale: "es" });
+  assert.ok(es.includes("in Español"), "es names Spanish");
+  assert.ok(es.includes("Reserva tu próxima campaña"), "ES few-shot present for es");
+  // The ES few-shot COPY must not smuggle in an em/en dash (the prompt's own
+  // instructional prose legitimately uses them; only the exemplar copy is bound).
+  const esExample = es.slice(es.indexOf("Spanish copy"));
+  assert.ok(!/[—–]/.test(esExample), "no em/en dashes in the ES few-shot copy");
+});
+
+test("color guidance reflects resolved polarity, default byte-preserved (AIQ-12)", () => {
+  const unknown = buildGenerationSystemPrompt();
+  assert.ok(unknown.includes("polarity is unknown to you"), "no-theme path preserves prior wording");
+
+  const dark = buildGenerationSystemPrompt({ themePolarity: "dark", palette: { background: "#0a0a0a", ink: "#f4f4f5" } });
+  assert.ok(dark.includes("polarity is DARK"), "dark polarity stated");
+  assert.ok(!dark.includes("polarity is unknown"), "unknown wording removed when known");
+  assert.ok(dark.includes("INVERT to light"), "dark page → suggest a light band");
+
+  const light = buildGenerationSystemPrompt({ themePolarity: "light", palette: { background: "#ffffff", ink: "#111111" } });
+  assert.ok(light.includes("polarity is LIGHT"));
+  assert.ok(light.includes("INVERT to dark"));
+});
+
+test("prompt teaches a split-hero (image beside copy), not only the centered stack (AIQ-24)", () => {
+  const prompt = buildGenerationSystemPrompt();
+  assert.match(prompt, /alternate hero: image beside copy/i);
+  assert.ok(prompt.includes('"kind":"split"'), "split-hero exemplar present");
+  assert.ok(/"ratio":"(60-40|40-60|50-50|70-30|30-70)"/.test(prompt), "split-hero has a real ratio");
+});
+
+test("prompt includes the five content exemplars with brand-safe copy (AIQ-11)", () => {
+  const prompt = buildGenerationSystemPrompt();
+  assert.match(prompt, /a testimonial with named attribution/i);
+  assert.match(prompt, /a 50-50 split/i);
+  assert.match(prompt, /closing call-to-action band/i);
+  assert.match(prompt, /an FAQ accordion/i);
+  assert.match(prompt, /pricing copy/i);
+  assert.ok(prompt.includes("Marta Alvi, Head of Casting at Nord Studio"), "named attribution, not anonymous");
+  assert.ok(prompt.includes('"kind":"accordion_item"'), "FAQ exemplar uses accordion_item");
+  assert.ok(prompt.includes('"kind":"pricing_table"'), "pricing exemplar uses pricing_table");
+  // Guard the exemplar COPY (not the rule prose that names dashes) against dashes.
+  const exemplarBlock = prompt.slice(prompt.indexOf("EXAMPLE ("));
+  assert.ok(!/[—–]/.test(exemplarBlock), "exemplar copy must contain no em/en dashes");
+  // Scope to exemplar copy: the brand-language RULE prose legitimately lists the
+  // banned commerce words as examples of what to avoid.
+  assert.ok(!/\b(add to cart|checkout|buy now|shopping cart)\b/i.test(exemplarBlock), "no commerce vocab in exemplars");
+});
+
+test("every few-shot exemplar in the prompt coerces to a valid tree (AIQ-11/24)", () => {
+  const prompt = buildGenerationSystemPrompt({ locale: "es" }); // include the ES exemplar too
+  const blocks = prompt.split("\n").filter((l) => l.startsWith('{"sections":'));
+  assert.ok(blocks.length >= 8, `expected >=8 exemplar JSON blocks, got ${blocks.length}`);
+  for (const block of blocks) {
+    const tree = coerceToSections(parseModelJson(block));
+    const validation = validateBuilderNodeTree(tree);
+    assert.equal(validation.ok, true, `exemplar failed to validate: ${block.slice(0, 60)}`);
+    assert.ok(validation.tree.length >= 1, "exemplar section survived coerce");
+  }
+});
+
+test("AIQ-7: paddingY 'xl' survives schema + curated vocab; margins/paddingX stay capped", () => {
+  const r = builderNodeStyleValueSchema.safeParse({ paddingY: "xl" });
+  assert.ok(r.success && r.data?.paddingY === "xl", "paddingY xl valid");
+  for (const v of CURATED_STYLE_ENUM_VALUES.paddingY) {
+    assert.ok(builderNodeStyleValueSchema.safeParse({ paddingY: v }).success, `paddingY ${v}`);
+  }
+  assert.ok(CURATED_STYLE_ENUM_VALUES.paddingY.includes("xl"), "curated paddingY includes xl");
+  // paddingX / margins deliberately do NOT gain xl (vertical rhythm only).
+  assert.ok(!builderNodeStyleValueSchema.safeParse({ paddingX: "xl" }).success, "paddingX xl rejected");
+});
+
+test("AIQ-7: isSafeMinHeight boxes the model to a single safe length token", () => {
+  assert.ok(isSafeMinHeight("78svh"));
+  assert.ok(isSafeMinHeight("480px"));
+  assert.ok(isSafeMinHeight("85dvh"));
+  assert.ok(!isSafeMinHeight("calc(100vh - 10px)"));
+  assert.ok(!isSafeMinHeight("100"));
+  assert.ok(!isSafeMinHeight("red"));
+  assert.ok(!isSafeMinHeight(480));
+});
+
+test("AIQ-7: sanitizeStyle keeps a safe minHeight + xl paddingY through coerce, drops junk", () => {
+  const out = coerceToSections({
+    sections: [{
+      kind: "section", label: "Hero",
+      children: [{
+        kind: "container",
+        props: { layout: "stack", style: { paddingY: "xl", minHeight: "78svh" } },
+        children: [{ kind: "heading", props: { text: "Hi", level: 1 } }],
+      }],
+    }],
+  });
+  const container = collectNodes(out).find((n) => n.kind === "container");
+  const style = (container?.props as { style?: Record<string, unknown> }).style;
+  assert.equal(style?.paddingY, "xl", "xl paddingY survives coerce");
+  assert.equal(style?.minHeight, "78svh", "safe minHeight survives coerce");
+
+  const junk = coerceToSections({
+    sections: [{
+      kind: "section", label: "Hero",
+      children: [{ kind: "container", props: { style: { minHeight: "calc(100vh)" } }, children: [{ kind: "heading", props: { text: "x", level: 1 } }] }],
+    }],
+  });
+  const c2 = collectNodes(junk).find((n) => n.kind === "container");
+  assert.equal((c2?.props as { style?: Record<string, unknown> }).style?.minHeight, undefined, "unsafe minHeight dropped");
+});
+
+test("AIQ-7: prompt documents the xl padding step and hero minHeight", () => {
+  const prompt = buildGenerationSystemPrompt();
+  assert.ok(prompt.includes('paddingY: "none"|"s"|"m"|"l"|"xl"'), "xl padding grammar");
+  assert.ok(prompt.includes("minHeight"), "minHeight grammar");
+  assert.ok(/paddingY:"xl"/.test(prompt), "rules steer xl padding");
+});
+
+test("AIQ-13: theme-paired band roles accent/muted survive coerce with NO color pair", () => {
+  const out = coerceToSections({
+    sections: [{
+      kind: "section", label: "Bands",
+      children: [
+        { kind: "container", props: { layout: "stack", style: { background: "accent" } }, children: [{ kind: "heading", props: { text: "Accent", level: 2 } }] },
+        { kind: "container", props: { layout: "stack", style: { background: "muted" } }, children: [{ kind: "paragraph", props: { text: "Muted band" } }] },
+      ],
+    }],
+  });
+  const containers = collectNodes(out).filter((n) => n.kind === "container");
+  const bgs = containers.map((c) => (c.props as { style?: Record<string, unknown> }).style?.background);
+  assert.ok(bgs.includes("accent"), "accent band role survives sanitizeStyle");
+  assert.ok(bgs.includes("muted"), "muted band role survives sanitizeStyle");
+});
+
+test("AIQ-13: prompt offers the theme-paired band roles", () => {
+  const prompt = buildGenerationSystemPrompt();
+  assert.ok(prompt.includes('background:"accent"'), "prompt names accent band role");
+  assert.ok(prompt.includes('background:"muted"'), "prompt names muted band role");
 });
 
 test("image roles all resolve to a real curated photo", () => {

@@ -248,6 +248,7 @@ const NODE_SPACING = {
   s: "0.75rem",
   m: "1.5rem",
   l: "3rem",
+  xl: "6rem",
 } as const;
 
 const NODE_MAX_WIDTH = {
@@ -779,7 +780,9 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--live-chip span{color:rgba(18,18,18,0.58);font-size:0.82rem}
 .site-builder-node--live-search-shell{display:flex;width:min(100%,680px);align-items:center;justify-content:space-between;gap:1rem;border:1px solid rgba(18,18,18,0.16);background:#fff;padding:0.75rem 0.75rem 0.75rem 1rem}
 .site-builder-node--live-search-shell span{color:rgba(18,18,18,0.58)}
-.site-builder-node--button{display:inline-flex;width:fit-content;align-items:center;justify-content:center;border:1px solid color-mix(in oklab,var(--token-color-ink,#111) 18%,transparent);border-radius:999px;padding:0.8rem 1.2rem;font-weight:700;text-decoration:none;transition:background-color .16s ease,color .16s ease,border-color .16s ease,transform .16s ease}
+.site-builder-node--button{display:inline-flex;width:fit-content;align-items:center;justify-content:center;border:1px solid color-mix(in oklab,var(--token-color-ink,#111) 18%,transparent);border-radius:999px;padding:0.85rem 1.6rem;font-size:0.82rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;transition:background-color .16s ease,color .16s ease,border-color .16s ease,transform .2s ease}
+.site-builder-node--button:hover{transform:translateY(-2px)}
+@media (prefers-reduced-motion:reduce){.site-builder-node--button{transition:none}.site-builder-node--button:hover{transform:none}}
 .site-builder-node--button[data-builder-button-tone="primary"]{background:var(--token-color-primary,var(--token-color-ink,#111));color:var(--token-color-surface-raised,#fff)}
 .site-builder-node--button[data-builder-button-tone="secondary"]{background:transparent;color:var(--token-color-primary,var(--token-color-ink,#111))}
 .site-builder-node--button[data-builder-button-hover-tone="primary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="primary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="primary"]:active{background:var(--token-color-primary,var(--token-color-ink,#111))!important;color:var(--token-color-surface-raised,#fff)!important;border-color:var(--token-color-primary,var(--token-color-ink,#111))!important}
@@ -1624,6 +1627,11 @@ function styleBackground(
   // their own ink reads on, instead of a fixed cream band.
   if (background === "surface") return "var(--token-color-surface-raised, rgba(246, 241, 232, 0.92))";
   if (background === "contrast") return "#111";
+  // Theme-paired band ROLES (AIQ-13). Unlike "contrast" these carry a guaranteed
+  // paired foreground (applied in sharedNodeStyle), so they read on any theme.
+  if (background === "accent") return "var(--token-color-primary, var(--token-color-ink, #111))";
+  if (background === "muted")
+    return "color-mix(in oklab, var(--token-color-surface-raised, #f6f1e8) 62%, var(--token-color-ink, #111) 4%)";
   return undefined;
 }
 
@@ -2178,6 +2186,19 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   if (style.background === "contrast") {
     out.background = "var(--token-color-ink,#111)";
     out.color = "#fff";
+  }
+  // AIQ-13 — theme-paired band roles. Each emits a background AND its guaranteed
+  // paired foreground (like "contrast" does), so a tenant's own brand color paints
+  // the band and the text stays readable on every theme. Kept AFTER surface/
+  // contrast and BEFORE tone so an explicit tone/textColor still wins.
+  if (style.background === "accent") {
+    out.background = "var(--token-color-primary, var(--token-color-ink, #111))";
+    out.color = "var(--token-color-surface-raised, #fff)";
+  }
+  if (style.background === "muted") {
+    out.background =
+      "color-mix(in oklab, var(--token-color-surface-raised, #f6f1e8) 62%, var(--token-color-ink, #111) 4%)";
+    out.color = "var(--token-color-ink, #111)";
   }
   if (style.tone === "muted") out.color = "var(--token-color-muted, rgba(18, 18, 18, 0.62))";
   if (style.tone === "strong") out.color = "var(--token-color-ink,#111)";

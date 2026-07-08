@@ -32,10 +32,14 @@ import type {
   BuilderNodeTree,
 } from "@/lib/site-admin/builder-node/types";
 import type { JsonSchemaForChat } from "@/lib/ai/provider";
+import { getLocaleMetadata } from "@/i18n/config";
+import { buildFewShotExamples } from "./generation-few-shots";
 import {
   CURATED_STYLE_COLOR_KEYS,
   CURATED_STYLE_ENUM_VALUES,
   CURATED_STYLE_FONT_WEIGHT_KEY,
+  CURATED_STYLE_MIN_HEIGHT_KEY,
+  isSafeMinHeight,
   FREEFORM_SECTION_TYPE_KEY,
   GENERATION_ALLOWED_KINDS,
   GENERATION_ICON_NAMES,
@@ -58,10 +62,33 @@ export type ModelGenerateFn = (input: {
   maxTokens: number;
 }) => Promise<string | null>;
 
+export type ThemePolarity = "light" | "dark";
+
+/** A few resolved theme swatches to anchor any deliberate colored band (AIQ-12). */
+export interface GenerationPalette {
+  background?: string;
+  ink?: string;
+  surfaceRaised?: string;
+  primary?: string;
+}
+
 export interface GenerateNodesInput {
   brief: string;
   scope: GenerateScope;
   generateWithModel: ModelGenerateFn;
+  /** BCP-47 locale of the surface being edited; copy is written in this language (AIQ-3). */
+  locale?: string;
+  /** The tenant's active theme polarity, if resolvable server-side (AIQ-12). */
+  themePolarity?: ThemePolarity;
+  /** Resolved theme swatches to anchor a deliberate colored band (AIQ-12). */
+  palette?: GenerationPalette;
+}
+
+/** Options that shape the static system prompt (AIQ-3 locale, AIQ-12 polarity/palette). */
+export interface BuildPromptOpts {
+  locale?: string;
+  themePolarity?: ThemePolarity;
+  palette?: GenerationPalette;
 }
 
 export type GenerateNodesResult =
@@ -111,7 +138,33 @@ export const GENERATION_OUTPUT_SCHEMA: JsonSchemaForChat = {
   },
 };
 
-export function buildGenerationSystemPrompt(): string {
+/**
+ * COLOR guidance, adapted to the tenant's resolved theme polarity (AIQ-12).
+ * The no-polarity path returns the exact prior wording byte-for-byte, so the
+ * default prompt is unchanged; a resolved polarity replaces the "unknown"
+ * gamble with a concrete invert-the-band suggestion in the theme's own palette.
+ */
+function buildColorGuidance(
+  polarity: ThemePolarity | undefined,
+  palette: GenerationPalette | undefined,
+): string {
+  if (!polarity) {
+    return 'COLOR: the tenant theme already supplies a coherent, readable palette — LEAVE MOST BLOCKS UNCOLORED and let the theme paint them. The theme\'s polarity is unknown to you (a page can be light OR dark), so a hardcoded color is a gamble. Two safe moves only: (1) leave color unset (recommended for nearly every block); (2) to make ONE deliberate colored band, set backgroundColor AND textColor together on the SAME container as a self-consistent pair — e.g. a dark band backgroundColor:"#15120e" with textColor:"#f3ece0", or a cream band backgroundColor:"#f3efe7" with textColor:"#1b1713"; its text children then inherit that color, so leave them uncolored. NEVER set a text color without a matching background on the same block, or a background without its text color — a lone color is DROPPED. Never light-on-light or dark-on-dark.';
+  }
+  const bg = palette?.background ?? (polarity === "dark" ? "#0a0a0a" : "#ffffff");
+  const ink = palette?.ink ?? (polarity === "dark" ? "#f4f4f5" : "#111111");
+  const band =
+    polarity === "dark"
+      ? 'Since this page is DARK, a deliberate band should INVERT to light: backgroundColor:"#f3efe7" with textColor:"#1b1713".'
+      : 'Since this page is LIGHT, a deliberate band should INVERT to dark: backgroundColor:"#15120e" with textColor:"#f3ece0".';
+  const primaryNote = palette?.primary
+    ? ` The theme's primary accent is ${palette.primary}; the theme already paints primary buttons with it, so still do NOT set button colors.`
+    : "";
+  return `COLOR: the tenant theme already supplies a coherent, readable palette — LEAVE MOST BLOCKS UNCOLORED and let the theme paint them. This page's theme polarity is ${polarity.toUpperCase()} (canvas ${bg}, text ${ink}). ${band}${primaryNote} Two safe moves only: (1) leave color unset (recommended for nearly every block); (2) to make ONE deliberate colored band, set backgroundColor AND textColor together on the SAME container as a self-consistent pair; its text children then inherit that color, so leave them uncolored. NEVER set a text color without a matching background on the same block, or a background without its text color — a lone color is DROPPED. Never light-on-light or dark-on-dark.`;
+}
+
+export function buildGenerationSystemPrompt(opts: BuildPromptOpts = {}): string {
+  const languageName = getLocaleMetadata(opts.locale ?? "en").label;
   return [
     "You are a website page-builder engine for a talent-agency platform. Given a brief, you output JSON describing page sections built from a fixed set of block types. The user edits every block afterward, so make each block real and specific.",
     "",
@@ -140,18 +193,21 @@ export function buildGenerationSystemPrompt(): string {
     '  align:"left"|"center"|"right"',
     '  size:"sm"|"md"|"lg"|"xl"|"display"      (heading scale)',
     '  maxWidth:"narrow"|"reading"|"wide"|"full"',
-    '  paddingX,paddingY,marginTop,marginBottom: "none"|"s"|"m"|"l"',
-    '  background:"none"|"surface"   (surface = a subtle theme-paired raised panel)',
+    '  paddingX,marginTop,marginBottom: "none"|"s"|"m"|"l"',
+    '  paddingY: "none"|"s"|"m"|"l"|"xl"   ("xl" = full section-scale vertical rhythm, ~96px; use it on a section\'s outer container)',
+    '  minHeight: a CSS length like "70svh" or "480px" — set on the hero container so the opening view fills the screen',
+    '  background:"none"|"surface"|"accent"|"muted"   (surface = subtle raised panel; accent = a bold band in the tenant\'s brand color with readable paired text; muted = a soft neutral band. All three are theme-paired: the text stays readable automatically, no color pair needed)',
     '  radius:"none"|"sm"|"md"|"lg"|"pill"',
     '  textColor,backgroundColor: a short CSS color — hex like "#1a1a1a" or a keyword, under ~40 chars',
     "  fontWeight: 100-900",
     '  textTransform:"none"|"uppercase"|"lowercase"|"capitalize"   fontStyle:"normal"|"italic"   tone:"default"|"muted"|"strong"',
     '  objectFit:"cover"|"contain"   aspectRatio:"auto"|"1:1"|"4:3"|"3:4"|"16:9"|"21:9"',
     "",
-    'COLOR: the tenant theme already supplies a coherent, readable palette — LEAVE MOST BLOCKS UNCOLORED and let the theme paint them. The theme\'s polarity is unknown to you (a page can be light OR dark), so a hardcoded color is a gamble. Two safe moves only: (1) leave color unset (recommended for nearly every block); (2) to make ONE deliberate colored band, set backgroundColor AND textColor together on the SAME container as a self-consistent pair — e.g. a dark band backgroundColor:"#15120e" with textColor:"#f3ece0", or a cream band backgroundColor:"#f3efe7" with textColor:"#1b1713"; its text children then inherit that color, so leave them uncolored. NEVER set a text color without a matching background on the same block, or a background without its text color — a lone color is DROPPED. Never light-on-light or dark-on-dark.',
+    buildColorGuidance(opts.themePolarity, opts.palette),
     "",
     "RULES",
     "- Copy: write real, specific, on-brand copy, never lorem ipsum or placeholder text. Headlines are short and declarative (5-9 words); body is one or two real sentences. Give the business a plausible concrete name and voice.",
+    `- Language: write EVERY piece of user-visible copy (names, headlines, body, eyebrows, button labels, form labels, accordion titles, pricing tiers) in ${languageName}, the language named in the LANGUAGE line of the user message. Never mix languages within the page. Leave hrefs, style tokens, and node kinds unchanged.`,
     "- Punctuation: NEVER use em dashes or en dashes (— or –) in any copy. Use a comma, period, colon, or the word 'and' instead. This is a strict brand style rule.",
     "- Brand language: this is a talent agency, not a store. NEVER use buyer, cart, checkout, add to cart, shop, purchase, or 'pay to DM'. Use client, book, inquire, roster, lineup, casting. You BOOK talent, you do not buy it.",
     "- CTA labels: verb-led and specific (Book talent, Start an inquiry, View the roster, See pricing, Apply as talent). NEVER generic labels like 'Learn more', 'Click here', 'Read more', or 'Submit'.",
@@ -159,87 +215,21 @@ export function buildGenerationSystemPrompt(): string {
     "- Hierarchy: EXACTLY ONE heading with level:1 on the whole page — it lives in the hero. Every other section opens with a level:2 heading; cards use level:3. Never skip levels.",
     "- Rhythm: prefer 2-4 blocks per section. Alternate texture — a text-led section, then a media or card section — rather than stacking identical card grids.",
     "- Layout: one idea per section. Do not nest deeper than 3 levels below a section.",
-    '- Restraint: tasteful, editorial, minimal. Reach for whitespace (paddingY, spacer) before decoration. Use at most ONE deliberate colored band per page (usually the closing CTA): build it with a backgroundColor+textColor PAIR on that section\'s container (per COLOR above), never the "surface" token or a lone color.',
+    '- Rhythm & scale: give each section REAL vertical breathing room — put paddingY:"xl" on the section\'s outer container (paddingY:"l" only for a deliberately tight band), and give the hero container a minHeight of "70svh" to "85svh" so the opening view fills the screen. For a FULL-BLEED colored band, make the section\'s single child a container with style.maxWidth:"full" carrying the backgroundColor+textColor pair, so the color runs edge to edge.',
+    '- Restraint: tasteful, editorial, minimal. Reach for whitespace (paddingY, spacer) before decoration. Use at most ONE deliberate colored band per page (usually the closing CTA): build it by setting background:"accent" (a band in the tenant\'s brand color) or background:"muted" (a soft neutral band) on that section\'s container — these carry their own readable text, so leave the children uncolored. Prefer these over a hand-picked backgroundColor+textColor pair; never use a lone color.',
     "",
-    "EXAMPLE (one hero section):",
-    JSON.stringify({
-      sections: [
-        {
-          kind: "section",
-          label: "Hero",
-          children: [
-            {
-              kind: "container",
-              props: { layout: "stack", gap: "m", align: "center", style: { paddingY: "l", maxWidth: "reading" } },
-              children: [
-                { kind: "paragraph", props: { text: "A boutique modeling agency", style: { align: "center", size: "sm", textTransform: "uppercase", tone: "muted" } } },
-                { kind: "heading", props: { text: "Faces that move culture", level: 1, style: { size: "display", align: "center" } } },
-                { kind: "paragraph", props: { text: "A boutique roster of models booked by the brands setting the pace.", style: { align: "center", maxWidth: "reading" } } },
-                {
-                  kind: "cta_group",
-                  props: { align: "center" },
-                  children: [{ kind: "button", props: { label: "Book a model", href: "/inquire", tone: "primary" } }],
-                },
-                { kind: "image", props: { role: "hero", alt: "Model on a studio runway" } },
-              ],
-            },
-          ],
-        },
-      ],
-    }),
-    "",
-    "EXAMPLE (a 3-card services grid):",
-    JSON.stringify({
-      sections: [
-        {
-          kind: "section",
-          label: "Services",
-          children: [
-            { kind: "paragraph", props: { text: "What we offer", style: { align: "center", size: "sm", tone: "muted", textTransform: "uppercase" } } },
-            { kind: "heading", props: { text: "Casting, built around the brief", level: 2, style: { align: "center" } } },
-            {
-              kind: "container",
-              props: { layout: "grid", columns: 3, gap: "m" },
-              children: [
-                {
-                  kind: "card",
-                  props: { variant: "elevated" },
-                  children: [
-                    { kind: "heading", props: { text: "Editorial", level: 3 } },
-                    { kind: "paragraph", props: { text: "Campaign and lookbook casting for print and digital." } },
-                  ],
-                },
-                {
-                  kind: "card",
-                  props: { variant: "elevated" },
-                  children: [
-                    { kind: "heading", props: { text: "Runway", level: 3 } },
-                    { kind: "paragraph", props: { text: "Season fittings and show bookings across fashion weeks." } },
-                  ],
-                },
-                {
-                  kind: "card",
-                  props: { variant: "elevated" },
-                  children: [
-                    { kind: "heading", props: { text: "Commercial", level: 3 } },
-                    { kind: "paragraph", props: { text: "Brand, lifestyle, and product work with usage handled." } },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    }),
+    ...buildFewShotExamples(opts.locale),
   ].join("\n");
 }
 
-export function buildGenerationUserMessage(scope: GenerateScope, brief: string): string {
+export function buildGenerationUserMessage(scope: GenerateScope, brief: string, locale?: string): string {
   const scopeLine =
     scope === "page"
       ? "Generate a COMPLETE PAGE: 3 to 6 sections (e.g. hero, features/services, gallery or stats, testimonials, and a closing call-to-action)."
       : "Generate EXACTLY ONE section for this request.";
-  return [scopeLine, "", `Brief: ${brief}`, "", 'Return only the {"sections": [...]} JSON object.'].join("\n");
+  const languageName = getLocaleMetadata(locale ?? "en").label;
+  const languageLine = `LANGUAGE: Write ALL user-visible copy in ${languageName}. Do not translate the brief; write the page copy in ${languageName}.`;
+  return [scopeLine, "", languageLine, "", `Brief: ${brief}`, "", 'Return only the {"sections": [...]} JSON object.'].join("\n");
 }
 
 // ── Parse ───────────────────────────────────────────────────────────────────
@@ -324,6 +314,10 @@ function sanitizeStyle(raw: unknown): Record<string, unknown> | undefined {
   if (typeof weight === "number" && Number.isInteger(weight) && weight >= 100 && weight <= 900) {
     out[CURATED_STYLE_FONT_WEIGHT_KEY] = weight;
   }
+  // minHeight — a bounded CSS length so a hero/band gets real vertical presence
+  // (AIQ-7). Only a single safe length token survives; anything else is dropped.
+  const minH = style[CURATED_STYLE_MIN_HEIGHT_KEY];
+  if (isSafeMinHeight(minH)) out[CURATED_STYLE_MIN_HEIGHT_KEY] = minH;
   // Center any bounded-width content column. The `maxWidth` TOKEN only sets
   // `max-width`; it never adds `margin-inline: auto`, so a token-width block
   // floats to the LEFT of its full-bleed parent (a cramped column instead of a
@@ -667,8 +661,12 @@ async function runOnce(
   brief: string,
 ): Promise<{ tree: BuilderNodeTree; repaired: boolean } | null> {
   const text = await input.generateWithModel({
-    systemPrompt: buildGenerationSystemPrompt(),
-    userMessage: buildGenerationUserMessage(input.scope, brief),
+    systemPrompt: buildGenerationSystemPrompt({
+      locale: input.locale,
+      themePolarity: input.themePolarity,
+      palette: input.palette,
+    }),
+    userMessage: buildGenerationUserMessage(input.scope, brief, input.locale),
     jsonSchema: GENERATION_OUTPUT_SCHEMA,
     maxTokens: GEN_MAX_TOKENS,
   });
