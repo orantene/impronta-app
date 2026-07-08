@@ -713,6 +713,7 @@ export function CategoryExpandPanel({
   isSavingParent?: boolean;
   isSavingSubtypes?: boolean;
 }) {
+  const t = useT();
   const [draggingSubId, setDraggingSubId] = useState<string | null>(null);
   const subtypeCount =
     parent.children.length +
@@ -725,9 +726,9 @@ export function CategoryExpandPanel({
     <div style={{ padding: "0 14px 14px 14px", display: "flex", flexDirection: "column", gap: 10 }} className="bg-admin-surface-alt">
       {/* Tab strip */}
       <div style={{ display: "flex", gap: 6, paddingTop: 10 }}>
-        <TabBtn id="subtypes" label="Sub-types" count={subtypeCount} active={tab === "subtypes"} onClick={() => onTabChange("subtypes")} />
-        <TabBtn id="fields" label="Field catalog" count={detail?.fields.length} active={tab === "fields"} onClick={() => onTabChange("fields")} />
-        <TabBtn id="settings" label="Settings" active={tab === "settings"} onClick={() => onTabChange("settings")} />
+        <TabBtn id="subtypes" label={t("dashboard.adminDrawers.taxonomyTabSubtypes")} count={subtypeCount} active={tab === "subtypes"} onClick={() => onTabChange("subtypes")} />
+        <TabBtn id="fields" label={t("dashboard.adminDrawers.taxonomyTabFields")} count={detail?.fields.length} active={tab === "fields"} onClick={() => onTabChange("fields")} />
+        <TabBtn id="settings" label={t("dashboard.adminDrawers.taxonomyTabSettings")} active={tab === "settings"} onClick={() => onTabChange("settings")} />
       </div>
 
       {/* SUBTYPES TAB */}
@@ -735,17 +736,17 @@ export function CategoryExpandPanel({
         <div>
           {isSavingSubtypes && (
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-admin-sm text-admin-11 font-medium mb-1.5 bg-admin-surface text-admin-ink-muted border border-admin-border-soft">
-              Saving sub-type order…
+              {t("dashboard.adminDrawers.taxonomySavingSubOrder")}
             </div>
           )}
           {isLoading && !detail && (
             <div style={{ padding: 12, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-              Loading sub-types…
+              {t("dashboard.adminDrawers.taxonomyLoadingSubtypes")}
             </div>
           )}
           {detail && detail.groups.length === 0 && detail.directTalentTypes.length === 0 && parent.children.length === 0 && (
             <div style={{ padding: 12, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-              No sub-types defined yet. Add a custom one below.
+              {t("dashboard.adminDrawers.taxonomyNoSubtypes")}
             </div>
           )}
 
@@ -784,7 +785,7 @@ export function CategoryExpandPanel({
                 }}>
                   <span
                     aria-hidden
-                    title="Drag to reorder sub-types"
+                    title={t("dashboard.adminDrawers.taxonomyDragSubtypes")}
                     className="select-none text-admin-ink-dim text-admin-11 font-bold"
                   >
                     ⋮⋮
@@ -793,12 +794,12 @@ export function CategoryExpandPanel({
                     <div className="text-admin-ink text-admin-12h font-semibold">
                       {sub.custom_label ?? sub.name_en}
                       {sub.is_custom && (
-                        <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 4 }} className="bg-admin-indigo-soft text-admin-indigo-deep">CUSTOM</span>
+                        <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 4 }} className="bg-admin-indigo-soft text-admin-indigo-deep">{t("dashboard.adminDrawers.taxonomyCustomBadge")}</span>
                       )}
                     </div>
                     {ttList.length > 0 && (
                       <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
-                        {ttList.length} talent type{ttList.length === 1 ? "" : "s"}
+                        {interpolate(t(ttList.length === 1 ? "dashboard.adminDrawers.taxonomyTalentTypesCountOne" : "dashboard.adminDrawers.taxonomyTalentTypesCountOther"), { count: ttList.length })}
                       </div>
                     )}
                   </div>
@@ -822,7 +823,7 @@ export function CategoryExpandPanel({
                       type="button"
                       onClick={() => onRemoveCustom(sub)}
                       style={{
-                        padding: "3px 8px", fontSize: 11, fontWeight: 600, borderRadius: 6, border: `1px solid ${COLORS.border}`, background: "#fff", cursor: "pointer", fontFamily: FONTS.body }} className="text-admin-red">Remove</button>
+                        padding: "3px 8px", fontSize: 11, fontWeight: 600, borderRadius: 6, border: `1px solid ${COLORS.border}`, background: "#fff", cursor: "pointer", fontFamily: FONTS.body }} className="text-admin-red">{t("dashboard.adminDrawers.remove")}</button>
                   )}
                 </div>
                 {ttList.length > 0 && (
@@ -848,7 +849,7 @@ export function CategoryExpandPanel({
               fontFamily: FONTS.body,
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: 0.4 }} className="text-admin-ink-muted">
-                DIRECT TYPES
+                {t("dashboard.adminDrawers.taxonomyDirectTypes")}
               </div>
               <div className="flex flex-wrap gap-1">
                 {detail.directTalentTypes.map((tt) => (
@@ -869,7 +870,7 @@ export function CategoryExpandPanel({
                 value={newSubName}
                 onChange={(e) => onNewSubName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") onAddCustom(); }}
-                placeholder={`e.g. "Ambient DJs"`}
+                placeholder={t("dashboard.adminDrawers.taxonomyAddCustomPlaceholder")}
                 autoFocus
                 style={{
                   flex: 1, padding: "8px 10px", borderRadius: 8,
@@ -886,7 +887,7 @@ export function CategoryExpandPanel({
                   background: COLORS.ink, color: "#fff", cursor: "pointer",
                   fontFamily: FONTS.body,
                 }}
-              >Add</button>
+              >{t("dashboard.adminDrawers.add")}</button>
               <button
                 type="button"
                 onClick={() => { onAddingChange(false); onNewSubName(""); }}
@@ -896,7 +897,7 @@ export function CategoryExpandPanel({
                   background: "#fff", color: COLORS.inkMuted, cursor: "pointer",
                   fontFamily: FONTS.body,
                 }}
-              >Cancel</button>
+              >{t("dashboard.adminDrawers.cancel")}</button>
             </div>
           ) : (
             <button
@@ -908,7 +909,7 @@ export function CategoryExpandPanel({
                 background: "transparent", color: COLORS.inkMuted, cursor: "pointer",
                 fontFamily: FONTS.body, alignSelf: "flex-start",
               }}
-            >+ Add custom sub-type</button>
+            >{t("dashboard.adminDrawers.taxonomyAddCustomButton")}</button>
           )}
         </div>
       )}
@@ -918,7 +919,7 @@ export function CategoryExpandPanel({
         <div>
           {isLoading && !detail && (
             <div style={{ padding: 12, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-              Loading field catalog…
+              {t("dashboard.adminDrawers.taxonomyLoadingFields")}
             </div>
           )}
           {detail && (() => {
@@ -929,16 +930,16 @@ export function CategoryExpandPanel({
               grouped.set(f.tier, list);
             }
             const tierOrder: Array<["universal" | "global" | "type-specific", string, string]> = [
-              ["universal", "Universal", "Every talent has these — required to publish."],
-              ["global", "Global", "Cross-category. Most talent fill these in."],
-              ["type-specific", "Category-specific", `Only for ${parent.name_en} — and the sub-types within.`],
+              ["universal", t("dashboard.adminDrawers.taxonomyTierUniversal"), t("dashboard.adminDrawers.taxonomyTierUniversalDesc")],
+              ["global", t("dashboard.adminDrawers.taxonomyTierGlobal"), t("dashboard.adminDrawers.taxonomyTierGlobalDesc")],
+              ["type-specific", t("dashboard.adminDrawers.taxonomyTierCategory"), interpolate(t("dashboard.adminDrawers.taxonomyTierCategoryDesc"), { category: parent.name_en })],
             ];
             const rows = tierOrder.map(([tier, label, desc]) => {
               const list = grouped.get(tier) ?? [];
               if (list.length === 0) return null;
               return (
                 <div key={tier} style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, marginBottom: 4, fontFamily: FONTS.body }} className="text-admin-ink">{label.toUpperCase()} · {list.length}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, marginBottom: 4, fontFamily: FONTS.body }} className="text-admin-ink">{interpolate(t("dashboard.adminDrawers.taxonomyTierCount"), { label: label.toUpperCase(), count: list.length })}</div>
                   <div style={{ fontSize: 11, marginBottom: 6, fontFamily: FONTS.body }} className="text-admin-ink-muted">{desc}</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                     {list.map((f) => (
@@ -967,7 +968,7 @@ export function CategoryExpandPanel({
             if (rows.length === 0) {
               return (
                 <div className="p-3 text-admin-12h text-admin-ink-muted">
-                  No fields cataloged for this category yet.
+                  {t("dashboard.adminDrawers.taxonomyNoFields")}
                 </div>
               );
             }
@@ -981,14 +982,14 @@ export function CategoryExpandPanel({
         <div className="flex flex-col gap-2.5">
           {!parent.is_enabled && (
             <div style={{ padding: 10, borderRadius: 8, border: `1px solid ${COLORS.amber}`, fontSize: 11.5, fontFamily: FONTS.body }} className="bg-admin-amber-soft text-admin-ink">
-              This category is currently disabled. The flags below take effect once you enable it.
+              {t("dashboard.adminDrawers.taxonomySettingsDisabledNote")}
             </div>
           )}
           {/* Phase 4.2: visible async state for in-flight settings saves
               (toggles, label edits, reorder writes from this panel). */}
           {isSavingParent && (
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-admin-sm text-admin-11 font-medium bg-admin-surface text-admin-ink-muted border border-admin-border-soft">
-              Saving…
+              {t("dashboard.adminDrawers.saving")}
             </div>
           )}
 
@@ -1007,17 +1008,17 @@ export function CategoryExpandPanel({
             fontFamily: FONTS.body,
           }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
-              Labels
+              {t("dashboard.adminDrawers.taxonomyLabels")}
               {!canCustomize && (
                 <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700 }} className="text-admin-indigo-deep">
-                  · Studio plan required
+                  {t("dashboard.adminDrawers.taxonomyStudioRequiredSuffix")}
                 </span>
               )}
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               <div style={{ flex: "1 1 240px", minWidth: 0 }}>
                 <label style={{ display: "block", fontSize: 10.5, fontWeight: 600, marginBottom: 3 }} className="text-admin-ink-muted">
-                  English {parent.custom_label && <span className="text-admin-amber-deep">· custom</span>}
+                  {t("dashboard.adminDrawers.taxonomyLabelEnglish")} {parent.custom_label && <span className="text-admin-amber-deep">{t("dashboard.adminDrawers.taxonomyCustomTag")}</span>}
                 </label>
                 <input
                   type="text"
@@ -1041,7 +1042,7 @@ export function CategoryExpandPanel({
               </div>
               <div style={{ flex: "1 1 240px", minWidth: 0 }}>
                 <label style={{ display: "block", fontSize: 10.5, fontWeight: 600, marginBottom: 3 }} className="text-admin-ink-muted">
-                  Español {parent.custom_label_es && <span className="text-admin-amber-deep">· custom</span>}
+                  {t("dashboard.adminDrawers.taxonomyLabelSpanish")} {parent.custom_label_es && <span className="text-admin-amber-deep">{t("dashboard.adminDrawers.taxonomyCustomTag")}</span>}
                 </label>
                 <input
                   type="text"
@@ -1065,44 +1066,42 @@ export function CategoryExpandPanel({
               </div>
             </div>
             <div style={{ fontSize: 10.5, lineHeight: 1.4 }} className="text-admin-ink-muted">
-              Leave a field blank to fall back to the platform default. Talent + admin editors update automatically.
-              {!canSetOrder && (
-                <> Drag-to-reorder requires <strong>Agency</strong> plan.</>
-              )}
+              {t("dashboard.adminDrawers.taxonomyLabelsHint")}
+              {!canSetOrder && interpolate(t("dashboard.adminDrawers.taxonomyReorderAgencyHint"), { plan: "Agency" })}
             </div>
           </div>
 
           <TaxonomyToggleRow
-            label="Allow as primary"
-            desc="Talent can pick this as their main category."
+            label={t("dashboard.adminDrawers.taxonomyAllowPrimary")}
+            desc={t("dashboard.adminDrawers.taxonomyAllowPrimaryDesc")}
             value={parent.allow_as_primary}
             onChange={(v) => onFlag("allow_as_primary", v)}
             disabled={isSavingParent}
           />
           <TaxonomyToggleRow
-            label="Allow as secondary"
-            desc="Talent can add this as one of their two secondary categories."
+            label={t("dashboard.adminDrawers.taxonomyAllowSecondary")}
+            desc={t("dashboard.adminDrawers.taxonomyAllowSecondaryDesc")}
             value={parent.allow_as_secondary}
             onChange={(v) => onFlag("allow_as_secondary", v)}
             disabled={isSavingParent}
           />
           <TaxonomyToggleRow
-            label="Show in registration"
-            desc="Talent can self-register under this category."
+            label={t("dashboard.adminDrawers.taxonomyShowInRegistration")}
+            desc={t("dashboard.adminDrawers.taxonomyShowInRegistrationDesc")}
             value={parent.show_in_registration}
             onChange={(v) => onFlag("show_in_registration", v)}
             disabled={isSavingParent}
           />
           <TaxonomyToggleRow
-            label="Show in directory"
-            desc="Discover surfaces this category to clients."
+            label={t("dashboard.adminDrawers.taxonomyShowInDirectory")}
+            desc={t("dashboard.adminDrawers.taxonomyShowInDirectoryDesc")}
             value={parent.show_in_directory}
             onChange={(v) => onFlag("show_in_directory", v)}
             disabled={isSavingParent}
           />
           <TaxonomyToggleRow
-            label="Require approval"
-            desc="New profiles in this category go to admin queue first."
+            label={t("dashboard.adminDrawers.taxonomyRequireApproval")}
+            desc={t("dashboard.adminDrawers.taxonomyRequireApprovalDesc")}
             value={parent.requires_approval}
             onChange={(v) => onFlag("requires_approval", v)}
             disabled={isSavingParent}
@@ -1127,6 +1126,7 @@ export function CategoryExpandPanel({
 
 
 export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT();
   const { state, toast } = useAdminShell();
   // Phase 2 (Sub-Task 3): plan-tier gating mirrors light-09 (FIELD pattern).
   // canCustomize → Studio+ (enable/disable + relabel).
@@ -1234,7 +1234,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   const handleToggleEnabled = async (node: TaxonomyNode) => {
     // Phase 2 (Sub-Task 3) plan-tier floor: Free is read-only.
     if (!canCustomize) {
-      toast("Upgrade to Studio to enable/disable categories");
+      toast(t("dashboard.adminDrawers.taxonomyUpgradeStudioEnable"));
       return;
     }
     markSaving(node.id, true);
@@ -1276,7 +1276,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     raw: string,
   ) => {
     if (!canCustomize) {
-      toast("Upgrade to Studio to rename categories");
+      toast(t("dashboard.adminDrawers.taxonomyUpgradeStudioRename"));
       return;
     }
     const trimmed = raw.trim();
@@ -1305,8 +1305,8 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     } else {
       toast(
         next
-          ? `Renamed for your workspace (${locale.toUpperCase()})`
-          : `Reset to the platform name (${locale.toUpperCase()})`,
+          ? interpolate(t("dashboard.adminDrawers.taxonomyRenamedForWorkspace"), { locale: locale.toUpperCase() })
+          : interpolate(t("dashboard.adminDrawers.taxonomyResetToPlatform"), { locale: locale.toUpperCase() }),
       );
     }
     markSaving(node.id, false);
@@ -1324,12 +1324,12 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
       if (!res.ok) {
         setTree(previousTree);
         markSaveDone("taxonomy-order", false);
-        toast(res.error || "Couldn't save category order");
+        toast(res.error || t("dashboard.adminDrawers.taxonomyOrderSaveFailed"));
         return;
       }
     }
     markSaveDone("taxonomy-order", true);
-    toast("Category order saved");
+    toast(t("dashboard.adminDrawers.taxonomyOrderSaved"));
   };
 
   const persistSubTypeOrder = async (
@@ -1349,18 +1349,18 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
       if (!res.ok) {
         setTree(previousTree);
         markSaveDone(savingKey, false);
-        toast(res.error || "Couldn't save sub-type order");
+        toast(res.error || t("dashboard.adminDrawers.taxonomySubOrderSaveFailed"));
         return;
       }
     }
     markSaveDone(savingKey, true);
-    toast("Sub-type order saved");
+    toast(t("dashboard.adminDrawers.taxonomySubOrderSaved"));
   };
 
   const reorderParentSubTypes = (parentId: string, orderedSubTypeIds: string[]) => {
     // Phase 2 (Sub-Task 3) plan-tier floor: ordering requires Agency+.
     if (!canSetOrder) {
-      toast("Upgrade to Agency to reorder sub-types");
+      toast(t("dashboard.adminDrawers.taxonomyUpgradeAgencyReorderSub"));
       return;
     }
     if (!tree || orderedSubTypeIds.length < 2) return;
@@ -1393,7 +1393,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   const dropRootCategory = (target: TaxonomyNode) => {
     // Phase 2 (Sub-Task 3) plan-tier floor: ordering requires Agency+.
     if (!canSetOrder) {
-      toast("Upgrade to Agency to reorder categories");
+      toast(t("dashboard.adminDrawers.taxonomyUpgradeAgencyReorderCat"));
       return;
     }
     if (!draggingTaxonomyId || draggingTaxonomyId === target.id || !tree) return;
@@ -1422,7 +1422,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   const handleAddCustom = async (parent: TaxonomyNode) => {
     const name = newSubName.trim();
     if (!name) {
-      toast("Enter a name first.");
+      toast(t("dashboard.adminDrawers.taxonomyEnterNameFirst"));
       return;
     }
     const res = await addCustomSubType({
@@ -1438,11 +1438,11 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     // Reload tree to pick up the new sub-type.
     const fresh = await getEnabledTaxonomyTree();
     if (fresh.ok) setTree(fresh.tree);
-    toast(`Added "${name}" as a custom sub-type.`);
+    toast(interpolate(t("dashboard.adminDrawers.taxonomyAddedCustom"), { name }));
   };
 
   const handleRemoveCustom = async (node: TaxonomyNode) => {
-    if (!confirm(`Remove "${node.name_en}" from your sub-types? Talent already tagged with it keep their assignment for history.`)) return;
+    if (!confirm(interpolate(t("dashboard.adminDrawers.taxonomyRemoveConfirm"), { name: node.name_en }))) return;
     const res = await removeCustomSubType({ id: node.id });
     if (!res.ok) {
       toast(res.error);
@@ -1450,7 +1450,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     }
     const fresh = await getEnabledTaxonomyTree();
     if (fresh.ok) setTree(fresh.tree);
-    toast(`Removed "${node.name_en}".`);
+    toast(interpolate(t("dashboard.adminDrawers.taxonomyRemoved"), { name: node.name_en }));
   };
 
   const totalEnabled = useMemo(
@@ -1464,20 +1464,20 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     <DrawerShell
       open={open}
       onClose={onClose}
-      title="Talent types"
-      description="Pick which talent your agency accepts. Disabled categories disappear from Add Talent and the public registration form. Sub-types let you customize within a category — perfect for niches your roster specializes in."
+      title={t("dashboard.adminDrawers.taxonomyTitle")}
+      description={t("dashboard.adminDrawers.taxonomyDescription")}
       footer={
-        <PrimaryButton onClick={onClose}>Done</PrimaryButton>
+        <PrimaryButton onClick={onClose}>{t("dashboard.adminDrawers.done")}</PrimaryButton>
       }
     >
       {error && (
         <div style={{ padding: 12, borderRadius: 10, border: `1px solid ${COLORS.amber}`, fontSize: 12, marginBottom: 14, fontFamily: FONTS.body }} className="bg-admin-amber-soft text-admin-ink">
-          Couldn&apos;t load live taxonomy: {error}
+          {interpolate(t("dashboard.adminDrawers.taxonomyLoadError"), { error })}
         </div>
       )}
 
       {loading && (
-        <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">Loading taxonomy…</div>
+        <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">{t("dashboard.adminDrawers.taxonomyLoading")}</div>
       )}
 
       {tree && (
@@ -1485,17 +1485,17 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: 10, border: `1px solid rgba(91,107,160,0.18)`, fontFamily: FONTS.body, marginBottom: 14 }} className="bg-admin-indigo-soft">
             <div>
               <div className="text-admin-indigo-deep text-xs font-semibold">
-                {totalEnabled} of {tree.length} categories enabled
+                {interpolate(t("dashboard.adminDrawers.taxonomyEnabledCount"), { enabled: totalEnabled, total: tree.length })}
               </div>
               <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
-                Changes save instantly to your workspace.
+                {t("dashboard.adminDrawers.taxonomyChangesSaveInstantly")}
               </div>
             </div>
           </div>
 
           {saving.has("taxonomy-order") && (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-admin-sm text-admin-11 font-medium mb-2 bg-admin-surface-alt text-admin-ink-muted border border-admin-border-soft">
-              Saving category order…
+              {t("dashboard.adminDrawers.taxonomySavingOrder")}
             </div>
           )}
 
@@ -1529,7 +1529,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                       <div className="text-admin-ink text-admin-13h font-semibold">
                         <span
                           aria-hidden
-                          title="Drag to reorder categories"
+                          title={t("dashboard.adminDrawers.taxonomyDragCategories")}
                           className="mr-2 select-none text-admin-ink-dim text-admin-11 font-bold"
                         >
                           ⋮⋮
@@ -1537,15 +1537,15 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                         {parent.custom_label ?? parent.name_en}
                       </div>
                       <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
-                        {childCount} sub-type{childCount === 1 ? "" : "s"}
-                        {customCount > 0 ? ` · ${customCount} custom` : ""}
-                        {parent.is_enabled ? "" : " · disabled"}
+                        {interpolate(t(childCount === 1 ? "dashboard.adminDrawers.taxonomySubtypesCountOne" : "dashboard.adminDrawers.taxonomySubtypesCountOther"), { count: childCount })}
+                        {customCount > 0 ? interpolate(t("dashboard.adminDrawers.taxonomyCustomSuffix"), { count: customCount }) : ""}
+                        {parent.is_enabled ? "" : t("dashboard.adminDrawers.taxonomyDisabledSuffix")}
                       </div>
                     </div>
                     {/* Save-state indicator — persistent, not toast-only */}
                     {(isSaving || isSavedRecently) && (
                       <span className={`text-admin-10 font-semibold px-2 py-0.5 rounded shrink-0 ${isSaving ? "bg-[rgba(11,11,13,0.07)] text-admin-ink-muted" : "bg-admin-accent-soft text-admin-accent"}`}>
-                        {isSaving ? "Saving…" : "✓ Saved"}
+                        {isSaving ? t("dashboard.adminDrawers.saving") : `✓ ${t("dashboard.adminDrawers.saved")}`}
                       </span>
                     )}
                     {/* Chevron — signals the row is expandable */}
@@ -1583,7 +1583,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                       onFlag={(key, val) => {
                         // Plan-tier safety floor — Free can read but not write.
                         if (!canCustomize) {
-                          toast("Upgrade to Studio to customize taxonomy");
+                          toast(t("dashboard.adminDrawers.taxonomyUpgradeStudioCustomize"));
                           return;
                         }
                         handleFlag(parent, key, val);
@@ -2204,6 +2204,7 @@ export function PhotoGalleryReal({ album, onUpdateAlbum }: {
   album: ProfileAlbum;
   onUpdateAlbum: (updater: (a: ProfileAlbum) => ProfileAlbum) => void;
 }) {
+  const t = useT();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
@@ -2284,9 +2285,9 @@ export function PhotoGalleryReal({ album, onUpdateAlbum }: {
             }}
           >
             {i === 0 ? (
-              <span style={{ position: "absolute", top: 4, left: 4, fontSize: 9, fontWeight: 700, fontFamily: FONTS.body, padding: "2px 6px", borderRadius: 999, color: "#fff" }} className="bg-admin-accent">★ MAIN</span>
+              <span style={{ position: "absolute", top: 4, left: 4, fontSize: 9, fontWeight: 700, fontFamily: FONTS.body, padding: "2px 6px", borderRadius: 999, color: "#fff" }} className="bg-admin-accent">{t("dashboard.adminDrawers.photoMain")}</span>
             ) : (
-              <button type="button" onClick={(e) => { e.stopPropagation(); makeMain(i); }} aria-label="Make main"
+              <button type="button" onClick={(e) => { e.stopPropagation(); makeMain(i); }} aria-label={t("dashboard.adminDrawers.makeMainAria")}
                 style={{
                   position: "absolute", top: 4, left: 4,
                   width: 22, height: 22, borderRadius: "50%",
@@ -2294,14 +2295,14 @@ export function PhotoGalleryReal({ album, onUpdateAlbum }: {
                   fontSize: 11, cursor: "pointer", lineHeight: 1,
                 }}>★</button>
             )}
-            <button type="button" onClick={(e) => { e.stopPropagation(); setCropIdx(i); }} aria-label="Crop"
+            <button type="button" onClick={(e) => { e.stopPropagation(); setCropIdx(i); }} aria-label={t("dashboard.adminDrawers.cropAria")}
               style={{
                 position: "absolute", bottom: 4, left: 4,
                 width: 22, height: 22, borderRadius: "50%",
                 border: "none", background: "rgba(11,11,13,0.55)", color: "#fff",
                 fontSize: 11, cursor: "pointer", lineHeight: 1,
               }}>✂</button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); removePhoto(i); }} aria-label="Remove"
+            <button type="button" onClick={(e) => { e.stopPropagation(); removePhoto(i); }} aria-label={t("dashboard.adminDrawers.removeAria")}
               style={{
                 position: "absolute", top: 4, right: 4,
                 width: 22, height: 22, borderRadius: "50%",
@@ -2321,20 +2322,20 @@ export function PhotoGalleryReal({ album, onUpdateAlbum }: {
             transition: "background .12s",
           }}>
             <span className="text-lg">+</span>
-            <span>{dragOver ? "Drop here" : "Drop or pick"}</span>
+            <span>{dragOver ? t("dashboard.adminDrawers.photoDropHere") : t("dashboard.adminDrawers.photoDropOrPick")}</span>
           </button>
         )}
       </div>
       <div style={{ fontSize: 11, marginTop: 8, lineHeight: 1.4, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-        Drag tiles to reorder. ★ promotes to main. ✂ to crop.
+        {t("dashboard.adminDrawers.photoGalleryHint")}
       </div>
 
       {/* Confirm-replace-main */}
       {pendingMain !== null && (
         <ConfirmDialog
-          title="Remove the main photo?"
-          body={`The next photo (#${pendingMain + 1}) will become the main photo on your profile and Discover card.`}
-          confirmLabel="Remove main"
+          title={t("dashboard.adminDrawers.confirmRemoveMainTitle")}
+          body={interpolate(t("dashboard.adminDrawers.confirmRemoveMainBody"), { index: pendingMain + 1 })}
+          confirmLabel={t("dashboard.adminDrawers.confirmRemoveMainConfirm")}
           onConfirm={confirmRemoveMain}
           onCancel={() => setPendingMain(null)}
         />
@@ -2393,6 +2394,7 @@ export function ConfirmDialog({ title, body, confirmLabel, onConfirm, onCancel }
 export function CropModal({ src, onClose, onSave }: {
   src: string; onClose: () => void; onSave: () => void;
 }) {
+  const t = useT();
   const [zoom, setZoom] = useState(1);
   const [ratio, setRatio] = useState<"4:5" | "1:1" | "16:9">("4:5");
   return (
@@ -2408,8 +2410,8 @@ export function CropModal({ src, onClose, onSave }: {
         boxShadow: "0 30px 60px -10px rgba(11,11,13,0.4)",
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }} className="text-admin-ink">Crop photo</h3>
-          <button type="button" onClick={onClose} aria-label="Close" style={{
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }} className="text-admin-ink">{t("dashboard.adminDrawers.cropTitle")}</h3>
+          <button type="button" onClick={onClose} aria-label={t("dashboard.adminDrawers.close")} style={{
             background: "transparent", border: "none", padding: 4, cursor: "pointer", fontSize: 16, color: COLORS.inkMuted,
           }}>✕</button>
         </div>
@@ -2422,7 +2424,7 @@ export function CropModal({ src, onClose, onSave }: {
           <div style={{ '--preview-bg': `url(${src})`, '--preview-bg-size': `${zoom * 100}%` }} className="absolute inset-0 bg-[image:var(--preview-bg)] bg-[size:var(--preview-bg-size)] bg-center bg-no-repeat" />
         </div>
         <div className="mt-3">
-          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink-muted">Aspect ratio</div>
+          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink-muted">{t("dashboard.adminDrawers.cropAspectRatio")}</div>
           <div className="flex gap-1.5">
             {(["4:5", "1:1", "16:9"] as const).map(r => {
               const active = ratio === r;
@@ -2440,7 +2442,7 @@ export function CropModal({ src, onClose, onSave }: {
         </div>
         <div className="mt-3">
           <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink-muted">
-            Zoom · {Math.round(zoom * 100)}%
+            {interpolate(t("dashboard.adminDrawers.cropZoom"), { pct: Math.round(zoom * 100) })}
           </div>
           <input type="range" min={1} max={3} step={0.1} value={zoom}
             onChange={(e) => setZoom(Number(e.target.value))}
@@ -2452,12 +2454,12 @@ export function CropModal({ src, onClose, onSave }: {
             padding: "9px 14px", borderRadius: 999,
             border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink,
             fontSize: 13, fontWeight: 600, cursor: "pointer",
-          }}>Cancel</button>
+          }}>{t("dashboard.adminDrawers.cancel")}</button>
           <button type="button" onClick={onSave} style={{
             padding: "9px 16px", borderRadius: 999, border: "none",
             background: COLORS.fill, color: "#fff",
             fontSize: 13, fontWeight: 600, cursor: "pointer",
-          }}>Save crop</button>
+          }}>{t("dashboard.adminDrawers.cropSave")}</button>
         </div>
       </div>
     </div>
@@ -2472,6 +2474,7 @@ export function AlbumsEditor({ albums, activeId, onActivate, onChange }: {
   onActivate: (id: string) => void;
   onChange: (a: ProfileAlbum[]) => void;
 }) {
+  const t = useT();
   const [newName, setNewName] = useState("");
   const addAlbum = () => {
     const name = newName.trim();
@@ -2509,7 +2512,7 @@ export function AlbumsEditor({ albums, activeId, onActivate, onChange }: {
       </div>
       <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface">
         <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 8 }} className="text-admin-ink">
-          Manage albums
+          {t("dashboard.adminDrawers.albumManage")}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
           {albums.map(a => (
@@ -2522,9 +2525,9 @@ export function AlbumsEditor({ albums, activeId, onActivate, onChange }: {
                   fontSize: 12.5, color: COLORS.ink, outline: "none", background: "#fff",
                 }}
               />
-              <span className="text-admin-ink-muted text-admin-11">{a.photos.length} photo{a.photos.length === 1 ? "" : "s"}</span>
+              <span className="text-admin-ink-muted text-admin-11">{interpolate(t(a.photos.length === 1 ? "dashboard.adminDrawers.albumPhotoCountOne" : "dashboard.adminDrawers.albumPhotoCountOther"), { count: a.photos.length })}</span>
               {albums.length > 1 && (
-                <button type="button" onClick={() => deleteAlbum(a.id)} aria-label="Delete album" style={{
+                <button type="button" onClick={() => deleteAlbum(a.id)} aria-label={t("dashboard.adminDrawers.albumDeleteAria")} style={{
                   width: 24, height: 24, borderRadius: 6,
                   border: "none", background: "transparent", color: COLORS.inkMuted,
                   fontSize: 14, cursor: "pointer", padding: 0,
@@ -2537,7 +2540,7 @@ export function AlbumsEditor({ albums, activeId, onActivate, onChange }: {
           <input type="text" value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAlbum(); } }}
-            placeholder="e.g. Editorial, Lookbook, Behind-the-scenes…"
+            placeholder={t("dashboard.adminDrawers.albumNamePlaceholder")}
             style={{
               flex: 1, padding: "9px 12px", borderRadius: 8,
               border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
@@ -2550,7 +2553,7 @@ export function AlbumsEditor({ albums, activeId, onActivate, onChange }: {
             color: newName.trim() ? "#fff" : COLORS.inkDim,
             fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
             cursor: newName.trim() ? "pointer" : "default",
-          }}>Add album</button>
+          }}>{t("dashboard.adminDrawers.albumAdd")}</button>
         </div>
       </div>
     </div>
@@ -2568,6 +2571,7 @@ export type CoverPhotoEditorProps = {
 };
 
 export const CoverPhotoEditor = React.memo(function CoverPhotoEditor({ url, onChange, talentProfileId, mediaAssetId, onMediaAssetIdChange }: CoverPhotoEditorProps) {
+  const t = useT();
   const { toast } = useAdminShell();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const handleFile = async (f: File) => {
@@ -2579,7 +2583,7 @@ export const CoverPhotoEditor = React.memo(function CoverPhotoEditor({ url, onCh
       onChange(res.data.publicUrl);
       onMediaAssetIdChange?.(res.data.id);
     } else {
-      toast(res.error || "Upload failed");
+      toast(res.error || t("dashboard.adminDrawers.coverUploadFailed"));
       onChange(null);
     }
   };
@@ -2591,8 +2595,8 @@ export const CoverPhotoEditor = React.memo(function CoverPhotoEditor({ url, onCh
   return (
     <div className="mb-3">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, fontFamily: FONTS.body }} className="text-admin-ink-muted">Cover photo · banner</div>
-        <span style={{ fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">1600×900 · landscape</span>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, fontFamily: FONTS.body }} className="text-admin-ink-muted">{t("dashboard.adminDrawers.coverPhotoLabel")}</div>
+        <span style={{ fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">{t("dashboard.adminDrawers.coverPhotoSpec")}</span>
       </div>
       {url ? (
         <div style={{
@@ -2606,8 +2610,8 @@ export const CoverPhotoEditor = React.memo(function CoverPhotoEditor({ url, onCh
             background: "rgba(11,11,13,0.7)", color: "#fff",
             fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: FONTS.body,
             backdropFilter: "blur(8px)",
-          }}>Replace</button>
-          <button type="button" onClick={handleRemove} aria-label="Remove cover" style={{
+          }}>{t("dashboard.adminDrawers.coverReplace")}</button>
+          <button type="button" onClick={handleRemove} aria-label={t("dashboard.adminDrawers.coverRemoveAria")} style={{
             position: "absolute", top: 8, right: 8,
             width: 26, height: 26, borderRadius: "50%", border: "none",
             background: "rgba(11,11,13,0.6)", color: "#fff",
@@ -2623,8 +2627,8 @@ export const CoverPhotoEditor = React.memo(function CoverPhotoEditor({ url, onCh
           fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, fontWeight: 600,
         }}>
           <span style={{ fontSize: 24, lineHeight: 1 }}>+</span>
-          <span>Drop or pick a cover banner</span>
-          <span className="text-admin-ink-dim text-admin-10h font-medium">The wide image at the top of your public profile</span>
+          <span>{t("dashboard.adminDrawers.coverPickTitle")}</span>
+          <span className="text-admin-ink-dim text-admin-10h font-medium">{t("dashboard.adminDrawers.coverPickHint")}</span>
         </button>
       )}
       <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
@@ -2647,6 +2651,7 @@ export function PhotoGallery({ photos, onAdd, onRemove, onMakeMain, onReorder }:
   onMakeMain: (i: number) => void;
   onReorder?: (fromIndex: number, toIndex: number) => void;
 }) {
+  const t = useT();
   // Drag-and-drop reorder state.
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
@@ -2705,9 +2710,9 @@ export function PhotoGallery({ photos, onAdd, onRemove, onMakeMain, onReorder }:
               }}
             >
               {i === 0 ? (
-                <span style={{ position: "absolute", top: 4, left: 4, fontSize: 9, fontWeight: 700, fontFamily: FONTS.body, padding: "2px 6px", borderRadius: 999, color: "#fff" }} className="bg-admin-accent">★ MAIN</span>
+                <span style={{ position: "absolute", top: 4, left: 4, fontSize: 9, fontWeight: 700, fontFamily: FONTS.body, padding: "2px 6px", borderRadius: 999, color: "#fff" }} className="bg-admin-accent">{t("dashboard.adminDrawers.photoMain")}</span>
               ) : (
-                <button type="button" onClick={() => onMakeMain(i)} aria-label="Make main"
+                <button type="button" onClick={() => onMakeMain(i)} aria-label={t("dashboard.adminDrawers.makeMainAria")}
                   style={{
                     position: "absolute", top: 4, left: 4,
                     width: 22, height: 22, borderRadius: "50%",
@@ -2715,7 +2720,7 @@ export function PhotoGallery({ photos, onAdd, onRemove, onMakeMain, onReorder }:
                     fontSize: 11, cursor: "pointer", lineHeight: 1,
                   }}>★</button>
               )}
-              <button type="button" onClick={() => onRemove(i)} aria-label="Remove"
+              <button type="button" onClick={() => onRemove(i)} aria-label={t("dashboard.adminDrawers.removeAria")}
                 style={{
                   position: "absolute", top: 4, right: 4,
                   width: 22, height: 22, borderRadius: "50%",
@@ -2749,12 +2754,12 @@ export function PhotoGallery({ photos, onAdd, onRemove, onMakeMain, onReorder }:
             fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 600, fontFamily: FONTS.body,
           }}>
             <span className="text-lg">+</span>
-            <span>Drop or pick</span>
+            <span>{t("dashboard.adminDrawers.photoDropOrPick")}</span>
           </button>
         )}
       </div>
       <div style={{ fontSize: 11, marginTop: 8, lineHeight: 1.4, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-        First photo = main. Tap ★ on any other to swap. Drag a tile to reorder.
+        {t("dashboard.adminDrawers.photoGalleryHintSimple")}
       </div>
     </div>
   );
@@ -2852,6 +2857,7 @@ export type LanguagesEditorProps = {
 };
 
 export const LanguagesEditor = React.memo(function LanguagesEditor({ value, onChange }: LanguagesEditorProps) {
+  const t = useT();
   const [draftLang, setDraftLang] = useState("");
   const [draftLevel, setDraftLevel] = useState<LanguageLevel>("fluent");
   const add = () => {
@@ -2867,10 +2873,10 @@ export const LanguagesEditor = React.memo(function LanguagesEditor({ value, onCh
     onChange(value.filter((_, idx) => idx !== i));
 
   const levelLabel: Record<LanguageLevel, string> = {
-    native: "Native",
-    fluent: "Fluent",
-    conversational: "Conversational",
-    basic: "Basic",
+    native: t("dashboard.adminDrawers.langLevelNative"),
+    fluent: t("dashboard.adminDrawers.langLevelFluent"),
+    conversational: t("dashboard.adminDrawers.langLevelConversational"),
+    basic: t("dashboard.adminDrawers.langLevelBasic"),
   };
 
   return (
@@ -2902,17 +2908,17 @@ export const LanguagesEditor = React.memo(function LanguagesEditor({ value, onCh
                     <option key={lv} value={lv}>{levelLabel[lv]}</option>
                   ))}
                 </select>
-                <button type="button" onClick={() => remove(i)} aria-label="Remove" style={{
+                <button type="button" onClick={() => remove(i)} aria-label={t("dashboard.adminDrawers.removeAria")} style={{
                   background: "transparent", border: "none", padding: 4, cursor: "pointer",
                   color: COLORS.inkMuted, fontSize: 16, lineHeight: 1, fontWeight: 700,
                 }}>×</button>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {([
-                  { key: "canHost",      label: "Can host" },
-                  { key: "canSell",      label: "Can sell" },
-                  { key: "canTranslate", label: "Translate" },
-                  { key: "canTeach",     label: "Teach" },
+                  { key: "canHost",      label: t("dashboard.adminDrawers.langCanHost") },
+                  { key: "canSell",      label: t("dashboard.adminDrawers.langCanSell") },
+                  { key: "canTranslate", label: t("dashboard.adminDrawers.langCanTranslate") },
+                  { key: "canTeach",     label: t("dashboard.adminDrawers.langCanTeach") },
                 ] as const).map(opt => {
                   const active = !!row[opt.key];
                   return (
@@ -2938,7 +2944,7 @@ export const LanguagesEditor = React.memo(function LanguagesEditor({ value, onCh
         <input type="text" value={draftLang}
           onChange={(e) => setDraftLang(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
-          placeholder="Add a language…"
+          placeholder={t("dashboard.adminDrawers.langAddPlaceholder")}
           style={{
             flex: 1, padding: "10px 12px", borderRadius: 10,
             border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
@@ -2960,7 +2966,7 @@ export const LanguagesEditor = React.memo(function LanguagesEditor({ value, onCh
           color: draftLang.trim() ? "#fff" : COLORS.inkDim,
           fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
           cursor: draftLang.trim() ? "pointer" : "default",
-        }}>Add</button>
+        }}>{t("dashboard.adminDrawers.add")}</button>
       </div>
     </div>
   );
@@ -2981,6 +2987,7 @@ export type PhotoGalleryProProps = {
 };
 
 export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onChange, talentProfileId, albumId }: PhotoGalleryProProps) {
+  const t = useT();
   const { toast } = useAdminShell();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -2999,7 +3006,7 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
   const addVideoUrl = () => {
     const parsed = parseVideoUrl(videoUrlInput);
     if (!parsed) {
-      setVideoUrlError("Use a YouTube, Vimeo, or .mp4 URL.");
+      setVideoUrlError(t("dashboard.adminDrawers.photoProVideoBad"));
       return;
     }
     const next: PhotoMeta = {
@@ -3036,11 +3043,11 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
       for (let i = 0; i < blobs.length; i++) {
         const idx = startIdx + i;
         if (idx < next.length) {
-          next[idx] = { ...next[idx], uploading: false, uploadError: "Not saved — no talent context" };
+          next[idx] = { ...next[idx], uploading: false, uploadError: t("dashboard.adminDrawers.photoProNoTalentInline") };
         }
       }
       onChange(next);
-      toast("Upload skipped — no talent ID. Open this drawer from the real roster, not the prototype.");
+      toast(t("dashboard.adminDrawers.photoProNoTalentToast"));
       return;
     }
 
@@ -3066,19 +3073,19 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
         } else {
           // Keep the failed entry visible with an error overlay so the user
           // sees what went wrong instead of the photo silently disappearing.
-          next[idx] = { ...next[idx], uploading: false, uploadError: res.error || "Upload failed" };
-          toast(res.error || "Upload failed");
+          next[idx] = { ...next[idx], uploading: false, uploadError: res.error || t("dashboard.adminDrawers.coverUploadFailed") };
+          toast(res.error || t("dashboard.adminDrawers.coverUploadFailed"));
         }
         onChange(next);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Upload failed";
+        const message = err instanceof Error ? err.message : t("dashboard.adminDrawers.coverUploadFailed");
         const next = [...itemsRef.current];
         const idx = startIdx + i;
         if (idx < next.length) {
           next[idx] = { ...next[idx], uploading: false, uploadError: message };
           onChange(next);
         }
-        toast(`Upload failed: ${message}`);
+        toast(interpolate(t("dashboard.adminDrawers.photoProUploadFailedWith"), { message }));
         logServerError("photogallerypro_upload", err);
       }
     }));
@@ -3169,7 +3176,7 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
                   animation: "tulala-spin 0.8s linear infinite",
                 }} />
                 <style>{`@keyframes tulala-spin { to { transform: rotate(360deg); } }`}</style>
-                Uploading…
+                {t("dashboard.adminDrawers.photoProUploading")}
               </div>
             )}
             {it.uploadError && (
@@ -3185,7 +3192,7 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
               </div>
             )}
             {i === 0 && (
-              <span style={{ position: "absolute", top: 4, left: 4, fontSize: 9, fontWeight: 700, fontFamily: FONTS.body, padding: "2px 6px", borderRadius: 999, color: "#fff" }} className="bg-admin-accent">★ MAIN</span>
+              <span style={{ position: "absolute", top: 4, left: 4, fontSize: 9, fontWeight: 700, fontFamily: FONTS.body, padding: "2px 6px", borderRadius: 999, color: "#fff" }} className="bg-admin-accent">{t("dashboard.adminDrawers.photoMain")}</span>
             )}
             {it.tag && (
               <span style={{
@@ -3227,7 +3234,7 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
                 }}>{it.videoProvider}</span>
               </>
             )}
-            <button type="button" onClick={(e) => { e.stopPropagation(); removeAt(i); }} aria-label="Remove"
+            <button type="button" onClick={(e) => { e.stopPropagation(); removeAt(i); }} aria-label={t("dashboard.adminDrawers.removeAria")}
               style={{
                 position: "absolute", top: 4, right: 4,
                 width: 22, height: 22, borderRadius: "50%",
@@ -3247,7 +3254,7 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
             transition: "background .12s",
           }}>
             <span className="text-lg">+</span>
-            <span>{dragOver ? "Drop here" : "Pick · drop · capture"}</span>
+            <span>{dragOver ? t("dashboard.adminDrawers.photoDropHere") : t("dashboard.adminDrawers.photoProPickDropCapture")}</span>
           </button>
         )}
       </div>
@@ -3263,7 +3270,7 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
               value={videoUrlInput}
               onChange={(e) => { setVideoUrlInput(e.target.value); if (videoUrlError) setVideoUrlError(null); }}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVideoUrl(); } }}
-              placeholder="Paste a YouTube, Vimeo, or .mp4 URL…"
+              placeholder={t("dashboard.adminDrawers.photoProVideoPlaceholder")}
               style={{
                 flex: 1, padding: "8px 11px",
                 borderRadius: 8, border: `1px solid ${videoUrlError ? COLORS.coral : COLORS.borderSoft}`,
@@ -3276,7 +3283,7 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
               color: videoUrlInput.trim() ? "#fff" : COLORS.inkDim,
               fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
               cursor: videoUrlInput.trim() ? "pointer" : "default",
-            }}>+ Video</button>
+            }}>{t("dashboard.adminDrawers.photoProAddVideo")}</button>
           </div>
           {videoUrlError && (
             <div style={{ fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-coral">{videoUrlError}</div>
@@ -3284,7 +3291,7 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
         </div>
       )}
       <div style={{ fontSize: 11, marginTop: 8, lineHeight: 1.4, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-        Tap a tile to add tag + alt text + caption. Drag to reorder. Mobile camera supported.
+        {t("dashboard.adminDrawers.photoProHint")}
       </div>
 
       {editIdx !== null && items[editIdx] && (
@@ -3306,6 +3313,7 @@ export function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
   onSave: (patch: Partial<PhotoMeta>) => void;
   onMakeMain?: () => void;
 }) {
+  const t = useT();
   const [tag, setTag] = useState<PhotoTag | undefined>(item.tag);
   const [altText, setAltText] = useState(item.altText ?? "");
   const [caption, setCaption] = useState(item.caption ?? "");
@@ -3323,9 +3331,9 @@ export function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }} className="text-admin-ink">
-            {item.videoUrl ? "Video details" : "Photo details"}
+            {item.videoUrl ? t("dashboard.adminDrawers.photoMetaVideoTitle") : t("dashboard.adminDrawers.photoMetaPhotoTitle")}
           </h3>
-          <button type="button" onClick={onClose} aria-label="Close" style={{
+          <button type="button" onClick={onClose} aria-label={t("dashboard.adminDrawers.close")} style={{
             background: "transparent", border: "none", padding: 4, cursor: "pointer", fontSize: 16, color: COLORS.inkMuted,
           }}>✕</button>
         </div>
@@ -3339,7 +3347,7 @@ export function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
               <div style={{ width: "100%", aspectRatio: "16 / 9", borderRadius: 10, marginBottom: 12, overflow: "hidden", border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
                 <iframe
                   src={parsed.embedUrl}
-                  title="Video preview"
+                  title={t("dashboard.adminDrawers.photoMetaVideoPreviewTitle")}
                   style={{ width: "100%", height: "100%", border: 0 }}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
@@ -3366,7 +3374,7 @@ export function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
               border: `1px solid ${COLORS.borderSoft}`,
               display: "flex", alignItems: "center", justifyContent: "center",
               color: "#fff", fontSize: 11, fontWeight: 600,
-            }}>Preview unavailable — saved URL: {item.videoUrl}</div>
+            }}>{interpolate(t("dashboard.adminDrawers.photoMetaPreviewUnavailable"), { url: item.videoUrl })}</div>
           );
         })() : (
           <div style={{
@@ -3375,13 +3383,13 @@ export function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
             border: `1px solid ${COLORS.borderSoft}`,
           }} />
         )}
-        <FieldRow label="Tag">
+        <FieldRow label={t("dashboard.adminDrawers.photoMetaTag")}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {(Object.keys(PHOTO_TAG_META) as PhotoTag[]).map(t => {
-              const active = tag === t;
-              const m = PHOTO_TAG_META[t];
+            {(Object.keys(PHOTO_TAG_META) as PhotoTag[]).map(tagKey => {
+              const active = tag === tagKey;
+              const m = PHOTO_TAG_META[tagKey];
               return (
-                <button key={t} type="button" onClick={() => setTag(active ? undefined : t)} style={{
+                <button key={tagKey} type="button" onClick={() => setTag(active ? undefined : tagKey)} style={{
                   padding: "6px 11px", borderRadius: 999,
                   border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
                   background: active ? "rgba(15,79,62,0.08)" : "#fff",
@@ -3396,10 +3404,10 @@ export function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
             })}
           </div>
         </FieldRow>
-        <FieldRow label="Alt text" hint="One sentence describing what's in the photo. Helps screen readers + AI search.">
+        <FieldRow label={t("dashboard.adminDrawers.photoMetaAltLabel")} hint={t("dashboard.adminDrawers.photoMetaAltHint")}>
           <input type="text" value={altText}
             onChange={(e) => setAltText(e.target.value)}
-            placeholder="Sofia in studio for the Mango SS24 campaign"
+            placeholder={t("dashboard.adminDrawers.photoMetaAltPlaceholder")}
             style={{
               width: "100%", boxSizing: "border-box", padding: "10px 12px",
               borderRadius: 10, border: `1px solid ${COLORS.border}`,
@@ -3407,10 +3415,10 @@ export function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
             }}
           />
         </FieldRow>
-        <FieldRow label="Caption" optional>
+        <FieldRow label={t("dashboard.adminDrawers.photoMetaCaption")} optional>
           <input type="text" value={caption}
             onChange={(e) => setCaption(e.target.value)}
-            placeholder="Editorial · ph. Marco Russo"
+            placeholder={t("dashboard.adminDrawers.photoMetaCaptionPlaceholder")}
             style={{
               width: "100%", boxSizing: "border-box", padding: "10px 12px",
               borderRadius: 10, border: `1px solid ${COLORS.border}`,
@@ -3424,19 +3432,19 @@ export function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
               padding: "8px 12px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
               background: "#fff", color: COLORS.ink,
               fontSize: 12, fontWeight: 600, cursor: "pointer",
-            }}>★ Make main</button>
+            }}>{t("dashboard.adminDrawers.photoMetaMakeMain")}</button>
           ) : <span />}
           <div className="flex gap-2">
             <button type="button" onClick={onClose} style={{
               padding: "9px 14px", borderRadius: 999,
               border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink,
               fontSize: 13, fontWeight: 600, cursor: "pointer",
-            }}>Cancel</button>
+            }}>{t("dashboard.adminDrawers.cancel")}</button>
             <button type="button" onClick={() => onSave({ tag, altText, caption })} style={{
               padding: "9px 16px", borderRadius: 999, border: "none",
               background: COLORS.fill, color: "#fff",
               fontSize: 13, fontWeight: 600, cursor: "pointer",
-            }}>Save</button>
+            }}>{t("dashboard.adminDrawers.save")}</button>
           </div>
         </div>
       </div>
@@ -3477,6 +3485,7 @@ export function WatermarkPositionGrid({ value, onChange }: { value: WmPos; onCha
 
 
 export function WatermarkPreviewCard({ preset, logoUrl }: { preset: WatermarkPreset; logoUrl: string | null }) {
+  const t = useT();
   const posMap: Record<WmPos, React.CSSProperties> = {
     tl: { top: `${preset.padding_pct}%`, left: `${preset.padding_pct}%` },
     tc: { top: `${preset.padding_pct}%`, left: "50%", transform: "translateX(-50%)" },
@@ -3496,7 +3505,7 @@ export function WatermarkPreviewCard({ preset, logoUrl }: { preset: WatermarkPre
       <div style={{
         position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        <span style={{ fontFamily: FONTS.body, fontSize: 11, color: "rgba(11,11,13,0.3)", letterSpacing: 0.5 }}>Sample photo</span>
+        <span style={{ fontFamily: FONTS.body, fontSize: 11, color: "rgba(11,11,13,0.3)", letterSpacing: 0.5 }}>{t("dashboard.adminDrawers.wmSamplePhoto")}</span>
       </div>
       {preset.enabled && (
         <div style={{
@@ -3507,7 +3516,7 @@ export function WatermarkPreviewCard({ preset, logoUrl }: { preset: WatermarkPre
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logoUrl} alt="" style={{ width: "100%", height: "auto", display: "block" }} />
           ) : (
-            <div style={{ background: "#fff", borderRadius: 4, padding: "3px 6px", fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }} className="text-admin-ink">YOUR LOGO</div>
+            <div style={{ background: "#fff", borderRadius: 4, padding: "3px 6px", fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }} className="text-admin-ink">{t("dashboard.adminDrawers.wmYourLogo")}</div>
           )}
         </div>
       )}
@@ -4863,6 +4872,7 @@ export const PLAN_TIER_STYLE: Record<Plan, {
 
 
 export function PaymentsSetupDrawer() {
+  const t = useT();
   const { state, closeDrawer, openUpgrade, toast } = useAdminShell();
   const payout = getWorkspacePayout(state.plan);
   const fee = PLAN_FEE_META[state.plan];
@@ -4871,46 +4881,46 @@ export function PaymentsSetupDrawer() {
   const receiverMeta = PAYOUT_STATUS_META[receiver.status];
   const requestPaymentsHelp = () => {
     openSupportEmail(
-      "Tulala payments setup request",
-      `Please help update payments setup for this workspace.\n\nDefault receiver: ${receiver.displayName}\nPlan: ${state.plan}`,
+      t("dashboard.adminDrawers.payoutSetupEmailSubject"),
+      interpolate(t("dashboard.adminDrawers.payoutSetupEmailBody"), { receiver: receiver.displayName, plan: state.plan }),
     );
-    toast("Opening payments support email");
+    toast(t("dashboard.adminDrawers.payoutSetupEmailToast"));
   };
 
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Payments setup"
-      description="Default payout receiver and platform-fee terms for this workspace."
+      title={t("dashboard.adminDrawers.payoutSetupTitle")}
+      description={t("dashboard.adminDrawers.payoutSetupDescription")}
       width={580}
       footer={
         isFree ? (
           <>
-            <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+            <SecondaryButton onClick={closeDrawer}>{t("dashboard.adminDrawers.close")}</SecondaryButton>
             <PrimaryButton
               onClick={() =>
                 openUpgrade({
-                  feature: "Connect a payout receiver",
-                  why: "Free can run inquiries but cannot route payments. Studio unlocks card acceptance and direct payouts.",
+                  feature: t("dashboard.adminDrawers.payoutUpgradeFeature"),
+                  why: t("dashboard.adminDrawers.payoutUpgradeWhy"),
                   requiredPlan: "studio",
                 })
               }
             >
-              Upgrade to accept payments
+              {t("dashboard.adminDrawers.payoutUpgradeCta")}
             </PrimaryButton>
           </>
         ) : (
           <>
-            <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-            <PrimaryButton onClick={requestPaymentsHelp}>Contact support</PrimaryButton>
+            <SecondaryButton onClick={closeDrawer}>{t("dashboard.adminDrawers.close")}</SecondaryButton>
+            <PrimaryButton onClick={requestPaymentsHelp}>{t("dashboard.adminDrawers.payoutContactSupport")}</PrimaryButton>
           </>
         )
       }
     >
       <Section
-        title="Platform fee"
-        description="What Tulala charges per booking that settles through the platform."
+        title={t("dashboard.adminDrawers.payoutFeeSectionTitle")}
+        description={t("dashboard.adminDrawers.payoutFeeSectionDesc")}
       >
         <div
           style={{
@@ -4933,8 +4943,8 @@ export function PaymentsSetupDrawer() {
       </Section>
 
       <Section
-        title="Default payout receiver"
-        description="Used when no per-booking override is set. Coordinators can still pick a different receiver on individual bookings."
+        title={t("dashboard.adminDrawers.payoutReceiverSectionTitle")}
+        description={t("dashboard.adminDrawers.payoutReceiverSectionDesc")}
       >
         <div
           style={{
@@ -4965,23 +4975,23 @@ export function PaymentsSetupDrawer() {
       </Section>
 
       {!isFree && (
-        <Section title="Acceptance" description="What clients see at checkout.">
-          <FieldRow label="Accept card payments">
+        <Section title={t("dashboard.adminDrawers.payoutAcceptanceTitle")} description={t("dashboard.adminDrawers.payoutAcceptanceDesc")}>
+          <FieldRow label={t("dashboard.adminDrawers.payoutAcceptCards")}>
             <StubToggle defaultOn={payout.acceptCards} />
           </FieldRow>
-          <FieldRow label="Send receipts to client">
+          <FieldRow label={t("dashboard.adminDrawers.payoutSendReceipts")}>
             <StubToggle defaultOn={true} />
           </FieldRow>
-          <FieldRow label="Email payout confirmations">
+          <FieldRow label={t("dashboard.adminDrawers.payoutEmailConfirmations")}>
             <StubToggle defaultOn={true} />
           </FieldRow>
         </Section>
       )}
 
-      <Section title="30-day activity">
+      <Section title={t("dashboard.adminDrawers.payoutActivityTitle")}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <MiniMetric label="Volume" value={payout.recentVolume30d} />
-          <MiniMetric label="Pending" value={payout.pendingPayouts} />
+          <MiniMetric label={t("dashboard.adminDrawers.payoutVolume")} value={payout.recentVolume30d} />
+          <MiniMetric label={t("dashboard.adminDrawers.payoutPending")} value={payout.pendingPayouts} />
         </div>
       </Section>
     </DrawerShell>
@@ -4990,15 +5000,16 @@ export function PaymentsSetupDrawer() {
 
 
 export function StubToggle({ defaultOn }: { defaultOn?: boolean }) {
+  const t = useT();
   const on = !!defaultOn;
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on}
-      aria-label="Managed by payments support"
+      aria-label={t("dashboard.adminDrawers.payoutStubToggleLabel")}
       disabled
-      title="Managed by payments support"
+      title={t("dashboard.adminDrawers.payoutStubToggleLabel")}
       style={{
         position: "relative",
         width: 36,
@@ -5062,6 +5073,7 @@ export function MiniMetric({ label, value }: { label: string; value: string }) {
  */
 
 export function PayoutReceiverPickerDrawer() {
+  const t = useT();
   const { state, closeDrawer, toast } = useAdminShell();
   const payload = state.drawer.payload ?? {};
   const inquiryId = (payload as { inquiryId?: string }).inquiryId;
@@ -5069,47 +5081,48 @@ export function PayoutReceiverPickerDrawer() {
   const [selectedKind, setSelectedKind] = useState<string | null>(
     summary?.receiver ? `${summary.receiver.kind}:${summary.receiver.displayName}` : null,
   );
+  const unknownLabel = t("dashboard.adminDrawers.payoutPickUnknown");
   const bookingLabel = summary
-    ? (summary.bookingId !== "—" ? summary.bookingId : inquiryId ?? "unknown")
-    : inquiryId ?? "unknown";
+    ? (summary.bookingId !== "—" ? summary.bookingId : inquiryId ?? unknownLabel)
+    : inquiryId ?? unknownLabel;
   const requestReceiverChange = () => {
     openSupportEmail(
-      "Tulala payout receiver change request",
-      [
-        `Booking: ${bookingLabel}`,
-        `Current receiver: ${summary?.receiver?.displayName ?? "unknown"}`,
-        `Requested receiver: ${selectedKind ?? "no change selected"}`,
-        `Net payout: ${summary?.netPayout ?? "unknown"}`,
-      ].join("\n"),
+      t("dashboard.adminDrawers.payoutPickEmailSubject"),
+      interpolate(t("dashboard.adminDrawers.payoutPickEmailBody"), {
+        booking: bookingLabel,
+        current: summary?.receiver?.displayName ?? unknownLabel,
+        requested: selectedKind ?? t("dashboard.adminDrawers.payoutPickNoChange"),
+        net: summary?.netPayout ?? unknownLabel,
+      }),
     );
-    toast("Opening payout support email");
+    toast(t("dashboard.adminDrawers.payoutPickEmailToast"));
   };
 
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Pick payout receiver"
+      title={t("dashboard.adminDrawers.payoutPickTitle")}
       description={
         summary
-          ? `For ${summary.bookingId !== "—" ? summary.bookingId : inquiryId} · net ${summary.netPayout}`
-          : "Select who legally receives this payout."
+          ? interpolate(t("dashboard.adminDrawers.payoutPickDescNet"), { booking: summary.bookingId !== "—" ? summary.bookingId : inquiryId, net: summary.netPayout })
+          : t("dashboard.adminDrawers.payoutPickDescFallback")
       }
       width={560}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.adminDrawers.cancel")}</SecondaryButton>
           <PrimaryButton
             onClick={requestReceiverChange}
           >
-            Email request
+            {t("dashboard.adminDrawers.payoutPickEmailRequest")}
           </PrimaryButton>
         </>
       }
     >
       <Section
-        title="Eligible candidates"
-        description="Only verified, payout-connected entities can be selected. Pending or restricted accounts must finish setup first."
+        title={t("dashboard.adminDrawers.payoutPickEligibleTitle")}
+        description={t("dashboard.adminDrawers.payoutPickEligibleDesc")}
       >
         <div className="flex flex-col gap-2">
           {PAYOUT_RECEIVER_CANDIDATES.map((rec) => {
@@ -5154,15 +5167,13 @@ export function PayoutReceiverPickerDrawer() {
         </div>
       </Section>
 
-      <Section title="Distribution">
+      <Section title={t("dashboard.adminDrawers.payoutPickDistributionTitle")}>
         <p style={{ fontFamily: FONTS.body, fontSize: 12.5, margin: 0, lineHeight: 1.55 }} className="text-admin-ink-muted">
-          Tulala pays the selected receiver in full. Splitting between
-          agency, talent, and any third parties happens off-platform —
-          handled by whoever you select.
+          {t("dashboard.adminDrawers.payoutPickDistributionBody")}
         </p>
         {summary?.distributionNote && (
           <div style={{ padding: "10px 12px", background: "rgba(11,11,13,0.03)", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink">
-            <CapsLabel>Coordinator note</CapsLabel>
+            <CapsLabel>{t("dashboard.adminDrawers.payoutPickCoordinatorNote")}</CapsLabel>
             <div className="mt-1">{summary.distributionNote}</div>
           </div>
         )}
@@ -5183,6 +5194,7 @@ export function PayoutReceiverPickerDrawer() {
  */
 
 export function PaymentDetailDrawer() {
+  const t = useT();
   const { state, closeDrawer } = useAdminShell();
   const payload = state.drawer.payload ?? {};
   const rowId = (payload as { id?: string }).id;
@@ -5203,11 +5215,11 @@ export function PaymentDetailDrawer() {
       width={580}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.adminDrawers.close")}</SecondaryButton>
         </>
       }
     >
-      <Section title="Status">
+      <Section title={t("dashboard.adminDrawers.paymentDetailStatus")}>
         <div
           style={{
             background: "#fff",
@@ -5231,7 +5243,7 @@ export function PaymentDetailDrawer() {
         </div>
       </Section>
 
-      <Section title="Breakdown">
+      <Section title={t("dashboard.adminDrawers.paymentDetailBreakdown")}>
         <div
           style={{
             background: "#fff",
@@ -5240,18 +5252,18 @@ export function PaymentDetailDrawer() {
             overflow: "hidden",
           }}
         >
-          <BreakdownRow label="Client total" value={row.total} first />
-          <BreakdownRow label="Platform fee" value={row.fee} muted />
-          <BreakdownRow label="Net payout" value={row.netPayout} emphasis />
+          <BreakdownRow label={t("dashboard.adminDrawers.paymentDetailClientTotal")} value={row.total} first />
+          <BreakdownRow label={t("dashboard.adminDrawers.paymentDetailPlatformFee")} value={row.fee} muted />
+          <BreakdownRow label={t("dashboard.adminDrawers.paymentDetailNetPayout")} value={row.netPayout} emphasis />
         </div>
         {summary?.paidVia && (
           <div style={{ fontFamily: FONTS.body, fontSize: 12, padding: "0 2px" }} className="text-admin-ink-muted">
-            Paid via {summary.paidVia.brand} •• {summary.paidVia.last4}
+            {interpolate(t("dashboard.adminDrawers.paymentDetailPaidVia"), { brand: summary.paidVia.brand, last4: summary.paidVia.last4 })}
           </div>
         )}
       </Section>
 
-      <Section title="Receiver">
+      <Section title={t("dashboard.adminDrawers.paymentDetailReceiver")}>
         {summary?.receiver ? (
           <div
             style={{
@@ -5289,7 +5301,7 @@ export function PaymentDetailDrawer() {
       </Section>
 
       {summary?.history && summary.history.length > 0 && (
-        <Section title="History">
+        <Section title={t("dashboard.adminDrawers.paymentDetailHistory")}>
           <div
             style={{
               background: "#fff",
