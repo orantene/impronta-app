@@ -5,28 +5,23 @@
 ## Goal
 Make the **agency staff workspace (admin shell) bilingual (en/es)**, the same way the public + client + talent surfaces already are. Impronta is a Spanish-market agency, so its staff work in Spanish — this is real value, not just completeness. The public funnel, client dashboard, talent settings, InquiryDrawer, and shared enums were localized on **PR #712**; the admin shell is the last surface still hardcoded English.
 
-## Where this stands
-- A QA audit found only ~31 of ~228 admin-shell files use translations; the SPA (thread renderer, overview, drawers, roster) is hardcoded English while the top bar already ships a locale toggle — so a staffer who picks Spanish gets a half-English workspace.
-- **Wave 1 (the live inbox thread: `admin-2.tsx` = `AdminInquiryDetail`, `admin-4.tsx`) is DONE and committed** on PR #712's branch (`fix/premium-finish-wave1`, worktree `/Users/oranpersonal/Desktop/impronta-polish`, commit `c278d2cf3`): 72 `dashboard.adminThread.*` keys, en/es parity 2196/2196, tsc+lint clean. **Start at wave 2.**
-- **Branch discipline:** check whether #712 has merged. If yes, work off `main`. If not, **continue on `fix/premium-finish-wave1`** (the catalog with all the i18n — 2196 keys — lives there; building off older `main` would collide the catalogs). Verify current namespace/parity before adding more.
-- **Wave 1 left one thing for wave 2:** the `StatusSheet` component's typed discriminant literals (`stage`: "Inquiry"/"Offer sent"/"Approved"/"Booked"/"Wrapped"; offer/payment/talent `status` unions) are BOTH rendered AND switched on, so they can't be translated at the source. Fix them with a **discriminant→label map inside `StatusSheet` itself** (render the label via `t()`, keep switching on the raw union). Same for the avatar-stack tooltip status slug (needs the enum status-label map).
+## Where this stands (updated after waves 1-26)
+**The entire AGENCY staff workspace is now bilingual — done and committed on PR #712** (`fix/premium-finish-wave1`, worktree `/Users/oranpersonal/Desktop/impronta-polish`), across 26 serialized waves. Catalog grew to **5092 `dashboard.*` JSON keys** (en/es parity exact) plus **~1967 `ES_TEXT` entries**; every wave was tsc + lint gated. What's localized:
+- Inbox thread (admin-2/admin-4/StatusSheet + all machinery-* tabs) for admin + talent + client POVs
+- Overview, command palette, daily surfaces (Work/Inbox/Clients/Calendar), roster (wave2.tsx)
+- Management pages (Workspace/Operations/Billing), site/website builder, Pitches
+- ALL 11 talent-drawers, ALL 23 `light-*` drawers (~130 drawers), all standalone drawers
+- `drawer-shared.tsx` (5.5K-line hub) bodies, and the cross-consumer discriminant slices (`nextActionFor`/`STAGE_LABEL`/`describeSource`/`FREE_PLAN_VALUE`/`PLAN_META` etc.)
 
-## Scope + the ONLY live surface
-The live agency workspace mounts **`AdminShellClient`** (an SPA: `setPage`/`openDrawer` nav) rendering `src/components/admin/shell/internal/*`. **A second, fuller shell — `admin-shell.tsx` + `admin-shell-top-bar.tsx` + `admin-command-palette.tsx` + `site-control-center/*` — is imported by nothing and does NOT render.** Do not localize that dead cone (waste + it has stale routes). Confirm what's live by tracing `src/app/(workspace)/[tenantSlug]/admin/layout.tsx` (it renders `AdminShellClient`).
+**Branch discipline:** if #712 has merged, work off `main`; else continue on `fix/premium-finish-wave1` (the catalog lives there). Verify current parity before adding more.
 
-Prioritize by staff traffic (do them as serialized waves — one catalog-writing agent at a time):
+## The ONLY remaining surface: Platform HQ (lowest ROI — decide before doing)
+`/platform/admin/*` (`src/app/(workspace)/platform/admin/**`) is the platform **super-admin console** — **116 files, ~87 still English** (tenants, catalog, taxonomy, flags, integrations, audit log, currency/payout settings). It is used by a **single super_admin** (the owner) to administer the whole platform, so its i18n ROI is near-zero (one bilingual user) and it's ~10 more serialized waves. **Recommendation: leave it unless the owner explicitly wants it.** If doing it: same patterns/gates as above; these are mostly `useT()`+catalog server/client pages (29 already use a translator). Go by traffic: `page.tsx` landings → `tenants/*` → `catalog/*` + `taxonomy/*` → `settings/*` → `operations/integrations/audit-log/languages`.
 
-| Wave | Surface | Key files (verify paths; they move) |
-|---|---|---|
-| 1 ✅ DONE | **Inbox thread** | `internal/messages/admin-2.tsx` (AdminInquiryDetail), `internal/messages/admin-4.tsx` — committed `c278d2cf3` |
-| 2 | **Thread tabs** | `internal/messages/shared/machinery-6.tsx` (Payment/Logistics), `-8`, `-10`, `-12` (Offer), `-14`, `-16` (composer) |
-| 3 | **Overview / landing** | `internal/page-modules/OverviewPage.tsx` (+ the "Needs you now" hero copy) |
-| 4 | **Drawers** | `internal/drawers/*`, `internal/talent-drawers/*` (monetization/network/premium-pages/events already partly touched on #712 for dead-CTA hide) |
-| 5 | **Roster + clients** | `internal/wave2.tsx` (roster), `internal/page-modules/ClientsPage.tsx`, the talent inbox `internal/messages/talent-1.tsx`/`talent-2.tsx`/`TalentJobShell.tsx` |
-| 6 | **Settings + nav chrome** | `internal/WorkspaceTopbar.tsx`, admin settings pages under `src/app/(workspace)/[tenantSlug]/admin/settings/*`, quick-create menu |
-| 7 (optional/low) | **Platform HQ** (`/platform/admin/*`, super-admin only) | lowest priority — single super-admin user |
-
-Each wave is a big file set; if a wave is too large for one agent pass, split it by file and still keep ONE catalog writer at a time.
+## Notes carried out of the agency-shell waves
+- **`StatusSheet` discriminant maps** (`stage`/`status` unions) were solved with an OPTIONAL `t?` + a discriminant→key map inside StatusSheet (render label via `t()`, keep switching on the raw union) — reuse this pattern anywhere a value is both rendered and switched on.
+- **Dead cones skipped** (never localize): the unmounted `admin-shell.tsx` cone; `LegacyTalentTypesDrawer`; `WorkspaceRevenueDrawer`; assorted fixture record CONTENT + persisted enum `value`s.
+- **De-gold follow-up:** many drawers still carry `COLORS.amber*`/`bg-admin-amber-*` literals (owner bans admin gold). Waves 14/16/19/21/22/23/26 flagged specific file:lines; a de-gold task (`task_9ffdbaae`) was spawned. This is a separate sweep (see `premium-finish-longtail.md`).
 
 ## The pattern (copy an existing localized sibling)
 `useT()` is available throughout the admin shell (83 internal files already call it — grep `useT` under `src/components/admin/shell/internal` for a live example). For each user-facing English literal:
