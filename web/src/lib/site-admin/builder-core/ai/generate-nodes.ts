@@ -153,10 +153,13 @@ export function buildGenerationSystemPrompt(): string {
     "RULES",
     "- Copy: write real, specific, on-brand copy, never lorem ipsum or placeholder text. Headlines are short and declarative (5-9 words); body is one or two real sentences. Give the business a plausible concrete name and voice.",
     "- Punctuation: NEVER use em dashes or en dashes (— or –) in any copy. Use a comma, period, colon, or the word 'and' instead. This is a strict brand style rule.",
+    "- Brand language: this is a talent agency, not a store. NEVER use buyer, cart, checkout, add to cart, shop, purchase, or 'pay to DM'. Use client, book, inquire, roster, lineup, casting. You BOOK talent, you do not buy it.",
+    "- CTA labels: verb-led and specific (Book talent, Start an inquiry, View the roster, See pricing, Apply as talent). NEVER generic labels like 'Learn more', 'Click here', 'Read more', or 'Submit'.",
+    "- Section openers: every section EXCEPT the hero opens with a SHORT uppercase eyebrow paragraph (style: size:sm, tone:muted, textTransform:uppercase) directly above its level:2 heading, so each section has a clear visual ramp instead of a bare heading.",
     "- Hierarchy: EXACTLY ONE heading with level:1 on the whole page — it lives in the hero. Every other section opens with a level:2 heading; cards use level:3. Never skip levels.",
     "- Rhythm: prefer 2-4 blocks per section. Alternate texture — a text-led section, then a media or card section — rather than stacking identical card grids.",
     "- Layout: one idea per section. Do not nest deeper than 3 levels below a section.",
-    '- Restraint: tasteful, editorial, minimal. Reach for whitespace (paddingY, spacer) before decoration. At most one background:"contrast" band per page (a hero or a closing CTA).',
+    '- Restraint: tasteful, editorial, minimal. Reach for whitespace (paddingY, spacer) before decoration. Use at most ONE deliberate colored band per page (usually the closing CTA): build it with a backgroundColor+textColor PAIR on that section\'s container (per COLOR above), never the "surface" token or a lone color.',
     "",
     "EXAMPLE (one hero section):",
     JSON.stringify({
@@ -192,7 +195,8 @@ export function buildGenerationSystemPrompt(): string {
           kind: "section",
           label: "Services",
           children: [
-            { kind: "heading", props: { text: "What we do", level: 2, style: { align: "center" } } },
+            { kind: "paragraph", props: { text: "What we offer", style: { align: "center", size: "sm", tone: "muted", textTransform: "uppercase" } } },
+            { kind: "heading", props: { text: "Casting, built around the brief", level: 2, style: { align: "center" } } },
             {
               kind: "container",
               props: { layout: "grid", columns: 3, gap: "m" },
@@ -337,6 +341,20 @@ function sanitizeStyle(raw: unknown): Record<string, unknown> | undefined {
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+/** Default aspect ratio per image role so a generated image never renders unbounded (AIQ-9). */
+function defaultAspectForImageRole(role: unknown): string {
+  switch (role) {
+    case "hero":
+    case "wide":
+      return "21:9";
+    case "portrait":
+    case "team":
+      return "3:4";
+    default:
+      return "4:3";
+  }
+}
+
 interface CoerceCtx {
   count: { n: number };
 }
@@ -449,7 +467,8 @@ function coerceNode(
       return emit(withStyle({ text }));
     }
     case "button": {
-      const label = clampString(rawProps.label ?? node.label, BUTTON_LABEL_MAX) ?? "Learn more";
+      // Brand-safe default: never the generic "Learn more" tell (AIQ-26).
+      const label = clampString(rawProps.label ?? node.label, BUTTON_LABEL_MAX) ?? "Start an inquiry";
       let href = clampString(rawProps.href ?? node.href, HREF_MAX) ?? "/inquire";
       // Defense-in-depth: never carry a dangerous href scheme into the tree (it is
       // also neutralized at render, but keep the source clean).
@@ -460,9 +479,18 @@ function coerceNode(
       return emit(props);
     }
     case "image": {
-      const src = photoForImageRole(rawProps.role ?? node.role);
+      const role = rawProps.role ?? node.role;
+      const src = photoForImageRole(role);
       const alt = clampString(rawProps.alt ?? node.alt, ALT_MAX);
-      const props: Record<string, unknown> = withStyle({ src });
+      // Bound the rendered height (AIQ-9): if the model didn't pick an aspectRatio,
+      // apply a sensible default per role + object-fit:cover, so a full-width hero
+      // or a portrait never renders unbounded/huge. These are curated enum values.
+      const imgStyle: Record<string, unknown> = style ? { ...style } : {};
+      if (typeof imgStyle.aspectRatio !== "string") {
+        imgStyle.aspectRatio = defaultAspectForImageRole(role);
+      }
+      if (typeof imgStyle.objectFit !== "string") imgStyle.objectFit = "cover";
+      const props: Record<string, unknown> = { src, style: imgStyle };
       if (alt) props.alt = alt;
       return emit(props);
     }

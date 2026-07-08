@@ -416,6 +416,36 @@ test("richer kinds: pricing_table keeps 2-4 valid tiers, drops when under-filled
   assert.equal(collectNodes(validateBuilderNodeTree(under).tree).some((n) => n.kind === "pricing_table"), false, "under-filled pricing_table dropped");
 });
 
+test("images get a bounded aspect ratio per role (AIQ-9), model ratio wins", () => {
+  const tree = coerceToSections({
+    sections: [
+      {
+        kind: "section",
+        label: "Media",
+        children: [
+          { kind: "image", props: { role: "hero", alt: "hero" } }, // no ratio -> role default
+          { kind: "image", props: { role: "portrait", alt: "p" } }, // portrait -> 3:4
+          { kind: "image", props: { role: "gallery", alt: "g", style: { aspectRatio: "1:1" } } }, // model wins
+        ],
+      },
+    ],
+  });
+  const validation = validateBuilderNodeTree(tree);
+  assert.equal(validation.ok, true);
+  const images = collectNodes(validation.tree).filter((n) => n.kind === "image");
+  assert.equal(images.length, 3);
+  for (const img of images) {
+    const style = (img.props as { style?: Record<string, unknown> }).style ?? {};
+    assert.ok(typeof style.aspectRatio === "string", "every image has a bounded aspectRatio");
+    assert.equal(style.objectFit, "cover", "object-fit cover safety net");
+  }
+  const byAlt = (a: string) =>
+    images.find((n) => (n.props as { alt?: string }).alt === a)!.props as unknown as { style: Record<string, unknown> };
+  assert.equal(byAlt("hero").style.aspectRatio, "21:9");
+  assert.equal(byAlt("p").style.aspectRatio, "3:4");
+  assert.equal(byAlt("g").style.aspectRatio, "1:1", "a model-chosen ratio is not overwritten");
+});
+
 test("empty model output resolves to EMPTY (caller falls back)", async () => {
   const result = await generateBuilderNodes({
     brief: "a homepage",
