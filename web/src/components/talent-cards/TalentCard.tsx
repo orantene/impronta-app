@@ -187,6 +187,7 @@ export function TalentCard({
   aspect,
   priority,
   index,
+  density = "comfortable",
   rootMode = "link",
   onActivate,
   cssVars,
@@ -197,6 +198,7 @@ export function TalentCard({
   const displayName = resolveName(data.name, show.showName, nameFallback);
   const href = data.profileHref || "#";
   const aspectRatio = TALENT_CARD_ASPECT_RATIO[aspect];
+  const compact = density === "compact";
   // Inline per-tenant card palette (cross-tenant surfaces) merged onto the
   // root style. Undefined → no inline vars, card inherits the theme cascade.
   const rootStyle: CSSProperties | undefined = cssVars as
@@ -247,7 +249,9 @@ export function TalentCard({
           />
         )}
         <div
-          className="flex flex-col gap-1 border-t border-border pt-3"
+          className={`flex flex-col gap-1 border-t border-border ${
+            compact ? "pt-2.5" : "pt-3"
+          }`}
           data-card-body
         >
           <div className="flex items-baseline gap-3">
@@ -262,7 +266,9 @@ export function TalentCard({
             {displayName ? (
               <h3
                 data-card-name
-                className="font-display text-lg font-medium leading-tight tracking-wide"
+                className={`font-display font-medium leading-tight tracking-wide ${
+                  compact ? "text-base" : "text-lg"
+                }`}
                 style={{ color: TALENT_CARD_VARS.name }}
               >
                 {displayName}
@@ -342,13 +348,17 @@ export function TalentCard({
       ) : null}
 
       <div
-        className="absolute inset-x-0 bottom-0 z-[1] flex flex-col gap-1 px-3.5 pb-3.5"
+        className={`absolute inset-x-0 bottom-0 z-[1] flex flex-col gap-1 ${
+          compact ? "px-3 pb-2.5" : "px-3.5 pb-3.5"
+        }`}
         data-card-body
       >
         {displayName ? (
           <h3
             data-card-name
-            className="font-display text-base font-medium leading-tight tracking-wide text-white drop-shadow-sm sm:text-lg"
+            className={`font-display font-medium leading-tight tracking-wide text-white drop-shadow-sm ${
+              compact ? "text-sm sm:text-base" : "text-base sm:text-lg"
+            }`}
           >
             {displayName}
           </h3>
@@ -359,7 +369,9 @@ export function TalentCard({
           <span
             aria-hidden
             data-card-name-rule
-            className="mt-0.5 mb-0.5 block h-px w-7 bg-[var(--dir-accent)]"
+            className={`mt-0.5 block h-px w-7 bg-[var(--dir-accent)] ${
+              compact ? "mb-0" : "mb-0.5"
+            }`}
           />
         ) : null}
         {(show.showTalentType && data.primaryType) ||

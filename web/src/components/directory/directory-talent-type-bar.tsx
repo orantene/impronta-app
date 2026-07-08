@@ -45,9 +45,9 @@ function countSuffix(count: number | undefined): string {
 const VISIBLE_PILL_COUNT = 6;
 
 const ACTIVE_PILL =
-  "border border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] !text-[var(--impronta-gold-bright)]";
+  "border border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] !text-[var(--dir-accent)]";
 const INACTIVE_PILL =
-  "border border-white/15 bg-transparent text-white/60 hover:border-white/30 hover:!text-zinc-200";
+  "border border-border bg-transparent text-muted-foreground hover:border-foreground/30 hover:!text-foreground";
 
 export function DirectoryTalentTypeBar({
   options,
@@ -174,8 +174,8 @@ export function DirectoryTalentTypeBar({
     );
 
   const morePillClass = cn(
-    "shrink-0 rounded-full border border-white/15 bg-transparent px-4 py-2 text-[11px] font-semibold tracking-[0.12em] text-white/60 outline-none transition-colors hover:border-white/30 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-    overflowOpen && "border-white/40 text-zinc-100",
+    "shrink-0 rounded-full border border-border bg-transparent px-4 py-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground outline-none transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    overflowOpen && "border-foreground/40 text-foreground",
   );
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -287,14 +287,14 @@ export function DirectoryTalentTypeBar({
                     aria-pressed={on}
                     title={c.label}
                     className={cn(
-                      "snap-start shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-[10px] font-medium tracking-[0.08em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                      "snap-start shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-[10px] font-medium tracking-[0.08em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-foreground/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                       on
-                        ? "border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
-                        : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/25 hover:text-white/85",
+                        ? "border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
+                        : "border-border bg-muted/30 text-muted-foreground hover:border-foreground/25 hover:text-foreground/85",
                     )}
                   >
                     {pillLabel(c.label)}
-                    <span className="ml-1 text-white/55 tabular-nums">{c.count}</span>
+                    <span className="ml-1 text-muted-foreground tabular-nums">{c.count}</span>
                   </button>
                 );
               })}
@@ -304,7 +304,7 @@ export function DirectoryTalentTypeBar({
                 type="button"
                 onClick={() => setChildrenExpanded((v) => !v)}
                 aria-expanded={childrenExpanded}
-                className="shrink-0 rounded-full border border-white/15 bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/60 outline-none transition-colors hover:border-white/30 hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-white/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="shrink-0 rounded-full border border-border bg-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground outline-none transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 {childrenExpanded
                   ? `Less −`
@@ -320,7 +320,7 @@ export function DirectoryTalentTypeBar({
             id="directory-talent-type-overflow"
             role="listbox"
             aria-label={overflowCopy.moreOptionsAria.replace("{label}", barAriaLabel)}
-            className="absolute right-0 top-full z-30 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-zinc-950/95 p-3 shadow-xl backdrop-blur-md"
+            className="absolute right-0 top-full z-30 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur-md"
           >
             <input
               type="search"
@@ -328,12 +328,12 @@ export function DirectoryTalentTypeBar({
               onChange={(e) => setOverflowQuery(e.target.value)}
               placeholder={overflowCopy.searchPlaceholder}
               aria-label={overflowCopy.searchAria}
-              className="mb-2 w-full rounded-md border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-white placeholder-white/40 outline-none focus:border-white/40 focus:ring-1 focus:ring-white/25"
+              className="mb-2 w-full rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-foreground/40 focus:ring-1 focus:ring-foreground/25"
               autoFocus
             />
             <ul className="max-h-72 overflow-y-auto">
               {overflowFiltered.length === 0 ? (
-                <li className="px-2 py-2 text-xs text-white/50">{overflowCopy.noMatches}</li>
+                <li className="px-2 py-2 text-xs text-muted-foreground">{overflowCopy.noMatches}</li>
               ) : (
                 overflowFiltered.map((p) => {
                   const on = activeParent?.id === p.id;
@@ -347,15 +347,15 @@ export function DirectoryTalentTypeBar({
                         className={cn(
                           "flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-[12px] tracking-[0.06em] outline-none transition-colors",
                           on
-                            ? "bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
-                            : "text-white/70 hover:bg-white/[0.04] hover:text-white focus-visible:bg-white/[0.04] focus-visible:text-white",
+                            ? "bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
+                            : "text-muted-foreground hover:bg-muted/40 hover:text-foreground focus-visible:bg-muted/40 focus-visible:text-foreground",
                         )}
                       >
                         <span className="truncate">{pillLabel(p.label)}</span>
                         <span
                           className={cn(
                             "shrink-0 text-[10px] tabular-nums",
-                            on ? "text-[var(--dir-accent)]" : "text-white/40",
+                            on ? "text-[var(--dir-accent)]" : "text-muted-foreground/60",
                           )}
                         >
                           {p.count}
@@ -453,7 +453,7 @@ export function DirectoryTalentTypeBar({
           id="directory-talent-type-overflow"
           role="listbox"
           aria-label={overflowCopy.moreOptionsAria.replace("{label}", barAriaLabel)}
-          className="absolute right-0 top-full z-30 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-zinc-950/95 p-3 shadow-xl backdrop-blur-md"
+          className="absolute right-0 top-full z-30 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur-md"
         >
           <input
             type="search"
@@ -461,12 +461,12 @@ export function DirectoryTalentTypeBar({
             onChange={(e) => setOverflowQuery(e.target.value)}
             placeholder={overflowCopy.searchPlaceholder}
             aria-label={overflowCopy.searchAria}
-            className="mb-2 w-full rounded-md border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-white placeholder-white/40 outline-none focus:border-white/40 focus:ring-1 focus:ring-white/25"
+            className="mb-2 w-full rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-foreground/40 focus:ring-1 focus:ring-foreground/25"
             autoFocus
           />
           <ul className="max-h-72 overflow-y-auto">
             {overflowFiltered.length === 0 ? (
-              <li className="px-2 py-2 text-xs text-white/50">{overflowCopy.noMatches}</li>
+              <li className="px-2 py-2 text-xs text-muted-foreground">{overflowCopy.noMatches}</li>
             ) : (
               overflowFiltered.map((opt) => {
                 const on = activeId === opt.id;
@@ -480,8 +480,8 @@ export function DirectoryTalentTypeBar({
                       className={cn(
                         "flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-[12px] tracking-[0.06em] outline-none transition-colors",
                         on
-                          ? "bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)]"
-                          : "text-white/70 hover:bg-white/[0.04] hover:text-white focus-visible:bg-white/[0.04] focus-visible:text-white",
+                          ? "bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
+                          : "text-muted-foreground hover:bg-muted/40 hover:text-foreground focus-visible:bg-muted/40 focus-visible:text-foreground",
                       )}
                     >
                       <span className="truncate">{pillLabel(opt.label)}</span>
@@ -489,7 +489,7 @@ export function DirectoryTalentTypeBar({
                         <span
                           className={cn(
                             "shrink-0 text-[10px] tabular-nums",
-                            on ? "text-[var(--dir-accent)]" : "text-white/40",
+                            on ? "text-[var(--dir-accent)]" : "text-muted-foreground/60",
                           )}
                         >
                           {opt.count}
