@@ -20,6 +20,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { HQ, F, FD } from "../../../catalog/_ui";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import {
   setRegistrationFieldShow,
   setRegistrationFieldRequired,
@@ -32,6 +34,7 @@ import type {
 } from "./registration-fields-data";
 
 const FM = '"JetBrains Mono", "Fira Code", ui-monospace, monospace';
+const RF = "dashboard.platform.tenants.registrationFieldsPage";
 
 type RowStatus =
   | { kind: "idle" }
@@ -94,12 +97,13 @@ function Toggle({
 }
 
 function StatusPill({ status }: { status: RowStatus }) {
+  const t = useT();
   if (status.kind === "idle") return null;
   const meta =
     status.kind === "saving"
-      ? { t: "Saving…", c: HQ.amber }
+      ? { t: t(`${RF}.statusSaving`), c: HQ.amber }
       : status.kind === "saved"
-        ? { t: "Saved ✓", c: HQ.green }
+        ? { t: t(`${RF}.statusSaved`), c: HQ.green }
         : { t: status.message, c: HQ.red };
   return (
     <span
@@ -146,6 +150,7 @@ function FieldRow({
   const [ovOrder, setOvOrder] = useState(field.override.order);
   const [status, setStatus] = useState<RowStatus>({ kind: "idle" });
   const [pending, startTransition] = useTransition();
+  const t = useT();
 
   const isDragging = draggingId === field.field_definition_id;
   const overridden = ovShown || ovRequired || ovOrder;
@@ -166,7 +171,7 @@ function FieldRow({
           setStatus({ kind: "error", message: res.error });
         }
       } catch {
-        setStatus({ kind: "error", message: "Network error — try again." });
+        setStatus({ kind: "error", message: t(`${RF}.statusNetworkError`) });
       }
     });
   }
@@ -238,7 +243,7 @@ function FieldRow({
     >
       <span
         aria-hidden
-        title="Drag to reorder"
+        title={t(`${RF}.dragToReorderTitle`)}
         style={{ color: HQ.inkDim, fontSize: 13, lineHeight: 1, userSelect: "none" }}
       >
         ⠿
@@ -259,11 +264,11 @@ function FieldRow({
                 letterSpacing: 0.3,
               }}
             >
-              OVERRIDDEN
+              {t(`${RF}.badgeOverridden`)}
             </span>
           )}
           {!field.enabled && (
-            <span style={{ fontSize: 9, fontWeight: 800, color: HQ.amber }}>DISABLED</span>
+            <span style={{ fontSize: 9, fontWeight: 800, color: HQ.amber }}>{t(`${RF}.badgeDisabled`)}</span>
           )}
         </div>
         <div
@@ -287,23 +292,23 @@ function FieldRow({
           on={shown}
           disabled={pending || !field.enabled}
           onChange={toggleShown}
-          labelOn="Shown"
-          labelOff="Hidden"
+          labelOn={t(`${RF}.toggleShown`)}
+          labelOff={t(`${RF}.toggleHidden`)}
           tone={HQ.green}
         />
         <Toggle
           on={required}
           disabled={pending || !field.enabled || !shown}
           onChange={toggleRequired}
-          labelOn="Required"
-          labelOff="Optional"
+          labelOn={t(`${RF}.toggleRequired`)}
+          labelOff={t(`${RF}.toggleOptional`)}
           tone={HQ.amber}
         />
         <button
           type="button"
           disabled={pending || !overridden}
           onClick={reset}
-          title={overridden ? "Reset to catalog defaults" : "No overrides to reset"}
+          title={overridden ? t(`${RF}.resetTitleActive`) : t(`${RF}.resetTitleNone`)}
           style={{
             border: `1px solid ${HQ.border}`,
             background: "transparent",
@@ -315,7 +320,7 @@ function FieldRow({
             cursor: pending || !overridden ? "not-allowed" : "pointer",
           }}
         >
-          Reset
+          {t(`${RF}.resetButton`)}
         </button>
       </div>
     </div>
@@ -347,6 +352,7 @@ function GroupPanel({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [orderStatus, setOrderStatus] = useState<RowStatus>({ kind: "idle" });
   const [pending, startTransition] = useTransition();
+  const t = useT();
 
   const orderChanged = useMemo(
     () => items.some((it, i) => it.field_definition_id !== group.fields[i]?.field_definition_id),
@@ -370,7 +376,7 @@ function GroupPanel({
           setOrderStatus({ kind: "error", message: res.error });
         }
       } catch {
-        setOrderStatus({ kind: "error", message: "Network error — try again." });
+        setOrderStatus({ kind: "error", message: t(`${RF}.statusNetworkError`) });
       }
     });
   }
@@ -409,10 +415,10 @@ function GroupPanel({
             padding: "1px 7px",
           }}
         >
-          {group.tier === "universal" ? "UNIVERSAL" : "TYPE-SPECIFIC"}
+          {group.tier === "universal" ? t(`${RF}.badgeUniversal`) : t(`${RF}.badgeTypeSpecific`)}
         </span>
         <span style={{ fontSize: 11.5, color: HQ.inkMuted, marginLeft: "auto" }}>
-          {shownCount}/{items.length} shown
+          {interpolate(t(`${RF}.groupShownCount`), { shown: shownCount, total: items.length })}
         </span>
       </summary>
 
@@ -428,7 +434,7 @@ function GroupPanel({
           }}
         >
           <span style={{ fontSize: 11, color: HQ.inkDim }}>
-            Drag a field by its ⠿ handle to reorder, then save.
+            {t(`${RF}.orderBarHint`)}
           </span>
           <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 8 }}>
             <StatusPill status={orderStatus} />
@@ -448,7 +454,7 @@ function GroupPanel({
                   cursor: pending ? "not-allowed" : "pointer",
                 }}
               >
-                Discard
+                {t(`${RF}.discardButton`)}
               </button>
             )}
             <button
@@ -466,7 +472,7 @@ function GroupPanel({
                 cursor: !orderChanged || pending ? "not-allowed" : "pointer",
               }}
             >
-              Save order
+              {t(`${RF}.saveOrderButton`)}
             </button>
           </span>
         </div>
@@ -503,10 +509,11 @@ export function RegistrationFieldsClient({
   tenantId: string;
   groups: RegistrationFieldGroup[];
 }) {
+  const t = useT();
   if (groups.length === 0) {
     return (
       <div style={{ fontSize: 13, color: HQ.inkDim, padding: "12px 0", fontFamily: F }}>
-        No registration-eligible fields found for this workspace.
+        {t(`${RF}.emptyNoFields`)}
       </div>
     );
   }
