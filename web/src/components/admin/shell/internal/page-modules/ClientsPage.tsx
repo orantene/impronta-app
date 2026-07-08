@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Avatar, ClientTrustChip, CompactLockedCard, EmptyState, GhostButton, Icon, LockedCard, MoreWithSection, PrimaryButton, PrimaryCard, ReadOnlyChip, StatusCard, StatusStrip, SwipeableRow } from "../primitives";
+import { interpolate } from "@/i18n/interpolate";
+import { useT } from "@/i18n/use-t";
+import { Avatar, ClientTrustChip, CompactLockedCard, EmptyState, GhostButton, Icon, LockedCard, MoreWithSection, PrimaryButton, PrimaryCard, ReadOnlyChip, StatusStrip, SwipeableRow } from "../primitives";
 import { COLORS, FONTS, TRANSITION, meetsRole, useAdminShell } from "../state";
 import { downloadCsv } from "../wave2";
 import { FabWithQuickCreate } from "./InboxPage";
@@ -16,6 +18,7 @@ import { byName } from "@/lib/field-engine/sort-comparators";
 // ════════════════════════════════════════════════════════════════════
 
 export function ClientsPage() {
+  const t = useT();
   const { state, openDrawer, openUpgrade, toast, effectiveClients, importedClients } = useAdminShell();
   // Phase 3.12 — use bridge clients when available, fall back to mock.
   // importedClients (CSV imports from proto state) are always merged in.
@@ -54,57 +57,57 @@ export function ClientsPage() {
         trust: c.trust ?? "",
       })),
     );
-    toast(`Exported ${filteredClients.length} rows to CSV`);
+    toast(interpolate(t("dashboard.adminClients.exportedRows"), { count: filteredClients.length }));
   };
 
   if (isFree) {
     return (
       <>
         <PageHeader
-          title="Clients"
-          subtitle="Inquiries from your channels. Filter by what needs you."
+          title={t("dashboard.adminClients.title")}
+          subtitle={t("dashboard.adminClients.freeSubtitle")}
         />
         <Grid cols="2">
           <PrimaryCard
-            title="One inquiry so far"
-            description="A test inquiry from a friend referral. No client relationship yet."
+            title={t("dashboard.adminClients.oneInquiryTitle")}
+            description={t("dashboard.adminClients.oneInquiryDesc")}
             icon={<Icon name="mail" size={14} stroke={1.7} />}
-            affordance="See inquiry"
+            affordance={t("dashboard.adminClients.seeInquiry")}
             onClick={() => openDrawer("inquiry-peek", { id: "iq1" })}
           />
           <LockedCard
-            title="Owned client list"
-            description="With Studio, every inquiry on your domain becomes a client you own. We never share your client list with anyone, including Tulala discovery."
+            title={t("dashboard.adminClients.ownedListTitle")}
+            description={t("dashboard.adminClients.ownedListDesc")}
             requiredPlan="studio"
             onClick={() =>
               openUpgrade({
-                feature: "Owned client list",
-                why: "On Free, the public directory introduces you to clients. On Studio, those clients are yours.",
+                feature: t("dashboard.adminClients.upOwnedListFeature"),
+                why: t("dashboard.adminClients.upOwnedListWhy"),
                 requiredPlan: "studio",
-                unlocks: ["Private client database", "Booking history per client", "Custom relationship fields"],
+                unlocks: [t("dashboard.adminClients.upOwnedListUnlock1"), t("dashboard.adminClients.upOwnedListUnlock2"), t("dashboard.adminClients.upOwnedListUnlock3")],
               })
             }
           />
         </Grid>
         <MoreWithSection plan="agency">
           <CompactLockedCard
-            title="Per-client booking history"
+            title={t("dashboard.adminClients.lockPerClientHistory")}
             requiredPlan="agency"
             onClick={() =>
               openUpgrade({
-                feature: "Client history",
-                why: "Track every booking, brief and contact across years.",
+                feature: t("dashboard.adminClients.upClientHistoryFeature"),
+                why: t("dashboard.adminClients.upClientHistoryWhy"),
                 requiredPlan: "agency",
               })
             }
           />
           <CompactLockedCard
-            title="Custom client fields"
+            title={t("dashboard.adminClients.lockCustomFields")}
             requiredPlan="agency"
             onClick={() =>
               openUpgrade({
-                feature: "Client field catalog",
-                why: "Add fields that match how your team actually segments clients.",
+                feature: t("dashboard.adminClients.upFieldCatalogFeature"),
+                why: t("dashboard.adminClients.upFieldCatalogWhyFree"),
                 requiredPlan: "agency",
               })
             }
@@ -117,14 +120,14 @@ export function ClientsPage() {
   return (
     <>
       <PageHeader
-        title="Clients"
-        subtitle={`${clients.length} clients you've worked with. Each one carries booking history and notes.`}
+        title={t("dashboard.adminClients.title")}
+        subtitle={interpolate(t("dashboard.adminClients.subtitle"), { count: clients.length })}
         actions={
           <>
-            <GhostButton size="sm" onClick={exportClientsCsv}>Export CSV</GhostButton>
+            <GhostButton size="sm" onClick={exportClientsCsv}>{t("dashboard.adminClients.exportCsv")}</GhostButton>
             {canEdit ? (
               <PrimaryButton onClick={() => openDrawer("client-profile", { id: "new" })}>
-                Add client
+                {t("dashboard.adminClients.addClient")}
               </PrimaryButton>
             ) : (
               <ReadOnlyChip />
@@ -135,12 +138,12 @@ export function ClientsPage() {
 
       {/* Status strip — replaces 4-up StatusCard wall */}
       <StatusStrip
-        ariaLabel="Clients overview"
+        ariaLabel={t("dashboard.adminClients.overviewAria")}
         items={[
-          { id: "active",  label: "Active",   value: clients.filter((c) => c.status === "active").length,  tone: "green",  active: statusFilter === "active",  onClick: () => setStatusFilter(statusFilter === "active" ? "all" : "active") },
-          { id: "dormant", label: "Dormant",  value: clients.filter((c) => c.status === "dormant").length, tone: "dim",    active: statusFilter === "dormant", onClick: () => setStatusFilter(statusFilter === "dormant" ? "all" : "dormant") },
-          { id: "trust",   label: "Verified+", value: clients.filter((c) => c.trust && c.trust !== "basic").length, tone: "indigo" },
-          { id: "ytd",     label: "Bookings YTD", value: clients.reduce((sum, c) => sum + c.bookingsYTD, 0), tone: "ink" },
+          { id: "active",  label: t("dashboard.adminClients.active"),   value: clients.filter((c) => c.status === "active").length,  tone: "green",  active: statusFilter === "active",  onClick: () => setStatusFilter(statusFilter === "active" ? "all" : "active") },
+          { id: "dormant", label: t("dashboard.adminClients.dormant"),  value: clients.filter((c) => c.status === "dormant").length, tone: "dim",    active: statusFilter === "dormant", onClick: () => setStatusFilter(statusFilter === "dormant" ? "all" : "dormant") },
+          { id: "trust",   label: t("dashboard.adminClients.verifiedPlus"), value: clients.filter((c) => c.trust && c.trust !== "basic").length, tone: "indigo" },
+          { id: "ytd",     label: t("dashboard.adminClients.bookingsYtd"), value: clients.reduce((sum, c) => sum + c.bookingsYTD, 0), tone: "ink" },
         ]}
       />
 
@@ -154,10 +157,10 @@ export function ClientsPage() {
       >
         <input
           type="text"
-          aria-label="Search clients by name or contact"
+          aria-label={t("dashboard.adminClients.searchAria")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name or contact…"
+          placeholder={t("dashboard.adminClients.searchPlaceholder")}
           style={{
             flex: 1,
             minWidth: 200,
@@ -174,22 +177,22 @@ export function ClientsPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-          aria-label="Status"
+          aria-label={t("dashboard.adminClients.statusAria")}
           style={selectStyle}
         >
-          <option value="all">All statuses</option>
-          <option value="active">Active</option>
-          <option value="dormant">Dormant</option>
+          <option value="all">{t("dashboard.adminClients.allStatuses")}</option>
+          <option value="active">{t("dashboard.adminClients.active")}</option>
+          <option value="dormant">{t("dashboard.adminClients.dormant")}</option>
         </select>
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as typeof sort)}
-          aria-label="Sort"
+          aria-label={t("dashboard.adminClients.sortAria")}
           style={selectStyle}
         >
-          <option value="name">Name</option>
-          <option value="bookings">Bookings</option>
-          <option value="status">Status</option>
+          <option value="name">{t("dashboard.adminClients.sortName")}</option>
+          <option value="bookings">{t("dashboard.adminClients.sortBookings")}</option>
+          <option value="status">{t("dashboard.adminClients.sortStatus")}</option>
         </select>
         {(search.trim() || statusFilter !== "all" || sort !== "name") && (
           <button
@@ -210,7 +213,7 @@ export function ClientsPage() {
               gap: 4,
             }}
           >
-            <span aria-hidden>×</span> Clear
+            <span aria-hidden>×</span> {t("dashboard.adminClients.clear")}
           </button>
         )}
       </div>
@@ -224,18 +227,18 @@ export function ClientsPage() {
         }}
       >
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.5fr) minmax(0,1.2fr) 80px 100px 60px", gap: 14, padding: "9px 18px", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }} className="bg-admin-surface-alt text-admin-ink-muted">
-          <span>Client</span>
-          <span>Bookings</span>
-          <span>Status</span>
-          <span>Trust</span>
+          <span>{t("dashboard.adminClients.colClient")}</span>
+          <span>{t("dashboard.adminClients.colBookings")}</span>
+          <span>{t("dashboard.adminClients.colStatus")}</span>
+          <span>{t("dashboard.adminClients.colTrust")}</span>
           <span />
         </div>
         {filteredClients.length === 0 && (
           <EmptyState
             icon="user"
-            title="No clients match"
-            body="Try a different search or clear the status filter."
-            primaryLabel="Clear filters"
+            title={t("dashboard.adminClients.emptyTitle")}
+            body={t("dashboard.adminClients.emptyBody")}
+            primaryLabel={t("dashboard.adminClients.clearFilters")}
             onPrimary={() => {
               setSearch("");
               setStatusFilter("all");
@@ -267,17 +270,21 @@ export function ClientsPage() {
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-              <Avatar initials={client.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()} size={32} tone="auto" hashSeed={client.name} />
+              {/* Client type carries no photo/logo URL, so photoUrl is left
+                  undefined — the Avatar primitive renders its letter-free
+                  silhouette on a per-client tint (hashSeed only tints; it
+                  never resolves to stock imagery). */}
+              <Avatar photoUrl={undefined} size={32} tone="auto" hashSeed={client.name} />
               <div className="min-w-0">
                 <div className="text-admin-ink text-admin-13h font-semibold">{client.name}</div>
                 <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{client.contact}</div>
               </div>
             </div>
             <div className="text-admin-ink-muted text-xs">
-              {client.bookingsYTD} bookings YTD
+              {interpolate(t("dashboard.adminClients.bookingsYtdCount"), { count: client.bookingsYTD })}
             </div>
             <div>
-              <StatusBadge tone={client.status === "active" ? "green" : "dim"} label={client.status} />
+              <StatusBadge tone={client.status === "active" ? "green" : "dim"} label={t(client.status === "active" ? "dashboard.adminClients.active" : "dashboard.adminClients.dormant")} />
             </div>
             <div>
               {client.trust ? (
@@ -297,23 +304,23 @@ export function ClientsPage() {
       {state.plan === "studio" && (
         <MoreWithSection plan="agency">
           <CompactLockedCard
-            title="Custom client fields"
+            title={t("dashboard.adminClients.lockCustomFields")}
             requiredPlan="agency"
             onClick={() =>
               openUpgrade({
-                feature: "Client field catalog",
-                why: "Add the fields your team segments clients by: region, brand tier, preferred talent.",
+                feature: t("dashboard.adminClients.upFieldCatalogFeature"),
+                why: t("dashboard.adminClients.upFieldCatalogWhyStudio"),
                 requiredPlan: "agency",
               })
             }
           />
           <CompactLockedCard
-            title="Booking history reports"
+            title={t("dashboard.adminClients.lockReports")}
             requiredPlan="agency"
             onClick={() =>
               openUpgrade({
-                feature: "Reports",
-                why: "Export per-client booking volume and revenue.",
+                feature: t("dashboard.adminClients.upReportsFeature"),
+                why: t("dashboard.adminClients.upReportsWhy"),
                 requiredPlan: "agency",
               })
             }

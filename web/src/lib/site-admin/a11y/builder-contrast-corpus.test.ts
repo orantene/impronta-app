@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { contrastRatio } from "./contrast";
 
@@ -68,5 +70,40 @@ for (const t of THEME_TOKENS) {
   test(`[${t.id}] AIQ-4: muted text stays legible on page + surface (AA-large floor)`, () => {
     assertContrast(t.muted, t.pageBg, "muted/page", AA_LARGE);
     assertContrast(t.muted, t.surfaceRaised, "muted/surface", AA_LARGE);
+  });
+}
+
+// ── Drift guard: the THEME_TOKENS table above is transcribed from
+// token-presets.css. If a token there changes but this table doesn't, the AA
+// assertions would silently pass on stale values. This test re-reads the CSS and
+// asserts the table still matches, so the contrast lock stays honest.
+const CSS = readFileSync(resolve(process.cwd(), "src/app/token-presets.css"), "utf8");
+// The CSS block (from its opening `{` to the first `}`) that carries each theme's
+// token declarations. token-presets custom-property blocks are flat (no nesting).
+const THEME_SELECTOR: Record<string, string> = {
+  light: "html {",
+  noir: '[data-token-background-mode="editorial-noir"]',
+  espresso: '[data-token-background-mode="espresso"]',
+};
+function blockAfter(needle: string): string {
+  const i = CSS.indexOf(needle);
+  assert.ok(i >= 0, `token-presets.css: selector not found: ${needle}`);
+  const open = CSS.indexOf("{", i);
+  const close = CSS.indexOf("}", open);
+  return CSS.slice(open + 1, close);
+}
+function tokenIn(block: string, name: string): string | null {
+  const m = new RegExp(`--token-color-${name}:\\s*([^;]+);`).exec(block);
+  return m ? m[1].trim().replace(/\s+/g, "") : null;
+}
+const norm = (v: string) => v.replace(/\s+/g, "");
+
+for (const t of THEME_TOKENS) {
+  test(`[${t.id}] drift guard: token table matches token-presets.css`, () => {
+    const block = blockAfter(THEME_SELECTOR[t.id]!);
+    assert.equal(tokenIn(block, "ink"), norm(t.ink), `${t.id} ink drifted`);
+    assert.equal(tokenIn(block, "muted"), norm(t.muted), `${t.id} muted drifted`);
+    assert.equal(tokenIn(block, "surface-raised"), norm(t.surfaceRaised), `${t.id} surface-raised drifted`);
+    assert.equal(tokenIn(block, "primary"), norm(t.primary), `${t.id} primary drifted`);
   });
 }

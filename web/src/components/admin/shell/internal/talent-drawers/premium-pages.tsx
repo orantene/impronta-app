@@ -9,13 +9,14 @@
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import {
   COLORS,
   FONTS,
   MY_TALENT_PROFILE,
   TALENT_PAGE_TEMPLATES,
   TALENT_TIER_CATALOG,
-  TALENT_TIER_GROUP_LABELS,
   TALENT_TIER_META,
   tierAllows,
   useAdminShell,
@@ -35,9 +36,18 @@ import {
   Toggle,
 } from "../primitives";
 
+// ─── Tier-group discriminant → catalog-key map (render via t(), keep raw union) ──
+const TIER_GROUP_KEYS: Record<TalentTierGroup, string> = {
+  page: "dashboard.talentDrawers.tierGroups.page",
+  discovery: "dashboard.talentDrawers.tierGroups.discovery",
+  money: "dashboard.talentDrawers.tierGroups.money",
+  tools: "dashboard.talentDrawers.tierGroups.tools",
+};
+
 // ─── LockedBadge (inlined — also in _talent.tsx for MyProfilePage) ────────────
 /** Lock badge shown next to a feature card when the talent's tier doesn't unlock it. */
 function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier }) {
+  const t = useT();
   const meta = TALENT_TIER_META[requiredTier];
   return (
     <span
@@ -56,7 +66,7 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
         borderRadius: 999,
         textTransform: "uppercase",
       }}
-      title={`Unlocked at ${meta.label}`}
+      title={interpolate(t("dashboard.talentDrawers.premiumPages.unlockedAt"), { tier: meta.label })}
     >
       <span className="text-admin-9">🔒</span>
       {meta.label}
@@ -70,6 +80,7 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
 
 export function TalentTierCompareDrawer() {
   const { state, closeDrawer, setTalentTier } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-tier-compare";
   const current = state.talentTier;
 
@@ -77,40 +88,40 @@ export function TalentTierCompareDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Compare talent plans"
-      description="Your Tulala personal page tier. Coexists with whatever agencies and hubs you're on — agency rosters never change."
+      title={t("dashboard.talentDrawers.premiumPages.compareTitle")}
+      description={t("dashboard.talentDrawers.premiumPages.compareDesc")}
       width={760}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
         </>
       }
     >
       {process.env.NODE_ENV !== "production" && (
         <div style={{ marginBottom: 10, fontFamily: FONTS.body, fontSize: 11, fontWeight: 600 }} className="text-admin-ink-dim">
-          Dev — switch tier to preview plan gating live across the talent surface.
+          {t("dashboard.talentDrawers.premiumPages.devSwitchHint")}
         </div>
       )}
       {/* Tier columns */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-        {(["free", "pro", "max"] as const).map((t) => {
-          const meta = TALENT_TIER_META[t];
-          const isCurrent = t === current;
+        {(["free", "pro", "max"] as const).map((tierId) => {
+          const meta = TALENT_TIER_META[tierId];
+          const isCurrent = tierId === current;
           return (
             <div
-              key={t}
+              key={tierId}
               style={{
                 padding: "16px 16px",
-                background: t === "max" ? COLORS.fill : "#fff",
-                color: t === "max" ? "#fff" : COLORS.ink,
-                border: `1.5px solid ${isCurrent ? COLORS.accentDeep : t === "max" ? COLORS.accent : COLORS.borderSoft}`,
+                background: tierId === "max" ? COLORS.fill : "#fff",
+                color: tierId === "max" ? "#fff" : COLORS.ink,
+                border: `1.5px solid ${isCurrent ? COLORS.accentDeep : tierId === "max" ? COLORS.accent : COLORS.borderSoft}`,
                 borderRadius: 12,
                 position: "relative",
               }}
             >
               {isCurrent && (
                 <span style={{ position: "absolute", top: -10, left: 14, color: "#fff", fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, padding: "3px 9px", borderRadius: 999, textTransform: "uppercase" }} className="bg-admin-accent-deep">
-                  Current
+                  {t("dashboard.talentDrawers.premiumPages.current")}
                 </span>
               )}
               <div
@@ -133,23 +144,15 @@ export function TalentTierCompareDrawer() {
               >
                 {meta.tagline}
               </div>
-              <div
-                style={{
-                  fontFamily: FONTS.display,
-                  fontSize: 18,
-                  marginTop: 12,
-                  color: t === "max" ? "#fff" : COLORS.accentDeep,
-                  fontWeight: 600,
-                }}
-              >
-                {meta.monthlyPrice}
-              </div>
+              {/* Pricing intentionally omitted — talent billing isn't live,
+                  so we don't show a per-month price the talent can't yet be
+                  charged. The waitlist card below is the single honest CTA. */}
               <p
                 style={{
                   fontFamily: FONTS.body,
                   fontSize: 12.5,
                   lineHeight: 1.55,
-                  marginTop: 8,
+                  marginTop: 12,
                   marginBottom: 0,
                   opacity: 0.85,
                 }}
@@ -159,14 +162,14 @@ export function TalentTierCompareDrawer() {
               {process.env.NODE_ENV !== "production" && !isCurrent && (
                 <button
                   type="button"
-                  onClick={() => setTalentTier(t)}
+                  onClick={() => setTalentTier(tierId)}
                   style={{
                     marginTop: 12,
                     width: "100%",
                     padding: "6px 10px",
                     background: "transparent",
-                    color: t === "max" ? "#fff" : COLORS.ink,
-                    border: `1px solid ${t === "max" ? "rgba(255,255,255,0.4)" : COLORS.border}`,
+                    color: tierId === "max" ? "#fff" : COLORS.ink,
+                    border: `1px solid ${tierId === "max" ? "rgba(255,255,255,0.4)" : COLORS.border}`,
                     borderRadius: 8,
                     fontFamily: FONTS.body,
                     fontSize: 11.5,
@@ -174,7 +177,7 @@ export function TalentTierCompareDrawer() {
                     cursor: "pointer",
                   }}
                 >
-                  Switch to {meta.label}
+                  {interpolate(t("dashboard.talentDrawers.premiumPages.switchTo"), { tier: meta.label })}
                 </button>
               )}
             </div>
@@ -184,7 +187,7 @@ export function TalentTierCompareDrawer() {
 
       {/* Feature matrix */}
       <div style={{ marginTop: 18 }}>
-        <CapsLabel>What&apos;s included</CapsLabel>
+        <CapsLabel>{t("dashboard.talentDrawers.premiumPages.whatsIncluded")}</CapsLabel>
         <div
           style={{
             marginTop: 8,
@@ -196,7 +199,7 @@ export function TalentTierCompareDrawer() {
         >
           {/* Header */}
           <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", padding: "10px 14px", background: "rgba(11,11,13,0.025)", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase" }} className="text-admin-ink-muted">
-            <span>Feature</span>
+            <span>{t("dashboard.talentDrawers.premiumPages.colFeature")}</span>
             <span className="text-center">Free</span>
             <span className="text-center">Pro</span>
             <span className="text-center">Max</span>
@@ -208,7 +211,7 @@ export function TalentTierCompareDrawer() {
             return (
               <div key={group}>
                 <div style={{ padding: "7px 14px", background: "rgba(11,11,13,0.02)", borderTop: gi > 0 ? `1px solid ${COLORS.borderSoft}` : "none", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-dim">
-                  {TALENT_TIER_GROUP_LABELS[group]}
+                  {t(TIER_GROUP_KEYS[group])}
                 </div>
                 {rows.map((f, i) => (
                   <div
@@ -237,8 +240,7 @@ export function TalentTierCompareDrawer() {
       </div>
 
       <div style={{ marginTop: 16, padding: "12px 14px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="bg-admin-surface-alt text-admin-ink">
-        Personal page tiers are independent of agency / hub presence. You stay on every roster
-        you&apos;re on now. The tier only affects your direct Tulala destination page.
+        {t("dashboard.talentDrawers.premiumPages.independenceNote")}
       </div>
 
       {/* Phase 1.5: Pro & Max not yet available for launch — waitlist card replaces trial CTA */}
@@ -257,10 +259,10 @@ export function TalentTierCompareDrawer() {
       >
         <div className="flex-1 min-w-0">
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }} className="text-admin-indigo-deep">
-            Pro &amp; Max launching soon
+            {t("dashboard.talentDrawers.premiumPages.launchingSoon")}
           </div>
           <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
-            We&apos;ll let you know the moment Pro and Max open, with an early-access discount for current talent.
+            {t("dashboard.talentDrawers.premiumPages.launchingSoonBody")}
           </div>
         </div>
       </div>
@@ -288,28 +290,29 @@ function FeatureCell({ value }: { value: TalentTierCell }) {
 
 export function TalentPersonalPageDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-personal-page";
   const sub = MY_TALENT_PROFILE.subscription;
   const sections = [
-    { id: "hero", label: "Hero", body: "Cover · headshot · name · pronouns · tagline.", removable: false },
-    { id: "story", label: "About / story", body: "1-2 paragraphs in your own voice.", removable: true },
-    { id: "embeds", label: "Media embeds", body: `${sub.embeds.length} embed${sub.embeds.length === 1 ? "" : "s"} live.`, removable: true },
-    { id: "credits", label: "Credits & tearsheet", body: "Pulled from your profile credits.", removable: true },
-    { id: "press", label: "Press band", body: `${sub.press.length} clip${sub.press.length === 1 ? "" : "s"}.`, removable: true },
-    { id: "contact", label: "Contact CTA", body: "'Inquire' button → routes through your agency unless you're un-rep'd.", removable: false },
+    { id: "hero", label: t("dashboard.talentDrawers.premiumPages.sectionHero"), body: t("dashboard.talentDrawers.premiumPages.sectionHeroBody"), removable: false },
+    { id: "story", label: t("dashboard.talentDrawers.premiumPages.sectionStory"), body: t("dashboard.talentDrawers.premiumPages.sectionStoryBody"), removable: true },
+    { id: "embeds", label: t("dashboard.talentDrawers.premiumPages.sectionEmbeds"), body: interpolate(t(sub.embeds.length === 1 ? "dashboard.talentDrawers.premiumPages.sectionEmbedsBody" : "dashboard.talentDrawers.premiumPages.sectionEmbedsBodyPlural"), { count: sub.embeds.length }), removable: true },
+    { id: "credits", label: t("dashboard.talentDrawers.premiumPages.sectionCredits"), body: t("dashboard.talentDrawers.premiumPages.sectionCreditsBody"), removable: true },
+    { id: "press", label: t("dashboard.talentDrawers.premiumPages.sectionPress"), body: interpolate(t(sub.press.length === 1 ? "dashboard.talentDrawers.premiumPages.sectionPressBody" : "dashboard.talentDrawers.premiumPages.sectionPressBodyPlural"), { count: sub.press.length }), removable: true },
+    { id: "contact", label: t("dashboard.talentDrawers.premiumPages.sectionContact"), body: t("dashboard.talentDrawers.premiumPages.sectionContactBody"), removable: false },
   ];
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Personal site sections"
-      description="Hero and Contact CTA are required. Your Max site can grow from these personal-brand sections."
+      title={t("dashboard.talentDrawers.premiumPages.personalTitle")}
+      description={t("dashboard.talentDrawers.premiumPages.personalDesc")}
       width={620}
       footer={
         <>
           {/* Fake publish remains stripped; publish belongs to the governed builder flow. */}
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
         </>
       }
     >
@@ -333,7 +336,7 @@ export function TalentPersonalPageDrawer() {
                 {s.label}
                 {!s.removable && (
                   <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 400 }} className="text-admin-ink-muted">
-                    Required
+                    {t("dashboard.talentDrawers.premiumPages.required")}
                   </span>
                 )}
               </div>
@@ -356,6 +359,7 @@ export function TalentPersonalPageDrawer() {
 
 export function TalentPageTemplateDrawer() {
   const { state, closeDrawer, openDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-page-template";
   const tier = state.talentTier;
   const active = MY_TALENT_PROFILE.subscription.template;
@@ -364,21 +368,21 @@ export function TalentPageTemplateDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Choose a template"
-      description="Templates set the layout, hero size, and section order of your personal page. Switch any time — content stays."
+      title={t("dashboard.talentDrawers.premiumPages.templateTitle")}
+      description={t("dashboard.talentDrawers.premiumPages.templateDesc")}
       width={680}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-        {TALENT_PAGE_TEMPLATES.map((t) => {
-          const locked = !tierAllows(tier, "template-picker") && t.availableAt !== "free";
-          const tierLocked = !tierAllows(tier, "media-embeds") && t.availableAt === "pro";
-          const sigLocked = !tierAllows(tier, "extra-sections") && t.availableAt === "max";
+        {TALENT_PAGE_TEMPLATES.map((tpl) => {
+          const locked = !tierAllows(tier, "template-picker") && tpl.availableAt !== "free";
+          const tierLocked = !tierAllows(tier, "media-embeds") && tpl.availableAt === "pro";
+          const sigLocked = !tierAllows(tier, "extra-sections") && tpl.availableAt === "max";
           const isLocked = locked || tierLocked || sigLocked;
-          const isActive = t.id === active;
+          const isActive = tpl.id === active;
           return (
             <button
-              key={t.id}
+              key={tpl.id}
               onClick={() => {
                 if (isLocked) {
                   openDrawer("talent-tier-compare");
@@ -396,7 +400,7 @@ export function TalentPageTemplateDrawer() {
               }}
             >
               <div style={{ aspectRatio: "16 / 9", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, marginBottom: 10, filter: isLocked ? "grayscale(0.4)" : "none" }} className="bg-admin-surface-alt">
-                {t.thumb}
+                {tpl.thumb}
               </div>
               <div
                 style={{
@@ -405,16 +409,16 @@ export function TalentPageTemplateDrawer() {
                   gap: 8,
                 }}
               >
-                <span style={{ fontFamily: FONTS.display, fontSize: 16 }} className="text-admin-ink">{t.label}</span>
+                <span style={{ fontFamily: FONTS.display, fontSize: 16 }} className="text-admin-ink">{tpl.label}</span>
                 {isActive && (
                   <span style={{ fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-accent-deep">
-                    Active
+                    {t("dashboard.talentDrawers.premiumPages.active")}
                   </span>
                 )}
-                {isLocked && <LockedBadge requiredTier={t.availableAt} />}
+                {isLocked && <LockedBadge requiredTier={tpl.availableAt} />}
               </div>
               <p style={{ margin: "4px 0 0", fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-                {t.blurb}
+                {tpl.blurb}
               </p>
             </button>
           );
@@ -432,6 +436,7 @@ export function TalentPageTemplateDrawer() {
 export function TalentMediaEmbedsDrawer() {
   // Phase 1.5 STRIP: Pro+ only — save CTA removed; drawer kept for Phase 2 re-wiring
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-media-embeds";
   const embeds = MY_TALENT_PROFILE.subscription.embeds;
 
@@ -448,17 +453,17 @@ export function TalentMediaEmbedsDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Media embeds"
-      description="Drop in a public URL and Tulala renders the live embed on your personal page. Update any time."
+      title={t("dashboard.talentDrawers.premiumPages.embedsTitle")}
+      description={t("dashboard.talentDrawers.premiumPages.embedsDesc")}
       width={580}
       footer={
         <>
           {/* Phase 1.5 STRIP: save removed — Pro+ feature, not wired for Free */}
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
         </>
       }
     >
-      <CapsLabel>Live on your page</CapsLabel>
+      <CapsLabel>{t("dashboard.talentDrawers.premiumPages.liveOnPage")}</CapsLabel>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
         {embeds.map((e) => (
           <div
@@ -495,12 +500,12 @@ export function TalentMediaEmbedsDrawer() {
                 cursor: "pointer",
               }}
             >
-              Remove
+              {t("dashboard.talentDrawers.premiumPages.remove")}
             </button>
           </div>
         ))}
       </div>
-      <Divider label="Supported sources" />
+      <Divider label={t("dashboard.talentDrawers.premiumPages.supportedSources")} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
         {supported.map((s) => (
           <div
@@ -535,6 +540,7 @@ export function TalentMediaEmbedsDrawer() {
 export function TalentPressDrawer() {
   // Phase 1.5 STRIP: Pro+ only — save CTA removed; drawer kept for Phase 2 re-wiring
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-press";
   const press = MY_TALENT_PROFILE.subscription.press;
 
@@ -542,13 +548,13 @@ export function TalentPressDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Press & clippings"
-      description="Magazine, blog, podcast, or TV mentions. Pulled from Google Alerts or pasted in manually."
+      title={t("dashboard.talentDrawers.premiumPages.pressTitle")}
+      description={t("dashboard.talentDrawers.premiumPages.pressDesc")}
       width={580}
       footer={
         <>
           {/* Phase 1.5 STRIP: save removed — Pro+ feature, not wired for Free */}
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
         </>
       }
     >
@@ -596,6 +602,7 @@ export function TalentPressDrawer() {
 
 export function TalentMediaKitDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-media-kit";
   const kit = MY_TALENT_PROFILE.subscription.mediaKit;
 
@@ -603,13 +610,13 @@ export function TalentMediaKitDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Media kit (EPK)"
-      description="A single PDF with your bio, credits, comp card, press, and contact CTA. Auto-built from your profile data."
+      title={t("dashboard.talentDrawers.premiumPages.mediaKitTitle")}
+      description={t("dashboard.talentDrawers.premiumPages.mediaKitDesc")}
       width={560}
       footer={
         <>
-          <SecondaryButton disabled>Re-generate</SecondaryButton>
-          <PrimaryButton disabled>Download PDF</PrimaryButton>
+          <SecondaryButton disabled>{t("dashboard.talentDrawers.premiumPages.regenerate")}</SecondaryButton>
+          <PrimaryButton disabled>{t("dashboard.talentDrawers.premiumPages.downloadPdf")}</PrimaryButton>
         </>
       }
     >
@@ -633,23 +640,23 @@ export function TalentMediaKitDrawer() {
               {kit.filename}
             </div>
             <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-              {kit.size} · updated {kit.updatedAt}
+              {interpolate(t("dashboard.talentDrawers.premiumPages.kitUpdated"), { size: kit.size, date: kit.updatedAt })}
             </div>
           </div>
         </div>
       ) : (
         <div style={{ fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
-          No kit generated yet. Click Re-generate to build one from your current profile.
+          {t("dashboard.talentDrawers.premiumPages.kitEmpty")}
         </div>
       )}
-      <Divider label="What's in the kit" />
+      <Divider label={t("dashboard.talentDrawers.premiumPages.kitContents")} />
       <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink">
-        <li>Cover page · headshot · name · contact CTA</li>
-        <li>Comp card spread (measurements + 4 polaroids)</li>
-        <li>Pinned credits + tear-sheets</li>
-        <li>Press band (up to 6 clippings)</li>
-        <li>Travel + work auth + agency info</li>
-        <li>QR code → live Tulala personal page</li>
+        <li>{t("dashboard.talentDrawers.premiumPages.kitContent1")}</li>
+        <li>{t("dashboard.talentDrawers.premiumPages.kitContent2")}</li>
+        <li>{t("dashboard.talentDrawers.premiumPages.kitContent3")}</li>
+        <li>{t("dashboard.talentDrawers.premiumPages.kitContent4")}</li>
+        <li>{t("dashboard.talentDrawers.premiumPages.kitContent5")}</li>
+        <li>{t("dashboard.talentDrawers.premiumPages.kitContent6")}</li>
       </ul>
     </DrawerShell>
   );
@@ -663,6 +670,7 @@ export function TalentMediaKitDrawer() {
 export function TalentCustomDomainDrawer() {
   // Phase 1.5 STRIP: Max only — save CTA removed; drawer kept for Phase 2 re-wiring
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-custom-domain";
   const sub = MY_TALENT_PROFILE.subscription;
 
@@ -670,19 +678,19 @@ export function TalentCustomDomainDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Custom domain"
-      description="Point your own domain at your Tulala personal page. Visitors see yourname.com — Tulala handles SSL + redirects."
+      title={t("dashboard.talentDrawers.premiumPages.domainTitle")}
+      description={t("dashboard.talentDrawers.premiumPages.domainDesc")}
       width={580}
       footer={
         // Phase 1.5 STRIP: save removed — Max-only feature, not wired for Free
-        <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+        <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
       }
     >
-      <FieldRow label="Domain" hint="Use the apex (yourname.com) or a subdomain (page.yourname.com).">
+      <FieldRow label={t("dashboard.talentDrawers.premiumPages.domainLabel")} hint={t("dashboard.talentDrawers.premiumPages.domainHint")}>
         <TextInput placeholder="marta-reyes.com" defaultValue={sub.customDomain ?? ""} />
       </FieldRow>
       <div style={{ marginTop: 14 }}>
-        <CapsLabel>DNS configuration</CapsLabel>
+        <CapsLabel>{t("dashboard.talentDrawers.premiumPages.dnsConfig")}</CapsLabel>
         <div style={{ marginTop: 8, padding: "12px 14px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, fontFamily: FONTS.mono, fontSize: 12, lineHeight: 1.7 }} className="bg-admin-surface-alt text-admin-ink">
           <div>A record &nbsp;@ &nbsp;→ &nbsp;76.76.21.21</div>
           <div>CNAME &nbsp;www &nbsp;→ &nbsp;cname.tulala.digital</div>
@@ -703,15 +711,15 @@ export function TalentCustomDomainDrawer() {
         <span style={{ width: 8, height: 8, borderRadius: "50%", background: sub.customDomainStatus === "verified" ? COLORS.green : COLORS.amber, }}
         />
         <span style={{ fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">
-          Status:{" "}
+          {t("dashboard.talentDrawers.premiumPages.statusPrefix")}{" "}
           <strong>
             {sub.customDomain
               ? sub.customDomainStatus === "verified"
-                ? "Verified"
+                ? t("dashboard.talentDrawers.domainStatus.verified")
                 : sub.customDomainStatus === "pending"
-                  ? "Awaiting DNS propagation"
-                  : "Failed verification"
-              : "Not set"}
+                  ? t("dashboard.talentDrawers.domainStatus.pending")
+                  : t("dashboard.talentDrawers.domainStatus.failed")
+              : t("dashboard.talentDrawers.domainStatus.notSet")}
           </strong>
         </span>
         <button
@@ -728,12 +736,11 @@ export function TalentCustomDomainDrawer() {
             cursor: "pointer",
           }}
         >
-          Re-check
+          {t("dashboard.talentDrawers.premiumPages.recheck")}
         </button>
       </div>
       <p style={{ marginTop: 14, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
-        Tulala issues + auto-renews a Let&apos;s Encrypt SSL certificate once your DNS is pointing
-        correctly. No manual cert config needed.
+        {t("dashboard.talentDrawers.premiumPages.sslNote")}
       </p>
     </DrawerShell>
   );

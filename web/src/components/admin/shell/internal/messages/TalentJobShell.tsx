@@ -9,7 +9,7 @@ import { AdminInquiryRow } from "./AdminOperationsShell";
 import { EmptyDetail } from "./client-1";
 import { consumePendingConversation, isLocallySeen, isManualUnread, markConvSeen, sortPinnedFirst, useFlagsSubscription, useSeenSubscription } from "./conversation-stash";
 import { ageLabel, renderWithDateGroups, stageStyle, useScrollIntoViewWhenActive } from "./messages-shared";
-import { HoverActionsCss, InboxRowHoverActions, SearchPill, freshnessTone, initialsOf } from "./shared/inbox-identity-1";
+import { HoverActionsCss, InboxRowHoverActions, SearchPill, freshnessTone } from "./shared/inbox-identity-1";
 import { FilterChip } from "./shared/inbox-identity-2";
 import { CollapsedInboxRail, ColumnDivider, MobileInboxTab, TALENT_RATE_FOR_CONV, useResizableInboxLayout } from "./shared/inbox-layout-1";
 import type { TalentFilter } from "./shared/inbox-layout-1";
@@ -292,13 +292,15 @@ export function TalentJobRow({
       }}
     >
       <InboxRowHoverActions rowId={conv.id} label={conv.client} />
-      {/* Client avatar — initial in deterministic auto-tint per client
-          name. Most clients are brands (Mango, Bvlgari, Vogue), so
-          a colored initial reads cleaner than a generic logo would.
-          marginTop:2 baselines the avatar with the first text row. */}
+      {/* Client avatar. The Conversation type carries no client photo/logo
+          URL, so there's nothing real to load — the Avatar primitive renders
+          its letter-free silhouette on a per-client auto-tint (hashSeed only
+          picks the tint; it never resolves to stock imagery). photoUrl is
+          left undefined intentionally. marginTop:2 baselines the avatar with
+          the first text row. */}
       <span style={{ flexShrink: 0, marginTop: 2 }}>
         <Avatar
-          initials={initialsOf(conv.client)}
+          photoUrl={undefined}
           hashSeed={conv.client}
           tone="auto"
           size={36}

@@ -23,6 +23,8 @@ import type { TalentReview } from "@/lib/reviews/review-types";
 import { ClientReviewsPanel, type GivenReview } from "../_components/ClientReviewsPanel";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -100,6 +102,8 @@ async function resolveTalentNames(
 
 export default async function ClientSettingsPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
@@ -161,21 +165,21 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
     "email";
   const signInMethodLabel =
     rawProvider === "google"
-      ? "Google"
+      ? t("dashboard.clientSettings.signInGoogle")
       : rawProvider === "github"
-      ? "GitHub"
+      ? t("dashboard.clientSettings.signInGithub")
       : rawProvider === "apple"
-      ? "Apple"
+      ? t("dashboard.clientSettings.signInApple")
       : rawProvider === "azure"
-      ? "Microsoft"
-      : "Email / password";
+      ? t("dashboard.clientSettings.signInMicrosoft")
+      : t("dashboard.clientSettings.signInEmail");
 
   return (
     <div style={{ fontFamily: FONT }}>
       <ClientPageHeader
-        eyebrow="Account"
-        title="Settings"
-        subtitle="Your account details, preferences, and trust verification."
+        eyebrow={t("dashboard.clientSettings.eyebrow")}
+        title={t("dashboard.clientSettings.title")}
+        subtitle={t("dashboard.clientSettings.subtitle")}
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 680 }}>
@@ -184,8 +188,8 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
             client self-edit server actions; RLS already permits
             (`client_profiles_write_own`). */}
         <Card
-          title="Profile"
-          subtitle="Your display name and company shown on inquiries and bookings."
+          title={t("dashboard.clientSettings.profileTitle")}
+          subtitle={t("dashboard.clientSettings.profileSubtitle")}
           icon={<SettingsSectionIcon sectionId="profile" />}
         >
           <ProfileFields
@@ -200,8 +204,8 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
             auth.updateUser. Email triggers a two-sided confirmation; the
             password change applies immediately. */}
         <Card
-          title="Account"
-          subtitle="Your sign-in credentials."
+          title={t("dashboard.clientSettings.accountTitle")}
+          subtitle={t("dashboard.clientSettings.accountSubtitle")}
           icon={<SettingsSectionIcon sectionId="account" />}
         >
           <AccountFields
@@ -212,8 +216,8 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
 
         {/* Notifications — per-category channel prefs the dispatcher honors. */}
         <Card
-          title="Notifications"
-          subtitle="Choose how you hear about each kind of update. Account & billing notices are always sent. Changes auto-save."
+          title={t("dashboard.clientSettings.notificationsTitle")}
+          subtitle={t("dashboard.clientSettings.notificationsSubtitle")}
           icon={<SettingsSectionIcon sectionId="notifications" />}
         >
           <NotificationPrefsPanel
@@ -225,11 +229,11 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
         {/* W8 — two-sided reviews. Reviews received from talent + reviews this
             client has written. Reporting a received review flags it for staff. */}
         <Card
-          title="Reviews"
+          title={t("dashboard.clientSettings.reviewsTitle")}
           subtitle={
             hasAnyReviews
-              ? "Reviews talent left about you, and the reviews you've written."
-              : "Reviews appear here after your bookings are completed."
+              ? t("dashboard.clientSettings.reviewsSubtitleSome")
+              : t("dashboard.clientSettings.reviewsSubtitleNone")
           }
           icon={<SettingsSectionIcon sectionId="brand" />}
         >
@@ -250,8 +254,8 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
         />
 
         <Card
-          title="Social verification"
-          subtitle="Connect social or professional accounts as optional trust proof for agencies and talent."
+          title={t("dashboard.clientSettings.socialTitle")}
+          subtitle={t("dashboard.clientSettings.socialSubtitle")}
         >
           <ClientSocialVerificationPanel tenantSlug={tenantSlug} />
         </Card>

@@ -16,7 +16,7 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export const metadata: Metadata = {
   title: "For independent operators",
-  description: `You ARE the business. ${PLATFORM_BRAND.name} gives independent coordinators and operators the structure of a real agency — without the overhead of building one.`,
+  description: `You ARE the business. ${PLATFORM_BRAND.name} gives independent coordinators and operators the structure of a real agency, without the overhead of building one.`,
 };
 
 type PainPoint = {

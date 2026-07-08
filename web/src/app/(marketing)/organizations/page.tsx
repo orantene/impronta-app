@@ -14,7 +14,7 @@ import { PLATFORM_BRAND } from "@/lib/platform/brand";
 export const metadata: Metadata = {
   title: "For staffing, casting & placement",
   description:
-    "A taxonomy-driven people directory that actually works — for staffing, casting, placement, and large representation operations.",
+    "A taxonomy-driven people directory that actually works, for staffing, casting, placement, and large representation operations.",
 };
 
 type UseCase = {

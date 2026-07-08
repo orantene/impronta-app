@@ -403,3 +403,30 @@ test("api segment boundaries: /api/directoryz â‰  /api/directory, /api/admins â‰
   // And `/api/location` prefix alone must not leak to the hyphenated routes.
   assert.equal(isPathAllowedForHostKind("app", "/api/location"), false);
 });
+
+test("post-checkout landing is reachable on every host kind (Stripe redirects to request origin)", () => {
+  for (const kind of ["agency", "app", "hub", "marketing"] as const) {
+    assert.equal(isPathAllowedForHostKind(kind, "/checkout/success"), true, kind);
+    assert.equal(isPathAllowedForHostKind(kind, "/checkout/cancel"), true, kind);
+  }
+  // Segment-safe: `/checkoutz` must not match the `/checkout` prefix.
+  assert.equal(isPathAllowedForHostKind("app", "/checkoutz"), false);
+});
+
+test("public embed loader + roster widget reachable on every host kind (partner iframes)", () => {
+  for (const kind of ["agency", "app", "hub", "marketing"] as const) {
+    assert.equal(isPathAllowedForHostKind(kind, "/embed"), true, kind);
+    assert.equal(isPathAllowedForHostKind(kind, "/embed.js"), true, kind);
+    assert.equal(isPathAllowedForHostKind(kind, "/embed/roster/impronta"), true, kind);
+  }
+  // `/embedz` must not match the `/embed` prefix; `/embed.jsz` is not the exact loader.
+  assert.equal(isPathAllowedForHostKind("marketing", "/embedz"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/embed.jsz"), false);
+});
+
+test("team-invite + template-preview reachable on agency + app workspace hosts", () => {
+  assert.equal(isPathAllowedForHostKind("agency", "/team-invite/abc123"), true);
+  assert.equal(isPathAllowedForHostKind("app", "/team-invite/abc123"), true);
+  assert.equal(isPathAllowedForHostKind("agency", "/template-preview/editorial-lux"), true);
+  assert.equal(isPathAllowedForHostKind("app", "/template-preview/editorial-lux"), true);
+});

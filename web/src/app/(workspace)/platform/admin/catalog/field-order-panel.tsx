@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { reorderPlatformFieldsAction } from "./actions";
+import { useT } from "@/i18n/use-t";
 
 type ReorderField = {
   id: string;
@@ -38,6 +39,7 @@ export function FieldOrderPanel({
   fields: ReorderField[];
   fieldGroupId: string | null;
 }) {
+  const t = useT();
   const [items, setItems] = useState(fields);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const orderedIds = useMemo(() => JSON.stringify(items.map((item) => item.id)), [items]);
@@ -116,7 +118,7 @@ export function FieldOrderPanel({
                 textTransform: "uppercase",
               }}
             >
-              {field.deprecated ? "archived" : `#${field.display_order}`}
+              {field.deprecated ? t("dashboard.platform.catalog.fieldOrderArchived") : `#${field.display_order}`}
             </span>
           </div>
         ))}
@@ -136,7 +138,7 @@ export function FieldOrderPanel({
             cursor: changed ? "pointer" : "not-allowed",
           }}
         >
-          Save field order
+          {t("dashboard.platform.catalog.fieldSaveOrder")}
         </button>
         <button
           type="button"
@@ -153,10 +155,10 @@ export function FieldOrderPanel({
             cursor: changed ? "pointer" : "not-allowed",
           }}
         >
-          Reset
+          {t("dashboard.platform.catalog.fieldReset")}
         </button>
         <span style={{ color: colors.dim, fontSize: 10.5 }}>
-          Drag fields to set the platform default order used by resolved profile sections.
+          {t("dashboard.platform.catalog.fieldOrderHint")}
         </span>
       </div>
     </form>

@@ -27,15 +27,21 @@ export const PLATFORM_BARS_H = 112;
 export const TABBAR_H = 46;
 export const STICKY_THEAD_TOP = PLATFORM_BARS_H + TABBAR_H;
 
-export function relTime(iso: string): string {
+// `t` threaded from callers (client components hold the useT() translator).
+// Falls back to English compact format when a translator is not passed.
+export function relTime(iso: string, t?: (key: string) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
   const h = Math.floor(diff / 3600000);
   const d = Math.floor(diff / 86400000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  if (h < 24) return `${h}h ago`;
-  if (d < 7) return `${d}d ago`;
+  const fmt = (key: string, count: number, fallback: string): string => {
+    if (!t) return fallback;
+    return t(key).replace(/\{count\}/g, String(count));
+  };
+  if (m < 1) return t ? t("dashboard.platform.email.relJustNow") : "just now";
+  if (m < 60) return fmt("dashboard.platform.email.relMinsAgo", m, `${m}m ago`);
+  if (h < 24) return fmt("dashboard.platform.email.relHoursAgo", h, `${h}h ago`);
+  if (d < 7) return fmt("dashboard.platform.email.relDaysAgo", d, `${d}d ago`);
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 

@@ -23,6 +23,7 @@ import {
   isDirectorySearchRpcUnavailableError,
 } from "@/lib/directory/directory-search-rpc";
 import type {
+  DirectoryCardDTO,
   DirectoryListParams,
   DirectoryPageResponse,
   DirectorySortValue,
@@ -41,6 +42,7 @@ import {
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import { resolvePublicRosterDisplayCap } from "@/lib/saas/roster-seat-limit";
 import { resolveTenantSafeDirectoryTaxonomyTermIds } from "@/lib/directory/taxonomy-tenant-safety";
+import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 
 /**
  * Directory `q`: primary path is Postgres RPC `directory_search_public_talent_ids` (FTS + ILIKE + similarity).
@@ -131,6 +133,58 @@ const CARD_THUMB_RANK: Record<string, number> = {
 
 /** Maximum number of ids per PostgREST `.in()` call (safe limit). */
 const THUMB_CHUNK_SIZE = 450;
+
+/**
+ * Bayesian smoothing (prior) for the `top_rated` directory sort. Low-volume
+ * B2B reality: a raw-average sort lets a single 5.0 outrank a 4.9-with-30. We
+ * shrink each card's rating toward a global prior so weight tracks volume:
+ *
+ *   score = (ratingAvg*ratingCount + PRIOR_MEAN*PRIOR_N) / (ratingCount + PRIOR_N)
+ *
+ * `PRIOR_MEAN` is the assumed baseline rating (a solid-but-not-perfect 4.2);
+ * `PRIOR_N` is how many prior "phantom" reviews to blend in (5). A card with no
+ * eligible reviews (ratingCount 0 / null ratingAvg) collapses to exactly
+ * PRIOR_MEAN, so unrated talent sort in the neutral middle — not bottom or top.
+ */
+const TOP_RATED_PRIOR_MEAN = 4.2;
+const TOP_RATED_PRIOR_N = 5;
+
+/**
+ * Bayesian-shrunk score for one card. Unrated cards (count <= 0 or null avg)
+ * return exactly `TOP_RATED_PRIOR_MEAN` (neutral middle).
+ */
+function topRatedScore(ratingAvg: number | null | undefined, ratingCount: number | null | undefined): number {
+  const count = ratingCount ?? 0;
+  if (count <= 0 || ratingAvg == null) return TOP_RATED_PRIOR_MEAN;
+  return (
+    (ratingAvg * count + TOP_RATED_PRIOR_MEAN * TOP_RATED_PRIOR_N) /
+    (count + TOP_RATED_PRIOR_N)
+  );
+}
+
+/**
+ * Stable, deterministic Bayesian re-sort of the ALREADY-LOADED page for the
+ * `top_rated` sort. Operates in place on the passed page array (no new query,
+ * no pagination change): higher smoothed score first, ties broken by
+ * `ratingCount` desc, then the existing loaded order is preserved (stable via a
+ * captured original index).
+ */
+function applyTopRatedSmoothing(items: DirectoryCardDTO[]): void {
+  const indexed = items.map((item, index) => ({
+    item,
+    index,
+    score: topRatedScore(item.ratingAvg, item.ratingCount),
+    count: item.ratingCount ?? 0,
+  }));
+  indexed.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (b.count !== a.count) return b.count - a.count;
+    return a.index - b.index; // preserve existing default order (stable)
+  });
+  for (let i = 0; i < indexed.length; i++) {
+    items[i] = indexed[i].item;
+  }
+}
 
 function cardResidenceLocation(profile: TalentProfileRow): LocationRow | null {
   const pick = (value: LocationRow | LocationRow[] | null): LocationRow | null =>
@@ -236,6 +290,20 @@ function applySort<T extends { order: (column: string, options?: { ascending?: b
     });
   }
 
+  if (sort === "top_rated") {
+    // SQL leg loads a rating-relevant page window (raw rating_avg desc, then
+    // rating_count desc, id tie-break). The FINAL ordering is a Bayesian-shrunk
+    // re-sort applied in-memory to the loaded page (see applyTopRatedSmoothing);
+    // this ordering only decides which rows land on the page, and both legs
+    // share the same deterministic `id` tie-break so pagination stays stable.
+    // PostgREST orders NULLs last for a descending sort by default, so unrated
+    // talent (null rating_avg) naturally fall to the bottom of the SQL window.
+    return query
+      .order("rating_avg", { ascending: false })
+      .order("rating_count", { ascending: false })
+      .order("id", { ascending: false });
+  }
+
   return query
     .order("is_featured", { ascending: false })
     .order("featured_level", { ascending: false })
@@ -258,6 +326,14 @@ export async function fetchDirectoryPage(
     DIRECTORY_PAGE_SIZE_MAX,
   );
   const tenantScopeId = params.tenantId ?? null;
+  // Reviews are a PREMIUM capability. Card STANDING (rating_avg / rating_count /
+  // would_book_again_pct) is gated on the SURFACE tenant's entitlement, computed
+  // ONCE per fetch and applied to every card below. With no tenant scope
+  // (platform / global marketplace host) there is nothing to gate, so standing
+  // stays ON — mirrors how the public profile gates only agency hosts.
+  const reviewsStandingEnabled = tenantScopeId
+    ? await tenantReviewsEnabled(tenantScopeId)
+    : true;
   const requestedTaxonomyTermIds = params.taxonomyTermIds?.filter(Boolean) ?? [];
   const locale = params.locale ?? "en";
   const sort = params.sort ?? "recommended";
@@ -1087,9 +1163,13 @@ export async function fetchDirectoryPage(
         indexByProfile.get(profile.id)?.available_days_in_next_30 ?? null,
       // Review / craft-standing aggregates, sourced directly off the
       // `talent_profiles` row (additive; null when no eligible reviews).
-      rating_avg: profile.rating_avg,
-      rating_count: profile.rating_count,
-      would_book_again_pct: profile.would_book_again_pct,
+      // Premium gate: null the STANDING fields for a non-entitled surface tenant
+      // so no card standing renders (boolean computed once per fetch above).
+      rating_avg: reviewsStandingEnabled ? profile.rating_avg : null,
+      rating_count: reviewsStandingEnabled ? profile.rating_count : null,
+      would_book_again_pct: reviewsStandingEnabled
+        ? profile.would_book_again_pct
+        : null,
     };
   });
 
@@ -1103,6 +1183,17 @@ export async function fetchDirectoryPage(
     const url = thumbUrlByProfile.get(rows[i].id) ?? null;
     items[i].thumbnail.url = url;
   }
+
+  // `top_rated`: Bayesian-shrunk re-sort of the loaded page (see
+  // TOP_RATED_PRIOR_MEAN / applyTopRatedSmoothing). This only reorders rows
+  // already loaded for this page — no new query, no change to the offset/limit
+  // window or `nextCursor`. When standing is gated off for the tenant, every
+  // card's rating fields are null so all cards collapse to the prior and the
+  // loaded order is preserved.
+  if (sort === "top_rated") {
+    applyTopRatedSmoothing(items);
+  }
+
   if (audit) {
     timings.mapProfilesToDtoMs = performance.now() - mapStart;
   }

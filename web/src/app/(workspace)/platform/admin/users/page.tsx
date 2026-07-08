@@ -7,6 +7,9 @@
 import { loadPlatformUsers } from "../../platform-data";
 import { UsersClient } from "./UsersClient";
 import { HQ, HQ_F, HQ_FD } from "../tenants/hq-kit";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 
 export default async function PlatformUsersPage({
   searchParams,
@@ -15,6 +18,9 @@ export default async function PlatformUsersPage({
 }) {
   const { confirmed } = await searchParams;
   const users = await loadPlatformUsers();
+
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
 
   const talentCount = users.filter((u) => u.appRole === "talent").length;
   const clientCount = users.filter((u) => u.appRole === "client").length;
@@ -43,7 +49,7 @@ export default async function PlatformUsersPage({
             lineHeight: 1.15,
           }}
         >
-          Users
+          {t("dashboard.platform.users.page.title")}
         </h1>
         <p
           style={{
@@ -53,9 +59,22 @@ export default async function PlatformUsersPage({
             margin: "5px 0 0",
           }}
         >
-          {users.length} total · {talentCount} talent · {clientCount} client · {staffCount} staff · {operatorCount} workspace operator{operatorCount === 1 ? "" : "s"}
+          {interpolate(t("dashboard.platform.users.page.summary"), {
+            total: users.length,
+            talent: talentCount,
+            client: clientCount,
+            staff: staffCount,
+            operators: interpolate(
+              t(
+                operatorCount === 1
+                  ? "dashboard.platform.users.page.operatorsOne"
+                  : "dashboard.platform.users.page.operatorsMany",
+              ),
+              { count: operatorCount },
+            ),
+          })}
           {unconfirmedCount > 0 && (
-            <> · <span style={{ color: HQ.amber }}>{unconfirmedCount} email unconfirmed</span></>
+            <> · <span style={{ color: HQ.amber }}>{interpolate(t("dashboard.platform.users.page.unconfirmedSuffix"), { count: unconfirmedCount })}</span></>
           )}
         </p>
       </div>
@@ -74,7 +93,7 @@ export default async function PlatformUsersPage({
             marginBottom: 16,
           }}
         >
-          Email confirmed successfully.
+          {t("dashboard.platform.users.page.emailConfirmed")}
         </div>
       )}
 

@@ -5,6 +5,10 @@
 
 import { useMemo, useState } from "react";
 import { reorderSectionGroups } from "../../profile-editor/actions";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
+
+const K = "dashboard.platform.catalog";
 
 type ReorderGroup = {
   id: string;
@@ -40,6 +44,7 @@ function moveItem(
 }
 
 export function EditorGroupReorderPanel({ groups }: { groups: ReorderGroup[] }) {
+  const t = useT();
   const [items, setItems] = useState(groups);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const orderedIds = useMemo(
@@ -51,7 +56,7 @@ export function EditorGroupReorderPanel({ groups }: { groups: ReorderGroup[] }) 
   if (groups.length < 2) {
     return (
       <div style={{ color: colors.dim, fontSize: 12 }}>
-        Add at least two section groups before editing group order.
+        {t(`${K}.reorderGroupNeedTwo`)}
       </div>
     );
   }
@@ -117,8 +122,7 @@ export function EditorGroupReorderPanel({ groups }: { groups: ReorderGroup[] }) 
                   fontSize: 10.5,
                 }}
               >
-                {group.slug} · {group.section_count} section
-                {group.section_count === 1 ? "" : "s"}
+                {interpolate(t(`${K}.${group.section_count === 1 ? "reorderSectionCountOne" : "reorderSectionCountMany"}`), { slug: group.slug, count: group.section_count })}
               </span>
             </span>
             <span
@@ -129,7 +133,7 @@ export function EditorGroupReorderPanel({ groups }: { groups: ReorderGroup[] }) 
                 textTransform: "uppercase",
               }}
             >
-              {group.is_active ? `#${group.sort_order}` : "inactive"}
+              {group.is_active ? `#${group.sort_order}` : t(`${K}.reorderInactive`)}
             </span>
           </div>
         ))}
@@ -153,7 +157,7 @@ export function EditorGroupReorderPanel({ groups }: { groups: ReorderGroup[] }) 
             cursor: changed ? "pointer" : "not-allowed",
           }}
         >
-          Save group order
+          {t(`${K}.reorderSaveGroupOrder`)}
         </button>
         <button
           type="button"
@@ -170,10 +174,10 @@ export function EditorGroupReorderPanel({ groups }: { groups: ReorderGroup[] }) 
             cursor: changed ? "pointer" : "not-allowed",
           }}
         >
-          Reset
+          {t(`${K}.reorderReset`)}
         </button>
         <span style={{ color: colors.dim, fontSize: 11 }}>
-          Drag a group, then save. This changes the profile-editor rail order.
+          {t(`${K}.reorderGroupHint`)}
         </span>
       </div>
     </form>

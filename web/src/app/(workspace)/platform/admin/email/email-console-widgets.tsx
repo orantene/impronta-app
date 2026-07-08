@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useT } from "@/i18n/use-t";
 import { HQ, FONT_BODY, MONO, input } from "./email-console-theme";
 
 // Shared presentational widgets for the Email console — one consistent visual
@@ -77,6 +78,7 @@ export function Alert({
   actionHref?: string;
   onDismiss?: () => void;
 }) {
+  const tr = useT();
   const fg = tone === "amber" ? HQ.amber : HQ.red;
   const bg = tone === "amber" ? "rgba(227,179,65,0.08)" : "rgba(243,103,114,0.08)";
   const border = tone === "amber" ? "rgba(227,179,65,0.3)" : "rgba(243,103,114,0.3)";
@@ -110,7 +112,7 @@ export function Alert({
       {onDismiss && (
         <button
           onClick={onDismiss}
-          title="Dismiss"
+          title={tr("dashboard.platform.email.dismiss")}
           style={{ appearance: "none", background: "none", border: "none", color: HQ.inkDim, cursor: "pointer", fontSize: 16, lineHeight: "16px", padding: 2 }}
         >
           ×

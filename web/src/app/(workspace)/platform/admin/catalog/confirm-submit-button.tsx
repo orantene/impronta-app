@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/i18n/use-t";
+
 const dangerStyle: React.CSSProperties = {
   border: "1px solid rgba(243,103,114,0.50)",
   background: "rgba(243,103,114,0.12)",
@@ -19,9 +21,10 @@ export function ConfirmSubmitButton({
   children: React.ReactNode;
   message?: string;
 }) {
+  const t = useT();
   function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
     const ok = window.confirm(
-      message ?? "Permanently remove? This cannot be undone.",
+      message ?? t("dashboard.platform.catalog.confirmRemoveDefault"),
     );
     if (!ok) e.preventDefault();
   }

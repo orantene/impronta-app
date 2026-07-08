@@ -595,6 +595,7 @@ export function MiniChatPanelColumn({
       {/* ── Inline gate ─────────────────────────────────────────────────── */}
       {showGate && (
         <MiniChatGateForm
+          t={t}
           talentFirst={talentFirst}
           lineupRecap={buildGateLineupRecap(
             cartTalentNames,

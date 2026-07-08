@@ -21,6 +21,8 @@ import {
 import { loadStripeAccountInfo } from "@/lib/pricing/stripe-account-info";
 import { loadFxPreview } from "@/lib/pricing/fx-preview";
 import { loadAllTrialOffers } from "@/lib/plan-trials/offers";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 import { PricingDashboard } from "./PricingDashboard";
 
 const HQ = {
@@ -34,19 +36,22 @@ const F  = '"Inter", system-ui, sans-serif';
 const FD = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
 export default async function PlatformPricingPage() {
-  const [catalog, stripeAccount, fx, discounts, trialOffers] = await Promise.all([
-    loadProductCatalog(),
-    loadStripeAccountInfo(),
-    loadFxPreview(),
-    loadProductDiscounts(),
-    loadAllTrialOffers(),
-  ]);
+  const [catalog, stripeAccount, fx, discounts, trialOffers, locale] =
+    await Promise.all([
+      loadProductCatalog(),
+      loadStripeAccountInfo(),
+      loadFxPreview(),
+      loadProductDiscounts(),
+      loadAllTrialOffers(),
+      getRequestLocale(),
+    ]);
+  const t = createTranslator(locale);
 
   if (!catalog) {
     return (
       <>
         <h1 style={{ fontFamily: FD, color: HQ.ink, fontSize: 24, margin: 0 }}>
-          Product Pricing
+          {t("dashboard.platform.pricing.title")}
         </h1>
         <div
           style={{
@@ -61,11 +66,7 @@ export default async function PlatformPricingPage() {
             lineHeight: 1.5,
           }}
         >
-          Couldn&rsquo;t load the pricing catalog — the service-role client
-          isn&rsquo;t available, or the <code>product_*</code> tables haven&rsquo;t
-          been migrated yet. Check{" "}
-          <code>supabase/migrations/20260527213552_product_pricing_dashboard.sql</code>{" "}
-          and the server logs.
+          {t("dashboard.platform.pricing.loadError")}
         </div>
       </>
     );

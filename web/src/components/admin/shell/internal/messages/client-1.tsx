@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { DetailsTabContainer } from "@/components/details-tab/DetailsTabContainer";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { useAdminShell, COLORS, FONTS, TRANSITION } from "../state";
 import { type Conversation, type Participant } from "../talent";
 import { buildInquiryTabs, convToInquiry } from "./shared/machinery-1";
@@ -25,6 +27,7 @@ export function ClientTabsBlock({
   timeline: { ts: string; label: string }[];
 }) {
   const { toast } = useAdminShell();
+  const t = useT();
   const [activeTab, setActiveTab] = useState<ThreadTabId>("client");
   const fileCount = (MOCK_FILES_FOR_CONV[conv.id] ?? []).filter(f => f.thread === "client").length;
 
@@ -45,7 +48,7 @@ export function ClientTabsBlock({
         <ConversationTab
           conv={conv}
           threadKey={`${conv.id}:client`}
-          placeholder={`Message ${conv.leader.name.split(" ")[0]}…`}
+          placeholder={interpolate(t("dashboard.talentThread.messageClientPlaceholder"), { name: conv.leader.name.split(" ")[0] })}
           /* Client can suggest swaps + add talent to their own lineup.
              Offer details visible in the dedicated Offer tab; the
              lineup drawer just shows the line item totals. */
@@ -57,16 +60,16 @@ export function ClientTabsBlock({
       {activeTab === "talent" && (
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
           <LockedTabOverlay
-            title="Talent group is internal"
-            subtitle={`This is the coordinator's working thread with the talent (${lineup.map(t => t.name.split(" ")[0]).join(", ")}). You don't need to see it day-to-day, but ${conv.leader.name} can pull you in if it's useful.`}
-            requestLabel="Ask coordinator to share"
+            title={t("dashboard.clientThread.talentGroupInternal")}
+            subtitle={interpolate(t("dashboard.clientThread.talentGroupSubtitle"), { names: lineup.map(p => p.name.split(" ")[0]).join(", "), coordinator: conv.leader.name })}
+            requestLabel={t("dashboard.clientThread.askCoordinatorToShare")}
             disabled
-            disabledTitle="Share requests need a live coordinator workflow."
+            disabledTitle={t("dashboard.clientThread.shareNeedsWorkflow")}
             ghostPreview={
               <>
-                <div className="mb-2"><strong>{conv.leader.name}:</strong> Lineup confirmed for May 6. Marta + Tomás locked, Zara on standby…</div>
-                {lineup[0] && <div style={{ marginBottom: 8, marginLeft: 24 }}><strong>{lineup[0].name}:</strong> All clear from me — happy to confirm.</div>}
-                {lineup[1] && <div style={{ marginBottom: 8, marginLeft: 24 }}><strong>{lineup[1].name}:</strong> Checking my schedule, back in an hour…</div>}
+                <div className="mb-2"><strong>{conv.leader.name}:</strong> {t("dashboard.clientThread.ghostLineupConfirmed")}</div>
+                {lineup[0] && <div style={{ marginBottom: 8, marginLeft: 24 }}><strong>{lineup[0].name}:</strong> {t("dashboard.clientThread.ghostAllClear")}</div>}
+                {lineup[1] && <div style={{ marginBottom: 8, marginLeft: 24 }}><strong>{lineup[1].name}:</strong> {t("dashboard.clientThread.ghostChecking")}</div>}
               </>
             }
           />
@@ -125,7 +128,7 @@ export function ClientTabsBlock({
       <ShellNextActionBar {...resolveShellAction(conv, "client", toast, {
         onOpenOffer: () => setActiveTab("offer"),
         onOpenClientThread: () => setActiveTab("client"),
-      })} />
+      }, t)} />
     </div>
   );
 }

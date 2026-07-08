@@ -9,6 +9,8 @@
 // ════════════════════════════════════════════════════════════════════
 
 import { useState } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { COLORS, EARNINGS_ROWS, FONTS, useAdminShell } from "../state";
 import {
   Divider,
@@ -25,16 +27,17 @@ import { PayoutsShell } from "@/app/(workspace)/[tenantSlug]/talent/settings/pay
 
 export function TalentPayoutsDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-payouts";
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Payouts"
-      description="Get paid for your bookings. Stripe handles your bank details and ID check, and we never see them."
+      title={t("dashboard.talentDrawers.monetization.payouts")}
+      description={t("dashboard.talentDrawers.monetization.payoutsDesc")}
       width={560}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <PayoutsShell embedded selfLoad snapshot={null} loadError={null} heldPayouts={null} justReturned={false} justRefreshed={false} />
     </DrawerShell>
@@ -56,53 +59,36 @@ export function TalentPayoutsDrawer() {
  */
 export function TalentVerificationDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-verification";
-
+  // Honest stub — ID verification has no vendor flow wired yet. Rather than
+  // show a fake upload framing with a dead, disabled "Start verification"
+  // button, we surface a clear "coming soon" plus the (legitimate) reasons to
+  // verify, so the value is visible without pretending the flow is live.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Verify your identity"
-      description="Upload a government ID + a quick selfie. Once approved you get the Verified badge, clients see it on every inquiry."
+      title={t("dashboard.talentDrawers.monetization.verifyIdentity")}
+      description={t("dashboard.talentDrawers.monetization.verifyIdentityDesc")}
       width={560}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <button
-            type="button"
-            disabled
-            style={{
-              padding: "9px 16px",
-              background: "rgba(11,11,13,0.12)",
-              border: "none",
-              borderRadius: 8,
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              fontWeight: 500,
-              color: COLORS.inkMuted,
-              cursor: "not-allowed",
-            }}
-            title="ID verification coming soon"
-          >
-            Start verification
-          </button>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
-      <div style={{ padding: "12px 14px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, marginBottom: 14, fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-accent-soft text-admin-ink">
-        <strong className="text-admin-accent-deep">End-to-end encrypted.</strong>{" "}
-        Documents are reviewed by Tulala&apos;s trust team and deleted after approval. Never shared with clients.
-      </div>
+      <EmptyState
+        icon="user"
+        title={t("dashboard.talentDrawers.comingSoon")}
+        body={t("dashboard.talentDrawers.monetization.verifyComingBody")}
+      />
 
       <div className="flex flex-col gap-3.5">
         <h3 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: -0.15 }} className="text-admin-ink">
-          Why verify?
+          {t("dashboard.talentDrawers.monetization.whyVerify")}
         </h3>
         <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
           {[
-            { label: "Verified badge on every inquiry", body: "Clients filter on it. Verified profiles get ~3× more replies in our data." },
-            { label: "Higher trust tier", body: "Eligible for Silver and Gold tiers as your booking history grows." },
-            { label: "Required for payouts > €1k", body: "Compliance, Stripe needs the same KYC anyway." },
+            { label: t("dashboard.talentDrawers.monetization.verifyReason1Label"), body: t("dashboard.talentDrawers.monetization.verifyReason1Body") },
+            { label: t("dashboard.talentDrawers.monetization.verifyReason2Label"), body: t("dashboard.talentDrawers.monetization.verifyReason2Body") },
+            { label: t("dashboard.talentDrawers.monetization.verifyReason3Label"), body: t("dashboard.talentDrawers.monetization.verifyReason3Body") },
           ].map((item, idx) => (
             <li
               key={idx}
@@ -131,9 +117,6 @@ export function TalentVerificationDrawer() {
             </li>
           ))}
         </ul>
-        <div style={{ padding: "16px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55, textAlign: "center" }} className="bg-admin-surface-alt text-admin-ink-muted">
-          ID verification is coming soon. We&apos;ll notify you when it&apos;s available.
-        </div>
       </div>
     </DrawerShell>
   );
@@ -143,6 +126,7 @@ export function TalentVerificationDrawer() {
 
 export function TalentReferralsDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-referrals";
   // Honest stub, referral tracking has no backend yet, so we don't show a
   // fabricated invite link / referral list / earnings. The €50 promise stays
@@ -151,15 +135,15 @@ export function TalentReferralsDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Refer a friend"
-      description="When a talent you invited closes their first booking, you both earn €50 in payout credit."
+      title={t("dashboard.talentDrawers.monetization.referFriend")}
+      description={t("dashboard.talentDrawers.monetization.referFriendDesc")}
       width={560}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <EmptyState
         icon="sparkle"
-        title="Coming soon"
-        body="Referral invites and €50 payout credit aren't live yet. We'll add your personal invite link here when they launch."
+        title={t("dashboard.talentDrawers.comingSoon")}
+        body={t("dashboard.talentDrawers.monetization.referComingBody")}
       />
     </DrawerShell>
   );
@@ -202,15 +186,16 @@ const HUB_COMPARE_DATA = [
 
 export function TalentHubCompareDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-hub-compare";
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Compare hubs"
-      description="Side-by-side: listing fee, monthly volume, and close-rate. Numbers are rolling 90-day averages from talents on each hub."
+      title={t("dashboard.talentDrawers.monetization.compareHubs")}
+      description={t("dashboard.talentDrawers.monetization.compareHubsDesc")}
       width={760}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
         {HUB_COMPARE_DATA.map((hub) => (
@@ -227,17 +212,17 @@ export function TalentHubCompareDrawer() {
           >
             {hub.recommended && (
               <span style={{ position: "absolute", top: -10, left: 12, color: "#fff", fontSize: 10, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", padding: "3px 8px", borderRadius: 999 }} className="bg-admin-accent">
-                Best fit
+                {t("dashboard.talentDrawers.monetization.bestFit")}
               </span>
             )}
             <div style={{ fontFamily: FONTS.display, fontSize: 15, fontWeight: 500, marginBottom: 10, letterSpacing: -0.1 }} className="text-admin-ink">
               {hub.name}
             </div>
-            <KvRow label="Listing fee" value={hub.listingFee} />
-            <KvRow label="Inquiries / mo" value={String(hub.avgInquiriesPerMonth)} />
-            <KvRow label="Avg day rate" value={hub.averageDayRate} />
-            <KvRow label="Close rate" value={hub.closeRate} />
-            <KvRow label="Roster size" value={`${hub.talentCount} talents`} />
+            <KvRow label={t("dashboard.talentDrawers.monetization.listingFee")} value={hub.listingFee} />
+            <KvRow label={t("dashboard.talentDrawers.monetization.inquiriesPerMonth")} value={String(hub.avgInquiriesPerMonth)} />
+            <KvRow label={t("dashboard.talentDrawers.monetization.avgDayRate")} value={hub.averageDayRate} />
+            <KvRow label={t("dashboard.talentDrawers.monetization.closeRate")} value={hub.closeRate} />
+            <KvRow label={t("dashboard.talentDrawers.monetization.rosterSize")} value={interpolate(t("dashboard.talentDrawers.monetization.rosterSizeValue"), { count: hub.talentCount })} />
             <p style={{ margin: "10px 0 0", fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
               {hub.notes}
             </p>
@@ -246,7 +231,7 @@ export function TalentHubCompareDrawer() {
                 size="sm"
                 onClick={() => undefined}
               >
-                {hub.recommended ? "Get listed" : "List on this hub"}
+                {hub.recommended ? t("dashboard.talentDrawers.monetization.getListed") : t("dashboard.talentDrawers.monetization.listOnHub")}
               </PrimaryButton>
             </div>
           </div>
@@ -267,6 +252,7 @@ export function TalentHubCompareDrawer() {
 
 export function TalentTaxDocsDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-tax-docs";
   const yearTotal = EARNINGS_ROWS.reduce((sum, e) => {
     const num = parseFloat(e.amount.replace(/[^0-9.]/g, "")) || 0;
@@ -281,10 +267,10 @@ export function TalentTaxDocsDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Tax documents"
-      description="Year-end summary + downloadable forms. Tulala reports your platform earnings; off-platform you declare yourself."
+      title={t("dashboard.talentDrawers.monetization.taxDocuments")}
+      description={t("dashboard.talentDrawers.monetization.taxDocumentsDesc")}
       width={580}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <div
         style={{
@@ -294,18 +280,18 @@ export function TalentTaxDocsDrawer() {
           marginBottom: 16,
         }}
       >
-        <SummaryStat label="2026 total" value={`€${yearTotal.toLocaleString()}`} accent="ink" />
-        <SummaryStat label="Platform" value={`€${platformTotal.toLocaleString()}`} accent="green" />
-        <SummaryStat label="Off-platform" value={`€${offPlatformTotal.toLocaleString()}`} accent="amber" />
+        <SummaryStat label={interpolate(t("dashboard.talentDrawers.monetization.taxYearTotal"), { year: 2026 })} value={`€${yearTotal.toLocaleString()}`} accent="ink" />
+        <SummaryStat label={t("dashboard.talentDrawers.monetization.taxPlatform")} value={`€${platformTotal.toLocaleString()}`} accent="green" />
+        <SummaryStat label={t("dashboard.talentDrawers.monetization.taxOffPlatform")} value={`€${offPlatformTotal.toLocaleString()}`} accent="amber" />
       </div>
 
-      <Divider label="Available documents" />
+      <Divider label={t("dashboard.talentDrawers.monetization.availableDocuments")} />
 
       <div className="flex flex-col gap-2">
         {[
-          { label: `${new Date().getUTCFullYear()} income summary`, body: "Platform-reported earnings only · PDF download", action: "Download", href: `/api/talent/tax-summary?year=${new Date().getUTCFullYear()}` },
-          { label: "W-8BEN form", body: "Official IRS form, opens irs.gov in a new tab", action: "Open", href: "https://www.irs.gov/pub/irs-pdf/fw8ben.pdf" },
-          { label: "2025 income summary", body: "Platform-reported earnings only · PDF download", action: "Download", href: "/api/talent/tax-summary?year=2025" },
+          { label: interpolate(t("dashboard.talentDrawers.monetization.docIncomeSummary"), { year: new Date().getUTCFullYear() }), body: t("dashboard.talentDrawers.monetization.docIncomeSummaryBody"), action: t("dashboard.talentDrawers.monetization.docDownload"), href: `/api/talent/tax-summary?year=${new Date().getUTCFullYear()}` },
+          { label: t("dashboard.talentDrawers.monetization.docW8Label"), body: t("dashboard.talentDrawers.monetization.docW8Body"), action: t("dashboard.talentDrawers.monetization.docOpen"), href: "https://www.irs.gov/pub/irs-pdf/fw8ben.pdf" },
+          { label: interpolate(t("dashboard.talentDrawers.monetization.docIncomeSummary"), { year: 2025 }), body: t("dashboard.talentDrawers.monetization.docIncomeSummaryBody"), action: t("dashboard.talentDrawers.monetization.docDownload"), href: "/api/talent/tax-summary?year=2025" },
         ].map((doc, idx) => (
           <button
             key={idx}
@@ -339,11 +325,8 @@ export function TalentTaxDocsDrawer() {
       </div>
 
       <div style={{ marginTop: 16, padding: "12px 14px", border: `1px solid rgba(91,107,160,0.18)`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">
-        <strong className="font-semibold">About off-platform & in-kind:</strong>{" "}
-        Off-platform earnings you log via &quot;Log work&quot; appear in your year-end summary
-        as self-declared income. In-kind / gift work shows separately and isn&apos;t
-        included in the cash total, useful for your records, not reported to tax
-        authorities. Talk to a local advisor for your jurisdiction.
+        <strong className="font-semibold">{t("dashboard.talentDrawers.monetization.taxAboutLabel")}</strong>{" "}
+        {t("dashboard.talentDrawers.monetization.taxAboutBody")}
       </div>
     </DrawerShell>
   );
@@ -360,6 +343,7 @@ export function TalentTaxDocsDrawer() {
 
 export function TalentConflictResolveDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-conflict-resolve";
   const [choice, setChoice] = useState<"a" | "b" | "alt" | null>(null);
 
@@ -373,10 +357,10 @@ export function TalentConflictResolveDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Conflict on May 14"
-      description="Two clients want you the same day. Tulala ranks them by rate, trust, and agency relationship. You decide."
+      title={t("dashboard.talentDrawers.monetization.conflictTitle")}
+      description={t("dashboard.talentDrawers.monetization.conflictDesc")}
       width={620}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       {(["a", "b"] as const).map((key) => {
         const c = conflict[key];
@@ -404,7 +388,7 @@ export function TalentConflictResolveDrawer() {
           >
             {c.recommended && (
               <span style={{ position: "absolute", top: -10, left: 14, color: "#fff", fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", padding: "3px 8px", borderRadius: 999 }} className="bg-admin-accent">
-                AI suggests
+                {t("dashboard.talentDrawers.monetization.aiSuggests")}
               </span>
             )}
             <span
@@ -465,9 +449,9 @@ export function TalentConflictResolveDrawer() {
           }}
         />
         <div className="flex-1 min-w-0">
-          <div className="text-admin-ink text-admin-13 font-medium">Propose alternative dates to both</div>
+          <div className="text-admin-ink text-admin-13 font-medium">{t("dashboard.talentDrawers.monetization.proposeAlt")}</div>
           <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-            Suggest May 12 to Mango and May 16 to Atelier · we draft the messages
+            {t("dashboard.talentDrawers.monetization.proposeAltSub")}
           </div>
         </div>
       </button>

@@ -206,10 +206,10 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
   if (isLoading) {
     return (
       <div
-        className="flex h-[clamp(260px,42vh,460px)] w-full items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.02]"
+        className="flex h-[clamp(260px,42vh,460px)] w-full items-center justify-center rounded-[22px] border border-border bg-muted/20"
         aria-busy
       >
-        <span className="text-sm text-white/50">Loading map…</span>
+        <span className="text-sm text-muted-foreground">Loading map…</span>
       </div>
     );
   }
@@ -244,29 +244,29 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
     <div className="flex flex-col gap-5">
       {/* Summary line + selected-city chip */}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <p className="text-[0.8125rem] text-white/70">
-          <strong className="text-white">{mappableCount}</strong>{" "}
+        <p className="text-[0.8125rem] text-muted-foreground">
+          <strong className="text-foreground">{mappableCount}</strong>{" "}
           {mappableCount === 1 ? "profile" : "profiles"} on the map
           {unmappedCount > 0 ? (
-            <span className="text-white/40"> · {unmappedCount} without a map location</span>
+            <span className="text-muted-foreground/50"> · {unmappedCount} without a map location</span>
           ) : null}
         </p>
         {selectedCluster ? (
           <button
             type="button"
             onClick={() => setSelectedKey(null)}
-            className="rounded-full border border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--impronta-gold-bright)] transition-colors hover:bg-[var(--dir-accent-line)]"
+            className="rounded-full border border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--dir-accent)] transition-colors hover:bg-[var(--dir-accent-line)]"
           >
             {selectedCluster.label || "Selected"} · {selectedCluster.items.length} ✕
           </button>
         ) : (
-          <span className="text-[0.6875rem] text-white/40">Tap a pin to filter by city</span>
+          <span className="text-[0.6875rem] text-muted-foreground/50">Tap a pin to filter by city</span>
         )}
       </div>
 
       {/* Sticky dark map with gold count pins */}
       <div
-        className="sticky top-20 z-[2] overflow-hidden rounded-[22px] border border-white/10"
+        className="sticky top-20 z-[2] overflow-hidden rounded-[22px] border border-border"
         style={{ height: "clamp(260px, 42vh, 460px)" }}
       >
         <APIProvider apiKey={apiKey}>
@@ -422,18 +422,18 @@ function MapNotice({
   onBackToGrid: () => void;
 }) {
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-2 rounded-[22px] border border-dashed border-white/15 px-6 py-16 text-center">
+    <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-2 rounded-[22px] border border-dashed border-border px-6 py-16 text-center">
       <p
         className="font-display text-lg text-[var(--token-color-ink,var(--foreground))]"
         style={{ fontFamily: "var(--site-heading-font, inherit)" }}
       >
         {title}
       </p>
-      <p className="max-w-md text-sm leading-relaxed text-white/60">{body}</p>
+      <p className="max-w-md text-sm leading-relaxed text-muted-foreground">{body}</p>
       <button
         type="button"
         onClick={onBackToGrid}
-        className="mt-2 text-[13px] font-semibold text-[var(--impronta-gold-bright)] transition-opacity hover:opacity-80"
+        className="mt-2 text-[13px] font-semibold text-[var(--dir-accent)] transition-opacity hover:opacity-80"
       >
         Back to grid →
       </button>

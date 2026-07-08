@@ -54,7 +54,7 @@ export function TalentDirectoryListRow({
   return (
     <article
       className={cn(
-        "flex gap-4 rounded-2xl border border-white/[0.08] bg-gradient-to-r from-zinc-900/90 to-black/90 p-3 shadow-sm transition-[box-shadow] hover:shadow-md hover:shadow-[var(--impronta-gold)]/10",
+        "flex gap-4 rounded-2xl border border-border bg-card/90 p-3 shadow-sm transition-[box-shadow] hover:shadow-md hover:shadow-[var(--impronta-gold)]/10",
       )}
     >
       <Link
@@ -62,7 +62,7 @@ export function TalentDirectoryListRow({
         href={profileHref}
         aria-hidden
         tabIndex={-1}
-        className="relative h-28 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-800"
+        className="relative h-28 w-20 shrink-0 overflow-hidden rounded-xl bg-muted"
       >
         {card.thumbnail.url ? (
           <Image
@@ -100,7 +100,7 @@ export function TalentDirectoryListRow({
             aiOverlay.confidenceNote ||
             (aiOverlay.vectorSimilarity != null &&
               Number.isFinite(aiOverlay.vectorSimilarity))) ? (
-            <div className="mt-2 rounded-md border border-white/[0.06] bg-black/25 px-2 py-1.5">
+            <div className="mt-2 rounded-md border border-border/60 bg-muted/30 px-2 py-1.5">
               <div className="mb-1 flex items-start justify-between gap-2">
                 <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-[var(--impronta-muted)]">
                   {c.matchWhyPrefix}

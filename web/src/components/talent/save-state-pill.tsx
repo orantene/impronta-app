@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/use-t";
 import {
   TALENT_MEDIA_SAVED,
   TALENT_PROFILE_SAVED,
@@ -12,6 +13,7 @@ import {
 type SavePhase = "idle" | "unsaved" | "saving" | "saved";
 
 export function SaveStatePill() {
+  const t = useT();
   const [phase, setPhase] = useState<SavePhase>("idle");
   const timer = useRef<number | undefined>(undefined);
 
@@ -67,9 +69,9 @@ export function SaveStatePill() {
           phase === "saved" && "bg-emerald-500",
         )}
       />
-      {phase === "unsaved" && "Unsaved"}
-      {phase === "saving" && "Saving…"}
-      {phase === "saved" && "Saved"}
+      {phase === "unsaved" && t("dashboard.talentSavePill.unsaved")}
+      {phase === "saving" && t("dashboard.talentSavePill.saving")}
+      {phase === "saved" && t("dashboard.talentSavePill.saved")}
     </span>
   );
 }

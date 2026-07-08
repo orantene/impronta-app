@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { updatePlatformCommissionConfig, type CommissionConfig } from "./actions";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 
 const HQ = {
   bg:         "#0F0F11",
@@ -47,6 +49,7 @@ function dollarsToCents(val: string): number | null {
 // ─── Shell ─────────────────────────────────────────────────────────────────
 
 export function CommissionConfigShell({ initial }: { initial: CommissionConfig }) {
+  const t = useT();
   // Default take
   const [defaultPct, setDefaultPct] = React.useState(
     bpsToPercent(initial.defaultTakeBps),
@@ -82,13 +85,13 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
 
     const defaultBps = percentToBps(defaultPct);
     if (defaultBps === null) {
-      setMsg({ tone: "err", text: "Default take must be between 0% and 50%." });
+      setMsg({ tone: "err", text: t("dashboard.platform.billing.commission.errDefaultRange") });
       return;
     }
 
     const floorCents = dollarsToCents(floorDollars);
     if (floorCents === null) {
-      setMsg({ tone: "err", text: "Floor must be 0 or a positive dollar amount." });
+      setMsg({ tone: "err", text: t("dashboard.platform.billing.commission.errFloor") });
       return;
     }
 
@@ -97,7 +100,7 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
     if (csbRaw !== "") {
       const csb = percentToBps(csbRaw);
       if (csb === null) {
-        setMsg({ tone: "err", text: "Client surcharge must be between 0% and 50%, or blank for an even split." });
+        setMsg({ tone: "err", text: t("dashboard.platform.billing.commission.errSurcharge") });
         return;
       }
       clientSurchargeBps = csb;
@@ -108,7 +111,7 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
     if (mfdRaw !== "") {
       const mfc = dollarsToCents(mfdRaw);
       if (mfc === null) {
-        setMsg({ tone: "err", text: "Max base fee ($) must be 0 or a positive dollar amount, or blank for uncapped." });
+        setMsg({ tone: "err", text: t("dashboard.platform.billing.commission.errMaxFlat") });
         return;
       }
       maxBaseFeeCents = mfc;
@@ -119,7 +122,7 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
     if (mfpRaw !== "") {
       const mfp = percentToBps(mfpRaw);
       if (mfp === null) {
-        setMsg({ tone: "err", text: "Max base fee (%) must be between 0% and 50%, or blank for uncapped." });
+        setMsg({ tone: "err", text: t("dashboard.platform.billing.commission.errMaxPct") });
         return;
       }
       maxBaseFeeBps = mfp;
@@ -131,7 +134,7 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
       if (raw === "") continue; // blank = inherit default
       const bps = percentToBps(raw);
       if (bps === null) {
-        setMsg({ tone: "err", text: `${tier} take must be between 0% and 50%, or leave blank to inherit the default.` });
+        setMsg({ tone: "err", text: interpolate(t("dashboard.platform.billing.commission.errTier"), { tier }) });
         return;
       }
       planTierBps[tier] = bps;
@@ -147,7 +150,7 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
         planTierBps,
       });
       if (res.ok) {
-        setMsg({ tone: "ok", text: "Commission config saved." });
+        setMsg({ tone: "ok", text: t("dashboard.platform.billing.commission.savedOk") });
       } else {
         setMsg({ tone: "err", text: res.error });
       }
@@ -171,13 +174,10 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
         <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>●</span>
         <div>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: HQ.green, marginBottom: 4 }}>
-            Per-participant commission grain is live
+            {t("dashboard.platform.billing.commission.grainTitle")}
           </div>
           <div style={{ fontSize: 12, color: HQ.inkMuted, lineHeight: 1.55 }}>
-            As of ADR 2026-05-22, commission resolves per `inquiry_participants`
-            row from each talent&apos;s frozen `owning_party_*`. Tier-specific rates
-            and per-tenant overrides now resolve correctly for cross-tenant inquiries
-            — safe to populate.
+            {t("dashboard.platform.billing.commission.grainBody")}
           </div>
         </div>
       </div>
@@ -201,10 +201,10 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
             marginBottom: 14,
           }}
         >
-          Platform default
+          {t("dashboard.platform.billing.commission.platformDefault")}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Default take rate (%)">
+          <Field label={t("dashboard.platform.billing.commission.defaultTakeRate")}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input
                 type="number"
@@ -221,10 +221,10 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
               </span>
             </div>
             <span style={{ fontSize: 11, color: HQ.inkDim, marginTop: 4 }}>
-              Stored as basis points (bps). 5% = 500 bps.
+              {t("dashboard.platform.billing.commission.defaultTakeHint")}
             </span>
           </Field>
-          <Field label="Floor ($ USD)">
+          <Field label={t("dashboard.platform.billing.commission.floor")}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 12, color: HQ.inkMuted }}>$</span>
               <input
@@ -238,30 +238,30 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
               />
             </div>
             <span style={{ fontSize: 11, color: HQ.inkDim, marginTop: 4 }}>
-              Platform fee = max(% take, floor). 0 = no floor.
+              {t("dashboard.platform.billing.commission.floorHint")}
             </span>
           </Field>
-          <Field label="Client surcharge (% of subtotal)">
+          <Field label={t("dashboard.platform.billing.commission.clientSurcharge")}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input
                 type="number"
                 min={0}
                 max={50}
                 step={0.01}
-                placeholder="even split"
+                placeholder={t("dashboard.platform.billing.commission.clientSurchargePlaceholder")}
                 value={clientSurchargePct}
                 disabled={pending}
                 onChange={(e) => setClientSurchargePct(e.target.value)}
                 style={inputStyle()}
               />
               <span style={{ fontSize: 12, color: HQ.inkMuted, whiteSpace: "nowrap" }}>
-                {clientSurchargePct !== "" ? `${clientSurchargePct}%` : "even"}
+                {clientSurchargePct !== ""
+                  ? `${clientSurchargePct}%`
+                  : t("dashboard.platform.billing.commission.clientSurchargeEven")}
               </span>
             </div>
             <span style={{ fontSize: 11, color: HQ.inkDim, marginTop: 4 }}>
-              The client-side half, added on top of the subtotal. Blank = even
-              split. With a 6% take, 3% here = 3% client + 3% seller. The talent
-              is never charged.
+              {t("dashboard.platform.billing.commission.clientSurchargeHint")}
             </span>
           </Field>
         </div>
@@ -286,22 +286,20 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
             marginBottom: 4,
           }}
         >
-          Base reservation fee — platform caps
+          {t("dashboard.platform.billing.commission.baseCapsTitle")}
         </div>
         <p style={{ fontSize: 12, color: HQ.inkMuted, margin: "0 0 14px" }}>
-          A workspace may add an automatic base reservation fee (flat and/or % of
-          subtotal) on every booking. These are the upper bounds it can set. Blank =
-          uncapped. The fee is workspace revenue and is never taken from the talent.
+          {t("dashboard.platform.billing.commission.baseCapsBody")}
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Max flat base fee ($ USD)">
+          <Field label={t("dashboard.platform.billing.commission.maxFlatFee")}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 12, color: HQ.inkMuted }}>$</span>
               <input
                 type="number"
                 min={0}
                 step={0.01}
-                placeholder="uncapped"
+                placeholder={t("dashboard.platform.billing.commission.uncapped")}
                 value={maxBaseFeeDollars}
                 disabled={pending}
                 onChange={(e) => setMaxBaseFeeDollars(e.target.value)}
@@ -309,17 +307,17 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
               />
             </div>
             <span style={{ fontSize: 11, color: HQ.inkDim, marginTop: 4 }}>
-              Workspaces can&apos;t set a flat fee above this. Blank = no limit.
+              {t("dashboard.platform.billing.commission.maxFlatFeeHint")}
             </span>
           </Field>
-          <Field label="Max % base fee (% of subtotal)">
+          <Field label={t("dashboard.platform.billing.commission.maxPctFee")}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input
                 type="number"
                 min={0}
                 max={50}
                 step={0.01}
-                placeholder="uncapped"
+                placeholder={t("dashboard.platform.billing.commission.uncapped")}
                 value={maxBaseFeePct}
                 disabled={pending}
                 onChange={(e) => setMaxBaseFeePct(e.target.value)}
@@ -330,7 +328,7 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
               </span>
             </div>
             <span style={{ fontSize: 11, color: HQ.inkDim, marginTop: 4 }}>
-              Workspaces can&apos;t set a % fee above this. Blank = no limit.
+              {t("dashboard.platform.billing.commission.maxPctFeeHint")}
             </span>
           </Field>
         </div>
@@ -355,11 +353,10 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
             marginBottom: 4,
           }}
         >
-          Per-plan-tier overrides
+          {t("dashboard.platform.billing.commission.overridesTitle")}
         </div>
         <p style={{ fontSize: 12, color: HQ.inkMuted, margin: "0 0 14px" }}>
-          Leave blank to inherit the default rate above. Non-blank values override
-          the default for that plan tier only.
+          {t("dashboard.platform.billing.commission.overridesBody")}
         </p>
         <div
           style={{
@@ -379,7 +376,11 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
               borderBottom: `1px solid ${HQ.borderSoft}`,
             }}
           >
-            {["Plan tier", "Take rate (%)", "Effective bps"].map((h) => (
+            {[
+              t("dashboard.platform.billing.commission.colPlanTier"),
+              t("dashboard.platform.billing.commission.colTakeRate"),
+              t("dashboard.platform.billing.commission.colEffectiveBps"),
+            ].map((h) => (
               <span
                 key={h}
                 style={{ fontSize: 10.5, fontWeight: 600, color: HQ.inkDim, letterSpacing: 0.4 }}
@@ -418,7 +419,7 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
                   min={0}
                   max={50}
                   step={0.01}
-                  placeholder="inherit default"
+                  placeholder={t("dashboard.platform.billing.commission.inheritPlaceholder")}
                   value={pct}
                   disabled={pending}
                   onChange={(e) =>
@@ -427,7 +428,9 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
                   style={{ ...inputStyle(), maxWidth: 140 }}
                 />
                 <span style={{ fontSize: 12, color: bps != null ? HQ.green : HQ.inkDim }}>
-                  {bps != null ? `${bps} bps` : "— (inherit)"}
+                  {bps != null
+                    ? interpolate(t("dashboard.platform.billing.commission.effectiveBps"), { bps })
+                    : t("dashboard.platform.billing.commission.inheritDash")}
                 </span>
               </div>
             );
@@ -454,11 +457,12 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
             fontFamily: F,
           }}
         >
-          {pending ? "Saving…" : "Save config"}
+          {pending
+            ? t("dashboard.platform.billing.commission.saving")
+            : t("dashboard.platform.billing.commission.saveConfig")}
         </button>
         <span style={{ fontSize: 11.5, color: HQ.inkDim }}>
-          Writes the singleton row immediately. Resolver uses the new rates on the
-          next booking commission computation.
+          {t("dashboard.platform.billing.commission.saveNote")}
         </span>
       </div>
 

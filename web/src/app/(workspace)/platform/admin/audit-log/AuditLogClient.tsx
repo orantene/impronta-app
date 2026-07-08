@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import type { PlatformAuditLogRow } from "../../platform-data";
+
+type Translate = (key: string) => string;
 
 // Design tokens (match HQ dark theme)
 const HQ = {
@@ -20,7 +24,7 @@ const FONT_BODY = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
 // Relative time formatter
-function formatRelativeTime(iso: string): string {
+function formatRelativeTime(iso: string, t: Translate): string {
   const d = new Date(iso);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
@@ -28,10 +32,10 @@ function formatRelativeTime(iso: string): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffMins < 1) return t("dashboard.platform.common.relJustNow");
+  if (diffMins < 60) return interpolate(t("dashboard.platform.common.relMinsAgo"), { count: diffMins });
+  if (diffHours < 24) return interpolate(t("dashboard.platform.common.relHoursAgo"), { count: diffHours });
+  if (diffDays < 7) return interpolate(t("dashboard.platform.common.relDaysAgo"), { count: diffDays });
   return d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -55,6 +59,7 @@ interface AuditLogClientProps {
 }
 
 export function AuditLogClient({ rows }: AuditLogClientProps) {
+  const t = useT();
   const [searchQuery, setSearchQuery] = useState("");
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [targetKindFilter, setTargetKindFilter] = useState<string>("all");
@@ -116,10 +121,10 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
             margin: "0 0 8px",
           }}
         >
-          Audit Log
+          {t("dashboard.platform.auditLog.title")}
         </h1>
         <p style={{ color: HQ.inkMuted, margin: 0, fontSize: 14 }}>
-          Platform-wide audit trail of admin actions
+          {t("dashboard.platform.auditLog.subtitle")}
         </p>
       </div>
 
@@ -146,12 +151,12 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
               letterSpacing: 0.5,
             }}
           >
-            Search
+            {t("dashboard.platform.auditLog.searchLabel")}
           </label>
           <input
             id="search"
             type="text"
-            placeholder="Actor, Target ID, Action…"
+            placeholder={t("dashboard.platform.auditLog.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
@@ -182,7 +187,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
               letterSpacing: 0.5,
             }}
           >
-            Action
+            {t("dashboard.platform.auditLog.actionLabel")}
           </label>
           <select
             id="action"
@@ -200,7 +205,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
               boxSizing: "border-box",
             }}
           >
-            <option value="all">All actions</option>
+            <option value="all">{t("dashboard.platform.auditLog.allActions")}</option>
             {uniqueActions.map((action) => (
               <option key={action} value={action}>
                 {action}
@@ -223,7 +228,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
               letterSpacing: 0.5,
             }}
           >
-            Target Kind
+            {t("dashboard.platform.auditLog.targetKindLabel")}
           </label>
           <select
             id="targetKind"
@@ -241,7 +246,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
               boxSizing: "border-box",
             }}
           >
-            <option value="all">All</option>
+            <option value="all">{t("dashboard.platform.auditLog.all")}</option>
             {targetKinds.map((kind) => (
               <option key={kind} value={kind}>
                 {kind}
@@ -264,7 +269,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
               letterSpacing: 0.5,
             }}
           >
-            Date Range
+            {t("dashboard.platform.auditLog.dateRangeLabel")}
           </label>
           <select
             id="dateRange"
@@ -282,10 +287,10 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
               boxSizing: "border-box",
             }}
           >
-            <option value="all">All time</option>
-            <option value="24h">Last 24h</option>
-            <option value="7d">Last 7d</option>
-            <option value="30d">Last 30d</option>
+            <option value="all">{t("dashboard.platform.auditLog.dateAll")}</option>
+            <option value="24h">{t("dashboard.platform.auditLog.date24h")}</option>
+            <option value="7d">{t("dashboard.platform.auditLog.date7d")}</option>
+            <option value="30d">{t("dashboard.platform.auditLog.date30d")}</option>
           </select>
         </div>
       </div>
@@ -302,7 +307,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
           }}
         >
           <p style={{ color: HQ.inkMuted, margin: 0, fontSize: 14 }}>
-            No audit log entries found.
+            {t("dashboard.platform.auditLog.empty")}
           </p>
         </div>
       ) : (
@@ -334,7 +339,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
                     letterSpacing: 0.5,
                   }}
                 >
-                  When
+                  {t("dashboard.platform.auditLog.colWhen")}
                 </th>
                 <th
                   style={{
@@ -347,7 +352,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
                     letterSpacing: 0.5,
                   }}
                 >
-                  Actor
+                  {t("dashboard.platform.auditLog.colActor")}
                 </th>
                 <th
                   style={{
@@ -360,7 +365,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
                     letterSpacing: 0.5,
                   }}
                 >
-                  Target
+                  {t("dashboard.platform.auditLog.colTarget")}
                 </th>
                 <th
                   style={{
@@ -373,7 +378,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
                     letterSpacing: 0.5,
                   }}
                 >
-                  Action
+                  {t("dashboard.platform.auditLog.colAction")}
                 </th>
                 <th
                   style={{
@@ -386,7 +391,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
                     letterSpacing: 0.5,
                   }}
                 >
-                  Details
+                  {t("dashboard.platform.auditLog.colDetails")}
                 </th>
               </tr>
             </thead>
@@ -403,7 +408,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
                     }}
                   >
                     <td style={{ padding: "12px", color: HQ.inkMuted }}>
-                      {formatRelativeTime(row.createdAtIso)}
+                      {formatRelativeTime(row.createdAtIso, t)}
                     </td>
                     <td style={{ padding: "12px", color: HQ.ink }}>
                       {row.actorDisplayName}
@@ -504,7 +509,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
                               letterSpacing: 0.5,
                             }}
                           >
-                            Before
+                            {t("dashboard.platform.auditLog.before")}
                           </h4>
                           <pre
                             style={{
@@ -537,7 +542,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
                               letterSpacing: 0.5,
                             }}
                           >
-                            After
+                            {t("dashboard.platform.auditLog.after")}
                           </h4>
                           <pre
                             style={{
@@ -571,7 +576,7 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
                             letterSpacing: 0.5,
                           }}
                         >
-                          Context
+                          {t("dashboard.platform.auditLog.context")}
                         </h4>
                         <pre
                           style={{
@@ -601,7 +606,10 @@ export function AuditLogClient({ rows }: AuditLogClientProps) {
 
       {/* Result count */}
       <div style={{ marginTop: 16, color: HQ.inkMuted, fontSize: 12 }}>
-        Showing {filteredRows.length} of {rows.length} entries
+        {interpolate(t("dashboard.platform.auditLog.showing"), {
+          shown: filteredRows.length,
+          total: rows.length,
+        })}
       </div>
     </div>
   );

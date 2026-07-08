@@ -99,6 +99,13 @@ const SHARED_API_PREFIXES = [
 const COMPLIANCE_PREFIXES = [
   "/unsubscribe",
   "/api/unsubscribe",
+  // STANDING reviews — the emailed review-invite landing at
+  // `/review/<invite_token>`. Like unsubscribe, the per-recipient token in the
+  // URL is the only credential and the link can be opened from any host context
+  // (platform apex, agency vanity domain, or app host), so it must never 404 on
+  // a tenant host. Identity is auth-matched server-side inside the action; the
+  // token is never trusted for identity.
+  "/review",
 ] as const;
 
 /**
@@ -114,6 +121,31 @@ const COMPLIANCE_PREFIXES = [
  *                  locale + host headers.
  */
 const PWA_PATHS = ["/offline"] as const;
+
+/**
+ * Post-checkout landing pages reachable on every surface, regardless of host
+ * kind. Stripe builds `success_url` / `cancel_url` from the request origin
+ * (see `client-pipeline.ts`), so after a client pays, Stripe redirects them to
+ * `/checkout/success` (or `/checkout/cancel`) on whatever host they started
+ * from (app, agency subdomain, custom domain, hub). These pages read only the
+ * returned checkout session and carry no cross-tenant data. Without this entry
+ * a paying customer hits a branded 404 the instant they complete payment.
+ */
+const CHECKOUT_PREFIX = "/checkout" as const;
+
+/**
+ * Public embed loader + roster widget reachable on every surface. They are
+ * dropped as a `<script>` / `<iframe>` on partner sites (frame-ancestors *), so
+ * the originating Host header is an external partner domain that never matches a
+ * seeded `agency_domains` row and must pass the surface gate host-agnostically:
+ *   - `/embed.js`                → the loader script (exact match; the `.js`
+ *                                  suffix is NOT one of the matcher's image-only
+ *                                  extension bypasses, so it reaches this gate)
+ *   - `/embed`, `/embed/roster/*`→ the iframe roster widget
+ * Tenant scope is enforced inside each route handler.
+ */
+const EMBED_PREFIX = "/embed" as const;
+const EMBED_EXACT_PATHS = ["/embed.js"] as const;
 
 const AUTH_PREFIXES = [
   "/login",
@@ -160,6 +192,14 @@ const APP_WORKSPACE_PREFIXES = [
   "/talent",
   "/onboarding",
   "/invite",
+  // Emailed team-invite redemption links (`/team-invite/[id]/route.ts`) resolve
+  // an invite token then redirect to join/login. The email builds the link from
+  // the app/agency host, so without this entry the link 404s at the surface gate
+  // before the route handler can run.
+  "/team-invite",
+  // Editor template preview (`/template-preview/[key]/page.tsx`) is embedded by
+  // every template picker in the site editor — app/agency workspace context.
+  "/template-preview",
   // QA-1 fix — bare `/account` server-redirects the actor to their
   // role-scoped account page (/admin/account, /client/account, or
   // /talent/account). Reachable wherever the role-scoped pages are
@@ -430,6 +470,10 @@ export function isPathAllowedForHostKind(
   if (hasPrefix(pathname, PROTOTYPE_PREFIX)) return true;
   if (anyPrefix(pathname, SHARED_API_PREFIXES)) return true;
   if (anyPrefix(pathname, COMPLIANCE_PREFIXES)) return true;
+  // Post-checkout landing + public embed widget — host-agnostic (see consts).
+  if (hasPrefix(pathname, CHECKOUT_PREFIX)) return true;
+  if (hasPrefix(pathname, EMBED_PREFIX)) return true;
+  if (anyExact(pathname, EMBED_EXACT_PATHS)) return true;
 
   if (kind === "agency") {
     // Agency owners/staff (and clients/talent of this tenant) can use the

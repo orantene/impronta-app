@@ -21,12 +21,15 @@ import {
   audienceLabel,
   useAdminShell
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 3 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function FeatureControlsDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "feature-controls";
 
   // Initialise toggle state from defaults
@@ -64,16 +67,16 @@ export function FeatureControlsDrawer() {
 
   const footer = (
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <span style={{ flex: 1, fontSize: 11 }} className="text-admin-ink-muted">{onCount}/{totalCount} features enabled</span>
-      <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
-      <SecondaryButton onClick={() => { toast("Feature settings saved"); setDirty(false); closeDrawer(); }}>
-        {dirty ? "Save changes" : "Close"}
+      <span style={{ flex: 1, fontSize: 11 }} className="text-admin-ink-muted">{copy.isSpanish ? `${onCount}/${totalCount} funciones activas` : `${onCount}/${totalCount} features enabled`}</span>
+      <GhostButton onClick={closeDrawer}>{tt("Cancel")}</GhostButton>
+      <SecondaryButton onClick={() => { toast(tt("Feature settings saved")); setDirty(false); closeDrawer(); }}>
+        {dirty ? tt("Save changes") : tt("Close")}
       </SecondaryButton>
     </div>
   );
 
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Feature controls" description="Turn platform capabilities on or off. Changes take effect immediately for all users in this workspace." footer={footer} defaultSize="full">
+    <DrawerShell open={open} onClose={closeDrawer} title={tt("Feature controls")} description={tt("Turn platform capabilities on or off. Changes take effect immediately for all users in this workspace.")} footer={footer} defaultSize="full">
       <div style={{ display: "flex", gap: 0, height: "100%", fontFamily: FONTS.body }}>
 
         {/* Left sidebar — group nav */}
@@ -88,7 +91,7 @@ export function FeatureControlsDrawer() {
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search features…"
+                placeholder={tt("Search features…")}
                 style={{
                   width: "100%", boxSizing: "border-box", padding: "7px 12px 7px 30px",
                   borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}`,
@@ -132,13 +135,13 @@ export function FeatureControlsDrawer() {
 
           {/* Summary stats */}
           <div style={{ marginTop: "auto", paddingTop: 16, borderTop: `1px solid ${COLORS.border}` }}>
-            <div style={{ fontSize: 11, marginBottom: 6 }} className="text-admin-ink-muted">Summary</div>
+            <div style={{ fontSize: 11, marginBottom: 6 }} className="text-admin-ink-muted">{tt("Summary")}</div>
             <div className="flex justify-between">
-              <span className="text-admin-ink-muted text-admin-11">Enabled</span>
+              <span className="text-admin-ink-muted text-admin-11">{tt("Enabled")}</span>
               <span className="text-admin-success text-xs font-bold">{onCount}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
-              <span className="text-admin-ink-muted text-admin-11">Disabled</span>
+              <span className="text-admin-ink-muted text-admin-11">{tt("Disabled")}</span>
               <span className="text-admin-coral text-xs font-bold">{totalCount - onCount}</span>
             </div>
             <div style={{ marginTop: 8, height: 4, background: COLORS.border, borderRadius: 2, overflow: "hidden" }}>
@@ -151,7 +154,7 @@ export function FeatureControlsDrawer() {
         <div style={{ flex: 1, paddingLeft: 20, overflowY: "auto", minHeight: 0 }}>
           {search && (
             <div className="mb-3">
-              <CapsLabel>Search results for &quot;{search}&quot;</CapsLabel>
+              <CapsLabel>{copy.isSpanish ? `Resultados para "${search}"` : `Search results for "${search}"`}</CapsLabel>
             </div>
           )}
           {!search && (
@@ -168,14 +171,14 @@ export function FeatureControlsDrawer() {
                   group.features.forEach(f => { next[f.key] = true; });
                   setToggles(next); setDirty(true);
                 }}>
-                  Enable all
+                  {tt("Enable all")}
                 </GhostButton>
                 <GhostButton onClick={() => {
                   const next = { ...toggles };
                   group.features.forEach(f => { next[f.key] = false; });
                   setToggles(next); setDirty(true);
                 }}>
-                  Disable all
+                  {tt("Disable all")}
                 </GhostButton>
               </div>
             </div>
@@ -216,7 +219,7 @@ export function FeatureControlsDrawer() {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: isOn ? COLORS.success : COLORS.coral }}>
-                      {isOn ? "On" : "Off"}
+                      {isOn ? tt("On") : tt("Off")}
                     </span>
                     <Toggle on={isOn} onChange={() => flip(f.key)} />
                   </div>
@@ -227,7 +230,7 @@ export function FeatureControlsDrawer() {
 
           {visibleFeatures.length === 0 && (
             <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12 }} className="text-admin-ink-dim">
-              No features match &quot;{search}&quot;
+              {copy.isSpanish ? `Ninguna función coincide con "${search}"` : `No features match "${search}"`}
             </div>
           )}
         </div>
@@ -294,11 +297,15 @@ export function FeatureControlsDrawer() {
 
 export function CircleManageDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "circle-manage";
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
 
   const roleFilters = ["all", "Talent", "Photographer", "HMU artist", "Stylist", "Studio (venue)"];
+  // "all" is the filter sentinel; "Talent" is a glossary-protected term (stays English).
+  const roleFilterLabel = (r: string) => r === "all" ? tt("All") : tt(r);
   const filtered = MOCK_CIRCLE.filter(m => {
     if (filterRole !== "all" && m.role !== filterRole) return false;
     if (search.trim()) {
@@ -310,24 +317,23 @@ export function CircleManageDrawer() {
 
   const footer = (
     <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
-      <span className="text-admin-ink-muted text-admin-11">{MOCK_CIRCLE.length} people in your circle</span>
-      <SecondaryButton onClick={() => toast("Find someone to add…")}>Add person</SecondaryButton>
+      <span className="text-admin-ink-muted text-admin-11">{copy.isSpanish ? `${MOCK_CIRCLE.length} personas en tu círculo` : `${MOCK_CIRCLE.length} people in your circle`}</span>
+      <SecondaryButton onClick={() => toast(tt("Find someone to add…"))}>{tt("Add person")}</SecondaryButton>
     </div>
   );
 
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="My Circle" description="People you trust to work with — quickly recommend them into bookings." footer={footer} defaultSize="half">
+    <DrawerShell open={open} onClose={closeDrawer} title={tt("My Circle")} description={tt("People you trust to work with, quickly recommend them into bookings.")} footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
 
         {/* Why this exists */}
         <div style={{ border: `1px solid ${COLORS.royalSoft}`, padding: 12 }} className="bg-admin-royal-soft rounded-admin-md">
           <div className="flex items-center gap-1.5">
             <Icon name="sparkle" size={12} color={COLORS.royal} stroke={1.7} />
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-royal">About your Circle</span>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-royal">{tt("About your Circle")}</span>
           </div>
           <p style={{ margin: "6px 0 0", fontSize: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">
-            When a coordinator needs more crew, you can recommend someone from your Circle in one tap.
-            They get an invite with your endorsement attached. No more digging through 2,000 profiles.
+            {tt("When a coordinator needs more crew, you can recommend someone from your Circle in one tap. They get an invite with your endorsement attached. No more digging through 2,000 profiles.")}
           </p>
         </div>
 
@@ -338,7 +344,7 @@ export function CircleManageDrawer() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, role, or tag…"
+              placeholder={tt("Search by name, role, or tag…")}
               style={{
                 width: "100%", boxSizing: "border-box",
                 padding: "9px 12px 9px 32px", borderRadius: 8,
@@ -365,10 +371,10 @@ export function CircleManageDrawer() {
                     background: active ? COLORS.fill : "transparent",
                     color: active ? "#fff" : COLORS.inkMuted,
                     fontSize: 11.5, fontWeight: active ? 600 : 500, fontFamily: FONTS.body,
-                    cursor: "pointer", textTransform: "capitalize",
+                    cursor: "pointer",
                   }}
                 >
-                  {r}
+                  {roleFilterLabel(r)}
                 </button>
               );
             })}
@@ -379,7 +385,7 @@ export function CircleManageDrawer() {
         <div className="flex flex-col gap-1.5">
           {filtered.length === 0 && (
             <div style={{ padding: "24px 12px", textAlign: "center", fontSize: 12 }} className="text-admin-ink-dim">
-              No matches. Try a different search.
+              {tt("No matches. Try a different search.")}
             </div>
           )}
           {filtered.map(m => (
@@ -404,8 +410,8 @@ export function CircleManageDrawer() {
               </div>
               <button
                 type="button"
-                onClick={() => toast(`${m.name} removed from circle`)}
-                aria-label={`Remove ${m.name}`}
+                onClick={() => toast(copy.isSpanish ? `${m.name} quitado del círculo` : `${m.name} removed from circle`)}
+                aria-label={copy.isSpanish ? `Quitar a ${m.name}` : `Remove ${m.name}`}
                 style={{ background: "none", border: "none", cursor: "pointer", padding: 6, color: COLORS.inkDim, alignSelf: "flex-start" }}
               >
                 <Icon name="x" size={13} />
@@ -423,6 +429,8 @@ export function CircleManageDrawer() {
 
 export function CircleRecommendDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "circle-recommend";
   const inquiryId = (state.drawer.payload?.inquiryId as string) ?? "RI-201";
   const role = (state.drawer.payload?.role as string) ?? "any";
@@ -449,29 +457,33 @@ export function CircleRecommendDrawer() {
   };
 
   const send = () => {
-    toast(`Recommended ${selected.size} ${selected.size === 1 ? "person" : "people"} to ${inquiryId}`);
+    toast(
+      copy.isSpanish
+        ? `${selected.size} ${selected.size === 1 ? "persona recomendada" : "personas recomendadas"} para ${inquiryId}`
+        : `Recommended ${selected.size} ${selected.size === 1 ? "person" : "people"} to ${inquiryId}`,
+    );
     closeDrawer();
   };
 
   const footer = (
     <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
-      <span className="text-admin-ink-muted text-admin-11">{selected.size} selected</span>
+      <span className="text-admin-ink-muted text-admin-11">{copy.isSpanish ? `${selected.size} seleccionadas` : `${selected.size} selected`}</span>
       <div className="flex gap-2">
-        <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
-        <SecondaryButton onClick={send}>Send recommendation</SecondaryButton>
+        <GhostButton onClick={closeDrawer}>{tt("Cancel")}</GhostButton>
+        <SecondaryButton onClick={send}>{tt("Send recommendation")}</SecondaryButton>
       </div>
     </div>
   );
 
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Recommend from your Circle" description={`Invite trusted collaborators into ${inquiryId}.`} footer={footer} defaultSize="half">
+    <DrawerShell open={open} onClose={closeDrawer} title={tt("Recommend from your Circle")} description={copy.isSpanish ? `Invita a colaboradores de confianza a ${inquiryId}.` : `Invite trusted collaborators into ${inquiryId}.`} footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
         <div className="relative">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search your circle…"
+            placeholder={tt("Search your circle…")}
             style={{
               width: "100%", boxSizing: "border-box",
               padding: "9px 12px 9px 32px", borderRadius: 8,
@@ -516,8 +528,8 @@ export function CircleRecommendDrawer() {
           })}
         </div>
 
-        <FieldRow label="Note to coordinator (optional)">
-          <TextArea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Why these people for this brief?" rows={2} />
+        <FieldRow label={tt("Note to coordinator (optional)")}>
+          <TextArea value={note} onChange={(e) => setNote(e.target.value)} placeholder={tt("Why these people for this brief?")} rows={2} />
         </FieldRow>
       </div>
     </DrawerShell>

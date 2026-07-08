@@ -10,6 +10,9 @@ import { PlatformCurrencyCard } from "./PlatformCurrencyCard";
 import { PlatformCommercialDefaultsCard } from "./PlatformCommercialDefaultsCard";
 import { PlatformPayoutSystemCard } from "./PlatformPayoutSystemCard";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 
 export const dynamic = "force-dynamic";
 
@@ -113,6 +116,8 @@ function initials(name: string) {
 }
 
 export default async function PlatformSettingsPage() {
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const session = await getCachedActorSession();
   const hqTeam = await loadPlatformSuperAdmins();
   const currentUserId = session.user?.id;
@@ -134,7 +139,7 @@ export default async function PlatformSettingsPage() {
             margin: 0,
           }}
         >
-          HQ settings
+          {t("dashboard.platform.settings.title")}
         </h1>
         <p
           style={{
@@ -144,7 +149,7 @@ export default async function PlatformSettingsPage() {
             margin: "5px 0 0",
           }}
         >
-          The internal team, audit trail, region config, and other platform-wide settings.
+          {t("dashboard.platform.settings.subtitle")}
         </p>
       </div>
 
@@ -157,8 +162,8 @@ export default async function PlatformSettingsPage() {
       >
         {/* Operating currency — run the platform in one currency (default USD) */}
         <HqCard
-          title="Operating currency"
-          subtitle="Run the platform in one currency. Talents see a single clean figure unless multi-currency is on."
+          title={t("dashboard.platform.settings.operatingCurrencyTitle")}
+          subtitle={t("dashboard.platform.settings.operatingCurrencySubtitle")}
           iconId="plan"
         >
           <PlatformCurrencyCard
@@ -171,8 +176,8 @@ export default async function PlatformSettingsPage() {
 
         {/* Active payout system — Connect (default) vs Global Payouts master switch */}
         <HqCard
-          title="Payout system"
-          subtitle="Which Stripe rail the platform settles on. Connect (default) hides Global Payouts onboarding and force-pins every payout to Connect. Reversible."
+          title={t("dashboard.platform.settings.payoutSystemTitle")}
+          subtitle={t("dashboard.platform.settings.payoutSystemSubtitle")}
           iconId="plan"
         >
           <PlatformPayoutSystemCard current={activePayoutSystem} />
@@ -180,8 +185,8 @@ export default async function PlatformSettingsPage() {
 
         {/* Commercial defaults — base booking terms the resolver falls back to */}
         <HqCard
-          title="Commercial defaults"
-          subtitle="Base deposit, refund policy, and instant-book the platform falls back to when a workspace or talent hasn't set their own."
+          title={t("dashboard.platform.settings.commercialDefaultsTitle")}
+          subtitle={t("dashboard.platform.settings.commercialDefaultsSubtitle")}
           iconId="commercial-terms"
         >
           <PlatformCommercialDefaultsCard
@@ -195,13 +200,15 @@ export default async function PlatformSettingsPage() {
 
         {/* HQ team — all users with platform staff role */}
         <HqCard
-          title={`HQ team (${hqTeam.length})`}
-          subtitle="Users with platform super_admin or agency_staff access"
+          title={interpolate(t("dashboard.platform.settings.hqTeamTitle"), {
+            count: hqTeam.length,
+          })}
+          subtitle={t("dashboard.platform.settings.hqTeamSubtitle")}
           iconId="team"
         >
           {hqTeam.length === 0 ? (
             <div style={{ padding: "16px 0", color: HQ.inkMuted, fontSize: 13, fontFamily: F }}>
-              No platform staff configured yet.
+              {t("dashboard.platform.settings.hqTeamEmpty")}
             </div>
           ) : (
             hqTeam.map((member) => {
@@ -258,7 +265,7 @@ export default async function PlatformSettingsPage() {
                             fontWeight: 600,
                           }}
                         >
-                          you
+                          {t("dashboard.platform.settings.youBadge")}
                         </span>
                       )}
                     </div>
@@ -296,12 +303,19 @@ export default async function PlatformSettingsPage() {
         </HqCard>
 
         {/* Platform config */}
-        <HqCard title="Platform config" subtitle="Read-only overview of system settings" iconId="features">
-          <SettingRow label="Platform" value="Tulala" />
-          <SettingRow label="Environment" value={process.env.NODE_ENV ?? "unknown"} />
-          <SettingRow label="Auth provider" value="Supabase" />
-          <SettingRow label="Storage" value="Supabase Storage" />
-          <SettingRow label="Billing" value="Stripe (Phase 8)" tone="muted" />
+        <HqCard
+          title={t("dashboard.platform.settings.platformConfigTitle")}
+          subtitle={t("dashboard.platform.settings.platformConfigSubtitle")}
+          iconId="features"
+        >
+          <SettingRow label={t("dashboard.platform.settings.configPlatform")} value="Tulala" />
+          <SettingRow
+            label={t("dashboard.platform.settings.configEnvironment")}
+            value={process.env.NODE_ENV ?? t("dashboard.platform.settings.configEnvironmentUnknown")}
+          />
+          <SettingRow label={t("dashboard.platform.settings.configAuthProvider")} value="Supabase" />
+          <SettingRow label={t("dashboard.platform.settings.configStorage")} value="Supabase Storage" />
+          <SettingRow label={t("dashboard.platform.settings.configBilling")} value="Stripe (Phase 8)" tone="muted" />
         </HqCard>
       </div>
 
@@ -309,8 +323,8 @@ export default async function PlatformSettingsPage() {
 
       {/* Audit trail — placeholder */}
       <HqCard
-        title="Audit trail"
-        subtitle="All platform-level actions by HQ users. Full audit log ships in Phase 4."
+        title={t("dashboard.platform.settings.auditTrailTitle")}
+        subtitle={t("dashboard.platform.settings.auditTrailSubtitle")}
         iconId="audit"
       >
         <div
@@ -322,8 +336,7 @@ export default async function PlatformSettingsPage() {
             fontFamily: F,
           }}
         >
-          Audit log capture starts when platform-level write operations (flag toggles, plan
-          overrides, impersonation sessions) are implemented in Phase 4.
+          {t("dashboard.platform.settings.auditTrailEmpty")}
         </div>
       </HqCard>
     </>

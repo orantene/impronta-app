@@ -28,6 +28,7 @@ import {
   patchTalentDraft,
   resolvedFieldsForMode,
   useAdminShell,
+  useDashboardText,
   useLiveTaxonomy,
   useQueuedRouterRefresh,
 } from "../../drawer-shared";
@@ -50,11 +51,13 @@ function PublishChecklist({
   draftId: string | null;
   onDiscard: () => void;
 }) {
+  const copy = useDashboardText();
+  const tt = copy.t;
   const items = [
-    { label: "Name",              done: hasName },
-    { label: "Primary talent type", done: hasPrimaryType },
-    { label: "Home base",         done: hasHomeBase },
-    { label: "At least one photo",done: hasPhoto },
+    { label: tt("Name"),                done: hasName },
+    { label: tt("Primary talent type"), done: hasPrimaryType },
+    { label: tt("Home base"),           done: hasHomeBase },
+    { label: tt("At least one photo"),  done: hasPhoto },
   ];
   const allDone = items.every(i => i.done);
   const anyStarted = items.some(i => i.done);
@@ -70,12 +73,12 @@ function PublishChecklist({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }}
           className={allDone ? "text-admin-accent-deep" : "text-admin-ink-muted"}>
-          {allDone ? "Ready to publish" : "Before publishing"}
+          {allDone ? tt("Ready to publish") : tt("Before publishing")}
         </span>
         <span style={{ fontSize: 10.5 }} className="text-admin-ink-dim">
-          {saveState === "saving" && "Saving…"}
-          {saveState === "saved" && "✓ Draft saved"}
-          {saveState === "error" && "⚠ Save failed"}
+          {saveState === "saving" && tt("Saving…")}
+          {saveState === "saved" && `✓ ${tt("Draft saved")}`}
+          {saveState === "error" && `⚠ ${tt("Save failed")}`}
         </span>
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px" }}>
@@ -92,7 +95,7 @@ function PublishChecklist({
           marginTop: 10, background: "none", border: "none", cursor: "pointer",
           fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, padding: 0,
         }} className="text-admin-ink-muted">
-          Discard this draft →
+          {tt("Discard this draft")} →
         </button>
       )}
     </div>
@@ -101,6 +104,8 @@ function PublishChecklist({
 
 export function NewTalentDrawer() {
   const { state, closeDrawer, openDrawer, toast, bulkAddTalent, tenantSlug, effectiveTenant, bridgeTenantIdentity } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const queueRouterRefresh = useQueuedRouterRefresh();
   const [isPending, startTransition] = useTransition();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -254,7 +259,12 @@ export function NewTalentDrawer() {
   const runAdd = (managementMethod: "agency" | "invited" | "draft", afterOk: (id?: string) => void) => {
     if (!tenantSlug) {
       // Prototype / preview mode — local mock only
-      toast(managementMethod === "invited" ? `Invite sent to ${email}` : `${computedDisplayName || "Talent"} saved`);
+      const savedName = computedDisplayName || tt("Talent");
+      toast(
+        managementMethod === "invited"
+          ? (copy.isSpanish ? `Invitación enviada a ${email}` : `Invite sent to ${email}`)
+          : (copy.isSpanish ? `${savedName} guardado` : `${savedName} saved`),
+      );
       clearProfileDraft("default");
       closeDrawer();
       return;
@@ -285,10 +295,13 @@ export function NewTalentDrawer() {
           const fd = new FormData();
           fd.append("file", photoFile);
           const upRes = await actionUploadAndAssignMedia(fd, result.talentProfileId, "card");
-          if (!upRes.ok) toast(`Photo upload failed: ${upRes.error}`, { tone: "error" });
+          if (!upRes.ok) toast(
+            copy.isSpanish ? `Error al subir la foto: ${upRes.error}` : `Photo upload failed: ${upRes.error}`,
+            { tone: "error" },
+          );
         } catch (err) {
           logServerError("newtalentdrawer_photo_upload", err);
-          toast("Photo upload failed — talent created without photo", { tone: "error" });
+          toast(tt("Photo upload failed. Talent created without photo."), { tone: "error" });
         }
       }
 
@@ -304,7 +317,7 @@ export function NewTalentDrawer() {
   const sendInvite = () => {
     if (!inviteValid) return;
     runAdd("invited", () => {
-      toast(`Invite sent to ${email}`);
+      toast(copy.isSpanish ? `Invitación enviada a ${email}` : `Invite sent to ${email}`);
       closeDrawer();
     });
   };
@@ -331,7 +344,8 @@ export function NewTalentDrawer() {
   const saveDraft = () => {
     if (!minimumValid) return;
     runAdd("draft", () => {
-      toast(`${computedDisplayName || "Talent"} saved as draft`);
+      const savedName = computedDisplayName || tt("Talent");
+      toast(copy.isSpanish ? `${savedName} guardado como borrador` : `${savedName} saved as draft`);
       closeDrawer();
     });
   };
@@ -348,14 +362,15 @@ export function NewTalentDrawer() {
   const saveDraftAndExit = () => {
     if (!tenantSlug) {
       // Prototype mode — local mock only.
-      toast(`${computedDisplayName || "Talent"} saved as draft`);
+      const savedName = computedDisplayName || tt("Talent");
+      toast(copy.isSpanish ? `${savedName} guardado como borrador` : `${savedName} saved as draft`);
       clearProfileDraft("default");
       closeDrawer();
       return;
     }
     // Live mode — the draft is already persisted via autosave on blur.
     // A pending debounced patch (if any) will complete in the background.
-    toast(draftId ? "Draft saved" : "Closed without changes");
+    toast(draftId ? tt("Draft saved") : tt("Closed without changes"));
     clearProfileDraft("default");
     closeDrawer();
   };
@@ -377,7 +392,7 @@ export function NewTalentDrawer() {
   // Alternative CTAs surfaced from the Management method picker (visible
   // only when the admin explicitly picks an non-default method).
   const altCta = method === "invited"
-    ? { label: isPending ? "Sending…" : "Send claim invite", run: sendInvite, enabled: inviteValid && !isPending }
+    ? { label: isPending ? tt("Sending…") : tt("Send claim invite"), run: sendInvite, enabled: inviteValid && !isPending }
     : null;
 
   // #11 — Paste a vCard / Instagram handle / LinkedIn URL / plain text
@@ -436,10 +451,14 @@ export function NewTalentDrawer() {
     if (phoneParsed) setPhone(phoneParsed.replace(/^\+\d+\s?/, ""));
     setPasteOpen(false);
     const filled: string[] = [];
-    if (firstParsed || lastParsed) filled.push("name");
-    if (emailParsed) filled.push("email");
-    if (phoneParsed) filled.push("phone");
-    toast(filled.length ? `Pasted: ${filled.join(", ")}` : "No fields recognized");
+    if (firstParsed || lastParsed) filled.push(copy.isSpanish ? "nombre" : "name");
+    if (emailParsed) filled.push(copy.isSpanish ? "correo" : "email");
+    if (phoneParsed) filled.push(copy.isSpanish ? "teléfono" : "phone");
+    toast(
+      filled.length
+        ? (copy.isSpanish ? `Pegado: ${filled.join(", ")}` : `Pasted: ${filled.join(", ")}`)
+        : tt("No fields recognized"),
+    );
   };
   const handlePasteFromClipboard = async () => {
     if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
@@ -458,16 +477,16 @@ export function NewTalentDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Add talent"
-      description="Just the essentials here. Everything else — bio, photos, location, type-specific fields, languages, rates — lives in the full profile, opened next."
+      title={tt("Add talent")}
+      description={tt("Just the essentials here. Everything else (bio, photos, location, type-specific fields, languages, rates) lives in the full profile, opened next.")}
       width={620}
       footer={
         <>
           <SecondaryButton onClick={handleDiscard}>
-            {draftId ? "Discard draft" : "Cancel"}
+            {draftId ? tt("Discard draft") : tt("Cancel")}
           </SecondaryButton>
           <SecondaryButton onClick={saveDraftAndExit}>
-            Save draft & exit
+            {tt("Save draft & exit")}
           </SecondaryButton>
           {altCta && (
             <SecondaryButton onClick={altCta.run}>
@@ -475,14 +494,14 @@ export function NewTalentDrawer() {
             </SecondaryButton>
           )}
           <span
-            title={!allChecklistDone && !isPending ? "Complete the checklist above to publish" : undefined}
+            title={!allChecklistDone && !isPending ? tt("Complete the checklist above to publish") : undefined}
             style={{ display: "inline-flex" }}
           >
             <PrimaryButton
               onClick={publish}
               disabled={!allChecklistDone || isPending}
             >
-              {isPending ? "Publishing…" : "Publish"}
+              {isPending ? tt("Publishing…") : tt("Publish")}
             </PrimaryButton>
           </span>
         </>
@@ -497,19 +516,19 @@ export function NewTalentDrawer() {
         fontFamily: FONTS.body,
       }}>
         {([
-          { id: "single" as const, label: "Single talent" },
-          { id: "csv" as const,    label: "Bulk via CSV" },
-        ]).map(t => {
-          const active = addMode === t.id;
+          { id: "single" as const, label: tt("Single talent") },
+          { id: "csv" as const,    label: tt("Bulk via CSV") },
+        ]).map(tab => {
+          const active = addMode === tab.id;
           return (
-            <button key={t.id} type="button" onClick={() => setAddMode(t.id)} style={{
+            <button key={tab.id} type="button" onClick={() => setAddMode(tab.id)} style={{
               padding: "6px 14px", borderRadius: 999, border: "none",
               background: active ? "#fff" : "transparent",
               color: active ? COLORS.ink : COLORS.inkMuted,
               fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
               cursor: "pointer",
               boxShadow: active ? "0 1px 2px rgba(11,11,13,0.06)" : "none",
-            }}>{t.label}</button>
+            }}>{tab.label}</button>
           );
         })}
       </div>
@@ -552,9 +571,18 @@ export function NewTalentDrawer() {
                     message: "[bulk-add talent] failures:",
                     res: JSON.stringify(res.errors),
                   });
-                  toast(`Created ${res.created} of ${res.created + res.failed}. ${res.failed} failed — see console.`, { tone: res.created > 0 ? undefined : "error" });
+                  toast(
+                    copy.isSpanish
+                      ? `Creados ${res.created} de ${res.created + res.failed}. ${res.failed} con error, ver consola.`
+                      : `Created ${res.created} of ${res.created + res.failed}. ${res.failed} failed, see console.`,
+                    { tone: res.created > 0 ? undefined : "error" },
+                  );
                 } else {
-                  toast(`Created ${res.created} talent profile${res.created === 1 ? "" : "s"}`);
+                  toast(
+                    copy.isSpanish
+                      ? `${res.created} perfil${res.created === 1 ? "" : "es"} de talento creado${res.created === 1 ? "" : "s"}`
+                      : `Created ${res.created} talent profile${res.created === 1 ? "" : "s"}`,
+                  );
                 }
                 if (res.created > 0) {
                   queueRouterRefresh();
@@ -575,11 +603,15 @@ export function NewTalentDrawer() {
             }));
             const created = bulkAddTalent(enriched);
             if (created > 0) {
-              toast(`Created ${created} draft${created === 1 ? "" : "s"} · review in Approvals`);
+              toast(
+                copy.isSpanish
+                  ? `${created} borrador${created === 1 ? "" : "es"} creado${created === 1 ? "" : "s"} · revisar en Aprobaciones`
+                  : `Created ${created} draft${created === 1 ? "" : "s"} · review in Approvals`,
+              );
               closeDrawer();
               openDrawer("talent-approvals");
             } else {
-              toast("No valid rows — each row needs first name + email");
+              toast(tt("No valid rows. Each row needs first name + email."));
             }
           }}
         />
@@ -592,19 +624,19 @@ export function NewTalentDrawer() {
         display: "flex", gap: 6, alignItems: "center", marginBottom: 14,
         flexWrap: "wrap", fontFamily: FONTS.body,
       }}>
-        <button type="button" onClick={handlePasteFromClipboard} title="Paste vCard / IG handle / LinkedIn URL / plain text" style={{
+        <button type="button" onClick={handlePasteFromClipboard} title={tt("Paste vCard / IG handle / LinkedIn URL / plain text")} style={{
           padding: "6px 12px", borderRadius: 999,
           border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink,
           fontSize: 12, fontWeight: 600, cursor: "pointer",
-        }}>📋 Paste contact</button>
+        }}>📋 {tt("Paste contact")}</button>
         <span className="text-admin-ink-dim text-admin-11">
-          vCard · @handle · linkedin.com/in/… · plain text
+          vCard · @handle · linkedin.com/in/… · {tt("plain text")}
         </span>
       </div>
 
       {/* Hero — photo + name + display + pronunciation */}
       <div style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: 14, borderRadius: 14, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 16 }} className="bg-admin-surface">
-        <button type="button" onClick={() => fileRef.current?.click()} aria-label="Upload photo" style={{
+        <button type="button" onClick={() => fileRef.current?.click()} aria-label={tt("Upload photo")} style={{
           width: 88, height: 88, flexShrink: 0,
           borderRadius: 14,
           background: photoUrl
@@ -618,7 +650,7 @@ export function NewTalentDrawer() {
         }}>
           {!photoUrl && (<>
             <span style={{ fontSize: 22, lineHeight: 1 }}>+</span>
-            <span>Photo</span>
+            <span>{tt("Photo")}</span>
           </>)}
           {photoUrl && (
             <span style={{
@@ -626,7 +658,7 @@ export function NewTalentDrawer() {
               padding: "2px 6px", borderRadius: 999,
               background: "rgba(11,11,13,0.65)", color: "#fff",
               fontSize: 9, fontWeight: 600,
-            }}>Replace</span>
+            }}>{tt("Replace")}</span>
           )}
         </button>
         <input ref={fileRef} type="file" accept="image/*" capture="user" style={{ display: "none" }}
@@ -641,17 +673,19 @@ export function NewTalentDrawer() {
         />
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
           <div className="flex gap-1.5">
-            <input type="text" placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)}
+            <input type="text" placeholder={tt("First name")} value={firstName} onChange={(e) => setFirstName(e.target.value)}
               onBlur={() => { void createDraft(); if (draftId) schedulePatch(); }}
               style={qaInputStyle()}
             />
-            <input type="text" placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)}
+            <input type="text" placeholder={tt("Last name")} value={lastName} onChange={(e) => setLastName(e.target.value)}
               onBlur={() => { void createDraft(); if (draftId) schedulePatch(); }}
               style={qaInputStyle()}
             />
           </div>
           <input type="text"
-            placeholder={firstName || lastName ? `Display name · defaults to ${computedDisplayName}` : "Display name (optional)"}
+            placeholder={firstName || lastName
+              ? (copy.isSpanish ? `Nombre público · por defecto ${computedDisplayName}` : `Display name · defaults to ${computedDisplayName}`)
+              : tt("Display name (optional)")}
             value={displayName} onChange={(e) => setDisplayName(e.target.value)}
             style={qaInputStyle()}
           />
@@ -659,9 +693,9 @@ export function NewTalentDrawer() {
       </div>
 
       {/* Contact */}
-      <Section title="Contact" framed>
-        <FieldRow label="Email"
-          hint={method === "invited" ? "Required — they'll receive a claim link." : "Optional — used for booking comms."}
+      <Section title={tt("Contact")} framed>
+        <FieldRow label={tt("Email")}
+          hint={method === "invited" ? tt("Required. They'll receive a claim link.") : tt("Optional. Used for booking comms.")}
         >
           <div className="relative">
             <input type="email" placeholder="talent@example.com"
@@ -680,11 +714,11 @@ export function NewTalentDrawer() {
                 position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
                 fontSize: 10.5, fontWeight: 600,
                 color: emailValid ? COLORS.successDeep : COLORS.amberDeep,
-              }}>{emailValid ? "✓ valid" : "check format"}</span>
+              }}>{emailValid ? `✓ ${tt("valid")}` : tt("check format")}</span>
             )}
           </div>
         </FieldRow>
-        <FieldRow label="Phone" optional hint="Used for SMS verification + day-of booking comms.">
+        <FieldRow label={tt("Phone")} optional hint={tt("Used for SMS verification + day-of booking comms.")}>
           <div className="flex gap-1.5">
             <select value={phoneCountry} onChange={(e) => setPhoneCountry(e.target.value)} style={{
               padding: "10px 10px", borderRadius: 10,
@@ -711,7 +745,7 @@ export function NewTalentDrawer() {
       </Section>
 
       {/* Talent Type */}
-      <Section title="Primary Talent Type" framed>
+      <Section title={tt("Primary Talent Type")} framed>
         {/* Sticky confirmation — shows immediately after picking so the
             operator knows the selection registered without needing to scroll */}
         {primaryType && (() => {
@@ -720,16 +754,16 @@ export function NewTalentDrawer() {
             <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px 5px 7px", borderRadius: 999, background: "rgba(11,11,13,0.06)", border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, marginBottom: 10 }} className="text-admin-ink">
               <span className="text-admin-green text-admin-11">✓</span>
               <span>{match.child.label}</span>
-              <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">under {match.parent.label}</span>
+              <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">{tt("under")} {match.parent.label}</span>
               <button type="button" onClick={() => setPrimaryType(null)} style={{
                 background: "none", border: "none", cursor: "pointer",
                 color: COLORS.inkMuted, fontSize: 13, padding: 0, lineHeight: 1,
-              }} title="Clear selection">×</button>
+              }} title={tt("Clear selection")}>×</button>
             </div>
           ) : null;
         })()}
         <div style={{ fontSize: 11.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink-muted">
-          What clients book this person as. Add secondary roles below — this matches what registration collects.
+          {tt("What clients book this person as. Add secondary roles below, this matches what registration collects.")}
         </div>
         <PrimaryTalentTypeGrid parents={allowedParents} selected={primaryType} onPick={(id) => setPrimaryType(id)} />
         {restParents.length > 0 && (
@@ -739,11 +773,13 @@ export function NewTalentDrawer() {
             color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
             fontFamily: FONTS.body,
           }}>
-            {showMore ? `– Hide ${restParents.length} more` : `+ More… (${restParents.length})`}
+            {showMore
+              ? (copy.isSpanish ? `Ocultar ${restParents.length} más` : `Hide ${restParents.length} more`)
+              : (copy.isSpanish ? `+ Más… (${restParents.length})` : `+ More… (${restParents.length})`)}
           </button>
         )}
         <div style={{ marginTop: 6, fontSize: 10.5 }} className="text-admin-ink-dim">
-          {live.source === "live" ? "Live taxonomy ·" : "Local fixture ·"} {visibleParents.length} visible · {restParents.length} more
+          {live.source === "live" ? tt("Live taxonomy") : tt("Local fixture")} · {copy.isSpanish ? `${visibleParents.length} visibles · ${restParents.length} más` : `${visibleParents.length} visible · ${restParents.length} more`}
         </div>
       </Section>
 
@@ -756,9 +792,9 @@ export function NewTalentDrawer() {
           .flatMap(parent => parent.children.map(child => ({ parent, child })))
           .filter(({ child }) => child.id !== primaryType);
         return (
-          <Section title="Secondary talent types" framed>
+          <Section title={tt("Secondary talent types")} framed>
             <div style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              Optional. Pick exact additional services this talent also books for. Multi-role profiles surface in more searches.
+              {tt("Optional. Pick exact additional services this talent also books for. Multi-role profiles surface in more searches.")}
             </div>
             <div className="flex flex-wrap gap-1.5">
               {candidates.map(({ parent, child }) => {
@@ -789,7 +825,9 @@ export function NewTalentDrawer() {
             </div>
             {secondaryTypes.length > 0 && (
               <div style={{ marginTop: 8, fontSize: 10.5 }} className="text-admin-ink-dim">
-                {secondaryTypes.length} secondary {secondaryTypes.length === 1 ? "role" : "roles"} selected.
+                {copy.isSpanish
+                  ? `${secondaryTypes.length} ${secondaryTypes.length === 1 ? "rol secundario seleccionado" : "roles secundarios seleccionados"}.`
+                  : `${secondaryTypes.length} secondary ${secondaryTypes.length === 1 ? "role" : "roles"} selected.`}
               </div>
             )}
           </Section>
@@ -822,9 +860,9 @@ export function NewTalentDrawer() {
           && parentIds.some(p => f.recommendedFor?.includes(p))
         );
         return (
-          <Section title="What's collected next" framed>
+          <Section title={tt("What's collected next")} framed>
             <div style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              After save, the full profile shell asks for these fields. Catalog-driven — workspace overrides apply.
+              {tt("After save, the full profile shell asks for these fields. Catalog-driven, workspace overrides apply.")}
             </div>
             {required.length > 0 && (
               <div className="mb-2.5">
@@ -832,7 +870,7 @@ export function NewTalentDrawer() {
                   fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
                   color: COLORS.accentDeep ?? COLORS.accent, marginBottom: 4,
                 }}>
-                  Required ({required.length})
+                  {tt("Required")} ({required.length})
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {required.slice(0, 12).map(f => (
@@ -846,7 +884,7 @@ export function NewTalentDrawer() {
                   ))}
                   {required.length > 12 && (
                     <span style={{ fontSize: 10.5, alignSelf: "center" }} className="text-admin-ink-muted">
-                      +{required.length - 12} more
+                      +{required.length - 12} {tt("more")}
                     </span>
                   )}
                 </div>
@@ -855,7 +893,7 @@ export function NewTalentDrawer() {
             {recommended.length > 0 && (
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-muted">
-                  Recommended ({recommended.length})
+                  {tt("Recommended")} ({recommended.length})
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {recommended.slice(0, 8).map(f => (
@@ -869,7 +907,7 @@ export function NewTalentDrawer() {
                   ))}
                   {recommended.length > 8 && (
                     <span style={{ fontSize: 10.5, alignSelf: "center" }} className="text-admin-ink-dim">
-                      +{recommended.length - 8} more
+                      +{recommended.length - 8} {tt("more")}
                     </span>
                   )}
                 </div>
@@ -880,9 +918,9 @@ export function NewTalentDrawer() {
       })()}
 
       {/* Home base */}
-      <Section title="Home base" framed>
-        <FieldRow label="Where is this talent based?" hint="Service areas + travel radius are set in the full profile.">
-          <input type="text" placeholder="e.g. Playa del Carmen"
+      <Section title={tt("Home base")} framed>
+        <FieldRow label={tt("Where is this talent based?")} hint={tt("Service areas + travel radius are set in the full profile.")}>
+          <input type="text" placeholder={tt("e.g. Playa del Carmen")}
             value={homeBase} onChange={(e) => setHomeBase(e.target.value)}
             onBlur={schedulePatch}
             style={qaInputStyle()}
@@ -891,29 +929,29 @@ export function NewTalentDrawer() {
       </Section>
 
       {/* Management */}
-      <Section title="Management method">
+      <Section title={tt("Management method")}>
         <ManagementMethodPicker value={method} onChange={setMethod} />
       </Section>
 
       {/* Power-user: registration link */}
-      <Section title="Or send the registration link" framed>
+      <Section title={tt("Or send the registration link")} framed>
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
           fontFamily: FONTS.body,
         }}>
           <div className="flex-1 min-w-0">
             <div className="text-admin-ink text-admin-12h font-semibold">
-              Mobile-first self-registration
+              {tt("Mobile-first self-registration")}
             </div>
             <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
-              The talent fills out their own profile. Goes to your approval queue.
+              {tt("The talent fills out their own profile. Goes to your approval queue.")}
             </div>
           </div>
           <button type="button" onClick={() => openDrawer("talent-registration")} style={{
             padding: "9px 14px", borderRadius: 999,
             background: COLORS.fill, color: "#fff", border: "none",
             fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer", flexShrink: 0,
-          }}>Preview</button>
+          }}>{tt("Preview")}</button>
         </div>
         <div className="mt-2.5">
           <button
@@ -922,8 +960,8 @@ export function NewTalentDrawer() {
               const url = `https://tulala.digital/${effectiveTenant.slug}/join`;
               void navigator.clipboard
                 .writeText(url)
-                .then(() => toast("Registration link copied"))
-                .catch(() => toast("Couldn't copy — copy manually"));
+                .then(() => toast(tt("Registration link copied")))
+                .catch(() => toast(tt("Couldn't copy. Copy manually.")));
             }}
             style={{
               width: "100%", padding: "10px 14px", borderRadius: 10,
@@ -933,7 +971,7 @@ export function NewTalentDrawer() {
               textAlign: "left",
             }}
           >
-            tulala.digital/{effectiveTenant.slug}/join · copy link
+            tulala.digital/{effectiveTenant.slug}/join · {tt("copy link")}
           </button>
         </div>
       </Section>

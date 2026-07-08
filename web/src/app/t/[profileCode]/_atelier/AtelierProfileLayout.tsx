@@ -65,11 +65,19 @@ function groupDetailRows(rows: DetailRow[]): Array<{ group: string; rows: Detail
   return order.map((group) => ({ group, rows: byGroup.get(group)! }));
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "·";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+/**
+ * Letter-free person silhouette used as the no-photo portrait/avatar fallback.
+ * Inherits `currentColor` from each `__mono`/`.mono` container so it keeps the
+ * theme accent. `size` is the SVG width/height as a % of the (flex-centered)
+ * container.
+ */
+function Silhouette({ size = "46%" }: { size?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="8.2" r="3.6" />
+      <path d="M4.6 19.4c0-3.7 3.2-6.2 7.4-6.2s7.4 2.5 7.4 6.2c0 .5-.4.8-.9.8H5.5c-.5 0-.9-.3-.9-.8Z" />
+    </svg>
+  );
 }
 
 /** Two-digit section index, e.g. 1 → "01". */
@@ -457,13 +465,13 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
           </div>
         </section>
       ) : (
-        // Text-only masthead — no images at all. Monogram, never a gray box.
+        // Text-only masthead — no images at all. Silhouette, never a gray box.
         <section className="at-col at-hero" data-profile-section="hero">
           {eyebrowLine ? <span className="at-eyebrow">{eyebrowLine}</span> : null}
           <h1>{name}</h1>
           <div className="at-portrait">
             <div className="at-portrait__mono" aria-hidden="true">
-              {initials(name)}
+              <Silhouette />
             </div>
           </div>
           {chips}
@@ -632,6 +640,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
             reviews={talentReviews}
             theme={reviewsTheme}
             heading=""
+            talentName={name}
           />
         </section>
       ) : null}
@@ -669,7 +678,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
                     />
                   ) : (
                     <div className="at-similar__mono" aria-hidden="true">
-                      {initials(st.displayName)}
+                      <Silhouette />
                     </div>
                   )}
                 </Link>
@@ -731,7 +740,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={profileImageUrl} alt="" />
           ) : (
-            <span className="mono">{initials(name)}</span>
+            <span className="mono"><Silhouette size="60%" /></span>
           )}
           <div style={{ minWidth: 0 }}>
             <div className="n">{name}</div>

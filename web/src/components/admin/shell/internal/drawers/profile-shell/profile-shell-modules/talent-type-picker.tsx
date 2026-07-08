@@ -13,12 +13,14 @@ import {
   TaxonomyParent,
   parseTalentCsv,
   shortParentLabel,
+  useDashboardText,
 } from "../../drawer-shared";
 
 export function CsvBulkAddPanel({ allowedParents, onComplete }: {
   allowedParents: TaxonomyParent[];
   onComplete: (rows: { firstName: string; lastName: string; email: string; phone: string; type: string; city: string }[], defaultType: string | null) => void;
 }) {
+  const copy = useDashboardText();
   const [raw, setRaw] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [defaultType, setDefaultType] = useState<string | null>(null);
@@ -38,11 +40,11 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
     <div style={{ fontFamily: FONTS.body }}>
       <div style={{ padding: 14, borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14 }} className="bg-admin-surface">
         <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink">
-          Paste or upload a CSV
+          {copy.t("Paste or upload a CSV")}
         </div>
         <div style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
-          Headers we recognize: <code style={{ fontFamily: FONTS.mono }}>firstName, lastName, email, phone, type, city</code>.
-          Other column orders work too.
+          {copy.t("Headers we recognize:")} <code style={{ fontFamily: FONTS.mono }}>firstName, lastName, email, phone, type, city</code>.
+          {" "}{copy.t("Other column orders work too.")}
         </div>
         <textarea value={raw}
           onChange={(e) => setRaw(e.target.value)}
@@ -60,19 +62,19 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
             padding: "7px 12px", borderRadius: 999,
             border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink,
             fontSize: 12, fontWeight: 600, cursor: "pointer",
-          }}>📎 Upload .csv file</button>
+          }}>📎 {copy.t("Upload .csv file")}</button>
           <button type="button" onClick={() => setRaw(sample)} style={{
             padding: "7px 12px", borderRadius: 999,
             border: `1px dashed ${COLORS.border}`, background: "transparent",
             color: COLORS.inkMuted,
             fontSize: 12, fontWeight: 500, cursor: "pointer",
-          }}>Use sample</button>
+          }}>{copy.t("Use sample")}</button>
           {raw && (
             <button type="button" onClick={() => setRaw("")} style={{
               padding: "7px 12px", borderRadius: 999, border: "none",
               background: "transparent", color: COLORS.inkMuted,
               fontSize: 12, fontWeight: 500, cursor: "pointer",
-            }}>Clear</button>
+            }}>{copy.t("Clear")}</button>
           )}
           <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: "none" }}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
@@ -87,14 +89,14 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
             marginBottom: 8,
           }}>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
-              Preview · {parsed.length} row{parsed.length === 1 ? "" : "s"} ({valid} valid)
+              {(parsed.length === 1 ? copy.t("Preview · {count} row ({valid} valid)") : copy.t("Preview · {count} rows ({valid} valid)")).replace("{count}", String(parsed.length)).replace("{valid}", String(valid))}
             </div>
             <select value={defaultType ?? ""} onChange={(e) => setDefaultType(e.target.value || null)} style={{
               padding: "5px 9px", borderRadius: 6,
               border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
               fontSize: 11, color: COLORS.ink, outline: "none", fontFamily: FONTS.body,
             }}>
-              <option value="">Default type · skip</option>
+              <option value="">{copy.t("Default type · skip")}</option>
               {allowedParents.flatMap(p => p.children).map(c => (
                 <option key={c.id} value={c.id}>{c.label}</option>
               ))}
@@ -109,11 +111,11 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: FONTS.body, fontSize: 12 }}>
                 <thead>
                   <tr className="bg-admin-surface">
-                    <th style={csvCellStyle(true)}>Name</th>
-                    <th style={csvCellStyle(true)}>Email</th>
-                    <th style={csvCellStyle(true)}>Phone</th>
-                    <th style={csvCellStyle(true)}>Type</th>
-                    <th style={csvCellStyle(true)}>City</th>
+                    <th style={csvCellStyle(true)}>{copy.t("Name")}</th>
+                    <th style={csvCellStyle(true)}>{copy.t("Email")}</th>
+                    <th style={csvCellStyle(true)}>{copy.t("Phone")}</th>
+                    <th style={csvCellStyle(true)}>{copy.t("Type")}</th>
+                    <th style={csvCellStyle(true)}>{copy.t("City")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -122,10 +124,10 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
                     return (
                       <tr key={i} style={{ borderTop: `1px solid ${COLORS.borderSoft}`, opacity: isValid ? 1 : 0.55 }}>
                         <td style={csvCellStyle(false)}>
-                          {`${r.firstName} ${r.lastName}`.trim() || <span className="text-admin-amber-deep">missing name</span>}
+                          {`${r.firstName} ${r.lastName}`.trim() || <span className="text-admin-amber-deep">{copy.t("missing name")}</span>}
                         </td>
                         <td style={csvCellStyle(false)}>
-                          {r.email || <span className="text-admin-amber-deep">missing email</span>}
+                          {r.email || <span className="text-admin-amber-deep">{copy.t("missing email")}</span>}
                         </td>
                         <td style={csvCellStyle(false)}>{r.phone || "—"}</td>
                         <td style={csvCellStyle(false)}>{r.type || (defaultType && allowedParents.flatMap(p => p.children).find(c => c.id === defaultType)?.label) || <span className="text-admin-ink-dim">—</span>}</td>
@@ -139,7 +141,7 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
           </div>
           {parsed.length > 200 && (
             <div style={{ padding: "8px 12px", borderRadius: 8, fontSize: 12, marginBottom: 8 }} className="bg-admin-amber-soft text-admin-amber-deep">
-              {parsed.length} rows detected — imports are capped at 200. Trim your CSV to continue.
+              {copy.t("{count} rows detected. Imports are capped at 200. Trim your CSV to continue.").replace("{count}", String(parsed.length))}
             </div>
           )}
           <button type="button" onClick={() => onComplete(parsed.slice(0, 200), defaultType)} disabled={valid === 0 || parsed.length > 200} style={{
@@ -148,13 +150,13 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
             color: valid > 0 && parsed.length <= 200 ? "#fff" : COLORS.inkDim,
             fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
             cursor: valid > 0 && parsed.length <= 200 ? "pointer" : "default",
-          }}>{valid === 0 ? "Add a name + email per row to continue" : parsed.length > 200 ? `Trim to ≤ 200 rows first (${parsed.length} detected)` : `Create ${valid} talent${valid === 1 ? "" : "s"}`}</button>
+          }}>{valid === 0 ? copy.t("Add a name + email per row to continue") : parsed.length > 200 ? copy.t("Trim to ≤ 200 rows first ({count} detected)").replace("{count}", String(parsed.length)) : (valid === 1 ? copy.t("Create {count} talent") : copy.t("Create {count} talents")).replace("{count}", String(valid))}</button>
         </>
       )}
 
       {parsed.length === 0 && raw.trim() && (
         <div style={{ padding: 12, borderRadius: 10, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-amber-soft text-admin-amber-deep">
-          Couldn&apos;t parse this. The first row should be column headers (firstName, lastName, email, …).
+          {copy.t("Couldn't parse this. The first row should be column headers (firstName, lastName, email, …).")}
         </div>
       )}
     </div>
@@ -183,6 +185,7 @@ export function PasteContactModal({ onClose, onApply }: {
   onClose: () => void;
   onApply: (text: string) => void;
 }) {
+  const copy = useDashboardText();
   const [text, setText] = useState("");
   return (
     <div onClick={onClose} style={{
@@ -196,10 +199,9 @@ export function PasteContactModal({ onClose, onApply }: {
         background: "#fff", borderRadius: 14, padding: 20,
         boxShadow: "0 30px 60px -10px rgba(11,11,13,0.4)",
       }}>
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }} className="text-admin-ink">Paste a contact</h3>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }} className="text-admin-ink">{copy.t("Paste a contact")}</h3>
         <p style={{ margin: "6px 0 12px", fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
-          vCard · Instagram handle (@user) · linkedin.com/in/slug · or just paste a name + email + phone.
-          We&apos;ll extract what we can.
+          {copy.t("vCard · Instagram handle (@user) · linkedin.com/in/slug · or just paste a name + email + phone. We'll extract what we can.")}
         </p>
         <textarea autoFocus value={text} onChange={e => setText(e.target.value)}
           placeholder="Sofia Lupo&#10;sofia@example.com&#10;+34 612 345 678&#10;@sofia.lupo"
@@ -216,13 +218,13 @@ export function PasteContactModal({ onClose, onApply }: {
             padding: "9px 14px", borderRadius: 999,
             border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink,
             fontSize: 13, fontWeight: 600, cursor: "pointer",
-          }}>Cancel</button>
+          }}>{copy.t("Cancel")}</button>
           <button type="button" onClick={() => onApply(text)} disabled={!text.trim()} style={{
             padding: "9px 16px", borderRadius: 999, border: "none",
             background: text.trim() ? COLORS.fill : "rgba(11,11,13,0.10)",
             color: text.trim() ? "#fff" : COLORS.inkDim,
             fontSize: 13, fontWeight: 600, cursor: text.trim() ? "pointer" : "default",
-          }}>Apply</button>
+          }}>{copy.t("Apply")}</button>
         </div>
       </div>
     </div>
@@ -278,6 +280,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
   selected: string | null;
   onPick: (id: string) => void;
 }) {
+  const copy = useDashboardText();
   // 2026 reset — UI rule: parent category first, specific talent type second.
   // No flat "Popular · top 8" row of specific types here. No 425-chip
   // show-all wall. The user must drill into a parent to see the types
@@ -320,7 +323,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search talent types — e.g. fashion, host, DJ, chef…"
+          placeholder={copy.t("Search talent types, e.g. fashion, host, DJ, chef…")}
           style={{
             width: "100%", boxSizing: "border-box",
             padding: "10px 36px 10px 36px", borderRadius: 10,
@@ -335,7 +338,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
         }}>🔍</span>
         {query && (
           <button type="button" onClick={() => { setQuery(""); inputRef.current?.focus(); }}
-            aria-label="Clear search"
+            aria-label={copy.t("Clear search")}
             style={{
               position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
               width: 22, height: 22, borderRadius: "50%", border: "none",
@@ -355,7 +358,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
           }}>
             {matched.length === 0 ? (
               <div style={{ padding: "10px 12px", fontSize: 12 }} className="text-admin-ink-muted">
-                No matches. Try a broader search.
+                {copy.t("No matches. Try a broader search.")}
               </div>
             ) : (
               matched.map(t => {
@@ -383,7 +386,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
                       </span>
                     </span>
                     {t.popularity >= 50 && (
-                      <span style={{ fontSize: 9, fontWeight: 600, padding: "2px 6px", borderRadius: 999, flexShrink: 0 }} className="bg-admin-amber-soft text-admin-amber-deep">★ Popular</span>
+                      <span style={{ fontSize: 9, fontWeight: 600, padding: "2px 6px", borderRadius: 999, flexShrink: 0 }} className="bg-admin-amber-soft text-admin-amber-deep">★ {copy.t("Popular")}</span>
                     )}
                   </button>
                 );
@@ -399,7 +402,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
       {q.length === 0 && (
         <>
           <div style={{ fontSize: 11.5, lineHeight: 1.4 }} className="text-admin-ink-dim">
-            Choose a category to see the specific roles inside it.
+            {copy.t("Choose a category to see the specific roles inside it.")}
           </div>
 
           {/* Per-parent rolled-up rows */}
@@ -422,7 +425,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
                         {shortParentLabel(parent)}
                       </div>
                       <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">
-                        {parent.children.length} type{parent.children.length === 1 ? "" : "s"} · {parent.helper}
+                        {(parent.children.length === 1 ? copy.t("{count} type") : copy.t("{count} types")).replace("{count}", String(parent.children.length))} · {parent.helper}
                       </div>
                     </div>
                     <span style={{ fontSize: 14, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .15s" }} className="text-admin-ink-muted">›</span>
@@ -440,7 +443,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
           </div>
 
           <div style={{ fontSize: 10.5, fontStyle: "italic" }} className="text-admin-ink-dim">
-            Looking for something specific? Use the search above.
+            {copy.t("Looking for something specific? Use the search above.")}
           </div>
         </>
       )}
@@ -448,7 +451,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
       {/* Selection acknowledgment */}
       {selectedPair && (
         <div className="text-admin-ink-dim text-admin-11">
-          ✓ Selected: <strong style={{ fontWeight: 600 }} className="text-admin-ink">{selectedPair.child.label}</strong> under {selectedPair.parent.label}
+          ✓ {copy.t("Selected:")} <strong style={{ fontWeight: 600 }} className="text-admin-ink">{selectedPair.child.label}</strong> {copy.t("under {parent}").replace("{parent}", selectedPair.parent.label)}
         </div>
       )}
     </div>
@@ -475,6 +478,7 @@ export function ParentExpandedView({
   selected: string | null;
   onPick: (id: string) => void;
 }) {
+  const copy = useDashboardText();
   const TOP_N = 6;
   const [localQuery, setLocalQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
@@ -508,7 +512,7 @@ export function ParentExpandedView({
             type="search"
             value={localQuery}
             onChange={(e) => setLocalQuery(e.target.value)}
-            placeholder={`Search in ${shortLabel}…`}
+            placeholder={copy.t("Search in {parent}…").replace("{parent}", shortLabel)}
             style={{
               width: "100%", boxSizing: "border-box",
               padding: "7px 28px 7px 28px", borderRadius: 8,
@@ -523,7 +527,7 @@ export function ParentExpandedView({
           }}>🔍</span>
           {localQuery && (
             <button type="button" onClick={() => setLocalQuery("")}
-              aria-label="Clear search"
+              aria-label={copy.t("Clear search")}
               style={{
                 position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
                 width: 18, height: 18, borderRadius: "50%", border: "none",
@@ -538,15 +542,15 @@ export function ParentExpandedView({
       {!filtered && (
         <div style={{ fontSize: 10.5, marginTop: 2 }} className="text-admin-ink-dim">
           {showAll
-            ? `All ${popSorted.length} types in ${shortLabel}`
-            : `Top in ${shortLabel}`}
+            ? copy.t("All {count} types in {parent}").replace("{count}", String(popSorted.length)).replace("{parent}", shortLabel)
+            : copy.t("Top in {parent}").replace("{parent}", shortLabel)}
         </div>
       )}
       {filtered && (
         <div style={{ fontSize: 10.5, marginTop: 2 }} className="text-admin-ink-dim">
           {filtered.length === 0
-            ? "No matches in this category."
-            : `${filtered.length} match${filtered.length === 1 ? "" : "es"} in ${shortLabel}`}
+            ? copy.t("No matches in this category.")
+            : (filtered.length === 1 ? copy.t("{count} match in {parent}") : copy.t("{count} matches in {parent}")).replace("{count}", String(filtered.length)).replace("{parent}", shortLabel)}
         </div>
       )}
 
@@ -580,7 +584,7 @@ export function ParentExpandedView({
           color: COLORS.inkMuted, fontSize: 11, fontWeight: 500, cursor: "pointer",
           fontFamily: FONTS.body,
         }}>
-          {showAll ? `– Show fewer` : `+ Show all ${hidden} more in ${shortLabel}`}
+          {showAll ? copy.t("- Show fewer") : copy.t("+ Show all {count} more in {parent}").replace("{count}", String(hidden)).replace("{parent}", shortLabel)}
         </button>
       )}
     </div>
@@ -625,6 +629,7 @@ export function SiblingTopNPicker({
    *  and the secondary id list). */
   tenantEnabledSlugs?: Set<string>;
 }) {
+  const copy = useDashboardText();
   const TOP_N = 6;
   const [localQuery, setLocalQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
@@ -667,7 +672,7 @@ export function SiblingTopNPicker({
             type="search"
             value={localQuery}
             onChange={(e) => setLocalQuery(e.target.value)}
-            placeholder={`Search in ${parentLabel}…`}
+            placeholder={copy.t("Search in {parent}…").replace("{parent}", parentLabel)}
             style={{
               width: "100%", boxSizing: "border-box",
               padding: "7px 28px 7px 28px", borderRadius: 8,
@@ -682,7 +687,7 @@ export function SiblingTopNPicker({
           }}>🔍</span>
           {localQuery && (
             <button type="button" onClick={() => setLocalQuery("")}
-              aria-label="Clear search"
+              aria-label={copy.t("Clear search")}
               style={{
                 position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
                 width: 18, height: 18, borderRadius: "50%", border: "none",
@@ -695,7 +700,7 @@ export function SiblingTopNPicker({
 
       {filtered && filtered.length === 0 && (
         <div style={{ fontSize: 11, fontStyle: "italic" }} className="text-admin-ink-dim">
-          No matches in {parentLabel}.
+          {copy.t("No matches in {parent}.").replace("{parent}", parentLabel)}
         </div>
       )}
 
@@ -717,7 +722,7 @@ export function SiblingTopNPicker({
                 onClick={() => onToggle(c.id)}
                 title={
                   disabledForTenant
-                    ? "This talent type isn't enabled in your workspace. Enable it in Settings → Roster → Talent types."
+                    ? copy.t("This talent type isn't enabled in your workspace. Enable it in Settings → Roster → Talent types.")
                     : undefined
                 }
                 style={{
@@ -764,7 +769,7 @@ export function SiblingTopNPicker({
           color: COLORS.inkMuted, fontSize: 11, fontWeight: 500, cursor: "pointer",
           fontFamily: FONTS.body,
         }}>
-          {showAll ? `– Show fewer` : `+ Show all ${hidden} more in ${parentLabel}`}
+          {showAll ? copy.t("- Show fewer") : copy.t("+ Show all {count} more in {parent}").replace("{count}", String(hidden)).replace("{parent}", parentLabel)}
         </button>
       )}
     </div>
@@ -778,6 +783,7 @@ export function ManagementMethodPicker({
   value: "agency" | "invited" | "draft";
   onChange: (v: "agency" | "invited" | "draft") => void;
 }) {
+  const copy = useDashboardText();
   // Each method spells out what happens next + which fields are coming.
   // Eliminates the "wait, do I lose data if I switch?" ambiguity.
   const options: {
@@ -790,44 +796,44 @@ export function ManagementMethodPicker({
   }[] = [
     {
       id: "agency", emoji: "✍️",
-      title: "Agency-managed",
-      desc: "You fill in the full profile right now. Talent can claim ownership of it later — when they're ready, or when you decide they should self-edit.",
-      cta: "Opens the full Profile Builder next",
+      title: copy.t("Agency-managed"),
+      desc: copy.t("You fill in the full profile right now. Talent can claim ownership of it later, when they're ready, or when you decide they should self-edit."),
+      cta: copy.t("Opens the full Profile Builder next"),
       nextFields: [
-        "Cover photo + portfolio gallery (up to 8 + albums)",
-        "Service areas + travel radius",
-        "Bio in any language",
-        "Type-specific fields (height, measurements, vehicle, cuisine, etc.)",
-        "Languages with levels + role flags",
-        "Skills + best-for contexts",
-        "Rates + availability calendar",
-        "Files (comp cards, contracts, certifications)",
-        "Custom workspace fields",
-        "Status + admin controls",
-        "↗ Send claim invite later — talent takes ownership any time",
+        copy.t("Cover photo + portfolio gallery (up to 8 + albums)"),
+        copy.t("Service areas + travel radius"),
+        copy.t("Bio in any language"),
+        copy.t("Type-specific fields (height, measurements, vehicle, cuisine, etc.)"),
+        copy.t("Languages with levels + role flags"),
+        copy.t("Skills + best-for contexts"),
+        copy.t("Rates + availability calendar"),
+        copy.t("Files (comp cards, contracts, certifications)"),
+        copy.t("Custom workspace fields"),
+        copy.t("Status + admin controls"),
+        copy.t("↗ Send claim invite later, talent takes ownership any time"),
       ],
     },
     {
       id: "invited", emoji: "📧",
-      title: "Invite talent to claim",
-      desc: "Email them a claim link. They edit and approve their own profile.",
-      cta: "Sends a claim email · talent fills the rest",
+      title: copy.t("Invite talent to claim"),
+      desc: copy.t("Email them a claim link. They edit and approve their own profile."),
+      cta: copy.t("Sends a claim email · talent fills the rest"),
       nextFields: [
-        "Talent receives email with claim link",
-        "They complete their profile via Talent Registration wizard",
-        "Submission lands in your Pending Approvals queue",
-        "You approve or request changes",
+        copy.t("Talent receives email with claim link"),
+        copy.t("They complete their profile via Talent Registration wizard"),
+        copy.t("Submission lands in your Pending Approvals queue"),
+        copy.t("You approve or request changes"),
       ],
     },
     {
       id: "draft", emoji: "💾",
-      title: "Save as draft",
-      desc: "Not published. Pick this back up later.",
-      cta: "Quietly saves what you've entered",
+      title: copy.t("Save as draft"),
+      desc: copy.t("Not published. Pick this back up later."),
+      cta: copy.t("Quietly saves what you've entered"),
       nextFields: [
-        "Lives in Roster as a Draft",
-        "Open any time to continue editing",
-        "Never visible on the storefront until published",
+        copy.t("Lives in Roster as a Draft"),
+        copy.t("Open any time to continue editing"),
+        copy.t("Never visible on the storefront until published"),
       ],
     },
   ];

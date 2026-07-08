@@ -19,6 +19,8 @@ import {
   StatusChip,
   EntityChip,
   MonoId,
+  PLAN_TIER_LABEL_KEY,
+  WORKSPACE_STATUS_LABEL_KEY,
 } from "./hq-kit";
 import {
   Accordion,
@@ -38,6 +40,26 @@ import {
 import { CommissionSection } from "./tenant-commission-section";
 import { CommercialTermsSection } from "./tenant-commercial-terms-section";
 import type { TenantManagementDetail } from "../../tenant-management-data";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+
+function planChipLabel(t: Translate, plan: string): string | undefined {
+  const key = PLAN_TIER_LABEL_KEY[plan];
+  return key ? t(key) : undefined;
+}
+
+function statusChipLabel(t: Translate, status: string): string | undefined {
+  const key = WORKSPACE_STATUS_LABEL_KEY[status];
+  return key ? t(key) : undefined;
+}
+
+function entityChipLabel(t: Translate, entityType: string): string {
+  return entityType === "hub"
+    ? t("dashboard.platform.tenants.entity.hub")
+    : t("dashboard.platform.tenants.entity.agency");
+}
 
 // ─── Shared mini-primitives ────────────────────────────────────────────────────
 
@@ -121,22 +143,24 @@ function KV({ k, v }: { k: string; v: ReactNode }) {
   );
 }
 
-const LOCALE_LABELS: Record<string, string> = {
-  en: "English",
-  es: "Spanish",
+const LOCALE_LABEL_KEY: Record<string, string> = {
+  en: "dashboard.platform.tenants.langEnglish",
+  es: "dashboard.platform.tenants.langSpanish",
 };
 
-function localeLabel(code: string): string {
-  return LOCALE_LABELS[code] ?? code.toUpperCase();
+function localeLabel(code: string, t: Translate): string {
+  const key = LOCALE_LABEL_KEY[code];
+  return key ? t(key) : code.toUpperCase();
 }
 
 // ─── A. Summary ─────────────────────────────────────────────────────────────────
 
 function SummarySection({ detail, defaultOpen }: SectionProps) {
+  const t = useT();
   const atCapacity =
     detail.seats !== null && detail.activeTalentCount >= detail.seats;
   return (
-    <Accordion title="Summary" defaultOpen={defaultOpen ?? true}>
+    <Accordion title={t("dashboard.platform.tenants.sectionSummary")} defaultOpen={defaultOpen ?? true}>
       <div
         style={{
           display: "grid",
@@ -146,35 +170,38 @@ function SummarySection({ detail, defaultOpen }: SectionProps) {
         }}
       >
         <StatTile
-          label="Plan"
-          value={<PlanChip plan={detail.plan} />}
-          caption={detail.entityType}
+          label={t("dashboard.platform.tenants.statPlan")}
+          value={<PlanChip plan={detail.plan} label={planChipLabel(t, detail.plan)} />}
+          caption={entityChipLabel(t, detail.entityType)}
         />
-        <StatTile label="Status" value={<StatusChip status={detail.status} />} />
         <StatTile
-          label="Talents"
+          label={t("dashboard.platform.tenants.statStatus")}
+          value={<StatusChip status={detail.status} label={statusChipLabel(t, detail.status)} />}
+        />
+        <StatTile
+          label={t("dashboard.platform.tenants.statTalents")}
           value={`${detail.activeTalentCount}`}
-          caption={`${detail.totalTalentCount} total on roster`}
+          caption={interpolate(t("dashboard.platform.tenants.statTalentsCaption"), { count: detail.totalTalentCount })}
           tone={atCapacity ? "amber" : "ink"}
         />
         <StatTile
-          label="Talent types"
+          label={t("dashboard.platform.tenants.statTalentTypes")}
           value={detail.talentTypeCount}
-          caption="active categories"
+          caption={t("dashboard.platform.tenants.statTalentTypesCaption")}
         />
         <StatTile
-          label="Seat limit"
+          label={t("dashboard.platform.tenants.statSeatLimit")}
           value={detail.seats === null ? "∞" : detail.seats}
-          caption={atCapacity ? "at capacity" : "available"}
+          caption={atCapacity ? t("dashboard.platform.tenants.statSeatAtCapacity") : t("dashboard.platform.tenants.statSeatAvailable")}
           tone={atCapacity ? "amber" : "ink"}
         />
-        <StatTile label="Staff" value={detail.staffCount} caption="members" />
+        <StatTile label={t("dashboard.platform.tenants.statStaff")} value={detail.staffCount} caption={t("dashboard.platform.tenants.statStaffCaption")} />
         <StatTile
-          label="Created"
+          label={t("dashboard.platform.tenants.statCreated")}
           value={<span style={{ fontSize: 13 }}>{detail.createdAtLabel}</span>}
         />
         <StatTile
-          label="Last updated"
+          label={t("dashboard.platform.tenants.statLastUpdated")}
           value={<span style={{ fontSize: 13 }}>{detail.updatedAtLabel}</span>}
         />
       </div>
@@ -182,9 +209,9 @@ function SummarySection({ detail, defaultOpen }: SectionProps) {
         <div
           style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}
         >
-          {detail.talentTypes.map((t) => (
-            <Chip key={t} outline>
-              {t}
+          {detail.talentTypes.map((tType) => (
+            <Chip key={tType} outline>
+              {tType}
             </Chip>
           ))}
         </div>
@@ -203,20 +230,20 @@ function SummarySection({ detail, defaultOpen }: SectionProps) {
           }}
         >
           <div style={{ fontWeight: 700, color: HQ.ink, marginBottom: 6 }}>
-            Signup context
+            {t("dashboard.platform.tenants.signupContext")}
           </div>
           {detail.signupContext.audience ? (
-            <div>Audience: {detail.signupContext.audience}</div>
+            <div>{interpolate(t("dashboard.platform.tenants.signupAudience"), { value: detail.signupContext.audience })}</div>
           ) : null}
           {detail.signupContext.rosterSize ? (
-            <div>Roster size: {detail.signupContext.rosterSize}</div>
+            <div>{interpolate(t("dashboard.platform.tenants.signupRosterSize"), { value: detail.signupContext.rosterSize })}</div>
           ) : null}
           {detail.signupContext.tierInterest ? (
-            <div>Tier interest: {detail.signupContext.tierInterest}</div>
+            <div>{interpolate(t("dashboard.platform.tenants.signupTierInterest"), { value: detail.signupContext.tierInterest })}</div>
           ) : null}
           {detail.owner ? (
             <div style={{ marginTop: 6 }}>
-              Owner: {detail.owner.displayName} · {detail.owner.email}
+              {interpolate(t("dashboard.platform.tenants.signupOwner"), { name: detail.owner.displayName, email: detail.owner.email })}
             </div>
           ) : null}
         </div>
@@ -228,6 +255,7 @@ function SummarySection({ detail, defaultOpen }: SectionProps) {
 // ─── B. Links ────────────────────────────────────────────────────────────────
 
 function LinkRow({ label, url }: { label: string; url: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   return (
     <div
@@ -271,7 +299,7 @@ function LinkRow({ label, url }: { label: string; url: string }) {
           setTimeout(() => setCopied(false), 1400);
         }}
       >
-        {copied ? "Copied" : "Copy"}
+        {copied ? t("dashboard.platform.tenants.copied") : t("dashboard.platform.tenants.copy")}
       </Btn>
       <a
         href={url}
@@ -280,7 +308,7 @@ function LinkRow({ label, url }: { label: string; url: string }) {
         style={{ textDecoration: "none" }}
       >
         <Btn size="sm" tone="primary">
-          Open ↗
+          {t("dashboard.platform.tenants.open")}
         </Btn>
       </a>
     </div>
@@ -288,18 +316,18 @@ function LinkRow({ label, url }: { label: string; url: string }) {
 }
 
 function LinksSection({ detail, defaultOpen }: SectionProps) {
+  const t = useT();
   const { urls } = detail;
   return (
-    <Accordion title="Links" defaultOpen={defaultOpen ?? true}>
-      <LinkRow label="Public site" url={urls.publicSite} />
-      <LinkRow label="Admin dashboard" url={urls.adminDashboard} />
-      <LinkRow label="Billing & plan" url={urls.billing} />
+    <Accordion title={t("dashboard.platform.tenants.sectionLinks")} defaultOpen={defaultOpen ?? true}>
+      <LinkRow label={t("dashboard.platform.tenants.linkLabelPublicSite")} url={urls.publicSite} />
+      <LinkRow label={t("dashboard.platform.tenants.linkLabelAdminDashboard")} url={urls.adminDashboard} />
+      <LinkRow label={t("dashboard.platform.tenants.linkLabelBilling")} url={urls.billing} />
       {urls.customDomain && (
-        <LinkRow label="Custom domain" url={urls.customDomain} />
+        <LinkRow label={t("dashboard.platform.tenants.linkLabelCustomDomain")} url={urls.customDomain} />
       )}
       <p style={{ fontSize: 10.5, color: HQ.inkDim, margin: "10px 0 0" }}>
-        Opening the admin dashboard requires a workspace membership or support
-        access — platform super-admins are not auto-members of every workspace.
+        {t("dashboard.platform.tenants.linksNote")}
       </p>
     </Accordion>
   );
@@ -308,9 +336,10 @@ function LinksSection({ detail, defaultOpen }: SectionProps) {
 // ─── C. Owner & billing ──────────────────────────────────────────────────────
 
 function OwnerBillingSection({ detail, defaultOpen }: SectionProps) {
+  const t = useT();
   const { owner, billing, override } = detail;
   return (
-    <Accordion title="Owner & billing" defaultOpen={defaultOpen ?? true}>
+    <Accordion title={t("dashboard.platform.tenants.sectionOwnerBilling")} defaultOpen={defaultOpen ?? true}>
       <div style={{ paddingTop: 8 }}>
         {owner ? (
           <div
@@ -338,7 +367,7 @@ function OwnerBillingSection({ detail, defaultOpen }: SectionProps) {
               style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}
             >
               <Chip bg={HQ.greenSoft} color={HQ.green}>
-                Owner · billing responsible
+                {t("dashboard.platform.tenants.ownerBillingResponsible")}
               </Chip>
             </div>
             <div style={{ marginTop: 6 }}>
@@ -356,60 +385,59 @@ function OwnerBillingSection({ detail, defaultOpen }: SectionProps) {
               color: HQ.red,
             }}
           >
-            No active owner — billing is unassigned. Assign an owner from the
-            Members section.
+            {t("dashboard.platform.tenants.noOwnerBilling")}
           </div>
         )}
 
         <div style={{ marginTop: 4 }}>
-          <KV k="Effective plan" v={<PlanChip plan={billing.effectivePlan} />} />
+          <KV k={t("dashboard.platform.tenants.kvEffectivePlan")} v={<PlanChip plan={billing.effectivePlan} label={planChipLabel(t, billing.effectivePlan)} />} />
           {billing.basePlan && (
             <KV
-              k="Base plan"
+              k={t("dashboard.platform.tenants.kvBasePlan")}
               v={
                 <span
                   style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
                 >
-                  <PlanChip plan={billing.basePlan} />
+                  <PlanChip plan={billing.basePlan} label={planChipLabel(t, billing.basePlan)} />
                   <span style={{ fontSize: 10.5, color: HQ.inkDim }}>
-                    under override
+                    {t("dashboard.platform.tenants.underOverride")}
                   </span>
                 </span>
               }
             />
           )}
           <KV
-            k="Subscription"
+            k={t("dashboard.platform.tenants.kvSubscription")}
             v={
               billing.subscriptionStatus
                 ? `${billing.subscriptionPlan ?? "—"} · ${billing.subscriptionStatus}`
-                : "No paid subscription"
+                : t("dashboard.platform.tenants.noPaidSubscription")
             }
           />
           {billing.currentPeriodEnd && (
-            <KV k="Renews / ends" v={fmtDate(billing.currentPeriodEnd)} />
+            <KV k={t("dashboard.platform.tenants.kvRenewsEnds")} v={fmtDate(billing.currentPeriodEnd)} />
           )}
           {billing.trialEnd && (
-            <KV k="Stripe trial ends" v={fmtDate(billing.trialEnd)} />
+            <KV k={t("dashboard.platform.tenants.kvStripeTrialEnds")} v={fmtDate(billing.trialEnd)} />
           )}
           <KV
-            k="Stripe customer"
+            k={t("dashboard.platform.tenants.kvStripeCustomer")}
             v={
               billing.stripeCustomerId ? (
                 <MonoId value={billing.stripeCustomerId} />
               ) : (
-                <span style={{ color: HQ.inkDim }}>None</span>
+                <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.tenants.none")}</span>
               )
             }
           />
           <KV
-            k="Plan source"
+            k={t("dashboard.platform.tenants.kvPlanSource")}
             v={
               override
-                ? "Platform override (see below)"
+                ? t("dashboard.platform.tenants.planSourceOverride")
                 : billing.subscriptionStatus
-                  ? "Stripe subscription"
-                  : "Plan tier default"
+                  ? t("dashboard.platform.tenants.planSourceStripe")
+                  : t("dashboard.platform.tenants.planSourceDefault")
             }
           />
         </div>
@@ -421,6 +449,7 @@ function OwnerBillingSection({ detail, defaultOpen }: SectionProps) {
 // ─── D. Language & localization ─────────────────────────────────────────────
 
 function LanguageLocalizationSection({ detail, defaultOpen }: SectionProps) {
+  const t = useT();
   const language = detail.language;
   const activeLocales = language.activeLocales;
   const isDefaultActive = activeLocales.includes(language.defaultLocale);
@@ -432,53 +461,51 @@ function LanguageLocalizationSection({ detail, defaultOpen }: SectionProps) {
   const readinessTone = isSupportedState ? "green" : "amber";
 
   return (
-    <Accordion title="Language & Localization" defaultOpen={defaultOpen ?? false}>
+    <Accordion title={t("dashboard.platform.tenants.sectionLanguage")} defaultOpen={defaultOpen ?? false}>
       <div style={{ paddingTop: 4 }}>
-        <KV k="Default language" v={localeLabel(language.defaultLocale)} />
+        <KV k={t("dashboard.platform.tenants.kvDefaultLanguage")} v={localeLabel(language.defaultLocale, t)} />
         <KV
-          k="Active languages"
+          k={t("dashboard.platform.tenants.kvActiveLanguages")}
           v={
             <span style={{ display: "inline-flex", gap: 5, flexWrap: "wrap", justifyContent: "flex-end" }}>
               {activeLocales.map((locale) => (
                 <Chip key={locale} outline>
-                  {localeLabel(locale)}
+                  {localeLabel(locale, t)}
                 </Chip>
               ))}
             </span>
           }
         />
         <KV
-          k="Public switcher"
+          k={t("dashboard.platform.tenants.kvPublicSwitcher")}
           v={
             language.switcherStatus === "shown"
-              ? "Shown when visitors can choose EN/ES"
+              ? t("dashboard.platform.tenants.switcherShown")
               : activeLocales.length > 1
-                ? "Hidden by tenant preference"
-                : "Hidden because only one language is active"
+                ? t("dashboard.platform.tenants.switcherHiddenPref")
+                : t("dashboard.platform.tenants.switcherHiddenOne")
           }
         />
         <KV
-          k="Switcher preference"
-          v={language.showLanguageSwitcher ? "Show when bilingual" : "Hidden"}
+          k={t("dashboard.platform.tenants.kvSwitcherPreference")}
+          v={language.showLanguageSwitcher ? t("dashboard.platform.tenants.switcherPrefShow") : t("dashboard.platform.tenants.switcherPrefHidden")}
         />
         <KV
-          k="Settings mode"
-          v={language.mode === "tenant-managed" ? "Tenant managed" : "Platform fallback"}
+          k={t("dashboard.platform.tenants.kvSettingsMode")}
+          v={language.mode === "tenant-managed" ? t("dashboard.platform.tenants.settingsModeTenant") : t("dashboard.platform.tenants.settingsModePlatform")}
         />
         <KV
-          k="Readiness"
+          k={t("dashboard.platform.tenants.kvReadiness")}
           v={
             <Chip bg={readinessTone === "green" ? HQ.greenSoft : HQ.amberSoft} color={readinessTone === "green" ? HQ.green : HQ.amber}>
-              {isSupportedState ? "Supported" : "Needs review"}
+              {isSupportedState ? t("dashboard.platform.tenants.readinessSupported") : t("dashboard.platform.tenants.readinessNeedsReview")}
             </Chip>
           }
         />
-        <KV k="Last updated" v={language.updatedAt ? fmtDate(language.updatedAt) : "Not set"} />
+        <KV k={t("dashboard.platform.tenants.statLastUpdated")} v={language.updatedAt ? fmtDate(language.updatedAt) : t("dashboard.platform.tenants.notSet")} />
       </div>
       <p style={{ fontSize: 10.5, color: HQ.inkDim, margin: "10px 0 0" }}>
-        Platform Admin visibility is wired to the canonical tenant identity
-        locale settings. Editing stays in workspace settings until platform
-        override semantics are product-approved.
+        {t("dashboard.platform.tenants.languageNote")}
       </p>
     </Accordion>
   );
@@ -487,8 +514,17 @@ function LanguageLocalizationSection({ detail, defaultOpen }: SectionProps) {
 // ─── G. Analytics (preview) ──────────────────────────────────────────────────
 
 function AnalyticsSection({ detail, defaultOpen }: SectionProps) {
+  const t = useT();
+  const previewMetrics = [
+    t("dashboard.platform.tenants.metricRevenue"),
+    t("dashboard.platform.tenants.metricTraffic"),
+    t("dashboard.platform.tenants.metricProfileViews"),
+    t("dashboard.platform.tenants.metricConversionRate"),
+    t("dashboard.platform.tenants.metricActiveUsers"),
+    t("dashboard.platform.tenants.metricSavedTalents"),
+  ];
   return (
-    <Accordion title="Analytics" defaultOpen={defaultOpen ?? false}>
+    <Accordion title={t("dashboard.platform.tenants.sectionAnalytics")} defaultOpen={defaultOpen ?? false}>
       <div
         style={{
           display: "grid",
@@ -497,12 +533,12 @@ function AnalyticsSection({ detail, defaultOpen }: SectionProps) {
           paddingTop: 10,
         }}
       >
-        <StatTile label="Inquiries" value={detail.inquiryCount} caption="lifetime" />
-        <StatTile label="Bookings" value={detail.bookingCount} caption="lifetime" />
+        <StatTile label={t("dashboard.platform.tenants.statInquiries")} value={detail.inquiryCount} caption={t("dashboard.platform.tenants.lifetime")} />
+        <StatTile label={t("dashboard.platform.tenants.statBookings")} value={detail.bookingCount} caption={t("dashboard.platform.tenants.lifetime")} />
         <StatTile
-          label="Domains"
+          label={t("dashboard.platform.tenants.statDomains")}
           value={detail.domainCount}
-          caption="registered"
+          caption={t("dashboard.platform.tenants.registered")}
         />
       </div>
       <div
@@ -515,26 +551,17 @@ function AnalyticsSection({ detail, defaultOpen }: SectionProps) {
         }}
       >
         <div style={{ fontSize: 11.5, color: HQ.inkMuted, fontWeight: 600 }}>
-          Workspace analytics — not tracked yet
+          {t("dashboard.platform.tenants.analyticsNotTracked")}
         </div>
         <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {[
-            "Revenue",
-            "Traffic",
-            "Profile views",
-            "Conversion rate",
-            "Active users",
-            "Saved talents",
-          ].map((m) => (
+          {previewMetrics.map((m) => (
             <Chip key={m} outline>
               {m}
             </Chip>
           ))}
         </div>
         <p style={{ fontSize: 10.5, color: HQ.inkDim, margin: "8px 0 0" }}>
-          Inquiry and booking totals above are real. The metrics above are not
-          instrumented yet — this section is structured so they slot in without
-          a redesign.
+          {t("dashboard.platform.tenants.analyticsNote")}
         </p>
       </div>
     </Accordion>
@@ -544,14 +571,15 @@ function AnalyticsSection({ detail, defaultOpen }: SectionProps) {
 // ─── H. System & audit ───────────────────────────────────────────────────────
 
 function SystemAuditSection({ detail, defaultOpen }: SectionProps) {
+  const t = useT();
   return (
-    <Accordion title="System & audit" defaultOpen={defaultOpen ?? false}>
+    <Accordion title={t("dashboard.platform.tenants.sectionSystemAudit")} defaultOpen={defaultOpen ?? false}>
       <div style={{ paddingTop: 4 }}>
-        <KV k="Workspace ID" v={<MonoId value={detail.id} />} />
-        <KV k="Slug" v={<MonoId value={detail.slug} />} />
-        <KV k="Entity type" v={<EntityChip entityType={detail.entityType} />} />
-        <KV k="Created" v={fmtDate(detail.createdAt)} />
-        <KV k="Last updated" v={fmtDate(detail.updatedAt)} />
+        <KV k={t("dashboard.platform.tenants.kvWorkspaceId")} v={<MonoId value={detail.id} />} />
+        <KV k={t("dashboard.platform.tenants.kvSlug")} v={<MonoId value={detail.slug} />} />
+        <KV k={t("dashboard.platform.tenants.kvEntityType")} v={<EntityChip entityType={detail.entityType} label={entityChipLabel(t, detail.entityType)} />} />
+        <KV k={t("dashboard.platform.tenants.kvCreated")} v={fmtDate(detail.createdAt)} />
+        <KV k={t("dashboard.platform.tenants.kvLastUpdated")} v={fmtDate(detail.updatedAt)} />
       </div>
       <div
         style={{
@@ -563,11 +591,11 @@ function SystemAuditSection({ detail, defaultOpen }: SectionProps) {
           margin: "12px 0 2px",
         }}
       >
-        Recent platform actions
+        {t("dashboard.platform.tenants.recentPlatformActions")}
       </div>
       {detail.recentAudit.length === 0 ? (
         <div style={{ fontSize: 11.5, color: HQ.inkDim, padding: "8px 0" }}>
-          No platform actions recorded for this workspace.
+          {t("dashboard.platform.tenants.noPlatformActions")}
         </div>
       ) : (
         detail.recentAudit.map((a, i) => (

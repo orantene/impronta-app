@@ -406,6 +406,24 @@ export const INQUIRY_STAGE_META: Record<
   expired: { label: "Expired", tone: "dim", description: "Lapsed past response window." },
 };
 
+/**
+ * i18n catalog-key siblings for the inquiry-stage labels (additive,
+ * non-breaking). The English `.label` on each INQUIRY_STAGE_META entry stays
+ * the source of truth for the many non-localized consumers; a localized
+ * consumer holding a `useT()` resolves `t(INQUIRY_STAGE_LABEL_KEYS[stage])`.
+ * Keys live under `dashboard.enums.inquiryStage.*`.
+ */
+export const INQUIRY_STAGE_LABEL_KEYS: Record<InquiryStage, string> = {
+  draft: "dashboard.enums.inquiryStage.draft",
+  submitted: "dashboard.enums.inquiryStage.submitted",
+  coordination: "dashboard.enums.inquiryStage.coordination",
+  offer_pending: "dashboard.enums.inquiryStage.offer_pending",
+  approved: "dashboard.enums.inquiryStage.approved",
+  booked: "dashboard.enums.inquiryStage.booked",
+  rejected: "dashboard.enums.inquiryStage.rejected",
+  expired: "dashboard.enums.inquiryStage.expired",
+};
+
 export const REQUIREMENT_ROLE_META: Record<
   RequirementRole,
   { label: string; pluralLabel: string }
@@ -616,6 +634,63 @@ export function describeSource(s: InquirySource): { short: string; long: string;
     short: `added by ${channelLabel}`,
     long: `Manually entered by the coordinator (originally ${channelLabel}).`,
     chip: channelLabel,
+  };
+}
+
+// i18n sibling for describeSource (additive — the English version above stays
+// for non-localized consumers, e.g. the inquiry-workspace drawer description).
+// Localized consumers resolve `interpolate(t(shortKey), shortParams)` /
+// `interpolate(t(longKey), longParams)` via their OWN translator. Manual
+// (channel) sources also carry a channel-label key so the interpolated
+// channel name is itself localized. Keys live under
+// `dashboard.adminWork.source.*`.
+const SOURCE_CHANNEL_LABEL_KEYS: Record<
+  Extract<InquirySource, { kind: "manual" }>["channel"],
+  string
+> = {
+  phone:       "dashboard.adminWork.source.channelPhone",
+  email:       "dashboard.adminWork.source.channelEmail",
+  whatsapp:    "dashboard.adminWork.source.channelWhatsApp",
+  "in-person": "dashboard.adminWork.source.channelInPerson",
+};
+export function describeSourceChannelKey(s: Extract<InquirySource, { kind: "manual" }>): string {
+  return SOURCE_CHANNEL_LABEL_KEYS[s.channel];
+}
+export function describeSourceKeys(s: InquirySource): {
+  shortKey: string;
+  shortParams?: Record<string, string | number>;
+  longKey: string;
+  longParams?: Record<string, string | number>;
+} {
+  const SRC = "dashboard.adminWork.source";
+  if (s.kind === "direct") {
+    return {
+      shortKey: `${SRC}.shortVia`, shortParams: { via: s.domain },
+      longKey: `${SRC}.longDirect`, longParams: { domain: s.domain },
+    };
+  }
+  if (s.kind === "hub") {
+    return {
+      shortKey: `${SRC}.shortVia`, shortParams: { via: s.hubName },
+      longKey: `${SRC}.longHub`, longParams: { hubName: s.hubName, domain: s.domain },
+    };
+  }
+  if (s.kind === "marketplace") {
+    return {
+      shortKey: `${SRC}.shortVia`, shortParams: { via: s.platform },
+      longKey: `${SRC}.longMarketplace`, longParams: { platform: s.platform },
+    };
+  }
+  if (s.kind === "talent-page") {
+    const host = s.customDomain ?? `tulala.digital/t/${s.talentSlug}`;
+    return {
+      shortKey: `${SRC}.shortPersonalPage`,
+      longKey: `${SRC}.longTalentPage`, longParams: { host },
+    };
+  }
+  return {
+    shortKey: `${SRC}.shortAddedByChannel`,
+    longKey: `${SRC}.longManualChannel`,
   };
 }
 
@@ -1574,38 +1649,55 @@ export const PLAN_LADDER: PlanLadderRow[] = [
  * caps are soft — when a user is at 80%+ we nudge an upgrade, but never
  * hard-block until they exceed.
  */
+// The English `label`/`detail`/`unit` stay for any non-localized reader;
+// the localized `FreeValuePanel` renders the `*Key` siblings via `t()` (keys
+// under `dashboard.adminWork.freePlan.*`). `storefront.detailKey` is unused
+// at render (the panel overrides that row's detail with the live subdomain)
+// but kept for shape symmetry.
 export const FREE_PLAN_VALUE: Array<{
   id: string;
   label: string;
+  labelKey: string;
   detail: string;
-  used?: { current: number; cap: number; unit: string };
+  detailKey: string;
+  used?: { current: number; cap: number; unit: string; unitKey: string };
 }> = [
   {
     id: "roster",
     label: "Public roster",
+    labelKey: "dashboard.adminWork.freePlan.rosterLabel",
     detail: "Searchable across the Tulala network.",
-    used: { current: 3, cap: 5, unit: "talent" },
+    detailKey: "dashboard.adminWork.freePlan.rosterDetail",
+    used: { current: 3, cap: 5, unit: "talent", unitKey: "dashboard.adminWork.freePlan.unitTalent" },
   },
   {
     id: "inquiries",
     label: "Inbound inquiries",
+    labelKey: "dashboard.adminWork.freePlan.inquiriesLabel",
     detail: "Clients message you through your storefront.",
-    used: { current: 1, cap: 5, unit: "this month" },
+    detailKey: "dashboard.adminWork.freePlan.inquiriesDetail",
+    used: { current: 1, cap: 5, unit: "this month", unitKey: "dashboard.adminWork.freePlan.unitThisMonth" },
   },
   {
     id: "storefront",
     label: "Storefront page",
+    labelKey: "dashboard.adminWork.freePlan.storefrontLabel",
     detail: "Lives at acme-models.tulala.app.",
+    detailKey: "dashboard.adminWork.freePlan.storefrontDetail",
   },
   {
     id: "messaging",
     label: "Talent + client messaging",
+    labelKey: "dashboard.adminWork.freePlan.messagingLabel",
     detail: "Two-thread conversations on every inquiry.",
+    detailKey: "dashboard.adminWork.freePlan.messagingDetail",
   },
   {
     id: "discovery",
     label: "Listed in the public directory",
+    labelKey: "dashboard.adminWork.freePlan.discoveryLabel",
     detail: "Brands looking for talent can find you.",
+    detailKey: "dashboard.adminWork.freePlan.discoveryDetail",
   },
 ];
 
@@ -3384,6 +3476,32 @@ export const TAXONOMY: TaxonomyParent[] = [
     ],
   },
 ];
+
+/**
+ * i18n catalog-key siblings for the TAXONOMY *parent* labels (additive,
+ * non-breaking). The English `.label` on each TAXONOMY entry stays the source of
+ * truth for the many non-localized consumers across the admin shell; a localized
+ * consumer that holds a `useT()` (e.g. the talent MyProfile header) resolves
+ * `t(TAXONOMY_PARENT_LABEL_KEYS[id])` and falls back to the English label when a
+ * key is absent. Keys live under `dashboard.enums.talentRole.*`. Only the 13
+ * parent ids are mapped (the only taxonomy labels rendered on localized
+ * surfaces); child role labels remain a noted follow-up.
+ */
+export const TAXONOMY_PARENT_LABEL_KEYS: Record<TaxonomyParentId, string> = {
+  models: "dashboard.enums.talentRole.models",
+  hosts: "dashboard.enums.talentRole.hosts",
+  performers: "dashboard.enums.talentRole.performers",
+  music: "dashboard.enums.talentRole.music",
+  creators: "dashboard.enums.talentRole.creators",
+  chefs: "dashboard.enums.talentRole.chefs",
+  wellness: "dashboard.enums.talentRole.wellness",
+  hospitality: "dashboard.enums.talentRole.hospitality",
+  transportation: "dashboard.enums.talentRole.transportation",
+  photo_video: "dashboard.enums.talentRole.photo_video",
+  event_staff: "dashboard.enums.talentRole.event_staff",
+  security: "dashboard.enums.talentRole.security",
+  services: "dashboard.enums.talentRole.services",
+};
 
 export const PLAN_TAXONOMY_LIMITS: Record<"free" | "studio" | "agency" | "network", number> = {
   free: 3,

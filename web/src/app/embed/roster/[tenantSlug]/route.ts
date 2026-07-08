@@ -24,6 +24,17 @@ export const runtime = "nodejs";
 
 const SAFE_NAME = /^[a-z0-9-]+$/;
 
+/**
+ * Letter-free line-art bust for the no-photo roster avatar. Inline so the embed
+ * stays a single self-contained document. `currentColor` inherits the muted ink
+ * set on `.avatar`, so it themes with light/dark automatically.
+ */
+const SILHOUETTE_SVG =
+  '<svg class="avatar-silhouette" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+  '<circle cx="12" cy="8.2" r="3.6"/>' +
+  '<path d="M4.6 19.4c0-3.7 3.2-6.2 7.4-6.2s7.4 2.5 7.4 6.2c0 .5-.4.8-.9.8H5.5c-.5 0-.9-.3-.9-.8Z"/>' +
+  "</svg>";
+
 interface RouteContext {
   params: Promise<{ tenantSlug: string }>;
 }
@@ -118,14 +129,13 @@ function renderEmbedHtml({ roster, theme, baseHref }: RenderArgs): string {
 
   const cards = roster.entries.map((e) => {
     const profileUrl = `${baseHref}/t/${encodeURIComponent(e.profileCode)}`;
-    const initials = e.displayName
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((s) => escapeHtml(s[0]?.toUpperCase() ?? ""))
-      .join("");
+    // Real portrait when present; otherwise a letter-free line-art silhouette
+    // (never initials-in-a-box). currentColor tints the mark to the muted ink.
+    const avatarInner = e.imageUrl
+      ? `<img class="avatar-img" src="${escapeAttr(e.imageUrl)}" alt="" loading="lazy" decoding="async">`
+      : SILHOUETTE_SVG;
     return `<a class="card" href="${escapeAttr(profileUrl)}" target="_top" rel="noopener">
-      <div class="avatar" aria-hidden>${initials || "&middot;"}</div>
+      <div class="avatar" aria-hidden>${avatarInner}</div>
       <div class="meta">
         <div class="name">${escapeHtml(e.displayName)}</div>
         ${e.publicRole ? `<div class="role">${escapeHtml(e.publicRole)}</div>` : ""}
@@ -140,7 +150,7 @@ function renderEmbedHtml({ roster, theme, baseHref }: RenderArgs): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>${escapeHtml(roster.tenantName)} — roster</title>
+<title>${escapeHtml(roster.tenantName)} roster</title>
 <base target="_top">
 <style>
   :root { color-scheme: ${theme}; }
@@ -152,10 +162,12 @@ function renderEmbedHtml({ roster, theme, baseHref }: RenderArgs): string {
     background: ${cardBg}; border: 1px solid ${cardBorder}; color: inherit; text-decoration: none;
     transition: transform 120ms ease, border-color 120ms ease; }
   .card:hover { transform: translateY(-1px); border-color: ${ink}; }
-  .avatar { width: 64px; height: 64px; border-radius: 999px;
-    background: linear-gradient(135deg, ${cardBorder}, transparent);
+  .avatar { width: 64px; height: 64px; border-radius: 999px; overflow: hidden;
+    background: ${cardBg}; border: 1px solid ${cardBorder};
     display: inline-flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 22px; letter-spacing: 0.5px; color: ${inkMuted}; }
+    color: ${inkMuted}; }
+  .avatar-img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; display: block; }
+  .avatar-silhouette { width: 42%; height: 42%; opacity: 0.55; }
   .meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .name { font-size: 14px; font-weight: 600; color: ${ink};
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

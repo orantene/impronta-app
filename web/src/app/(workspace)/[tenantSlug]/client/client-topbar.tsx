@@ -38,9 +38,17 @@ const NAV_ITEMS = [
 export function ClientTopbar({
   tenantSlug,
   locale = "en",
+  reviewsEnabled = true,
 }: {
   tenantSlug: string;
   locale?: string;
+  /**
+   * Reviews are a PREMIUM capability gated on the surface tenant's entitlement.
+   * When false, the "reviews" nav entry is hidden. Threaded from the client
+   * layout (a server component) which resolves the entitlement. Defaults to
+   * true so callers that predate the gate keep the item.
+   */
+  reviewsEnabled?: boolean;
 }) {
   const pathname = usePathname();
   const t = createTranslator(locale);
@@ -115,7 +123,9 @@ export function ClientTopbar({
           minWidth: "100%",
         }}
       >
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter(
+          (item) => reviewsEnabled || item.key !== "reviews",
+        ).map((item) => {
           const { key, path } = item;
           const href = `/${tenantSlug}/client/${path}`;
           const active = pathname === href || pathname.startsWith(href + "/");

@@ -28,6 +28,8 @@ import {
   DEFAULT_CURRENCY_OPTIONS,
   type DefaultCurrencyCode,
 } from "@/lib/billing/currencies";
+import { useT } from "@/i18n/use-t";
+import { interpolate, type Translator } from "@/i18n/interpolate";
 import { HQ, F, FD } from "./_tokens";
 import { Pill, SectionLabel, Field, inputStyle, EmptyHint } from "./_primitives";
 
@@ -36,6 +38,7 @@ export function DiscountsTab({
 }: {
   discounts: PricingDiscountRow[];
 }) {
+  const t = useT();
   const active = discounts.filter((d) => d.isActive);
   const archived = discounts.filter((d) => !d.isActive);
   return (
@@ -43,11 +46,16 @@ export function DiscountsTab({
       <NewDiscountForm />
 
       <SectionLabel
-        title="Active codes"
-        hint={`${active.length} of ${discounts.length}`}
+        title={t("dashboard.platform.pricing.discountsTab.activeCodesTitle")}
+        hint={interpolate(
+          t("dashboard.platform.pricing.discountsTab.activeCodesHint"),
+          { active: active.length, total: discounts.length },
+        )}
       />
       {active.length === 0 ? (
-        <EmptyHint text="No active discount codes. Create one above." />
+        <EmptyHint
+          text={t("dashboard.platform.pricing.discountsTab.emptyActive")}
+        />
       ) : (
         <DiscountTable rows={active} />
       )}
@@ -65,7 +73,10 @@ export function DiscountsTab({
           }}
         >
           <summary style={{ cursor: "pointer" }}>
-            Archived codes ({archived.length})
+            {interpolate(
+              t("dashboard.platform.pricing.discountsTab.archivedSummary"),
+              { count: archived.length },
+            )}
           </summary>
           <div style={{ marginTop: 10 }}>
             <DiscountTable rows={archived} dimmed />
@@ -85,6 +96,7 @@ function DiscountTable({
   rows: PricingDiscountRow[];
   dimmed?: boolean;
 }) {
+  const t = useT();
   return (
     <div
       role="table"
@@ -112,12 +124,12 @@ function DiscountTable({
           letterSpacing: 0.6,
         }}
       >
-        <span>Code</span>
-        <span>Kind</span>
-        <span>Value</span>
-        <span>Uses</span>
-        <span>Window</span>
-        <span>Stripe</span>
+        <span>{t("dashboard.platform.pricing.discountsTab.colCode")}</span>
+        <span>{t("dashboard.platform.pricing.discountsTab.colKind")}</span>
+        <span>{t("dashboard.platform.pricing.discountsTab.colValue")}</span>
+        <span>{t("dashboard.platform.pricing.discountsTab.colUses")}</span>
+        <span>{t("dashboard.platform.pricing.discountsTab.colWindow")}</span>
+        <span>{t("dashboard.platform.pricing.discountsTab.colStripe")}</span>
         <span></span>
       </div>
       {rows.map((d) => (
@@ -127,22 +139,47 @@ function DiscountTable({
   );
 }
 
-function formatValue(d: PricingDiscountRow): string {
-  if (d.kind === "percent") return `${d.value}% off`;
-  if (d.kind === "fixed") return `${d.currency ?? "USD"} ${d.value} off`;
+function formatValue(d: PricingDiscountRow, t: Translator): string {
+  if (d.kind === "percent")
+    return interpolate(t("dashboard.platform.pricing.discountsTab.percentOff"), {
+      value: d.value,
+    });
+  if (d.kind === "fixed")
+    return interpolate(t("dashboard.platform.pricing.discountsTab.fixedOff"), {
+      currency: d.currency ?? "USD",
+      value: d.value,
+    });
   const n = Math.round(d.value);
-  return `${n} month${n === 1 ? "" : "s"} free`;
+  return interpolate(
+    t(
+      n === 1
+        ? "dashboard.platform.pricing.discountsTab.monthsFreeOne"
+        : "dashboard.platform.pricing.discountsTab.monthsFreeMany",
+    ),
+    { count: n },
+  );
 }
 
-function formatWindow(d: PricingDiscountRow): string {
+function formatWindow(d: PricingDiscountRow, t: Translator): string {
   const fmt = (iso: string | null) =>
     iso ? new Date(iso).toISOString().slice(0, 10) : null;
   const s = fmt(d.startsAt);
   const e = fmt(d.endsAt);
-  if (!s && !e) return "always";
-  if (s && !e) return `from ${s}`;
-  if (!s && e) return `until ${e}`;
-  return `${s} → ${e}`;
+  if (!s && !e) return t("dashboard.platform.pricing.discountsTab.windowAlways");
+  if (s && !e)
+    return interpolate(
+      t("dashboard.platform.pricing.discountsTab.windowFrom"),
+      { date: s },
+    );
+  if (!s && e)
+    return interpolate(
+      t("dashboard.platform.pricing.discountsTab.windowUntil"),
+      { date: e },
+    );
+  return interpolate(t("dashboard.platform.pricing.discountsTab.windowRange"), {
+    from: s,
+    to: e,
+  });
 }
 
 function DiscountRow({
@@ -152,6 +189,7 @@ function DiscountRow({
   row: PricingDiscountRow;
   dimmed?: boolean;
 }) {
+  const t = useT();
   const [state, setState] = useState<"idle" | "confirm" | "archiving" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -210,16 +248,18 @@ function DiscountRow({
               : HQ.amber
         }
       >
-        {row.kind === "free_months" ? "free" : row.kind}
+        {row.kind === "free_months"
+          ? t("dashboard.platform.pricing.discountsTab.kindFree")
+          : row.kind}
       </Pill>
       <span style={{ fontFamily: F, fontVariantNumeric: "tabular-nums" }}>
-        {formatValue(row)}
+        {formatValue(row, t)}
       </span>
       <span style={{ color: HQ.inkMuted, fontVariantNumeric: "tabular-nums" }}>
         {usesLabel}
       </span>
       <span style={{ color: HQ.inkMuted, fontSize: 11.5 }}>
-        {formatWindow(row)}
+        {formatWindow(row, t)}
       </span>
       <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
         <span
@@ -233,11 +273,15 @@ function DiscountRow({
           aria-hidden
         />
         <span style={{ fontSize: 11, color: HQ.inkMuted }}>
-          {stripeOk ? "synced" : "DB only"}
+          {stripeOk
+            ? t("dashboard.platform.pricing.discountsTab.synced")
+            : t("dashboard.platform.pricing.discountsTab.dbOnly")}
         </span>
       </span>
       {dimmed ? (
-        <span style={{ fontSize: 10.5, color: HQ.inkDim }}>archived</span>
+        <span style={{ fontSize: 10.5, color: HQ.inkDim }}>
+          {t("dashboard.platform.pricing.discountsTab.archivedLabel")}
+        </span>
       ) : state === "confirm" ? (
         <div style={{ display: "flex", gap: 4 }}>
           <button
@@ -254,7 +298,7 @@ function DiscountRow({
               fontWeight: 600,
             }}
           >
-            Confirm
+            {t("dashboard.platform.pricing.discountsTab.confirm")}
           </button>
           <button
             type="button"
@@ -269,7 +313,7 @@ function DiscountRow({
               cursor: "pointer",
             }}
           >
-            Cancel
+            {t("dashboard.platform.pricing.discountsTab.cancel")}
           </button>
         </div>
       ) : (
@@ -287,7 +331,14 @@ function DiscountRow({
             textDecoration: "underline",
           }}
         >
-          {state === "archiving" ? "Archiving…" : state === "error" ? `Failed: ${errorMsg}` : "Archive"}
+          {state === "archiving"
+            ? t("dashboard.platform.pricing.discountsTab.archiving")
+            : state === "error"
+              ? interpolate(
+                  t("dashboard.platform.pricing.discountsTab.archiveFailed"),
+                  { error: errorMsg ?? "" },
+                )
+              : t("dashboard.platform.pricing.discountsTab.archive")}
         </button>
       )}
     </div>
@@ -297,6 +348,7 @@ function DiscountRow({
 // ─── NewDiscountForm ────────────────────────────────────────────────────────
 
 function NewDiscountForm() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
@@ -316,7 +368,7 @@ function NewDiscountForm() {
           width: "fit-content",
         }}
       >
-        + New discount code
+        {t("dashboard.platform.pricing.discountsTab.newCode")}
       </button>
     );
   }
@@ -324,6 +376,7 @@ function NewDiscountForm() {
 }
 
 function NewDiscountFormFields({ onCancel }: { onCancel: () => void }) {
+  const t = useT();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"percent" | "fixed" | "free_months">("percent");
@@ -378,7 +431,10 @@ function NewDiscountFormFields({ onCancel }: { onCancel: () => void }) {
       }
       if (res.stripe.stub) {
         setState("stub");
-        setStubMsg(res.stripe.reason ?? "Saved in DB only.");
+        setStubMsg(
+          res.stripe.reason ??
+            t("dashboard.platform.pricing.discountsTab.savedDbOnlyDefault"),
+        );
       } else {
         setState("saved");
       }
@@ -410,11 +466,11 @@ function NewDiscountFormFields({ onCancel }: { onCancel: () => void }) {
           color: HQ.ink,
         }}
       >
-        New discount code
+        {t("dashboard.platform.pricing.discountsTab.newCodeTitle")}
       </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <Field label="Code (3-32 chars, A-Z 0-9 _ -)">
+        <Field label={t("dashboard.platform.pricing.discountsTab.codeField")}>
           <input
             type="text"
             value={code}
@@ -424,12 +480,12 @@ function NewDiscountFormFields({ onCancel }: { onCancel: () => void }) {
             maxLength={32}
           />
         </Field>
-        <Field label="Internal name">
+        <Field label={t("dashboard.platform.pricing.discountsTab.internalName")}>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="LATAM launch · 50% off"
+            placeholder={t("dashboard.platform.pricing.discountsTab.internalNamePlaceholder")}
             style={{ ...inputStyle(), width: 260 }}
             maxLength={80}
           />
@@ -437,7 +493,7 @@ function NewDiscountFormFields({ onCancel }: { onCancel: () => void }) {
       </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <Field label="Kind">
+        <Field label={t("dashboard.platform.pricing.discountsTab.kindField")}>
           <select
             value={kind}
             onChange={(e) =>
@@ -445,18 +501,24 @@ function NewDiscountFormFields({ onCancel }: { onCancel: () => void }) {
             }
             style={{ ...inputStyle(), width: 160 }}
           >
-            <option value="percent">% off (e.g. 50)</option>
-            <option value="fixed">fixed amount</option>
-            <option value="free_months">N months free</option>
+            <option value="percent">
+              {t("dashboard.platform.pricing.discountsTab.kindPercent")}
+            </option>
+            <option value="fixed">
+              {t("dashboard.platform.pricing.discountsTab.kindFixed")}
+            </option>
+            <option value="free_months">
+              {t("dashboard.platform.pricing.discountsTab.kindMonths")}
+            </option>
           </select>
         </Field>
         <Field
           label={
             kind === "percent"
-              ? "Percent (1-100)"
+              ? t("dashboard.platform.pricing.discountsTab.valuePercent")
               : kind === "fixed"
-                ? "Amount (major units)"
-                : "Months (1-12)"
+                ? t("dashboard.platform.pricing.discountsTab.valueFixed")
+                : t("dashboard.platform.pricing.discountsTab.valueMonths")
           }
         >
           <input
@@ -469,7 +531,7 @@ function NewDiscountFormFields({ onCancel }: { onCancel: () => void }) {
           />
         </Field>
         {kind === "fixed" && (
-          <Field label="Currency">
+          <Field label={t("dashboard.platform.pricing.discountsTab.currencyField")}>
             <select
               value={currency}
               onChange={(e) =>
@@ -485,7 +547,7 @@ function NewDiscountFormFields({ onCancel }: { onCancel: () => void }) {
             </select>
           </Field>
         )}
-        <Field label="Max redemptions (blank = ∞)">
+        <Field label={t("dashboard.platform.pricing.discountsTab.maxRedemptions")}>
           <input
             type="text"
             inputMode="numeric"
@@ -493,14 +555,14 @@ function NewDiscountFormFields({ onCancel }: { onCancel: () => void }) {
             onChange={(e) =>
               setMaxRedemptions(e.target.value.replace(/[^0-9]/g, ""))
             }
-            placeholder="100"
+            placeholder={t("dashboard.platform.pricing.discountsTab.maxRedemptionsPlaceholder")}
             style={{ ...inputStyle(), width: 140 }}
           />
         </Field>
       </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <Field label="Starts at (UTC, optional)">
+        <Field label={t("dashboard.platform.pricing.discountsTab.startsAt")}>
           <input
             type="datetime-local"
             value={startsAt}
@@ -508,7 +570,7 @@ function NewDiscountFormFields({ onCancel }: { onCancel: () => void }) {
             style={{ ...inputStyle(), width: 220 }}
           />
         </Field>
-        <Field label="Ends at (UTC, optional)">
+        <Field label={t("dashboard.platform.pricing.discountsTab.endsAt")}>
           <input
             type="datetime-local"
             value={endsAt}
@@ -535,7 +597,9 @@ function NewDiscountFormFields({ onCancel }: { onCancel: () => void }) {
             fontWeight: 600,
           }}
         >
-          {state === "saving" ? "Creating…" : "Create code"}
+          {state === "saving"
+            ? t("dashboard.platform.pricing.discountsTab.creating")
+            : t("dashboard.platform.pricing.discountsTab.createCode")}
         </button>
         <button
           type="button"
@@ -552,16 +616,20 @@ function NewDiscountFormFields({ onCancel }: { onCancel: () => void }) {
             cursor: state === "saving" ? "default" : "pointer",
           }}
         >
-          Cancel
+          {t("dashboard.platform.pricing.discountsTab.cancel")}
         </button>
         {state === "saved" && (
           <span style={{ fontSize: 11.5, color: HQ.green }}>
-            ✓ Created — Stripe Coupon + Promo Code synced.
+            ✓ {t("dashboard.platform.pricing.discountsTab.createdSynced")}
           </span>
         )}
         {state === "stub" && (
           <span style={{ fontSize: 11.5, color: HQ.amber, lineHeight: 1.4 }}>
-            ✓ Saved in DB. {stubMsg}
+            ✓{" "}
+            {interpolate(
+              t("dashboard.platform.pricing.discountsTab.savedDbOnly"),
+              { detail: stubMsg ?? "" },
+            )}
           </span>
         )}
         {state === "error" && (

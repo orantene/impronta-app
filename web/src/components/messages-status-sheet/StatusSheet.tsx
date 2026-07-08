@@ -16,6 +16,7 @@
  */
 
 import type { ReactNode } from "react";
+import { interpolate, type Translator } from "@/i18n/interpolate";
 
 export type StageStatus =
   | "Inquiry" | "Offer sent" | "Approved" | "Booked" | "Today" | "Paid" | "Wrapped" | "Cancelled";
@@ -32,6 +33,68 @@ export type TalentParticipationRow = {
   decidedAt?: string;
 };
 
+/* --------------------------------------------------------------------------
+ * Discriminant → catalog-key maps. The union values above are BOTH rendered
+ * AND switched on (statusTone, WorkflowStepper.positionFor), so they must
+ * stay English at the type level. We localize only at render time: each map
+ * points a raw discriminant at a `dashboard.adminThread.statusLabel.*` key,
+ * and `label()` resolves it via `t` when a translator is threaded in (the
+ * live admin thread passes one). Consumers that have not been localized yet
+ * (talent/client shells) simply omit `t` and keep the English fallback.
+ * ------------------------------------------------------------------------ */
+const STAGE_LABEL_KEY: Record<StageStatus, string> = {
+  "Inquiry": "dashboard.adminThread.statusLabel.stageInquiry",
+  "Offer sent": "dashboard.adminThread.statusLabel.stageOfferSent",
+  "Approved": "dashboard.adminThread.statusLabel.stageApproved",
+  "Booked": "dashboard.adminThread.statusLabel.stageBooked",
+  "Today": "dashboard.adminThread.statusLabel.stageToday",
+  "Paid": "dashboard.adminThread.statusLabel.stagePaid",
+  "Wrapped": "dashboard.adminThread.statusLabel.stageWrapped",
+  "Cancelled": "dashboard.adminThread.statusLabel.stageCancelled",
+};
+
+const OFFER_LABEL_KEY: Record<OfferStatus, string> = {
+  "No offer": "dashboard.adminThread.statusLabel.offerNone",
+  "Draft": "dashboard.adminThread.statusLabel.offerDraft",
+  "Sent": "dashboard.adminThread.statusLabel.offerSent",
+  "Countered": "dashboard.adminThread.statusLabel.offerCountered",
+  "Accepted": "dashboard.adminThread.statusLabel.offerAccepted",
+  "Declined": "dashboard.adminThread.statusLabel.offerDeclined",
+  "Expired": "dashboard.adminThread.statusLabel.offerExpired",
+};
+
+const PAYMENT_LABEL_KEY: Record<PaymentStatus, string> = {
+  "Not requested": "dashboard.adminThread.statusLabel.paymentNotRequested",
+  "Requested": "dashboard.adminThread.statusLabel.paymentRequested",
+  "Partially paid": "dashboard.adminThread.statusLabel.paymentPartial",
+  "Paid": "dashboard.adminThread.statusLabel.paymentPaid",
+  "Refunded": "dashboard.adminThread.statusLabel.paymentRefunded",
+  "Failed": "dashboard.adminThread.statusLabel.paymentFailed",
+};
+
+const TALENT_LABEL_KEY: Record<TalentParticipationRow["status"], string> = {
+  "Invited": "dashboard.adminThread.statusLabel.talentInvited",
+  "Hold": "dashboard.adminThread.statusLabel.talentHold",
+  "Accepted": "dashboard.adminThread.statusLabel.talentAccepted",
+  "Declined": "dashboard.adminThread.statusLabel.talentDeclined",
+  "Confirmed": "dashboard.adminThread.statusLabel.talentConfirmed",
+  "Removed": "dashboard.adminThread.statusLabel.talentRemoved",
+};
+
+/** Resolve a discriminant to its localized label. Falls back to the raw
+ *  English discriminant when no translator is supplied (or a key is missing),
+ *  so unlocalized consumers keep their current copy. */
+function makeLabelResolver(t?: Translator) {
+  return <K extends string>(value: K, keyMap: Record<K, string>): string => {
+    if (!t) return value;
+    const key = keyMap[value];
+    if (!key) return value;
+    const out = t(key);
+    // `t` returns the key itself on a miss; guard so we never render a raw key.
+    return out === key ? value : out;
+  };
+}
+
 export type StatusSheetData = {
   stage: StageStatus;
   stageHistory?: { stage: StageStatus; at: string; by?: string }[];
@@ -46,10 +109,20 @@ type Props = {
   open: boolean;
   data: StatusSheetData;
   onClose: () => void;
+  /** Optional translator. When supplied (live admin thread) the sheet renders
+   *  localized labels; when omitted, English discriminants are shown. */
+  t?: Translator;
 };
 
-export function StatusSheet({ open, data, onClose }: Props) {
+export function StatusSheet({ open, data, onClose, t }: Props) {
   if (!open) return null;
+
+  const label = makeLabelResolver(t);
+  const tx = (key: string, fallback: string): string => {
+    if (!t) return fallback;
+    const out = t(key);
+    return out === key ? fallback : out;
+  };
 
   return (
     <div
@@ -92,14 +165,14 @@ export function StatusSheet({ open, data, onClose }: Props) {
             letterSpacing: -0.2,
           }}
         >
-          Status
+          {tx("dashboard.adminThread.statusSheetTitle", "Status")}
         </h2>
 
         {/* S0.14 — Workflow visualizer. Horizontal stepper showing where
             this inquiry is in the canonical lifecycle. Past stages get a
             ✓ check + dimmed line; current stage is filled + bold; future
             stages are outlined + muted. */}
-        <WorkflowStepper currentStage={data.stage} />
+        <WorkflowStepper currentStage={data.stage} t={t} />
 
         {/* What happens next — the operational nudge */}
         {data.nextStep && (
@@ -113,20 +186,20 @@ export function StatusSheet({ open, data, onClose }: Props) {
             color: "#0F4F3E",
             lineHeight: 1.5,
           }}>
-            <strong className="font-bold">What happens next:</strong>{" "}
+            <strong className="font-bold">{tx("dashboard.adminThread.statusWhatHappensNext", "What happens next:")}</strong>{" "}
             {data.nextStep}
           </div>
         )}
 
         {/* Family 1 — Stage */}
-        <Section label="Stage">
-          <Row primary={data.stage} />
+        <Section label={tx("dashboard.adminThread.statusSectionStage", "Stage")}>
+          <Row primary={label(data.stage, STAGE_LABEL_KEY)} />
           {data.stageHistory && data.stageHistory.length > 0 && (
             <div style={{ marginTop: 6, paddingLeft: 8, fontSize: 11, color: "rgba(11,11,13,0.55)" }}>
               {data.stageHistory.map((h, i) => (
                 <div key={i} style={{ display: "flex", gap: 6 }}>
                   <span aria-hidden style={{ color: "rgba(11,11,13,0.30)" }}>•</span>
-                  <span>{h.stage} — {h.at}{h.by ? ` · ${h.by}` : ""}</span>
+                  <span>{label(h.stage, STAGE_LABEL_KEY)} · {h.at}{h.by ? ` · ${h.by}` : ""}</span>
                 </div>
               ))}
             </div>
@@ -134,35 +207,35 @@ export function StatusSheet({ open, data, onClose }: Props) {
         </Section>
 
         {/* Family 2 — Offer */}
-        <Section label="Offer">
+        <Section label={tx("dashboard.adminThread.statusSectionOffer", "Offer")}>
           <Row
-            primary={data.offer.status}
+            primary={label(data.offer.status, OFFER_LABEL_KEY)}
             secondary={data.offer.totalLabel}
             hint={data.offer.nextAction}
           />
         </Section>
 
         {/* Family 3 — Talent participation */}
-        <Section label="Talent participation">
+        <Section label={tx("dashboard.adminThread.statusSectionTalent", "Talent participation")}>
           {data.talents.length === 0 ? (
-            <Row primary="No talent on this inquiry yet" secondary="" />
+            <Row primary={tx("dashboard.adminThread.statusNoTalentYet", "No talent on this inquiry yet")} secondary="" />
           ) : (
-            data.talents.map((t, i) => (
+            data.talents.map((row, i) => (
               <Row
                 key={i}
-                primary={t.name}
-                secondary={t.status}
-                hint={t.decidedAt ? `decided ${t.decidedAt}` : undefined}
-                statusTone={statusTone(t.status)}
+                primary={row.name}
+                secondary={label(row.status, TALENT_LABEL_KEY)}
+                hint={row.decidedAt ? interpolate(tx("dashboard.adminThread.statusDecidedHint", "decided {date}"), { date: row.decidedAt }) : undefined}
+                statusTone={statusTone(row.status)}
               />
             ))
           )}
         </Section>
 
         {/* Family 4 — Payment */}
-        <Section label="Payment">
+        <Section label={tx("dashboard.adminThread.statusSectionPayment", "Payment")}>
           <Row
-            primary={data.payment.status}
+            primary={label(data.payment.status, PAYMENT_LABEL_KEY)}
             secondary={data.payment.amountLabel}
             hint={data.payment.nextAction}
           />
@@ -182,7 +255,7 @@ export function StatusSheet({ open, data, onClose }: Props) {
               fontFamily: '"Inter", system-ui, sans-serif',
             }}
           >
-            Close
+            {tx("dashboard.adminThread.statusCloseBtn", "Close")}
           </button>
         </div>
       </div>
@@ -196,14 +269,19 @@ export function StatusSheet({ open, data, onClose }: Props) {
  * the full status set in inquiry-lifecycle.ts to the 5 buckets that
  * matter to a non-engineer reader.
  */
-function WorkflowStepper({ currentStage }: { currentStage: StageStatus }) {
+function WorkflowStepper({ currentStage, t }: { currentStage: StageStatus; t?: Translator }) {
+  const tx = (key: string, fallback: string): string => {
+    if (!t) return fallback;
+    const out = t(key);
+    return out === key ? fallback : out;
+  };
   const STAGES: { key: StageStatus; label: string; icon: string }[] = [
-    { key: "Inquiry",    label: "Inquiry",   icon: "📥" },
-    { key: "Offer sent", label: "Offer",     icon: "💰" },
-    { key: "Approved",   label: "Approved",  icon: "🤝" },
-    { key: "Booked",     label: "Booked",    icon: "✅" },
-    { key: "Today",      label: "Event day", icon: "🎬" },
-    { key: "Wrapped",    label: "Wrapped",   icon: "🎉" },
+    { key: "Inquiry",    label: tx("dashboard.adminThread.stepper.inquiry", "Inquiry"),   icon: "📥" },
+    { key: "Offer sent", label: tx("dashboard.adminThread.stepper.offer", "Offer"),       icon: "💰" },
+    { key: "Approved",   label: tx("dashboard.adminThread.stepper.approved", "Approved"), icon: "🤝" },
+    { key: "Booked",     label: tx("dashboard.adminThread.stepper.booked", "Booked"),     icon: "✅" },
+    { key: "Today",      label: tx("dashboard.adminThread.stepper.eventDay", "Event day"),icon: "🎬" },
+    { key: "Wrapped",    label: tx("dashboard.adminThread.stepper.wrapped", "Wrapped"),   icon: "🎉" },
   ];
 
   // Map any unusual StageStatus value (e.g. "Cancelled" / "Paid") down
@@ -224,7 +302,7 @@ function WorkflowStepper({ currentStage }: { currentStage: StageStatus }) {
         borderRadius: 10,
         fontSize: 12, color: "rgba(11,11,13,0.55)",
       }}>
-        This inquiry was cancelled.
+        {tx("dashboard.adminThread.stepper.cancelled", "This inquiry was cancelled.")}
       </div>
     );
   }

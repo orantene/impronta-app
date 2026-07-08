@@ -4,6 +4,8 @@
 // the same content inside a slide-over when reached via client navigation.
 
 import { TermDetailView } from "../term-detail-view";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,7 @@ export default async function NewTaxonomyTermPage({
   const { kind, parent, saved, error } = await searchParams;
   const resolvedKind =
     kind === "category_group" ? "category_group" : "parent_category";
+  const t = createTranslator(await getRequestLocale());
 
   return (
     <TermDetailView
@@ -25,6 +28,7 @@ export default async function NewTaxonomyTermPage({
       saved={saved}
       error={error}
       variant="page"
+      t={t}
     />
   );
 }

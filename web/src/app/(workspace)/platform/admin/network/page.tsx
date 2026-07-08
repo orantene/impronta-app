@@ -2,6 +2,9 @@
 // Tulala discovery hub: featured talent, moderation queue, hub rules.
 
 import { loadPlatformNetworkStats } from "../../platform-data";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 
 export const dynamic = "force-dynamic";
 
@@ -140,6 +143,8 @@ function StatBox({
 }
 
 export default async function PlatformNetworkPage() {
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const stats = await loadPlatformNetworkStats();
   const publishedRatio =
     stats.totalTalent > 0
@@ -160,7 +165,7 @@ export default async function PlatformNetworkPage() {
             margin: 0,
           }}
         >
-          Network
+          {t("dashboard.platform.network.title")}
         </h1>
         <p
           style={{
@@ -171,8 +176,7 @@ export default async function PlatformNetworkPage() {
             maxWidth: 640,
           }}
         >
-          The discovery surface that sits across every tenant. Curate featured talent,
-          run moderation, and tune ranking.
+          {t("dashboard.platform.network.subtitle")}
         </p>
       </div>
 
@@ -185,20 +189,45 @@ export default async function PlatformNetworkPage() {
           marginBottom: 16,
         }}
       >
-        <StatBox label="Total talent" value={stats.totalTalent} caption="across the network" tone="ink" />
         <StatBox
-          label="Published"
+          label={t("dashboard.platform.network.totalTalent")}
+          value={stats.totalTalent}
+          caption={t("dashboard.platform.network.totalTalentCaption")}
+          tone="ink"
+        />
+        <StatBox
+          label={t("dashboard.platform.network.published")}
           value={stats.publishedTalent}
-          caption={`${publishedRatio}% live`}
+          caption={interpolate(t("dashboard.platform.network.publishedCaption"), {
+            pct: publishedRatio,
+          })}
           tone="green"
         />
-        <StatBox label="Drafts" value={stats.draftTalent} caption="awaiting publish" tone="amber" />
-        <StatBox label="Invited" value={stats.invitedTalent} caption="pending claim" tone="purple" />
-        <StatBox label="Claimed" value={stats.claimedTalent} caption="user_id linked" tone="ink" />
         <StatBox
-          label="Hosting"
+          label={t("dashboard.platform.network.drafts")}
+          value={stats.draftTalent}
+          caption={t("dashboard.platform.network.draftsCaption")}
+          tone="amber"
+        />
+        <StatBox
+          label={t("dashboard.platform.network.invited")}
+          value={stats.invitedTalent}
+          caption={t("dashboard.platform.network.invitedCaption")}
+          tone="purple"
+        />
+        <StatBox
+          label={t("dashboard.platform.network.claimed")}
+          value={stats.claimedTalent}
+          caption={t("dashboard.platform.network.claimedCaption")}
+          tone="ink"
+        />
+        <StatBox
+          label={t("dashboard.platform.network.hosting")}
           value={stats.agenciesActive + stats.hubsActive}
-          caption={`${stats.agenciesActive} agencies · ${stats.hubsActive} hubs`}
+          caption={interpolate(t("dashboard.platform.network.hostingCaption"), {
+            agencies: stats.agenciesActive,
+            hubs: stats.hubsActive,
+          })}
           tone="ink"
         />
       </div>
@@ -212,14 +241,14 @@ export default async function PlatformNetworkPage() {
         }}
       >
         <HqCard
-          title="Hub submissions awaiting review"
-          subtitle="Talent agencies submit to be featured on the network hub."
+          title={t("dashboard.platform.network.submissionsTitle")}
+          subtitle={t("dashboard.platform.network.submissionsSubtitle")}
         >
-          <EmptyState message="No submissions pending review." />
+          <EmptyState message={t("dashboard.platform.network.submissionsEmpty")} />
         </HqCard>
 
-        <HqCard title="Moderation queue">
-          <EmptyState message="No items in the moderation queue." />
+        <HqCard title={t("dashboard.platform.network.moderationTitle")}>
+          <EmptyState message={t("dashboard.platform.network.moderationEmpty")} />
         </HqCard>
       </div>
 
@@ -227,22 +256,22 @@ export default async function PlatformNetworkPage() {
 
       {/* Hub rules card */}
       <HqCard
-        title="Hub rules"
-        subtitle="Criteria for featured talent, ranking weights, and moderation policies."
+        title={t("dashboard.platform.network.hubRulesTitle")}
+        subtitle={t("dashboard.platform.network.hubRulesSubtitle")}
       >
         <div style={{ padding: "12px 0" }}>
           {[
             {
-              label: "Featured criteria",
-              desc: "Active agency, complete profile, verified identity, ≥3 published bookings.",
+              label: t("dashboard.platform.network.featuredCriteriaLabel"),
+              desc: t("dashboard.platform.network.featuredCriteriaDesc"),
             },
             {
-              label: "Ranking signals",
-              desc: "Recency, booking velocity, profile completeness, trust tier.",
+              label: t("dashboard.platform.network.rankingSignalsLabel"),
+              desc: t("dashboard.platform.network.rankingSignalsDesc"),
             },
             {
-              label: "Moderation policy",
-              desc: "Profiles flagged by 3+ unique reporters are auto-hidden pending review.",
+              label: t("dashboard.platform.network.moderationPolicyLabel"),
+              desc: t("dashboard.platform.network.moderationPolicyDesc"),
             },
           ].map((rule) => (
             <div

@@ -31,6 +31,8 @@ import {
   DEFAULT_CURRENCY_OPTIONS,
   type DefaultCurrencyCode,
 } from "@/lib/billing/currencies";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { HQ, F } from "../_tokens";
 import { SectionLabel, EmptyHint, Field, inputStyle, Pill } from "../_primitives";
 import { AddSaleRow } from "./AddSaleRow";
@@ -42,6 +44,7 @@ export function PricingTab({
   tier: PricingTierRow;
   stripeConfigured: boolean;
 }) {
+  const t = useT();
   const activePrices = tier.prices.filter((p) => p.isActive && !p.archivedAt);
   const archivedPrices = tier.prices.filter((p) => p.archivedAt);
   const canArchive = activePrices.length > 1;
@@ -60,11 +63,13 @@ export function PricingTab({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <SectionLabel
-        title="Active prices"
-        hint="Edit any currency inline. Saving creates a new Stripe Price + archives the old one (Prices are immutable)."
+        title={t("dashboard.platform.pricing.pricingTab.activePricesTitle")}
+        hint={t("dashboard.platform.pricing.pricingTab.activePricesHint")}
       />
       {activePrices.length === 0 && (
-        <EmptyHint text="No active prices. Free tiers don’t need one; add a price via Stripe sync once the product is created." />
+        <EmptyHint
+          text={t("dashboard.platform.pricing.pricingTab.noActivePrices")}
+        />
       )}
       {activePrices.map((price) => (
         <PriceRow
@@ -102,7 +107,10 @@ export function PricingTab({
           }}
         >
           <summary style={{ cursor: "pointer", color: HQ.inkMuted }}>
-            Archived prices ({archivedPrices.length})
+            {interpolate(
+              t("dashboard.platform.pricing.pricingTab.archivedSummary"),
+              { count: archivedPrices.length },
+            )}
           </summary>
           <div
             style={{
@@ -114,8 +122,11 @@ export function PricingTab({
           >
             {archivedPrices.map((p) => (
               <div key={p.id} style={{ fontFamily: F, fontSize: 11.5 }}>
-                {formatUnitAmount(p.unitAmount, p.currency)} · {p.interval} ·
-                archived {p.archivedAt?.slice(0, 10)}
+                {formatUnitAmount(p.unitAmount, p.currency)} · {p.interval} ·{" "}
+                {interpolate(
+                  t("dashboard.platform.pricing.pricingTab.archivedRow"),
+                  { date: p.archivedAt?.slice(0, 10) ?? "" },
+                )}
                 {p.stripePriceId && (
                   <code style={{ marginLeft: 8, color: HQ.inkDim }}>
                     {p.stripePriceId}
@@ -142,6 +153,7 @@ function PriceRow({
   canArchive: boolean;
   stripeConfigured: boolean;
 }) {
+  const t = useT();
   const original = (price.unitAmount / 100).toFixed(
     price.unitAmount % 100 === 0 ? 0 : 2,
   );
@@ -163,7 +175,7 @@ function PriceRow({
       const newCents = Math.round(Number(draftDollars) * 100);
       if (!Number.isFinite(newCents) || newCents < 0) {
         setState("error");
-        setErrorMsg("Enter a number ≥ 0.");
+        setErrorMsg(t("dashboard.platform.pricing.pricingTab.saveEnterNumber"));
         return;
       }
       const res = await updateTierPrice({
@@ -177,7 +189,10 @@ function PriceRow({
       }
       if (res.stripe.stub) {
         setState("stub");
-        setStubMsg(res.stripe.reason ?? "Saved in DB only.");
+        setStubMsg(
+          res.stripe.reason ??
+            t("dashboard.platform.pricing.pricingTab.savedDbOnlyDefault"),
+        );
       } else {
         setState("saved");
       }
@@ -230,7 +245,9 @@ function PriceRow({
         </span>
         {(price.validFrom !== null || price.validUntil !== null) && (
           <Pill color={isSalePriceActive(price) ? HQ.green : HQ.amber}>
-            {isSalePriceActive(price) ? "SALE ACTIVE" : "SALE"}{" "}
+            {isSalePriceActive(price)
+              ? t("dashboard.platform.pricing.pricingTab.saleActive")
+              : t("dashboard.platform.pricing.pricingTab.saleBadge")}{" "}
             · {formatPriceWindow(price)}
           </Pill>
         )}
@@ -240,7 +257,9 @@ function PriceRow({
             {price.stripePriceId.slice(0, 18)}…
           </code>
         ) : (
-          <span style={{ fontSize: 10.5, color: HQ.amber }}>No Stripe ID</span>
+          <span style={{ fontSize: 10.5, color: HQ.amber }}>
+            {t("dashboard.platform.pricing.pricingTab.noStripeId")}
+          </span>
         )}
       </div>
 
@@ -285,29 +304,35 @@ function PriceRow({
               fontWeight: 600,
             }}
           >
-            {state === "saving" ? "Saving…" : "Save"}
+            {state === "saving"
+              ? t("dashboard.platform.pricing.pricingTab.saving")
+              : t("dashboard.platform.pricing.pricingTab.save")}
           </button>
         )}
       </div>
 
       {state === "saved" && (
         <div style={{ fontSize: 11, color: HQ.green }}>
-          Saved — new Stripe Price created, old one archived.
+          {t("dashboard.platform.pricing.pricingTab.savedNewPrice")}
         </div>
       )}
       {state === "stub" && (
         <div style={{ fontSize: 11, color: HQ.amber, lineHeight: 1.4 }}>
-          ✓ Saved in DB. {stubMsg}
+          ✓{" "}
+          {interpolate(
+            t("dashboard.platform.pricing.pricingTab.savedDbOnly"),
+            { detail: stubMsg ?? "" },
+          )}
         </div>
       )}
       {state === "error" && (
         <div style={{ fontSize: 11, color: HQ.red, lineHeight: 1.4 }}>
-          {errorMsg ?? "Save failed."}
+          {errorMsg ?? t("dashboard.platform.pricing.pricingTab.saveFailed")}
         </div>
       )}
       {editable && !stripeConfigured && state === "idle" && (
         <div style={{ fontSize: 10.5, color: HQ.inkDim, lineHeight: 1.4 }}>
-          Stripe not connected — edits save in DB only.
+          {t("dashboard.platform.pricing.pricingTab.stripeNotConnected")}
         </div>
       )}
 
@@ -326,6 +351,7 @@ function ArchiveButton({
   priceId: string;
   disabled: boolean;
 }) {
+  const t = useT();
   const [state, setState] = useState<"idle" | "confirm" | "archiving" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -354,7 +380,7 @@ function ArchiveButton({
           marginTop: 2,
         }}
       >
-        Only active price — add another before archiving.
+        {t("dashboard.platform.pricing.pricingTab.archiveOnlyActive")}
       </div>
     );
   }
@@ -371,7 +397,7 @@ function ArchiveButton({
           color: HQ.inkMuted,
         }}
       >
-        <span>Archive this price?</span>
+        <span>{t("dashboard.platform.pricing.pricingTab.archivePrompt")}</span>
         <button
           type="button"
           onClick={doArchive}
@@ -386,7 +412,7 @@ function ArchiveButton({
             fontWeight: 600,
           }}
         >
-          Yes, archive
+          {t("dashboard.platform.pricing.pricingTab.archiveYes")}
         </button>
         <button
           type="button"
@@ -401,7 +427,7 @@ function ArchiveButton({
             cursor: "pointer",
           }}
         >
-          Cancel
+          {t("dashboard.platform.pricing.pricingTab.cancel")}
         </button>
       </div>
     );
@@ -423,11 +449,13 @@ function ArchiveButton({
           textDecoration: "underline",
         }}
       >
-        {state === "archiving" ? "Archiving…" : "Archive this price"}
+        {state === "archiving"
+          ? t("dashboard.platform.pricing.pricingTab.archiving")
+          : t("dashboard.platform.pricing.pricingTab.archiveThisPrice")}
       </button>
       {state === "error" && (
         <span style={{ fontSize: 10.5, color: HQ.red }}>
-          {errorMsg ?? "Failed."}
+          {errorMsg ?? t("dashboard.platform.pricing.pricingTab.archiveFailed")}
         </span>
       )}
     </div>
@@ -447,6 +475,7 @@ function AddCurrencyRow({
   stripeConfigured: boolean;
   stripeProductLinked: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   if (!open) {
@@ -466,7 +495,7 @@ function AddCurrencyRow({
           textAlign: "left",
         }}
       >
-        + Add price for another currency
+        {t("dashboard.platform.pricing.addCurrency.addAnother")}
       </button>
     );
   }
@@ -495,6 +524,7 @@ function AddCurrencyForm({
   stripeProductLinked: boolean;
   onCancel: () => void;
 }) {
+  const t = useT();
   // Filter currencies that don't already have BOTH month + year taken;
   // for any unused (currency × interval), the form will offer them.
   const availableCurrencies = DEFAULT_CURRENCY_OPTIONS.filter((c) => {
@@ -534,7 +564,10 @@ function AddCurrencyForm({
       }
       if (res.stripe.stub) {
         setState("stub");
-        setStubMsg(res.stripe.reason ?? "Saved in DB only.");
+        setStubMsg(
+          res.stripe.reason ??
+            t("dashboard.platform.pricing.addCurrency.savedDbOnlyDefault"),
+        );
         // Leave form open so the user sees the stub message; auto-close
         // after a few seconds so the new row (which the page revalidate
         // brought in) is what they see.
@@ -567,11 +600,11 @@ function AddCurrencyForm({
           letterSpacing: 0.8,
         }}
       >
-        Add a currency price
+        {t("dashboard.platform.pricing.addCurrency.title")}
       </div>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Field label="Currency">
+        <Field label={t("dashboard.platform.pricing.addCurrency.currency")}>
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value as DefaultCurrencyCode)}
@@ -584,7 +617,7 @@ function AddCurrencyForm({
             ))}
           </select>
         </Field>
-        <Field label="Interval">
+        <Field label={t("dashboard.platform.pricing.addCurrency.interval")}>
           <select
             value={interval}
             onChange={(e) =>
@@ -592,12 +625,18 @@ function AddCurrencyForm({
             }
             style={{ ...inputStyle(), width: 130 }}
           >
-            <option value="month">month</option>
-            <option value="year">year</option>
-            <option value="once">once (one-time)</option>
+            <option value="month">
+              {t("dashboard.platform.pricing.addCurrency.intervalMonth")}
+            </option>
+            <option value="year">
+              {t("dashboard.platform.pricing.addCurrency.intervalYear")}
+            </option>
+            <option value="once">
+              {t("dashboard.platform.pricing.addCurrency.intervalOnce")}
+            </option>
           </select>
         </Field>
-        <Field label="Amount (major units)">
+        <Field label={t("dashboard.platform.pricing.addCurrency.amount")}>
           <input
             type="text"
             inputMode="decimal"
@@ -612,13 +651,15 @@ function AddCurrencyForm({
 
       {intervalIsTaken && (
         <div style={{ fontSize: 11, color: HQ.amber }}>
-          {currency} {interval} already exists — pick a different combination
-          or edit the existing row.
+          {interpolate(
+            t("dashboard.platform.pricing.addCurrency.comboTaken"),
+            { currency, interval },
+          )}
         </div>
       )}
       {!validAmount && amountInput.length > 0 && (
         <div style={{ fontSize: 11, color: HQ.amber }}>
-          Enter a number greater than 0 (max 2 decimal places).
+          {t("dashboard.platform.pricing.addCurrency.invalidAmount")}
         </div>
       )}
 
@@ -646,7 +687,9 @@ function AddCurrencyForm({
             fontWeight: 600,
           }}
         >
-          {state === "saving" ? "Creating…" : "Create price"}
+          {state === "saving"
+            ? t("dashboard.platform.pricing.addCurrency.creating")
+            : t("dashboard.platform.pricing.addCurrency.createPrice")}
         </button>
         <button
           type="button"
@@ -663,36 +706,38 @@ function AddCurrencyForm({
             cursor: state === "saving" ? "default" : "pointer",
           }}
         >
-          Cancel
+          {t("dashboard.platform.pricing.addCurrency.cancel")}
         </button>
 
         {state === "saved" && (
           <span style={{ fontSize: 11, color: HQ.green }}>
-            Created — Stripe Price added.
+            {t("dashboard.platform.pricing.addCurrency.createdStripe")}
           </span>
         )}
         {state === "stub" && (
           <span style={{ fontSize: 11, color: HQ.amber, lineHeight: 1.4 }}>
-            ✓ Saved in DB. {stubMsg}
+            ✓{" "}
+            {interpolate(
+              t("dashboard.platform.pricing.addCurrency.savedDbOnly"),
+              { detail: stubMsg ?? "" },
+            )}
           </span>
         )}
         {state === "error" && (
           <span style={{ fontSize: 11, color: HQ.red, lineHeight: 1.4 }}>
-            {errorMsg ?? "Save failed."}
+            {errorMsg ?? t("dashboard.platform.pricing.addCurrency.saveFailed")}
           </span>
         )}
       </div>
 
       {!stripeConfigured && (
         <div style={{ fontSize: 10.5, color: HQ.inkDim }}>
-          Stripe not connected — price saves in DB only; Stripe ID will be
-          backfilled when the account is wired up.
+          {t("dashboard.platform.pricing.addCurrency.notConnectedHint")}
         </div>
       )}
       {stripeConfigured && !stripeProductLinked && (
         <div style={{ fontSize: 10.5, color: HQ.inkDim }}>
-          Tier has no Stripe Product yet — DB-only until the Product is
-          created in Stripe.
+          {t("dashboard.platform.pricing.addCurrency.noProductHint")}
         </div>
       )}
     </div>

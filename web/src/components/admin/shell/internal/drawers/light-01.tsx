@@ -29,23 +29,26 @@ import {
   teamCap,
   useAdminShell
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 4 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function TenantSummaryDrawer() {
   const { state, closeDrawer, openDrawer, openUpgrade, effectiveRoster, effectiveTeamMembers, effectiveTenant } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const planMeta = PLAN_META[state.plan];
   const rosterCount = effectiveRoster.length;
   const rosterCap = state.plan === "free" ? 5 : state.plan === "studio" ? 50 : state.plan === "agency" ? 200 : 999;
   const teamCount = effectiveTeamMembers.length > 0 ? effectiveTeamMembers.length : getTeam(state.plan).length;
 
   const jumpItems: { label: string; icon: AdminShellIconName; drawer: DrawerId }[] = [
-    { label: "Plan & billing", icon: "credit", drawer: "plan-billing" },
-    { label: "Recent invoices", icon: "mail", drawer: "plan-billing" },
-    { label: "Team & permissions", icon: "team", drawer: "team" },
-    { label: "Branding", icon: "palette", drawer: "branding" },
-    { label: "Custom domain", icon: "globe", drawer: "domain" },
+    { label: tt("Plan & billing"), icon: "credit", drawer: "plan-billing" },
+    { label: tt("Recent invoices"), icon: "mail", drawer: "plan-billing" },
+    { label: tt("Team & permissions"), icon: "team", drawer: "team" },
+    { label: tt("Branding"), icon: "palette", drawer: "branding" },
+    { label: tt("Custom domain"), icon: "globe", drawer: "domain" },
   ];
 
   return (
@@ -53,7 +56,7 @@ export function TenantSummaryDrawer() {
       open
       onClose={closeDrawer}
       title={effectiveTenant.name.toUpperCase()}
-      description={`${planMeta.label} plan · ${planPrice(state.plan)}`}
+      description={`${tt(planMeta.label)} ${tt("plan")} · ${planPrice(state.plan)}`}
       footer={
         <>
           {state.plan !== "network" && (
@@ -65,15 +68,15 @@ export function TenantSummaryDrawer() {
             >
               <span className="inline-flex items-center gap-1.5">
                 <Icon name="arrow-right" size={12} stroke={1.8} />
-                Compare plans
+                {tt("Compare plans")}
               </span>
             </PrimaryButton>
           )}
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>
         </>
       }
     >
-      <Section title="At a glance">
+      <Section title={tt("At a glance")}>
         <div
           style={{
             display: "flex",
@@ -96,22 +99,22 @@ export function TenantSummaryDrawer() {
           />
           <div className="flex-1">
             <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
-              {planMeta.label} plan
+              {tt(planMeta.label)} {tt("plan")}
             </div>
             <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 1 }} className="text-admin-ink-muted">
-              {planPrice(state.plan)} {state.plan !== "free" && "· billed monthly"}
+              {planPrice(state.plan)} {state.plan !== "free" && tt("· billed monthly")}
             </div>
           </div>
         </div>
       </Section>
 
-      <Section title="Roster">
-        <UsageRow label={`${rosterCount} / ${rosterCap === 999 ? "∞" : rosterCap} talents`} value={rosterCap === 999 ? 0.4 : rosterCount / rosterCap} />
-        <UsageRow label={`${teamCount} / ${teamCap(state.plan)} seats`} value={teamCap(state.plan) === 999 ? 0.2 : teamCount / teamCap(state.plan)} />
-        <UsageRow label="Storage · 1.4 / 25 GB" value={1.4 / 25} />
+      <Section title={tt("Roster")}>
+        <UsageRow label={`${rosterCount} / ${rosterCap === 999 ? "∞" : rosterCap} ${tt("talents")}`} value={rosterCap === 999 ? 0.4 : rosterCount / rosterCap} />
+        <UsageRow label={`${teamCount} / ${teamCap(state.plan)} ${tt("seats")}`} value={teamCap(state.plan) === 999 ? 0.2 : teamCount / teamCap(state.plan)} />
+        <UsageRow label={`${tt("Storage")} · 1.4 / 25 GB`} value={1.4 / 25} />
       </Section>
 
-      <Section title="Jump to">
+      <Section title={tt("Jump to")}>
         <div className="flex flex-col gap-2">
           {jumpItems.map((item) => (
             <button
@@ -147,7 +150,7 @@ export function TenantSummaryDrawer() {
         </div>
       </Section>
 
-      <Section title="Plan ladder">
+      <Section title={tt("Plan ladder")}>
         <div className="flex flex-col gap-1.5">
           {(["free", "studio", "agency", "network"] as Plan[]).map((p) => {
             const isCurrent = state.plan === p;
@@ -182,14 +185,14 @@ export function TenantSummaryDrawer() {
                     : <Icon name="lock" size={11} stroke={1.8} />}
                 </span>
                 <span style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, minWidth: 70 }} className="text-admin-ink">
-                  {PLAN_META[p].label}
+                  {tt(PLAN_META[p].label)}
                 </span>
                 <span style={{ fontFamily: FONTS.body, fontSize: 12, flex: 1 }} className="text-admin-ink-muted">
-                  {PLAN_META[p].theme}
+                  {tt(PLAN_META[p].theme)}
                 </span>
                 {isCurrent && (
                   <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase" }} className="text-admin-ink-muted">
-                    Current
+                    {tt("Current")}
                   </span>
                 )}
               </div>
@@ -204,13 +207,15 @@ export function TenantSummaryDrawer() {
 
 export function SiteSetupDrawer() {
   const { closeDrawer, openDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const [done, setDone] = useState<Set<string>>(new Set(["homepage"]));
   const steps = [
-    { id: "homepage", label: "Homepage hero", desc: "Headline, sub, CTA. Sets the tone.", drawer: "homepage" },
-    { id: "pages", label: "Pages", desc: "About, Press, FAQ, Contact.", drawer: "pages" },
-    { id: "posts", label: "Posts", desc: "Editorial features, news, BTS.", drawer: "posts" },
-    { id: "navigation", label: "Navigation & footer", desc: "Header structure, footer columns.", drawer: "navigation" },
-    { id: "seo", label: "SEO & defaults", desc: "Meta, sitemap, redirects.", drawer: "seo" },
+    { id: "homepage", label: tt("Homepage hero"), desc: tt("Headline, sub, CTA. Sets the tone."), drawer: "homepage" },
+    { id: "pages", label: tt("Pages"), desc: tt("About, Press, FAQ, Contact."), drawer: "pages" },
+    { id: "posts", label: tt("Posts"), desc: tt("Editorial features, news, BTS."), drawer: "posts" },
+    { id: "navigation", label: tt("Navigation & footer"), desc: tt("Header structure, footer columns."), drawer: "navigation" },
+    { id: "seo", label: tt("SEO & defaults"), desc: tt("Meta, sitemap, redirects."), drawer: "seo" },
   ];
   const completedCount = done.size;
 
@@ -218,19 +223,21 @@ export function SiteSetupDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Get your site live"
-      description={`${completedCount} of ${steps.length} steps complete. Most agencies finish in under 30 minutes.`}
+      title={tt("Get your site live")}
+      description={tt("{done} of {total} steps complete. Most agencies finish in under 30 minutes.")
+        .replace("{done}", String(completedCount))
+        .replace("{total}", String(steps.length))}
       width={560}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>
           <PrimaryButton
             onClick={() => {
-              toast("Setup progress saved");
+              toast(tt("Setup progress saved"));
               closeDrawer();
             }}
           >
-            Save progress
+            {tt("Save progress")}
           </PrimaryButton>
         </>
       }
@@ -238,7 +245,7 @@ export function SiteSetupDrawer() {
       <div style={{ border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 12, padding: 14, display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }} className="bg-admin-surface-alt">
         <div className="flex-1">
           <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 500 }} className="text-admin-ink">
-            {Math.round((completedCount / steps.length) * 100)}% complete
+            {tt("{pct}% complete").replace("{pct}", String(Math.round((completedCount / steps.length) * 100)))}
           </div>
           <div style={{ height: 6, background: "rgba(15,79,62,0.18)", borderRadius: 999, marginTop: 6, overflow: "hidden" }}>
             <div style={{ '--progress-w': `${(completedCount / steps.length) * 100}%` }} className="w-[var(--progress-w)] h-full rounded-full [transition:width_.3s]"
@@ -283,7 +290,7 @@ export function SiteSetupDrawer() {
                   flexShrink: 0,
                   cursor: "pointer",
                 }}
-                aria-label={isDone ? "Mark incomplete" : "Mark complete"}
+                aria-label={isDone ? tt("Mark incomplete") : tt("Mark complete")}
               >
                 {isDone ? (
                   <Icon name="check" size={14} stroke={2.5} color="#fff" />
@@ -302,7 +309,7 @@ export function SiteSetupDrawer() {
                 </div>
               </div>
               <SecondaryButton size="sm" onClick={() => openDrawer(step.drawer as DrawerId)}>
-                {isDone ? "Edit" : "Open"}
+                {isDone ? tt("Edit") : tt("Open")}
               </SecondaryButton>
             </div>
           );
@@ -319,6 +326,8 @@ export function SiteSetupDrawer() {
 
 export function PlanBillingDrawer() {
   const { state, closeDrawer, openUpgrade, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const planMeta = PLAN_META[state.plan];
 
   const invoices = [
@@ -331,29 +340,29 @@ export function PlanBillingDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Plan & billing"
-      description="Manage your subscription and see past invoices."
+      title={tt("Plan & billing")}
+      description={tt("Manage your subscription and see past invoices.")}
       width={560}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>
           {state.plan !== "network" && (
             <PrimaryButton
               onClick={() =>
                 openUpgrade({
-                  feature: `${PLAN_META[nextPlan(state.plan)!].label} plan`,
-                  why: PLAN_META[nextPlan(state.plan)!].theme,
+                  feature: `${tt(PLAN_META[nextPlan(state.plan)!].label)} ${tt("plan")}`,
+                  why: tt(PLAN_META[nextPlan(state.plan)!].theme),
                   requiredPlan: nextPlan(state.plan)!,
                 })
               }
             >
-              Upgrade plan
+              {tt("Upgrade plan")}
             </PrimaryButton>
           )}
         </>
       }
     >
-      <Section title="Current plan">
+      <Section title={tt("Current plan")}>
         <div
           style={{
             background: "#fff",
@@ -366,7 +375,7 @@ export function PlanBillingDrawer() {
             <div className="flex items-center gap-2.5">
               <PlanChip plan={state.plan} variant="solid" />
               <span style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500 }} className="text-admin-ink">
-                {planMeta.label}
+                {tt(planMeta.label)}
               </span>
             </div>
             <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
@@ -374,13 +383,13 @@ export function PlanBillingDrawer() {
             </span>
           </div>
           <p style={{ fontFamily: FONTS.body, fontSize: 12.5, margin: 0, lineHeight: 1.5 }} className="text-admin-ink-muted">
-            {planMeta.theme}. {state.plan === "free" ? "Upgrade any time." : "Cancel any time."}
+            {tt(planMeta.theme)}. {state.plan === "free" ? tt("Upgrade any time.") : tt("Cancel any time.")}
           </p>
         </div>
       </Section>
 
       {state.plan !== "free" && (
-        <Section title="Payment method">
+        <Section title={tt("Payment method")}>
           <div
             style={{
               background: "#fff",
@@ -397,10 +406,10 @@ export function PlanBillingDrawer() {
             </IconChip>
             <div className="flex-1">
               <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
-                Visa ending 4242
+                {tt("Visa ending {last4}").replace("{last4}", "4242")}
               </div>
               <div style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
-                Expires 09 / 2028
+                {tt("Expires {date}").replace("{date}", "09 / 2028")}
               </div>
             </div>
             <GhostButton
@@ -410,17 +419,17 @@ export function PlanBillingDrawer() {
                   "Tulala billing payment method update",
                   "Please help me update the payment method for this workspace.",
                 );
-                toast("Opening billing support email");
+                toast(tt("Opening billing support email"));
               }}
             >
-              Update
+              {tt("Update")}
             </GhostButton>
           </div>
         </Section>
       )}
 
       {state.plan !== "free" && (
-        <Section title="Recent invoices">
+        <Section title={tt("Recent invoices")}>
           <div
             style={{
               background: "#fff",
@@ -444,7 +453,7 @@ export function PlanBillingDrawer() {
               >
                 <span className="text-admin-ink">{inv.date}</span>
                 <span className="text-admin-ink-muted">{inv.amount}</span>
-                <StateChipMini label={inv.status} tone="green" />
+                <StateChipMini label={tt(inv.status)} tone="green" />
                 <button
                   type="button"
                   onClick={() => {
@@ -452,11 +461,11 @@ export function PlanBillingDrawer() {
                       `Tulala invoice request ${inv.id}`,
                       `Please send the PDF for invoice ${inv.id} dated ${inv.date} (${inv.amount}).`,
                     );
-                    toast("Opening invoice support email");
+                    toast(tt("Opening invoice support email"));
                   }}
                   style={{ color: COLORS.inkMuted, fontSize: 12, textDecoration: "none", justifySelf: "end", background: "transparent", border: "none", padding: 0, cursor: "pointer", fontFamily: FONTS.body }}
                 >
-                  PDF
+                  {tt("PDF")}
                 </button>
               </div>
             ))}

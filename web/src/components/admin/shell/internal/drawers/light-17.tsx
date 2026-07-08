@@ -20,6 +20,7 @@ import {
   openSupportEmail,
   useAdminShell
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -27,20 +28,22 @@ import {
 export function VacationHandoverDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "vacation-handover";
+  const copy = useDashboardText();
+  const tt = copy.t;
   // Honest stub — this feature has no backend yet; the previous body showed
   // hardcoded demo data. Surface a clear "coming soon" instead.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Vacation handover"
-      description="Reassign your workload while you're away."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Vacation handover")}
+      description={tt("Reassign your workload while you're away.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <EmptyState
         icon="calendar"
-        title="Coming soon"
-        body="Reassigning your workload while you're away isn't available yet. We'll add handover here when it ships."
+        title={tt("Coming soon")}
+        body={tt("Reassigning your workload while you're away isn't available yet. We'll add handover here when it ships.")}
       />
     </DrawerShell>
   );
@@ -50,20 +53,22 @@ export function VacationHandoverDrawer() {
 export function OnCallRotationDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "on-call-rotation";
+  const copy = useDashboardText();
+  const tt = copy.t;
   // Honest stub — this feature has no backend yet; the previous body showed
   // hardcoded demo data. Surface a clear "coming soon" instead.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="On-call rotation"
-      description="Weekly schedule and escalation ladder."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("On-call rotation")}
+      description={tt("Weekly schedule and escalation ladder.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <EmptyState
         icon="calendar"
-        title="Coming soon"
-        body="On-call scheduling and the escalation ladder aren't available yet."
+        title={tt("Coming soon")}
+        body={tt("On-call scheduling and the escalation ladder aren't available yet.")}
       />
     </DrawerShell>
   );
@@ -77,6 +82,8 @@ export function OnCallRotationDrawer() {
 export function GdprExportDrawer() {
   const { state, closeDrawer, toast, effectiveTenant } = useAdminShell();
   const open = state.drawer.drawerId === "gdpr-export";
+  const copy = useDashboardText();
+  const tt = copy.t;
 
   type DataType = { id: string; label: string; description: string; size: string; selected: boolean };
   const [types, setTypes] = useState<DataType[]>([
@@ -99,23 +106,23 @@ export function GdprExportDrawer() {
       "Tulala data export request",
       `Please start a ${format.toUpperCase()} data export for: ${selectedLabels.join(", ")}.\n\nWorkspace: ${effectiveTenant.name}`,
     );
-    toast("Opening email request");
+    toast(tt("Opening email request"));
   };
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Export your data"
-      description="GDPR / CCPA data portability. Automated exports are not connected yet, so support handles these requests."
+      title={tt("Export your data")}
+      description={tt("GDPR / CCPA data portability. Automated exports are not connected yet, so support handles these requests.")}
       footer={
         <div className="flex gap-2">
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Cancel")}</SecondaryButton>
           <button
             type="button"
             disabled={selectedCount === 0}
             onClick={requestExport}
-            title="Opens an email to support with your selected export scope."
+            title={tt("Opens an email to support with your selected export scope.")}
             style={{
               padding: "9px 18px",
               background: selectedCount === 0 ? COLORS.inkDim : COLORS.fill,
@@ -125,7 +132,9 @@ export function GdprExportDrawer() {
               opacity: selectedCount === 0 ? 0.45 : 1,
             }}
           >
-            Email support ({selectedCount} types)
+            {copy.isSpanish
+              ? `Escribir a soporte (${selectedCount} tipo${selectedCount === 1 ? "" : "s"})`
+              : `Email support (${selectedCount} type${selectedCount === 1 ? "" : "s"})`}
           </button>
         </div>
       }
@@ -134,7 +143,7 @@ export function GdprExportDrawer() {
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
         {/* Format picker */}
         <div>
-          <CapsLabel>Export format</CapsLabel>
+          <CapsLabel>{tt("Export format")}</CapsLabel>
           <div style={{ marginTop: 6, display: "flex", gap: 6 }}>
             {(["zip", "json", "csv"] as const).map((f) => (
               <button
@@ -159,7 +168,7 @@ export function GdprExportDrawer() {
 
         {/* Data type checklist */}
         <div>
-          <CapsLabel>Data types · select to include</CapsLabel>
+          <CapsLabel>{tt("Data types · select to include")}</CapsLabel>
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
             {types.map((dt) => (
               <button
@@ -184,8 +193,8 @@ export function GdprExportDrawer() {
                   {dt.selected && <Icon name="check" size={11} color="#fff" stroke={2.5} />}
                 </div>
                 <div className="flex-1">
-                  <div className="text-admin-ink text-admin-13 font-semibold">{dt.label}</div>
-                  <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{dt.description}</div>
+                  <div className="text-admin-ink text-admin-13 font-semibold">{tt(dt.label)}</div>
+                  <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{tt(dt.description)}</div>
                 </div>
                 <div style={{ fontSize: 11, flexShrink: 0 }} className="text-admin-ink-muted">{dt.size}</div>
               </button>
@@ -194,7 +203,7 @@ export function GdprExportDrawer() {
         </div>
 
         <div style={{ padding: "10px 14px", border: `1px solid rgba(91,107,160,0.2)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-indigo-soft rounded-admin-md text-admin-indigo-deep">
-          Support will confirm scope, identity, and delivery timing by email before preparing the export.
+          {tt("Support will confirm scope, identity, and delivery timing by email before preparing the export.")}
         </div>
       </div>
     </DrawerShell>
@@ -205,6 +214,8 @@ export function GdprExportDrawer() {
 export function ConsentLogDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "consent-log";
+  const copy = useDashboardText();
+  const tt = copy.t;
 
   type ConsentEntry = { channel: string; status: "opted-in" | "opted-out" | "pending"; timestamp: string; method: string };
   const CONSENTS: ConsentEntry[] = [
@@ -231,19 +242,19 @@ export function ConsentLogDrawer() {
       timestamp: entry.timestamp,
       method: entry.method,
     })));
-    toast("Downloaded consent log CSV");
+    toast(tt("Downloaded consent log CSV"));
   };
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Consent log"
-      description="Marketing and communication preferences — timestamped and auditable."
+      title={tt("Consent log")}
+      description={tt("Marketing and communication preferences, timestamped and auditable.")}
       footer={
         <div className="flex gap-2">
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <GhostButton onClick={exportCsv}>Export CSV</GhostButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>
+          <GhostButton onClick={exportCsv}>{tt("Export CSV")}</GhostButton>
         </div>
       }
       defaultSize="half"
@@ -251,9 +262,9 @@ export function ConsentLogDrawer() {
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           {[
-            { label: "Opted in",  value: String(CONSENTS.filter((c) => c.status === "opted-in").length),  color: COLORS.successDeep },
-            { label: "Opted out", value: String(CONSENTS.filter((c) => c.status === "opted-out").length), color: COLORS.inkMuted    },
-            { label: "Pending",   value: String(CONSENTS.filter((c) => c.status === "pending").length),   color: COLORS.amber       },
+            { label: tt("Opted in"),  value: String(CONSENTS.filter((c) => c.status === "opted-in").length),  color: COLORS.successDeep },
+            { label: tt("Opted out"), value: String(CONSENTS.filter((c) => c.status === "opted-out").length), color: COLORS.inkMuted    },
+            { label: tt("Pending"),   value: String(CONSENTS.filter((c) => c.status === "pending").length),   color: COLORS.amber       },
           ].map((tile) => (
             <div key={tile.label} style={{
               background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
@@ -268,7 +279,7 @@ export function ConsentLogDrawer() {
         </div>
 
         <div>
-          <CapsLabel>Per-channel consent history</CapsLabel>
+          <CapsLabel>{tt("Per-channel consent history")}</CapsLabel>
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
             {CONSENTS.map((entry) => (
               <div
@@ -284,7 +295,7 @@ export function ConsentLogDrawer() {
                   <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{entry.timestamp} · {entry.method}</div>
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 700, color: toneFor(entry.status), padding: "2px 8px", background: `${toneFor(entry.status)}18` }} className="rounded-admin-sm">
-                  {labelFor(entry.status)}
+                  {tt(labelFor(entry.status))}
                 </span>
               </div>
             ))}
@@ -292,7 +303,7 @@ export function ConsentLogDrawer() {
         </div>
 
         <div style={{ padding: "10px 14px", border: `1px solid rgba(91,107,160,0.2)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-indigo-soft rounded-admin-md text-admin-indigo-deep">
-          Consent records are immutable. Withdrawals update future sends — they do not erase prior consent events. Records retained 7 years per GDPR Recital 42.
+          {tt("Consent records are immutable. Withdrawals update future sends, they do not erase prior consent events. Records retained 7 years per GDPR Recital 42.")}
         </div>
       </div>
     </DrawerShell>
@@ -304,6 +315,8 @@ export function ContractTemplatesDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "contract-templates";
   const [activeId, setActiveId] = useState<string | null>(null);
+  const copy = useDashboardText();
+  const tt = copy.t;
 
   type Template = { id: string; name: string; category: string; fields: string[]; body: string };
   const TEMPLATES: Template[] = [
@@ -336,28 +349,32 @@ export function ContractTemplatesDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Contract templates"
-      description="Workspace-wide reusable templates. Variables in {{brackets}} are filled at generation time."
+      title={tt("Contract templates")}
+      description={tt("Workspace-wide reusable templates. Variables in {{brackets}} are filled at generation time.")}
       footer={
         <div className="flex gap-2">
           {activeId ? (
             <>
-              <SecondaryButton onClick={() => setActiveId(null)}>← Back</SecondaryButton>
+              <SecondaryButton onClick={() => setActiveId(null)}>{tt("← Back")}</SecondaryButton>
               <button
                 type="button"
-                onClick={() => toast(`Template "${active?.name}" used`)}
+                onClick={() => toast(
+                  copy.isSpanish
+                    ? `Plantilla "${active?.name}" usada`
+                    : `Template "${active?.name}" used`,
+                )}
                 style={{
                   padding: "9px 18px", background: COLORS.fill, border: "none",
                   borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
                 }}
               >
-                Use template
+                {tt("Use template")}
               </button>
             </>
           ) : (
             <>
-              <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+              <SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>
             </>
           )}
         </div>
@@ -370,12 +387,12 @@ export function ContractTemplatesDrawer() {
             <div>
               <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }} className="text-admin-ink">{active.name}</div>
               <div style={{ display: "inline-block", fontSize: 10.5, fontWeight: 700, padding: "2px 8px", textTransform: "uppercase", letterSpacing: "0.05em" }} className="text-admin-indigo-deep bg-admin-indigo-soft rounded-admin-sm">
-                {active.category}
+                {tt(active.category)}
               </div>
             </div>
 
             <div>
-              <CapsLabel>Merge fields ({active.fields.length})</CapsLabel>
+              <CapsLabel>{copy.isSpanish ? `Campos de combinación (${active.fields.length})` : `Merge fields (${active.fields.length})`}</CapsLabel>
               <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 5 }}>
                 {active.fields.map((f) => (
                   <span key={f} style={{
@@ -391,18 +408,18 @@ export function ContractTemplatesDrawer() {
             </div>
 
             <div style={{ padding: "14px 16px", border: `1px solid ${COLORS.border}`, fontSize: 12.5, lineHeight: 1.65 }} className="bg-admin-surface-alt rounded-admin-md text-admin-ink">
-              {active.body} <span className="text-admin-ink-dim">…[continues]</span>
+              {active.body} <span className="text-admin-ink-dim">{tt("…[continues]")}</span>
             </div>
 
             <div style={{ padding: "10px 14px", border: `1px solid rgba(91,107,160,0.2)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-indigo-soft rounded-admin-md text-admin-indigo-deep">
-              Templates are not legal advice. Have your legal counsel review before use in production.
+              {tt("Templates are not legal advice. Have your legal counsel review before use in production.")}
             </div>
           </>
         ) : (
           <>
             {categories.map((cat) => (
               <div key={cat}>
-                <CapsLabel>{cat}</CapsLabel>
+                <CapsLabel>{tt(cat)}</CapsLabel>
                 <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 5 }}>
                   {TEMPLATES.filter((t) => t.category === cat).map((tmpl) => (
                     <button
@@ -420,7 +437,7 @@ export function ContractTemplatesDrawer() {
                       <div>
                         <div className="text-admin-ink text-admin-13 font-semibold">{tmpl.name}</div>
                         <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-                          {tmpl.fields.length} merge fields
+                          {copy.isSpanish ? `${tmpl.fields.length} campos de combinación` : `${tmpl.fields.length} merge fields`}
                         </div>
                       </div>
                       <Icon name="arrow-right" size={14} color={COLORS.inkDim} stroke={1.8} />
@@ -440,11 +457,13 @@ export function ContractTemplatesDrawer() {
 export function ReportContentDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "report-content";
+  const copy = useDashboardText();
+  const tt = copy.t;
   const [category, setCategory] = useState("Fake or misleading profile");
   const [detail, setDetail] = useState("");
 
-  const targetName = (state.drawer.payload?.targetName as string) ?? "this profile";
-  const targetType = (state.drawer.payload?.targetType as string) ?? "profile";
+  const targetName = (state.drawer.payload?.targetName as string) ?? tt("this profile");
+  const targetType = (state.drawer.payload?.targetType as string) ?? tt("profile");
 
   const CATEGORIES = [
     "Fake or misleading profile",
@@ -468,36 +487,40 @@ export function ReportContentDrawer() {
         detail.trim() || "(none provided)",
       ].join("\n"),
     );
-    toast("Opening report email");
+    toast(tt("Opening report email"));
   };
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title={`Report ${targetType}`}
-      description={`Email a confidential report about ${targetName} to Tulala support.`}
+      title={copy.isSpanish ? `Reportar ${targetType}` : `Report ${targetType}`}
+      description={
+        copy.isSpanish
+          ? `Envía un reporte confidencial sobre ${targetName} a soporte de Tulala.`
+          : `Email a confidential report about ${targetName} to Tulala support.`
+      }
       footer={
         <div className="flex gap-2">
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Cancel")}</SecondaryButton>
           <button
             type="button"
             onClick={emailReport}
-            title="Opens an email to support. No automatic report is filed from this drawer yet."
+            title={tt("Opens an email to support. No automatic report is filed from this drawer yet.")}
             style={{
               padding: "9px 18px", background: COLORS.red, border: "none",
               borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
               fontSize: 13, fontWeight: 600, cursor: "pointer",
             }}
           >
-            Email report
+            {tt("Email report")}
           </button>
         </div>
       }
       defaultSize="compact"
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
-        <FieldRow label="Category">
+        <FieldRow label={tt("Category")}>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
@@ -507,21 +530,21 @@ export function ReportContentDrawer() {
               borderRadius: RADIUS.sm, padding: "7px 10px", width: "100%",
             }}
           >
-            {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            {CATEGORIES.map((c) => <option key={c} value={c}>{tt(c)}</option>)}
           </select>
         </FieldRow>
 
-        <FieldRow label="Additional detail (optional)">
+        <FieldRow label={tt("Additional detail (optional)")}>
           <TextArea
             value={detail}
             onChange={(e) => setDetail(e.target.value)}
-            placeholder="Describe what you observed. Be specific — screenshots help."
+            placeholder={tt("Describe what you observed. Be specific, screenshots help.")}
             rows={4}
           />
         </FieldRow>
 
         <div style={{ padding: "10px 14px", border: `1px solid rgba(82,96,109,0.2)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-amber-soft rounded-admin-md text-admin-amber-deep">
-          Reports are confidential. This opens an email to support; no automatic trust-and-safety case is created from the product yet.
+          {tt("Reports are confidential. This opens an email to support; no automatic trust-and-safety case is created from the product yet.")}
         </div>
       </div>
     </DrawerShell>

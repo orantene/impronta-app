@@ -1,6 +1,8 @@
 "use client";
 
 import { type CSSProperties } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { useAdminShell, COLORS, FONTS, MY_TALENT_PROFILE, type InquiryRecord } from "../../state";
 import { Avatar } from "../../primitives";
 import { type Conversation } from "../../talent";
@@ -8,7 +10,7 @@ import { readConvNote, writeConvNote } from "../conversation-stash";
 import { currentTalentId } from "../messages-shared";
 import { CoordRoleBadge, PresenceDot } from "./inbox-identity-1";
 import { buildInquiryTabs } from "./machinery-1";
-import { MOCK_OFFER_FOR_CONV, UNIT_TYPE_LABEL, fmtMoney } from "./machinery-10";
+import { MOCK_OFFER_FOR_CONV, UNIT_TYPE_LABEL_KEYS, fmtMoney } from "./machinery-10";
 import { OfferTab } from "./machinery-12";
 import { TeamStrip } from "./machinery-15";
 import { countdownLabel } from "./machinery-5";
@@ -44,8 +46,9 @@ export function TalentBookingTab({
   onOpenLineup?: () => void;
 }) {
   const { toast } = useAdminShell();
+  const tr = useT();
   const pinned = conv.pinned ?? {};
-  const days = countdownLabel(inquiry.schedule.start);
+  const days = countdownLabel(inquiry.schedule.start, tr);
   const coord = inquiry.coordinators[0];
   const teammates = inquiry.talent.length > 1;
   // Solo-coord case: when isCoordinator AND there's only 1 talent (the
@@ -170,26 +173,26 @@ export function TalentBookingTab({
           Direct / Referral / IG DM / etc.) so the talent reads the
           relationship context next to the job they're looking at. */}
       <div data-booking-card style={cardStyle}>
-        <div data-booking-section-title style={sectionTitle}>The job</div>
+        <div data-booking-section-title style={sectionTitle}>{tr("dashboard.talentThread.bookingSectionJob")}</div>
         <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.35 }} className="text-admin-ink">
           {inquiry.title}
         </div>
         {inquiry.client.name && (
           <div style={{ fontSize: 12, marginTop: 3 }} className="text-admin-ink-muted">
-            For {inquiry.client.name}
+            {interpolate(tr("dashboard.talentThread.bookingFor"), { name: inquiry.client.name })}
           </div>
         )}
         {/* Source chip — small inline pill that names the inbound
             channel (and the specific origin via tooltip). Falls back to
             no chip when the conversation has no source set. */}
         {(() => {
-          const sourceMeta = conv.source ? sourceChipMeta(conv.source) : null;
+          const sourceMeta = conv.source ? sourceChipMeta(conv.source, tr) : null;
           if (!sourceMeta) return null;
           return (
             <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-dim">Came in via</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-dim">{tr("dashboard.talentThread.bookingCameInVia")}</span>
               <span
-                aria-label={`Source: ${sourceMeta.label}`}
+                aria-label={interpolate(tr("dashboard.talentThread.sourceAria"), { label: sourceMeta.label })}
                 title={sourceMeta.tooltip}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 5,
@@ -212,8 +215,8 @@ export function TalentBookingTab({
                 if (!src) return null;
                 const detail =
                   (src.kind === "tulala-hub" || src.kind === "direct") ? src.label
-                  : src.kind === "agency-referral" ? (src.via ? `via ${src.via}` : null)
-                  : src.kind === "email" ? (src.from ? `from ${src.from}` : null)
+                  : src.kind === "agency-referral" ? (src.via ? interpolate(tr("dashboard.talentThread.bookingDetailVia"), { via: src.via }) : null)
+                  : src.kind === "email" ? (src.from ? interpolate(tr("dashboard.talentThread.bookingDetailFrom"), { from: src.from }) : null)
                   : null;
                 if (!detail || detail.toLowerCase() === sourceMeta.label.toLowerCase()) return null;
                 return (
@@ -247,7 +250,7 @@ export function TalentBookingTab({
             </span>
             <div className="flex-1 min-w-0">
               <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 2 }} className="text-admin-indigo-deep">
-                {coord ? `${coord.name.split(" ")[0]}'s read` : "Coordinator's read"}
+                {coord ? interpolate(tr("dashboard.talentThread.bookingReadOwn"), { name: coord.name.split(" ")[0] }) : tr("dashboard.talentThread.bookingReadCoordinator")}
               </div>
               <div style={{ fontSize: 12.5, lineHeight: 1.5, fontStyle: "italic" }} className="text-admin-ink">
                 &quot;{pinned.coordinatorNote}&quot;
@@ -273,7 +276,7 @@ export function TalentBookingTab({
             ...sectionTitle,
             color: COLORS.successDeep ?? COLORS.success,
           }}>
-            {conv.stage === "past" ? "What you were paid" : "Your booking terms"}
+            {conv.stage === "past" ? tr("dashboard.talentThread.bookingTermsPast") : tr("dashboard.talentThread.bookingTermsActive")}
           </div>
           <div style={{
             display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap",
@@ -282,7 +285,7 @@ export function TalentBookingTab({
               {fmtMoney(histRow.costRate * histRow.units, histCurrency)}
             </span>
             <span className="text-admin-ink-muted text-xs font-medium">
-              {histRow.units} × {UNIT_TYPE_LABEL[histRow.unitType]}
+              {histRow.units} × {tr(UNIT_TYPE_LABEL_KEYS[histRow.unitType])}
             </span>
           </div>
           {histRow.notes && (
@@ -298,8 +301,8 @@ export function TalentBookingTab({
               </svg>
             </span>
             {conv.stage === "past"
-              ? "Receipt + invoice in Files."
-              : "Locked. Contract signed."}
+              ? tr("dashboard.talentThread.bookingReceiptInFiles")
+              : tr("dashboard.talentThread.bookingLockedSigned")}
           </div>
         </div>
       )}
@@ -311,14 +314,14 @@ export function TalentBookingTab({
         display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
       }}>
         <div data-booking-card style={cardStyle}>
-          <div data-booking-section-title style={sectionTitle}>When</div>
+          <div data-booking-section-title style={sectionTitle}>{tr("dashboard.talentThread.bookingWhen")}</div>
           <div className="text-admin-ink text-sm font-bold">
             {inquiry.schedule.start}
             {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
           </div>
           {pinned.callTime && (
             <div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">
-              Call time · <span style={{ fontWeight: 600 }} className="text-admin-ink">{pinned.callTime}</span>
+              {tr("dashboard.talentThread.bookingCallTime")} · <span style={{ fontWeight: 600 }} className="text-admin-ink">{pinned.callTime}</span>
             </div>
           )}
           {pinned.schedule && (
@@ -328,19 +331,19 @@ export function TalentBookingTab({
           )}
         </div>
         <div data-booking-card style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
-          <div data-booking-section-title style={{ ...sectionTitle, padding: "12px 14px 0" }}>Where</div>
+          <div data-booking-section-title style={{ ...sectionTitle, padding: "12px 14px 0" }}>{tr("dashboard.talentThread.bookingWhere")}</div>
           {(inquiry.location.city || inquiry.location.venue || inquiry.location.address) ? (
             <div style={{ padding: "8px 14px 12px" }}>
               <LocationMapTile
                 venue={inquiry.location.venue}
                 address={inquiry.location.address}
                 city={inquiry.location.city}
-                onOpenMaps={() => toast("Open map")}
+                onOpenMaps={() => toast(tr("dashboard.talentThread.toastOpenMap"))}
               />
             </div>
           ) : (
             <div style={{ padding: "0 14px 12px", fontSize: 12 }} className="text-admin-ink-muted">
-              Location TBC.
+              {tr("dashboard.talentThread.bookingLocationTbc")}
             </div>
           )}
         </div>
@@ -353,26 +356,26 @@ export function TalentBookingTab({
         display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
       }}>
         <div data-booking-card style={cardStyle}>
-          <div data-booking-section-title style={sectionTitle}>Transport</div>
+          <div data-booking-section-title style={sectionTitle}>{tr("dashboard.talentThread.bookingTransport")}</div>
           {pinned.transport ? (
             <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
               {pinned.transport}
             </div>
           ) : (
             <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              Coordinator hasn&apos;t shared transport yet.
+              {tr("dashboard.talentThread.bookingTransportEmpty")}
             </div>
           )}
         </div>
         <div data-booking-card style={cardStyle}>
-          <div data-booking-section-title style={sectionTitle}>Lodging</div>
+          <div data-booking-section-title style={sectionTitle}>{tr("dashboard.talentThread.bookingLodging")}</div>
           {hotel ? (
             <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
               {hotel}
             </div>
           ) : (
             <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              No hotel needed for this job.
+              {tr("dashboard.talentThread.bookingLodgingEmpty")}
             </div>
           )}
         </div>
@@ -390,7 +393,7 @@ export function TalentBookingTab({
           {showLineupCard && (
             <div data-booking-card style={cardStyle}>
               <div data-booking-section-title style={sectionTitle}>
-                {soloCoord && !teammates ? "On this job" : "Who's on this job"}
+                {soloCoord && !teammates ? tr("dashboard.talentThread.bookingOnThisJob") : tr("dashboard.talentThread.bookingWhosOnJob")}
               </div>
               {inquiry.talent.map(t => (
                 <RosterMemberRow
@@ -402,7 +405,7 @@ export function TalentBookingTab({
               ))}
               {soloCoord && inquiry.talent.length === 0 && (
                 <div style={{ fontSize: 12, padding: "8px 0" }} className="text-admin-ink-muted">
-                  No talent on this job yet.
+                  {tr("dashboard.talentThread.bookingNoTalentYet")}
                 </div>
               )}
               {/* Edit / view lineup affordance — opens the same lineup
@@ -430,11 +433,11 @@ export function TalentBookingTab({
                       <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
                         <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
                       </svg>
-                      {soloCoord && !teammates ? "Invite a teammate" : "Edit lineup · add or remove talent"}
+                      {soloCoord && !teammates ? tr("dashboard.talentThread.bookingInviteTeammate") : tr("dashboard.talentThread.bookingEditLineup")}
                     </>
                   ) : (
                     <>
-                      View full lineup
+                      {tr("dashboard.talentThread.bookingViewLineup")}
                       <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
                         <path d="M3.5 2L7.5 6L3.5 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
@@ -446,7 +449,7 @@ export function TalentBookingTab({
           )}
           {showCoord && (
             <div data-booking-card data-booking-coord style={cardStyle}>
-              <div data-booking-section-title style={sectionTitle}>Your coordinator</div>
+              <div data-booking-section-title style={sectionTitle}>{tr("dashboard.talentThread.bookingYourCoordinator")}</div>
               {/* Identity row — avatar + name. Stacks above the action
                   button so the card never has to fit avatar + name +
                   button on a single 42%-of-viewport horizontal track. */}
@@ -463,7 +466,7 @@ export function TalentBookingTab({
                     <CoordRoleBadge role={coord.role} />
                   </div>
                   <div style={{ fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
-                    {coord.role === "owner" ? "Workspace owner" : "Your coordinator"}
+                    {coord.role === "owner" ? tr("dashboard.talentThread.bookingWorkspaceOwner") : tr("dashboard.talentThread.bookingCoordinatorRole")}
                   </div>
                 </div>
               </div>
@@ -471,7 +474,7 @@ export function TalentBookingTab({
                   identity row so it never competes with name truncation
                   for horizontal space. Same look as before, just wraps
                   underneath when the card is narrow. */}
-              <button type="button" onClick={() => toast(`Messaging ${coord.name}…`)} style={{
+              <button type="button" onClick={() => toast(interpolate(tr("dashboard.talentThread.toastMessaging"), { name: coord.name }))} style={{
                 marginTop: 10, width: "100%",
                 padding: "7px 10px", borderRadius: 8,
                 border: `1px solid ${COLORS.border}`, background: "transparent",
@@ -482,7 +485,7 @@ export function TalentBookingTab({
                 <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden>
                   <path d="M2 3.5h10v6H6L3 12v-2.5H2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
                 </svg>
-                Message
+                {tr("dashboard.talentThread.bookingMessage")}
               </button>
             </div>
           )}
@@ -494,12 +497,12 @@ export function TalentBookingTab({
           conversations). Saves on blur into the module-level notes
           stash; survives tab + conv switches within the session. */}
       <div data-booking-card style={cardStyle}>
-        <div data-booking-section-title style={sectionTitle}>My notes</div>
+        <div data-booking-section-title style={sectionTitle}>{tr("dashboard.talentThread.bookingMyNotes")}</div>
         <textarea
           key={conv.id}
           defaultValue={readConvNote(conv.id)}
-          placeholder="Things to bring, contacts, reminders…"
-          onBlur={(e) => { writeConvNote(conv.id, e.currentTarget.value); toast("Note saved"); }}
+          placeholder={tr("dashboard.talentThread.bookingNotesPlaceholder")}
+          onBlur={(e) => { writeConvNote(conv.id, e.currentTarget.value); toast(tr("dashboard.talentThread.toastNoteSaved")); }}
           style={{
             width: "100%", minHeight: 64, resize: "vertical",
             padding: 10, borderRadius: 8,

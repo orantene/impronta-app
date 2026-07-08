@@ -13,6 +13,9 @@ import { redirect, notFound } from "next/navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPlatformRole } from "@/lib/access/platform-role";
 import { isStripeConfigured } from "@/lib/stripe/client";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 import {
   listPlatformDiscountCodes,
   type DiscountCodeSummary,
@@ -54,6 +57,9 @@ export default async function PlatformDiscountCodesPage() {
     else listError = list.error;
   }
 
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, fontFamily: F, color: HQ.ink }}>
       {/* Header */}
@@ -68,7 +74,7 @@ export default async function PlatformDiscountCodesPage() {
             marginBottom: 6,
           }}
         >
-          Tulala HQ · Billing
+          {t("dashboard.platform.billing.discountCodes.eyebrow")}
         </div>
         <h1
           style={{
@@ -80,7 +86,7 @@ export default async function PlatformDiscountCodesPage() {
             lineHeight: 1.1,
           }}
         >
-          Discount codes
+          {t("dashboard.platform.billing.discountCodes.title")}
         </h1>
         <p
           style={{
@@ -91,11 +97,7 @@ export default async function PlatformDiscountCodesPage() {
             lineHeight: 1.5,
           }}
         >
-          Mint Stripe coupons + promotion codes. 100% off codes are useful for
-          internal QA, friends &amp; family deals, and comped tenants. The codes
-          live in Stripe — Stripe is the source of truth — and are usable in
-          every workspace, talent, and client checkout flow because each session
-          already accepts promotion codes.
+          {t("dashboard.platform.billing.discountCodes.subtitle")}
         </p>
       </div>
 
@@ -110,8 +112,7 @@ export default async function PlatformDiscountCodesPage() {
             fontSize: 13,
           }}
         >
-          Stripe is not configured. Set <code>STRIPE_SECRET_KEY</code> in the
-          Vercel project to mint codes.
+          {t("dashboard.platform.billing.discountCodes.notConfigured")}
         </div>
       )}
 
@@ -126,7 +127,10 @@ export default async function PlatformDiscountCodesPage() {
             fontSize: 13,
           }}
         >
-          Failed to load codes: {listError}
+          {interpolate(
+            t("dashboard.platform.billing.discountCodes.loadFailed"),
+            { error: listError },
+          )}
         </div>
       )}
 

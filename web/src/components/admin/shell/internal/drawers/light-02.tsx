@@ -25,6 +25,7 @@ import {
   meetsRole,
   useAdminShell
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 2 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -244,6 +245,8 @@ function CollapsibleSection({
 
 export function TeamDrawer() {
   const { state, closeDrawer, toast, effectiveTeamMembers, effectiveRoster, bridgeTenantIdentity, bridgeSessionIdentity } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const router = useRouter();
   // Phase 3.12 — use live team members when available, fall back to mock.
   const isLiveTeam = effectiveTeamMembers.length > 0;
@@ -299,7 +302,7 @@ export function TeamDrawer() {
       const { changeTeamMemberRole } = await import("@/lib/server-actions/team-management");
       const r = await changeTeamMemberRole(memberId, nextRole);
       if (r.ok) {
-        toast(`Role updated to ${nextRole}.`);
+        toast(tt("Role updated to {role}.").replace("{role}", tt(nextRole)));
         router.refresh();
       } else {
         toast(r.error);
@@ -312,7 +315,7 @@ export function TeamDrawer() {
 
   const handleInvite = async () => {
     if (!inviteEmail.trim()) {
-      toast("Enter an email address.");
+      toast(tt("Enter an email address."));
       return;
     }
     setInviting(true);
@@ -321,7 +324,7 @@ export function TeamDrawer() {
       const { inviteTeamMember } = await import("@/lib/server-actions/team-management");
       const r = await inviteTeamMember(inviteEmail.trim(), inviteRole);
       if (r.ok) {
-        toast(`Invite created for ${inviteEmail.trim()}. Copy the link below.`);
+        toast(tt("Invite created for {email}. Copy the link below.").replace("{email}", inviteEmail.trim()));
         setInviteResult({ url: r.data.redeemUrl, expiresAt: r.data.expiresAt });
         setInviteEmail("");
       } else {
@@ -345,8 +348,11 @@ export function TeamDrawer() {
       if (r.ok) {
         toast(
           next.length === 0
-            ? "Inquiry coordinators cleared. The workspace owner catches new inquiries."
-            : `${next.length} inquiry coordinator${next.length === 1 ? "" : "s"} saved.`,
+            ? tt("Inquiry coordinators cleared. The workspace owner catches new inquiries.")
+            : (next.length === 1
+                ? tt("{count} inquiry coordinator saved.")
+                : tt("{count} inquiry coordinators saved.")
+              ).replace("{count}", String(next.length)),
         );
       } else {
         toast(r.error);
@@ -361,14 +367,17 @@ export function TeamDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Team"
-      description="Workspace admins, teammate invites, and inquiry coordinators."
+      title={tt("Team")}
+      description={tt("Workspace admins, teammate invites, and inquiry coordinators.")}
       width={560}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <CollapsibleSection
-        title="Workspace Admins"
-        subtitle={`${team.length} ${team.length === 1 ? "person" : "people"} with workspace access`}
+        title={tt("Workspace Admins")}
+        subtitle={(team.length === 1
+          ? tt("{count} person with workspace access")
+          : tt("{count} people with workspace access")
+        ).replace("{count}", String(team.length))}
         defaultOpen
       >
         <div className="flex flex-col gap-2">
@@ -399,7 +408,7 @@ export function TeamDrawer() {
                       <select
                         value={displayRole}
                         disabled={savingRoleId === m.id}
-                        aria-label={`Role for ${m.name}`}
+                        aria-label={tt("Role for {name}").replace("{name}", m.name)}
                         onChange={(e) =>
                           handleRoleChange(
                             m.id,
@@ -419,15 +428,15 @@ export function TeamDrawer() {
                           cursor: savingRoleId === m.id ? "wait" : "pointer",
                         }}
                       >
-                        <option value="viewer">Viewer</option>
-                        <option value="editor">Editor</option>
-                        <option value="manager">Manager</option>
-                        <option value="admin">Admin</option>
+                        <option value="viewer">{tt("Viewer")}</option>
+                        <option value="editor">{tt("Editor")}</option>
+                        <option value="manager">{tt("Manager")}</option>
+                        <option value="admin">{tt("Admin")}</option>
                       </select>
                     ) : (
                       <RoleChip role={displayRole} />
                     )}
-                    {m.status === "invited" && <StateChipMini label="Invited" tone="amber" />}
+                    {m.status === "invited" && <StateChipMini label={tt("Invited")} tone="amber" />}
                   </>
                 }
               />
@@ -438,11 +447,11 @@ export function TeamDrawer() {
 
       {canManage && (
         <CollapsibleSection
-          title="Invite a teammate"
-          subtitle="Send a join link at a set role"
-          description="They'll get a link to join the workspace at the role you set. Email delivery wires in Phase 8 — for now copy the link below and share it directly."
+          title={tt("Invite a teammate")}
+          subtitle={tt("Send a join link at a set role")}
+          description={tt("They'll get a link to join the workspace at the role you set. Email delivery wires in Phase 8. For now copy the link below and share it directly.")}
         >
-          <FieldRow label="Email">
+          <FieldRow label={tt("Email")}>
             <TextInput
               type="email"
               placeholder="someone@your-agency.com"
@@ -450,7 +459,7 @@ export function TeamDrawer() {
               onChange={(e) => setInviteEmail(e.currentTarget.value)}
             />
           </FieldRow>
-          <FieldRow label="Role" hint="Owners change billing. Admins manage team and branding. Managers move work and message clients during events. Editors draft. Viewers watch.">
+          <FieldRow label={tt("Role")} hint={tt("Owners change billing. Admins manage team and branding. Managers move work and message clients during events. Editors draft. Viewers watch.")}>
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.currentTarget.value as typeof inviteRole)}
@@ -464,15 +473,15 @@ export function TeamDrawer() {
                 color: COLORS.ink,
               }}
             >
-              <option value="viewer">Viewer</option>
-              <option value="editor">Editor</option>
-              <option value="manager">Manager</option>
-              <option value="admin">Admin</option>
+              <option value="viewer">{tt("Viewer")}</option>
+              <option value="editor">{tt("Editor")}</option>
+              <option value="manager">{tt("Manager")}</option>
+              <option value="admin">{tt("Admin")}</option>
             </select>
           </FieldRow>
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
             <PrimaryButton onClick={handleInvite} disabled={inviting}>
-              {inviting ? "Creating invite…" : "Create invite link"}
+              {inviting ? tt("Creating invite…") : tt("Create invite link")}
             </PrimaryButton>
           </div>
           {inviteResult ? (
@@ -487,11 +496,12 @@ export function TeamDrawer() {
               }}
             >
               <div style={{ fontSize: 12, fontWeight: 600, color: "#093328", marginBottom: 6 }}>
-                Invite link ready
+                {tt("Invite link ready")}
               </div>
               <div style={{ fontSize: 11, marginBottom: 8 }} className="text-admin-ink-muted">
-                Expires {new Date(inviteResult.expiresAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}.
-                Share with your invitee — clicking takes them through sign-up and lands them on the workspace.
+                {tt("Expires {date}.").replace("{date}", new Date(inviteResult.expiresAt).toLocaleDateString(copy.isSpanish ? "es" : undefined, { day: "numeric", month: "short", year: "numeric" }))}
+                {" "}
+                {tt("Share with your invitee; clicking takes them through sign-up and lands them on the workspace.")}
               </div>
               <code
                 style={{
@@ -516,11 +526,11 @@ export function TeamDrawer() {
                     const full = (typeof window !== "undefined" ? window.location.origin : "") + inviteResult.url;
                     navigator.clipboard
                       .writeText(full)
-                      .then(() => toast("Link copied to clipboard."))
-                      .catch(() => toast("Couldn't copy — select the link and copy manually."));
+                      .then(() => toast(tt("Link copied to clipboard.")))
+                      .catch(() => toast(tt("Couldn't copy. Select the link and copy manually.")));
                   }}
                 >
-                  Copy link
+                  {tt("Copy link")}
                 </GhostButton>
               </div>
             </div>
@@ -530,29 +540,29 @@ export function TeamDrawer() {
 
       {canManage && isAgencyTier && (
         <CollapsibleSection
-          title="Auto-coordinator"
+          title={tt("Auto-coordinator")}
           subtitle={
             coordinatorTalentIds.length === 0
-              ? "Pick talent who auto-join new inquiries"
-              : `${coordinatorTalentIds.length} talent auto-join${
-                  coordinatorTalentIds.length === 1 ? "s" : ""
-                } new inquiries`
+              ? tt("Pick talent who auto-join new inquiries")
+              : (coordinatorTalentIds.length === 1
+                  ? tt("{count} talent auto-joins new inquiries")
+                  : tt("{count} talent auto-join new inquiries")
+                ).replace("{count}", String(coordinatorTalentIds.length))
           }
-          description="Pick the roster talent who auto-join every new inquiry as coordinators. They land on the message thread and can manage the inquiry → booking flow. Pick as many as you need."
+          description={tt("Pick the roster talent who auto-join every new inquiry as coordinators. They land on the message thread and can manage the inquiry to booking flow. Pick as many as you need.")}
         >
           {effectiveRoster.length === 0 ? (
             <div
               className="text-admin-ink-muted"
               style={{ fontSize: 12.5, fontFamily: FONTS.body }}
             >
-              No talent on the roster yet. Add talent first, then designate
-              coordinators here.
+              {tt("No talent on the roster yet. Add talent first, then designate coordinators here.")}
             </div>
           ) : (
             <>
               <TextInput
                 type="text"
-                placeholder="Search talent by name or email…"
+                placeholder={tt("Search talent by name or email…")}
                 value={coordinatorSearch}
                 onChange={(e) => setCoordinatorSearch(e.currentTarget.value)}
               />
@@ -565,7 +575,7 @@ export function TeamDrawer() {
                     className="text-admin-ink-muted"
                     style={{ fontSize: 12, fontFamily: FONTS.body, padding: "4px 2px" }}
                   >
-                    No talent match that search.
+                    {tt("No talent match that search.")}
                   </div>
                 ) : (
                   coordinatorRoster.map((tp) => {
@@ -607,12 +617,11 @@ export function TeamDrawer() {
                 style={{ fontSize: 11, marginTop: 8, fontFamily: FONTS.body }}
               >
                 {coordinatorTalentIds.length === 0
-                  ? "No coordinators set — the workspace owner catches new inquiries."
-                  : `${coordinatorTalentIds.length} coordinator${
-                      coordinatorTalentIds.length === 1 ? "" : "s"
-                    } auto-join${
-                      coordinatorTalentIds.length === 1 ? "s" : ""
-                    } every new inquiry.`}
+                  ? tt("No coordinators set. The workspace owner catches new inquiries.")
+                  : (coordinatorTalentIds.length === 1
+                      ? tt("{count} coordinator auto-joins every new inquiry.")
+                      : tt("{count} coordinators auto-join every new inquiry.")
+                    ).replace("{count}", String(coordinatorTalentIds.length))}
               </div>
             </>
           )}
@@ -621,9 +630,9 @@ export function TeamDrawer() {
 
       {canManage && !isAgencyTier && (
         <CollapsibleSection
-          title="Auto-coordinator"
-          subtitle="Agency-tier feature"
-          description="On Agency-tier workspaces, you can pick the roster talent who auto-join every new inquiry as coordinators. Upgrade to enable."
+          title={tt("Auto-coordinator")}
+          subtitle={tt("Agency-tier feature")}
+          description={tt("On Agency-tier workspaces, you can pick the roster talent who auto-join every new inquiry as coordinators. Upgrade to enable.")}
         >
           <div
             style={{
@@ -639,8 +648,8 @@ export function TeamDrawer() {
             }}
           >
             <div>
-              <div className="text-admin-ink text-admin-13 font-semibold">Default coordinator</div>
-              <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">Requires Agency tier</div>
+              <div className="text-admin-ink text-admin-13 font-semibold">{tt("Default coordinator")}</div>
+              <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{tt("Requires Agency tier")}</div>
             </div>
             <span
               style={{
@@ -656,7 +665,7 @@ export function TeamDrawer() {
                 textTransform: "uppercase",
               }}
             >
-              Agency
+              {tt("Agency")}
             </span>
           </div>
         </CollapsibleSection>

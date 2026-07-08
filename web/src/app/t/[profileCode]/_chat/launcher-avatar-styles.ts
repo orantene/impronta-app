@@ -27,6 +27,35 @@ export const FACE_OBJECT_POSITION = "50% 20%";
 /** Empty-circle ground so an avatar is never an empty box (§4.A.2 / C.surfaceCool). */
 export const AVATAR_GROUND = "#eef1f5";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// No-photo fallback — a premium, letter-free line-art silhouette. A person with
+// no portrait gets the SILHOUETTE, never initials-in-a-circle (letters read as
+// unfinished). Exported as an inline-SVG markup string so both the .ts helpers
+// and the .tsx avatar render sites can drop it in (via dangerouslySetInnerHTML
+// on a centered wrapper, or as a CSS mask/background via SILHOUETTE_DATA_URI).
+// currentColor lets the caller tint it to the surrounding avatar ink.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Inline SVG bust (head + shoulders), no facial detail. Uses `currentColor`. */
+export const PERSON_SILHOUETTE_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" width="60%" height="60%" aria-hidden="true" focusable="false">' +
+  '<circle cx="12" cy="8.2" r="3.6" fill="currentColor"/>' +
+  '<path d="M4.6 19.4c0-3.7 3.2-6.2 7.4-6.2s7.4 2.5 7.4 6.2c0 .5-.4.8-.9.8H5.5c-.5 0-.9-.3-.9-.8Z" fill="currentColor"/>' +
+  "</svg>";
+
+/**
+ * `data:image/svg+xml` URI of the same bust in a fixed muted cool ink. Handy as
+ * a CSS `background-image`/`mask-image` where inlining an <svg> is awkward.
+ */
+export const SILHOUETTE_DATA_URI =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgba(90,102,120,0.55)">' +
+      '<circle cx="12" cy="8.2" r="3.6"/>' +
+      '<path d="M4.6 19.4c0-3.7 3.2-6.2 7.4-6.2s7.4 2.5 7.4 6.2c0 .5-.4.8-.9.8H5.5c-.5 0-.9-.3-.9-.8Z"/>' +
+      "</svg>",
+  );
+
 /** Flying-clone z-index (plan §4.A.3 / exact-value table). */
 export const FLY_CLONE_Z = 2147483001;
 
@@ -88,7 +117,13 @@ export function ensureAvatarKeyframes(): void {
 // Small pure helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Up-to-two-letter initials for the no-photo medallion fallback (§4.A.8). */
+/**
+ * Up-to-two-letter initials.
+ *
+ * NOTE: initials are NO LONGER the intended no-photo avatar fallback — a person
+ * with no portrait should render `PERSON_SILHOUETTE_SVG` (letter-free) instead.
+ * Kept for callers that still need a compact text token (e.g. aria/labels).
+ */
 export function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";

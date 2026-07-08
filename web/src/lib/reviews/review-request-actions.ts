@@ -25,6 +25,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireTalent } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
+import { getAppUrl } from "@/lib/auth-flow";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 
 /** Postgres unique-violation SQLSTATE. */
 const PG_UNIQUE_VIOLATION = "23505";
@@ -42,6 +46,76 @@ async function resolveTenantId(
   });
   const rows = (data ?? []) as Array<{ tenant_id: string; tenant_slug: string }>;
   return rows[0]?.tenant_id ?? null;
+}
+
+/**
+ * Fire the review-invite notification through the EXISTING engine.
+ *
+ * Not exported (the "use server" rule bars a non-async export, but a local
+ * helper is fine). Resolves the talent display name + booking event context and
+ * the single-use `/review/{token}` CTA, then dispatches `review.request_created`
+ * — the `review.request_invite.client` catalog entry fans it out to the past
+ * client (email + in-app when they have an account, email-only for a guest).
+ *
+ * Best-effort and fully swallowed: this runs after the request row is already
+ * stored, so a notify failure must never surface to the caller.
+ */
+async function notifyReviewRequestCreated(params: {
+  requestId: string;
+  tenantId: string;
+  talentProfileId: string;
+  bookingId: string | null;
+  clientUserId: string | null;
+  invitedEmail: string | null;
+  inviteToken: string | null;
+}): Promise<void> {
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return;
+
+    let talentName: string | null = null;
+    const { data: talent } = await admin
+      .from("talent_profiles")
+      .select("display_name")
+      .eq("id", params.talentProfileId)
+      .maybeSingle();
+    talentName = (talent as { display_name: string | null } | null)?.display_name ?? null;
+
+    let eventTitle: string | null = null;
+    let eventDate: string | null = null;
+    if (params.bookingId) {
+      const { data: booking } = await admin
+        .from("agency_bookings")
+        .select("title, event_date")
+        .eq("id", params.bookingId)
+        .maybeSingle();
+      const b = booking as { title: string | null; event_date: string | null } | null;
+      eventTitle = b?.title ?? null;
+      eventDate = b?.event_date ?? null;
+    }
+
+    // The single-use token landing page (owned by the review-token route). No
+    // token (unexpected) degrades to the branded home so the email still sends.
+    const reviewUrl = params.inviteToken
+      ? `${getAppUrl()}/review/${encodeURIComponent(params.inviteToken)}`
+      : `${getAppUrl()}/`;
+
+    await dispatchEventNotifications({
+      type: "review.request_created",
+      tenantId: params.tenantId,
+      eventId: `review-invite:${params.requestId}`,
+      payload: {
+        clientUserId: params.clientUserId,
+        invitedEmail: params.invitedEmail,
+        talentName,
+        eventTitle,
+        eventDate,
+        reviewUrl,
+      },
+    });
+  } catch (err) {
+    logServerError("reviews/request/notify", err);
+  }
 }
 
 export type CreateReviewRequestInput = {
@@ -84,19 +158,31 @@ export async function createReviewRequestAction(
   const tenantId = await resolveTenantId(supabase, input.tenantSlug);
   if (!tenantId) return { ok: false, error: "Unknown workspace." };
 
+  // Reviews are a PREMIUM capability, gated on the surface tenant's entitlement.
+  // A non-entitled workspace cannot file review requests. Fails closed.
+  if (!(await tenantReviewsEnabled(tenantId))) {
+    return { ok: false, error: "Reviews are not enabled on this workspace." };
+  }
+
   // Insert the pending request. RLS lets the talent (talent_profiles.user_id =
   // auth.uid()) or tenant staff insert their own rows; a non-owner insert is
-  // rejected by the policy, not by this app-layer code.
-  const { error } = await supabase.from("review_requests").insert({
-    tenant_id: tenantId,
-    talent_profile_id: cleanTalentId,
-    booking_id: cleanBookingId,
-    client_user_id: cleanClientId,
-    invited_email: cleanEmail,
-    message: cleanMessage,
-    status: "pending",
-    requested_by_user_id: user.id,
-  });
+  // rejected by the policy, not by this app-layer code. We select the row back
+  // so we have the id + single-use invite_token for the review-invite email.
+  const { data: created, error } = await supabase
+    .from("review_requests")
+    .insert({
+      tenant_id: tenantId,
+      talent_profile_id: cleanTalentId,
+      booking_id: cleanBookingId,
+      client_user_id: cleanClientId,
+      invited_email: cleanEmail,
+      message: cleanMessage,
+      status: "pending",
+      requested_by_user_id: user.id,
+    })
+    .select("id, invite_token")
+    .maybeSingle()
+    .returns<{ id: string; invite_token: string | null }>();
 
   if (error) {
     // UNIQUE(booking_id, client_user_id) — a request already exists.
@@ -110,7 +196,23 @@ export async function createReviewRequestAction(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  // TODO(email): send the invite once email infra is wired.
+  // Fire the review-invite email through the EXISTING notification engine (the
+  // dispatcher honors email_suppressions, the `reviews` category preference,
+  // unsubscribe headers, and localized copy). Best-effort: a notify failure must
+  // never fail the request the caller just created.
+  const inviteRow = created as { id: string; invite_token: string | null } | null;
+  if (inviteRow?.id) {
+    await notifyReviewRequestCreated({
+      requestId: inviteRow.id,
+      tenantId,
+      talentProfileId: cleanTalentId,
+      bookingId: cleanBookingId,
+      clientUserId: cleanClientId,
+      invitedEmail: cleanEmail,
+      inviteToken: inviteRow.invite_token,
+    });
+  }
+
   return { ok: true };
 }
 
@@ -171,4 +273,24 @@ export async function loadReviewRequestsForOwnerAction(
     status: r.status,
     createdAt: r.created_at,
   }));
+}
+
+/**
+ * Whether the review (STANDING) capability is enabled for a workspace, addressed
+ * by slug. A thin "use server" bridge over tenantReviewsEnabled so CLIENT shell
+ * surfaces (the talent Reviews page, the admin profile-reviews drawer) can read
+ * the premium gate — they cannot import the plain server helper directly.
+ *
+ * Resolves slug → tenant id via the same session-scoped resolver the other
+ * actions here use, then defers to tenantReviewsEnabled (service-role PK lookup,
+ * FAILS CLOSED). Any resolution failure returns false.
+ */
+export async function reviewsEnabledForTenantAction(
+  tenantSlug: string,
+): Promise<boolean> {
+  const auth = await requireTalent();
+  if (!auth.ok) return false;
+  const tenantId = await resolveTenantId(auth.supabase, tenantSlug);
+  if (!tenantId) return false;
+  return tenantReviewsEnabled(tenantId);
 }

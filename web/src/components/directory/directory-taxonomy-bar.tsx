@@ -55,7 +55,7 @@ export function DirectoryTaxonomyBar({
           <button
             type="button"
             onClick={clear}
-            className="text-sm text-[var(--impronta-gold)] underline-offset-4 hover:underline"
+            className="text-sm text-[var(--dir-accent)] underline-offset-4 hover:underline"
           >
             {copy.clearFilters}
           </button>
@@ -79,8 +79,8 @@ export function DirectoryTaxonomyBar({
               className={cn(
                 "rounded-full border px-3 py-1.5 text-sm transition-colors",
                 on
-                  ? "border-[var(--impronta-gold)] bg-[rgba(212,175,55,0.12)] text-[var(--impronta-gold)]"
-                  : "border-[var(--impronta-gold-border)] text-[var(--impronta-muted)] hover:border-[var(--impronta-gold-dim)] hover:text-zinc-200",
+                  ? "border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
+                  : "border-[var(--dir-accent-line)] text-muted-foreground hover:border-[var(--dir-accent)]/50 hover:text-foreground",
               )}
             >
               {opt.name}

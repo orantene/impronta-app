@@ -21,6 +21,7 @@ import {
   useAdminShell,
   useSaveAndClose
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -28,6 +29,8 @@ import {
 export function EmailTemplatesDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "email-templates";
+  const copy = useDashboardText();
+  const tt = copy.t;
   const [search, setSearch] = useState("");
 
   type EmailTemplate = { id: string; name: string; trigger: string; category: string; status: "live" | "draft" | "paused" };
@@ -65,11 +68,15 @@ export function EmailTemplatesDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Email templates"
-      description={`${TEMPLATES.length} transactional email types. Templates are role-aware and workspace-branded.`}
+      title={tt("Email templates")}
+      description={
+        copy.isSpanish
+          ? `${TEMPLATES.length} tipos de correo transaccional. Las plantillas se adaptan al rol y a la marca del espacio.`
+          : `${TEMPLATES.length} transactional email types. Templates are role-aware and workspace-branded.`
+      }
       footer={
         <div className="flex gap-2">
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>
         </div>
       }
       defaultSize="half"
@@ -78,9 +85,9 @@ export function EmailTemplatesDrawer() {
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
           {[
-            { label: "Live",   value: String(TEMPLATES.filter((t) => t.status === "live").length),   color: COLORS.successDeep },
-            { label: "Draft",  value: String(TEMPLATES.filter((t) => t.status === "draft").length),  color: COLORS.amber       },
-            { label: "Paused", value: String(TEMPLATES.filter((t) => t.status === "paused").length), color: COLORS.inkMuted    },
+            { label: tt("Live"),   value: String(TEMPLATES.filter((t) => t.status === "live").length),   color: COLORS.successDeep },
+            { label: tt("Draft"),  value: String(TEMPLATES.filter((t) => t.status === "draft").length),  color: COLORS.amber       },
+            { label: tt("Paused"), value: String(TEMPLATES.filter((t) => t.status === "paused").length), color: COLORS.inkMuted    },
           ].map((tile) => (
             <div key={tile.label} style={{
               background: COLORS.surfaceAlt, borderRadius: RADIUS.md,
@@ -95,7 +102,7 @@ export function EmailTemplatesDrawer() {
         <TextInput
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search templates…"
+          placeholder={tt("Search templates…")}
         />
 
         {categories.map((cat) => {
@@ -103,7 +110,7 @@ export function EmailTemplatesDrawer() {
           if (catItems.length === 0) return null;
           return (
             <div key={cat}>
-              <CapsLabel>{cat}</CapsLabel>
+              <CapsLabel>{tt(cat)}</CapsLabel>
               <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
                 {catItems.map((tmpl) => (
                   <div
@@ -116,15 +123,15 @@ export function EmailTemplatesDrawer() {
                   >
                     <div>
                       <div className="text-admin-ink text-admin-13 font-semibold">{tmpl.name}</div>
-                      <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">Trigger: {tmpl.trigger}</div>
+                      <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{tt("Trigger:")} {tmpl.trigger}</div>
                     </div>
                     <div className="flex items-center gap-2">
                       <span style={{ fontSize: 10.5, fontWeight: 700, color: statusColor(tmpl.status), background: statusBg(tmpl.status), padding: "2px 7px", textTransform: "capitalize" }} className="rounded-admin-sm">
-                        {tmpl.status}
+                        {tt(tmpl.status)}
                       </span>
                       <button
                         type="button"
-                        onClick={() => toast(`Editing "${tmpl.name}"`)}
+                        onClick={() => toast(copy.isSpanish ? `Editando "${tmpl.name}"` : `Editing "${tmpl.name}"`)}
                         style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, lineHeight: 0 }}
                       >
                         <Icon name="settings" size={13} color={COLORS.inkDim} stroke={1.7} />
@@ -145,21 +152,27 @@ export function EmailTemplatesDrawer() {
 export function EmailBrandingDrawer() {
   const { state, closeDrawer, toast, effectiveTenant } = useAdminShell();
   const open = state.drawer.drawerId === "email-branding";
+  const copy = useDashboardText();
+  const tt = copy.t;
   const [senderName,  setSenderName]  = useState(effectiveTenant.name);
   const [senderEmail, setSenderEmail] = useState(`hello@${effectiveTenant.name.toLowerCase().replace(/\s/g, "")}.com`);
-  const [footerText,  setFooterText]  = useState(`© ${new Date().getFullYear()} ${effectiveTenant.name}. All rights reserved.`);
+  const [footerText,  setFooterText]  = useState(
+    copy.isSpanish
+      ? `© ${new Date().getFullYear()} ${effectiveTenant.name}. Todos los derechos reservados.`
+      : `© ${new Date().getFullYear()} ${effectiveTenant.name}. All rights reserved.`,
+  );
   const [accentColor, setAccentColor] = useState("#0F4F3E");
-  const save = useSaveAndClose("Email branding saved");
+  const save = useSaveAndClose(tt("Email branding saved"));
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Email branding"
-      description="Customize how your emails look and who they're from. Changes apply to all outgoing emails."
+      title={tt("Email branding")}
+      description={tt("Customize how your emails look and who they're from. Changes apply to all outgoing emails.")}
       footer={
         <div className="flex gap-2">
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Cancel")}</SecondaryButton>
           <button
             type="button" onClick={save}
             style={{
@@ -168,7 +181,7 @@ export function EmailBrandingDrawer() {
               fontSize: 13, fontWeight: 600, cursor: "pointer",
             }}
           >
-            Save
+            {tt("Save")}
           </button>
         </div>
       }
@@ -193,20 +206,20 @@ export function EmailBrandingDrawer() {
             <div className="text-admin-ink text-admin-13 font-bold">{senderName}</div>
           </div>
           <div style={{ fontSize: 12.5, marginBottom: 8 }} className="text-admin-ink">
-            Hi [Talent Name], your booking for [Project] has been confirmed…
+            {tt("Hi [Talent Name], your booking for [Project] has been confirmed…")}
           </div>
           <div className="text-admin-ink-muted text-admin-11">{footerText}</div>
         </div>
 
-        <FieldRow label="Sender name">
-          <TextInput value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Your agency name" />
+        <FieldRow label={tt("Sender name")}>
+          <TextInput value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder={tt("Your agency name")} />
         </FieldRow>
 
-        <FieldRow label="Sender email">
+        <FieldRow label={tt("Sender email")}>
           <TextInput value={senderEmail} onChange={(e) => setSenderEmail(e.target.value)} placeholder="hello@youragency.com" />
         </FieldRow>
 
-        <FieldRow label="Accent color (hex)">
+        <FieldRow label={tt("Accent color (hex)")}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
               type="color"
@@ -218,11 +231,15 @@ export function EmailBrandingDrawer() {
           </div>
         </FieldRow>
 
-        <FieldRow label="Footer text">
+        <FieldRow label={tt("Footer text")}>
           <TextArea
             value={footerText}
             onChange={(e) => setFooterText(e.target.value)}
-            placeholder="© 2026 Your Agency. All rights reserved."
+            placeholder={
+              copy.isSpanish
+                ? "© 2026 Tu Agencia. Todos los derechos reservados."
+                : "© 2026 Your Agency. All rights reserved."
+            }
             rows={2}
           />
         </FieldRow>
@@ -235,19 +252,21 @@ export function EmailBrandingDrawer() {
 export function EmailSequencesDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "email-sequences";
+  const copy = useDashboardText();
+  const tt = copy.t;
   // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Email sequences"
-      description="Automated multi-step email flows."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Email sequences")}
+      description={tt("Automated multi-step email flows.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <EmptyState
         icon="mail"
-        title="Coming soon"
-        body="Automated email sequences aren't available yet."
+        title={tt("Coming soon")}
+        body={tt("Automated email sequences aren't available yet.")}
       />
     </DrawerShell>
   );
@@ -257,6 +276,8 @@ export function EmailSequencesDrawer() {
 export function NotificationPrefsDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "notification-prefs";
+  const copy = useDashboardText();
+  const tt = copy.t;
 
   type PrefRow = { id: string; label: string; description: string; email: boolean; push: boolean; sms: boolean };
   const [prefs, setPrefs] = useState<PrefRow[]>([
@@ -288,21 +309,21 @@ export function NotificationPrefsDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Notification preferences"
-      description="Choose how and when you hear from Tulala. Email, push, and SMS can be toggled independently."
+      title={tt("Notification preferences")}
+      description={tt("Choose how and when you hear from Tulala. Email, push, and SMS can be toggled independently.")}
       footer={
         <div className="flex gap-2">
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Cancel")}</SecondaryButton>
           <button
             type="button"
-            onClick={() => { toast("Preferences saved"); closeDrawer(); }}
+            onClick={() => { toast(tt("Preferences saved")); closeDrawer(); }}
             style={{
               padding: "9px 18px", background: COLORS.fill, border: "none",
               borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
               fontSize: 13, fontWeight: 600, cursor: "pointer",
             }}
           >
-            Save
+            {tt("Save")}
           </button>
         </div>
       }
@@ -330,8 +351,8 @@ export function NotificationPrefsDrawer() {
               }}
             >
               <div className="flex-1">
-                <div className="text-admin-ink text-admin-13 font-semibold">{pref.label}</div>
-                <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{pref.description}</div>
+                <div className="text-admin-ink text-admin-13 font-semibold">{tt(pref.label)}</div>
+                <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{tt(pref.description)}</div>
               </div>
               <div style={{ display: "flex", gap: 16, flexShrink: 0 }}>
                 {CHANNELS.map((ch) => (
@@ -346,15 +367,15 @@ export function NotificationPrefsDrawer() {
 
         {/* ── WS-11 advanced controls ── */}
         <div style={{ marginTop: 24, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
-          Delivery & quiet time
+          {tt("Delivery & quiet time")}
         </div>
 
         {/* WS-11.2 — Batching */}
         <div style={{ padding: "11px 14px", border: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }} className="bg-admin-surface-alt rounded-admin-md">
           <div className="flex-1">
-            <div className="text-admin-ink text-admin-13 font-semibold">Batch similar notifications</div>
+            <div className="text-admin-ink text-admin-13 font-semibold">{tt("Batch similar notifications")}</div>
             <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
-              Collapse &quot;3 new messages from Casa Pero&quot; instead of sending each separately.
+              {tt("Collapse \"3 new messages from Casa Pero\" instead of sending each separately.")}
             </div>
           </div>
           <Toggle on={batchingEnabled} onChange={setBatchingEnabled} />
@@ -364,43 +385,43 @@ export function NotificationPrefsDrawer() {
         <div style={{ padding: "11px 14px", border: `1px solid ${COLORS.borderSoft}`, marginBottom: 4 }} className="bg-admin-surface-alt rounded-admin-md">
           <div className="flex items-center gap-3">
             <div className="flex-1">
-              <div className="text-admin-ink text-admin-13 font-semibold">Quiet hours</div>
+              <div className="text-admin-ink text-admin-13 font-semibold">{tt("Quiet hours")}</div>
               <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
-                Pause push and SMS during these hours. Email is always allowed.
+                {tt("Pause push and SMS during these hours. Email is always allowed.")}
               </div>
             </div>
             <Toggle on={dndEnabled} onChange={setDndEnabled} />
           </div>
           {dndEnabled && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 12.5 }} className="text-admin-ink">
-              <span>From</span>
+              <span>{tt("From")}</span>
               <input type="time" value={dndStart} onChange={(e) => setDndStart(e.target.value)} style={{
                 padding: "4px 8px", borderRadius: RADIUS.sm,
                 border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12,
                 background: "#fff", color: COLORS.ink, outline: "none",
               }} />
-              <span>to</span>
+              <span>{tt("to")}</span>
               <input type="time" value={dndEnd} onChange={(e) => setDndEnd(e.target.value)} style={{
                 padding: "4px 8px", borderRadius: RADIUS.sm,
                 border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12,
                 background: "#fff", color: COLORS.ink, outline: "none",
               }} />
-              <span style={{ fontSize: 11, marginLeft: "auto" }} className="text-admin-ink-muted">workspace timezone</span>
+              <span style={{ fontSize: 11, marginLeft: "auto" }} className="text-admin-ink-muted">{tt("workspace timezone")}</span>
             </div>
           )}
         </div>
 
         {/* WS-11.5 — Preview / lock-screen privacy */}
         <div style={{ padding: "11px 14px", border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt rounded-admin-md">
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }} className="text-admin-ink">Lock-screen previews</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }} className="text-admin-ink">{tt("Lock-screen previews")}</div>
           <div style={{ fontSize: 11.5, marginBottom: 10 }} className="text-admin-ink-muted">
-            What appears on your device&apos;s lock screen for push notifications.
+            {tt("What appears on your device's lock screen for push notifications.")}
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {([
-              { value: "full",        label: "Full content",   sub: "Sender + message preview" },
-              { value: "sender-only", label: "Sender only",     sub: "\"Sara Bianchi sent a message\"" },
-              { value: "hidden",      label: "Hidden",          sub: "\"You have a notification\"" },
+              { value: "full",        label: tt("Full content"),   sub: tt("Sender + message preview") },
+              { value: "sender-only", label: tt("Sender only"),     sub: "\"Sara Bianchi sent a message\"" },
+              { value: "hidden",      label: tt("Hidden"),          sub: tt("\"You have a notification\"") },
             ] as const).map(opt => {
               const active = previewMode === opt.value;
               return (
@@ -438,6 +459,8 @@ export function NotificationPrefsDrawer() {
 export function InviteFlowDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "invite-flow";
+  const copy = useDashboardText();
+  const tt = copy.t;
   const [tab, setTab] = useState<"talent" | "client" | "agency">("talent");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -451,16 +474,16 @@ export function InviteFlowDrawer() {
     setError(null);
     if (tab !== "talent") {
       setError(
-        "Client and agency invites aren't wired up yet — use the Talent tab to invite roster talent.",
+        tt("Client and agency invites aren't wired up yet, use the Talent tab to invite roster talent."),
       );
       return;
     }
     if (!email.trim()) {
-      setError("Enter an email address.");
+      setError(tt("Enter an email address."));
       return;
     }
     if (!tenantSlug) {
-      setError("Couldn't resolve the current workspace. Reload and try again.");
+      setError(tt("Couldn't resolve the current workspace. Reload and try again."));
       return;
     }
     setBusy(true);
@@ -471,35 +494,35 @@ export function InviteFlowDrawer() {
       const res = await inviteRosterTalent(tenantSlug, name, email);
       if (res.ok) {
         setSent(true);
-        toast(`Invite sent to ${email}`);
+        toast(copy.isSpanish ? `Invitación enviada a ${email}` : `Invite sent to ${email}`);
       } else {
         setError(res.error);
       }
     } catch {
-      setError("Something went wrong sending the invite. Try again.");
+      setError(tt("Something went wrong sending the invite. Try again."));
     } finally {
       setBusy(false);
     }
   };
 
   const tabMeta: Record<typeof tab, { label: string; placeholder: string; note: string }> = {
-    talent:  { label: "Talent",  placeholder: "talent@example.com", note: "They'll be invited to create a free talent profile on your roster." },
-    client:  { label: "Client",  placeholder: "client@brand.com",   note: "They'll receive a link to set up a client account and start sending inquiries." },
-    agency:  { label: "Agency",  placeholder: "ops@agency.com",     note: "Agency invite activates network collaboration — shared roster access on approval." },
+    talent:  { label: tt("Talent"),  placeholder: "talent@example.com", note: tt("They'll be invited to create a free talent profile on your roster.") },
+    client:  { label: tt("Client"),  placeholder: "client@brand.com",   note: tt("They'll receive a link to set up a client account and start sending inquiries.") },
+    agency:  { label: tt("Agency"),  placeholder: "ops@agency.com",     note: tt("Agency invite activates network collaboration, shared roster access on approval.") },
   };
 
   return (
     <DrawerShell
       open={open}
       onClose={() => { setSent(false); setEmail(""); setName(""); setError(null); setBusy(false); closeDrawer(); }}
-      title="Send invite"
-      description="Invite talent, clients, or partner agencies to join your workspace network."
+      title={tt("Send invite")}
+      description={tt("Invite talent, clients, or partner agencies to join your workspace network.")}
       footer={
         sent ? (
-          <SecondaryButton onClick={() => { setSent(false); setEmail(""); setName(""); setError(null); }}>Send another</SecondaryButton>
+          <SecondaryButton onClick={() => { setSent(false); setEmail(""); setName(""); setError(null); }}>{tt("Send another")}</SecondaryButton>
         ) : (
           <div className="flex gap-2">
-            <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+            <SecondaryButton onClick={closeDrawer}>{tt("Cancel")}</SecondaryButton>
             <button
               type="button" onClick={handleSend} disabled={busy}
               style={{
@@ -509,7 +532,7 @@ export function InviteFlowDrawer() {
                 cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1,
               }}
             >
-              {busy ? "Sending…" : "Send invite"}
+              {busy ? tt("Sending…") : tt("Send invite")}
             </button>
           </div>
         )
@@ -519,9 +542,11 @@ export function InviteFlowDrawer() {
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
         {sent ? (
           <div style={{ padding: "16px 18px", border: `1px solid rgba(46,125,91,0.2)`, display: "flex", flexDirection: "column", gap: 6 }} className="bg-admin-success-soft rounded-admin-lg">
-            <div className="text-admin-success-deep text-admin-13 font-bold">✓ Invite sent</div>
+            <div className="text-admin-success-deep text-admin-13 font-bold">{tt("✓ Invite sent")}</div>
             <div className="text-admin-success-deep text-admin-12h">
-              {name ? name : email} has been added to your roster as Invited. We&apos;ve emailed {email} a link to claim their profile.
+              {copy.isSpanish
+                ? `${name ? name : email} se añadió a tu lista como Invitado. Enviamos a ${email} un enlace para reclamar su perfil.`
+                : `${name ? name : email} has been added to your roster as Invited. We've emailed ${email} a link to claim their profile.`}
             </div>
           </div>
         ) : (
@@ -555,11 +580,11 @@ export function InviteFlowDrawer() {
               ))}
             </div>
 
-            <FieldRow label="Name (optional)">
-              <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Their name" />
+            <FieldRow label={tt("Name (optional)")}>
+              <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={tt("Their name")} />
             </FieldRow>
 
-            <FieldRow label="Email address">
+            <FieldRow label={tt("Email address")}>
               <TextInput value={email} onChange={(e) => setEmail(e.target.value)} placeholder={tabMeta[tab].placeholder} />
             </FieldRow>
 
@@ -577,6 +602,8 @@ export function InviteFlowDrawer() {
 export function ReferralDashboardDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "referral-dashboard";
+  const copy = useDashboardText();
+  const tt = copy.t;
 
   const REFERRAL_CODE = "IMPRONTA-4X9Z";
   const REFERRAL_URL  = `https://tulala.digital/join?ref=${REFERRAL_CODE}`;
@@ -598,17 +625,17 @@ export function ReferralDashboardDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Referral program"
-      description="Earn €50 credit for every new workspace that subscribes through your link."
+      title={tt("Referral program")}
+      description={tt("Earn €50 credit for every new workspace that subscribes through your link.")}
       footer={
         <div className="flex gap-2">
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>
           <GhostButton onClick={() => {
             void navigator.clipboard
               .writeText(REFERRAL_URL)
-              .then(() => toast("Referral link copied"))
-              .catch(() => toast("Couldn't copy — copy manually"));
-          }}>Copy link</GhostButton>
+              .then(() => toast(tt("Referral link copied")))
+              .catch(() => toast(tt("Couldn't copy, copy manually")));
+          }}>{tt("Copy link")}</GhostButton>
         </div>
       }
       defaultSize="half"
@@ -617,9 +644,9 @@ export function ReferralDashboardDrawer() {
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           {[
-            { label: "Total referred",  value: String(REFERRALS.length), color: COLORS.ink },
-            { label: "Converted",       value: "1",                      color: COLORS.successDeep },
-            { label: "Credits earned",  value: "€50",                    color: COLORS.accentDeep  },
+            { label: tt("Total referred"),  value: String(REFERRALS.length), color: COLORS.ink },
+            { label: tt("Converted"),       value: "1",                      color: COLORS.successDeep },
+            { label: tt("Credits earned"),  value: "€50",                    color: COLORS.accentDeep  },
           ].map((tile) => (
             <div key={tile.label} style={{
               background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
@@ -636,7 +663,7 @@ export function ReferralDashboardDrawer() {
         {/* Referral link */}
         <div style={{ padding: "12px 14px", border: `1px solid rgba(15,79,62,0.2)` }} className="bg-admin-accent-soft rounded-admin-lg">
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }} className="text-admin-accent-deep">
-            Your referral link
+            {tt("Your referral link")}
           </div>
           <div className="flex items-center gap-2">
             <div style={{ flex: 1, fontSize: 12.5, fontFamily: "monospace", background: "#fff", border: `1px solid rgba(15,79,62,0.2)`, padding: "7px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-accent rounded-admin-sm">
@@ -647,8 +674,8 @@ export function ReferralDashboardDrawer() {
               onClick={() => {
                 void navigator.clipboard
                   .writeText(REFERRAL_URL)
-                  .then(() => toast("Copied"))
-                  .catch(() => toast("Couldn't copy — copy manually"));
+                  .then(() => toast(tt("Copied")))
+                  .catch(() => toast(tt("Couldn't copy, copy manually")));
               }}
               style={{
                 padding: "7px 12px", background: COLORS.accent, border: "none",
@@ -656,14 +683,14 @@ export function ReferralDashboardDrawer() {
                 fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0,
               }}
             >
-              Copy
+              {tt("Copy")}
             </button>
           </div>
         </div>
 
         {/* Referral list */}
         <div>
-          <CapsLabel>Referral history</CapsLabel>
+          <CapsLabel>{tt("Referral history")}</CapsLabel>
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
             {REFERRALS.map((ref, i) => (
               <div key={i} style={{
@@ -676,7 +703,7 @@ export function ReferralDashboardDrawer() {
                   <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{ref.date} · {ref.reward}</div>
                 </div>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: statusColor(ref.status), background: statusBg(ref.status), padding: "2px 8px", textTransform: "capitalize" }} className="rounded-admin-sm">
-                  {ref.status}
+                  {tt(ref.status)}
                 </span>
               </div>
             ))}

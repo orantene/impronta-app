@@ -34,6 +34,7 @@ import { formatRateLimitedCopy } from "@/lib/i18n/error-copy";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { notifyBookingCancelled } from "@/lib/notifications/producers/booking-cancelled-notify";
+import { emitNotification } from "@/lib/notifications/emit";
 import {
   assignCoordinator,
   addSecondaryCoordinator,
@@ -3227,7 +3228,7 @@ export async function closeBookingAction(
 
     const { data: booking, error: lookupErr } = await supabase
       .from("agency_bookings")
-      .select("id, status, source_inquiry_id")
+      .select("id, status, source_inquiry_id, client_user_id")
       .eq("id", bookingId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -3271,6 +3272,37 @@ export async function closeBookingAction(
         p_kind: "booking_wrapped",
         p_payload: { booking_id: bookingId, by_user_id: user.id },
       }).then((r) => { if (r.error) logServerError("audit.emit.booking_wrapped", r.error); });
+    }
+
+    // Post-completion review nudge — prompt the booking's client to leave a
+    // review, deep-linking their client bookings page for this tenant.
+    // Best-effort: never fail the completion if the notification fails.
+    // Idempotent per booking via a stable origin_event_id.
+    const clientUid = (booking.client_user_id as string | null) ?? null;
+    if (clientUid) {
+      try {
+        const { data: agency } = await supabase
+          .from("agencies")
+          .select("display_name")
+          .eq("id", tenantId)
+          .maybeSingle();
+        const agencyName =
+          (agency as { display_name?: string | null } | null)?.display_name?.trim() || "your agency";
+        await emitNotification({
+          userId: clientUid,
+          tenantId,
+          kind: "booking",
+          surface: "client",
+          title: `How was your booking with ${agencyName}?`,
+          body: "Leave a review to share how it went.",
+          targetDrawer: `/client/bookings/${bookingId}`,
+          originEventId: `review-nudge:${bookingId}`,
+          originKind: "review_nudge",
+          originInquiryId: wrapInquiryId,
+        });
+      } catch (nudgeErr) {
+        logServerError("closeBookingAction/review-nudge", nudgeErr);
+      }
     }
 
     revalidatePath(`/${tenantSlug}`, "layout");

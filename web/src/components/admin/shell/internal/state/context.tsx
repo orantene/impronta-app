@@ -556,6 +556,11 @@ function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
             thumb: talent.photoUrl ?? "",
             headline: talent.headline ?? undefined,
             status: mapParticipantStatus(talent.status),
+            // Verified standing, resolved by the data-bridge's single batched
+            // loadTalentChipInfo read (no per-row query). Null → no rating →
+            // the thread's trust chip renders nothing (absence is neutral).
+            ratingAvg: talent.ratingAvg ?? null,
+            ratingCount: talent.ratingCount ?? null,
           })),
         }]
       : [];

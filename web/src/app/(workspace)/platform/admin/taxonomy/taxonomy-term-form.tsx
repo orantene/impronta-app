@@ -3,6 +3,9 @@ import {
   setPlatformTaxonomyLifecycleAction,
   updatePlatformTaxonomyTermAction,
 } from "./actions";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
 
 const HQ = {
   cardSoft: "rgba(255,255,255,0.04)",
@@ -131,12 +134,18 @@ export function TaxonomyTermForm({
   term,
   allTerms,
   open = false,
+  t,
 }: {
   term: TaxonomyTermFormTerm;
   allTerms: TaxonomyTermFormTerm[];
   open?: boolean;
+  t: Translate;
 }) {
-  const status = term.archived_at ? "archived" : term.is_active ? "active" : "inactive";
+  const status = term.archived_at
+    ? t("dashboard.platform.taxonomy.statusArchived")
+    : term.is_active
+      ? t("dashboard.platform.taxonomy.statusActive")
+      : t("dashboard.platform.taxonomy.statusInactive");
   const statusColor = term.archived_at || !term.is_active ? HQ.red : HQ.green;
 
   return (
@@ -155,26 +164,26 @@ export function TaxonomyTermForm({
         <span style={{ flex: 1, color: HQ.ink, fontWeight: 700 }}>{term.name_en}</span>
         <span style={{ color: HQ.inkDim, fontFamily: "ui-monospace, monospace", fontSize: 10.5 }}>{term.slug}</span>
         <span style={{ color: statusColor, fontSize: 10.5, fontWeight: 800, textTransform: "uppercase" }}>{status}</span>
-        {term.is_public_filter && <span style={{ color: HQ.green, fontSize: 10.5, fontWeight: 800 }}>PUBLIC FILTER</span>}
-        {term.is_restricted && <span style={{ color: HQ.red, fontSize: 10.5, fontWeight: 800 }}>RESTRICTED</span>}
+        {term.is_public_filter && <span style={{ color: HQ.green, fontSize: 10.5, fontWeight: 800 }}>{t("dashboard.platform.taxonomy.badgePublicFilter")}</span>}
+        {term.is_restricted && <span style={{ color: HQ.red, fontSize: 10.5, fontWeight: 800 }}>{t("dashboard.platform.taxonomy.badgeRestricted")}</span>}
       </summary>
 
       <div style={{ marginTop: 12, paddingLeft: 34, display: "grid", gap: 12 }}>
         <form action={updatePlatformTaxonomyTermAction} style={{ display: "grid", gap: 12 }}>
           <input type="hidden" name="id" value={term.id} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
-            <Input label="Slug" name="slug" defaultValue={term.slug} />
-            <Input label="Name EN" name="name_en" defaultValue={term.name_en} />
-            <Input label="Name ES" name="name_es" defaultValue={term.name_es} />
-            <Input label="Plural name" name="plural_name" defaultValue={term.plural_name} />
-            <Input label="Icon" name="icon" defaultValue={term.icon} />
-            <Input label="Sort order" name="sort_order" type="number" defaultValue={term.sort_order} />
-            <Input label="Term type" name="term_type" defaultValue={term.term_type} />
-            <Input label="Level" name="level" type="number" defaultValue={term.level} />
+            <Input label={t("dashboard.platform.taxonomy.fieldSlug")} name="slug" defaultValue={term.slug} />
+            <Input label={t("dashboard.platform.taxonomy.fieldNameEn")} name="name_en" defaultValue={term.name_en} />
+            <Input label={t("dashboard.platform.taxonomy.fieldNameEs")} name="name_es" defaultValue={term.name_es} />
+            <Input label={t("dashboard.platform.taxonomy.fieldPluralName")} name="plural_name" defaultValue={term.plural_name} />
+            <Input label={t("dashboard.platform.taxonomy.fieldIcon")} name="icon" defaultValue={term.icon} />
+            <Input label={t("dashboard.platform.taxonomy.fieldSortOrder")} name="sort_order" type="number" defaultValue={term.sort_order} />
+            <Input label={t("dashboard.platform.taxonomy.fieldTermType")} name="term_type" defaultValue={term.term_type} />
+            <Input label={t("dashboard.platform.taxonomy.fieldLevel")} name="level" type="number" defaultValue={term.level} />
             <label style={{ display: "grid", gap: 5, color: HQ.inkMuted, fontSize: 11, fontWeight: 650 }}>
-              Parent
+              {t("dashboard.platform.taxonomy.fieldParent")}
               <select name="parent_id" defaultValue={term.parent_id ?? ""} style={inputStyle}>
-                <option value="">No parent</option>
+                <option value="">{t("dashboard.platform.taxonomy.fieldNoParent")}</option>
                 {allTerms
                   .filter((candidate) => candidate.id !== term.id)
                   .map((candidate) => (
@@ -187,30 +196,35 @@ export function TaxonomyTermForm({
             </label>
           </div>
 
-          <Textarea label="Description" name="description" defaultValue={term.description} />
+          <Textarea label={t("dashboard.platform.taxonomy.fieldDescription")} name="description" defaultValue={term.description} />
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
-            <Textarea label="Aliases" name="aliases" defaultValue={listText(term.aliases)} rows={4} />
-            <Textarea label="Search synonyms" name="search_synonyms" defaultValue={listText(term.search_synonyms)} rows={4} />
-            <Textarea label="AI keywords" name="ai_keywords" defaultValue={listText(term.ai_keywords)} rows={4} />
+            <Textarea label={t("dashboard.platform.taxonomy.fieldAliases")} name="aliases" defaultValue={listText(term.aliases)} rows={4} />
+            <Textarea label={t("dashboard.platform.taxonomy.fieldSearchSynonyms")} name="search_synonyms" defaultValue={listText(term.search_synonyms)} rows={4} />
+            <Textarea label={t("dashboard.platform.taxonomy.fieldAiKeywords")} name="ai_keywords" defaultValue={listText(term.ai_keywords)} rows={4} />
           </div>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 14, padding: 12, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, background: HQ.cardSoft }}>
-            <Check name="is_active" label="Active" defaultChecked={term.is_active} tone="safe" />
-            <Check name="is_public_filter" label="Public filter" defaultChecked={term.is_public_filter} />
-            <Check name="is_visible_by_default" label="Visible by default" defaultChecked={term.is_visible_by_default} />
-            <Check name="is_profile_badge" label="Profile badge" defaultChecked={term.is_profile_badge} />
-            <Check name="is_restricted" label="Restricted/internal" defaultChecked={term.is_restricted} tone="danger" />
-            <Check name="is_generic_fallback" label="Generic fallback" defaultChecked={term.is_generic_fallback} />
-            <Input label="Restriction level" name="restriction_level" defaultValue={term.restriction_level} />
+            <Check name="is_active" label={t("dashboard.platform.taxonomy.checkActive")} defaultChecked={term.is_active} tone="safe" />
+            <Check name="is_public_filter" label={t("dashboard.platform.taxonomy.checkPublicFilter")} defaultChecked={term.is_public_filter} />
+            <Check name="is_visible_by_default" label={t("dashboard.platform.taxonomy.checkVisibleDefault")} defaultChecked={term.is_visible_by_default} />
+            <Check name="is_profile_badge" label={t("dashboard.platform.taxonomy.checkProfileBadge")} defaultChecked={term.is_profile_badge} />
+            <Check name="is_restricted" label={t("dashboard.platform.taxonomy.checkRestricted")} defaultChecked={term.is_restricted} tone="danger" />
+            <Check name="is_generic_fallback" label={t("dashboard.platform.taxonomy.checkGenericFallback")} defaultChecked={term.is_generic_fallback} />
+            <Input label={t("dashboard.platform.taxonomy.fieldRestrictionLevel")} name="restriction_level" defaultValue={term.restriction_level} />
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button type="submit" style={{ border: "1px solid rgba(93,211,160,0.35)", background: "rgba(93,211,160,0.12)", color: HQ.green, borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 700, fontFamily: F, cursor: "pointer" }}>
-              Save term
+              {t("dashboard.platform.taxonomy.saveTermBtn")}
             </button>
             <span style={{ color: HQ.inkDim, fontSize: 11.5 }}>
-              {term.tenant_count} tenant override{term.tenant_count === 1 ? "" : "s"} currently reference this term.
+              {interpolate(
+                term.tenant_count === 1
+                  ? t("dashboard.platform.taxonomy.tenantOverrideOne")
+                  : t("dashboard.platform.taxonomy.tenantOverrideMany"),
+                { count: term.tenant_count },
+              )}
             </span>
           </div>
         </form>
@@ -220,18 +234,18 @@ export function TaxonomyTermForm({
             <input type="hidden" name="id" value={term.id} />
             <input type="hidden" name="direction" value="up" />
             <button type="submit" style={{ border: `1px solid ${HQ.borderSoft}`, background: HQ.cardSoft, color: HQ.inkMuted, borderRadius: 8, padding: "7px 10px", fontSize: 11.5, fontWeight: 700, fontFamily: F, cursor: "pointer" }}>
-              Move up
+              {t("dashboard.platform.taxonomy.moveUp")}
             </button>
           </form>
           <form action={movePlatformTaxonomyTermAction}>
             <input type="hidden" name="id" value={term.id} />
             <input type="hidden" name="direction" value="down" />
             <button type="submit" style={{ border: `1px solid ${HQ.borderSoft}`, background: HQ.cardSoft, color: HQ.inkMuted, borderRadius: 8, padding: "7px 10px", fontSize: 11.5, fontWeight: 700, fontFamily: F, cursor: "pointer" }}>
-              Move down
+              {t("dashboard.platform.taxonomy.moveDown")}
             </button>
           </form>
           <span style={{ color: HQ.inkDim, fontSize: 11.5 }}>
-            Fast ordering controls write the same sort order used by tenants, registration, editor nav, and public filters.
+            {t("dashboard.platform.taxonomy.orderingHint")}
           </span>
         </div>
 
@@ -239,7 +253,7 @@ export function TaxonomyTermForm({
           <input type="hidden" name="id" value={term.id} />
           <input type="hidden" name="mode" value={term.archived_at ? "restore" : "archive"} />
           <button type="submit" style={{ border: `1px solid ${term.archived_at ? "rgba(93,211,160,0.35)" : "rgba(243,103,114,0.35)"}`, background: term.archived_at ? "rgba(93,211,160,0.12)" : "rgba(243,103,114,0.10)", color: term.archived_at ? HQ.green : HQ.red, borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 700, fontFamily: F, cursor: "pointer" }}>
-            {term.archived_at ? "Restore taxonomy term" : "Archive taxonomy term"}
+            {term.archived_at ? t("dashboard.platform.taxonomy.restoreTermBtn") : t("dashboard.platform.taxonomy.archiveTermBtn")}
           </button>
         </form>
       </div>

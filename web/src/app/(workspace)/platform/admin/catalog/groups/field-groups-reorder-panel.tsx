@@ -2,6 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { reorderPlatformFieldGroupsAction } from "../actions";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
+
+const K = "dashboard.platform.catalog";
 
 type ReorderGroup = {
   id: string;
@@ -33,6 +37,7 @@ function moveItem(items: ReorderGroup[], fromId: string, toId: string): ReorderG
 }
 
 export function FieldGroupsReorderPanel({ groups }: { groups: ReorderGroup[] }) {
+  const t = useT();
   const [items, setItems] = useState(groups);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const orderedIds = useMemo(() => JSON.stringify(items.map((item) => item.id)), [items]);
@@ -41,7 +46,7 @@ export function FieldGroupsReorderPanel({ groups }: { groups: ReorderGroup[] }) 
   if (groups.length < 2) {
     return (
       <div style={{ color: colors.dim, fontSize: 12 }}>
-        Add at least two groups before editing default group order.
+        {t(`${K}.groupsReorderNeedTwo`)}
       </div>
     );
   }
@@ -92,7 +97,7 @@ export function FieldGroupsReorderPanel({ groups }: { groups: ReorderGroup[] }) 
                   fontSize: 10.5,
                 }}
               >
-                {group.slug} · {group.field_count} field{group.field_count === 1 ? "" : "s"}
+                {group.slug} · {interpolate(t(`${K}.${group.field_count === 1 ? "sfSectionMetaOne" : "sfSectionMetaMany"}`), { count: group.field_count })}
               </span>
             </span>
             <span
@@ -103,7 +108,7 @@ export function FieldGroupsReorderPanel({ groups }: { groups: ReorderGroup[] }) 
                 textTransform: "uppercase",
               }}
             >
-              {group.is_active ? `#${group.sort_order}` : "inactive"}
+              {group.is_active ? `#${group.sort_order}` : t(`${K}.reorderInactive`)}
             </span>
           </div>
         ))}
@@ -123,7 +128,7 @@ export function FieldGroupsReorderPanel({ groups }: { groups: ReorderGroup[] }) 
             cursor: changed ? "pointer" : "not-allowed",
           }}
         >
-          Save order
+          {t(`${K}.groupsReorderSave`)}
         </button>
         <button
           type="button"
@@ -140,10 +145,10 @@ export function FieldGroupsReorderPanel({ groups }: { groups: ReorderGroup[] }) 
             cursor: changed ? "pointer" : "not-allowed",
           }}
         >
-          Reset
+          {t(`${K}.reorderReset`)}
         </button>
         <span style={{ color: colors.dim, fontSize: 11 }}>
-          Drag a group row, then save. This changes the platform default section order.
+          {t(`${K}.groupsReorderHint`)}
         </span>
       </div>
     </form>

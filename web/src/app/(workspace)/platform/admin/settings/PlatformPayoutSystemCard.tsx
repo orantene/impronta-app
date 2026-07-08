@@ -4,19 +4,20 @@ import { useState, useTransition } from "react";
 
 import { updateActivePayoutSystem } from "@/lib/server-actions/admin-platform-payout-system";
 import type { ActivePayoutSystem } from "@/lib/payments/active-payout-system";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 
-const OPTIONS: { value: ActivePayoutSystem; label: string; hint: string }[] = [
-  {
-    value: "connect",
-    label: "Stripe Connect (Express transfers)",
-    hint: "Talent + agency onboard Express accounts; payouts settle via Connect transfers. Supports US/UK/EEA/CA/CH. Global Payouts onboarding is hidden.",
-  },
-  {
-    value: "global_payouts",
-    label: "Stripe Global Payouts (v2)",
-    hint: "Talent receive to a local bank / USDC via Stripe v2 Money Movement (~90 countries). Per-talent crypto opt-in routing applies.",
-  },
-];
+const PAYOUT_OPTIONS: ActivePayoutSystem[] = ["connect", "global_payouts"];
+
+const PAYOUT_LABEL_KEYS: Record<ActivePayoutSystem, string> = {
+  connect: "dashboard.platform.settings.payoutConnectLabel",
+  global_payouts: "dashboard.platform.settings.payoutGlobalLabel",
+};
+
+const PAYOUT_HINT_KEYS: Record<ActivePayoutSystem, string> = {
+  connect: "dashboard.platform.settings.payoutConnectHint",
+  global_payouts: "dashboard.platform.settings.payoutGlobalHint",
+};
 
 /**
  * Super-admin control for the platform payout-rail master switch. Picks which rail
@@ -26,12 +27,13 @@ const OPTIONS: { value: ActivePayoutSystem; label: string; hint: string }[] = [
  * Global Payouts code is removed.
  */
 export function PlatformPayoutSystemCard({ current }: { current: ActivePayoutSystem }) {
+  const t = useT();
   const [system, setSystem] = useState<ActivePayoutSystem>(current);
   const [pending, startTransition] = useTransition();
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const dirty = system !== current;
-  const activeHint = OPTIONS.find((o) => o.value === system)?.hint ?? "";
+  const activeHint = t(PAYOUT_HINT_KEYS[system]);
 
   const save = () => {
     setStatus(null);
@@ -41,9 +43,12 @@ export function PlatformPayoutSystemCard({ current }: { current: ActivePayoutSys
         r.ok
           ? {
               ok: true,
-              msg: `Saved — platform now runs on ${system === "connect" ? "Stripe Connect" : "Global Payouts"}.`,
+              msg:
+                system === "connect"
+                  ? t("dashboard.platform.settings.payoutSavedConnect")
+                  : t("dashboard.platform.settings.payoutSavedGlobal"),
             }
-          : { ok: false, msg: `Failed: ${r.error}` },
+          : { ok: false, msg: interpolate(t("dashboard.platform.settings.failed"), { error: r.error }) },
       );
     });
   };
@@ -51,15 +56,15 @@ export function PlatformPayoutSystemCard({ current }: { current: ActivePayoutSys
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 13 }}>
       <label style={{ display: "flex", flexDirection: "column", gap: 5, maxWidth: 360 }}>
-        <span style={{ fontWeight: 600 }}>Active payout system</span>
+        <span style={{ fontWeight: 600 }}>{t("dashboard.platform.settings.payoutFieldLabel")}</span>
         <select
           value={system}
           onChange={(e) => setSystem(e.target.value as ActivePayoutSystem)}
           style={{ padding: "7px 9px", borderRadius: 8, border: "1px solid #d8d8de", fontSize: 13 }}
         >
-          {OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
+          {PAYOUT_OPTIONS.map((value) => (
+            <option key={value} value={value}>
+              {t(PAYOUT_LABEL_KEYS[value])}
             </option>
           ))}
         </select>
@@ -82,7 +87,7 @@ export function PlatformPayoutSystemCard({ current }: { current: ActivePayoutSys
             cursor: !dirty || pending ? "default" : "pointer",
           }}
         >
-          {pending ? "Saving…" : "Save"}
+          {pending ? t("dashboard.platform.settings.saving") : t("dashboard.platform.settings.save")}
         </button>
         {status && (
           <span style={{ fontSize: 12.5, color: status.ok ? "#067647" : "#b42318" }}>{status.msg}</span>

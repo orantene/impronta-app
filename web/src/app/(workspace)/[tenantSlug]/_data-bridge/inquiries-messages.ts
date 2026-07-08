@@ -113,6 +113,10 @@ export type WorkspaceInquiryForMessages = {
     photoUrl: string | null;
     /** One-line discipline, e.g. "Editorial Model". */
     headline: string | null;
+    /** Verified global standing (talent_profiles.rating_avg); null → no rating. */
+    ratingAvg: number | null;
+    /** Count of published reviews (talent_profiles.rating_count); null → no rating. */
+    ratingCount: number | null;
   }>;
 
   // ── Offer ────────────────────────────────────────────────────────────────────
@@ -443,7 +447,7 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
       pending: number;
       declined: number;
       total: number;
-      talent: Array<{ talentProfileId: string | null; displayName: string; status: string; photoUrl: string | null; headline: string | null }>;
+      talent: Array<{ talentProfileId: string | null; displayName: string; status: string; photoUrl: string | null; headline: string | null; ratingAvg: number | null; ratingCount: number | null }>;
     }>();
     const participantRoleByInquiryUser = new Map<string, "client" | "coordinator" | "talent">();
     // Confidence: resolve a real face + discipline for every lineup talent in
@@ -483,6 +487,15 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
           : null,
         headline: row.talent_profile_id
           ? (lineupChips.get(row.talent_profile_id)?.headline ?? null)
+          : null,
+        // Verified standing from the SAME batched loadTalentChipInfo read
+        // (no extra query / no N+1). Null when the talent has no published
+        // reviews, so the thread's trust chip renders nothing for them.
+        ratingAvg: row.talent_profile_id
+          ? (lineupChips.get(row.talent_profile_id)?.ratingAvg ?? null)
+          : null,
+        ratingCount: row.talent_profile_id
+          ? (lineupChips.get(row.talent_profile_id)?.ratingCount ?? null)
           : null,
       });
       lineup.set(row.inquiry_id, cur);

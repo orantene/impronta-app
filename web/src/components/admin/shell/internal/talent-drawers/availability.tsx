@@ -9,6 +9,8 @@
 // ════════════════════════════════════════════════════════════════════
 
 import { useState } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { AVAILABILITY_BLOCKS, COLORS, FONTS, MY_TALENT_PROFILE, useAdminShell } from "../state";
 import {
   DrawerShell,
@@ -24,17 +26,20 @@ import { ProfileSectionNotConnected, StandardFooter, SubsectionLabel } from "./s
 
 export function TalentProfileSectionDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-profile-section";
-  const label = (state.drawer.payload?.label as string) ?? "Section";
+  const label =
+    (state.drawer.payload?.label as string) ??
+    t("dashboard.talentDrawers.availability.sectionFallbackLabel");
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title={`Edit · ${label}`}
-      description="This section is not connected to your live profile yet."
+      title={interpolate(t("dashboard.talentDrawers.availability.sectionEditTitle"), { label })}
+      description={t("dashboard.talentDrawers.availability.sectionEditDesc")}
       width={520}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <ProfileSectionNotConnected section="profile section" />
     </DrawerShell>
@@ -45,15 +50,16 @@ export function TalentProfileSectionDrawer() {
 
 export function TalentAvailabilityDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-availability";
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Availability"
-      description="Your blocks are visible to your agencies — they won't pitch you when you're unavailable."
+      title={t("dashboard.talentDrawers.availability.availTitle")}
+      description={t("dashboard.talentDrawers.availability.availDescSimple")}
       width={520}
-      footer={<StandardFooter onSave={() => closeDrawer()} saveLabel="Done" />}
+      footer={<StandardFooter onSave={() => closeDrawer()} saveLabel={t("dashboard.talentDrawers.done")} />}
     >
       <div className="flex flex-col gap-2">
         {AVAILABILITY_BLOCKS.map((a) => (
@@ -101,6 +107,7 @@ export function TalentAvailabilityDrawer() {
  */
 export function TalentBlockDatesDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-block-dates";
   const p = MY_TALENT_PROFILE;
 
@@ -112,24 +119,24 @@ export function TalentBlockDatesDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Availability"
-      description="Where you are, what you're up for, and dates you can't work. Visible to your agencies."
+      title={t("dashboard.talentDrawers.availability.availTitle")}
+      description={t("dashboard.talentDrawers.availability.availDescFull")}
       width={540}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
         {/* ─── 1. Where are you? — C7 location autocomplete suggestions ── */}
         <section>
-          <SubsectionLabel>Where are you?</SubsectionLabel>
+          <SubsectionLabel>{t("dashboard.talentDrawers.availability.whereTitle")}</SubsectionLabel>
           <div className="mt-2.5">
             <FieldRow
-              label="Current location"
-              hint="Synced with your profile · helps agencies pitch you the right local jobs first."
+              label={t("dashboard.talentDrawers.availability.currentLocation")}
+              hint={t("dashboard.talentDrawers.availability.currentLocationHint")}
             >
               <TextInput
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="City · Country"
+                placeholder={t("dashboard.talentDrawers.availability.locationPlaceholder")}
               />
             </FieldRow>
             {/* C7: Quick-pick chips for fashion-cities. Production should
@@ -143,7 +150,7 @@ export function TalentBlockDatesDrawer() {
               }}
             >
               <span style={{ fontSize: 10.5, fontFamily: FONTS.body, fontWeight: 500, letterSpacing: 0.4, textTransform: "uppercase", marginRight: 4, alignSelf: "center" }} className="text-admin-ink-dim">
-                Quick pick:
+                {t("dashboard.talentDrawers.availability.quickPick")}
               </span>
               {[
                 "Madrid · Spain",
@@ -177,7 +184,7 @@ export function TalentBlockDatesDrawer() {
 
         {/* ─── 2. Taking work? — C6 travel preferences richer ─────────── */}
         <section>
-          <SubsectionLabel>Taking work</SubsectionLabel>
+          <SubsectionLabel>{t("dashboard.talentDrawers.availability.takingWorkTitle")}</SubsectionLabel>
           <div
             style={{
               marginTop: 10,
@@ -187,17 +194,17 @@ export function TalentBlockDatesDrawer() {
             }}
           >
             <AvailabilityToggleRow
-              label="Available for new work"
-              hint="When off, you're hidden from new pitches. Existing bookings aren't affected."
+              label={t("dashboard.talentDrawers.availability.availableForWork")}
+              hint={t("dashboard.talentDrawers.availability.availableForWorkHint")}
               on={availableForWork}
               onChange={setAvailableForWork}
             />
             <AvailabilityToggleRow
-              label="Open to travel"
+              label={t("dashboard.talentDrawers.availability.openToTravel")}
               hint={
                 availableForWork
-                  ? "When off, you'll only see local jobs in your current location."
-                  : "Pause availability before changing travel preferences."
+                  ? t("dashboard.talentDrawers.availability.openToTravelHintOn")
+                  : t("dashboard.talentDrawers.availability.openToTravelHintOff")
               }
               on={availableToTravel && availableForWork}
               onChange={setAvailableToTravel}
@@ -208,14 +215,14 @@ export function TalentBlockDatesDrawer() {
           {availableToTravel && availableForWork && (
             <div style={{ marginTop: 12, padding: "12px 14px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body }} className="bg-admin-surface-alt">
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
-                Travel preferences
+                {t("dashboard.talentDrawers.availability.travelPrefsTitle")}
               </div>
-              <FieldRow label="Willing to fly to" optional hint="Cities or regions you'll travel for. Leave blank for anywhere.">
-                <TextInput placeholder="Paris, Milan, NYC · or leave blank for anywhere" />
+              <FieldRow label={t("dashboard.talentDrawers.availability.willingToFlyTo")} optional hint={t("dashboard.talentDrawers.availability.willingToFlyToHint")}>
+                <TextInput placeholder={t("dashboard.talentDrawers.availability.willingToFlyToPlaceholder")} />
               </FieldRow>
               <div style={{ height: 8 }} />
-              <FieldRow label="Min booking value when traveling" optional hint="Bookings below this amount won't be pitched if travel is required.">
-                <TextInput placeholder="e.g. €1,500" />
+              <FieldRow label={t("dashboard.talentDrawers.availability.minBookingTraveling")} optional hint={t("dashboard.talentDrawers.availability.minBookingTravelingHint")}>
+                <TextInput placeholder={t("dashboard.talentDrawers.availability.minBookingPlaceholder")} />
               </FieldRow>
               <div style={{ height: 10 }} />
               <button
@@ -237,7 +244,7 @@ export function TalentBlockDatesDrawer() {
                 <span style={{ width: 14, height: 14, borderRadius: 3, background: "transparent", border: `1.5px solid ${COLORS.border}`, flexShrink: 0, }}
                 />
                 <div className="text-admin-ink text-xs">
-                  Travel costs must be covered by client
+                  {t("dashboard.talentDrawers.availability.travelCostsCovered")}
                 </div>
               </button>
             </div>
@@ -247,7 +254,7 @@ export function TalentBlockDatesDrawer() {
         {/* ─── 3. Existing blocks (A5) ──────────────────────────── */}
         {AVAILABILITY_BLOCKS.length > 0 && (
           <section>
-            <SubsectionLabel>Your existing blocks · {AVAILABILITY_BLOCKS.length}</SubsectionLabel>
+            <SubsectionLabel>{interpolate(t("dashboard.talentDrawers.availability.existingBlocks"), { count: AVAILABILITY_BLOCKS.length })}</SubsectionLabel>
             <div
               style={{
                 marginTop: 10,
@@ -292,7 +299,7 @@ export function TalentBlockDatesDrawer() {
                   <button
                     type="button"
                     onClick={() => undefined}
-                    aria-label={`Remove block ${b.startDate}-${b.endDate}`}
+                    aria-label={interpolate(t("dashboard.talentDrawers.availability.removeBlock"), { range: `${b.startDate}-${b.endDate}` })}
                     style={{
                       background: "transparent",
                       border: "none",
@@ -369,15 +376,16 @@ function AvailabilityToggleRow({
 
 export function TalentPortfolioDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-portfolio";
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Portfolio"
-      description="This portfolio panel is not connected to your live media yet."
+      title={t("dashboard.talentDrawers.availability.portfolioTitle")}
+      description={t("dashboard.talentDrawers.availability.portfolioDesc")}
       width={620}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <ProfileSectionNotConnected section="portfolio" />
     </DrawerShell>

@@ -14,7 +14,7 @@ import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photograp
 export const metadata: Metadata = {
   title: "For agencies & representation",
   description:
-    "Run a branded roster site on your own domain, manage people in a modern CMS, and convert inquiries through a real pipeline — not a spreadsheet.",
+    "Run a branded roster site on your own domain, manage people in a modern CMS, and convert inquiries through a real pipeline, not a spreadsheet.",
 };
 
 type Pillar = {

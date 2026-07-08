@@ -170,6 +170,49 @@ const ratchetPlugin = {
         };
       },
     },
+
+    // House copy rule — no em (U+2014) / en (U+2013) dashes in user-facing
+    // copy. Flags string Literals and JSXText that contain either dash.
+    // Implemented as a dedicated ratchet rule (not a bare `no-restricted-
+    // syntax` block) ON PURPOSE: ESLint flat-config merges a repeated rule
+    // id by LAST-WINS OVERRIDE, so a second `no-restricted-syntax` block on
+    // src/app|src/components would silently disable the existing maybeSingle
+    // + tenant-tag restricted-syntax guards for those dirs. A unique rule id
+    // can never collide. Internally it uses the same selector semantics the
+    // task asked for (Literal[value=/[—–]/] + JSXText[value=/[—–]/]).
+    "no-user-facing-dash": {
+      meta: {
+        type: "suggestion",
+        schema: [],
+        messages: {
+          dash:
+            "No em/en dashes in user-facing copy; use commas or periods. (If this is a no-value glyph like \"—\" or \"— none —\", it is exempt.)",
+        },
+      },
+      create(context) {
+        const DASH = /[—–]/;
+        // A pure no-value glyph placeholder (e.g. "—", "— none —",
+        // "— ninguno —"): only dashes, spaces, and the word none/ninguno.
+        // These are legitimate empty-state markers — do not flag them.
+        const GLYPH_ONLY = /^[\s—–]*(?:none|ninguno)?[\s—–]*$/i;
+        return {
+          Literal(node) {
+            if (
+              typeof node.value === "string" &&
+              DASH.test(node.value) &&
+              !GLYPH_ONLY.test(node.value)
+            ) {
+              context.report({ node, messageId: "dash" });
+            }
+          },
+          JSXText(node) {
+            if (DASH.test(node.value) && !GLYPH_ONLY.test(node.value)) {
+              context.report({ node, messageId: "dash" });
+            }
+          },
+        };
+      },
+    },
   },
 };
 
@@ -378,6 +421,20 @@ const eslintConfig = defineConfig([
     rules: {
       // Rule 4 — tenant-scope guard (lint half).
       "ratchet/no-untenanted-from": "error",
+    },
+  },
+  {
+    // House copy rule — no em/en dashes in user-facing copy. Scoped to the
+    // app + component surfaces (where user-facing strings live) and set to
+    // `warn`, NOT `error`: there is a large pre-existing tail of legit
+    // literals across src (separators, other-team code) that an error would
+    // break the build on. `warn` surfaces NEW regressions in lint output
+    // without failing CI; tighten to `error` once the tail is paid down.
+    // (i18n message catalogs are JSON, linted separately by CI JSON checks.)
+    files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
+    plugins: { ratchet: ratchetPlugin },
+    rules: {
+      "ratchet/no-user-facing-dash": "warn",
     },
   },
   // Q3 — Structured logger enforcement.

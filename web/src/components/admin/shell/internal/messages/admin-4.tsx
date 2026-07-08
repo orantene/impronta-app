@@ -2,6 +2,8 @@
 
 import React, { useTransition, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { MessageReactionMenu, replyTargetFromMessage, ReplyContextBar, type ReplyTarget } from "@/components/chat-interactions";
 import { VoiceNotePlayer } from "@/components/chat-interactions/VoiceNotePlayer";
 import { readVoiceMetaFromMessageMetadata } from "@/lib/messages/voice-meta";
@@ -51,6 +53,7 @@ export function AdminMessageStream({
   /** Extra top space for shells with an overlaid chat sub-toggle. */
   topInset?: number;
 }) {
+  const t = useT();
   const { toast, state, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -104,7 +107,7 @@ export function AdminMessageStream({
       // synthetic "workspace" role we coerce the rendered name to
       // the workspace identity so the bubble reads as System User.
       senderName: m.senderRole === "workspace"
-        ? (m.senderName || "Workspace")
+        ? (m.senderName || t("dashboard.adminThread.workspaceFallbackName"))
         : m.senderName,
       senderRole: m.senderRole as string,
       senderInitials: m.senderInitials,
@@ -129,7 +132,7 @@ export function AdminMessageStream({
         // bubble visually aligns left (theirs side) so the workspace
         // identity reads as a third-party participant.
         isYou: !isWs,
-        senderName: isWs ? wsName : "You",
+        senderName: isWs ? wsName : t("dashboard.adminThread.youLabel"),
         senderRole: isWs ? "workspace" : "coordinator",
         senderInitials: isWs ? wsName.slice(0, 2).toUpperCase() : "ME",
       };
@@ -163,8 +166,8 @@ export function AdminMessageStream({
           margin: "8px 14px 0",
           padding: "5px 10px",
           borderRadius: 999,
-          background: threadType === "private" ? "rgba(245,158,11,0.10)" : "rgba(15,79,62,0.08)",
-          color: threadType === "private" ? "#92400E" : "#0F4F3E",
+          background: threadType === "private" ? COLORS.amberSoft : "rgba(15,79,62,0.08)",
+          color: threadType === "private" ? COLORS.amberDeep : "#0F4F3E",
           fontSize: 10.5,
           fontWeight: 700,
           letterSpacing: 0.4,
@@ -177,11 +180,11 @@ export function AdminMessageStream({
         }}
         title={
           threadType === "private"
-            ? "Client thread — visible to the client and workspace staff."
-            : "Talent group — visible to selected talent and workspace coordinators."
+            ? t("dashboard.adminThread.visibilityPrivateTitle")
+            : t("dashboard.adminThread.visibilityGroupTitle")
         }
       >
-        {threadType === "private" ? "Client thread" : "Talent group"}
+        {threadType === "private" ? t("dashboard.adminThread.clientThread") : t("dashboard.adminThread.talentGroup")}
       </div>
       <div style={{
         flex: 1, minHeight: 0, overflowY: "auto",
@@ -190,7 +193,7 @@ export function AdminMessageStream({
       }}>
         {allMessages.length === 0 ? (
           <div style={{ fontSize: 12, fontStyle: "italic", textAlign: "center", padding: "16px 0" }} className="text-admin-ink-dim">
-            No messages in this thread yet.
+            {t("dashboard.adminThread.emptyThread")}
           </div>
         ) : allMessages.map((m, idx) => {
           const mine = m.isYou;
@@ -240,7 +243,7 @@ export function AdminMessageStream({
                     placement="above"
                     onReact={async (emoji) => {
                       const r = await addReactionAction(m.id, emoji);
-                      if (!r.ok) toast(`Reaction failed: ${r.error}`);
+                      if (!r.ok) toast(interpolate(t("dashboard.adminThread.reactionFailed"), { error: r.error }));
                     }}
                     onToggle={async (emoji) => {
                       // Optimistic toggle: insert first; on duplicate-key
@@ -249,14 +252,14 @@ export function AdminMessageStream({
                       const add = await addReactionAction(m.id, emoji);
                       if (!add.ok) {
                         const remove = await removeReactionAction(m.id, emoji);
-                        if (!remove.ok) toast(`Reaction toggle failed: ${remove.error}`);
+                        if (!remove.ok) toast(interpolate(t("dashboard.adminThread.reactionToggleFailed"), { error: remove.error }));
                       }
                     }}
                   />
                   <button
                     type="button"
-                    aria-label="Reply to this message"
-                    title="Reply"
+                    aria-label={t("dashboard.adminThread.replyAria")}
+                    title={t("dashboard.adminThread.replyTitle")}
                     onClick={() => setReplyTarget(replyTargetFromMessage({
                       id: m.id,
                       senderName: m.senderName,
@@ -315,9 +318,9 @@ export function AdminMessageStream({
                 }}>
                   {!mine && (
                     <div style={{ fontSize: 10.5, fontWeight: 700, marginBottom: 3, display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }} className="text-admin-ink-muted">
-                      <span>{m.senderName} <span className="font-medium">· {m.senderRole}</span></span>
+                      <span>{m.senderName} <span className="font-medium">{interpolate(t("dashboard.adminThread.senderRoleSep"), { role: m.senderRole })}</span></span>
                       {m.senderRole === "workspace" && (
-                        <span title="Workspace System User" style={{
+                        <span title={t("dashboard.adminThread.systemBadgeTitle")} style={{
                           display: "inline-flex", alignItems: "center", gap: 3,
                           padding: "0 5px", borderRadius: 999,
                           background: COLORS.indigoSoft, color: COLORS.indigoDeep,
@@ -327,7 +330,7 @@ export function AdminMessageStream({
                           <svg width="7" height="7" viewBox="0 0 8 8" fill="none" aria-hidden>
                             <path d="M2 1.5h4l1 1.5v3l-1 1.5H2l-1-1.5v-3l1-1.5z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
                           </svg>
-                          System
+                          {t("dashboard.adminThread.systemBadge")}
                         </span>
                       )}
                     </div>
@@ -338,7 +341,7 @@ export function AdminMessageStream({
                           const voiceMeta = readVoiceMetaFromMessageMetadata(m.metadata);
                           return voiceMeta
                             ? <VoiceNotePlayer meta={voiceMeta} accent={COLORS.accentDeep} onDark={mine} />
-                            : "Voice note unavailable";
+                            : t("dashboard.adminThread.voiceUnavailable");
                         })()
                       : m.body}
                   </div>
@@ -381,7 +384,7 @@ export function AdminMessageStream({
               <rect x="3" y="6.5" width="8" height="6" rx="1.2" stroke="currentColor" strokeWidth="1.4"/>
               <path d="M5 6.5V5a2 2 0 014 0v1.5" stroke="currentColor" strokeWidth="1.4"/>
             </svg>
-            {closedNotice ?? "Conversation closed."}
+            {closedNotice ?? t("dashboard.adminThread.conversationClosed")}
           </div>
         ) : (
           <DraftComposer
@@ -398,7 +401,7 @@ export function AdminMessageStream({
               setReplyTarget(null);
               startTransition(async () => {
                 const result = await sendMessageAction(tenantSlug, inquiryId, threadType, text, replyId);
-                if ("error" in result) toast(`Send failed: ${result.error}`);
+                if ("error" in result) toast(interpolate(t("dashboard.adminThread.sendFailed"), { error: result.error }));
               });
             }}
             workspaceName={wsName}
@@ -418,7 +421,7 @@ export function AdminMessageStream({
               setReplyTarget(null);
               startTransition(async () => {
                 const result = await sendMessageAction(tenantSlug, inquiryId, threadType, text, replyId);
-                if ("error" in result) toast(`Send failed: ${result.error}`);
+                if ("error" in result) toast(interpolate(t("dashboard.adminThread.sendFailed"), { error: result.error }));
               });
             }}
             // C1 — attach files to the inquiry. Uses the existing
@@ -431,8 +434,8 @@ export function AdminMessageStream({
                 fd.append("inquiryId", inquiryId);
                 fd.append("file", file);
                 const r = await uploadInquiryAttachment(fd);
-                if (!r.ok) toast(`Attach failed: ${r.error}`);
-                else toast(`File attached — ${file.name}`);
+                if (!r.ok) toast(interpolate(t("dashboard.adminThread.attachFailed"), { error: r.error }));
+                else toast(interpolate(t("dashboard.adminThread.fileAttached"), { name: file.name }));
               });
             }}
             // Voice notes — record + send straight to the inquiry thread.

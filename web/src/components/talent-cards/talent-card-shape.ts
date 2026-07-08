@@ -43,6 +43,13 @@ export type TalentCardAspect = "4:5" | "1:1" | "3:4" | "16:9";
 
 export type TalentCardNameFallback = "code" | "role" | "first_name" | "hidden";
 
+/**
+ * Grid density signal, threaded from the directory section's `density` knob.
+ * `"comfortable"` (default) keeps the original spacing; `"compact"` tightens
+ * the caption padding + name size so a denser column count reads cleanly.
+ */
+export type TalentCardDensity = "comfortable" | "compact";
+
 export type TalentCardShow = {
   showName: boolean;
   showTalentType: boolean;
@@ -70,6 +77,12 @@ export type TalentCardProps = {
   /** First grid row → LCP priority. */
   priority?: boolean;
   index?: number;
+  /**
+   * Grid density. `"comfortable"` (default) is the original spacing; `"compact"`
+   * tightens the caption padding + name size so a denser layout reads cleanly.
+   * Prop-driven so the card stays pure — no ancestor CSS descendant reads.
+   */
+  density?: TalentCardDensity;
   /**
    * Root behavior. `"link"` (default) → a `<Link>` to `data.profileHref`.
    * `"button"` → a `role="button"` div that fires `onActivate` on click /

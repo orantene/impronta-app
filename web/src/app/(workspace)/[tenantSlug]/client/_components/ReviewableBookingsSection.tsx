@@ -21,7 +21,7 @@
 import { useEffect, useState } from "react";
 import { loadReviewableBookingsAction } from "@/lib/reviews/review-actions";
 import type { ReviewableBooking } from "@/lib/reviews/review-types";
-import { LeaveReviewCard } from "./LeaveReviewCard";
+import { LeaveReviewCard, type LeaveReviewSaved } from "./LeaveReviewCard";
 
 const FONT = '"Inter", system-ui, sans-serif';
 
@@ -40,8 +40,35 @@ const C = {
 type RowState = {
   booking: ReviewableBooking;
   /** Local override after a save in this session (so the card re-renders without a refetch). */
-  saved: { rating: number; body: string | null } | null;
+  saved: LeaveReviewSaved | null;
 };
+
+/**
+ * Build a full `existingReview` (the STANDING shape) by layering an in-session
+ * save over whatever the server returned, so the form prefills after a re-open.
+ * `publishedAt` is preserved from the server copy (a save doesn't change the
+ * first-publish anchor; a brand-new review keeps null until the next load).
+ */
+function mergeExistingReview(
+  booking: ReviewableBooking,
+  saved: LeaveReviewSaved | null,
+): ReviewableBooking["existingReview"] {
+  if (!saved) return booking.existingReview;
+  const s = saved.standing;
+  return {
+    rating: saved.rating,
+    body: saved.body,
+    wouldBookAgain: s.wouldBookAgain ?? null,
+    attrProfessionalism: s.attrProfessionalism ?? null,
+    attrSkill: s.attrSkill ?? null,
+    attrCommunication: s.attrCommunication ?? null,
+    attrReliability: s.attrReliability ?? null,
+    traits: s.traits ?? null,
+    privateNote: s.privateNote ?? null,
+    anon: s.anon ?? false,
+    publishedAt: booking.existingReview?.publishedAt ?? null,
+  };
+}
 
 function StaticStars({ rating }: { rating: number }) {
   return (
@@ -73,19 +100,18 @@ function ReviewableRow({
 }: {
   tenantSlug: string;
   row: RowState;
-  onSaved: (rating: number, body: string | null) => void;
+  onSaved: (saved: LeaveReviewSaved) => void;
 }) {
   const [open, setOpen] = useState(false);
   const { booking, saved } = row;
   // Merge any in-session save over the server-provided existingReview.
-  const current =
-    saved ?? (booking.existingReview ? { rating: booking.existingReview.rating, body: booking.existingReview.body } : null);
+  const current = mergeExistingReview(booking, saved);
   const reviewed = current != null;
   const talentLabel = booking.talentName ?? "this talent";
 
   // Pass the in-session save through so the form prefills after re-open.
   const bookingForForm: ReviewableBooking = saved
-    ? { ...booking, existingReview: { rating: saved.rating, body: saved.body } }
+    ? { ...booking, existingReview: current }
     : booking;
 
   return (
@@ -163,8 +189,8 @@ function ReviewableRow({
             tenantSlug={tenantSlug}
             booking={bookingForForm}
             onClose={() => setOpen(false)}
-            onSaved={(rating, body) => {
-              onSaved(rating, body);
+            onSaved={(next) => {
+              onSaved(next);
               // Keep the saved confirmation visible briefly; collapse on next open click.
             }}
           />
@@ -216,10 +242,10 @@ export function ReviewableBookingsSection({ tenantSlug }: { tenantSlug: string }
             key={`${row.booking.bookingId}:${row.booking.talentProfileId}`}
             tenantSlug={tenantSlug}
             row={row}
-            onSaved={(rating, body) =>
+            onSaved={(next) =>
               setRows((prev) =>
                 prev
-                  ? prev.map((r, j) => (j === i ? { ...r, saved: { rating, body } } : r))
+                  ? prev.map((r, j) => (j === i ? { ...r, saved: next } : r))
                   : prev,
               )
             }

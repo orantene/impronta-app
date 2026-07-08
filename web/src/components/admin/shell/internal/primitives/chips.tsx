@@ -488,7 +488,7 @@ export function ClientTrustChip({
   };
   const c = palette[meta.tone];
   return (
-    <Popover content={`${meta.label} client — ${meta.hint}`}>
+    <Popover content={`${meta.label} client. ${meta.hint}`}>
       <span
         style={{
           display: "inline-flex",
@@ -564,7 +564,7 @@ export function ClientTrustBadge({
   const c = palette[level];
   const iconName = level === "verified" ? "check" : "sparkle";
   return (
-    <Popover content={`${meta.label} client — ${meta.hint}`}>
+    <Popover content={`${meta.label} client. ${meta.hint}`}>
       <span
         aria-label={`${meta.label} client`}
         style={{
@@ -639,14 +639,14 @@ export function TrustBoostBanner({
             lineHeight: 1.3,
           }}
         >
-          {isActionable ? "Get Verified — open more talent inboxes" : `You're at ${meta.label}`}
+          {isActionable ? "Get Verified, open more talent inboxes" : `You're at ${meta.label}`}
         </div>
         <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 2, lineHeight: 1.45 }} className="text-admin-ink-muted">
           {isActionable
-            ? "Verification confirms a real, traceable buyer. Talent that filters out anonymous inquiries will see your next message."
+            ? "Verification confirms a real, verified client. Talent that filters out anonymous inquiries will see your next message."
             : level === "verified"
-              ? "Funded-balance activity earns Silver — no extra fee, just a stronger signal of buying readiness."
-              : "Sustained activity + funded balance earns Trusted — the strongest trust signal Tulala issues."}
+              ? "Funded-balance activity earns Silver. No extra fee, just a stronger signal of readiness to book."
+              : "Sustained activity + funded balance earns Trusted, the strongest trust signal Tulala issues."}
         </div>
       </div>
       {isActionable && onUpgrade && (

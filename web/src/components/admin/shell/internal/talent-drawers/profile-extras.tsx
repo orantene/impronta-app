@@ -10,6 +10,8 @@
 // ════════════════════════════════════════════════════════════════════
 
 import { useState } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { updateSelfEmergencyContact } from "@/lib/server-actions/talent-self-profile-sections";
 import {
   COLORS,
@@ -34,6 +36,7 @@ import { ProfileSectionNotConnected, SaveErrorBanner, SummaryStat } from "./shar
 
 export function TalentLinksDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-links";
   const links = MY_TALENT_PROFILE.links;
 
@@ -41,10 +44,10 @@ export function TalentLinksDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="External links"
-      description="Social, IMDb, personal site. Follower counts auto-refresh weekly when you connect the account."
+      title={t("dashboard.talentDrawers.profileExtras.externalLinks")}
+      description={t("dashboard.talentDrawers.profileExtras.externalLinksDesc")}
       width={560}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <div className="flex flex-col gap-2">
         {links.map((l, i) => (
@@ -90,6 +93,7 @@ export function TalentLinksDrawer() {
 
 export function TalentReviewsDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-reviews";
   const reviews = MY_TALENT_PROFILE.reviews;
   const stats = MY_TALENT_PROFILE.bookingStats;
@@ -99,10 +103,10 @@ export function TalentReviewsDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Reviews & endorsements"
-      description="Producers and creative directors can leave a review after a wrap. They're verified — no anonymous critiques."
+      title={t("dashboard.talentDrawers.profileExtras.reviews")}
+      description={t("dashboard.talentDrawers.profileExtras.reviewsDesc")}
       width={580}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <div
         style={{
@@ -112,9 +116,9 @@ export function TalentReviewsDrawer() {
           marginBottom: 16,
         }}
       >
-        <SummaryStat label="Average" value={`${avg.toFixed(1)} / 5`} accent="green" />
-        <SummaryStat label="Reviews" value={String(reviews.length)} accent="ink" />
-        <SummaryStat label="On-time rate" value={`${stats.onTimeRate}%`} accent="green" />
+        <SummaryStat label={t("dashboard.talentDrawers.profileExtras.reviewsAverage")} value={interpolate(t("dashboard.talentDrawers.profileExtras.reviewsScoreValue"), { score: avg.toFixed(1) })} accent="green" />
+        <SummaryStat label={t("dashboard.talentDrawers.profileExtras.reviewsCount")} value={String(reviews.length)} accent="ink" />
+        <SummaryStat label={t("dashboard.talentDrawers.profileExtras.reviewsOnTime")} value={`${stats.onTimeRate}%`} accent="green" />
       </div>
       <div className="flex flex-col gap-2.5">
         {reviews.map((r) => (
@@ -153,6 +157,7 @@ export function TalentReviewsDrawer() {
 
 export function TalentShowreelDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-showreel";
   const p = MY_TALENT_PROFILE;
 
@@ -160,25 +165,25 @@ export function TalentShowreelDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Showreel"
-      description={`${p.showreelDuration ?? "0:42"} · A 30–45 sec clip of you on camera. Casting directors love these.`}
+      title={t("dashboard.talentDrawers.profileExtras.showreel")}
+      description={interpolate(t("dashboard.talentDrawers.profileExtras.showreelDesc"), { duration: p.showreelDuration ?? "0:42" })}
       width={620}
       footer={
         <>
-          <SecondaryButton disabled>Replace clip</SecondaryButton>
-          <PrimaryButton onClick={closeDrawer}>Close</PrimaryButton>
+          <SecondaryButton disabled>{t("dashboard.talentDrawers.profileExtras.showreelReplace")}</SecondaryButton>
+          <PrimaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</PrimaryButton>
         </>
       }
     >
       <div style={{ aspectRatio: "16 / 9", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 96, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 16, position: "relative" }} className="bg-admin-surface-alt">
         {p.showreelThumb ?? "🎞️"}
       </div>
-      <Divider label="Why a showreel" />
+      <Divider label={t("dashboard.talentDrawers.profileExtras.showreelWhy")} />
       <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink">
-        <li>Speaking voice + accent for any TV/voiceover briefs</li>
-        <li>Range of expression beyond what a still shows</li>
-        <li>Movement quality — walking, turning, gesture</li>
-        <li>Natural light + tight crop is fine. No need for a studio piece.</li>
+        <li>{t("dashboard.talentDrawers.profileExtras.showreelBullet1")}</li>
+        <li>{t("dashboard.talentDrawers.profileExtras.showreelBullet2")}</li>
+        <li>{t("dashboard.talentDrawers.profileExtras.showreelBullet3")}</li>
+        <li>{t("dashboard.talentDrawers.profileExtras.showreelBullet4")}</li>
       </ul>
     </DrawerShell>
   );
@@ -188,16 +193,17 @@ export function TalentShowreelDrawer() {
 
 export function TalentMeasurementsDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-measurements";
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Measurements"
-      description="This measurements panel is not connected to your live profile yet."
+      title={t("dashboard.talentDrawers.profileExtras.measurements")}
+      description={t("dashboard.talentDrawers.profileExtras.measurementsDesc")}
       width={580}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <ProfileSectionNotConnected section="measurements" />
     </DrawerShell>
@@ -208,16 +214,17 @@ export function TalentMeasurementsDrawer() {
 
 export function TalentDocumentsDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-documents";
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Documents"
-      description="This documents panel is not connected to your live profile yet."
+      title={t("dashboard.talentDrawers.profileExtras.documents")}
+      description={t("dashboard.talentDrawers.profileExtras.documentsDesc")}
       width={560}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <ProfileSectionNotConnected section="documents" />
     </DrawerShell>
@@ -228,6 +235,7 @@ export function TalentDocumentsDrawer() {
 
 export function TalentEmergencyContactDrawer() {
   const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-emergency-contact";
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const c = MY_TALENT_PROFILE.emergencyContact;
@@ -239,8 +247,8 @@ export function TalentEmergencyContactDrawer() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleSave = async () => {
-    if (!talentProfileId) { setSaveError("No talent profile loaded — reload and try again."); return; }
-    if (!name.trim()) { setSaveError("Name is required."); return; }
+    if (!talentProfileId) { setSaveError(t("dashboard.talentDrawers.noProfileLoaded")); return; }
+    if (!name.trim()) { setSaveError(t("dashboard.talentDrawers.profileExtras.nameRequired")); return; }
     setSaving(true);
     setSaveError(null);
     const result = await updateSelfEmergencyContact({
@@ -258,34 +266,34 @@ export function TalentEmergencyContactDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Emergency contact"
-      description="Visible only during an active booking, to the producer running the call sheet. Hidden the rest of the time."
+      title={t("dashboard.talentDrawers.profileExtras.emergencyContact")}
+      description={t("dashboard.talentDrawers.profileExtras.emergencyContactDesc")}
       width={520}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.cancel")}</SecondaryButton>
           <PrimaryButton onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("dashboard.talentDrawers.saving") : t("dashboard.talentDrawers.save")}
           </PrimaryButton>
         </>
       }
     >
       {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
       <div className="flex flex-col gap-3.5">
-        <FieldRow label="Name">
+        <FieldRow label={t("dashboard.talentDrawers.profileExtras.fieldName")}>
           <TextInput value={name} onChange={(e) => setName(e.target.value)} />
         </FieldRow>
-        <FieldRow label="Relation">
+        <FieldRow label={t("dashboard.talentDrawers.profileExtras.fieldRelation")}>
           <TextInput value={relation} onChange={(e) => setRelation(e.target.value)} />
         </FieldRow>
-        <FieldRow label="Phone" hint="Stored encrypted. Masked on every other surface.">
+        <FieldRow label={t("dashboard.talentDrawers.profileExtras.fieldPhone")} hint={t("dashboard.talentDrawers.profileExtras.phoneHint")}>
           <TextInput value={phone} onChange={(e) => setPhone(e.target.value)} />
         </FieldRow>
-        <Divider label="When this is shown" />
+        <Divider label={t("dashboard.talentDrawers.profileExtras.whenShown")} />
         <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink-muted">
-          <li>The day of a confirmed booking, on that booking&apos;s call sheet only</li>
-          <li>To the producer named on the contract — no one else</li>
-          <li>Auto-revoked 24h after the wrap time</li>
+          <li>{t("dashboard.talentDrawers.profileExtras.whenShownBullet1")}</li>
+          <li>{t("dashboard.talentDrawers.profileExtras.whenShownBullet2")}</li>
+          <li>{t("dashboard.talentDrawers.profileExtras.whenShownBullet3")}</li>
         </ul>
       </div>
     </DrawerShell>
@@ -307,6 +315,7 @@ export function TalentEmergencyContactDrawer() {
 
 export function TalentPublicPreviewDrawer() {
   const { state, closeDrawer, toast, openDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-public-preview";
   const p = MY_TALENT_PROFILE;
   const slug = p.subscription.personalPageUrl.replace(/^.*\/t\//, "").trim() || "marta-reyes";
@@ -331,8 +340,8 @@ export function TalentPublicPreviewDrawer() {
     if (hasCustomDomain) {
       rows.push({
         id: "personal-custom",
-        label: "Your custom domain",
-        sub: "Max tier · your own URL, no Tulala branding",
+        label: t("dashboard.talentDrawers.profileExtras.personalCustomLabel"),
+        sub: t("dashboard.talentDrawers.profileExtras.personalCustomSub"),
         url: `https://${p.subscription.customDomain}`,
         icon: "globe",
         primary: true,
@@ -340,10 +349,10 @@ export function TalentPublicPreviewDrawer() {
     } else {
       rows.push({
         id: "personal-tulala",
-        label: previewTier === "max" ? "Tulala personal page (fallback)" : "Tulala personal page",
+        label: previewTier === "max" ? t("dashboard.talentDrawers.profileExtras.personalFallbackLabel") : t("dashboard.talentDrawers.profileExtras.personalTulalaLabel"),
         sub: previewTier === "max"
-          ? "Active until you connect a custom domain"
-          : `${TALENT_TIER_META[previewTier].label} tier · canonical URL`,
+          ? t("dashboard.talentDrawers.profileExtras.personalFallbackSub")
+          : interpolate(t("dashboard.talentDrawers.profileExtras.personalCanonicalSub"), { tier: TALENT_TIER_META[previewTier].label }),
         url: `https://tulala.digital/t/${slug}`,
         icon: "globe",
         primary: previewTier !== "max",
@@ -355,8 +364,8 @@ export function TalentPublicPreviewDrawer() {
     if (p.primaryAgency) {
       rows.push({
         id: "agency",
-        label: `${p.primaryAgency} roster`,
-        sub: `${TENANT.customDomain || TENANT.domain} · agency-controlled`,
+        label: interpolate(t("dashboard.talentDrawers.profileExtras.agencyRosterLabel"), { agency: p.primaryAgency }),
+        sub: interpolate(t("dashboard.talentDrawers.profileExtras.agencyRosterSub"), { domain: TENANT.customDomain || TENANT.domain }),
         url: `https://${TENANT.customDomain || TENANT.domain}/talent/${slug}`,
         icon: "team",
       });
@@ -367,15 +376,15 @@ export function TalentPublicPreviewDrawer() {
     // hub_memberships rows.)
     rows.push({
       id: "hub-discover",
-      label: "Tulala Hub · Discover",
-      sub: "Cross-agency hub feed · search-ranked",
+      label: t("dashboard.talentDrawers.profileExtras.hubDiscoverLabel"),
+      sub: t("dashboard.talentDrawers.profileExtras.hubDiscoverSub"),
       url: "https://tulala.network/hub/discover",
       icon: "search",
     });
     rows.push({
       id: "hub-vertical",
-      label: "Tulala Hub · Hospitality vertical",
-      sub: "Vertical-specific hub the talent is listed on",
+      label: t("dashboard.talentDrawers.profileExtras.hubVerticalLabel"),
+      sub: t("dashboard.talentDrawers.profileExtras.hubVerticalSub"),
       url: "https://tulala.network/hub/hospitality",
       icon: "briefcase",
     });
@@ -388,33 +397,33 @@ export function TalentPublicPreviewDrawer() {
   // Drives the "what this tier gives you" panel.
   const tierFeatures: Record<TalentSubscriptionTier, { headline: string; bullets: string[] }> = {
     free: {
-      headline: "Default canonical page on Tulala",
+      headline: t("dashboard.talentDrawers.profileExtras.tierFreeHeadline"),
       bullets: [
-        `Canonical URL: tulala.digital/t/${slug}`,
-        "Identity, measurements, languages, track record",
-        "Trust badges (verified email / IG / Tulala review)",
-        "Distribution: agency roster + Tulala hubs",
+        interpolate(t("dashboard.talentDrawers.profileExtras.tierFreeBullet1"), { slug }),
+        t("dashboard.talentDrawers.profileExtras.tierFreeBullet2"),
+        t("dashboard.talentDrawers.profileExtras.tierFreeBullet3"),
+        t("dashboard.talentDrawers.profileExtras.tierFreeBullet4"),
       ],
     },
     pro: {
-      headline: "Premium templates + featured media",
+      headline: t("dashboard.talentDrawers.profileExtras.tierProHeadline"),
       bullets: [
-        "3 premium page templates (Editorial / Studio / Roster)",
-        "Featured media — embed up to 6 videos / IG / TikTok / YouTube",
-        "Press section — show 6 magazine clippings",
-        "Removes Tulala branding from your personal page footer",
-        "Priority on hub search results",
+        t("dashboard.talentDrawers.profileExtras.tierProBullet1"),
+        t("dashboard.talentDrawers.profileExtras.tierProBullet2"),
+        t("dashboard.talentDrawers.profileExtras.tierProBullet3"),
+        t("dashboard.talentDrawers.profileExtras.tierProBullet4"),
+        t("dashboard.talentDrawers.profileExtras.tierProBullet5"),
       ],
     },
     max: {
-      headline: "Custom domain + full personal site",
+      headline: t("dashboard.talentDrawers.profileExtras.tierMaxHeadline"),
       bullets: [
-        "Connect your own domain (e.g. your-name.com)",
-        "All Pro features included",
-        "Story / About long-form section",
-        "Tour dates, show calendar, EPK download, FAQ",
-        "Unlimited media embeds",
-        "Custom analytics: visitor count, top referrers",
+        t("dashboard.talentDrawers.profileExtras.tierMaxBullet1"),
+        t("dashboard.talentDrawers.profileExtras.tierMaxBullet2"),
+        t("dashboard.talentDrawers.profileExtras.tierMaxBullet3"),
+        t("dashboard.talentDrawers.profileExtras.tierMaxBullet4"),
+        t("dashboard.talentDrawers.profileExtras.tierMaxBullet5"),
+        t("dashboard.talentDrawers.profileExtras.tierMaxBullet6"),
       ],
     },
   };
@@ -428,15 +437,15 @@ export function TalentPublicPreviewDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Preview as a client"
-      description="Where you appear right now, plus what each tier unlocks. Tap a tier to see its distribution + feature set."
+      title={t("dashboard.talentDrawers.profileExtras.previewAsClient")}
+      description={t("dashboard.talentDrawers.profileExtras.previewAsClientDesc")}
       width={720}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
           {tierAheadOfCurrent && (
             <PrimaryButton onClick={() => { closeDrawer(); openDrawer("talent-tier-compare"); }}>
-              Upgrade to {TALENT_TIER_META[previewTier].label}
+              {interpolate(t("dashboard.talentDrawers.profileExtras.upgradeTo"), { tier: TALENT_TIER_META[previewTier].label })}
             </PrimaryButton>
           )}
         </>
@@ -454,13 +463,13 @@ export function TalentPublicPreviewDrawer() {
           width: "fit-content",
         }}
       >
-        {(["free", "pro", "max"] as const).map((t) => {
-          const isActive = previewTier === t;
-          const isCurrent = currentTier === t;
+        {(["free", "pro", "max"] as const).map((tierId) => {
+          const isActive = previewTier === tierId;
+          const isCurrent = currentTier === tierId;
           return (
             <button
-              key={t}
-              onClick={() => setPreviewTier(t)}
+              key={tierId}
+              onClick={() => setPreviewTier(tierId)}
               style={{
                 padding: "5px 12px",
                 background: isActive ? "#fff" : "transparent",
@@ -477,10 +486,10 @@ export function TalentPublicPreviewDrawer() {
                 gap: 5,
               }}
             >
-              {TALENT_TIER_META[t].label}
+              {TALENT_TIER_META[tierId].label}
               {isCurrent && (
                 <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-accent-deep">
-                  · current
+                  {t("dashboard.talentDrawers.profileExtras.current")}
                 </span>
               )}
             </button>
@@ -494,7 +503,7 @@ export function TalentPublicPreviewDrawer() {
           verified — otherwise the canonical Tulala URL is the active
           one. */}
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
-        Where you appear · {TALENT_TIER_META[previewTier].label}
+        {interpolate(t("dashboard.talentDrawers.profileExtras.whereYouAppear"), { tier: TALENT_TIER_META[previewTier].label })}
       </div>
       <div style={{
         display: "flex", flexDirection: "column", gap: 8,
@@ -521,7 +530,7 @@ export function TalentPublicPreviewDrawer() {
                 if (typeof navigator !== "undefined" && navigator.clipboard) {
                   navigator.clipboard.writeText(row.url).catch(() => {});
                 }
-                toast(`Copied ${row.url.replace(/^https?:\/\//, "")}`);
+                toast(interpolate(t("dashboard.talentDrawers.profileExtras.copiedToast"), { url: row.url.replace(/^https?:\/\//, "") }));
               }}
               style={{
                 padding: "6px 10px", borderRadius: 7,
@@ -531,7 +540,7 @@ export function TalentPublicPreviewDrawer() {
                 fontSize: 11.5, fontWeight: 500, cursor: "pointer",
                 fontFamily: FONTS.body,
               }}
-            >Copy</button>
+            >{t("dashboard.talentDrawers.copy")}</button>
             <a href={row.url} target="_blank" rel="noreferrer"
               style={{
                 padding: "6px 10px", borderRadius: 7,
@@ -543,7 +552,7 @@ export function TalentPublicPreviewDrawer() {
                 display: "inline-flex", alignItems: "center", gap: 4,
               }}
             >
-              Open
+              {t("dashboard.talentDrawers.open")}
               <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden>
                 <path d="M2 7l5-5M3 2h4v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -568,12 +577,12 @@ export function TalentPublicPreviewDrawer() {
           </div>
           {previewTier !== currentTier && tierAheadOfCurrent && (
             <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", background: "#fff", padding: "2px 7px", borderRadius: 999 }} className="text-admin-accent-deep">
-              Upgrade required
+              {t("dashboard.talentDrawers.profileExtras.upgradeRequired")}
             </span>
           )}
           {previewTier === currentTier && (
             <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-success-deep">
-              Active
+              {t("dashboard.talentDrawers.profileExtras.active")}
             </span>
           )}
         </div>
@@ -593,13 +602,13 @@ export function TalentPublicPreviewDrawer() {
         borderRadius: 10,
       }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 6 }} className="text-admin-ink-muted">
-          Hidden until they inquire
+          {t("dashboard.talentDrawers.profileExtras.hiddenUntilInquire")}
         </div>
         <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.55 }} className="text-admin-ink-muted">
-          <li>Full measurements (private — agency-controlled)</li>
-          <li>Rate ranges (rate card visibility = {p.rateCard.visibility})</li>
-          <li>Limits and wardrobe constraints</li>
-          <li>Documents, emergency contact, agency-internal notes</li>
+          <li>{t("dashboard.talentDrawers.profileExtras.hiddenBullet1")}</li>
+          <li>{interpolate(t("dashboard.talentDrawers.profileExtras.hiddenBullet2"), { visibility: p.rateCard.visibility })}</li>
+          <li>{t("dashboard.talentDrawers.profileExtras.hiddenBullet3")}</li>
+          <li>{t("dashboard.talentDrawers.profileExtras.hiddenBullet4")}</li>
         </ul>
       </div>
     </DrawerShell>

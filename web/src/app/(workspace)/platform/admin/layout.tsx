@@ -20,6 +20,8 @@ import { redirect, notFound } from "next/navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { signOut } from "@/app/auth/actions";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 import { PlatformTopbar } from "./platform-topbar";
 import { PlatformWorkspaceSwitcher } from "./platform-workspace-switcher";
 
@@ -45,11 +47,12 @@ const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui,
 function userDisplayName(
   email: string | null | undefined,
   meta: Record<string, unknown> | undefined,
+  fallback: string,
 ): string {
   if (meta?.full_name && typeof meta.full_name === "string") return meta.full_name;
   if (meta?.name && typeof meta.name === "string") return meta.name;
   if (email) return email.split("@")[0].replace(/[._-]/g, " ");
-  return "You";
+  return fallback;
 }
 
 function initials(name: string): string {
@@ -81,9 +84,13 @@ export default async function PlatformAdminLayout({
     notFound();
   }
 
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+
   const userName = userDisplayName(
     session.user.email,
     session.user.user_metadata as Record<string, unknown> | undefined,
+    t("dashboard.platform.shell.youFallback"),
   );
   const userInitials = initials(userName);
 
@@ -231,7 +238,7 @@ export default async function PlatformAdminLayout({
                 flexShrink: 0,
               }}
             >
-              Super admin
+              {t("dashboard.platform.shell.superAdmin")}
             </span>
 
             <div style={{ flex: 1 }} />
@@ -245,8 +252,8 @@ export default async function PlatformAdminLayout({
             <form action={signOut}>
               <button
                 type="submit"
-                title="Sign out"
-                aria-label="Sign out"
+                title={t("dashboard.platform.shell.signOut")}
+                aria-label={t("dashboard.platform.shell.signOut")}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",

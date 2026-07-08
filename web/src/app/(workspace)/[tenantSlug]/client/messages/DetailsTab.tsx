@@ -13,6 +13,9 @@ import { useState, useCallback, useTransition } from "react";
 import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import { cancelInquiryAsClient } from "../_actions/inquiry-cancel-actions";
 import { updateClientInquiryDetailsAction } from "../_actions/inquiry-details-actions";
+import { ClientConfirmDialog } from "../_components/ConfirmDialog";
+import { useT } from "@/i18n/use-t";
+import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY =
@@ -88,6 +91,7 @@ export function DetailsTab({
   details: ClientInquiryDetails | null;
   tenantSlug?: string;
 }) {
+  const t = useT();
   // A1 — edit state. All hooks unconditional per rules.
   const [editSection, setEditSection] = useState<"brief" | "schedule" | "location" | null>(null);
   const [saving, startSave] = useTransition();
@@ -146,11 +150,7 @@ export function DetailsTab({
   );
 
   if (!details) {
-    return (
-      <div style={{ padding: 24, color: C.inkMuted, fontFamily: FONT, fontSize: 13 }}>
-        Loading details…
-      </div>
-    );
+    return <TabLoadingSkeleton label={t("dashboard.clientMessages.loadingMessages")} />;
   }
 
   const isLocked = LOCKED_STATUSES.has(details.status);
@@ -530,16 +530,20 @@ export function DetailsTab({
 }
 
 function CancelInquiryRow({ tenantSlug, inquiryId }: { tenantSlug: string; inquiryId: string }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
-  function go() {
-    if (!confirm("Cancel this inquiry? Your coordinator will be notified. This can't be undone — for booked projects, message your coordinator instead.")) return;
-    const reason = window.prompt("Optional: tell your coordinator why (helps them improve):") ?? "";
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  function submit(reason: string | null) {
     setErr(null);
     startTransition(async () => {
-      const r = await cancelInquiryAsClient(tenantSlug, inquiryId, reason.trim() || null);
-      if (!r.ok) setErr(r.error);
-      else window.location.reload();
+      const r = await cancelInquiryAsClient(tenantSlug, inquiryId, reason);
+      if (!r.ok) {
+        setErr(r.error);
+        setConfirmOpen(false);
+      } else {
+        window.location.reload();
+      }
     });
   }
   return (
@@ -566,7 +570,7 @@ function CancelInquiryRow({ tenantSlug, inquiryId }: { tenantSlug: string; inqui
       )}
       <button
         type="button"
-        onClick={go}
+        onClick={() => setConfirmOpen(true)}
         disabled={pending}
         style={{
           marginTop: 10,
@@ -583,6 +587,22 @@ function CancelInquiryRow({ tenantSlug, inquiryId }: { tenantSlug: string; inqui
       >
         {pending ? "Cancelling…" : "Cancel inquiry"}
       </button>
+
+      <ClientConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={submit}
+        destructive
+        pending={pending}
+        title={t("dashboard.clientConfirm.cancelInquiryTitle")}
+        body={t("dashboard.clientConfirm.cancelInquiryBody")}
+        reason={{
+          label: t("dashboard.clientConfirm.cancelInquiryReasonLabel"),
+          placeholder: t("dashboard.clientConfirm.cancelInquiryReasonPlaceholder"),
+        }}
+        confirmLabel={t("dashboard.clientConfirm.cancelInquiryConfirm")}
+        cancelLabel={t("dashboard.clientConfirm.cancelInquiryKeep")}
+      />
     </section>
   );
 }

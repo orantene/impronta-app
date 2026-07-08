@@ -28,6 +28,9 @@ import {
 import { useFavorites } from "@/lib/talent-cards/use-favorites";
 import { FavoritesInquireModal } from "./favorites-inquire-modal";
 import type { FavoriteModalTalent } from "@/components/directory/favorites-modal-view";
+import { EmptyState } from "../_components/EmptyState";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 
 const C = {
   ink:        "#0B0B0D",
@@ -62,6 +65,7 @@ export function FavoritesShell({
    */
   cardDesign?: CardDesign;
 }) {
+  const t = useT();
   const { isFavorited, setFavorite } = useFavorites();
   const [inquireOpen, setInquireOpen] = useState(false);
   const cardCssVars = useMemo(
@@ -95,13 +99,25 @@ export function FavoritesShell({
 
   if (visible.length === 0) {
     return (
-      <div style={{
-        padding: 32, textAlign: "center",
-        background: C.surface, border: `1px dashed ${C.borderSoft}`,
-        borderRadius: 14, fontFamily: FONT, color: C.inkMuted, fontSize: 13,
-      }}>
-        All favorites removed in this session. <Link href={`/${tenantSlug}/client/discover`} style={{ color: C.accent, fontWeight: 600 }}>Browse Discover</Link> to save more.
-      </div>
+      <EmptyState
+        icon="♡"
+        title={t("dashboard.clientConfirm.favoritesEmptyTitle")}
+        body={t("dashboard.clientConfirm.favoritesEmptyBody")}
+        actions={
+          <Link
+            href={`/${tenantSlug}/client/discover`}
+            style={{
+              display: "inline-flex", alignItems: "center",
+              height: 38, padding: "0 16px", borderRadius: 10,
+              background: C.accent, color: "#fff",
+              fontSize: 13, fontWeight: 600, textDecoration: "none",
+              letterSpacing: -0.1,
+            }}
+          >
+            {t("dashboard.clientConfirm.favoritesEmptyCta")}
+          </Link>
+        }
+      />
     );
   }
 
@@ -114,7 +130,7 @@ export function FavoritesShell({
         }}
       >
         <p style={{ margin: 0, fontSize: 13, color: C.inkMuted }}>
-          {visible.length} saved · pick who to inquire about
+          {interpolate(t("dashboard.clientFavorites.savedPick"), { count: visible.length })}
         </p>
         <button
           type="button"
@@ -127,7 +143,7 @@ export function FavoritesShell({
             letterSpacing: -0.1,
           }}
         >
-          Select &amp; send an inquiry
+          {t("dashboard.clientFavorites.selectAndSend")}
         </button>
       </div>
       <div
@@ -152,7 +168,7 @@ export function FavoritesShell({
         background: C.surface, border: `1px dashed ${C.borderSoft}`,
         textAlign: "center", color: C.inkMuted, fontSize: 12,
       }}>
-        Want event-bound groups? Build a <Link href={`/${tenantSlug}/client/shortlists`} style={{ color: C.accent, fontWeight: 600 }}>shortlist</Link> and send one inquiry to multiple talents at once.
+        {t("dashboard.clientFavorites.shortlistHintPrefix")}<Link href={`/${tenantSlug}/client/shortlists`} style={{ color: C.accent, fontWeight: 600 }}>{t("dashboard.clientFavorites.shortlistHintLink")}</Link>{t("dashboard.clientFavorites.shortlistHintSuffix")}
       </div>
 
       <FavoritesInquireModal
@@ -174,6 +190,7 @@ export function FavoritesShell({
 function toFavoriteCardData(
   talent: DiscoverShortlistTalent,
   nameHref: string,
+  availabilityLabel: string,
 ): CanonicalTalentCardData {
   return {
     id: talent.talentId,
@@ -186,7 +203,7 @@ function toFavoriteCardData(
     photoUrl: talent.headshotUrl,
     agencyName: talent.agencyName,
     isExclusive: talent.isExclusive,
-    availabilityLabel: "Availability on request",
+    availabilityLabel,
     availabilityKnown: false,
     availableDaysInNext30: null,
   };
@@ -204,6 +221,7 @@ function FavoriteCard({
   /** Workspace UI locale (request locale) so the remove-undo toast localizes. */
   locale?: string;
 }) {
+  const t = useT();
   const router = useRouter();
 
   // Open the canonical public profile when the talent has a profile code;
@@ -222,7 +240,7 @@ function FavoriteCard({
   // never navigates; un-favoriting drops the card from the list via useFavorites.
   return (
     <TalentCard
-      data={toFavoriteCardData(talent, nameHref)}
+      data={toFavoriteCardData(talent, nameHref, t("dashboard.clientFavorites.availabilityOnRequest"))}
       style="editorial"
       aspect="4:5"
       cssVars={cardCssVars}

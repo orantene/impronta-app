@@ -278,12 +278,10 @@ export function SettingsPage() {
           affordance="Open verification"
           onClick={() => openDrawer("talent-connections")}
         />
-        <SecondaryCard
-          title="Refer a friend"
-          description="When a talent you invite closes their first booking, you both earn €50 in payout credit."
-          affordance="Open referrals"
-          onClick={() => openDrawer("talent-referrals")}
-        />
+        {/* "Refer a friend" card hidden — referral invites + €50 payout
+            credit have no backend yet; showing an entry point to a
+            coming-soon-only drawer is a dead affordance. Restore when the
+            referral engine ships. */}
         <SecondaryCard
           title="Tax documents"
           description="Year-end summaries, W-8BEN/W-9 on file, off-platform self-declaration."

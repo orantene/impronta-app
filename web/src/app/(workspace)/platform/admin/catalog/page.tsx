@@ -22,6 +22,12 @@ import { TypesTab } from "./_tabs/types-tab";
 import { SectionCategoryTab } from "./_tabs/section-category-tab";
 import { SectionFieldsGroupTab } from "./_tabs/section-fields-group-tab";
 import { SectionFieldsTab } from "./_tabs/section-fields-tab";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+const K = "dashboard.platform.catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -33,13 +39,13 @@ const navLink: React.CSSProperties = {
   letterSpacing: 0.2,
 };
 
-function VisChip({ v }: { v: CatalogField["visibility"] }) {
+function VisChip({ v, t }: { v: CatalogField["visibility"]; t: Translate }) {
   const meta =
     v === "public"
-      ? { t: "Public", c: HQ.green }
+      ? { label: t(`${K}.visPublic`), c: HQ.green }
       : v === "admin"
-        ? { t: "Admin-only", c: HQ.amber }
-        : { t: "Hidden", c: HQ.inkDim };
+        ? { label: t(`${K}.visAdmin`), c: HQ.amber }
+        : { label: t(`${K}.visHidden`), c: HQ.inkDim };
   return (
     <span
       style={{
@@ -52,7 +58,7 @@ function VisChip({ v }: { v: CatalogField["visibility"] }) {
         whiteSpace: "nowrap",
       }}
     >
-      {meta.t}
+      {meta.label}
     </span>
   );
 }
@@ -60,20 +66,23 @@ function VisChip({ v }: { v: CatalogField["visibility"] }) {
 function FieldRow({
   f,
   viewAs,
+  t,
 }: {
   f: CatalogField;
   viewAs: ViewerRole;
+  t: Translate;
 }) {
   // Phase 9A slice 3 — per-row visibility for the selected viewer.
   // platform_admin is the default and always sees everything.
   const seen = viewAs === "platform_admin" ? true : canViewerSee(f.visibility, viewAs);
   const dim = !seen || f.deprecated;
+  const viewLabel = t(`${K}.${VIEW_LABEL_KEYS[viewAs]}`);
   // Whole row is the click target — opens the field editor drawer.
   return (
     <Link
       href={`/platform/admin/catalog/${encodeURIComponent(f.field_key)}`}
       className="hq-field-row"
-      title={`Edit ${f.label} — click to open field editor`}
+      title={interpolate(t(`${K}.rowEditTitle`), { label: f.label })}
       style={{
         display: "flex",
         alignItems: "center",
@@ -92,23 +101,23 @@ function FieldRow({
           <span style={{ fontWeight: 600 }}>{f.label}</span>
           <span style={{ fontSize: 10, color: HQ.green, letterSpacing: 0.2 }}>›</span>
           {f.deprecated && (
-            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.red }}>DEPRECATED</span>
+            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.red }}>{t(`${K}.rowDeprecated`)}</span>
           )}
           {f.required_default && (
-            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.amber }}>REQUIRED</span>
+            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.amber }}>{t(`${K}.rowRequired`)}</span>
           )}
           {f.is_sensitive && (
-            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.red }}>SENSITIVE</span>
+            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.red }}>{t(`${K}.rowSensitive`)}</span>
           )}
           {f.admin_only && (
-            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.amber }}>ADMIN</span>
+            <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.amber }}>{t(`${K}.rowAdmin`)}</span>
           )}
           {!seen && viewAs !== "platform_admin" && (
             <span
               style={{ fontSize: 9.5, fontWeight: 700, color: HQ.inkMuted }}
-              title={`Effective visibility (${f.visibility}) hidden from ${VIEW_LABELS[viewAs]}`}
+              title={interpolate(t(`${K}.rowNotShownTitle`), { visibility: f.visibility, role: viewLabel })}
             >
-              🚫 not shown to {VIEW_LABELS[viewAs].toLowerCase()}
+              {interpolate(t(`${K}.rowNotShownTo`), { role: viewLabel.toLowerCase() })}
             </span>
           )}
         </div>
@@ -123,12 +132,12 @@ function FieldRow({
           {f.section ? ` · ${f.section}` : ""}
         </div>
       </div>
-      <VisChip v={f.visibility} />
+      <VisChip v={f.visibility} t={t} />
       <span style={{ fontSize: 11, color: HQ.inkMuted, minWidth: 82, textAlign: "right" }}>
-        {f.override_count} overrides
+        {interpolate(t(`${K}.rowOverrides`), { count: f.override_count })}
       </span>
       <span style={{ fontSize: 11, color: HQ.inkMuted, minWidth: 78, textAlign: "right" }}>
-        {f.value_count} values
+        {interpolate(t(`${K}.rowValues`), { count: f.value_count })}
       </span>
     </Link>
   );
@@ -143,11 +152,13 @@ function GroupFields({
   fieldGroupId,
   viewAs,
   filtersActive,
+  t,
 }: {
   fields: CatalogField[];
   fieldGroupId: string | null;
   viewAs: ViewerRole;
   filtersActive: boolean;
+  t: Translate;
 }) {
   const showOrder = !filtersActive && fields.length >= 2;
   const colHead: React.CSSProperties = {
@@ -168,14 +179,14 @@ function GroupFields({
       }}
     >
       <div style={{ minWidth: 0 }}>
-        {showOrder && <div style={colHead}>Fields</div>}
+        {showOrder && <div style={colHead}>{t(`${K}.colFields`)}</div>}
         {fields.map((f) => (
-          <FieldRow key={f.id} f={f} viewAs={viewAs} />
+          <FieldRow key={f.id} f={f} viewAs={viewAs} t={t} />
         ))}
       </div>
       {showOrder && (
         <div style={{ minWidth: 0 }}>
-          <div style={colHead}>Drag to reorder</div>
+          <div style={colHead}>{t(`${K}.colDragReorder`)}</div>
           <FieldOrderPanel
             fieldGroupId={fieldGroupId}
             fields={fields.map((f) => ({
@@ -199,11 +210,12 @@ const RISK_TONE: Record<CatalogRisk["kind"], string> = {
   "deprecated-active-overrides": HQ.amber,
 };
 
-const RISK_LABEL: Record<CatalogRisk["kind"], string> = {
-  "sensitive-but-public": "Sensitive + public",
-  "admin-but-public": "Admin-only + public",
-  "deprecated-with-values": "Deprecated with values",
-  "deprecated-active-overrides": "Deprecated with overrides",
+// enum → catalog key; render label via t(), switch on the raw kind.
+const RISK_LABEL_KEYS: Record<CatalogRisk["kind"], string> = {
+  "sensitive-but-public": "riskSensitivePublic",
+  "admin-but-public": "riskAdminPublic",
+  "deprecated-with-values": "riskDeprecatedValues",
+  "deprecated-active-overrides": "riskDeprecatedOverrides",
 };
 
 // Phase 9A slice 2 — URL-driven filters. Pure server-render (no client JS).
@@ -239,47 +251,32 @@ function parseTab(raw: string | undefined): HubTab {
       return "types";
   }
 }
-const HUB_TABS: ReadonlyArray<{ tab: HubTab; label: string }> = [
-  { tab: "types", label: "Talent-Type Category" },
-  { tab: "groups", label: "Talent-Type Fields Groups" },
-  { tab: "fields", label: "Talent-Type Fields" },
-  { tab: "editor", label: "Section Category" },
-  { tab: "sections", label: "Sections" },
-  { tab: "section-fields", label: "Section Fields" },
+// enum → catalog key for the tab chip label + the one-line orientation blurb.
+const HUB_TABS: ReadonlyArray<{ tab: HubTab; labelKey: string; descKey: string }> = [
+  { tab: "types", labelKey: "tabTypes", descKey: "tabDescTypes" },
+  { tab: "groups", labelKey: "tabGroups", descKey: "tabDescGroups" },
+  { tab: "fields", labelKey: "tabFields", descKey: "tabDescFields" },
+  { tab: "editor", labelKey: "tabEditor", descKey: "tabDescEditor" },
+  { tab: "sections", labelKey: "tabSections", descKey: "tabDescSections" },
+  { tab: "section-fields", labelKey: "tabSectionFields", descKey: "tabDescSectionFields" },
 ];
-
-// One-line orientation per tab — rendered under the tab chips so each surface
-// is self-explanatory and the six pages read consistently.
-const TAB_DESC: Record<HubTab, string> = {
-  types:
-    "The talent-type taxonomy — parent categories → category groups → talent types. Expand to edit; analytics show agencies + talents per type.",
-  groups:
-    "Field groups bundle profile fields. Edit, reorder, archive, or permanently remove a group; expand one to see its fields.",
-  fields:
-    "Every canonical profile field. Filter, search, preview by role, and reorder within each group. Click a field to edit it.",
-  editor:
-    "The profile-editor rail groups (Profile, Craft, …) that head the talent editor's left rail. Rename, reorder, archive, or remove.",
-  sections:
-    "The profile-editor sections (Identity → Admin) within each rail group. Edit labels EN/ES, move between groups, and reorder.",
-  "section-fields":
-    "Each profile-editor section and the fields it shows. Expand a section to view and reorder its fields.",
-};
 
 // Phase 9A slice 3 — "View-as" role preview. platform_admin = default
 // (sees everything); the other three apply canViewerSee per row.
-const VIEW_LABELS: Record<ViewerRole, string> = {
-  platform_admin: "Platform admin",
-  public: "Public client",
-  agency_admin: "Agency admin",
-  talent: "Talent",
-  client: "Client",
-  manager: "Manager",
+// enum → catalog key; render via t(), switch on the raw ViewerRole.
+const VIEW_LABEL_KEYS: Record<ViewerRole, string> = {
+  platform_admin: "viewPlatformAdmin",
+  public: "viewPublicClient",
+  agency_admin: "viewAgencyAdmin",
+  talent: "viewTalent",
+  client: "viewClient",
+  manager: "viewManager",
 };
-const VIEW_PICKER: ReadonlyArray<{ role: ViewerRole; label: string }> = [
-  { role: "platform_admin", label: VIEW_LABELS.platform_admin },
-  { role: "public", label: VIEW_LABELS.public },
-  { role: "agency_admin", label: VIEW_LABELS.agency_admin },
-  { role: "talent", label: VIEW_LABELS.talent },
+const VIEW_PICKER_ROLES: ReadonlyArray<ViewerRole> = [
+  "platform_admin",
+  "public",
+  "agency_admin",
+  "talent",
 ];
 function parseView(raw: string | undefined): ViewerRole {
   switch (raw) {
@@ -343,6 +340,8 @@ export default async function PlatformCatalogMapPage({
   searchParams: Promise<FilterParams>;
 }) {
   const map = await loadPlatformCatalogMap();
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const params = await searchParams;
   const tier = params.tier ?? "all";
   const riskFilter = params.risk === "yes";
@@ -362,12 +361,10 @@ export default async function PlatformCatalogMapPage({
   if (!map.ok) {
     return (
       <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
-        <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600 }}>Profile Fields</h1>
-        <HqCard title="Unavailable">
+        <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600 }}>{t(`${K}.title`)}</h1>
+        <HqCard title={t(`${K}.unavailableTitle`)}>
           <div style={{ fontSize: 13, color: HQ.inkMuted }}>
-            Could not load the catalog (service client unavailable or query
-            failed). This surface is read-only and degrades safely — retry
-            shortly.
+            {t(`${K}.unavailableBody`)}
           </div>
         </HqCard>
       </div>
@@ -442,11 +439,11 @@ export default async function PlatformCatalogMapPage({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", paddingTop: 4 }}>
-          <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600, margin: 0 }}>Profile Fields</h1>
+          <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600, margin: 0 }}>{t(`${K}.title`)}</h1>
           <span style={{ fontSize: 12, color: HQ.inkMuted }}>
             {filtersActive
-              ? `${filteredCount} of ${s.totalFields} fields`
-              : `${s.totalFields} fields · ${s.totalGroups} groups`}
+              ? interpolate(t(`${K}.countFieldsOfTotal`), { shown: filteredCount, total: s.totalFields })
+              : interpolate(t(`${K}.countFieldsGroups`), { fields: s.totalFields, groups: s.totalGroups })}
           </span>
           <form
             method="GET"
@@ -457,7 +454,7 @@ export default async function PlatformCatalogMapPage({
               type="text"
               name="q"
               defaultValue={q}
-              placeholder="Search field key or label…"
+              placeholder={t(`${K}.searchPlaceholder`)}
               style={{
                 fontSize: 12.5,
                 padding: "6px 11px",
@@ -483,23 +480,23 @@ export default async function PlatformCatalogMapPage({
                 fontFamily: F,
               }}
             >
-              Search
+              {t(`${K}.searchButton`)}
             </button>
             {filtersActive && (
               <Link
                 href="/platform/admin/catalog"
                 style={{ fontSize: 11, color: HQ.inkMuted, textDecoration: "underline", whiteSpace: "nowrap" }}
               >
-                Clear
+                {t(`${K}.clear`)}
               </Link>
             )}
           </form>
         </div>
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 10 }}>
-          <Link href="/platform/admin/catalog/groups" style={navLink}>Field Groups Builder</Link>
-          <Link href="/platform/admin/taxonomy" style={navLink}>Taxonomy Builder</Link>
-          <Link href="/platform/admin/catalog/export?format=csv" style={navLink}>Export CSV ↓</Link>
-          <Link href="/platform/admin/catalog/export?format=json" style={navLink}>Export JSON ↓</Link>
+          <Link href="/platform/admin/catalog/groups" style={navLink}>{t(`${K}.navFieldGroupsBuilder`)}</Link>
+          <Link href="/platform/admin/taxonomy" style={navLink}>{t(`${K}.navTaxonomyBuilder`)}</Link>
+          <Link href="/platform/admin/catalog/export?format=csv" style={navLink}>{t(`${K}.navExportCsv`)}</Link>
+          <Link href="/platform/admin/catalog/export?format=json" style={navLink}>{t(`${K}.navExportJson`)}</Link>
         </div>
       </div>
 
@@ -518,15 +515,15 @@ export default async function PlatformCatalogMapPage({
               paddingRight: 2,
             }}
           >
-            Catalog Engine
+            {t(`${K}.clusterCatalogEngine`)}
           </span>
-          {(["types", "groups", "fields"] as const).map((t) => {
-            const entry = HUB_TABS.find((h) => h.tab === t)!;
-            const active = tab === t;
+          {(["types", "groups", "fields"] as const).map((tabId) => {
+            const entry = HUB_TABS.find((h) => h.tab === tabId)!;
+            const active = tab === tabId;
             return (
               <Link
-                key={t}
-                href={t === "types" ? "/platform/admin/catalog" : `?tab=${t}`}
+                key={tabId}
+                href={tabId === "types" ? "/platform/admin/catalog" : `?tab=${tabId}`}
                 style={{
                   fontSize: 11.5,
                   fontWeight: 600,
@@ -539,7 +536,7 @@ export default async function PlatformCatalogMapPage({
                   whiteSpace: "nowrap",
                 }}
               >
-                {entry.label}
+                {t(`${K}.${entry.labelKey}`)}
               </Link>
             );
           })}
@@ -568,15 +565,15 @@ export default async function PlatformCatalogMapPage({
               paddingRight: 2,
             }}
           >
-            Section Editor
+            {t(`${K}.clusterSectionEditor`)}
           </span>
-          {(["editor", "sections", "section-fields"] as const).map((t) => {
-            const entry = HUB_TABS.find((h) => h.tab === t)!;
-            const active = tab === t;
+          {(["editor", "sections", "section-fields"] as const).map((tabId) => {
+            const entry = HUB_TABS.find((h) => h.tab === tabId)!;
+            const active = tab === tabId;
             return (
               <Link
-                key={t}
-                href={`?tab=${t}`}
+                key={tabId}
+                href={`?tab=${tabId}`}
                 style={{
                   fontSize: 11.5,
                   fontWeight: 600,
@@ -589,7 +586,7 @@ export default async function PlatformCatalogMapPage({
                   whiteSpace: "nowrap",
                 }}
               >
-                {entry.label}
+                {t(`${K}.${entry.labelKey}`)}
               </Link>
             );
           })}
@@ -606,7 +603,7 @@ export default async function PlatformCatalogMapPage({
           marginBottom: 14,
         }}
       >
-        {TAB_DESC[tab]}
+        {t(`${K}.${HUB_TABS.find((h) => h.tab === tab)!.descKey}`)}
       </div>
 
       {/* Field-engine overview — only on the Talent-Type Fields tab, where these
@@ -614,15 +611,15 @@ export default async function PlatformCatalogMapPage({
           own contextual stats, so the global strip would just be noise there. */}
       {tab === "fields" && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-          <Stat label="Fields" value={s.totalFields} />
-          <Stat label="Groups" value={s.totalGroups} />
-          <Stat label="Deprecated" value={s.deprecated} tone={s.deprecated ? HQ.amber : undefined} />
-          <Stat label="Sensitive" value={s.sensitive} tone={s.sensitive ? HQ.red : undefined} />
-          <Stat label="Admin-only" value={s.adminOnly} />
-          <Stat label="With values" value={s.fieldsWithValues} />
-          <Stat label="Has ES label" value={`${s.withEsLabel}/${s.totalFields}`} />
+          <Stat label={t(`${K}.statFields`)} value={s.totalFields} />
+          <Stat label={t(`${K}.statGroups`)} value={s.totalGroups} />
+          <Stat label={t(`${K}.statDeprecated`)} value={s.deprecated} tone={s.deprecated ? HQ.amber : undefined} />
+          <Stat label={t(`${K}.statSensitive`)} value={s.sensitive} tone={s.sensitive ? HQ.red : undefined} />
+          <Stat label={t(`${K}.statAdminOnly`)} value={s.adminOnly} />
+          <Stat label={t(`${K}.statWithValues`)} value={s.fieldsWithValues} />
+          <Stat label={t(`${K}.statHasEsLabel`)} value={`${s.withEsLabel}/${s.totalFields}`} />
           <Stat
-            label="Risks"
+            label={t(`${K}.statRisks`)}
             value={priorityRisks.length}
             tone={priorityRisks.length ? HQ.red : HQ.green}
           />
@@ -633,52 +630,52 @@ export default async function PlatformCatalogMapPage({
         <>
       {/* Create field — collapsed by default; occasional action. */}
       <HqAccordion
-        title="＋ Create a field"
-        meta="Add a canonical profile field, then map it to talent types"
+        title={t(`${K}.createFieldTitle`)}
+        meta={t(`${K}.createFieldMeta`)}
       >
-        <CreateFieldForm groups={map.groups.map((group) => ({ id: group.id, name: group.name, slug: group.slug }))} />
+        <CreateFieldForm groups={map.groups.map((group) => ({ id: group.id, name: group.name, slug: group.slug }))} t={t} />
       </HqAccordion>
 
       {/* Filters — collapsed unless something is active. Search lives in the toolbar. */}
       <HqAccordion
-        title="Filters"
+        title={t(`${K}.filtersTitle`)}
         defaultOpen={filtersActive}
         badge={
           filtersActive
-            ? { text: `${filteredCount} shown`, tone: HQ.green }
+            ? { text: interpolate(t(`${K}.filtersShownBadge`), { count: filteredCount }), tone: HQ.green }
             : undefined
         }
-        meta={filtersActive ? undefined : "Tier · status · view-as"}
+        meta={filtersActive ? undefined : t(`${K}.filtersMeta`)}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}>Tier</span>
-            <FilterChip label="All" href={urlFor(params, { tier: undefined })} active={tier === "all"} />
-            <FilterChip label="Universal" href={urlFor(params, { tier: "universal" })} active={tier === "universal"} />
-            <FilterChip label="Global" href={urlFor(params, { tier: "global" })} active={tier === "global"} />
-            <FilterChip label="Type-specific" href={urlFor(params, { tier: "type-specific" })} active={tier === "type-specific"} />
+            <span style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}>{t(`${K}.filterTier`)}</span>
+            <FilterChip label={t(`${K}.filterAll`)} href={urlFor(params, { tier: undefined })} active={tier === "all"} />
+            <FilterChip label={t(`${K}.filterUniversal`)} href={urlFor(params, { tier: "universal" })} active={tier === "universal"} />
+            <FilterChip label={t(`${K}.filterGlobal`)} href={urlFor(params, { tier: "global" })} active={tier === "global"} />
+            <FilterChip label={t(`${K}.filterTypeSpecific`)} href={urlFor(params, { tier: "type-specific" })} active={tier === "type-specific"} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span
               style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}
-              title="Archived = deprecated fields, hidden by default"
+              title={t(`${K}.filterLifecycleTitle`)}
             >
-              Lifecycle
+              {t(`${K}.filterLifecycle`)}
             </span>
-            <FilterChip label="Active" href={urlFor(params, { status: undefined })} active={status === "active"} />
-            <FilterChip label={`Archived (${s.deprecated})`} href={urlFor(params, { status: "archived" })} active={status === "archived"} />
-            <FilterChip label="All" href={urlFor(params, { status: "all" })} active={status === "all"} />
+            <FilterChip label={t(`${K}.filterActive`)} href={urlFor(params, { status: undefined })} active={status === "active"} />
+            <FilterChip label={interpolate(t(`${K}.filterArchivedCount`), { count: s.deprecated })} href={urlFor(params, { status: "archived" })} active={status === "archived"} />
+            <FilterChip label={t(`${K}.filterAll`)} href={urlFor(params, { status: "all" })} active={status === "all"} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}>Status</span>
+            <span style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}>{t(`${K}.filterStatus`)}</span>
             <FilterChip
-              label={`Has risks (${map.risks.length})`}
+              label={interpolate(t(`${K}.filterHasRisks`), { count: map.risks.length })}
               href={urlFor(params, { risk: riskFilter ? undefined : "yes" })}
               active={riskFilter}
             />
             {(s.fieldsWithOverrides > 0 || overrideFilter) && (
               <FilterChip
-                label={`Workspace override (${s.fieldsWithOverrides})`}
+                label={interpolate(t(`${K}.filterWorkspaceOverride`), { count: s.fieldsWithOverrides })}
                 href={urlFor(params, { override: overrideFilter ? undefined : "yes" })}
                 active={overrideFilter}
               />
@@ -687,14 +684,14 @@ export default async function PlatformCatalogMapPage({
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span
               style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}
-              title="Preview which fields each audience sees on the public/admin/talent surface"
+              title={t(`${K}.filterViewAsTitle`)}
             >
-              View as
+              {t(`${K}.filterViewAs`)}
             </span>
-            {VIEW_PICKER.map(({ role, label }) => (
+            {VIEW_PICKER_ROLES.map((role) => (
               <FilterChip
                 key={role}
-                label={label}
+                label={t(`${K}.${VIEW_LABEL_KEYS[role]}`)}
                 href={urlFor(params, { view: role === "platform_admin" ? undefined : role })}
                 active={viewAs === role}
               />
@@ -707,10 +704,10 @@ export default async function PlatformCatalogMapPage({
           neutral coverage line, not a risk, so it can't bury the real ones. */}
       {priorityRisks.length > 0 && (
         <HqAccordion
-          title="Risk warnings"
+          title={t(`${K}.riskWarningsTitle`)}
           defaultOpen
-          badge={{ text: `${priorityRisks.length} need${priorityRisks.length === 1 ? "s" : ""} attention`, tone: HQ.red }}
-          meta="Read-only diagnostics — click a row to open the field"
+          badge={{ text: interpolate(t(`${K}.${priorityRisks.length === 1 ? "riskNeedsAttentionOne" : "riskNeedsAttentionMany"}`), { count: priorityRisks.length }), tone: HQ.red }}
+          meta={t(`${K}.riskWarningsMeta`)}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {priorityRisks.map((r, i) => (
@@ -718,11 +715,11 @@ export default async function PlatformCatalogMapPage({
                 key={`${r.kind}-${r.field_key}-${i}`}
                 href={`/platform/admin/catalog/${encodeURIComponent(r.field_key)}`}
                 className="hq-field-row"
-                title={`Open ${r.field_key} — ${RISK_LABEL[r.kind]}`}
+                title={interpolate(t(`${K}.riskOpenTitle`), { fieldKey: r.field_key, label: t(`${K}.${RISK_LABEL_KEYS[r.kind]}`) })}
                 style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, padding: "5px 8px", background: HQ.cardSoft, borderRadius: 8, textDecoration: "none" }}
               >
                 <span style={{ fontSize: 10, fontWeight: 700, color: RISK_TONE[r.kind], minWidth: 168 }} title={r.kind}>
-                  {RISK_LABEL[r.kind]}
+                  {t(`${K}.${RISK_LABEL_KEYS[r.kind]}`)}
                 </span>
                 <span style={{ color: HQ.ink, fontFamily: "ui-monospace, monospace" }}>{r.field_key}</span>
                 <span style={{ color: HQ.inkMuted }}>{r.detail}</span>
@@ -737,7 +734,7 @@ export default async function PlatformCatalogMapPage({
           a risk. Replaces the old high-volume "unused" risk rows. */}
       {s.noDataCount > 0 && (
         <div style={{ fontSize: 11.5, color: HQ.inkDim, padding: "4px 2px 10px" }}>
-          {s.noDataCount} field{s.noDataCount === 1 ? "" : "s"} have no data yet (informational)
+          {interpolate(t(`${K}.${s.noDataCount === 1 ? "noDataOne" : "noDataMany"}`), { count: s.noDataCount })}
         </div>
       )}
 
@@ -745,6 +742,11 @@ export default async function PlatformCatalogMapPage({
           a filter/search is active so matches stay visible. */}
       {filteredGroups.map((g) => {
         const deprecatedInGroup = g.fields.filter((f) => f.deprecated).length;
+        const partial = g.fields.length < g.field_count;
+        const one = g.fields.length === 1;
+        const metaKey = partial
+          ? one ? "groupFieldsMetaOfOne" : "groupFieldsMetaOfMany"
+          : one ? "groupFieldsMetaOne" : "groupFieldsMetaMany";
         return (
           <HqAccordion
             key={g.id}
@@ -752,16 +754,16 @@ export default async function PlatformCatalogMapPage({
             defaultOpen={filtersActive}
             badge={
               !g.is_active
-                ? { text: "INACTIVE", tone: HQ.amber }
+                ? { text: t(`${K}.groupInactive`), tone: HQ.amber }
                 : deprecatedInGroup > 0
-                  ? { text: `${deprecatedInGroup} deprecated`, tone: HQ.amber }
+                  ? { text: interpolate(t(`${K}.groupDeprecatedCount`), { count: deprecatedInGroup }), tone: HQ.amber }
                   : undefined
             }
-            meta={`${g.fields.length < g.field_count ? `${g.fields.length} of ${g.field_count}` : g.fields.length} field${g.fields.length === 1 ? "" : "s"} · ${g.slug}`}
+            meta={interpolate(t(`${K}.${metaKey}`), { count: g.fields.length, shown: g.fields.length, total: g.field_count, slug: g.slug })}
           >
             {g.fields.length === 0 ? (
               <div style={{ fontSize: 12, color: HQ.inkDim, padding: "6px 0" }}>
-                No fields in this group yet — create one above and assign it here.
+                {t(`${K}.groupEmpty`)}
               </div>
             ) : (
               <GroupFields
@@ -769,6 +771,7 @@ export default async function PlatformCatalogMapPage({
                 fieldGroupId={g.id}
                 viewAs={viewAs}
                 filtersActive={filtersActive}
+                t={t}
               />
             )}
           </HqAccordion>
@@ -777,37 +780,38 @@ export default async function PlatformCatalogMapPage({
 
       {filteredUngrouped.length > 0 && (
         <HqAccordion
-          title="Ungrouped"
+          title={t(`${K}.ungrouped`)}
           defaultOpen={filtersActive}
-          meta={`${filteredUngrouped.length} field${filteredUngrouped.length === 1 ? "" : "s"} with no field group`}
+          meta={interpolate(t(`${K}.${filteredUngrouped.length === 1 ? "ungroupedMetaOne" : "ungroupedMetaMany"}`), { count: filteredUngrouped.length })}
         >
           <GroupFields
             fields={filteredUngrouped}
             fieldGroupId={null}
             viewAs={viewAs}
             filtersActive={filtersActive}
+            t={t}
           />
         </HqAccordion>
       )}
 
       {filtersActive && filteredCount === 0 && (
-        <HqCard title="No matches" subtitle="No fields match the current filter set.">
+        <HqCard title={t(`${K}.noMatchesTitle`)} subtitle={t(`${K}.noMatchesSubtitle`)}>
           <div style={{ fontSize: 12, color: HQ.inkMuted }}>
             <Link href="/platform/admin/catalog" style={{ color: HQ.green, textDecoration: "underline" }}>
-              Clear all filters
+              {t(`${K}.noMatchesClear`)}
             </Link>{" "}
-            to see all {s.totalFields} fields.
+            {interpolate(t(`${K}.noMatchesToSee`), { total: s.totalFields })}
           </div>
         </HqCard>
       )}
         </>
       )}
 
-      {tab === "groups" && <GroupsTab sp={params} />}
-      {tab === "types" && <TypesTab sp={params} />}
-      {tab === "editor" && <SectionCategoryTab sp={params} />}
-      {tab === "sections" && <SectionFieldsGroupTab sp={params} />}
-      {tab === "section-fields" && <SectionFieldsTab sp={params} />}
+      {tab === "groups" && <GroupsTab sp={params} t={t} />}
+      {tab === "types" && <TypesTab sp={params} t={t} />}
+      {tab === "editor" && <SectionCategoryTab sp={params} t={t} />}
+      {tab === "sections" && <SectionFieldsGroupTab sp={params} t={t} />}
+      {tab === "section-fields" && <SectionFieldsTab sp={params} t={t} />}
     </div>
   );
 }

@@ -72,6 +72,37 @@ export const SERVICE_PRICING_SUFFIX: Record<ServicePricingType, string> = {
   custom: "",
 };
 
+/**
+ * i18n catalog-key siblings for the two label maps above (additive, non-breaking).
+ * Localized consumers that hold a `useT()` render `t(SERVICE_PRICING_LABEL_KEYS[type])`
+ * / `t(SERVICE_PRICING_SUFFIX_KEYS[type])` instead of the raw English map; every
+ * other (not-yet-localized) consumer keeps rendering SERVICE_PRICING_LABELS /
+ * SERVICE_PRICING_SUFFIX directly. Keys live under `dashboard.enums.*`.
+ */
+export const SERVICE_PRICING_LABEL_KEYS: Record<ServicePricingType, string> = {
+  hour: "dashboard.enums.servicePricing.hour",
+  day: "dashboard.enums.servicePricing.day",
+  week: "dashboard.enums.servicePricing.week",
+  half_day: "dashboard.enums.servicePricing.half_day",
+  event: "dashboard.enums.servicePricing.event",
+  per_person: "dashboard.enums.servicePricing.per_person",
+  per_contact: "dashboard.enums.servicePricing.per_contact",
+  flat_package: "dashboard.enums.servicePricing.flat_package",
+  custom: "dashboard.enums.servicePricing.custom",
+};
+
+export const SERVICE_PRICING_SUFFIX_KEYS: Record<ServicePricingType, string> = {
+  hour: "dashboard.enums.servicePricingSuffix.hour",
+  day: "dashboard.enums.servicePricingSuffix.day",
+  week: "dashboard.enums.servicePricingSuffix.week",
+  half_day: "dashboard.enums.servicePricingSuffix.half_day",
+  event: "dashboard.enums.servicePricingSuffix.event",
+  per_person: "dashboard.enums.servicePricingSuffix.per_person",
+  per_contact: "dashboard.enums.servicePricingSuffix.per_contact",
+  flat_package: "dashboard.enums.servicePricingSuffix.flat_package",
+  custom: "dashboard.enums.servicePricingSuffix.custom",
+};
+
 /** A `custom` service carries no amount — it's a quote-on-request trigger. */
 export function pricingTypeRequiresAmount(t: ServicePricingType): boolean {
   return t !== "custom";

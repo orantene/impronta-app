@@ -32,12 +32,15 @@ import {
 } from "./drawer-shared";
 import { buildNewTalentPickerTaxonomy } from "./profile-shell/profile-shell-modules/new-talent-taxonomy";
 import { resolveDynamicFieldsForParent } from "@/lib/field-engine/client-field-source-select";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 1 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function TalentRegistrationDrawer() {
   const { state, closeDrawer, toast, effectiveTenant, bridgeTenantIdentity, clientFieldSource } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "talent-registration";
   const liveTaxonomy = useLiveTaxonomy();
   const [step, setStep] = useState(0);
@@ -248,14 +251,14 @@ export function TalentRegistrationDrawer() {
   const canStep6 = languages.length > 0;
 
   const steps: { title: string; sub: string; canNext: boolean }[] = [
-    { title: `Join ${effectiveTenant.name}`, sub: "Create your talent profile in a few minutes.", canNext: canStep0 },
-    { title: "What do you offer?", sub: "Pick the categories you want to be booked under.", canNext: canStep1 },
-    { title: "Choose your exact Talent Type", sub: "We'll match you to the right inquiries.", canNext: canStep2 },
-    { title: "Where do you work?", sub: "Home base + how far you'll travel.", canNext: canStep3 },
-    { title: "Photos", sub: "At least 3 photos. Start with a clean headshot.", canNext: canStep4 },
-    { title: "Profile details", sub: "A few extra fields based on your Talent Types.", canNext: canStep5 },
-    { title: "Languages & skills", sub: "Languages with levels — and any extra strengths.", canNext: canStep6 },
-    { title: "Review & submit", sub: `${effectiveTenant.name} reviews new profiles within 1 business day.`, canNext: true },
+    { title: tt("Join {agency}").replace("{agency}", effectiveTenant.name), sub: tt("Create your talent profile in a few minutes."), canNext: canStep0 },
+    { title: tt("What do you offer?"), sub: tt("Pick the categories you want to be booked under."), canNext: canStep1 },
+    { title: tt("Choose your exact Talent Type"), sub: tt("We'll match you to the right inquiries."), canNext: canStep2 },
+    { title: tt("Where do you work?"), sub: tt("Home base and how far you'll travel."), canNext: canStep3 },
+    { title: tt("Photos"), sub: tt("At least 3 photos. Start with a clean headshot."), canNext: canStep4 },
+    { title: tt("Profile details"), sub: tt("A few extra fields based on your Talent Types."), canNext: canStep5 },
+    { title: tt("Languages & skills"), sub: tt("Languages with levels, and any extra strengths."), canNext: canStep6 },
+    { title: tt("Review & submit"), sub: tt("{agency} reviews new profiles within 1 business day.").replace("{agency}", effectiveTenant.name), canNext: true },
   ];
 
   const cur = steps[step]!;
@@ -267,7 +270,7 @@ export function TalentRegistrationDrawer() {
     setCelebrating(true);
     // Auto-dismiss after 4s. Talent can also tap to dismiss earlier.
     setTimeout(() => {
-      toast("Profile submitted for review");
+      toast(tt("Profile submitted for review"));
       closeDrawer();
     }, 4000);
   };
@@ -307,7 +310,7 @@ export function TalentRegistrationDrawer() {
           <div style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
             {/* Confetti — 24 absolutely-positioned spans, randomly
                 placed + 4 colors. Tap anywhere to dismiss early. */}
-            <div onClick={() => { toast("Profile submitted for review"); closeDrawer(); }} style={{
+            <div onClick={() => { toast(tt("Profile submitted for review")); closeDrawer(); }} style={{
               position: "absolute", inset: 0, cursor: "pointer", zIndex: 0,
             }}>
               {Array.from({ length: 28 }).map((_, i) => {
@@ -336,10 +339,10 @@ export function TalentRegistrationDrawer() {
                 {reachCount}
               </div>
               <div style={{ fontSize: 14, marginTop: 8, fontWeight: 500 }} className="text-admin-ink-muted">
-                clients on the {effectiveTenant.name} hub will see your profile
+                {tt("clients on the {agency} hub will see your profile").replace("{agency}", effectiveTenant.name)}
               </div>
               <h2 style={{ margin: "20px 0 6px", fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, letterSpacing: -0.3 }} className="text-admin-ink">
-                You&apos;re in
+                {tt("You're in")}
               </h2>
               <ol style={{
                 listStyle: "none", padding: 0, margin: "16px 0 0",
@@ -347,9 +350,9 @@ export function TalentRegistrationDrawer() {
                 textAlign: "left",
               }}>
                 {[
-                  { n: 1, label: `${effectiveTenant.name} reviews your profile`, sub: "Usually within 1 business day" },
-                  { n: 2, label: "We publish you to the hub", sub: "Visible to verified clients only" },
-                  { n: 3, label: "Your first inquiry lands", sub: "We'll email + push you when it does" },
+                  { n: 1, label: tt("{agency} reviews your profile").replace("{agency}", effectiveTenant.name), sub: tt("Usually within 1 business day") },
+                  { n: 2, label: tt("We publish you to the hub"), sub: tt("Visible to verified clients only") },
+                  { n: 3, label: tt("Your first inquiry lands"), sub: tt("We'll email and push you when it does") },
                 ].map(item => (
                   <li key={item.n} style={{
                     display: "flex", gap: 10, alignItems: "flex-start",
@@ -371,7 +374,7 @@ export function TalentRegistrationDrawer() {
                 ))}
               </ol>
               <div style={{ marginTop: 16, fontSize: 11 }} className="text-admin-ink-dim">
-                Tap anywhere to close
+                {tt("Tap anywhere to close")}
               </div>
             </div>
           </div>
@@ -404,10 +407,10 @@ export function TalentRegistrationDrawer() {
           {step === 0 && (
             <div>
               <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink-muted">
-                Stage / professional name
+                {tt("Stage / professional name")}
               </label>
               <input type="text" value={stageName} onChange={e => setStageName(e.target.value)}
-                placeholder="First Last"
+                placeholder={tt("First Last")}
                 style={{
                   width: "100%", boxSizing: "border-box", padding: "14px 16px",
                   borderRadius: 12, border: `1.5px solid ${COLORS.borderSoft}`,
@@ -415,7 +418,7 @@ export function TalentRegistrationDrawer() {
                 }}
               />
               <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, border: `1px solid rgba(91,107,160,0.18)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">
-                You&apos;re registering with <strong>{effectiveTenant.name}</strong>. They&apos;ll review your profile before publishing.
+                {tt("You're registering with")} <strong>{effectiveTenant.name}</strong>. {tt("They'll review your profile before publishing.")}
               </div>
             </div>
           )}
@@ -424,7 +427,7 @@ export function TalentRegistrationDrawer() {
             <div className="flex flex-col gap-2">
               {visibleParents.length === 0 ? (
                 <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12.5 }} className="bg-admin-surface text-admin-ink-muted">
-                  This agency hasn&apos;t enabled any talent categories yet.
+                  {tt("This agency hasn't enabled any talent categories yet.")}
                 </div>
               ) : visibleParents.map(p => {
                 const active = parents.has(p.id);
@@ -438,8 +441,8 @@ export function TalentRegistrationDrawer() {
                   }}>
                     <span style={{ fontSize: 22, flexShrink: 0 }}>{p.emoji}</span>
                     <div className="flex-1 min-w-0">
-                      <div className="text-admin-ink text-admin-13h font-semibold">{p.label}</div>
-                      <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{p.helper}</div>
+                      <div className="text-admin-ink text-admin-13h font-semibold">{tt(p.label)}</div>
+                      <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{tt(p.helper)}</div>
                     </div>
                     <span style={{
                       width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
@@ -462,7 +465,7 @@ export function TalentRegistrationDrawer() {
                 return (
                   <div key={pid}>
                     <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
-                      {parent.emoji}  {parent.label}
+                      {parent.emoji}  {tt(parent.label)}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {parent.children.map(c => {
@@ -475,7 +478,7 @@ export function TalentRegistrationDrawer() {
                             color: active ? COLORS.accentDeep : COLORS.ink,
                             fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
                           }}>
-                            {c.label}
+                            {tt(c.label)}
                           </button>
                         );
                       })}
@@ -490,10 +493,10 @@ export function TalentRegistrationDrawer() {
             <div className="flex flex-col gap-3.5">
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink-muted">
-                  Home city
+                  {tt("Home city")}
                 </label>
                 <input type="text" value={city} onChange={e => setCity(e.target.value)}
-                  placeholder="e.g. Madrid, Tulum, Berlin"
+                  placeholder={tt("e.g. Madrid, Tulum, Berlin")}
                   style={{
                     width: "100%", boxSizing: "border-box", padding: "14px 16px",
                     borderRadius: 12, border: `1.5px solid ${COLORS.borderSoft}`,
@@ -503,15 +506,15 @@ export function TalentRegistrationDrawer() {
               </div>
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink-muted">
-                  Travel radius — {radius === 999 ? "Anywhere" : `${radius} km`}
+                  {tt("Travel radius")}: {radius === 999 ? tt("Anywhere") : `${radius} km`}
                 </label>
                 <input type="range" min={10} max={999} step={10} value={radius}
                   onChange={e => setRadius(Number(e.target.value))}
                   style={{ width: "100%", accentColor: COLORS.accent }}
                 />
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginTop: 4 }} className="text-admin-ink-muted">
-                  <span>Local only</span>
-                  <span>Worldwide</span>
+                  <span>{tt("Local only")}</span>
+                  <span>{tt("Worldwide")}</span>
                 </div>
               </div>
             </div>
@@ -531,16 +534,16 @@ export function TalentRegistrationDrawer() {
                       fontFamily: FONTS.body, fontSize: 11, color: filled ? COLORS.accentDeep : COLORS.inkMuted,
                       fontWeight: 600,
                     }}>
-                      {filled ? `Photo ${i + 1}` : "+ Add"}
+                      {filled ? tt("Photo {n}").replace("{n}", String(i + 1)) : tt("+ Add")}
                     </button>
                   );
                 })}
               </div>
               <div style={{ marginTop: 12, fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
-                Tip: One clean headshot, one full body, then 3–4 work samples.
+                {tt("Tip: One clean headshot, one full body, then 3 to 4 work samples.")}
                 {photoCount > 0 && photoCount < 3 && (
                   <span style={{ display: "block", marginTop: 4 }} className="text-admin-amber-deep">
-                    Need {3 - photoCount} more.
+                    {tt("Need {n} more.").replace("{n}", String(3 - photoCount))}
                   </span>
                 )}
               </div>
@@ -561,12 +564,12 @@ export function TalentRegistrationDrawer() {
                 if (allFields.length === 0) return null;
                 return (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontSize: 11.5 }} className="bg-admin-surface-alt text-admin-ink-muted">
-                    <span style={{ padding: "2px 7px", borderRadius: 999, color: "#fff", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3 }} className="bg-admin-accent">{required} required</span>
+                    <span style={{ padding: "2px 7px", borderRadius: 999, color: "#fff", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3 }} className="bg-admin-accent">{tt("{n} required").replace("{n}", String(required))}</span>
                     {optional > 0 && (
-                      <span style={{ padding: "2px 7px", borderRadius: 999, background: "rgba(11,11,13,0.06)", fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">{optional} optional</span>
+                      <span style={{ padding: "2px 7px", borderRadius: 999, background: "rgba(11,11,13,0.06)", fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">{tt("{n} optional").replace("{n}", String(optional))}</span>
                     )}
                     <span style={{ marginLeft: "auto", fontSize: 10.5 }}>
-                      You can fill optional fields later from your dashboard.
+                      {tt("You can fill optional fields later from your dashboard.")}
                     </span>
                   </div>
                 );
@@ -574,7 +577,7 @@ export function TalentRegistrationDrawer() {
               {dynamicFields.map(g => (
                 <div key={g.parent.id}>
                   <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 8 }} className="text-admin-ink-muted">
-                    {g.parent.emoji}  {g.parent.label}
+                    {g.parent.emoji}  {tt(g.parent.label)}
                   </div>
                   <div className="flex flex-col gap-2.5">
                     {g.fields.map(f => (
@@ -595,13 +598,13 @@ export function TalentRegistrationDrawer() {
             <div className="flex flex-col gap-4">
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
-                  Languages
+                  {tt("Languages")}
                 </div>
                 <LanguagesEditor value={languages} onChange={setLanguages} />
               </div>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
-                  Skills & strengths · optional
+                  {tt("Skills & strengths · optional")}
                 </div>
                 <CatalogChips
                   items={SKILL_CATALOG}
@@ -625,33 +628,33 @@ export function TalentRegistrationDrawer() {
                 fontFamily: FONTS.body,
               }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }} className="text-admin-ink">
-                  {stageName || "Your profile"}
+                  {stageName || tt("Your profile")}
                 </div>
-                <ReviewKv label="Categories"
-                  value={[...parents].map(id => findVisibleParent(id)?.label).filter(Boolean).join(" · ") || "—"} />
-                <ReviewKv label="Talent Types"
+                <ReviewKv label={tt("Categories")}
+                  value={[...parents].map(id => { const lbl = findVisibleParent(id)?.label; return lbl ? tt(lbl) : null; }).filter(Boolean).join(" · ") || "—"} />
+                <ReviewKv label={tt("Talent Types")}
                   value={[...children].map(id => {
                     for (const p of visibleParents.length > 0 ? visibleParents : TAXONOMY) {
                       const c = p.children.find(x => x.id === id);
-                      if (c) return c.label;
+                      if (c) return tt(c.label);
                     }
                     return null;
                   }).filter(Boolean).join(" · ") || "—"} />
-                <ReviewKv label="Home base"
+                <ReviewKv label={tt("Home base")}
                   value={city || "—"} />
-                <ReviewKv label="Travel"
-                  value={radius === 999 ? "Anywhere" : `${radius} km`} />
-                <ReviewKv label="Languages"
+                <ReviewKv label={tt("Travel")}
+                  value={radius === 999 ? tt("Anywhere") : `${radius} km`} />
+                <ReviewKv label={tt("Languages")}
                   value={languages.map(l => `${l.language} (${l.level})`).join(" · ") || "—"} />
-                <ReviewKv label="Photos"
-                  value={`${photoCount} uploaded`} />
+                <ReviewKv label={tt("Photos")}
+                  value={tt("{n} uploaded").replace("{n}", String(photoCount))} />
               </div>
 
               {/* Privacy / consent — two-column "what this agency will use" */}
               <ConsentTwoCol agencyName={effectiveTenant.name} />
 
               <div style={{ padding: "12px 14px", borderRadius: 10, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.5 }} className="bg-admin-success-soft text-admin-success-deep">
-                Tap <strong>Submit for review</strong> to agree to the above and join {effectiveTenant.name}. You&apos;ll get an email when they approve you — usually within 1 business day.
+                {tt("Tap")} <strong>{tt("Submit for review")}</strong> {tt("to agree to the above and join {agency}. You'll get an email when they approve you, usually within 1 business day.").replace("{agency}", effectiveTenant.name)}
               </div>
             </div>
           )}
@@ -661,14 +664,14 @@ export function TalentRegistrationDrawer() {
           <button type="button" onClick={closeDrawer} style={{
             background: "transparent", border: "none", padding: 0, cursor: "pointer",
             fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, fontWeight: 500,
-          }}>Cancel</button>
+          }}>{tt("Cancel")}</button>
           <div className="flex gap-2">
             {step > 0 && !isLast && (
               <button type="button" onClick={() => setStep(s => s - 1)} style={{
                 padding: "10px 14px", borderRadius: 999,
                 border: `1px solid ${COLORS.border}`, background: "transparent",
                 color: COLORS.ink, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
-              }}>Back</button>
+              }}>{tt("Back")}</button>
             )}
             {!isLast && step < steps.length - 2 ? (
               <button type="button" disabled={!cur.canNext} onClick={() => setStep(s => s + 1)} style={{
@@ -677,7 +680,7 @@ export function TalentRegistrationDrawer() {
                 color: cur.canNext ? "#fff" : COLORS.inkDim,
                 fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
                 cursor: cur.canNext ? "pointer" : "default",
-              }}>Continue</button>
+              }}>{tt("Continue")}</button>
             ) : !isLast ? (
               <button type="button" disabled={!cur.canNext} onClick={() => setStep(s => s + 1)} style={{
                 padding: "10px 18px", borderRadius: 999,
@@ -685,13 +688,13 @@ export function TalentRegistrationDrawer() {
                 color: cur.canNext ? "#fff" : COLORS.inkDim,
                 fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
                 cursor: cur.canNext ? "pointer" : "default",
-              }}>Submit for review</button>
+              }}>{tt("Submit for review")}</button>
             ) : (
               <button type="button" onClick={finish} style={{
                 padding: "10px 18px", borderRadius: 999,
                 border: "none", background: COLORS.accent, color: "#fff",
                 fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
-              }}>Done</button>
+              }}>{tt("Done")}</button>
             )}
           </div>
         </div>
