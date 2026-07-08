@@ -56,6 +56,7 @@ export type TalentPage =
   | "today"
   | "messages"      // Chat-first inquiry/booking surface (replaces inbox)
   | "profile"
+  | "reviews"       // Received reviews + reputation standing (first-class page)
   | "inbox"         // Legacy list view — kept for URL compat, not in nav
   | "calendar"
   | "activity"      // Legacy — kept for URL compat; nav routes to settings tab

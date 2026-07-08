@@ -227,6 +227,52 @@ export function CardDesignStudio() {
     [canEdit, designVersion, saveDesignDraft],
   );
 
+  // ── Reviews-on-cards template tokens (REAL persistence — same path as the
+  // color knobs above: write into the working `draftTokens` map, then save
+  // the full map through `saveDesignDraft` → `saveDesignDraftFromEditAction`.
+  // Publish promotes the draft live like every other card token). No debounce:
+  // these are discrete toggle/segmented clicks, not a dragged color picker.
+  //
+  // TODO(reviewer): `CARD_DESIGN_TOKEN_KEYS` (defined in CardDesignStudio-3.tsx,
+  // not owned by this change) does NOT list these three keys. Consequences:
+  //   1. loadDesignAction's `pick()` only seeds `draftTokens` with
+  //      CARD_DESIGN_TOKEN_KEYS, so on reload these controls fall back to the
+  //      registry defaults (off / both / visible) for their DISPLAYED state even
+  //      if a non-default value is live. The SETTING itself persists (the save
+  //      patch carries the key), it just isn't reflected back in this panel
+  //      after a refresh until CARD_DESIGN_TOKEN_KEYS includes these keys.
+  //   2. `designDirty` and the publish re-seed loop also iterate
+  //      CARD_DESIGN_TOKEN_KEYS, so a change to ONLY these tokens won't light the
+  //      publish button via `designDirty`. Editing any card-family token (kit or
+  //      color knob) makes the panel dirty and Publish then promotes ALL draft
+  //      tokens including these. Adding the three keys to CARD_DESIGN_TOKEN_KEYS
+  //      in -3 closes both gaps; that file is owned by another change.
+  const STANDING_DEFAULTS: Record<string, string> = {
+    "directory.card.show-standing": "off",
+    "directory.card.standing-style": "both",
+    "profile.reviews-visibility": "visible",
+  };
+  const readTemplateToken = useCallback(
+    (key: string) => draftTokens[key] || STANDING_DEFAULTS[key] || "",
+    // STANDING_DEFAULTS is a stable literal; only draftTokens varies.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [draftTokens],
+  );
+  const setTemplateToken = useCallback(
+    (key: string, value: string) => {
+      if (!canEdit) {
+        toast("You need admin access to change the card design.");
+        return;
+      }
+      setDraftTokens((prev) => {
+        const next = { ...prev, [key]: value };
+        void saveDesignDraft(next, designVersion);
+        return next;
+      });
+    },
+    [canEdit, toast, designVersion, saveDesignDraft],
+  );
+
   // ── Apply a kit (one-click repaint of the whole card family) ──────────────
   const handleApplyKit = useCallback(
     (kit: CardKitOption) => {
@@ -655,6 +701,66 @@ export function CardDesignStudio() {
             <ToggleRow label="Trust badges" on={appearance.showBadges} onChange={canEdit ? (v) => patchAppearance("showBadges", v) : undefined} disabled={!canEdit} />
             <ToggleRow label="Rating" on={appearance.showRating} onChange={canEdit ? (v) => patchAppearance("showRating", v) : undefined} disabled={!canEdit} />
             <ToggleRow label="Price from" on={appearance.showPriceFrom} onChange={canEdit ? (v) => patchAppearance("showPriceFrom", v) : undefined} disabled={!canEdit} />
+
+            {/* Reviews on cards — REAL persistence (template tokens; see
+                setTemplateToken). Master on/off maps show-standing off↔compact;
+                the style picker + profile visibility mirror the price idiom. */}
+            <div style={{ height: 1, background: COLORS.borderSoft, margin: "14px 0 4px" }} />
+            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, margin: "6px 0 2px" }}>
+              Reviews on cards
+            </div>
+            <ToggleRow
+              label="Show talent standing"
+              hint="Ratings / standing on directory cards. Saves to the design draft; Publish syncs every surface."
+              on={readTemplateToken("directory.card.show-standing") !== "off"}
+              onChange={
+                canEdit
+                  ? (v) =>
+                      setTemplateToken(
+                        "directory.card.show-standing",
+                        v ? "compact" : "off",
+                      )
+                  : undefined
+              }
+              disabled={!canEdit}
+            />
+            {readTemplateToken("directory.card.show-standing") !== "off" ? (
+              <label style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.inkMuted }}>Standing style</span>
+                <Segmented<"tier" | "signal" | "both">
+                  value={
+                    (readTemplateToken("directory.card.standing-style") as
+                      | "tier"
+                      | "signal"
+                      | "both") || "both"
+                  }
+                  onChange={(v) => setTemplateToken("directory.card.standing-style", v)}
+                  disabled={!canEdit}
+                  options={[
+                    { value: "tier", label: "Tier" },
+                    { value: "signal", label: "Signal" },
+                    { value: "both", label: "Both" },
+                  ]}
+                />
+              </label>
+            ) : null}
+            <div style={{ marginTop: 10 }}>
+              <ToggleRow
+                label="Reviews on profile pages"
+                hint="Show or hide the whole reviews section on talent profiles."
+                on={readTemplateToken("profile.reviews-visibility") !== "hidden"}
+                onChange={
+                  canEdit
+                    ? (v) =>
+                        setTemplateToken(
+                          "profile.reviews-visibility",
+                          v ? "visible" : "hidden",
+                        )
+                    : undefined
+                }
+                disabled={!canEdit}
+              />
+            </div>
           </section>
 
           {/* Engine fields — REAL persistence */}

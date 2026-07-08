@@ -40,7 +40,12 @@ import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 import type { ServiceMenuItem } from "@/lib/talent/services-menu-types";
 import type { TalentServiceAreaRow } from "../page";
-import type { TalentRatingSummary, TalentReview } from "@/lib/reviews/review-types";
+import type {
+  TalentRatingSummary,
+  TalentReview,
+  Testimonial,
+} from "@/lib/reviews/review-types";
+import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
 // ─── WatermarkPreset (mirrors the type from PortfolioGalleryLightbox) ────────
@@ -146,6 +151,12 @@ export type LightProfileLayoutProps = {
   // ── Reviews ──────────────────────────────────────────────────────────────
   ratingSummary: TalentRatingSummary;
   talentReviews: TalentReview[];
+  /**
+   * Invited testimonials — WALLED OFF from verified reviews. Optional so all
+   * callers (and the Noir/Lumen/Atelier layouts that reuse this prop type)
+   * degrade safely to an empty block. Never blended into ratingSummary.
+   */
+  testimonials?: Testimonial[];
 
   // ── Agency overlay ───────────────────────────────────────────────────────
   agencyName: string | null;
@@ -276,6 +287,7 @@ export function LightProfileLayout({
   otherDetailRows,
   ratingSummary,
   talentReviews,
+  testimonials = [],
   agencyName,
   agencyDisplayName,
   similarTalent,
@@ -495,6 +507,14 @@ export function LightProfileLayout({
                   />
                 </div>
               </section>
+            ) : null}
+
+            {/* Invited testimonials — separate from verified reviews. Renders
+                nothing when empty. */}
+            {testimonials.length > 0 ? (
+              <div className="mt-8">
+                <TestimonialsSection testimonials={testimonials} theme="light" />
+              </div>
             ) : null}
           </div>
 

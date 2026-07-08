@@ -13,6 +13,12 @@
  */
 
 import type { TalentRatingSummary, TalentReview } from "@/lib/reviews/review-types";
+import {
+  computeStandingTier,
+  meetsCredibilityFloor,
+  standingTierLabel,
+  wouldBookAgainPhrase,
+} from "@/lib/reviews/craft-standing";
 
 type Theme = "dark" | "light";
 
@@ -92,11 +98,17 @@ export function TalentReviewsSection({
   reviews,
   theme = "dark",
   heading = "Reviews",
+  wouldBookAgainPct = null,
 }: {
   summary: TalentRatingSummary;
   reviews: TalentReview[];
   theme?: Theme;
   heading?: string;
+  /**
+   * Optional 0-100 "would book again" signal. Callers that do not compute it
+   * can omit it — the tier + book-again line degrade gracefully to absence.
+   */
+  wouldBookAgainPct?: number | null;
 }) {
   if (!summary || summary.count <= 0 || reviews.length === 0) return null;
   const tokens = THEMES[theme];
@@ -104,6 +116,19 @@ export function TalentReviewsSection({
   const avgLabel = summary.average.toFixed(1);
   const countLabel =
     summary.count === 1 ? "1 review" : `${summary.count} reviews`;
+
+  // Standing enrichment — only credible past the review floor. Below it we omit
+  // the tier chip (absence is neutral); the average header still renders.
+  const effectivePct = wouldBookAgainPct ?? summary.wouldBookAgainPct ?? null;
+  const showStanding = meetsCredibilityFloor(summary.count);
+  const tier = showStanding
+    ? computeStandingTier({
+        ratingCount: summary.count,
+        ratingAvg: summary.average,
+        wouldBookAgainPct: effectivePct,
+      })
+    : null;
+  const bookAgainLine = wouldBookAgainPhrase(summary.count, effectivePct);
 
   return (
     <section
@@ -148,7 +173,54 @@ export function TalentReviewsSection({
         <span style={{ fontSize: 14, color: tokens.muted }}>
           · {countLabel}
         </span>
+        {tier ? (
+          <span
+            data-reviews-standing-tier
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "3px 9px",
+              borderRadius: 999,
+              border: `1px solid ${tokens.divider}`,
+              fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: tokens.star,
+            }}
+          >
+            {standingTierLabel(tier)}
+          </span>
+        ) : null}
       </div>
+
+      {/* Would-book-again line — rendered only when the signal exists. */}
+      {bookAgainLine ? (
+        <p
+          data-reviews-book-again
+          style={{
+            margin: "8px 0 0",
+            fontSize: 13.5,
+            color: tokens.body,
+          }}
+        >
+          {bookAgainLine}
+        </p>
+      ) : null}
+
+      {/* Provenance caption — these ratings come from completed bookings. */}
+      <p
+        data-reviews-caption
+        style={{
+          margin: "6px 0 0",
+          fontSize: 11.5,
+          letterSpacing: "0.02em",
+          color: tokens.muted,
+        }}
+      >
+        Verified reviews · from completed bookings
+      </p>
 
       {/* Review list */}
       <ul

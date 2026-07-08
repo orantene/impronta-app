@@ -42,6 +42,7 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   inbox: "messages",
   messages: "messages",
   profile: "profile",
+  reviews: "reviews",
   calendar: "calendar",
   money: "money",
   payouts: "payouts",
