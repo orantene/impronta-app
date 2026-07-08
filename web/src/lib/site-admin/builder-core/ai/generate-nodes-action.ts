@@ -25,6 +25,8 @@ import {
 import { logServerError } from "@/lib/server/safe-error";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
 import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
+import type { AiUsage } from "@/lib/ai/provider";
+import { backgroundModeToPolarity } from "@/lib/site-admin/tokens/polarity";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import {
   generateBuilderNodes,
@@ -67,16 +69,43 @@ function checkRate(userId: string): { ok: boolean; remainingMs?: number } {
   return { ok: true };
 }
 
+/** One model call's usage, accumulated so the whole generation (incl. a retry) is recorded ONCE. */
+type UsageEntry = { provider: string; model: string; usage: AiUsage | undefined; latencyMs: number };
+
 /**
- * The injected model call — pins Opus 4.8, records per-call token usage + cost
- * (best-effort) for the platform-admin dashboard, and returns the raw text or
- * null on any failure.
+ * Record the WHOLE generation's usage as a single row (AIQ audit fix). Previously
+ * `recordAiGenerationUsage` fired inside the per-call generator, so a corrective
+ * retry (AIQ-15/21) counted the user's ONE action as two monthly requests. We now
+ * accumulate every model call and record once: spend = sum of all real API-call
+ * costs (unchanged), request_count += 1 per user action (fixed).
  */
-function buildModelGenerator(
+function recordGenerationUsageOnce(
+  sink: UsageEntry[],
   actorProfileId: string | null,
   scope: GenerateScope,
-  model: GenerationModelId,
-): ModelGenerateFn {
+  ok: boolean,
+): void {
+  if (sink.length === 0) return;
+  const inTok = sink.reduce((s, e) => s + (e.usage?.inputTokens ?? 0), 0);
+  const outTok = sink.reduce((s, e) => s + (e.usage?.outputTokens ?? 0), 0);
+  const latencyMs = sink.reduce((s, e) => s + e.latencyMs, 0);
+  void recordAiGenerationUsage({
+    provider: sink[0]!.provider,
+    model: sink[0]!.model,
+    usage: { inputTokens: inTok || null, outputTokens: outTok || null },
+    actorProfileId,
+    ok,
+    scope,
+    latencyMs,
+  });
+}
+
+/**
+ * The injected model call — pins Opus 4.8 (adaptive thinking + effort:xhigh) and
+ * accumulates each call's usage into `sink` (recorded once by the action, so a
+ * retry doesn't double-count the monthly request). Returns the raw text + reason.
+ */
+function buildModelGenerator(model: GenerationModelId, sink: UsageEntry[]): ModelGenerateFn {
   return async ({ systemPrompt, userMessage, jsonSchema, maxTokens, repairNote }) => {
     const startedAt = Date.now();
     try {
@@ -96,13 +125,10 @@ function buildModelGenerator(
         // depth (gated to the adaptive family inside the adapter).
         effort: "xhigh",
       });
-      void recordAiGenerationUsage({
+      sink.push({
         provider: adapter.id,
         model: result.ok ? (result.model ?? model) : model,
         usage: result.ok ? result.usage : undefined,
-        actorProfileId,
-        ok: result.ok,
-        scope,
         latencyMs: Date.now() - startedAt,
       });
       if (result.ok) {
@@ -146,6 +172,12 @@ export async function generateBuilderNodesAction(input: {
   scope: GenerateScope;
   surface: TextToPageSurface;
   locale?: string;
+  /**
+   * The active theme's `data-token-background-mode` (AIQ-12), read by the client
+   * from the builder DOM. Mapped to light/dark polarity so the model gets concrete
+   * color guidance instead of the "polarity unknown" gamble. Optional/best-effort.
+   */
+  backgroundMode?: string;
 }): Promise<GenerateNodesActionState> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
@@ -166,19 +198,24 @@ export async function generateBuilderNodesAction(input: {
       return { ok: false, error: gate.message, code: gate.code.toUpperCase() };
     }
     const model = await resolveGenerationModel();
+    // AIQ-12 — map the active theme's background mode (from the builder DOM) to
+    // light/dark polarity so the prompt gives the model concrete, theme-correct
+    // band guidance. Unknown/absent → undefined (preserves the neutral wording).
+    const themePolarity = backgroundModeToPolarity(input.backgroundMode);
+    // Accumulate usage across the (1 + optional retry) model calls, recorded once
+    // below so a corrective retry doesn't double-count the user's monthly request.
+    const usageSink: UsageEntry[] = [];
     const generated = await generateBuilderNodes({
       brief: input.brief,
       scope: input.scope,
       // Copy is written in the surface's locale (AIQ-3).
       locale: input.locale,
-      // themePolarity/palette (AIQ-12) are intentionally unset here: this action
-      // holds no tenant handle and there is no ready live-branding reader, so
-      // resolving the tenant's active theme polarity is a separate, verified
-      // follow-up. Unset preserves the exact "polarity unknown" prompt wording.
+      themePolarity,
       // actor_profile_id FKs to profiles.id, which equals the auth user id in
       // this schema (every other actor_profile_id writer passes session.user.id).
-      generateWithModel: buildModelGenerator(auth.user.id, input.scope, model),
+      generateWithModel: buildModelGenerator(model, usageSink),
     });
+    recordGenerationUsageOnce(usageSink, auth.user.id, input.scope, generated.ok);
     if (generated.ok) {
       return {
         ok: true,

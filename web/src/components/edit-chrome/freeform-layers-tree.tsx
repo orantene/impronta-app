@@ -511,6 +511,9 @@ export function FreeformLayersTree({
         brief,
         scope: "section",
         surface: aiSurface,
+        // AIQ-12 — active theme background mode → model color guidance (see action).
+        backgroundMode:
+          document.documentElement.getAttribute("data-token-background-mode") ?? undefined,
       });
       if (!composed.ok) return { ok: false, error: composed.error };
       const section = composed.builderTree[0];
