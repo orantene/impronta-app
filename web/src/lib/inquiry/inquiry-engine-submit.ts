@@ -472,8 +472,9 @@ export async function submitInquiry(
 
     // Phase 5 — multi-coordinator fan-out: every roster talent the workspace set
     // as a default inquiry coordinator joins as a `coordinator` participant
-    // (deduped; unclaimed-account talent skipped). Best-effort — never blocks.
-    if (input.tenant_id) {
+    // (deduped; unclaimed talent skipped). Best-effort. Guard on homeTenantId
+    // (the tenant the query reads for), not input.tenant_id — differ under re-home.
+    if (homeTenantId) {
       try {
         const { data: coordRows } = await supabase
           .from("agency_inquiry_coordinators")
