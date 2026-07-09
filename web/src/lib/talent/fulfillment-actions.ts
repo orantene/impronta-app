@@ -154,14 +154,34 @@ export async function loadTalentOrders(talentProfileId: string): Promise<TalentO
 
     const { data: bookings } = await admin
       .from("agency_bookings")
-      .select("id, title, status, payment_status, created_at, booking_sub_type")
+      .select("id, title, status, payment_status, created_at, booking_sub_type, source_inquiry_id")
       .in("id", bookingIds)
       .eq("booking_sub_type", "product")
       .order("created_at", { ascending: false });
     const rows = (bookings ?? []) as {
       id: string; title: string; status: string; payment_status: string; created_at: string;
+      source_inquiry_id: string | null;
     }[];
     if (rows.length === 0) return [];
+
+    // Prefer WHAT was ordered (the offering title on the source inquiry) over
+    // the generic booking title ("<client> — booking") — the talent needs to
+    // know what to ship, not who booked.
+    const inquiryIdsForTitle = [...new Set(rows.map((r) => r.source_inquiry_id).filter(Boolean) as string[])];
+    const offeringTitleByInquiry = new Map<string, string>();
+    if (inquiryIdsForTitle.length) {
+      const { data: inqs } = await admin
+        .from("inquiries")
+        .select("id, source_context")
+        .in("id", inquiryIdsForTitle);
+      for (const r of inqs ?? []) {
+        const off = (r as { source_context?: { offering?: { title?: unknown; quantity?: unknown } } }).source_context?.offering;
+        if (off && typeof off.title === "string" && off.title.trim()) {
+          const qty = typeof off.quantity === "number" && off.quantity > 1 ? ` × ${off.quantity}` : "";
+          offeringTitleByInquiry.set((r as { id: string }).id, `${off.title.trim()}${qty}`);
+        }
+      }
+    }
 
     const { data: fuls } = await admin
       .from("booking_fulfillment")
@@ -177,7 +197,7 @@ export async function loadTalentOrders(talentProfileId: string): Promise<TalentO
       const f = fulByBooking.get(r.id);
       return {
         bookingId: r.id,
-        title: r.title,
+        title: (r.source_inquiry_id && offeringTitleByInquiry.get(r.source_inquiry_id)) || r.title,
         status: r.status,
         paymentStatus: r.payment_status,
         fulfillmentStatus: f?.status ?? "pending",

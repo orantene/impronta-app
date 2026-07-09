@@ -35,6 +35,18 @@ worktree hydrates and responds to clicks.
 - **node_modules integrity** — real `npm ci` install (prior session) + this session's clean
   `.next` rebuild; same behavior.
 
+## Bisect addendum (same day, minimal-route test)
+
+`/login` (a near-minimal route: one client form) on the dev server **hard-freezes the
+renderer**: `Runtime.evaluate` via CDP times out repeatedly (45s+), i.e. the main thread
+is blocked in a synchronous loop — the tab stays frozen even after killing the server.
+The complex profile route shows the *other* face: main thread responsive, zero fibers,
+clicks ignored. Both are dev-only. The freeze is the stronger upstream repro:
+**dev-mode client JS enters a busy loop on a simple page** — consistent with hydration
+never committing anywhere (the work loop never yields/completes). Suspect remains the
+Next 16 dev runtime (overlay/devtools or the dev work-loop). An upstream issue should
+start from the /login freeze (minimal, reproducible, measurable via CDP timeout).
+
 ## Remaining suspects (next session)
 
 React never commits the hydration render although it has the full payload and armed
