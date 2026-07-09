@@ -11,7 +11,6 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   rowToOffering,
   type TalentOffering,
@@ -25,7 +24,7 @@ export async function loadPublicOfferingsForProfile(
   try {
     const admin = createServiceRoleClient();
     if (!admin) return [];
-    const db = admin as unknown as SupabaseClient;
+    const db = admin;
 
     const { data, error } = await db
       .from("talent_offerings")
