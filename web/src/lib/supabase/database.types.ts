@@ -11106,6 +11106,44 @@ export type Database = {
           },
         ]
       }
+      talent_offering_addons: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          id: string
+          label: string
+          offering_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          id?: string
+          label: string
+          offering_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          label?: string
+          offering_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_offering_addons_offering_id_fkey"
+            columns: ["offering_id"]
+            isOneToOne: false
+            referencedRelation: "talent_offerings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       talent_offering_media: {
         Row: {
           media_asset_id: string
@@ -11132,6 +11170,44 @@ export type Database = {
           },
           {
             foreignKeyName: "talent_offering_media_offering_id_fkey"
+            columns: ["offering_id"]
+            isOneToOne: false
+            referencedRelation: "talent_offerings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      talent_offering_variants: {
+        Row: {
+          amount_cents: number | null
+          created_at: string
+          id: string
+          label: string
+          offering_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number | null
+          created_at?: string
+          id?: string
+          label: string
+          offering_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number | null
+          created_at?: string
+          id?: string
+          label?: string
+          offering_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_offering_variants_offering_id_fkey"
             columns: ["offering_id"]
             isOneToOne: false
             referencedRelation: "talent_offerings"

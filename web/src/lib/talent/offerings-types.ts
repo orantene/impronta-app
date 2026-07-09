@@ -46,6 +46,27 @@ export type OfferingStatus = "draft" | "published" | "archived";
 export type OfferingVisibility = "public" | "agency_only" | "on_request";
 export type OfferingModerationState = "pending" | "approved" | "rejected";
 
+/**
+ * One selectable OPTION of an offering (size / tier / duration — the client
+ * picks exactly one). amountCents null = the offering's base price applies.
+ * Backed by talent_offering_variants.
+ */
+export type OfferingVariant = {
+  id: string;
+  label: string;
+  amountCents: number | null;
+};
+
+/**
+ * One stackable EXTRA (zero or more chosen; each adds its price on top).
+ * Backed by talent_offering_addons.
+ */
+export type OfferingAddOn = {
+  id: string;
+  label: string;
+  amountCents: number;
+};
+
 /** One offering, app shape (camelCase). imageUrls resolves via talent_offering_media. */
 export type TalentOffering = {
   id: string;
@@ -83,6 +104,10 @@ export type TalentOffering = {
   imageUrls: string[];
   /** Editor-only: gallery with asset ids (drives upload/remove). Public loads omit it. */
   imageAssets?: { id: string; url: string }[];
+  /** Selectable options (client picks one). Loaded from talent_offering_variants. */
+  variants?: OfferingVariant[];
+  /** Stackable extras (client picks any). Loaded from talent_offering_addons. */
+  addOns?: OfferingAddOn[];
 };
 
 /** DB row shape (snake_case) as read/written by the actions. */

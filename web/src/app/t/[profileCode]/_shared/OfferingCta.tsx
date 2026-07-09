@@ -30,6 +30,12 @@ export type OfferingRequestDetail = {
   depositPct: number | null;
   cancellationHours?: number | null;
   imageUrl: string | null;
+  /** D4 — selectable options (client picks one; null price = base applies). */
+  variants?: { id: string; label: string; amountCents: number | null }[];
+  /** D4 — stackable extras (client picks any). */
+  addOns?: { id: string; label: string; amountCents: number }[];
+  /** D5 — null = unlimited; products with stock cap the qty stepper. */
+  inventoryQty?: number | null;
   /** 'request' → inquiry/chat · 'instant' → direct booking */
   intent: "request" | "instant";
 };
@@ -70,6 +76,9 @@ export function OfferingCta({
       depositPct: offering.depositPct,
       cancellationHours: offering.cancellationHours,
       imageUrl: offering.imageUrls[0] ?? null,
+      variants: offering.variants ?? [],
+      addOns: offering.addOns ?? [],
+      inventoryQty: offering.inventoryQty,
       intent: instant ? "instant" : "request",
     };
     window.dispatchEvent(
