@@ -8,9 +8,11 @@ import { useT } from "@/i18n/use-t";
 import { cancelPitchAction } from "@/app/(workspace)/[tenantSlug]/admin/pitches/actions";
 import type { PitchStatus } from "@/lib/pitch/pitch-types";
 import type { WorkspacePitchRow } from "../data-bridge";
+import { useDashboardText } from "../dashboard-i18n";
 import { PitchComposeDrawer } from "../pitch-compose";
-import { Card, H3, PrimaryButton, StatusPill } from "../primitives";
+import { Card, GhostButton, H3, PrimaryButton, StatusPill } from "../primitives";
 import { COLORS, meetsRole, useAdminShell } from "../state";
+import { downloadCsv } from "../wave2";
 import { PitchDetailDrawerInline } from "./PitchesPage-2";
 import { PageHeader } from "./pages-shared";
 
@@ -95,10 +97,75 @@ export function PitchesPage() {
   // per-plan getClients() mock.
   const { state, effectivePitches, effectiveRoster, effectiveClients, tenantSlug, toast, effectiveTenant } = useAdminShell();
   const t = useT();
+  const copy = useDashboardText();
   const router = useRouter();
   const canEdit = meetsRole(state.role, "manager");
   const [openDetailId, setOpenDetailId] = useState<string | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
+
+  // Bulk select — mirrors the Messages-inbox pattern (explicit Select mode,
+  // checkbox lane, sticky bottom bar). The only bulk mutation with a real
+  // backend today is CANCEL (loops the existing cancelPitchAction), so only
+  // still-active, non-converted pitches are selectable — no dead CTAs.
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [bulkPending, setBulkPending] = useState(false);
+  const cancellableIds = new Set(
+    effectivePitches
+      .filter((p) => PITCH_ACTIVE.includes(p.status) && !p.convertedInquiryId)
+      .map((p) => p.id),
+  );
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const exitBulk = () => {
+    setBulkMode(false);
+    setSelectedIds(new Set());
+    setBulkConfirm(false);
+  };
+  const runBulkCancel = async () => {
+    if (bulkPending || selectedIds.size === 0 || !tenantSlug) return;
+    setBulkPending(true);
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(ids.map((id) => cancelPitchAction(tenantSlug, id)));
+    const ok = results.filter((r) => r.status === "fulfilled" && r.value.ok).length;
+    const failed = ids.length - ok;
+    setBulkPending(false);
+    exitBulk();
+    toast(
+      copy.isSpanish
+        ? `${ok} pitch${ok === 1 ? "" : "es"} cancelado${ok === 1 ? "" : "s"}${failed > 0 ? ` (${failed} fallaron)` : ""}`
+        : `Cancelled ${ok} pitch${ok === 1 ? "" : "es"}${failed > 0 ? ` (${failed} failed)` : ""}`,
+    );
+    router.refresh();
+  };
+
+  const exportPitchesCsv = () => {
+    downloadCsv(
+      `pitches-${new Date().toISOString().slice(0, 10)}.csv`,
+      effectivePitches.map((p) => ({
+        recipient: p.recipientName,
+        company: p.recipientCompany ?? "",
+        status: p.status,
+        talents: p.talentCount,
+        sentAt: p.sentAt ?? "",
+        lastViewedAt: p.lastViewedAt ?? "",
+        views: p.viewCount,
+        convertedInquiryId: p.convertedInquiryId ?? "",
+      })),
+    );
+    toast(
+      copy.isSpanish
+        ? `${effectivePitches.length} filas exportadas`
+        : `Exported ${effectivePitches.length} rows`,
+    );
+  };
 
   const counts = effectivePitches.reduce(
     (acc, p) => {
@@ -125,11 +192,25 @@ export function PitchesPage() {
               })
         }
         actions={
-          canEdit ? (
-            <PrimaryButton size="sm" onClick={() => setComposeOpen(true)}>
-              {t("dashboard.adminPitches.newPitch")}
-            </PrimaryButton>
-          ) : null
+          <>
+            {effectivePitches.length > 0 && (
+              <GhostButton size="sm" onClick={exportPitchesCsv}>
+                {copy.isSpanish ? "Exportar CSV" : "Export CSV"}
+              </GhostButton>
+            )}
+            {canEdit && cancellableIds.size > 0 && (
+              <GhostButton size="sm" onClick={() => (bulkMode ? exitBulk() : setBulkMode(true))}>
+                {bulkMode
+                  ? copy.isSpanish ? "Listo" : "Done"
+                  : copy.isSpanish ? "Seleccionar" : "Select"}
+              </GhostButton>
+            )}
+            {canEdit ? (
+              <PrimaryButton size="sm" onClick={() => setComposeOpen(true)}>
+                {t("dashboard.adminPitches.newPitch")}
+              </PrimaryButton>
+            ) : null}
+          </>
         }
       />
 
@@ -194,23 +275,93 @@ export function PitchesPage() {
                 <div>{t("dashboard.adminPitches.colLastView")}</div>
                 <div className="text-right">{t("dashboard.adminPitches.colAction")}</div>
               </div>
-              {effectivePitches.map((p, idx) => (
-                <PitchRow
-                  key={p.id}
-                  row={p}
-                  isLast={idx === effectivePitches.length - 1}
-                  onOpen={() => setOpenDetailId(p.id)}
-                  tenantSlug={tenantSlug ?? "impronta"}
-                  canEdit={canEdit}
-                  t={t}
-                  onCancelled={() => {
-                    toast(t("dashboard.adminPitches.toastCancelled"));
-                    router.refresh();
-                  }}
-                />
-              ))}
+              {effectivePitches.map((p, idx) => {
+                const row = (
+                  <PitchRow
+                    key={`pitch-${p.id}`}
+                    row={p}
+                    isLast={idx === effectivePitches.length - 1}
+                    onOpen={() => (bulkMode ? toggleSelect(p.id) : setOpenDetailId(p.id))}
+                    tenantSlug={tenantSlug ?? "impronta"}
+                    canEdit={canEdit && !bulkMode}
+                    t={t}
+                    onCancelled={() => {
+                      toast(t("dashboard.adminPitches.toastCancelled"));
+                      router.refresh();
+                    }}
+                  />
+                );
+                if (!bulkMode) return row;
+                const selectable = cancellableIds.has(p.id);
+                return (
+                  <div
+                    key={p.id}
+                    className={`flex items-center gap-[6px] pl-[10px] ${
+                      selectedIds.has(p.id) ? "bg-admin-brand-soft" : ""
+                    } ${selectable ? "" : "opacity-45"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(p.id)}
+                      disabled={!selectable}
+                      onChange={() => toggleSelect(p.id)}
+                      aria-label={`${copy.isSpanish ? "Seleccionar" : "Select"} ${p.recipientName}`}
+                      className="h-[14px] w-[14px] shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                    <div className="min-w-0 flex-1">{row}</div>
+                  </div>
+                );
+              })}
             </div>
           </Card>
+
+          {/* Bulk action bar — sticky bottom strip while rows are selected.
+              Cancel is the only real backend bulk op (loops the existing
+              cancelPitchAction); it uses a two-step confirm since cancelling
+              retracts the client-facing share link. */}
+          {bulkMode && selectedIds.size > 0 && (
+            <div className="sticky bottom-[16px] z-30 mt-[10px] flex items-center gap-[10px] rounded-[10px] bg-admin-fill px-[14px] py-[10px] font-admin-body text-[12px] text-white shadow-admin-hover">
+              <span className="font-bold">
+                {selectedIds.size} {copy.isSpanish ? "seleccionados" : "selected"}
+              </span>
+              <span className="flex-1" />
+              {bulkConfirm ? (
+                <>
+                  <span className="text-white/80">
+                    {copy.isSpanish
+                      ? "¿Cancelar estos pitches? Los enlaces dejan de funcionar."
+                      : "Cancel these pitches? Their share links stop working."}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setBulkConfirm(false)}
+                    disabled={bulkPending}
+                    className="cursor-pointer rounded-full border border-white/25 bg-transparent px-[10px] py-[5px] text-[11.5px] font-semibold text-white"
+                  >
+                    {copy.isSpanish ? "Mantener" : "Keep"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={runBulkCancel}
+                    disabled={bulkPending}
+                    className="cursor-pointer rounded-full border-none bg-white px-[12px] py-[5px] text-[11.5px] font-bold text-admin-critical disabled:opacity-60"
+                  >
+                    {bulkPending
+                      ? copy.isSpanish ? "Cancelando…" : "Cancelling…"
+                      : copy.isSpanish ? "Sí, cancelar" : "Yes, cancel"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setBulkConfirm(true)}
+                  className="cursor-pointer rounded-full border-none bg-white px-[12px] py-[5px] text-[11.5px] font-bold text-admin-fill"
+                >
+                  {copy.isSpanish ? "Cancelar pitches" : "Cancel pitches"}
+                </button>
+              )}
+            </div>
+          )}
         </>
       )}
 

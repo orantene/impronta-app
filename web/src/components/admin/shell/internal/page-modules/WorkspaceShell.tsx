@@ -22,7 +22,6 @@ import { TalentPage } from "./TalentPage-1";
 import { WebsitePage } from "./WebsitePage-1";
 import { WorkPage } from "./WorkPage";
 import { WorkspacePageView } from "./WorkspacePageView";
-import { WorkspaceTopbar } from "./WorkspaceTopbar";
 import { MessagesShell } from "./pages-dynamic";
 
 
@@ -78,23 +77,12 @@ export function WorkspaceShell() {
 
   return (
     <HybridShell>
-      {state.workspaceLayout === "sidebar" ? (
-        <WorkspaceSidebarShell />
-      ) : (
-        <div style={{ minHeight: "calc(100vh - 56px - 56px - 50px)" }} className="bg-admin-surface">
-          <WorkspaceTopbar onOpenSearch={openPalette} />
-          <main
-            data-tulala-surface-main
-            style={{
-              padding: "28px 28px 60px",
-              maxWidth: 1320,
-              margin: "0 auto",
-            }}
-          >
-            <PageRouter page={state.page} />
-          </main>
-        </div>
-      )}
+      {/* The sidebar rail is the ONE canonical workspace chrome. The legacy
+          horizontal-topbar layout (workspaceLayout === "topbar") is retired:
+          it duplicated the rail's nav as a second parallel surface. The
+          workspaceLayout pref is ignored here on purpose — do not re-add a
+          branch without a product decision. */}
+      <WorkspaceSidebarShell />
       {/* WS-7.5 Shortcut help overlay */}
       <ShortcutHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
     </HybridShell>
@@ -197,7 +185,6 @@ function WorkspaceSidebarShell() {
     state,
     setPage,
     openDrawer,
-    setWorkspaceLayout,
     effectiveTenant,
     totalUnread,
     effectiveRoster,
@@ -398,15 +385,6 @@ function WorkspaceSidebarShell() {
             would be duplication, not convenience. */}
         <div className="flex flex-col gap-[6px] border-t border-admin-border pt-[6px]">
           {renderItem("settings")}
-          {/* Switch back to topbar layout */}
-          <button
-            type="button"
-            onClick={() => setWorkspaceLayout("topbar")}
-            className="flex cursor-pointer items-center gap-[6px] rounded-[7px] border-none bg-transparent px-[10px] pb-px pt-[3px] font-admin-body text-[11.5px] text-admin-ink-muted hover:text-admin-ink [transition:color_var(--transition-admin-micro)]"
-          >
-            <Icon name="arrow-right" size={11} stroke={1.8} />
-            {copy.isSpanish ? "Cambiar a barra superior" : "Switch to top bar"}
-          </button>
         </div>
       </aside>
 

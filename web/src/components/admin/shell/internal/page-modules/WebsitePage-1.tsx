@@ -169,25 +169,24 @@ function WebsiteSubviewTabs({
 }) {
   const t = useT();
   const router = useRouter();
-  const { state } = useAdminShell();
   const base = tenantSlug ? `/${tenantSlug}/admin/website` : "/admin/website";
-  // De-dup: in the sidebar layout the rail already shows these three
-  // destinations as nested sub-links under Website — a second tab strip
-  // saying the same thing is noise. Topbar layout keeps the tabs (there
-  // the rail doesn't exist and this is the only sub-view switcher).
-  if (state.workspaceLayout === "sidebar") return null;
   const tabs: { id: "site" | "card-design" | "profile-pages"; label: string; href: string }[] = [
     { id: "site", label: t("dashboard.adminWebsite.subviewSite"), href: base },
     { id: "card-design", label: t("dashboard.adminWebsite.subviewCardDesign"), href: `${base}/card-design` },
     { id: "profile-pages", label: t("dashboard.adminWebsite.subviewProfilePages"), href: `${base}/profile-pages` },
   ];
+  // De-dup with a mobile carve-out: on desktop the sidebar rail shows these
+  // three destinations as nested sub-links under Website, so the tab strip
+  // is hidden there. At ≤720px the rail itself is hidden (bottom tab bar
+  // takes over page-level nav), so this strip returns as the only sub-view
+  // switcher. Display is class-driven so the media query owns it.
   return (
     <div
       role="tablist"
       aria-label={t("dashboard.adminWebsite.subviewAria")}
       data-tulala-website-subview-tabs
+      className="hidden max-[720px]:inline-flex"
       style={{
-        display: "inline-flex",
         gap: 4,
         background: COLORS.surfaceAlt,
         border: `1px solid ${COLORS.borderSoft}`,
