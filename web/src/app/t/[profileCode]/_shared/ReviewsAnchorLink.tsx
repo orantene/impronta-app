@@ -39,12 +39,14 @@ export function ReviewsAnchorLink({
         // pushState/replaceState and treats a hash write as navigation,
         // scrolling the page back to top and undoing the scroll below.
         //
-        // Deliberately NOT behavior:"smooth": the profile layouts run
-        // scroll-reveal animations (translateY fade-ins) that shift layout
-        // mid-scroll, which makes Chrome abort a smooth scrollIntoView
-        // before it reaches the target (verified in-browser). An instant
-        // jump is immune.
-        el.scrollIntoView({ behavior: "auto", block: "start" });
+        // Deliberately NOT behavior:"smooth" (and NOT "auto"): the profile
+        // pages set `html { scroll-behavior: smooth }`, and per spec "auto"
+        // resolves to the COMPUTED scroll-behavior — i.e. still smooth. The
+        // layouts' scroll-reveal animations (translateY fade-ins) shift
+        // layout mid-scroll, which makes Chrome abort an animated scroll a
+        // few px in (verified in-browser). Only "instant" bypasses the CSS
+        // and lands reliably.
+        el.scrollIntoView({ behavior: "instant", block: "start" });
       }}
     >
       {children}
