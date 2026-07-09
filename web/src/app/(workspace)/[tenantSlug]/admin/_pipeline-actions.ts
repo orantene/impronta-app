@@ -34,7 +34,8 @@ import { formatRateLimitedCopy } from "@/lib/i18n/error-copy";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { notifyBookingCancelled } from "@/lib/notifications/producers/booking-cancelled-notify";
-import { releaseReservedOfferingStock } from "@/lib/talent/offering-stock";
+import { releaseReservedOfferingStock, readInquiryOfferingContext } from "@/lib/talent/offering-stock";
+import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { emitNotification } from "@/lib/notifications/emit";
 import {
   assignCoordinator,
@@ -3027,7 +3028,7 @@ export async function cancelBookingAction(
 
     const { data: booking, error: lookupErr } = await supabase
       .from("agency_bookings")
-      .select("id, status, source_inquiry_id")
+      .select("id, status, source_inquiry_id, starts_at, event_date")
       .eq("id", bookingId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -3040,6 +3041,46 @@ export async function cancelBookingAction(
     const prevStatus = booking.status as string;
     if (!CANCELLABLE_STATES.has(prevStatus)) {
       return { ok: false, error: `Booking is already ${prevStatus} and can't be cancelled.` };
+    }
+
+    // G3 — resolve the offering's cancellation-window verdict and stamp it on
+    // the audit trail (informs the refund decision; staff keep override
+    // authority, so this never blocks). Best-effort: a policy-read failure
+    // must never stop a cancel.
+    const cancelInquiryId = (booking.source_inquiry_id as string | null) ?? null;
+    let cancellationPolicy: { cancellation_hours: number; inside_window: boolean; deadline: string | null } | null = null;
+    try {
+      if (cancelInquiryId) {
+        const { data: inqRow } = await supabase
+          .from("inquiries")
+          .select("source_context")
+          .eq("id", cancelInquiryId)
+          .maybeSingle();
+        const offCtx = readInquiryOfferingContext(inqRow?.source_context);
+        if (offCtx?.offering_id) {
+          const { data: offRow } = await supabase
+            .from("talent_offerings")
+            .select("cancellation_hours")
+            .eq("id", offCtx.offering_id)
+            .maybeSingle();
+          const hours = (offRow as { cancellation_hours: number | null } | null)?.cancellation_hours ?? null;
+          const verdict = resolveCancellationWindow({
+            cancellationHours: hours,
+            startsAt: (booking.starts_at as string | null) ?? null,
+            eventDate: (booking.event_date as string | null) ?? null,
+            nowMs: Date.now(),
+          });
+          if (verdict.enforceable && hours != null) {
+            cancellationPolicy = {
+              cancellation_hours: hours,
+              inside_window: verdict.insideWindow,
+              deadline: verdict.deadlineIso,
+            };
+          }
+        }
+      }
+    } catch (policyErr) {
+      logServerError("cancelBookingAction/policy", policyErr);
     }
 
     const { error: updErr } = await supabase
@@ -3056,16 +3097,15 @@ export async function cancelBookingAction(
       bookingId,
       actorUserId: user.id,
       eventType: BOOKING_AUDIT.STATUS_CHANGED,
-      payload: { from: prevStatus, to: "cancelled", reason: reason?.trim() || null },
+      payload: { from: prevStatus, to: "cancelled", reason: reason?.trim() || null, cancellation_policy: cancellationPolicy },
     });
 
     // Audit emit — fire-and-forget.
-    const cancelInquiryId = (booking.source_inquiry_id as string | null) ?? null;
     if (cancelInquiryId) {
       await supabase.rpc("inquiry_audit_emit", {
         p_inquiry_id: cancelInquiryId,
         p_kind: "booking_cancelled",
-        p_payload: { booking_id: bookingId, by_user_id: user.id },
+        p_payload: { booking_id: bookingId, by_user_id: user.id, cancellation_policy: cancellationPolicy },
       }).then((r) => { if (r.error) logServerError("audit.emit.booking_cancelled", r.error); });
 
       // Return a reserved product unit to stock (no-op unless this booking

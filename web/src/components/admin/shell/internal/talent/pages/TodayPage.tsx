@@ -15,6 +15,7 @@ import { ConversationCalendarRow, NeedsReplySection } from "../shared/today-3";
 import { WeekRhythmStrip } from "../shared/week-rhythm-1";
 import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 import { TalentReviewsCard } from "../shared/reviews-card-1";
+import { TalentServicesNudge } from "@/components/talent/services/TalentServicesNudge";
 
 const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "MX$" };
 
@@ -327,6 +328,16 @@ export function TalentTodayPage() {
           percent={profile.completeness}
           missing={profile.missing}
           onFinish={() => openSection("identity")}
+        />
+      )}
+
+      {/* Lane E — "add your first service" nudge. Renders only for a real
+          (bridge-backed) talent with ZERO offerings; the component hides
+          itself otherwise, so this never fires for mock/prototype sessions. */}
+      {bridgeTalentSelfProfile && (
+        <TalentServicesNudge
+          talentId={bridgeTalentSelfProfile.id}
+          onAddService={() => setTalentPage("services")}
         />
       )}
 

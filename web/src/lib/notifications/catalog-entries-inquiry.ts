@@ -85,7 +85,12 @@ const INQUIRY_SUBMITTED_COORDINATOR: CatalogEntry = {
   resolveAudience: assignedCoordinator,
   email: {
     templateId: "workspace.coordinator_assigned",
-    subject: () => "New inquiry assigned to you",
+    // G2 — storefront service requests carry the offering title (hydrated from
+    // source_context); the baked EN/ES copy appends the same {offeringSuffix}.
+    subject: (event) => {
+      const title = str(event.payload.offeringTitle);
+      return title ? `New service request: ${title}` : "New inquiry assigned to you";
+    },
     render: ({ event, recipient, brand, unsubscribeUrl }) =>
       React.createElement(WorkspaceCoordinatorAssigned, {
         coordinatorName: recipient.displayName,

@@ -38,7 +38,7 @@ export async function loadInquiryView(
   const { data } = await ctx.admin
     .from("inquiries")
     .select(
-      "contact_name, contact_email, event_date, event_location, client_user_id, coordinator_id, current_offer_id",
+      "contact_name, contact_email, event_date, event_location, client_user_id, coordinator_id, current_offer_id, source_context",
     )
     .eq("id", inquiryId)
     .maybeSingle();
@@ -51,7 +51,21 @@ export async function loadInquiryView(
     client_user_id: string | null;
     coordinator_id: string | null;
     current_offer_id: string | null;
+    source_context: unknown;
   };
+
+  // G2 — a storefront service request stamps the offering onto source_context;
+  // surface its title so subjects read "New inquiry assigned to you: {title}".
+  // offeringSuffix interpolates to "" on ordinary inquiries (subjectVars fills
+  // missing keys with an empty string, so the baked copy stays valid).
+  let offeringTitle: string | null = null;
+  const srcCtx = inq.source_context;
+  if (srcCtx && typeof srcCtx === "object") {
+    const off = (srcCtx as { offering?: { title?: unknown } }).offering;
+    if (off && typeof off === "object" && typeof off.title === "string" && off.title.trim()) {
+      offeringTitle = off.title.trim().slice(0, 80);
+    }
+  }
 
   let offerTotal: string | null = null;
   if (inq.current_offer_id) {
@@ -76,6 +90,8 @@ export async function loadInquiryView(
     clientUserId: inq.client_user_id,
     coordinatorId: inq.coordinator_id,
     offerTotal,
+    offeringTitle,
+    offeringSuffix: offeringTitle ? `: ${offeringTitle}` : "",
   };
 }
 

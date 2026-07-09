@@ -42,7 +42,9 @@ export const WORKSPACE_EN = {
     button: "Review request →",
   },
   "workspace.coordinator_assigned": {
-    subject: "New inquiry assigned to you",
+    // {offeringSuffix} = ": <service title>" for storefront service requests,
+    // "" for ordinary inquiries (missing vars interpolate to empty).
+    subject: "New inquiry assigned to you{offeringSuffix}",
     preview: "New inquiry assigned to you",
     heading: "New inquiry assigned to you",
     intro: "Hi {name}, you've been assigned as coordinator for {event} at {brand}.",
@@ -167,7 +169,7 @@ export const WORKSPACE_ES: typeof WORKSPACE_EN = {
     button: "Revisar solicitud →",
   },
   "workspace.coordinator_assigned": {
-    subject: "Se te asignó una nueva solicitud",
+    subject: "Se te asignó una nueva solicitud{offeringSuffix}",
     preview: "Se te asignó una nueva solicitud",
     heading: "Se te asignó una nueva solicitud",
     intro: "Hola {name}, se te asignó como coordinador de {event} en {brand}.",
