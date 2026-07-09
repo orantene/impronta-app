@@ -19,6 +19,8 @@ import {
   loadReviewRequestsForOwnerAction,
 } from "@/lib/reviews/review-request-actions";
 import type { ReviewableCounterparty } from "@/lib/reviews/review-types";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "";
@@ -38,6 +40,7 @@ export function AskForReviewCard({
   tenantSlug: string;
   talentProfileId: string;
 }) {
+  const t = useT();
   // null = loading; [] = resolved-but-none (no eligible bookings → email path).
   const [bookings, setBookings] = useState<ReviewableCounterparty[] | null>(null);
   // booking_ids that already have a pending/sent/completed request → shown as
@@ -92,10 +95,12 @@ export function AskForReviewCard({
     : !!selected && !busy;
 
   function bookingLabel(b: ReviewableCounterparty): string {
-    const who = b.clientName ?? "your client";
+    const who = b.clientName ?? t("dashboard.talentReviews.ask.clientFallback");
     const evt = (b.eventTitle ?? "").trim();
     const when = formatDate(b.eventDate);
-    return [evt || "Booking", who, when].filter(Boolean).join(" · ");
+    return [evt || t("dashboard.talentReviews.ask.bookingFallback"), who, when]
+      .filter(Boolean)
+      .join(" · ");
   }
 
   async function submit() {
@@ -121,7 +126,10 @@ export function AskForReviewCard({
 
     if (res.ok) {
       setSentLabel(
-        emailMode ? email.trim() : selected!.clientName ?? "your client",
+        emailMode
+          ? email.trim()
+          : selected!.clientName ??
+              t("dashboard.talentReviews.ask.clientFallback"),
       );
       if (!emailMode && selected) {
         setAskedBookingIds((prev) => new Set(prev).add(selected.bookingId));
@@ -130,7 +138,7 @@ export function AskForReviewCard({
       setEmail("");
       setMessage("");
     } else {
-      setError(res.error || "Could not send the request.");
+      setError(res.error || t("dashboard.talentReviews.ask.sendError"));
     }
     setBusy(false);
   }
@@ -145,37 +153,38 @@ export function AskForReviewCard({
     <div className="flex flex-col gap-[14px] rounded-admin-lg border border-admin-border bg-admin-card p-[20px] font-admin-body">
       <div className="flex flex-col gap-[4px]">
         <span className="text-[14px] font-bold text-admin-ink">
-          Ask a past client for a review
+          {t("dashboard.talentReviews.ask.title")}
         </span>
         <span className="text-admin-12h leading-[1.5] text-admin-ink-muted">
-          A quick, personal request. It takes about 20 seconds and helps future
-          clients decide.
+          {t("dashboard.talentReviews.ask.body")}
         </span>
       </div>
 
       {sentLabel ? (
         <div className="flex flex-col items-start gap-[8px]">
           <span className="text-admin-12h font-semibold text-admin-green">
-            Request sent to {sentLabel}. We will let you know when they respond.
+            {interpolate(t("dashboard.talentReviews.ask.sent"), {
+              name: sentLabel,
+            })}
           </span>
           <button
             type="button"
             onClick={() => setSentLabel(null)}
             className="cursor-pointer rounded-admin-sm border border-admin-border bg-white px-[11px] py-[5px] font-admin-body text-admin-11h font-semibold text-admin-ink-muted"
           >
-            Ask someone else
+            {t("dashboard.talentReviews.ask.askSomeoneElse")}
           </button>
         </div>
       ) : bookings === null ? (
         <div className="text-admin-12h text-admin-ink-muted">
-          Loading your completed bookings…
+          {t("dashboard.talentReviews.ask.loadingBookings")}
         </div>
       ) : (
         <div className="flex flex-col gap-[10px]">
           {!showEmailPath && (
             <div className="flex flex-col gap-[6px]">
               <span className="text-admin-11h font-semibold text-admin-ink-muted">
-                Pick a completed booking
+                {t("dashboard.talentReviews.ask.pickBooking")}
               </span>
               <div className="flex flex-col gap-[6px]">
                 {eligible.map((b) => {
@@ -195,7 +204,7 @@ export function AskForReviewCard({
                       <span className="min-w-0 truncate">{bookingLabel(b)}</span>
                       {active && (
                         <span className="shrink-0 text-admin-11h font-bold text-admin-accent-deep">
-                          Selected
+                          {t("dashboard.talentReviews.ask.selected")}
                         </span>
                       )}
                     </button>
@@ -208,13 +217,13 @@ export function AskForReviewCard({
           {showEmailPath && (
             <label className="flex flex-col gap-[5px]">
               <span className="text-admin-11h font-semibold text-admin-ink-muted">
-                Client email
+                {t("dashboard.talentReviews.ask.clientEmail")}
               </span>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="client@example.com"
+                placeholder={t("dashboard.talentReviews.ask.emailPlaceholder")}
                 disabled={busy}
                 className={inputClass}
               />
@@ -223,12 +232,12 @@ export function AskForReviewCard({
 
           <label className="flex flex-col gap-[5px]">
             <span className="text-admin-11h font-semibold text-admin-ink-muted">
-              A short note (optional)
+              {t("dashboard.talentReviews.ask.noteLabel")}
             </span>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="It was a pleasure working with you. Would you share a few words?"
+              placeholder={t("dashboard.talentReviews.ask.notePlaceholder")}
               disabled={busy}
               rows={3}
               className={`${inputClass} min-h-[64px] resize-y`}
@@ -248,7 +257,9 @@ export function AskForReviewCard({
                   : "cursor-not-allowed bg-admin-surface-alt text-admin-ink-dim"
               }`}
             >
-              {busy ? "Sending…" : "Send request"}
+              {busy
+                ? t("dashboard.talentReviews.ask.sending")
+                : t("dashboard.talentReviews.ask.sendRequest")}
             </button>
 
             {/* Toggle between the booking picker and an off-platform email
@@ -265,7 +276,9 @@ export function AskForReviewCard({
                 disabled={busy}
                 className="cursor-pointer bg-transparent font-admin-body text-admin-11h font-semibold text-admin-ink-muted underline"
               >
-                {emailMode ? "Pick from my bookings" : "Invite by email instead"}
+                {emailMode
+                  ? t("dashboard.talentReviews.ask.pickFromBookings")
+                  : t("dashboard.talentReviews.ask.inviteByEmail")}
               </button>
             )}
           </div>

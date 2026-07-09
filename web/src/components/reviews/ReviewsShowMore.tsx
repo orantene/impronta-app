@@ -41,19 +41,50 @@ export type ReviewTokens = {
   replyBg: string;
 };
 
+/**
+ * Resolved, locale-specific copy for the reviews surface. Built once on the
+ * server (in TalentReviewsSection from `createTranslator`) and passed down as a
+ * plain, serializable object so the client pager renders in the viewer's locale
+ * without importing the i18n machinery into the client bundle. Interpolation
+ * tokens ({rating}, {name}) are substituted at the call site with `.replace`.
+ */
+export type ReviewsSectionCopy = {
+  /** aria label on the star row, with a {rating} token. */
+  starsAria: string;
+  /** Fallback reviewer label when the client name is withheld. */
+  verifiedClient: string;
+  /** "Response from {name}" — talent's public reply header. */
+  responseFrom: string;
+  /** alt text for an attached review photo. */
+  reviewPhotoAlt: string;
+  /** "Show more reviews" pager button. */
+  showMore: string;
+  /** Busy-state pager button text. */
+  loading: string;
+  /** Error shown when a page load fails. */
+  loadMoreError: string;
+};
+
 export function Stars({
   rating,
   size,
   tokens,
+  copy,
 }: {
   rating: number;
   size: number;
   tokens: ReviewTokens;
+  /** Optional so decorative star rows (distribution, testimonial cards) can
+   *  omit it; when present, drives the localized aria-label. */
+  copy?: ReviewsSectionCopy;
 }) {
   const rounded = Math.max(0, Math.min(5, Math.round(rating)));
+  const ariaLabel = copy
+    ? copy.starsAria.replace("{rating}", String(rating))
+    : `${rating} out of 5 stars`;
   return (
     <span
-      aria-label={`${rating} out of 5 stars`}
+      aria-label={ariaLabel}
       style={{ display: "inline-flex", gap: 1, lineHeight: 1, fontSize: size }}
     >
       {[1, 2, 3, 4, 5].map((i) => (
@@ -76,9 +107,9 @@ function formatDate(iso: string | null): string {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short" });
 }
 
-function reviewerLabel(review: TalentReview): string {
+function reviewerLabel(review: TalentReview, copy: ReviewsSectionCopy): string {
   const name = review.clientName?.trim();
-  return name ? name : "Verified client";
+  return name ? name : copy.verifiedClient;
 }
 
 /**
@@ -89,10 +120,12 @@ export function ReviewItem({
   review,
   talentName,
   tokens,
+  copy,
 }: {
   review: TalentReview;
   talentName: string;
   tokens: ReviewTokens;
+  copy: ReviewsSectionCopy;
 }) {
   const reply = review.replyBody?.trim();
   const replierName = talentName.trim() || "the talent";
@@ -106,9 +139,9 @@ export function ReviewItem({
           gap: 10,
         }}
       >
-        <Stars rating={review.rating} size={14} tokens={tokens} />
+        <Stars rating={review.rating} size={14} tokens={tokens} copy={copy} />
         <span style={{ fontSize: 14, fontWeight: 600, color: tokens.heading }}>
-          {reviewerLabel(review)}
+          {reviewerLabel(review, copy)}
         </span>
         <span style={{ fontSize: 12.5, color: tokens.muted }}>
           {formatDate(review.createdAt)}
@@ -159,7 +192,7 @@ export function ReviewItem({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={m.url}
-                alt="Client review photo"
+                alt={copy.reviewPhotoAlt}
                 loading="lazy"
                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
               />
@@ -195,7 +228,7 @@ export function ReviewItem({
                 color: tokens.heading,
               }}
             >
-              Response from {replierName}
+              {copy.responseFrom.replace("{name}", replierName)}
             </span>
             {review.replyAt ? (
               <span style={{ fontSize: 11.5, color: tokens.muted }}>
@@ -225,11 +258,13 @@ export function ReviewsShowMore({
   initialShown,
   talentName,
   tokens,
+  copy,
 }: {
   loadMoreAction: (offset: number) => Promise<TalentReview[]>;
   initialShown: number;
   talentName: string;
   tokens: ReviewTokens;
+  copy: ReviewsSectionCopy;
 }) {
   const [extra, setExtra] = useState<TalentReview[]>([]);
   const [busy, setBusy] = useState(false);
@@ -259,7 +294,7 @@ export function ReviewsShowMore({
       // A short page (fewer than a full batch) means we have reached the end.
       if (next.length < PAGE_SIZE) setDone(true);
     } catch {
-      setError("Could not load more reviews. Please try again.");
+      setError(copy.loadMoreError);
     } finally {
       setBusy(false);
     }
@@ -286,7 +321,7 @@ export function ReviewsShowMore({
                 borderTop: `1px solid ${tokens.divider}`,
               }}
             >
-              <ReviewItem review={review} talentName={talentName} tokens={tokens} />
+              <ReviewItem review={review} talentName={talentName} tokens={tokens} copy={copy} />
             </li>
           ))}
         </ul>
@@ -318,7 +353,7 @@ export function ReviewsShowMore({
               fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
             }}
           >
-            {busy ? "Loading…" : "Show more reviews"}
+            {busy ? copy.loading : copy.showMore}
           </button>
         </div>
       )}

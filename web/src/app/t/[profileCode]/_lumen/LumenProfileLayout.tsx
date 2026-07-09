@@ -51,7 +51,8 @@ import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { buildAdaptiveThemeStyle } from "../_shared/profile-theme";
-import type { LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import { heroRatingChipLabel, type LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 
 type DetailRow = { key: string; label: string; value: string; group: string };
 
@@ -137,6 +138,8 @@ const LUMEN_CSS = `
 [data-profile-theme="lumen"] .lm-chips{ display:flex; gap:9px; flex-wrap:wrap; margin-top:20px; }
 [data-profile-theme="lumen"] .lm-chip{ font-size:11px; letter-spacing:0.04em; font-weight:500; padding:6px 14px; border:1px solid var(--pp-line-strong); border-radius:999px; color:var(--pp-ink-soft); }
 [data-profile-theme="lumen"] .lm-chip--accent{ border-color:var(--pp-accent); color:var(--pp-accent); }
+[data-profile-theme="lumen"] a.lm-chip{ text-decoration:none; transition:opacity .2s ease; } [data-profile-theme="lumen"] a.lm-chip:hover{ opacity:0.78; }
+html:has([data-profile-theme="lumen"]){ scroll-behavior:smooth; } [data-profile-theme="lumen"] #reviews{ scroll-margin-top:96px; }
 [data-profile-theme="lumen"] .lm-bio{ color:var(--pp-ink-soft); margin-top:20px; max-width:54ch; font-size:1.05rem; line-height:1.75; }
 [data-profile-theme="lumen"] .lm-actions{ display:flex; gap:12px; margin-top:28px; flex-wrap:wrap; align-items:center; }
 [data-profile-theme="lumen"] .lm-hero-extra{ margin-top:22px; display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
@@ -265,6 +268,7 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
     ratingSummary,
     talentReviews,
     testimonials = [],
+    heroRating,
     agencyName,
     agencyDisplayName,
     similarTalent,
@@ -379,6 +383,9 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
   // Reusable hero chips ---------------------------------------------------
   const heroChips = (
     <div className="lm-chips">
+      {heroRating && meetsCredibilityFloor(heroRating.ratingCount) ? (
+        <a href="#reviews" className="lm-chip lm-chip--accent">{heroRatingChipLabel(heroRating.ratingAvg, heroRating.ratingCount, locale)}</a>
+      ) : null}
       {livesIn ? <span className="lm-chip">{livesIn}</span> : null}
       {agency ? <span className="lm-chip lm-chip--accent">{labels.represented}</span> : null}
       {langShort.length > 0 ? <span className="lm-chip">{langShort.join(" · ")}</span> : null}
@@ -630,7 +637,7 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
 
           {/* Reviews */}
           {ratingSummary.count > 0 ? (
-            <section data-profile-section="reviews" aria-label="Client reviews">
+            <section id="reviews" data-profile-section="reviews" aria-label="Client reviews">
               <div className="lm-sec-head">
                 <span className="lm-eyebrow">{labels.reviewsEyebrow}</span>
                 <h2>{labels.reviewsTitle}</h2>

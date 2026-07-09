@@ -26,6 +26,7 @@ export function DirectorySort({
       [
         { value: "recommended" as const, label: sortCopy.recommended },
         { value: "featured" as const, label: sortCopy.featured },
+        { value: "top_rated" as const, label: sortCopy.topRated },
         { value: "recent" as const, label: sortCopy.recent },
         { value: "updated" as const, label: sortCopy.updated },
       ] as const,

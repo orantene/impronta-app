@@ -49,6 +49,7 @@ import { useFlyToRail } from "./use-fly-to-rail";
 import { useCartTalents } from "./use-cart-talents";
 import { useCartTalentRegistry } from "./cart-talent-registry";
 import { useResolveCartPortraits } from "./use-resolve-cart-portraits";
+import { useNarrowLauncherViewport } from "./use-compact-viewport";
 import {
   DEFAULT_ACCENT,
   GUEST_CHAT_LAUNCHER_BOTTOM_PX,
@@ -137,6 +138,12 @@ export function TalentProfileChatLauncher({
 }: TalentProfileChatLauncherLocalProps) {
   const mounted = useClientMounted();
   const [open, setOpen] = useState(false);
+  // Audit item 7 (Lane G) — below ~700px the free-floating avatar cluster (up to
+  // 3 circles breaking the pill's top edge, or the "+N …more" chip) has been
+  // observed drifting over profile content (review text / section headers) in
+  // real-browser testing. Below the threshold the cluster collapses into the
+  // pill's own count badge instead of rendering as a separate floating stack.
+  const narrowLauncher = useNarrowLauncherViewport();
 
   // Storefront CTA seam: a service card's "Book/Request/Ask for quote" opens
   // this launcher carrying the clicked offering (structured provenance +
@@ -484,6 +491,10 @@ export function TalentProfileChatLauncher({
     window.matchMedia("(pointer:coarse)").matches;
 
   const hasCart = cartTalents.length > 0;
+  // Below the narrow threshold the avatar rail never renders (collapsed into
+  // the pill's count badge below), so nothing breaks the pill's top edge and
+  // the wrapper needs no reserved top margin for it.
+  const showAvatarRail = !narrowLauncher && !open && hasCart;
 
   return (
     <>
@@ -491,21 +502,27 @@ export function TalentProfileChatLauncher({
       <FlyingAvatar flight={flight} onDone={onFlightDone} />
 
       {/* Floating launcher pill wrapper. Bottom-right, above the panel's anchor.
-          When the cart is non-empty the avatar rail breaks the TOP edge of the
-          pill, so the wrapper gets a top margin to keep overhanging circles from
-          clipping the viewport (plan §4.A.3). */}
+          When the cart is non-empty AND there is enough lateral room (audit item
+          7 — narrowLauncher gate below), the avatar rail breaks the TOP edge of
+          the pill, so the wrapper gets a top margin to keep overhanging circles
+          from clipping the viewport (plan §4.A.3). Below ~700px the rail is
+          suppressed entirely (folded into the pill's count badge instead), so no
+          floating element ever extends above the pill's own footprint on a
+          narrow viewport — it stays in one consistent bottom-right safe area. */}
       <div
         style={{
           position: "fixed",
           right: "max(16px, env(safe-area-inset-right))",
           bottom: `calc(${GUEST_CHAT_LAUNCHER_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
           zIndex: 95,
-          marginTop: hasCart ? 18 : 0,
+          marginTop: showAvatarRail ? 18 : 0,
         }}
       >
-        {/* The avatar cart — only renders when the cart is non-empty (§4.A.8).
-            Absolutely positioned breaking the pill's top edge; newest rightmost. */}
-        {!open && hasCart && (
+        {/* The avatar cart — only renders when the cart is non-empty AND the
+            viewport has enough lateral room not to drift the circles over page
+            content (§4.A.8 + audit item 7). Absolutely positioned breaking the
+            pill's top edge; newest rightmost. */}
+        {showAvatarRail && (
           <div
             style={{
               position: "absolute",

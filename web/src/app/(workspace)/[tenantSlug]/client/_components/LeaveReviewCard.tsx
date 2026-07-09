@@ -32,10 +32,14 @@ import {
 } from "@/lib/reviews/review-actions";
 import type { ReviewableBooking } from "@/lib/reviews/review-types";
 import { ReviewPhotoUploader } from "./ReviewPhotoUploader";
+import { useT } from "@/i18n/use-t";
+import { withInterpolation } from "@/i18n/interpolate";
 
 const FONT = '"Inter", system-ui, sans-serif';
 
-/** Fixed trait set offered as chips. */
+// Fixed trait chips. The string IS the stored value (written to the DB) so it
+// stays canonical/EN; the display label is translated via TRAIT_LABEL_KEY[value]
+// at render, never the value itself.
 const TRAIT_OPTIONS = [
   "On time",
   "Great communication",
@@ -43,6 +47,15 @@ const TRAIT_OPTIONS = [
   "Delivered the brief",
   "Easy to work with",
 ] as const;
+
+/** Canonical trait value → i18n key suffix (display only). */
+const TRAIT_LABEL_KEY: Record<(typeof TRAIT_OPTIONS)[number], string> = {
+  "On time": "onTime",
+  "Great communication": "greatCommunication",
+  "Well prepared": "wellPrepared",
+  "Delivered the brief": "deliveredBrief",
+  "Easy to work with": "easyToWorkWith",
+};
 
 const ATTRIBUTES = [
   { key: "professionalism", label: "Professionalism" },
@@ -110,6 +123,7 @@ export function LeaveReviewCard({
   /** Called after a successful save with the new rating + body + STANDING so the parent can update its local copy. */
   onSaved?: (saved: LeaveReviewSaved) => void;
 }) {
+  const tt = withInterpolation(useT());
   const existing = booking.existingReview;
   const [rating, setRating] = useState<number>(existing?.rating ?? 0);
   const [hover, setHover] = useState<number>(0);
@@ -137,7 +151,9 @@ export function LeaveReviewCard({
 
   const isEdit = existing != null;
   const groupId = useId();
-  const talentLabel = booking.talentName ?? "this talent";
+  const talentLabel = booking.talentName ?? tt("public.reviews.form.talentFallback");
+  const starAria = (n: number) =>
+    tt(n > 1 ? "public.reviews.form.starMany" : "public.reviews.form.starOne", { count: n });
 
   const display = hover || rating;
 
@@ -161,7 +177,7 @@ export function LeaveReviewCard({
   async function handleSubmit() {
     if (windowClosed) return;
     if (rating < 1 || rating > 5) {
-      setError("Please pick a star rating (1 to 5).");
+      setError(tt("public.reviews.form.ratingRequired"));
       setState("error");
       return;
     }
@@ -195,7 +211,7 @@ export function LeaveReviewCard({
         standing,
       });
     } else {
-      setError(res.error || "Could not save your review. Please try again.");
+      setError(res.error || tt("public.reviews.form.saveError"));
       setState("error");
     }
   }
@@ -249,10 +265,10 @@ export function LeaveReviewCard({
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: C.greenDeep, letterSpacing: -0.1 }}>
-              Thanks for reviewing {talentLabel}.
+              {tt("public.reviews.form.savedTitle", { name: talentLabel })}
             </div>
             <div style={{ fontSize: 12, color: "rgba(26,115,72,0.75)", marginTop: 2 }}>
-              Your {rating}-star review is now published.
+              {tt("public.reviews.form.savedBody", { rating })}
             </div>
           </div>
           {onClose && (
@@ -271,7 +287,7 @@ export function LeaveReviewCard({
                 fontFamily: FONT,
               }}
             >
-              Done
+              {tt("public.reviews.form.done")}
             </button>
           )}
         </div>
@@ -300,13 +316,13 @@ export function LeaveReviewCard({
       >
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
           <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, letterSpacing: -0.1 }}>
-            Your review
+            {tt("public.reviews.form.yourReview")}
           </div>
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close review"
+              aria-label={tt("public.reviews.form.closeReview")}
               style={{
                 fontSize: 18,
                 lineHeight: 1,
@@ -322,7 +338,7 @@ export function LeaveReviewCard({
             </button>
           )}
         </div>
-        <div style={{ display: "inline-flex", gap: 3, marginBottom: 8 }} aria-label={`${rating} out of 5 stars`}>
+        <div style={{ display: "inline-flex", gap: 3, marginBottom: 8 }} aria-label={tt("public.reviews.starsAria", { rating })}>
           {[1, 2, 3, 4, 5].map((n) => (
             <svg key={n} width="20" height="20" viewBox="0 0 24 24" fill={n <= rating ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round" aria-hidden style={{ color: n <= rating ? C.star : C.starDim }}>
               <path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.58 1.11 6.47L12 17.4l-5.8 3.05 1.1-6.47L2.6 9.35l6.5-.95L12 2.5z" />
@@ -333,7 +349,7 @@ export function LeaveReviewCard({
           <p style={{ margin: "0 0 8px", fontSize: 13, lineHeight: 1.5, color: C.ink }}>{body.trim()}</p>
         )}
         <div style={{ fontSize: 11.5, color: C.inkMuted }}>
-          The edit window has closed, so this review is now final.
+          {tt("public.reviews.form.windowClosed")}
         </div>
       </div>
     );
@@ -354,14 +370,14 @@ export function LeaveReviewCard({
     >
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
         <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, letterSpacing: -0.1 }}>
-          {isEdit ? "Edit your review" : `Rate ${talentLabel}`}
+          {isEdit ? tt("public.reviews.form.editTitle") : tt("public.reviews.form.rateTitle", { name: talentLabel })}
         </div>
         {onClose && (
           <button
             type="button"
             onClick={onClose}
             disabled={saving}
-            aria-label="Close review form"
+            aria-label={tt("public.reviews.form.closeReviewForm")}
             style={{
               fontSize: 18,
               lineHeight: 1,
@@ -392,14 +408,14 @@ export function LeaveReviewCard({
             borderRadius: 8,
           }}
         >
-          You can edit for {hoursLeftLabel} more hour{hoursLeftLabel === 1 ? "" : "s"}.
+          {tt(hoursLeftLabel === 1 ? "public.reviews.form.editWindowOne" : "public.reviews.form.editWindowMany", { count: hoursLeftLabel })}
         </div>
       )}
 
       {/* Star picker — radiogroup */}
       <div
         role="radiogroup"
-        aria-label={`Star rating for ${talentLabel}`}
+        aria-label={tt("public.reviews.form.starRatingFor", { name: talentLabel })}
         tabIndex={0}
         onKeyDown={onStarKeyDown}
         onBlur={() => setHover(0)}
@@ -420,7 +436,7 @@ export function LeaveReviewCard({
               type="button"
               role="radio"
               aria-checked={rating === n}
-              aria-label={`${n} star${n > 1 ? "s" : ""}`}
+              aria-label={starAria(n)}
               id={`${groupId}-star-${n}`}
               disabled={saving}
               onClick={() => setRating(n)}
@@ -453,7 +469,7 @@ export function LeaveReviewCard({
             fontVariantNumeric: "tabular-nums",
           }}
         >
-          {rating > 0 ? `${rating}/5` : "Tap to rate"}
+          {rating > 0 ? tt("public.reviews.form.ratingValue", { rating }) : tt("public.reviews.form.tapToRate")}
         </span>
       </div>
 
@@ -462,7 +478,7 @@ export function LeaveReviewCard({
         htmlFor={`${groupId}-body`}
         style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 5, letterSpacing: 0.1 }}
       >
-        Add a note (optional)
+        {tt("public.reviews.form.noteLabel")}
       </label>
       <textarea
         id={`${groupId}-body`}
@@ -470,7 +486,7 @@ export function LeaveReviewCard({
         disabled={saving}
         maxLength={MAX_BODY}
         onChange={(e) => setBody(e.target.value)}
-        placeholder={`What stood out about working with ${talentLabel}?`}
+        placeholder={tt("public.reviews.form.notePlaceholder", { name: talentLabel })}
         rows={3}
         style={{
           width: "100%",
@@ -498,21 +514,21 @@ export function LeaveReviewCard({
       <div style={{ marginTop: 16 }}>
         <div
           role="group"
-          aria-label={`Would you book ${talentLabel} again?`}
+          aria-label={tt("public.reviews.form.bookAgainAria", { name: talentLabel })}
           style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 7, letterSpacing: 0.1 }}
         >
-          Would you book them again?
+          {tt("public.reviews.form.bookAgainQuestion")}
         </div>
         <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
           {([
-            { label: "Yes", value: true },
-            { label: "Not sure", value: null },
-            { label: "No", value: false },
+            { label: tt("public.reviews.form.bookAgainYes"), value: true },
+            { label: tt("public.reviews.form.bookAgainNotSure"), value: null },
+            { label: tt("public.reviews.form.bookAgainNo"), value: false },
           ] as const).map((opt) => {
             const selected = wouldBookAgain === opt.value;
             return (
               <button
-                key={opt.label}
+                key={String(opt.value)}
                 type="button"
                 aria-pressed={selected}
                 disabled={saving}
@@ -540,10 +556,11 @@ export function LeaveReviewCard({
       {/* Optional attribute star-rows */}
       <div style={{ marginTop: 18 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 8, letterSpacing: 0.1 }}>
-          Rate specific qualities (optional)
+          {tt("public.reviews.form.qualitiesLabel")}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {ATTRIBUTES.map(({ key, label }) => {
+          {ATTRIBUTES.map(({ key }) => {
+            const label = tt(`public.reviews.attr.${key}`);
             const value = attrs[key];
             const hoverV = attrHover[key];
             const shown = hoverV || value;
@@ -551,7 +568,7 @@ export function LeaveReviewCard({
               <div
                 key={key}
                 role="radiogroup"
-                aria-label={`${label} rating`}
+                aria-label={tt("public.reviews.form.attrRatingAria", { label })}
                 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}
               >
                 <span style={{ fontSize: 12.5, color: C.ink }}>{label}</span>
@@ -564,7 +581,7 @@ export function LeaveReviewCard({
                         type="button"
                         role="radio"
                         aria-checked={value === n}
-                        aria-label={`${label}: ${n} star${n > 1 ? "s" : ""}`}
+                        aria-label={tt("public.reviews.form.attrStarAria", { label, stars: starAria(n) })}
                         disabled={saving}
                         onClick={() => setAttr(key, n)}
                         onMouseEnter={() => setAttrHover((p) => ({ ...p, [key]: n }))}
@@ -594,7 +611,7 @@ export function LeaveReviewCard({
       {/* Trait chips */}
       <div style={{ marginTop: 18 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 8, letterSpacing: 0.1 }}>
-          What stood out? (optional)
+          {tt("public.reviews.form.stoodOutLabel")}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
           {TRAIT_OPTIONS.map((t) => {
@@ -627,7 +644,7 @@ export function LeaveReviewCard({
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
                 )}
-                {t}
+                {tt(`public.reviews.form.traits.${TRAIT_LABEL_KEY[t]}`)}
               </button>
             );
           })}
@@ -640,7 +657,7 @@ export function LeaveReviewCard({
           htmlFor={`${groupId}-private`}
           style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 5, letterSpacing: 0.1 }}
         >
-          Private note. Only {talentLabel} sees this, to help them improve.
+          {tt("public.reviews.form.privateNoteLabel", { name: talentLabel })}
         </label>
         <textarea
           id={`${groupId}-private`}
@@ -648,7 +665,7 @@ export function LeaveReviewCard({
           disabled={saving}
           maxLength={MAX_PRIVATE_NOTE}
           onChange={(e) => setPrivateNote(e.target.value)}
-          placeholder="Anything you'd share privately to help them grow?"
+          placeholder={tt("public.reviews.form.privateNotePlaceholder")}
           rows={2}
           style={{
             width: "100%",
@@ -700,7 +717,7 @@ export function LeaveReviewCard({
           }}
         />
         <span style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.4 }}>
-          Post anonymously (show as Verified client)
+          {tt("public.reviews.form.postAnonymously")}
         </span>
       </label>
 
@@ -751,7 +768,7 @@ export function LeaveReviewCard({
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
           )}
-          {saving ? "Saving…" : isEdit ? "Update review" : "Publish review"}
+          {saving ? tt("public.reviews.form.saving") : isEdit ? tt("public.reviews.form.updateReview") : tt("public.reviews.form.publishReview")}
         </button>
         {onClose && !saving && (
           <button
@@ -768,7 +785,7 @@ export function LeaveReviewCard({
               fontFamily: FONT,
             }}
           >
-            Cancel
+            {tt("public.reviews.form.cancel")}
           </button>
         )}
       </div>

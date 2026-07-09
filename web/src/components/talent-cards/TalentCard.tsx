@@ -2,6 +2,13 @@ import type { CSSProperties, ElementType, KeyboardEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { StaticStars } from "@/components/reviews/star-rating";
+import {
+  computeStandingTier,
+  meetsCredibilityFloor,
+  standingTierLabel,
+} from "@/lib/reviews/craft-standing";
+
 import {
   TALENT_CARD_ASPECT_RATIO,
   TALENT_CARD_CLASS,
@@ -66,6 +73,68 @@ function OwnershipBadge({ data }: { data: CanonicalTalentCardData }) {
     >
       Independent
     </span>
+  );
+}
+
+/**
+ * Craft standing chip — the same credibility-gated signal the directory
+ * list-row renders (`talent-directory-list-row.tsx`), reused here so the
+ * grid card carries it too. Rendered only past `meetsCredibilityFloor`; the
+ * `directory.card.show-standing` / `directory.card.standing-style` tokens
+ * gate visibility via the `data-card-standing*` hooks (token-presets.css),
+ * so absence-by-token-off stays a pure CSS toggle, not a JS branch here.
+ *
+ * `onScrim` swaps the tone for the portrait style's white-over-photo caption
+ * (matches the name/type/availability lines already on that scrim); the
+ * editorial style renders on the card's plain surface, so it uses the
+ * muted-foreground token like its other caption lines.
+ */
+function StandingChip({
+  data,
+  onScrim,
+}: {
+  data: CanonicalTalentCardData;
+  onScrim: boolean;
+}) {
+  if (data.ratingAvg == null || !meetsCredibilityFloor(data.ratingCount)) {
+    return null;
+  }
+  const ratingCount = data.ratingCount ?? 0;
+  const tier = computeStandingTier({
+    ratingCount,
+    ratingAvg: data.ratingAvg,
+    wouldBookAgainPct: data.wouldBookAgainPct ?? null,
+  });
+  const textClass = onScrim ? "text-white/80" : "";
+  const textStyle = onScrim ? undefined : { color: TALENT_CARD_VARS.muted };
+  return (
+    <div
+      data-card-standing
+      className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1"
+    >
+      <span
+        data-card-standing-tier
+        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] ${
+          onScrim
+            ? "border border-white/[0.25] bg-white/[0.08] text-white/90"
+            : "border border-border bg-background/60 text-foreground/90"
+        }`}
+      >
+        {standingTierLabel(tier)}
+      </span>
+      <span
+        data-card-standing-signal
+        className={`inline-flex items-center gap-1.5 text-[11px] ${textClass}`}
+        style={textStyle}
+      >
+        <StaticStars rating={data.ratingAvg} size={11} />
+        <span className="tabular-nums">{data.ratingAvg.toFixed(1)}</span>
+        <span aria-hidden className="text-[var(--dir-accent)]">
+          ·
+        </span>
+        <span className="tabular-nums">{ratingCount}</span>
+      </span>
+    </div>
   );
 }
 
@@ -303,6 +372,7 @@ export function TalentCard({
               {data.location}
             </p>
           ) : null}
+          <StandingChip data={data} onScrim={false} />
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
             {show.showBadges ? <OwnershipBadge data={data} /> : <span />}
             {/* availabilitySlot overrides the built-in line so a richer surface
@@ -397,6 +467,7 @@ export function TalentCard({
             {show.showLocation ? data.location : null}
           </p>
         ) : null}
+        <StandingChip data={data} onScrim />
         {/* availabilitySlot overrides the built-in line (e.g. the Discover
             14-day strip). Falls back to the default white-over-scrim line. */}
         {availabilitySlot ??

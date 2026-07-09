@@ -296,6 +296,9 @@ function mapDtoToCardData(
     availableDaysInNext30: card.availableDaysInNext30 ?? null,
     fitLabels: card.fitLabels,
     cardAttributes: card.cardAttributes,
+    ratingAvg: card.ratingAvg ?? null,
+    ratingCount: card.ratingCount ?? null,
+    wouldBookAgainPct: card.wouldBookAgainPct ?? null,
   };
 }
 

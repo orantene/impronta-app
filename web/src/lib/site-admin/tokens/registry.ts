@@ -680,7 +680,7 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     scope: "template",
     agencyConfigurable: true,
     validator: z.enum(["off", "compact", "full"]),
-    defaultValue: "off",
+    defaultValue: "compact",
     group: "Template families",
     description:
       "Whether the talent standing / rating shows on directory cards. `off` hides it; `compact` shows the score without the read-all link; `full` shows the score and a read-all link.",

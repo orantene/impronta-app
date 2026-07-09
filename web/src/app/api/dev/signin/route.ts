@@ -41,7 +41,19 @@ export async function GET(request: NextRequest) {
   const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  const response = NextResponse.redirect(new URL(next, request.url));
+  // Preserve the incoming request host (from x-forwarded-host or host header) so
+  // tenant-gated redirects stay on the same host (e.g., impronta.lvh.me:3000).
+  // Falls back to request.url if no forwarding headers are present.
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") || "http";
+  const host = request.headers.get("host");
+  const baseUrl = forwardedHost
+    ? `${forwardedProto}://${forwardedHost}`
+    : host
+      ? `${forwardedProto}://${host}`
+      : request.url;
+
+  const response = NextResponse.redirect(new URL(next, baseUrl));
 
   const supabase = createServerClient(supabaseUrl, supabaseAnon, {
     cookies: {

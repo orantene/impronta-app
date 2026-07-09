@@ -118,6 +118,7 @@ import {
   loadPublishedTestimonials,
 } from "@/lib/reviews/load-reviews";
 import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
+import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 import type {
   TalentRatingSummary,
   TalentReview,
@@ -2160,6 +2161,11 @@ export default async function PublicTalentProfilePage({
         ratingSummary={ratingSummary}
         talentReviews={talentReviews}
         testimonials={testimonials}
+        heroRating={
+          reviewsEnabled && meetsCredibilityFloor(ratingSummary.count)
+            ? { ratingAvg: ratingSummary.average, ratingCount: ratingSummary.count }
+            : undefined
+        }
         agencyName={tenantBrand}
         agencyDisplayName={tenantBrand}
         similarTalent={similarTalent}

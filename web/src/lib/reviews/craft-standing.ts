@@ -54,6 +54,16 @@ export function standingTierLabel(t: StandingTier): string {
 }
 
 /**
+ * i18n message-key suffix for a standing tier — `standingTierLabel` stays the
+ * pure/EN source used by DTOs + tests; render surfaces translate a tier by
+ * looking up `public.reviews.tier.<key>`. Keeping this here (vs. inlining the
+ * switch at each call site) means a new tier is added in exactly one place.
+ */
+export function standingTierKey(t: StandingTier): string {
+  return t;
+}
+
+/**
  * Whether a talent has enough published reviews for the standing signal to be
  * shown as credible. Defaults to `STANDING_MIN_COUNT`.
  */
