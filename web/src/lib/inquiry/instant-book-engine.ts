@@ -440,9 +440,15 @@ export async function createInstantBooking(
     const bookingId = bookingIdData as string;
     // Re-stamp owner/creator to the tenant staff actor (the convert ran as the
     // client for the auth.uid() gate; the booking belongs to the agency staff).
+    // Also stamp booking_sub_type='product' so the payout gate defers this
+    // booking's transfer until the item ships (see transfers.ts / fulfillment.ts).
     await admin
       .from("agency_bookings")
-      .update({ owner_staff_id: staffActor, created_by_staff_id: staffActor })
+      .update({
+        owner_staff_id: staffActor,
+        created_by_staff_id: staffActor,
+        ...(offering?.kind === "product" ? { booking_sub_type: "product" } : {}),
+      })
       .eq("id", bookingId);
 
     // Persist the commission snapshot — convertToBooking's TS wrapper does this

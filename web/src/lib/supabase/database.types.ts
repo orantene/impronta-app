@@ -473,6 +473,7 @@ export type Database = {
           access_notes: string | null
           balance_collection_method: string | null
           balance_due_at: string | null
+          booking_sub_type: string
           call_sheet_payload: Json | null
           call_sheet_updated_at: string | null
           call_sheet_updated_by_user_id: string | null
@@ -545,6 +546,7 @@ export type Database = {
           access_notes?: string | null
           balance_collection_method?: string | null
           balance_due_at?: string | null
+          booking_sub_type?: string
           call_sheet_payload?: Json | null
           call_sheet_updated_at?: string | null
           call_sheet_updated_by_user_id?: string | null
@@ -617,6 +619,7 @@ export type Database = {
           access_notes?: string | null
           balance_collection_method?: string | null
           balance_due_at?: string | null
+          booking_sub_type?: string
           call_sheet_payload?: Json | null
           call_sheet_updated_at?: string | null
           call_sheet_updated_by_user_id?: string | null
@@ -2471,6 +2474,68 @@ export type Database = {
             columns: ["participant_id"]
             isOneToOne: false
             referencedRelation: "inquiry_participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_fulfillment: {
+        Row: {
+          booking_id: string
+          carrier: string | null
+          created_at: string
+          delivered_at: string | null
+          digital_asset_id: string | null
+          fulfillment_type: string
+          id: string
+          lead_time_days: number | null
+          notes: string | null
+          ship_to: Json | null
+          shipped_at: string | null
+          status: string
+          tenant_id: string | null
+          tracking_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          booking_id: string
+          carrier?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          digital_asset_id?: string | null
+          fulfillment_type?: string
+          id?: string
+          lead_time_days?: number | null
+          notes?: string | null
+          ship_to?: Json | null
+          shipped_at?: string | null
+          status?: string
+          tenant_id?: string | null
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string
+          carrier?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          digital_asset_id?: string | null
+          fulfillment_type?: string
+          id?: string
+          lead_time_days?: number | null
+          notes?: string | null
+          ship_to?: Json | null
+          shipped_at?: string | null
+          status?: string
+          tenant_id?: string | null
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_fulfillment_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "agency_bookings"
             referencedColumns: ["id"]
           },
         ]
