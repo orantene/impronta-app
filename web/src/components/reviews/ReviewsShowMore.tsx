@@ -129,6 +129,45 @@ export function ReviewItem({
         </p>
       ) : null}
 
+      {/* Review photos (STANDING v3 item 5) — approved, non-deleted media. */}
+      {review.media && review.media.length > 0 ? (
+        <div
+          data-reviews-media
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            margin: "10px 0 0",
+          }}
+        >
+          {review.media.map((m) => (
+            <a
+              key={m.id}
+              href={m.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "block",
+                width: 96,
+                height: 96,
+                borderRadius: 10,
+                overflow: "hidden",
+                border: `1px solid ${tokens.divider}`,
+                background: tokens.replyBg,
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={m.url}
+                alt="Client review photo"
+                loading="lazy"
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
+            </a>
+          ))}
+        </div>
+      ) : null}
+
       {reply ? (
         <div
           data-reviews-reply
