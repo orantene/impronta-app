@@ -48,6 +48,7 @@ import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { buildAdaptiveThemeStyle } from "../_shared/profile-theme";
 import { heroRatingChipLabel, type LightProfileLayoutProps } from "../_light/LightProfileLayout";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
+import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 
 type DetailRow = { key: string; label: string; value: string; group: string };
 
@@ -363,9 +364,9 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
   const chips = (
     <div className="at-chips">
       {heroRating && meetsCredibilityFloor(heroRating.ratingCount) ? (
-        <a href="#reviews" className="at-chip at-chip--accent">
+        <ReviewsAnchorLink className="at-chip at-chip--accent">
           {heroRatingChipLabel(heroRating.ratingAvg, heroRating.ratingCount, locale)}
-        </a>
+        </ReviewsAnchorLink>
       ) : null}
       {livesIn ? <span className="at-chip">{livesIn}</span> : null}
       {agency ? <span className="at-chip at-chip--accent">{labels.represented}</span> : null}

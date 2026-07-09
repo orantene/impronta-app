@@ -53,6 +53,7 @@ import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { buildAdaptiveThemeStyle } from "../_shared/profile-theme";
 import { heroRatingChipLabel, type LightProfileLayoutProps } from "../_light/LightProfileLayout";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
+import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 
 type DetailRow = { key: string; label: string; value: string; group: string };
 
@@ -384,7 +385,7 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
   const heroChips = (
     <div className="lm-chips">
       {heroRating && meetsCredibilityFloor(heroRating.ratingCount) ? (
-        <a href="#reviews" className="lm-chip lm-chip--accent">{heroRatingChipLabel(heroRating.ratingAvg, heroRating.ratingCount, locale)}</a>
+        <ReviewsAnchorLink className="lm-chip lm-chip--accent">{heroRatingChipLabel(heroRating.ratingAvg, heroRating.ratingCount, locale)}</ReviewsAnchorLink>
       ) : null}
       {livesIn ? <span className="lm-chip">{livesIn}</span> : null}
       {agency ? <span className="lm-chip lm-chip--accent">{labels.represented}</span> : null}

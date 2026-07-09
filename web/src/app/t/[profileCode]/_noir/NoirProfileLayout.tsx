@@ -57,6 +57,7 @@ import {
   type LightProfileLayoutProps,
 } from "../_light/LightProfileLayout";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
+import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 
 type DetailRow = { key: string; label: string; value: string; group: string };
 
@@ -444,9 +445,9 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
 
           <div className="nf-chips">
             {heroRating && meetsCredibilityFloor(heroRating.ratingCount) ? (
-              <a href="#reviews" className="nf-chip nf-chip--gold">
+              <ReviewsAnchorLink className="nf-chip nf-chip--gold">
                 {heroRatingChipLabel(heroRating.ratingAvg, heroRating.ratingCount, locale)}
-              </a>
+              </ReviewsAnchorLink>
             ) : null}
             {livesIn ? <span className="nf-chip">{livesIn}</span> : null}
             {agency ? <span className="nf-chip nf-chip--gold">{labels.represented}</span> : null}

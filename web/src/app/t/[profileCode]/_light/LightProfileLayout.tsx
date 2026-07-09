@@ -48,6 +48,7 @@ import type {
   Testimonial,
 } from "@/lib/reviews/review-types";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
+import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
@@ -416,8 +417,7 @@ export function LightProfileLayout({
       {heroRating && meetsCredibilityFloor(heroRating.ratingCount) ? (
         <div className="relative z-10 px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mt-3 max-w-5xl">
-            <a
-              href="#reviews"
+            <ReviewsAnchorLink
               className="plt-mono inline-flex items-center rounded-full border px-3 py-1 text-[0.625rem] font-medium uppercase tracking-[0.14em] transition-opacity hover:opacity-80"
               style={{
                 borderColor: "var(--plt-hairline-strong)",
@@ -426,7 +426,7 @@ export function LightProfileLayout({
               }}
             >
               {heroRatingChipLabel(heroRating.ratingAvg, heroRating.ratingCount, locale)}
-            </a>
+            </ReviewsAnchorLink>
           </div>
         </div>
       ) : null}
