@@ -1266,6 +1266,7 @@ export type Database = {
           plan_effective_from: string
           plan_key: string
           require_profile_change_review: boolean
+          reviews_enabled: boolean
           support_tier: string
           tenant_id: string
           trial_ends_at: string | null
@@ -1287,6 +1288,7 @@ export type Database = {
           plan_effective_from?: string
           plan_key?: string
           require_profile_change_review?: boolean
+          reviews_enabled?: boolean
           support_tier?: string
           tenant_id: string
           trial_ends_at?: string | null
@@ -1308,6 +1310,7 @@ export type Database = {
           plan_effective_from?: string
           plan_key?: string
           require_profile_change_review?: boolean
+          reviews_enabled?: boolean
           support_tier?: string
           tenant_id?: string
           trial_ends_at?: string | null
@@ -2388,6 +2391,8 @@ export type Database = {
       booking_commission_snapshot: {
         Row: {
           booking_id: string
+          channel_referral_cents: number
+          channel_referral_party_id: string | null
           client_surcharge_cents: number
           created_at: string
           currency_code: string
@@ -2409,6 +2414,8 @@ export type Database = {
         }
         Insert: {
           booking_id: string
+          channel_referral_cents?: number
+          channel_referral_party_id?: string | null
           client_surcharge_cents?: number
           created_at?: string
           currency_code: string
@@ -2430,6 +2437,8 @@ export type Database = {
         }
         Update: {
           booking_id?: string
+          channel_referral_cents?: number
+          channel_referral_party_id?: string | null
           client_surcharge_cents?: number
           created_at?: string
           currency_code?: string
@@ -2480,6 +2489,7 @@ export type Database = {
           owning_party_type: string | null
           participant_id: string
           party: string
+          payout_rail: string | null
           status: string
           stripe_transfer_id: string | null
           talent_profile_id: string | null
@@ -2501,6 +2511,7 @@ export type Database = {
           owning_party_type?: string | null
           participant_id: string
           party: string
+          payout_rail?: string | null
           status: string
           stripe_transfer_id?: string | null
           talent_profile_id?: string | null
@@ -2522,6 +2533,7 @@ export type Database = {
           owning_party_type?: string | null
           participant_id?: string
           party?: string
+          payout_rail?: string | null
           status?: string
           stripe_transfer_id?: string | null
           talent_profile_id?: string | null
@@ -3640,6 +3652,7 @@ export type Database = {
           client_user_id: string
           created_at: string
           id: string
+          published_at: string | null
           rating: number
           reported_at: string | null
           status: string
@@ -3654,6 +3667,7 @@ export type Database = {
           client_user_id: string
           created_at?: string
           id?: string
+          published_at?: string | null
           rating: number
           reported_at?: string | null
           status?: string
@@ -3668,6 +3682,7 @@ export type Database = {
           client_user_id?: string
           created_at?: string
           id?: string
+          published_at?: string | null
           rating?: number
           reported_at?: string | null
           status?: string
@@ -4506,6 +4521,8 @@ export type Database = {
           scheduled_revision_id: string | null
           slug: string
           status: Database["public"]["Enums"]["cms_page_status"]
+          style_classes: Json | null
+          style_presets: Json | null
           system_template_key: string | null
           template_key: string
           template_schema_version: number
@@ -4545,6 +4562,8 @@ export type Database = {
           scheduled_revision_id?: string | null
           slug: string
           status?: Database["public"]["Enums"]["cms_page_status"]
+          style_classes?: Json | null
+          style_presets?: Json | null
           system_template_key?: string | null
           template_key?: string
           template_schema_version?: number
@@ -4584,6 +4603,8 @@ export type Database = {
           scheduled_revision_id?: string | null
           slug?: string
           status?: Database["public"]["Enums"]["cms_page_status"]
+          style_classes?: Json | null
+          style_presets?: Json | null
           system_template_key?: string | null
           template_key?: string
           template_schema_version?: number
@@ -5585,7 +5606,7 @@ export type Database = {
           source_page: string | null
           source_pitch_id: string | null
           source_type: string
-          source_workspace_id: string | null
+          source_workspace_id: string
           staff_notes: string | null
           status: Database["public"]["Enums"]["inquiry_status"]
           tenant_id: string
@@ -5653,7 +5674,7 @@ export type Database = {
           source_page?: string | null
           source_pitch_id?: string | null
           source_type?: string
-          source_workspace_id?: string | null
+          source_workspace_id: string
           staff_notes?: string | null
           status?: Database["public"]["Enums"]["inquiry_status"]
           tenant_id: string
@@ -5721,7 +5742,7 @@ export type Database = {
           source_page?: string | null
           source_pitch_id?: string | null
           source_type?: string
-          source_workspace_id?: string | null
+          source_workspace_id?: string
           staff_notes?: string | null
           status?: Database["public"]["Enums"]["inquiry_status"]
           tenant_id?: string
@@ -7203,6 +7224,7 @@ export type Database = {
         Row: {
           alt: string | null
           approval_state: Database["public"]["Enums"]["media_approval_state"]
+          asset_kind: string | null
           attribution_note: string | null
           bucket_id: string
           byte_size: number | null
@@ -7238,6 +7260,7 @@ export type Database = {
         Insert: {
           alt?: string | null
           approval_state?: Database["public"]["Enums"]["media_approval_state"]
+          asset_kind?: string | null
           attribution_note?: string | null
           bucket_id: string
           byte_size?: number | null
@@ -7273,6 +7296,7 @@ export type Database = {
         Update: {
           alt?: string | null
           approval_state?: Database["public"]["Enums"]["media_approval_state"]
+          asset_kind?: string | null
           attribution_note?: string | null
           bucket_id?: string
           byte_size?: number | null
@@ -9354,6 +9378,154 @@ export type Database = {
         }
         Relationships: []
       }
+      review_moderation_events: {
+        Row: {
+          action: string
+          actor_is_platform: boolean
+          actor_user_id: string | null
+          created_at: string
+          id: string
+          justification: string | null
+          reason_code: string | null
+          review_id: string
+          review_kind: string
+          tenant_id: string
+        }
+        Insert: {
+          action: string
+          actor_is_platform?: boolean
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          justification?: string | null
+          reason_code?: string | null
+          review_id: string
+          review_kind: string
+          tenant_id: string
+        }
+        Update: {
+          action?: string
+          actor_is_platform?: boolean
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          justification?: string | null
+          reason_code?: string | null
+          review_id?: string
+          review_kind?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_moderation_events_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_moderation_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_requests: {
+        Row: {
+          booking_id: string | null
+          client_user_id: string | null
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          invite_token: string
+          invited_email: string | null
+          message: string | null
+          reminded_at: string | null
+          requested_by_user_id: string | null
+          status: string
+          talent_profile_id: string
+          tenant_id: string
+        }
+        Insert: {
+          booking_id?: string | null
+          client_user_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invite_token?: string
+          invited_email?: string | null
+          message?: string | null
+          reminded_at?: string | null
+          requested_by_user_id?: string | null
+          status?: string
+          talent_profile_id: string
+          tenant_id: string
+        }
+        Update: {
+          booking_id?: string | null
+          client_user_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invite_token?: string
+          invited_email?: string | null
+          message?: string | null
+          reminded_at?: string | null
+          requested_by_user_id?: string | null
+          status?: string
+          talent_profile_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "agency_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_requests_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_requests_requested_by_user_id_fkey"
+            columns: ["requested_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_requests_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_requests_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roster_import_jobs: {
         Row: {
           completed_at: string | null
@@ -10869,6 +11041,157 @@ export type Database = {
           },
         ]
       }
+      talent_offering_media: {
+        Row: {
+          media_asset_id: string
+          offering_id: string
+          sort_order: number
+        }
+        Insert: {
+          media_asset_id: string
+          offering_id: string
+          sort_order?: number
+        }
+        Update: {
+          media_asset_id?: string
+          offering_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_offering_media_media_asset_id_fkey"
+            columns: ["media_asset_id"]
+            isOneToOne: false
+            referencedRelation: "media_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_offering_media_offering_id_fkey"
+            columns: ["offering_id"]
+            isOneToOne: false
+            referencedRelation: "talent_offerings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      talent_offerings: {
+        Row: {
+          allow_pay_in_person: boolean
+          amount_cents: number | null
+          attributes: Json
+          booking_mode: string
+          cancellation_hours: number | null
+          category: string | null
+          created_at: string
+          currency: string
+          deposit_pct: number | null
+          description: string | null
+          description_i18n: Json | null
+          duration_minutes: number | null
+          free_reserve_expires_days: number | null
+          id: string
+          inventory_qty: number | null
+          is_featured: boolean
+          kind: string
+          moderation_state: string
+          price_display: string
+          price_type: string
+          reserve_mode: string
+          sort_order: number
+          status: string
+          talent_profile_id: string
+          tenant_id: string | null
+          title: string
+          title_i18n: Json | null
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          allow_pay_in_person?: boolean
+          amount_cents?: number | null
+          attributes?: Json
+          booking_mode?: string
+          cancellation_hours?: number | null
+          category?: string | null
+          created_at?: string
+          currency?: string
+          deposit_pct?: number | null
+          description?: string | null
+          description_i18n?: Json | null
+          duration_minutes?: number | null
+          free_reserve_expires_days?: number | null
+          id?: string
+          inventory_qty?: number | null
+          is_featured?: boolean
+          kind?: string
+          moderation_state?: string
+          price_display?: string
+          price_type?: string
+          reserve_mode?: string
+          sort_order?: number
+          status?: string
+          talent_profile_id: string
+          tenant_id?: string | null
+          title: string
+          title_i18n?: Json | null
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          allow_pay_in_person?: boolean
+          amount_cents?: number | null
+          attributes?: Json
+          booking_mode?: string
+          cancellation_hours?: number | null
+          category?: string | null
+          created_at?: string
+          currency?: string
+          deposit_pct?: number | null
+          description?: string | null
+          description_i18n?: Json | null
+          duration_minutes?: number | null
+          free_reserve_expires_days?: number | null
+          id?: string
+          inventory_qty?: number | null
+          is_featured?: boolean
+          kind?: string
+          moderation_state?: string
+          price_display?: string
+          price_type?: string
+          reserve_mode?: string
+          sort_order?: number
+          status?: string
+          talent_profile_id?: string
+          tenant_id?: string | null
+          title?: string
+          title_i18n?: Json | null
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_offerings_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_offerings_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_offerings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       talent_page_revisions: {
         Row: {
           blocks: Json
@@ -11566,6 +11889,8 @@ export type Database = {
           pronunciation: string | null
           public_slug_part: string | null
           published_globally: boolean
+          rating_all_avg: number
+          rating_all_count: number
           rating_avg: number
           rating_count: number
           remote_only: boolean
@@ -11594,6 +11919,7 @@ export type Database = {
           user_id: string | null
           visibility: Database["public"]["Enums"]["visibility"]
           workflow_status: Database["public"]["Enums"]["profile_workflow_status"]
+          would_book_again_pct: number | null
         }
         Insert: {
           ai_search_document?: string | null
@@ -11662,6 +11988,8 @@ export type Database = {
           pronunciation?: string | null
           public_slug_part?: string | null
           published_globally?: boolean
+          rating_all_avg?: number
+          rating_all_count?: number
           rating_avg?: number
           rating_count?: number
           remote_only?: boolean
@@ -11690,6 +12018,7 @@ export type Database = {
           user_id?: string | null
           visibility?: Database["public"]["Enums"]["visibility"]
           workflow_status?: Database["public"]["Enums"]["profile_workflow_status"]
+          would_book_again_pct?: number | null
         }
         Update: {
           ai_search_document?: string | null
@@ -11758,6 +12087,8 @@ export type Database = {
           pronunciation?: string | null
           public_slug_part?: string | null
           published_globally?: boolean
+          rating_all_avg?: number
+          rating_all_count?: number
           rating_avg?: number
           rating_count?: number
           remote_only?: boolean
@@ -11786,6 +12117,7 @@ export type Database = {
           user_id?: string | null
           visibility?: Database["public"]["Enums"]["visibility"]
           workflow_status?: Database["public"]["Enums"]["profile_workflow_status"]
+          would_book_again_pct?: number | null
         }
         Relationships: [
           {
@@ -11957,45 +12289,157 @@ export type Database = {
           },
         ]
       }
+      talent_review_media: {
+        Row: {
+          approval_state: string
+          bucket_id: string
+          byte_size: number | null
+          created_at: string
+          deleted_at: string | null
+          id: string
+          mime_type: string | null
+          review_id: string
+          sort_order: number
+          storage_path: string
+          tenant_id: string
+          uploader_user_id: string | null
+        }
+        Insert: {
+          approval_state?: string
+          bucket_id?: string
+          byte_size?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          mime_type?: string | null
+          review_id: string
+          sort_order?: number
+          storage_path: string
+          tenant_id: string
+          uploader_user_id?: string | null
+        }
+        Update: {
+          approval_state?: string
+          bucket_id?: string
+          byte_size?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          mime_type?: string | null
+          review_id?: string
+          sort_order?: number
+          storage_path?: string
+          tenant_id?: string
+          uploader_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_review_media_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "talent_reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_review_media_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_review_media_uploader_user_id_fkey"
+            columns: ["uploader_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       talent_reviews: {
         Row: {
+          anon: boolean
+          attr_communication: number | null
+          attr_professionalism: number | null
+          attr_reliability: number | null
+          attr_skill: number | null
           body: string | null
           booking_id: string | null
           client_user_id: string
           created_at: string
           id: string
+          locked_at: string | null
+          private_note: string | null
+          published_at: string | null
           rating: number
+          reply_at: string | null
+          reply_body: string | null
           reported_at: string | null
+          skill_scope: string | null
           status: string
           talent_profile_id: string
           tenant_id: string
+          traits: string[] | null
+          transaction_id: string | null
           updated_at: string
+          verified_paid: boolean
+          would_book_again: boolean | null
         }
         Insert: {
+          anon?: boolean
+          attr_communication?: number | null
+          attr_professionalism?: number | null
+          attr_reliability?: number | null
+          attr_skill?: number | null
           body?: string | null
           booking_id?: string | null
           client_user_id: string
           created_at?: string
           id?: string
+          locked_at?: string | null
+          private_note?: string | null
+          published_at?: string | null
           rating: number
+          reply_at?: string | null
+          reply_body?: string | null
           reported_at?: string | null
+          skill_scope?: string | null
           status?: string
           talent_profile_id: string
           tenant_id: string
+          traits?: string[] | null
+          transaction_id?: string | null
           updated_at?: string
+          verified_paid?: boolean
+          would_book_again?: boolean | null
         }
         Update: {
+          anon?: boolean
+          attr_communication?: number | null
+          attr_professionalism?: number | null
+          attr_reliability?: number | null
+          attr_skill?: number | null
           body?: string | null
           booking_id?: string | null
           client_user_id?: string
           created_at?: string
           id?: string
+          locked_at?: string | null
+          private_note?: string | null
+          published_at?: string | null
           rating?: number
+          reply_at?: string | null
+          reply_body?: string | null
           reported_at?: string | null
+          skill_scope?: string | null
           status?: string
           talent_profile_id?: string
           tenant_id?: string
+          traits?: string[] | null
+          transaction_id?: string | null
           updated_at?: string
+          verified_paid?: boolean
+          would_book_again?: boolean | null
         }
         Relationships: [
           {
@@ -12031,6 +12475,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_reviews_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "booking_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -12249,6 +12700,8 @@ export type Database = {
           site_published_at: string | null
           site_slug: string | null
           status: string
+          style_classes: Json | null
+          style_presets: Json | null
           talent_profile_id: string
           unpublished_at: string | null
           updated_at: string
@@ -12272,6 +12725,8 @@ export type Database = {
           site_published_at?: string | null
           site_slug?: string | null
           status?: string
+          style_classes?: Json | null
+          style_presets?: Json | null
           talent_profile_id: string
           unpublished_at?: string | null
           updated_at?: string
@@ -12295,6 +12750,8 @@ export type Database = {
           site_published_at?: string | null
           site_slug?: string | null
           status?: string
+          style_classes?: Json | null
+          style_presets?: Json | null
           talent_profile_id?: string
           unpublished_at?: string | null
           updated_at?: string
@@ -13255,6 +13712,80 @@ export type Database = {
           },
         ]
       }
+      tenant_testimonials: {
+        Row: {
+          author_name: string
+          author_role: string | null
+          body: string
+          created_at: string
+          created_by_user_id: string | null
+          id: string
+          rating: number | null
+          source: string
+          status: string
+          talent_profile_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_name: string
+          author_role?: string | null
+          body: string
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          rating?: number | null
+          source?: string
+          status?: string
+          talent_profile_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_name?: string
+          author_role?: string | null
+          body?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          rating?: number | null
+          source?: string
+          status?: string
+          talent_profile_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_testimonials_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_testimonials_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_testimonials_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_testimonials_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       translation_audit_events: {
         Row: {
           actor_id: string | null
@@ -13550,6 +14081,35 @@ export type Database = {
             foreignKeyName: "user_visibility_overrides_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_channel_referral_config: {
+        Row: {
+          created_at: string
+          hub_referral_bps: number
+          source_workspace_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hub_referral_bps?: number
+          source_workspace_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hub_referral_bps?: number
+          source_workspace_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_channel_referral_config_source_workspace_id_fkey"
+            columns: ["source_workspace_id"]
+            isOneToOne: true
             referencedRelation: "agencies"
             referencedColumns: ["id"]
           },
@@ -14023,11 +14583,14 @@ export type Database = {
           last_name: string | null
           next_available_date: string | null
           profile_code: string | null
+          rating_avg: number | null
+          rating_count: number | null
           residence_city_id: string | null
           trust_tier: string | null
           workflow_status:
             | Database["public"]["Enums"]["profile_workflow_status"]
             | null
+          would_book_again_pct: number | null
         }
         Relationships: [
           {
@@ -14137,69 +14700,6 @@ export type Database = {
         Args: { p_count: number; p_talent_profile_id: string }
         Returns: number
       }
-      api_directory_cards:
-        | {
-            Args: {
-              p_after_created_at?: string
-              p_after_id?: string
-              p_limit?: number
-              p_taxonomy_term_ids?: string[]
-            }
-            Returns: {
-              created_at: string
-              display_name: string
-              featured_level: number
-              first_name: string
-              fit_labels_jsonb: Json
-              height_cm: number
-              id: string
-              is_featured: boolean
-              last_name: string
-              location_country_code: string
-              location_display_en: string
-              location_display_es: string
-              primary_talent_type_name_en: string
-              primary_talent_type_name_es: string
-              profile_code: string
-              public_slug_part: string
-              thumb_bucket_id: string
-              thumb_height: number
-              thumb_storage_path: string
-              thumb_width: number
-            }[]
-          }
-        | {
-            Args: {
-              p_limit?: number
-              p_location_slug?: string
-              p_offset?: number
-              p_query?: string
-              p_sort?: string
-              p_taxonomy_term_ids?: string[]
-            }
-            Returns: {
-              created_at: string
-              display_name: string
-              featured_level: number
-              first_name: string
-              fit_labels_jsonb: Json
-              height_cm: number
-              id: string
-              is_featured: boolean
-              last_name: string
-              location_country_code: string
-              location_display_en: string
-              location_display_es: string
-              primary_talent_type_name_en: string
-              primary_talent_type_name_es: string
-              profile_code: string
-              public_slug_part: string
-              thumb_bucket_id: string
-              thumb_height: number
-              thumb_storage_path: string
-              thumb_width: number
-            }[]
-          }
       archive_inquiries_for_user: {
         Args: { p_inquiry_ids: string[] }
         Returns: number
@@ -14298,6 +14798,8 @@ export type Database = {
           scheduled_revision_id: string | null
           slug: string
           status: Database["public"]["Enums"]["cms_page_status"]
+          style_classes: Json | null
+          style_presets: Json | null
           system_template_key: string | null
           template_key: string
           template_schema_version: number
@@ -14943,6 +15445,10 @@ export type Database = {
         Returns: undefined
       }
       refresh_talent_skill_metrics_all: { Args: never; Returns: number }
+      release_offering_stock: {
+        Args: { p_offering_id: string; p_qty?: number }
+        Returns: undefined
+      }
       replace_talent_languages: {
         Args: { p_rows: Json; p_talent_profile_id: string; p_tenant_id: string }
         Returns: undefined
@@ -14951,12 +15457,24 @@ export type Database = {
         Args: { target_tenant_id: string }
         Returns: undefined
       }
+      reserve_offering_stock: {
+        Args: { p_offering_id: string; p_qty?: number }
+        Returns: boolean
+      }
       resolve_public_tenant_by_slug: {
         Args: { p_slug: string }
         Returns: {
           tenant_id: string
           tenant_slug: string
         }[]
+      }
+      review_is_arms_length_paid: {
+        Args: {
+          p_booking_id: string
+          p_client_user_id: string
+          p_talent_profile_id: string
+        }
+        Returns: boolean
       }
       rotate_unsubscribe_token: { Args: { p_user_id: string }; Returns: string }
       search_inquiry_messages: {
@@ -15150,6 +15668,7 @@ export type Database = {
         | "admin_created"
         | "book_again"
         | "instant_book"
+        | "offering_request"
       inquiry_status:
         | "new"
         | "reviewing"
@@ -15171,7 +15690,13 @@ export type Database = {
         | "expired"
       inquiry_thread_type: "private" | "group"
       media_approval_state: "pending" | "approved" | "rejected"
-      media_purpose: "talent" | "branding" | "cms" | "starter_kit"
+      media_purpose:
+        | "talent"
+        | "branding"
+        | "cms"
+        | "starter_kit"
+        | "document"
+        | "video"
       media_variant_kind:
         | "original"
         | "card"
@@ -15477,6 +16002,7 @@ export const Constants = {
         "admin_created",
         "book_again",
         "instant_book",
+        "offering_request",
       ],
       inquiry_status: [
         "new",
@@ -15500,7 +16026,14 @@ export const Constants = {
       ],
       inquiry_thread_type: ["private", "group"],
       media_approval_state: ["pending", "approved", "rejected"],
-      media_purpose: ["talent", "branding", "cms", "starter_kit"],
+      media_purpose: [
+        "talent",
+        "branding",
+        "cms",
+        "starter_kit",
+        "document",
+        "video",
+      ],
       media_variant_kind: [
         "original",
         "card",

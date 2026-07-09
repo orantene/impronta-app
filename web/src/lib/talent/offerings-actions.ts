@@ -33,7 +33,14 @@ import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-c
 import { parseTalentBookingTerms } from "@/lib/billing/commercial-terms";
 import { parsePackageTeasers } from "@/lib/talent/services-menu-legacy";
 
-/** The generated Database type predates talent_offerings — untyped access. */
+/**
+ * Untyped write surface for talent_offerings (+ media join). The tables ARE in
+ * database.types now, but the hand-written write shape (offeringToRowPatch,
+ * `attributes: Record<string, unknown>`) doesn't line up with the generated
+ * Insert type (`attributes: Json`), so these wrappers keep one deliberate cast
+ * instead of scattering per-call casts. validateOffering + the DB CHECKs guard
+ * correctness; read typing lives in rowToOffering.
+ */
 function offeringsTable(client: unknown) {
   return (client as SupabaseClient).from("talent_offerings");
 }

@@ -212,7 +212,7 @@ export async function createInstantBooking(
     // per-service choice is the sharper signal).
     let offering: ReturnType<typeof rowToOffering> | null = null;
     if (input.offeringId) {
-      const { data: offRow } = await (admin as unknown as SupabaseClient)
+      const { data: offRow } = await admin
         .from("talent_offerings")
         .select("*")
         .eq("id", input.offeringId)
@@ -233,7 +233,7 @@ export async function createInstantBooking(
     // Compensation: released on any later engine failure in this call.
     let stockReserved = false;
     if (offering && offering.kind === "product" && offering.inventoryQty != null) {
-      const { data: got } = await (admin as unknown as SupabaseClient).rpc("reserve_offering_stock", {
+      const { data: got } = await admin.rpc("reserve_offering_stock", {
         p_offering_id: offering.id,
         p_qty: 1,
       });
@@ -242,7 +242,7 @@ export async function createInstantBooking(
     }
     const releaseStock = async () => {
       if (stockReserved && offering) {
-        await (admin as unknown as SupabaseClient).rpc("release_offering_stock", { p_offering_id: offering.id, p_qty: 1 });
+        await admin.rpc("release_offering_stock", { p_offering_id: offering.id, p_qty: 1 });
       }
     };
 
