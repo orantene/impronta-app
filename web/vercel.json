@@ -50,6 +50,9 @@
     },
     "src/app/api/cron/builder-rollout-ramp/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/cron/expire-free-reserves/route.ts": {
+      "maxDuration": 30
     }
   },
   "crons": [
@@ -65,6 +68,7 @@
     { "path": "/api/cron/reconcile-held-payouts", "schedule": "0 6 * * *" },
     { "path": "/api/cron/expire-offers", "schedule": "30 * * * *" },
     { "path": "/api/cron/flag-unassigned-inquiries", "schedule": "45 * * * *" },
-    { "path": "/api/cron/alert-money-failures", "schedule": "15 */2 * * *" }
+    { "path": "/api/cron/alert-money-failures", "schedule": "15 */2 * * *" },
+    { "path": "/api/cron/expire-free-reserves", "schedule": "0 2 * * *" }
   ]
 }

@@ -28,6 +28,7 @@ function row(over: Partial<TalentOfferingRow> = {}): TalentOfferingRow {
     reserve_mode: "full",
     deposit_pct: null,
     cancellation_hours: null,
+    free_reserve_expires_days: null,
     allow_pay_in_person: false,
     duration_minutes: 60,
     category: null,

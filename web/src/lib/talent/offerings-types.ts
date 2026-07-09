@@ -66,6 +66,8 @@ export type TalentOffering = {
   allowPayInPerson: boolean;
   /** Hours before the appointment when free cancellation ends (null = flexible). */
   cancellationHours: number | null;
+  /** Days a free reserve is held before the expiry cron auto-releases it (null = never). */
+  freeReserveExpiresDays: number | null;
   durationMinutes: number | null;
   category: string | null;
   /** null = unlimited (services); int = stock (products; Phase-3 checkout). */
@@ -100,6 +102,7 @@ export type TalentOfferingRow = {
   deposit_pct: number | null;
   allow_pay_in_person: boolean;
   cancellation_hours: number | null;
+  free_reserve_expires_days: number | null;
   duration_minutes: number | null;
   category: string | null;
   inventory_qty: number | null;
@@ -168,6 +171,7 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
       typeof row.cancellation_hours === "number" && Number.isFinite(row.cancellation_hours) && row.cancellation_hours >= 0
         ? Math.round(row.cancellation_hours)
         : null,
+    freeReserveExpiresDays: posInt(row.free_reserve_expires_days),
     durationMinutes: posInt(row.duration_minutes),
     category: str(row.category, 80),
     inventoryQty:
@@ -206,6 +210,8 @@ export function offeringToRowPatch(o: TalentOffering): Omit<TalentOfferingRow, "
     deposit_pct: o.reserveMode === "deposit" && o.depositPct ? Math.round(o.depositPct) : null,
     allow_pay_in_person: o.allowPayInPerson === true,
     cancellation_hours: o.cancellationHours != null && o.cancellationHours >= 0 ? Math.round(o.cancellationHours) : null,
+    // Only free reserves auto-expire; other modes keep the column null.
+    free_reserve_expires_days: o.reserveMode === "free" ? posInt(o.freeReserveExpiresDays) : null,
     duration_minutes: posInt(o.durationMinutes),
     category: str(o.category, 80),
     inventory_qty: o.inventoryQty != null && o.inventoryQty >= 0 ? Math.round(o.inventoryQty) : null,
@@ -322,6 +328,7 @@ export function blankOffering(talentProfileId: string, defaultCurrency: string, 
     depositPct: null,
     allowPayInPerson: false,
     cancellationHours: null,
+    freeReserveExpiresDays: null,
     durationMinutes: null,
     category: null,
     inventoryQty: null,
