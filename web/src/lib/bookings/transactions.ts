@@ -27,6 +27,7 @@ import {
 } from "@/lib/notifications/producers/payment-notify";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
 import { executeBookingTransfers } from "@/lib/payments/transfers";
+import { releaseReservedOfferingStock } from "@/lib/talent/offering-stock";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -951,6 +952,26 @@ export async function markRefunded(
         });
       }
       return transition;
+    }
+
+    // G1 — return reserved product stock when the money comes back, UNLESS the
+    // item already shipped (a shipped-then-returned product is a manual restock
+    // decision, never automatic). Idempotent across cancel-then-refund: the
+    // release helper flips the inquiry's stock_reserved flag on success, so a
+    // prior staff cancel that already restocked makes this a no-op. Best-effort.
+    if (existing.booking_id && existing.source_inquiry_id) {
+      try {
+        const { data: ful } = await sb
+          .from("booking_fulfillment")
+          .select("shipped_at")
+          .eq("booking_id", existing.booking_id)
+          .maybeSingle();
+        if (!ful?.shipped_at) {
+          await releaseReservedOfferingStock(existing.source_inquiry_id, sb);
+        }
+      } catch (stockErr) {
+        logServerError("transactions.markRefunded.stockRelease", stockErr);
+      }
     }
 
     return transition;
