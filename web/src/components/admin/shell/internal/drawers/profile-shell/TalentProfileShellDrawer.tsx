@@ -163,7 +163,6 @@ import {
   LockedHint,
   NextTierCoach,
   PROFILE_SECTIONS,
-  PackageRatesEditor,
   PastClientsEditor,
   PersonalityEditor,
   PolaroidsEditor,
@@ -177,7 +176,6 @@ import {
   ProfileShellPayload,
   ProfileState,
   PublishCelebrationModal,
-  RatesEditor,
   RecurringPatternEditor,
   RequiredCoach,
   SECTION_META,
@@ -201,7 +199,7 @@ import {
 } from "./profile-shell-internal";
 import { shouldShowPolaroidsSection } from "./profile-polaroids-policy";
 import { CommercialTermsEditor } from "./profile-shell-modules/profile-commercial-terms";
-import { TalentServicesMenuCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentServicesMenuCard";
+import { TalentOfferingsManager } from "@/components/talent/services/TalentOfferingsManager";
 import { ProfileReviewsEditor } from "./profile-shell-modules/profile-reviews";
 import {
   ProfileShellSaveErrorBanner,
@@ -3798,87 +3796,10 @@ export function TalentProfileShellDrawer() {
               />
             </ProfileAccordionSection>
 
-            {/* RATES — now after Availability (B8 swap). */}
-            <ProfileAccordionSection
-              id="rates" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Rates"
-              sub="Day rates, package deals, travel costs."
-              complete={sectionComplete.rates} started={sectionStarted.rates}
-              open={activeSection === "rates"}
-              onToggle={() => setActiveSection(activeSection === "rates" ? "" : "rates")}
-            >
-              {/* Audit fix #3 — when admin locks "rates", talent sees the
-                  whole section read-only with the reason text. The toggle
-                  for askForQuote and the editors below all gate on the
-                  same path. Without this, the lock chip was decorative. */}
-              {isSelf && state.fieldLocks.includes("rates") && (
-                <LockedHint reason={state.fieldLockReasons["rates"]} />
-              )}
-
-              {/* Audit fix #11 — Rate-card visibility control. Talent and
-                  agency need to decide whether numbers show publicly,
-                  agency-only, or on-request only. Surfaces alongside
-                  the actual rate inputs. */}
-              <FieldRow
-                label="Who sees these rates?"
-                hint="Public on the profile, agency-only on the roster, or on-request via inquiry."
-              >
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                  {([
-                    { id: "public" as const,      label: "Public" },
-                    { id: "agency-only" as const, label: "Agency only" },
-                    { id: "on-request" as const,  label: "On request" },
-                  ]).map(opt => {
-                    const active = state.rateCardVisibility === opt.id;
-                    return (
-                      <button key={opt.id} type="button" onClick={() => patch({ rateCardVisibility: opt.id })} style={{
-                        padding: "6px 11px", borderRadius: 999,
-                        border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-                        background: active ? "rgba(15,79,62,0.08)" : "#fff",
-                        color: active ? COLORS.accentDeep : COLORS.ink,
-                        fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-                        fontFamily: FONTS.body,
-                      }}>{opt.label}</button>
-                    );
-                  })}
-                </div>
-              </FieldRow>
-              <FieldRow label="Pricing mode" optional>
-                <ToggleControl value={state.askForQuote}
-                  onChange={(v) => patch({ askForQuote: v })}
-                  disabled={isSelf && state.fieldLocks.includes("rates")}
-                  label="Negotiated only — clients see 'Ask for quote' instead of a number" />
-              </FieldRow>
-              {!state.askForQuote && (
-                <div style={{ opacity: isSelf && state.fieldLocks.includes("rates") ? 0.55 : 1, pointerEvents: isSelf && state.fieldLocks.includes("rates") ? "none" : "auto" }}>
-                  <RatesEditor
-                    rates={state.rates}
-                    selectedTypeIds={allSelectedTypeIds}
-                    onChange={patchRates}
-                  />
-                </div>
-              )}
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6, marginTop: 6 }} className="text-admin-ink-muted">
-                  Package bundles
-                </div>
-                <PackageRatesEditor packages={state.packageRates} onChange={(p) => patch({ packageRates: p })} />
-              </div>
-              <FieldRow label="Travel" optional>
-                <ToggleControl value={state.travelIncluded}
-                  onChange={(v) => patch({ travelIncluded: v })}
-                  label="Travel included in rate" />
-              </FieldRow>
-              <FieldRow label="Lodging" optional>
-                <ToggleControl value={state.lodgingIncluded}
-                  onChange={(v) => patch({ lodgingIncluded: v })}
-                  label="Lodging included in rate" />
-              </FieldRow>
-              {adminVisible && (
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
-                  <FieldLockToggle path="rates" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
-                </div>
-              )}
-            </ProfileAccordionSection>
+            {/* RATES accordion RETIRED (W3-9): the legacy per-type rate cards +
+                package bundles (0 production adoption, never publicly rendered)
+                are superseded by the Catalog & Pricing tab (talent_offerings).
+                State/persist paths remain for legacy data import. */}
 
             {/* BOOKING TERMS — talent commercial preferences (deposit % /
                 refund policy / instant-book / fixed rate). Self-saving via
@@ -3896,7 +3817,7 @@ export function TalentProfileShellDrawer() {
                 <CommercialTermsEditor talentId={payload.talentId} />
                 {/* S13 — admin parity for the services menu (same self-saving
                     card the talent uses; configuration only). */}
-                <TalentServicesMenuCard talentId={payload.talentId} />
+                <TalentOfferingsManager talentId={payload.talentId} />
               </ProfileAccordionSection>
             )}
 

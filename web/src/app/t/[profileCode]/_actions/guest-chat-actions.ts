@@ -34,6 +34,7 @@ import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { evaluateGuestConversationGate } from "@/lib/inquiry/guest-trust-gate";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
+import { getPublicHostContext } from "@/lib/saas/scope";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
 import { sendMessage } from "@/lib/inquiry/inquiry-engine-messages";
@@ -588,7 +589,19 @@ export async function startGuestChatInquiry(
     input.contactName?.trim() ||
     [contactFirstName, contactLastName].filter(Boolean).join(" ");
   const contactEmail = input.contactEmail?.trim() ?? "";
-  const firstMessage = input.firstMessage?.trim() ?? "";
+  // Storefront carry: when the guest clicked a specific offering, make the
+  // request VISIBLE in the thread (coordinator + guest both see exactly what
+  // was asked for) and persist the structured payload in source_context below.
+  const offering = input.offering ?? null;
+  const offeringPrefix = offering
+    ? `Requesting: ${offering.title}${
+        offering.amount_cents != null
+          ? ` (${offering.currency} ${(offering.amount_cents / 100).toLocaleString()})`
+          : ""
+      }\n\n`
+    : "";
+  const rawFirstMessage = input.firstMessage?.trim() ?? "";
+  const firstMessage = rawFirstMessage ? `${offeringPrefix}${rawFirstMessage}` : rawFirstMessage;
 
   const missing: string[] = [];
   if (!contactFirstName) missing.push("requester.first_name");
@@ -769,6 +782,7 @@ export async function startGuestChatInquiry(
       referrer_page: input.sourcePage,
       tenant_id: tenantId,
       ...(capture.eventType ? { ai_event_type: capture.eventType } : {}),
+      ...(offering ? { offering } : {}),
     },
     requester: {
       name: contactName,
@@ -787,11 +801,24 @@ export async function startGuestChatInquiry(
     },
   };
 
+  // Channel attribution (Phase A invariant): stamp the HOST tenant the guest
+  // entered through as source_workspace_id, and the exact hostname as
+  // origin_domain. `tenantId` here is resolved from the storefront/hub slug the
+  // profile page was served under, so it IS the originating host. Without this
+  // the engine defaults source_workspace_id from tenant_id — which, once
+  // XTENANT_REHOME re-homes the inquiry onto the managing agency, would record
+  // the AGENCY as the channel (breaking hub channel-performance + the referral
+  // lane) and would violate the invariant that a re-homed inquiry always has
+  // source_workspace_id != tenant_id. Mirrors contact/actions.ts +
+  // api/discover/inquiry/route.ts. No-op with the flag off (source == tenant).
+  const hostCtx = await getPublicHostContext();
   const created = await createInquiryFromIntent(admin, intent, {
     tenant_id: tenantId,
     actor_user_id: null,
     client_user_id: provisioned.clientUserId,
     guest_session_id: guestSessionId,
+    source_workspace_id: tenantId,
+    origin_domain: hostCtx.hostname ?? null,
   });
 
   if (!created.ok) {
@@ -949,6 +976,57 @@ function synthOpeningMessage(inquiryId: string, messageId: string, body: string)
 // ═════════════════════════════════════════════════════════════════════════════
 // 3b. sendGuestMessageAction
 // ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * W3-5 — attach a tapped service to a LIVE guest thread as STRUCTURED data
+ * (inquiries.source_context.offerings[]), not just visible text. Guest-cookie
+ * ownership gated exactly like sendGuestMessageAction. Best-effort UX: the
+ * chip tap also prefills the composer, so a failure here only loses analytics
+ * provenance, never the conversation.
+ */
+export async function attachOfferingToGuestInquiry(input: {
+  inquiryId: string;
+  offering: {
+    offering_id: string;
+    title: string;
+    amount_cents: number | null;
+    currency: string;
+    price_type: string;
+    kind: string;
+  };
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input?.inquiryId || !input.offering?.offering_id) {
+    return { ok: false, error: "Missing conversation or service." };
+  }
+  const guest = await resolveGuestContext();
+  if (!guest.ok) return { ok: false, error: "Not your conversation." };
+  const { admin, guestSessionId } = guest.ctx;
+  const owned = await loadOwnedInquiry(admin, input.inquiryId, guestSessionId);
+  if (!owned.ok) return { ok: false, error: "Not your conversation." };
+
+  const { data: row } = await admin
+    .from("inquiries")
+    .select("source_context")
+    .eq("id", input.inquiryId)
+    .maybeSingle();
+  const ctx = (row?.source_context ?? {}) as Record<string, unknown>;
+  const existing = Array.isArray(ctx.offerings) ? (ctx.offerings as Record<string, unknown>[]) : [];
+  if (existing.some((o) => o.offering_id === input.offering.offering_id)) return { ok: true };
+  const next = {
+    ...ctx,
+    ...(ctx.offering ? {} : { offering: input.offering }),
+    offerings: [...existing, { ...input.offering, attached_at: new Date().toISOString() }].slice(0, 10),
+  };
+  const { error } = await admin
+    .from("inquiries")
+    .update({ source_context: next })
+    .eq("id", input.inquiryId);
+  if (error) {
+    logServerError("guestChat.attachOffering", error);
+    return { ok: false, error: "Could not attach the service." };
+  }
+  return { ok: true };
+}
 
 export async function sendGuestMessageAction(
   input: SendGuestMessageInput,

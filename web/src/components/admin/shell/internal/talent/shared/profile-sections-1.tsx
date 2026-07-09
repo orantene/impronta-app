@@ -101,7 +101,7 @@ export function AllSectionsGrid({ openSection }: { openSection: (s: string) => v
 
   const sections: SectionDef[] = [
     { id: "identity",      emoji: "👤", label: "Identity",       description: "Stage name · pronouns · gender · DOB. You control privacy per field.", ...identityRatio },
-    { id: "services",      emoji: "🎯", label: "Services",       description: "Talent type, specialties, and what you're growing into.", ...servicesRatio },
+    { id: "services",      emoji: "🎯", label: "Talent type & specialties", description: "Your talent type, specialties, and what you're growing into.", ...servicesRatio },
     { id: "location",      emoji: "📍", label: "Location & travel", description: "Home base · cities you work · passport · driver's license.", ...locationRatio },
     { id: "media",         emoji: "📷", label: "Cover · headshot · reel", description: "Banner, main photo, hello reel, showreel.", ...mediaRatio },
     { id: "albums",        emoji: "🗂", label: "Portfolio albums", description: "Editorial · Lookbook · Behind-the-scenes · Personal.", ...albumsRatio },

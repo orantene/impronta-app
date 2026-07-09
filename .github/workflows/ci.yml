@@ -172,6 +172,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:ai-guardrails
 
+      - name: tests — ai-builder eval smoke (brief-set spec + scorecard + judge, no key)
+        if: ${{ !cancelled() }}
+        run: npm run eval:generate-smoke
+
       - name: tests — tenant-isolation
         if: ${{ !cancelled() }}
         run: npm run test:tenant-isolation

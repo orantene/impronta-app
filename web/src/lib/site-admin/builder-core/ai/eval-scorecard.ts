@@ -110,7 +110,10 @@ function isCardGridSection(section: BuilderNode): boolean {
   return hit;
 }
 
-export function scoreGeneratedTree(tree: BuilderNodeTree): Scorecard {
+export function scoreGeneratedTree(
+  tree: BuilderNodeTree,
+  opts: { scope?: "page" | "section" } = {},
+): Scorecard {
   const findings: ScorecardFinding[] = [];
   const add = (f: ScorecardFinding) => findings.push(f);
 
@@ -130,8 +133,12 @@ export function scoreGeneratedTree(tree: BuilderNodeTree): Scorecard {
     }
   });
 
-  // 2. Heading hierarchy (single level:1, no skips).
+  // 2. Heading hierarchy (single level:1, no skips). A standalone SECTION
+  // correctly has NO level:1 (the prompt reserves H1 for the hero), so
+  // missing_h1 is skipped for scope:"section" — grading it there penalized
+  // correct output on the first live eval run (all 10 section-scope cases).
   for (const issue of lintBuilderTreeA11y(tree).headingIssues) {
+    if (opts.scope === "section" && issue.kind === "missing_h1") continue;
     const severity = issue.kind === "missing_h1" ? "error" : "warn";
     add({ code: issue.kind, severity, nodeId: issue.heading?.sectionId, detail: issue.message });
   }
@@ -202,6 +209,7 @@ export interface Expectation {
 export function evaluateExpectations(
   tree: BuilderNodeTree,
   expect: Expectation,
+  opts: { scope?: "page" | "section" } = {},
 ): { pass: boolean; failures: string[] } {
   const failures: string[] = [];
   const kinds = new Set<string>();
@@ -217,8 +225,14 @@ export function evaluateExpectations(
   for (const k of expect.kindsPresent) if (!kinds.has(k)) failures.push(`missing kind ${k}`);
   for (const k of expect.kindsAbsent ?? []) if (kinds.has(k)) failures.push(`present-but-banned kind ${k}`);
   if (expect.singleH1 || expect.noEmDash) {
-    const card = scoreGeneratedTree(tree);
-    if (expect.singleH1 && card.findings.some((f) => f.code === "missing_h1" || f.code === "multiple_h1")) failures.push("singleH1 violated");
+    const card = scoreGeneratedTree(tree, opts);
+    // Scope-aware H1 semantics: a PAGE must have exactly one level:1 (missing or
+    // multiple both violate). A standalone SECTION correctly opens with level:2
+    // and has NO H1 (the prompt reserves H1 for the hero) — only MULTIPLE H1s
+    // violate. Grading missing_h1 against sections penalized correct output
+    // (verified on the first live eval run: all 10 section-scope cases).
+    const h1Codes = opts.scope === "section" ? ["multiple_h1"] : ["missing_h1", "multiple_h1"];
+    if (expect.singleH1 && card.findings.some((f) => (h1Codes as string[]).includes(f.code))) failures.push("singleH1 violated");
     if (expect.noEmDash && card.findings.some((f) => f.code === "em_dash" || f.code === "en_dash")) failures.push("noEmDash violated");
   }
   return { pass: failures.length === 0, failures };

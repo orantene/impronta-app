@@ -25,6 +25,8 @@ import { ProfileCover } from "./ProfileCover";
 import { ProfileHeader } from "./ProfileHeader";
 import { ServicesBlock } from "./ServicesBlock";
 import { ServiceMenuBlock } from "./ServiceMenuBlock";
+import { TalentStorefront } from "../_shared/TalentStorefront";
+import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { SkillsExperienceBlock } from "./SkillsExperienceBlock";
 import { BookingCard } from "./BookingCard";
 import { AvailabilityWidget } from "./AvailabilityWidget";
@@ -126,6 +128,7 @@ export type LightProfileLayoutProps = {
   bookingNote: string | null;
   /** S12 — talent-configured services menu (public/on-request items). */
   serviceMenuItems: ServiceMenuItem[];
+  storefrontOfferings: TalentOffering[];
   /** S6 — discipline term id → label, for per-service scoping chips. */
   disciplineLabels: Record<string, string>;
 
@@ -276,6 +279,7 @@ export function LightProfileLayout({
   startingFrom,
   bookingNote,
   serviceMenuItems,
+  storefrontOfferings,
   disciplineLabels,
   fitLabels,
   skills,
@@ -455,13 +459,22 @@ export function LightProfileLayout({
               bookingDetailsLabel={t("public.profile.editorial.bookingDetails")}
             />
 
-            {/* Services menu — talent-configured services & pricing (S12) */}
-            <ServiceMenuBlock
-              items={isFreePlan ? [] : serviceMenuItems}
-              locale={locale}
-              heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
-              disciplineLabels={disciplineLabels}
-            />
+            {/* Storefront (offerings) takes precedence; legacy services menu
+                is the zero-regression fallback for talents without offerings. */}
+            {!isFreePlan && storefrontOfferings.length > 0 ? (
+              <TalentStorefront
+                offerings={storefrontOfferings}
+                locale={locale}
+                heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
+              />
+            ) : (
+              <ServiceMenuBlock
+                items={isFreePlan ? [] : serviceMenuItems}
+                locale={locale}
+                heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
+                disciplineLabels={disciplineLabels}
+              />
+            )}
 
             {/* Skills & specialties */}
             <SkillsExperienceBlock

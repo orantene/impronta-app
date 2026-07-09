@@ -2,7 +2,6 @@
 
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 import { CommercialBookingTermsCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/CommercialBookingTermsCard";
-import { TalentServicesMenuCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentServicesMenuCard";
 import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/DefaultCurrencyCard";
 import { PreferredLanguageCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/PreferredLanguageCard";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
@@ -95,11 +94,17 @@ export function SettingsPage() {
         <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} />
       )}
 
-      {/* Services menu — talent's priced menu of services (Phase B). Same
-          bridged-profile gate as the booking-terms card. Configuration only;
-          a selected service pre-fills an offer line in the booking flow. */}
+      {/* Services moved to their own top-level tab (/talent/services) — the
+          single door to pricing. Settings keeps only booking PREFERENCES. */}
       {bridgeTalentSelfProfile && (
-        <TalentServicesMenuCard talentId={bridgeTalentSelfProfile.id} />
+        <button
+          type="button"
+          onClick={() => setTalentPage("services")}
+          style={{ display: "block", width: "100%", textAlign: "left", padding: "14px 16px", borderRadius: 12, background: "#fff", border: "1px solid rgba(24,24,27,0.08)", cursor: "pointer", fontFamily: '"Inter", system-ui, sans-serif', marginBottom: 16 }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#0B0B0D" }}>Services &amp; pricing → moved to your Catalog &amp; Pricing tab</div>
+          <div style={{ fontSize: 11.5, color: "rgba(11,11,13,0.62)", marginTop: 2 }}>Manage everything clients can book or buy from your page in one place.</div>
+        </button>
       )}
 
       {/* Trust & Verification — talent's view of their own trust state */}

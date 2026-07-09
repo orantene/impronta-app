@@ -7,6 +7,7 @@ import { CalendarPage } from "./talent/pages/CalendarPage";
 import { MyProfilePage } from "./talent/pages/MyProfilePage";
 import { PublicPageEditor } from "./talent/pages/PublicPageEditor";
 import { ReviewsPage } from "./talent/pages/ReviewsPage";
+import { ServicesPage } from "./talent/pages/ServicesPage";
 import { SettingsPage } from "./talent/pages/SettingsPage";
 import { TalentPayoutsPage } from "./page-modules/TalentPayoutsPage";
 import { TalentTodayPage } from "./talent/pages/TodayPage";
@@ -269,6 +270,9 @@ function TalentRouter() {
       break;
     case "profile":
       page = <MyProfilePage />;
+      break;
+    case "services":
+      page = <ServicesPage />;
       break;
     case "reviews":
       page = <ReviewsPage />;
