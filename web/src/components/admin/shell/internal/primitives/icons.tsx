@@ -36,7 +36,13 @@ export type AdminShellIconName =
   | "moon"
   | "map-pin"
   | "archive"
-  | "pencil";
+  | "pencil"
+  | "home"
+  | "send"
+  | "layers"
+  | "camera"
+  | "image"
+  | "briefcase";
 
 export function Icon({
   name,
@@ -251,6 +257,51 @@ export function Icon({
       return (
         <svg {...common}>
           <path d="M16 3l5 5L8 21H3v-5L16 3z" />
+        </svg>
+      );
+    case "home":
+      return (
+        <svg {...common}>
+          <path d="M3 10.5L12 3l9 7.5" />
+          <path d="M5.5 9.5V21h13V9.5" />
+          <path d="M10 21v-5.5h4V21" />
+        </svg>
+      );
+    case "send":
+      return (
+        <svg {...common}>
+          <path d="M22 2L11 13" />
+          <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+        </svg>
+      );
+    case "layers":
+      return (
+        <svg {...common}>
+          <path d="M12 2l10 5.5L12 13 2 7.5 12 2z" />
+          <path d="M2 12.5L12 18l10-5.5" />
+          <path d="M2 17.5L12 23l10-5.5" />
+        </svg>
+      );
+    case "camera":
+      return (
+        <svg {...common}>
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2v11z" />
+          <circle cx="12" cy="13" r="4" />
+        </svg>
+      );
+    case "image":
+      return (
+        <svg {...common}>
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <path d="M21 15l-5-5L5 21" />
+        </svg>
+      );
+    case "briefcase":
+      return (
+        <svg {...common}>
+          <rect x="2" y="7" width="20" height="14" rx="2" />
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
         </svg>
       );
   }

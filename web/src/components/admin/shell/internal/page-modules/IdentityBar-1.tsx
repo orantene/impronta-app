@@ -13,7 +13,7 @@ import type { Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
 import { Avatar, Icon, ShortcutsModal } from "../primitives";
-import { COLORS, MY_TALENT_PROFILE, PLAN_META, meetsRole, useAdminShell } from "../state";
+import { COLORS, FAB_PALETTE_OPEN_EVENT, MY_TALENT_PROFILE, PLAN_META, meetsRole, useAdminShell } from "../state";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { AccountMenuItem, IdentityBarIconButton, LocaleToggle, ModeTogglePill } from "./IdentityBar-2";
@@ -329,7 +329,44 @@ export function TulalaIdentityBar() {
           </span>
         </button>
 
-        <div className="flex-1" />
+        {/* Centered global search — Shopify-style. One pill in the middle of
+            the chrome that opens the unified command palette (same target as
+            ⌘K). Workspace surface only; hidden on mobile where the bottom
+            FAB is the single command surface. */}
+        {inWorkspace ? (
+          <>
+            <div className="flex-1" />
+            <button
+              type="button"
+              data-tulala-topbar-search
+              onClick={() => window.dispatchEvent(new Event(FAB_PALETTE_OPEN_EVENT))}
+              aria-label={copy.isSpanish ? "Buscar en el workspace" : "Search workspace"}
+              className="hidden h-[34px] w-[min(420px,32vw)] min-w-[180px] cursor-pointer items-center gap-[8px] rounded-[9px] border border-admin-border-soft bg-admin-surface px-[10px] font-admin-body text-[12.5px] text-admin-ink-dim md:inline-flex [transition:border-color_var(--transition-admin-micro),background_var(--transition-admin-micro)]"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = COLORS.border;
+                e.currentTarget.style.background = "#fff";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "";
+                e.currentTarget.style.background = "";
+              }}
+            >
+              <Icon name="search" size={13} color={COLORS.inkDim} />
+              <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-left">
+                {copy.isSpanish ? "Buscar" : "Search"}
+              </span>
+              <span
+                aria-hidden
+                className="inline-flex h-[18px] items-center rounded-[5px] border border-admin-border-soft bg-white px-[5px] font-mono text-[10px] font-semibold text-admin-ink-dim"
+              >
+                ⌘K
+              </span>
+            </button>
+            <div className="flex-1" />
+          </>
+        ) : (
+          <div className="flex-1" />
+        )}
 
         {/* Workspace plan badge — clickable tier chip + summary popover
             (registration, renewal, seats, subscription, plan override).
