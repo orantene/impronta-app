@@ -421,6 +421,27 @@ function OfferingForm({
                   % up front, balance later
                 </label>
               )}
+              {value.reserveMode === "free" && (
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.inkMuted }}>
+                  Hold for
+                  <input
+                    key={`fre-${value.id}-${value.freeReserveExpiresDays ?? "x"}`}
+                    type="number"
+                    min={1}
+                    placeholder="7"
+                    defaultValue={value.freeReserveExpiresDays ?? ""}
+                    disabled={saving}
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      const n = raw === "" ? null : Math.round(Number(raw));
+                      const v = n != null && Number.isFinite(n) && n > 0 ? n : null;
+                      if (v !== value.freeReserveExpiresDays) onPatch({ freeReserveExpiresDays: v });
+                    }}
+                    style={{ ...inputStyle, width: 60, fontWeight: 700 }}
+                  />
+                  days, then auto-release
+                </label>
+              )}
             </div>
             <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: C.inkMuted, cursor: "pointer" }}>
               <input

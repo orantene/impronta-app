@@ -34,6 +34,7 @@ import { formatRateLimitedCopy } from "@/lib/i18n/error-copy";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { notifyBookingCancelled } from "@/lib/notifications/producers/booking-cancelled-notify";
+import { releaseReservedOfferingStock } from "@/lib/talent/offering-stock";
 import { emitNotification } from "@/lib/notifications/emit";
 import {
   assignCoordinator,
@@ -3066,6 +3067,10 @@ export async function cancelBookingAction(
         p_kind: "booking_cancelled",
         p_payload: { booking_id: bookingId, by_user_id: user.id },
       }).then((r) => { if (r.error) logServerError("audit.emit.booking_cancelled", r.error); });
+
+      // Return a reserved product unit to stock (no-op unless this booking
+      // actually reserved one — see offering-stock.ts). Best-effort.
+      await releaseReservedOfferingStock(cancelInquiryId);
 
       // booking.cancelled notifications (spec §6.4) — client + talent +
       // coordinator, email + in-app. Needs the inquiry for contact/schedule +

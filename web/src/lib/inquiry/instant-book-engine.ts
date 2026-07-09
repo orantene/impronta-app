@@ -287,6 +287,11 @@ export async function createInstantBooking(
               price_type: offering.priceType,
               kind: offering.kind,
               pay_in_person: payInPerson,
+              reserve: offering.reserveMode,
+              // Precise release signal: only a product whose stock was actually
+              // decremented here carries this flag, so cancel/expiry paths never
+              // over-release a request-mode product that never reserved.
+              stock_reserved: stockReserved,
             },
           }
         : undefined,
