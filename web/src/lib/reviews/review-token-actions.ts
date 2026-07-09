@@ -47,6 +47,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { isValidRating } from "./review-eligibility";
+import { insertOrEditTalentReview } from "./review-write";
 
 /** Statuses that mean the invite can no longer be used. */
 const TERMINAL_STATUSES = new Set(["completed", "expired"]);
@@ -396,11 +397,14 @@ export async function submitReviewViaTokenAction(
       return { ok: false, needsAuth: true };
     }
 
-    const { error: upsertErr } = await supabase
-      .from("talent_reviews")
-      .upsert({ ...reviewRow, client_user_id: user.id }, { onConflict });
-    if (upsertErr) {
-      logServerError("reviews/token/submit/upsert", upsertErr);
+    // Plain INSERT + WHERE-based UPDATE (NOT .upsert()) — an authed
+    // ON CONFLICT DO UPDATE 42501s post-20261110070000. See review-write.ts.
+    const writeRes = await insertOrEditTalentReview(supabase, {
+      ...reviewRow,
+      client_user_id: user.id,
+    });
+    if (!writeRes.ok) {
+      logServerError("reviews/token/submit/upsert", writeRes.error);
       return {
         ok: false,
         error: "We couldn't save this review. This link may not match your account.",
