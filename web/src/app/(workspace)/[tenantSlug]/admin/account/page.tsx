@@ -43,22 +43,26 @@ type SearchParams = Promise<{
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
+// Design tokens — values resolve to the canonical admin token set
+// (src/styles/admin-color-bridge.css) instead of page-local hex, so this
+// page can never drift from the shell palette again. Note: the old local
+// amber was a warm gold (#8A6F1A) — the token amber is the de-golded slate.
 const C = {
-  ink:        "#0B0B0D",
-  inkMuted:   "rgba(11,11,13,0.55)",
-  inkDim:     "rgba(11,11,13,0.35)",
-  border:     "rgba(24,24,27,0.08)",
-  borderSoft: "rgba(24,24,27,0.06)",
-  cardBg:     "#ffffff",
-  surface:    "rgba(11,11,13,0.02)",
-  accent:     "#0F4F3E",
-  accentSoft: "rgba(15,79,62,0.10)",
-  green:      "#2E7D5B",
-  amber:      "#8A6F1A",
-  amberSoft:  "rgba(180,130,20,0.08)",
+  ink:        "var(--color-admin-ink)",
+  inkMuted:   "var(--color-admin-ink-muted)",
+  inkDim:     "var(--color-admin-ink-dim)",
+  border:     "var(--color-admin-border)",
+  borderSoft: "var(--color-admin-border-soft)",
+  cardBg:     "var(--color-admin-card)",
+  surface:    "var(--color-admin-surface)",
+  accent:     "var(--color-admin-brand)",
+  accentSoft: "var(--color-admin-brand-soft)",
+  green:      "var(--color-admin-green)",
+  amber:      "var(--color-admin-amber)",
+  amberSoft:  "var(--color-admin-amber-soft)",
 } as const;
 
-const FONT = '"Inter", system-ui, sans-serif';
+const FONT = 'var(--font-admin-body, "Inter", system-ui, sans-serif)';
 
 // ─── Plan meta ────────────────────────────────────────────────────────────────
 

@@ -5,8 +5,8 @@ import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { WorkspaceMediaPage } from "../media-page";
 import { useDashboardText } from "../dashboard-i18n";
-import { Avatar, Icon, PrimaryButton, useRovingTabindex } from "../primitives";
-import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, FONTS, PAGE_META, PLAN_META, TRANSITION, meetsRole, useAdminShell } from "../state";
+import { Avatar, Icon, useRovingTabindex } from "../primitives";
+import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, PAGE_META, PLAN_META, useAdminShell } from "../state";
 import type { FabPaletteChangedDetail, WorkspacePage } from "../state";
 import { ShortcutHelpOverlay, useKeyboardLayer } from "../workspace";
 import { CalendarPage } from "./CalendarPage";
@@ -208,8 +208,6 @@ function WorkspaceSidebarShell() {
   const copy = useDashboardText();
   const router = useRouter();
   const pathname = usePathname();
-  const { role } = state;
-  const canCreate = meetsRole(role, "editor");
   // WS-12.6 — roving tabindex on sidebar nav: arrow keys move between pages
   const sidebarNavRef = useRef<HTMLElement | null>(null);
   useRovingTabindex(sidebarNavRef, "button");
@@ -394,12 +392,12 @@ function WorkspaceSidebarShell() {
 
         <div className="flex-1" />
 
-        {/* Settings — pinned to the rail's bottom, Shopify-style. */}
+        {/* Settings — pinned to the rail's bottom, Shopify-style. No create
+            CTA here: "New inquiry" already lives in the Overview header, the
+            + FAB, the ⌘K palette, and the C shortcut — a fifth entry point
+            would be duplication, not convenience. */}
         <div className="flex flex-col gap-[6px] border-t border-admin-border pt-[6px]">
           {renderItem("settings")}
-          {canCreate && (
-            <PrimaryButton onClick={() => openDrawer("new-inquiry")}>+ {copy.t("New inquiry")}</PrimaryButton>
-          )}
           {/* Switch back to topbar layout */}
           <button
             type="button"

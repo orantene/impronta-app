@@ -169,7 +169,13 @@ function WebsiteSubviewTabs({
 }) {
   const t = useT();
   const router = useRouter();
+  const { state } = useAdminShell();
   const base = tenantSlug ? `/${tenantSlug}/admin/website` : "/admin/website";
+  // De-dup: in the sidebar layout the rail already shows these three
+  // destinations as nested sub-links under Website — a second tab strip
+  // saying the same thing is noise. Topbar layout keeps the tabs (there
+  // the rail doesn't exist and this is the only sub-view switcher).
+  if (state.workspaceLayout === "sidebar") return null;
   const tabs: { id: "site" | "card-design" | "profile-pages"; label: string; href: string }[] = [
     { id: "site", label: t("dashboard.adminWebsite.subviewSite"), href: base },
     { id: "card-design", label: t("dashboard.adminWebsite.subviewCardDesign"), href: `${base}/card-design` },

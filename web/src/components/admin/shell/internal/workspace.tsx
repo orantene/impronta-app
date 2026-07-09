@@ -3331,21 +3331,15 @@ const SHORTCUT_GROUPS = [
       { keys: ["?"],         label: "Keyboard shortcuts" },
     ],
   },
+  // Only shortcuts that actually work are listed — an advertised-but-dead
+  // shortcut is a broken promise. E (archive) / R (reply) / "/" / Tab were
+  // listed here before they existed; re-add each one WITH its implementation.
   {
-    title: "List navigation",
+    title: "List navigation (Messages)",
     shortcuts: [
-      { keys: ["J"],         label: "Next item" },
-      { keys: ["K"],         label: "Previous item" },
-      { keys: ["E"],         label: "Archive selected" },
-      { keys: ["R"],         label: "Reply" },
-      { keys: ["⏎"],        label: "Open selected" },
-    ],
-  },
-  {
-    title: "Messaging",
-    shortcuts: [
-      { keys: ["/"],         label: "Search messages" },
-      { keys: ["Tab"],       label: "Switch thread (Private ↔ Group)" },
+      { keys: ["J"],         label: "Focus next thread" },
+      { keys: ["K"],         label: "Focus previous thread" },
+      { keys: ["⏎"],        label: "Open focused thread" },
     ],
   },
 ];

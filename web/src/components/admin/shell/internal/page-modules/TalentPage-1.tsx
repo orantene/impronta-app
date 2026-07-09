@@ -8,7 +8,7 @@ import { CapNudge, Card, GhostButton, PrimaryButton, ReadOnlyChip, StatusCard } 
 import { SkillDiscoveryPanel } from "../skill-discovery-panel";
 import { COLORS, FONTS, PLAN_META, TAXONOMY, Z, getClients, getRoster, meetsRole, useAdminShell } from "../state";
 import type { Plan, TalentPage, TalentProfile, TaxonomyParentId } from "../state";
-import { downloadCsv } from "../wave2";
+import { SavedViewsBar, downloadCsv } from "../wave2";
 import { FabWithQuickCreate } from "./InboxPage";
 import { FilterChip, RosterGrid, RosterMoreMenu, SortButton, ViewToggle } from "./TalentPage-2";
 import { RosterBulkActionBar, RosterEmptyState, RosterList } from "./TalentPage-3";
@@ -321,6 +321,23 @@ export function TalentPage() {
         counts={counts}
         active={stateFilter}
         onFilter={(f) => setStateFilter(f === stateFilter ? "all" : f)}
+      />
+
+      {/* Saved views — reuses the same generic SavedViewsBar the inbox
+          uses (viewKey-namespaced localStorage), capturing the full
+          filter/sort/view state so operators can pin e.g. "Hidden dancers
+          by completeness" and restore it in one click. */}
+      <SavedViewsBar
+        viewKey="roster"
+        current={{ search, stateFilter, typeFilter, sort, sortDir, view }}
+        onApply={(v) => {
+          setSearch(v.search);
+          setStateFilter(v.stateFilter);
+          setTypeFilter(v.typeFilter);
+          setSort(v.sort);
+          setSortDir(v.sortDir);
+          setView(v.view);
+        }}
       />
 
       {/* Filter bar — search + type chips + sort + view toggle */}

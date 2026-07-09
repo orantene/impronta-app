@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
 import { bulkNudgeInquiries, bulkSetInquiryArchived, bulkReassignInquiriesToMe, convertInquiryToBookingAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { useKeyboardListNav } from "../primitives";
 import { useAdminShell, COLORS, FONTS, type RichInquiry } from "../state";
 import { AdminInquiryDetail } from "./admin-2";
 import { AdminInquiryRow } from "./AdminOperationsShell";
@@ -25,7 +26,7 @@ export function AdminInboxList({
   filter: AdminFilter; onFilterChange: (f: AdminFilter) => void;
   totalUnread: number; needsMe: number;
 }) {
-  const { toast: toastBulk, effectiveTenant, tenantSlug, bridgeSessionIdentity } = useAdminShell();
+  const { state, toast: toastBulk, effectiveTenant, tenantSlug, bridgeSessionIdentity } = useAdminShell();
   const currentUserId = bridgeSessionIdentity?.userId ?? null;
   // "Coordinating" surfaces inquiries the CURRENT signed-in user coordinates,
   // matched by the real coordinator user-id (inquiries.coordinator_id). Pinned
@@ -101,6 +102,21 @@ export function AdminInboxList({
     });
   };
   const exitBulk = () => { setBulkMode(false); setSelectedIds(new Set()); };
+
+  // J/K list navigation (WS-7.5 "List navigation" shortcuts, now live).
+  // j/k (or arrows) move focus through the rows; Enter then activates the
+  // focused row natively (the row root is a <button>), so no synthetic
+  // onActivate is needed — and Enter keeps working normally everywhere
+  // else. Suppressed in bulk mode and while any drawer owns the keyboard.
+  // Stale slots left behind when the list shrinks are nulled by React's
+  // ref cleanup on unmount, and the hook filters nulls — no render-time
+  // truncation needed.
+  const sortedRows = sortPinnedFirst(inquiries);
+  const rowRefs = useRef<(HTMLElement | null)[]>([]);
+  useKeyboardListNav({
+    rowsRef: rowRefs,
+    disabled: bulkMode || !!state.drawer.drawerId,
+  });
 
   return (
     <aside data-tulala-list-pane style={{
@@ -238,7 +254,7 @@ export function AdminInboxList({
             )}
           </div>
         ) : renderWithDateGroups(
-            sortPinnedFirst(inquiries),
+            sortedRows,
             i => i.lastActivityHrs,
             i => (
               // In bulk mode, wrap each row with a checkbox lane on the
@@ -262,7 +278,22 @@ export function AdminInboxList({
                   </div>
                 </div>
               ) : (
-                <AdminInquiryRow key={i.id} inquiry={i} active={i.id === activeId} onClick={() => onSelect(i.id)} hideNeedsYouChip={filter === "needs-me"} />
+                // display:contents wrapper carries the j/k row ref without
+                // adding a layout box; the focus target is the row's own
+                // <button> root (firstElementChild).
+                <div
+                  key={i.id}
+                  className="contents"
+                  ref={(el) => {
+                    const idx = sortedRows.findIndex((s) => s.id === i.id);
+                    if (idx >= 0) {
+                      rowRefs.current[idx] =
+                        (el?.firstElementChild as HTMLElement | null) ?? null;
+                    }
+                  }}
+                >
+                  <AdminInquiryRow inquiry={i} active={i.id === activeId} onClick={() => onSelect(i.id)} hideNeedsYouChip={filter === "needs-me"} />
+                </div>
               )
             ),
           )}
