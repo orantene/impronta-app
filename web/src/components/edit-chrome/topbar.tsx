@@ -3041,13 +3041,16 @@ export function TopBar({
   // publish-drawer's handleCopyFromLive: confirm -> safeAction -> refresh.
   async function runPullFromLive(mode: "replace" | "above" | "below") {
     if (!editCtx) return;
-    const confirmMessage =
-      mode === "replace"
-        ? "Replace your draft with the live homepage? Discards unsaved draft edits."
-        : mode === "above"
-          ? "Add the live homepage blocks above your current draft?"
-          : "Add the live homepage blocks below your current draft?";
-    if (typeof window !== "undefined" && !window.confirm(confirmMessage)) {
+    // Only Replace discards the current draft, so only it needs a confirm.
+    // Add above / add below are additive (a single undo reverts them), so they
+    // run in one click without a prompt.
+    if (
+      mode === "replace" &&
+      typeof window !== "undefined" &&
+      !window.confirm(
+        "Replace your draft with the live homepage? Discards unsaved draft edits.",
+      )
+    ) {
       return;
     }
     const res = await safeAction(
