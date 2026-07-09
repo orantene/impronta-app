@@ -95,6 +95,18 @@ export type DiscoverTalentListItem = {
    * plan surfaces this as the real Basic/Verified/Silver/Gold badge.
    */
   trustTier: string | null;
+  /**
+   * STANDING v3 (item 9) — verified review aggregates denormalized on the
+   * matview (talent_profiles.rating_avg/rating_count/would_book_again_pct,
+   * recomputed by talent_reviews_recompute_summary). Cross-tenant / portable by
+   * design. Null / 0 when the talent has no published+verified reviews. Card
+   * adapters render a STANDING chip only past the credibility floor, and only on
+   * a reviews-entitled surface (the marketing global directory is platform-host,
+   * so entitled; per-tenant surfaces must gate on tenantReviewsEnabled).
+   */
+  ratingAvg: number | null;
+  ratingCount: number | null;
+  wouldBookAgainPct: number | null;
 };
 
 export type DiscoverFacets = {
@@ -202,7 +214,7 @@ export async function loadDiscoverTalents(
        agency_tenant_id, agency_name, is_exclusive,
        category_label, category_slug,
        next_available_date, available_days_in_next_30, availability_dots_14d,
-       trust_tier`,
+       trust_tier, rating_avg, rating_count, would_book_again_pct`,
       { count: "exact" },
     );
 
@@ -248,6 +260,9 @@ export async function loadDiscoverTalents(
     available_days_in_next_30: number | null;
     availability_dots_14d: string | null;
     trust_tier: string | null;
+    rating_avg: number | null;
+    rating_count: number | null;
+    would_book_again_pct: number | null;
   };
 
   const rows = (data ?? []) as unknown as IndexRow[];
@@ -306,6 +321,10 @@ export async function loadDiscoverTalents(
       availableDaysInNext30: row.available_days_in_next_30,
       availabilityDots14d: row.availability_dots_14d,
       trustTier: row.trust_tier,
+      ratingAvg: typeof row.rating_avg === "number" ? row.rating_avg : null,
+      ratingCount: typeof row.rating_count === "number" ? row.rating_count : null,
+      wouldBookAgainPct:
+        typeof row.would_book_again_pct === "number" ? row.would_book_again_pct : null,
     };
   });
 
@@ -439,6 +458,11 @@ export type DiscoverMapPoint = {
   availableDaysInNext30: number | null;
   homeLat: number;
   homeLng: number;
+  // Map pins carry no verified-standing signal (a pin is a location, not a
+  // browse card), but a selected pin renders through the same DirectoryCardRow
+  // card, so these are present-and-null to satisfy the shared shape.
+  ratingAvg: number | null;
+  ratingCount: number | null;
 };
 
 export async function loadDiscoverMapPoints(
@@ -536,6 +560,8 @@ export async function loadDiscoverMapPoints(
       availableDaysInNext30: row.available_days_in_next_30,
       homeLat: coords.lat,
       homeLng: coords.lng,
+      ratingAvg: null,
+      ratingCount: null,
     });
   }
 
