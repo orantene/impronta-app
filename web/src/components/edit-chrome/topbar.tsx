@@ -42,6 +42,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
+import { copyPublishedHomepageAction } from "@/lib/site-admin/edit-mode/composition-actions";
+import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import { localeMetadata } from "@/i18n/config";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import {
@@ -1714,7 +1716,10 @@ type PublishMenuOption =
   | "revisions"
   | "page-settings"
   | "duplicate-page"
-  | "unpublish";
+  | "unpublish"
+  | "pull-from-live:replace"
+  | "pull-from-live:above"
+  | "pull-from-live:below";
 
 function PublishSplitButton({
   onPublish,
@@ -1933,6 +1938,47 @@ function PublishSplitButton({
             title="Revision history"
             description="Browse and restore past saves"
             onClick={() => { onMenuSelect("revisions"); setMenuOpen(false); }}
+          />
+          <div
+            role="separator"
+            style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
+          />
+          {/* Pull from live: Replace */}
+          <MenuItem
+            icon={
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            }
+            title="Pull from live: Replace"
+            description="Replace your draft with the live homepage"
+            onClick={() => { onMenuSelect("pull-from-live:replace"); setMenuOpen(false); }}
+          />
+          {/* Pull from live: Add above */}
+          <MenuItem
+            icon={
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+            }
+            title="Pull from live: Add above"
+            description="Add the live homepage blocks above your draft"
+            onClick={() => { onMenuSelect("pull-from-live:above"); setMenuOpen(false); }}
+          />
+          {/* Pull from live: Add below */}
+          <MenuItem
+            icon={
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <polyline points="19 12 12 19 5 12" />
+              </svg>
+            }
+            title="Pull from live: Add below"
+            description="Add the live homepage blocks below your draft"
+            onClick={() => { onMenuSelect("pull-from-live:below"); setMenuOpen(false); }}
           />
           {/* Page settings */}
           <MenuItem
@@ -2968,12 +3014,61 @@ export function TopBar({
       else void improntaLog("edit_chrome_topbar.info", {
         message: "[topbar] unpublish/archive: no handler wired",
       });
+    } else if (
+      opt === "pull-from-live:replace" ||
+      opt === "pull-from-live:above" ||
+      opt === "pull-from-live:below"
+    ) {
+      const mode =
+        opt === "pull-from-live:replace"
+          ? "replace"
+          : opt === "pull-from-live:above"
+            ? "above"
+            : "below";
+      void runPullFromLive(mode);
     } else if (opt === "discard") {
       // Phase 4 — discard draft (revert to live snapshot)
       void improntaLog("edit_chrome_topbar.info", {
         message: "[topbar] discard draft: not yet implemented",
       });
     }
+  }
+
+  // Pull from live: import the tenant's LIVE published homepage into the draft.
+  // DRAFT-ONLY (the lib op never touches the published snapshot or busts the
+  // public cache). Runs from the `...` menu (not the advisory-heavy Publish
+  // drawer) so it never main-thread-freezes on large homes. Mirrors the
+  // publish-drawer's handleCopyFromLive: confirm -> safeAction -> refresh.
+  async function runPullFromLive(mode: "replace" | "above" | "below") {
+    if (!editCtx) return;
+    const confirmMessage =
+      mode === "replace"
+        ? "Replace your draft with the live homepage? Discards unsaved draft edits."
+        : mode === "above"
+          ? "Add the live homepage blocks above your current draft?"
+          : "Add the live homepage blocks below your current draft?";
+    if (typeof window !== "undefined" && !window.confirm(confirmMessage)) {
+      return;
+    }
+    const res = await safeAction(
+      () => copyPublishedHomepageAction({ locale: editCtx.locale, mode }),
+      {
+        name: "pullFromLiveHomepage",
+        fallback: {
+          ok: false as const,
+          error:
+            "Network error. Couldn't pull from live. Check your connection and try again.",
+          code: "network",
+        },
+      },
+    );
+    if (res.ok) {
+      // Reload the editor from the server (same refresh used after copy /
+      // restore / publish) so the canvas reflects the updated draft.
+      await editCtx.refreshComposition();
+      return;
+    }
+    editCtx.reportMutationError(res.error);
   }
 
   return (

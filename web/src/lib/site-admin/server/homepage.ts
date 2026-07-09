@@ -76,7 +76,8 @@ import type {
   HomepageRestoreRevisionValues,
   HomepageSaveDraftValues,
 } from "@/lib/site-admin/forms/homepage";
-import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import { cloneBuilderTreeWithFreshIds } from "@/lib/site-admin/builder-node/page-designs/expand-repeaters";
 import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 import {
   resolveSnapshotBuilderTree,
@@ -417,6 +418,81 @@ function resolveBuilderTreeForComposition(input: {
     builderTree: input.preferredBuilderTree,
   });
   return resolved.tree;
+}
+
+/** Pull-from-live merge modes. `replace` overwrites the draft; `above`/`below`
+ *  splice the published sections onto the current draft. */
+export type PullFromLiveMode = "replace" | "above" | "below";
+
+/**
+ * A home tree is (almost always) a SINGLE root container whose `children` are
+ * the page sections. Returns that container + its children when the tree has
+ * exactly that shape, else `null` (multi-root / non-container fallback).
+ */
+function asSingleRootContainer(
+  tree: BuilderNodeTree,
+): { root: BuilderNode; children: BuilderNode[] } | null {
+  if (tree.length !== 1) return null;
+  const root = tree[0]!;
+  if (root.kind !== "container") return null;
+  const children = (root as { children?: unknown }).children;
+  if (!Array.isArray(children)) return null;
+  return { root, children: children as BuilderNode[] };
+}
+
+/**
+ * Merge the PUBLISHED tree into the current DRAFT tree for Pull-from-live's
+ * `above` / `below` modes (pure; no I/O).
+ *
+ * - `replace` → the published tree verbatim (id-remint is a no-op passthrough
+ *   because a replace discards the draft entirely; ids stay as published).
+ * - `above` / `below` → the published subtree's node ids are RE-MINTED first
+ *   (via `cloneBuilderTreeWithFreshIds` — the tree-level id-remint helper the AI
+ *   generate-nodes insert path uses; the sibling of Add Gallery's per-node
+ *   `cloneNodeWithFreshIds`) so merging never introduces duplicate ids. Then:
+ *     - If BOTH sides are a single root container, the published container's
+ *       CHILDREN are spliced into the draft container's children — `above`
+ *       puts published children first, `below` puts them last. The draft's own
+ *       root container (and its page-level style) is preserved.
+ *     - Otherwise (either side is multi-root or not a single container) fall
+ *       back to concatenating the top-level node arrays in the same order.
+ *
+ * The published tree is treated as read-only; `draftTree` is never mutated.
+ */
+export function mergeBuilderTrees(
+  draftTree: BuilderNodeTree,
+  publishedTree: BuilderNodeTree,
+  mode: PullFromLiveMode,
+): BuilderNodeTree {
+  if (mode === "replace") return publishedTree;
+
+  // Re-mint the incoming (published) subtree so it can never collide with the
+  // draft's existing node ids. cloneBuilderTreeWithFreshIds also remaps the
+  // few id-referential props (defaultOpenItemIds / defaultTabId).
+  const incoming = cloneBuilderTreeWithFreshIds(publishedTree);
+
+  const draftRoot = asSingleRootContainer(draftTree);
+  const incomingRoot = asSingleRootContainer(incoming);
+
+  // Both sides are the canonical single-root-container home shape → merge at the
+  // root container's children level, keeping the DRAFT's own root container.
+  if (draftRoot && incomingRoot) {
+    const mergedChildren =
+      mode === "above"
+        ? [...incomingRoot.children, ...draftRoot.children]
+        : [...draftRoot.children, ...incomingRoot.children];
+    return [
+      {
+        ...draftRoot.root,
+        children: mergedChildren,
+      } as BuilderNode,
+    ];
+  }
+
+  // Fallback: concatenate the top-level node arrays in the requested order.
+  return mode === "above"
+    ? [...incoming, ...draftTree]
+    : [...draftTree, ...incoming];
 }
 
 // ---- ensureHomepageRow ---------------------------------------------------
@@ -1718,6 +1794,15 @@ export async function copyPublishedToDraft(
     actorProfileId: string | null;
     correlationId?: string;
     /**
+     * Pull-from-live merge mode (default `"replace"`, back-compat):
+     *   - `"replace"`: overwrite the draft with the published snapshot (the
+     *     original behavior).
+     *   - `"above"` / `"below"`: keep the current draft and splice the published
+     *     sections above / below it (ids re-minted so no duplicate-id
+     *     corruption). Still DRAFT-ONLY — the live site is never touched.
+     */
+    mode?: PullFromLiveMode;
+    /**
      * Internal dependency-injection seam (default-bound to the real impls).
      * Lets the unit test drive the op without the auth/`after()` request-scope
      * coupling that `requirePhase5Capability` + `scheduleAuditEvent` carry —
@@ -1731,6 +1816,7 @@ export async function copyPublishedToDraft(
   },
 ): Promise<Phase5Result<{ id: string; version: number }>> {
   const { tenantId, locale, actorProfileId } = params;
+  const mode: PullFromLiveMode = params.mode ?? "replace";
   const correlationId = params.correlationId ?? randomUUID();
   const requireCapabilityFn =
     params.__hooks?.requireCapability ?? requirePhase5Capability;
@@ -1809,11 +1895,54 @@ export async function copyPublishedToDraft(
   }
   // CRITICAL — freeform (builderTree-only) homepages: prefer the snapshot's
   // builderTree so the reset draft keeps all freeform content even when there
-  // are zero curated slots.
-  const copiedBuilderTree = resolveBuilderTreeForComposition({
+  // are zero curated slots. This is the PUBLISHED tree (what "replace" writes).
+  const publishedBuilderTree = resolveBuilderTreeForComposition({
     composition: keptComposition,
     preferredBuilderTree: snapBuilderTree,
   });
+
+  // For `above` / `below` we keep the CURRENT DRAFT and splice the published
+  // sections onto it. Read the draft's builderTree the same way the editor +
+  // publish path do: the `cms_page_revisions` row whose `version` matches
+  // `cms_pages.version`, guarded by `recoverBuilderTreeIfEmpty` so a drifted
+  // version pointer onto an empty revision doesn't wipe a still-good draft.
+  // `replace` skips this read entirely (draft is discarded).
+  let copiedBuilderTree = publishedBuilderTree;
+  if (mode !== "replace") {
+    const { data: draftRevisionRow } = await supabase
+      .from("cms_page_revisions")
+      .select("snapshot")
+      .eq("tenant_id", tenantId)
+      .eq("page_id", beforeRow.id)
+      .eq("version", beforeRow.version)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
+    const versionMatchedDraftTree =
+      draftRevisionRow?.snapshot &&
+      typeof draftRevisionRow.snapshot === "object" &&
+      "builderTree" in draftRevisionRow.snapshot
+        ? draftRevisionRow.snapshot.builderTree
+        : undefined;
+    const recoveredDraftTree = await recoverBuilderTreeIfEmpty(
+      supabase,
+      {
+        tenantId,
+        pageId: beforeRow.id,
+        pageVersion: beforeRow.version,
+        hasSlots: false,
+      },
+      versionMatchedDraftTree,
+    );
+    const draftTree = (
+      Array.isArray(recoveredDraftTree) ? recoveredDraftTree : []
+    ) as BuilderNodeTree;
+    copiedBuilderTree = mergeBuilderTrees(
+      draftTree,
+      publishedBuilderTree,
+      mode,
+    );
+  }
 
   // Apply page-field copy + CAS-bump version.
   const nextVersion = beforeRow.version + 1;
@@ -1834,41 +1963,90 @@ export async function copyPublishedToDraft(
   if (updErr) return mapTriggerError(updErr);
   if (!updatedPage) return versionConflict(beforeRow.version + 1);
 
-  // Replace draft rows with the copied (published) composition.
-  const { error: delErr } = await supabase
-    .from("cms_page_sections")
-    .delete()
-    .eq("tenant_id", tenantId)
-    .eq("page_id", beforeRow.id)
-    .eq("is_draft", true);
-  if (delErr) {
-    void improntaLog("site_admin_homepage.warn", {
-      message: "[site-admin/homepage] copy-from-live draft clear failed",
-      tenantId,
-      pageId: beforeRow.id,
-      error: delErr.message,
-    });
-  }
-  if (keptComposition.length > 0) {
-    const rows = keptComposition.map((entry) => ({
-      tenant_id: tenantId,
-      page_id: beforeRow.id,
-      section_id: entry.sectionId,
-      slot_key: entry.slotKey,
-      sort_order: entry.sortOrder,
-      is_draft: true,
-    }));
-    const { error: insErr } = await supabase
+  // `replace` overwrites the draft's curated section rows with the published
+  // composition. `above` / `below` merge at the builderTree level and MUST NOT
+  // touch the existing draft section rows (a `section_id` is unique per page,
+  // so re-inserting published slots alongside the draft's would collide). The
+  // revision `composition` we snapshot follows the same rule.
+  let revisionComposition: HomepageSnapshotSection[] = keptComposition;
+  if (mode === "replace") {
+    const { error: delErr } = await supabase
       .from("cms_page_sections")
-      .insert(rows);
-    if (insErr) {
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("page_id", beforeRow.id)
+      .eq("is_draft", true);
+    if (delErr) {
       void improntaLog("site_admin_homepage.warn", {
-        message: "[site-admin/homepage] copy-from-live draft insert failed",
+        message: "[site-admin/homepage] copy-from-live draft clear failed",
         tenantId,
         pageId: beforeRow.id,
-        count: rows.length,
-        error: insErr.message,
+        error: delErr.message,
       });
+    }
+    if (keptComposition.length > 0) {
+      const rows = keptComposition.map((entry) => ({
+        tenant_id: tenantId,
+        page_id: beforeRow.id,
+        section_id: entry.sectionId,
+        slot_key: entry.slotKey,
+        sort_order: entry.sortOrder,
+        is_draft: true,
+      }));
+      const { error: insErr } = await supabase
+        .from("cms_page_sections")
+        .insert(rows);
+      if (insErr) {
+        void improntaLog("site_admin_homepage.warn", {
+          message: "[site-admin/homepage] copy-from-live draft insert failed",
+          tenantId,
+          pageId: beforeRow.id,
+          count: rows.length,
+          error: insErr.message,
+        });
+      }
+    }
+  } else {
+    // Merge modes keep the draft's own section rows; snapshot them (not the
+    // published slots) into the revision composition so it mirrors what's on
+    // the page after the merge.
+    const { data: draftSectionRows } = await supabase
+      .from("cms_page_sections")
+      .select("section_id, slot_key, sort_order")
+      .eq("tenant_id", tenantId)
+      .eq("page_id", beforeRow.id)
+      .eq("is_draft", true);
+    if (Array.isArray(draftSectionRows) && draftSectionRows.length > 0) {
+      const draftSectionIds = draftSectionRows.map(
+        (r) => (r as { section_id: string }).section_id,
+      );
+      const draftFacts = await loadSectionFactsBulk(
+        supabase,
+        tenantId,
+        draftSectionIds,
+      );
+      revisionComposition = draftSectionRows.flatMap((raw) => {
+        const r = raw as {
+          section_id: string;
+          slot_key: string;
+          sort_order: number;
+        };
+        const f = draftFacts.get(r.section_id);
+        if (!f || f.status === "archived") return [];
+        return [
+          {
+            slotKey: r.slot_key,
+            sortOrder: r.sort_order,
+            sectionId: r.section_id,
+            sectionTypeKey: f.section_type_key,
+            schemaVersion: f.schema_version,
+            name: f.name,
+            props: f.props_jsonb,
+          } as HomepageSnapshotSection,
+        ];
+      });
+    } else {
+      revisionComposition = [];
     }
   }
 
@@ -1880,7 +2058,7 @@ export async function copyPublishedToDraft(
     templateSchemaVersion: updatedPage.template_schema_version,
     snapshot: buildRevisionSnapshot({
       page: updatedPage,
-      composition: keptComposition,
+      composition: revisionComposition,
       builderTree: copiedBuilderTree,
       kind: "rollback",
     }),
@@ -1891,13 +2069,17 @@ export async function copyPublishedToDraft(
     dropped.length > 0
       ? ` (${dropped.length} dropped: ${dropped.join(", ")})`
       : "";
+  const diffAction =
+    mode === "replace"
+      ? "homepage draft reset from published snapshot"
+      : `homepage draft merged with published snapshot (${mode})`;
   scheduleAuditFn(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.homepage.compose",
     entityType: "cms_pages",
     entityId: updatedPage.id,
-    diffSummary: `homepage draft reset from published snapshot${diffSuffix}`,
+    diffSummary: `${diffAction}${diffSuffix}`,
     beforeSnapshot: beforeRow,
     afterSnapshot: updatedPage,
     correlationId,

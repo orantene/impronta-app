@@ -32,6 +32,7 @@ import {
   ensureHomepageRow,
   publishHomepage,
   saveHomepageDraftComposition,
+  type PullFromLiveMode,
 } from "@/lib/site-admin/server/homepage";
 import { loadDraftHomepage } from "@/lib/site-admin/server/homepage-reads";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -2050,6 +2051,12 @@ export type CopyPublishedResult =
  */
 export async function copyPublishedHomepageAction(input: {
   locale: string;
+  /**
+   * Pull-from-live merge mode. Omitted → `"replace"` (back-compat: the
+   * publish-drawer "Copy from live" caller passes no mode and still overwrites
+   * the draft). `"above"` / `"below"` splice the live sections onto the draft.
+   */
+  mode?: PullFromLiveMode;
 }): Promise<CopyPublishedResult> {
   const auth = await requireStaff();
   if (!auth.ok) {
@@ -2066,12 +2073,17 @@ export async function copyPublishedHomepageAction(input: {
   if (!isLocale(input.locale)) {
     return { ok: false, error: "Invalid locale", code: "VALIDATION_FAILED" };
   }
+  const mode: PullFromLiveMode = input.mode ?? "replace";
+  if (mode !== "replace" && mode !== "above" && mode !== "below") {
+    return { ok: false, error: "Invalid mode", code: "VALIDATION_FAILED" };
+  }
 
   try {
     const result = await copyPublishedToDraft(auth.supabase, {
       tenantId: scope.tenantId,
       locale: input.locale,
       actorProfileId: auth.user.id,
+      mode,
     });
     if (!result.ok) {
       return {

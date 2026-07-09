@@ -28,7 +28,10 @@ type PublishMenuOption =
   | "revisions"
   | "page-settings"
   | "duplicate-page"
-  | "unpublish";
+  | "unpublish"
+  | "pull-from-live:replace"
+  | "pull-from-live:above"
+  | "pull-from-live:below";
 
 /** Exhaustive list of menu options that MUST appear in the menu. */
 const REQUIRED_MENU_OPTIONS: PublishMenuOption[] = [
