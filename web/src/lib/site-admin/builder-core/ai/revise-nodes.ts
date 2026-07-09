@@ -68,7 +68,7 @@ export type ReviseNodesResult =
 function buildReviseAddendum(): string {
   return [
     "",
-    "TASK OVERRIDE — REVISE MODE:",
+    "TASK OVERRIDE (REVISE MODE):",
     "You are NOT composing a page from scratch. You are revising ONE existing block whose current content is given below in the same JSON grammar you output.",
     "- Preserve everything the change request does not mention: keep the exact copy, structure, block kinds, and styling that already work. Change ONLY what is asked.",
     "- Do not renumber, translate, or reword untouched copy. Do not drop children you were not asked to remove.",
@@ -82,7 +82,7 @@ function buildReviseUserMessage(node: BuilderNode, instruction: string, locale?:
   const languageName = getLocaleMetadata(locale ?? "en").label;
   const shapeLine =
     kind === "section"
-      ? 'Return {"sections": [ ONE section ]} — the revised version of the section below.'
+      ? 'Return {"sections": [ ONE section ]}: the revised version of the section below.'
       : `Return {"sections": [ ONE section whose SINGLE child is the revised "${kind}" block ]}. Do not add sibling blocks unless the change requires them.`;
   return [
     "Revise the block below and return only the JSON object.",
@@ -237,7 +237,7 @@ export async function reviseBuilderNodes(input: ReviseNodesInput): Promise<Revis
     );
   }
   if ("fail" in result) {
-    return { ok: false, code: "EMPTY", error: "The AI could not revise that — try rephrasing." };
+    return { ok: false, code: "EMPTY", error: "The AI could not revise that. Try rephrasing." };
   }
   return { ok: true, node: result.node, nodeCount: countNodes(result.node), repaired: result.repaired };
 }
