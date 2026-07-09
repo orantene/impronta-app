@@ -129,6 +129,11 @@ import {
 } from "./page-block-dom";
 import { performAddGalleryInsertById } from "@/lib/site-admin/add-gallery/perform-insert";
 import { getAddGalleryItemById } from "@/lib/site-admin/add-gallery/registry";
+import { AiReviseModal } from "./ai-revise/ai-revise-modal";
+import {
+  replaceBuilderNodeInTree,
+  findBuilderNodeParentIndex,
+} from "@/lib/site-admin/builder-node/replace-in-tree";
 import { CHROME, EDIT_TOPBAR_H, Z_INDEX } from "./kit/tokens";
 import { CANVAS_HUD_LEFT_INSET_PX } from "./workspace-layout";
 import { resolveLayerDisplayName } from "./freeform-layer-name";
@@ -681,6 +686,7 @@ export function SelectionLayer() {
     insertBuilderNode,
     insertBuilderSectionEmbed,
     insertBuilderComponent,
+    applyComposedTreeWithUndo,
     moveBuilderNodeWithinParent,
     moveBuilderNodeToParentIndex,
     removeBuilderNode,
@@ -738,6 +744,40 @@ export function SelectionLayer() {
   const [selectionAnnounce, setSelectionAnnounce] = useState("");
   const [selectionFocused, setSelectionFocused] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  // AI "revise this block" — the node id whose revise modal is open (null = closed).
+  const [aiReviseNodeId, setAiReviseNodeId] = useState<string | null>(null);
+  const aiReviseNode = useMemo(
+    () => (aiReviseNodeId ? findBuilderNodeById(builderTree, aiReviseNodeId) : null),
+    [aiReviseNodeId, builderTree],
+  );
+  // Replace the selected block's whole subtree with the AI candidate — one
+  // undoable, autosaved apply (the same chokepoint the "Design with AI" apply
+  // uses), so the change is snapshotted and reversible.
+  const handleAiReplace = useCallback(
+    async (candidate: BuilderNode): Promise<{ ok: boolean; error?: string }> => {
+      if (!aiReviseNodeId) return { ok: false, error: "No block selected." };
+      const { tree, replaced } = replaceBuilderNodeInTree(builderTree, aiReviseNodeId, candidate);
+      if (!replaced) return { ok: false, error: "That block is no longer on the page." };
+      return applyComposedTreeWithUndo({ tree, label: "Revised block with AI" });
+    },
+    [aiReviseNodeId, builderTree, applyComposedTreeWithUndo],
+  );
+  // Insert the AI candidate as a sibling directly after the selected block
+  // (undoable via the shared insert path). Section roots insert at page root.
+  const handleAiInsertBelow = useCallback(
+    async (candidate: BuilderNode): Promise<{ ok: boolean; error?: string }> => {
+      if (!aiReviseNodeId) return { ok: false, error: "No block selected." };
+      const loc = findBuilderNodeParentIndex(builderTree, aiReviseNodeId);
+      if (!loc) return { ok: false, error: "That block is no longer on the page." };
+      const res = await insertBuilderComponent(
+        loc.parentId,
+        JSON.stringify(candidate),
+        loc.index + 1,
+      );
+      return { ok: res.ok, error: res.error };
+    },
+    [aiReviseNodeId, builderTree, insertBuilderComponent],
+  );
   const [chipInspectorTab, setChipInspectorTab] = useState<"content" | "style">(
     "content",
   );
@@ -4793,6 +4833,11 @@ export function SelectionLayer() {
 	              onRequestInlineEdit={() => {
 	                if (selectedBuilderNodeId) requestInlineEdit(selectedBuilderNodeId);
 	              }}
+	              onReviseWithAi={
+	                selectedBuilderNodeId
+	                  ? () => setAiReviseNodeId(selectedBuilderNodeId)
+	                  : undefined
+	              }
 	              repositionKey={Math.round(renderSelectedRect.top + renderSelectedRect.left)}
 	              onCopyStyle={() => {
 	                if (!selectedBuilderNode?.props.style) return;
@@ -5090,6 +5135,11 @@ export function SelectionLayer() {
                 onResetPosition={() => commitSelectedNodeTranslate(0, 0)}
                 onEditContent={() => requestInspectorTab("content")}
                 onDesign={() => requestInspectorTab("style")}
+                onReviseWithAi={
+                  selectedBuilderNodeId
+                    ? () => setAiReviseNodeId(selectedBuilderNodeId)
+                    : null
+                }
                 onEdit={() => requestInlineEdit(selectedBuilderNodeId)}
                 onMoveUp={
                   selectedSiblingContext?.canMoveUp && selectedBuilderNodeId
@@ -5705,6 +5755,19 @@ export function SelectionLayer() {
         onInsert={commitBetweenBlocksInsert}
         onInsertSectionEmbed={commitBetweenBlocksSectionEmbed}
       />
+
+      {/* AI "revise this block" modal — opened from the block chip's sparkle
+          action. Reads the selected block's content, previews a revised
+          candidate (desktop + mobile), and commits via undoable replace /
+          insert-below. It portals to <body>, so its position here is moot. */}
+      {aiReviseNode ? (
+        <AiReviseModal
+          node={aiReviseNode}
+          onClose={() => setAiReviseNodeId(null)}
+          onReplace={handleAiReplace}
+          onInsertBelow={handleAiInsertBelow}
+        />
+      ) : null}
     </div>,
     portalEl,
   );
@@ -6982,6 +7045,7 @@ function BlockChipToolBar({
   onResetPosition,
   onEditContent,
   onDesign,
+  onReviseWithAi,
   onEdit,
   onMoveUp,
   onMoveDown,
@@ -7005,6 +7069,9 @@ function BlockChipToolBar({
   onResetPosition: () => void;
   onEditContent: () => void;
   onDesign: () => void;
+  // Opens the "revise this block with AI" modal for the selected node. Null when
+  // the surface has no AI revise handler wired (keeps the button out entirely).
+  onReviseWithAi: (() => void) | null;
   onEdit: () => void;
   onMoveUp: (() => void) | null;
   onMoveDown: (() => void) | null;
@@ -7091,6 +7158,20 @@ function BlockChipToolBar({
         onClick={onEditContent}
       />
       <ChipTextAction label="Design" disabled={disabled} onClick={onDesign} />
+      {/* Revise this block with AI — reads the block's existing content and
+          rewrites it from a plain-language ask, previewed before it commits. */}
+      {onReviseWithAi ? (
+        <ChipBtn
+          style={{ ...btnStyle, color: "#c4b5fd" }}
+          disabled={disabled}
+          onClick={onReviseWithAi}
+          aria-label="Revise this block with AI"
+          data-selection-block-action="ai"
+          title="Revise with AI"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 4.9L18.7 9.7l-4.9 1.8L12 16.4l-1.8-4.9L5.3 9.7l4.9-1.8L12 3Z" /><path d="M19 14l.7 1.9 1.9.7-1.9.7L19 19.2l-.7-1.9-1.9-.7 1.9-.7L19 14Z" /></svg>
+        </ChipBtn>
+      ) : null}
       {/* Inline pencil edit remains for text blocks; inspector tabs above. */}
       {canEditText ? (
         <ChipBtn
