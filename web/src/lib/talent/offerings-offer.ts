@@ -18,7 +18,7 @@ import type { TalentOffering } from "./offerings-types";
 import type { OfferPricingUnit } from "./services-menu-offer";
 
 /** Units where a client-picked quantity multiplies the price. */
-const QUANTITY_UNITS: readonly OfferPricingUnit[] = ["hour", "day", "week", "half_day", "per_person", "per_contact"];
+export const QUANTITY_UNITS: readonly OfferPricingUnit[] = ["hour", "day", "week", "half_day", "per_person", "per_contact"];
 
 export type OfferingOfferLineSeed = {
   talent_profile_id: string;

@@ -36,7 +36,10 @@ import {
   type TalentOffering,
   type OfferingKind,
   type OfferingReserveMode,
+  type OfferingVariant,
+  type OfferingAddOn,
 } from "@/lib/talent/offerings-types";
+import { OfferingOptionsEditor } from "./OfferingOptionsEditor";
 import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 import { DEFAULT_CURRENCY_OPTIONS, CURRENCY_LABELS } from "@/lib/billing/currencies";
 
@@ -156,19 +159,24 @@ function OfferingForm({
   isDraft,
   saving,
   defaultCurrency,
+  talentId,
   onSaveDraft,
   onCancelDraft,
   onImages,
+  onOptionsSynced,
 }: {
   value: TalentOffering;
   onPatch: (p: Partial<TalentOffering>) => void;
   isDraft: boolean;
   saving: boolean;
   defaultCurrency: string;
+  talentId: string;
   onSaveDraft?: () => void;
   onCancelDraft?: () => void;
   /** Local-state updater after an image attach/remove (join rows, not the row). */
   onImages?: (offeringId: string, assets: { id: string; url: string }[]) => void;
+  /** Local-state updater after variants/add-ons persist (child rows, not the row). */
+  onOptionsSynced?: (offeringId: string, variants: OfferingVariant[], addOns: OfferingAddOn[]) => void;
 }) {
   const { inputStyle, labelStyle, pillStyle } = makeStyles(saving);
   const mode = toPriceMode(value);
@@ -577,6 +585,24 @@ function OfferingForm({
               />
             </label>
           </div>
+
+          {/* D4 — options (client picks one) + extras (stack on top). Children
+              tables need a saved offering id, so drafts get a hint instead. */}
+          {value.id ? (
+            <OfferingOptionsEditor
+              talentId={talentId}
+              offeringId={value.id}
+              currency={value.currency}
+              variants={value.variants ?? []}
+              addOns={value.addOns ?? []}
+              saving={saving}
+              onSynced={(v, a) => onOptionsSynced?.(value.id, v, a)}
+            />
+          ) : (
+            <p style={{ margin: 0, fontSize: 11.5, color: C.inkSoft, fontFamily: FONT }}>
+              Save first to add options (sizes/tiers) and extras.
+            </p>
+          )}
         </div>
       )}
 
@@ -872,6 +898,7 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
             isDraft
             saving={saving}
             defaultCurrency={defaultCurrency}
+            talentId={talentId}
             onPatch={(p) => setDraft((d) => (d ? { ...d, ...p } : d))}
             onSaveDraft={saveDraft}
             onCancelDraft={() => {
@@ -952,6 +979,7 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
                       isDraft={false}
                       saving={saving}
                       defaultCurrency={defaultCurrency}
+                      talentId={talentId}
                       onPatch={(p) => patchItem(it.id, p)}
                       onImages={(id, assets) =>
                         setItems((cur) =>
@@ -959,6 +987,9 @@ export function TalentOfferingsManager({ talentId }: { talentId: string }) {
                             x.id === id ? { ...x, imageAssets: assets, imageUrls: assets.map((a) => a.url) } : x,
                           ),
                         )
+                      }
+                      onOptionsSynced={(id, variants, addOns) =>
+                        setItems((cur) => cur.map((x) => (x.id === id ? { ...x, variants, addOns } : x)))
                       }
                     />
                     <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap", borderTop: `1px dashed ${C.borderSoft}`, paddingTop: 12 }}>

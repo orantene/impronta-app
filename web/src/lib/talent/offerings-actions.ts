@@ -23,6 +23,7 @@ import {
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
+import { loadOfferingChildren, MAX_OPTIONS_PER_OFFERING } from "@/lib/talent/offerings-children";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -173,10 +174,13 @@ export async function loadTalentOfferingsForEditor(talentProfileId: string): Pro
     }
     const rows = (data ?? []) as TalentOfferingRow[];
     const images = await loadImageAssets(admin, rows.map((r) => r.id));
+    const children = await loadOfferingChildren(admin, rows.map((r) => r.id));
     const items = rows.map((r) => {
       const assets = images.get(r.id) ?? [];
       const item = rowToOffering(r, "en", assets.map((a) => a.url));
       item.imageAssets = assets;
+      item.variants = children.variants.get(r.id) ?? [];
+      item.addOns = children.addOns.get(r.id) ?? [];
       return item;
     });
 
@@ -327,6 +331,102 @@ export async function setOfferingImages(
   }
   revalidatePath("/talent/services");
   return { ok: true };
+}
+
+/**
+ * Replace an offering's OPTIONS (variants) and EXTRAS (add-ons) — Lane D4.
+ * Array order IS the display order. Labels are required; a variant without a
+ * price falls back to the offering's base price; an add-on must carry one.
+ * Returns the saved children (fresh ids) so the editor can re-sync.
+ */
+export async function setOfferingOptions(
+  talentProfileId: string,
+  offeringId: string,
+  input: {
+    variants: { label: string; amountCents: number | null }[];
+    addOns: { label: string; amountCents: number }[];
+  },
+): Promise<
+  | { ok: true; variants: { id: string; label: string; amountCents: number | null }[]; addOns: { id: string; label: string; amountCents: number }[] }
+  | { ok: false; error: string }
+> {
+  try {
+    const auth = await authorizeForTalent(talentProfileId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error." };
+
+    // Guard: the offering must belong to this talent.
+    const { data: own } = await offeringsTable(admin)
+      .select("id")
+      .eq("id", offeringId)
+      .eq("talent_profile_id", talentProfileId)
+      .maybeSingle();
+    if (!own) return { ok: false, error: "Not found." };
+
+    const variants = (input.variants ?? [])
+      .map((v) => ({
+        label: (v.label ?? "").trim().slice(0, 80),
+        amount_cents:
+          typeof v.amountCents === "number" && Number.isFinite(v.amountCents) && v.amountCents >= 0
+            ? Math.round(v.amountCents)
+            : null,
+      }))
+      .filter((v) => v.label)
+      .slice(0, MAX_OPTIONS_PER_OFFERING);
+    const addOns = (input.addOns ?? [])
+      .map((a) => ({
+        label: (a.label ?? "").trim().slice(0, 80),
+        amount_cents:
+          typeof a.amountCents === "number" && Number.isFinite(a.amountCents) && a.amountCents >= 0
+            ? Math.round(a.amountCents)
+            : null,
+      }))
+      .filter((a): a is { label: string; amount_cents: number } => Boolean(a.label) && a.amount_cents != null)
+      .slice(0, MAX_OPTIONS_PER_OFFERING);
+
+    // Replace-all (same semantics as setOfferingImages).
+    const { error: delV } = await admin.from("talent_offering_variants").delete().eq("offering_id", offeringId);
+    const { error: delA } = await admin.from("talent_offering_addons").delete().eq("offering_id", offeringId);
+    if (delV || delA) {
+      logServerError("talent.offerings.optionsClear", delV ?? delA);
+      return { ok: false, error: "Failed to save options." };
+    }
+    let savedVariants: { id: string; label: string; amount_cents: number | null }[] = [];
+    let savedAddOns: { id: string; label: string; amount_cents: number }[] = [];
+    if (variants.length > 0) {
+      const { data, error } = await admin
+        .from("talent_offering_variants")
+        .insert(variants.map((v, i) => ({ offering_id: offeringId, label: v.label, amount_cents: v.amount_cents, sort_order: i })))
+        .select("id, label, amount_cents");
+      if (error) {
+        logServerError("talent.offerings.variantsSet", error);
+        return { ok: false, error: "Failed to save options." };
+      }
+      savedVariants = (data ?? []) as typeof savedVariants;
+    }
+    if (addOns.length > 0) {
+      const { data, error } = await admin
+        .from("talent_offering_addons")
+        .insert(addOns.map((a, i) => ({ offering_id: offeringId, label: a.label, amount_cents: a.amount_cents, sort_order: i })))
+        .select("id, label, amount_cents");
+      if (error) {
+        logServerError("talent.offerings.addonsSet", error);
+        return { ok: false, error: "Failed to save extras." };
+      }
+      savedAddOns = (data ?? []) as typeof savedAddOns;
+    }
+
+    revalidatePath("/talent/services");
+    return {
+      ok: true,
+      variants: savedVariants.map((v) => ({ id: v.id, label: v.label, amountCents: v.amount_cents })),
+      addOns: savedAddOns.map((a) => ({ id: a.id, label: a.label, amountCents: a.amount_cents })),
+    };
+  } catch (err) {
+    logServerError("talent.offerings.setOptions", err);
+    return { ok: false, error: "Unexpected error." };
+  }
 }
 
 /* ------------------------------------------------------------------ */

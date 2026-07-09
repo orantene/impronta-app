@@ -49,6 +49,7 @@ import {
 import { parseTalentBookingTerms, parseTenantCommercialTerms } from "@/lib/billing/commercial-terms";
 import { normalizeServicesMenu, findInstantBookService } from "@/lib/talent/services-menu-types";
 import { rowToOffering, offeringIsDirectlyBookable, type TalentOfferingRow } from "@/lib/talent/offerings-types";
+import { QUANTITY_UNITS } from "@/lib/talent/offerings-offer";
 
 export type InstantBookInput = {
   tenantId: string;
@@ -77,6 +78,20 @@ export type InstantBookInput = {
    * paid (payment_method cash) from the Messages shell.
    */
   payInPerson?: boolean;
+  /**
+   * D4 — the chosen option (talent_offering_variants.id). Loaded + validated
+   * server-side (must belong to the offering); its amount_cents overrides the
+   * base price (null = base applies). A variantId that doesn't belong refuses.
+   */
+  variantId?: string | null;
+  /** D4 — chosen extras (talent_offering_addons.id[]); each becomes its own offer line. */
+  addOnIds?: string[];
+  /**
+   * D5 — client-picked quantity. Applies only to per-unit price types
+   * (QUANTITY_UNITS) and products; clamped 1..999 (products further capped by
+   * atomic stock reserve). Everything else books as 1.
+   */
+  quantity?: number;
 };
 
 export type InstantBookReason =
@@ -228,21 +243,59 @@ export async function createInstantBooking(
       }
     }
 
-    // W3-8 — PRODUCT stock: atomically reserve one unit before any money step;
+    // D4 — resolve the chosen variant + add-ons SERVER-SIDE (never trust client
+    // cents). A submitted id that doesn't belong to this offering refuses.
+    type ChosenVariant = { id: string; label: string; amount_cents: number | null };
+    let variant: ChosenVariant | null = null;
+    let chosenAddOns: { id: string; label: string; amount_cents: number }[] = [];
+    if (offering && input.variantId) {
+      const { data: vRow } = await admin
+        .from("talent_offering_variants")
+        .select("id, label, amount_cents")
+        .eq("id", input.variantId)
+        .eq("offering_id", offering.id)
+        .maybeSingle();
+      if (!vRow) return { ok: false, reason: "no_fixed_rate", error: "unknown_variant" };
+      variant = vRow as ChosenVariant;
+    }
+    if (offering && (input.addOnIds?.length ?? 0) > 0) {
+      const ids = [...new Set(input.addOnIds!)].slice(0, 30);
+      const { data: aRows } = await admin
+        .from("talent_offering_addons")
+        .select("id, label, amount_cents")
+        .in("id", ids)
+        .eq("offering_id", offering.id);
+      chosenAddOns = ((aRows ?? []) as typeof chosenAddOns).filter(
+        (a) => typeof a.amount_cents === "number" && a.amount_cents >= 0,
+      );
+      if (chosenAddOns.length !== ids.length) {
+        return { ok: false, reason: "no_fixed_rate", error: "unknown_addon" };
+      }
+    }
+
+    // D5 — quantity: per-unit price types and products only; everything else 1.
+    const qtyEligible =
+      offering != null &&
+      ((QUANTITY_UNITS as readonly string[]).includes(offering.priceType) || offering.kind === "product");
+    const quantity = qtyEligible
+      ? Math.max(1, Math.min(999, Math.round(input.quantity ?? 1)))
+      : 1;
+
+    // W3-8 — PRODUCT stock: atomically reserve the units before any money step;
     // a sold-out product refuses cleanly (no inquiry/offer/charge is created).
     // Compensation: released on any later engine failure in this call.
     let stockReserved = false;
     if (offering && offering.kind === "product" && offering.inventoryQty != null) {
       const { data: got } = await admin.rpc("reserve_offering_stock", {
         p_offering_id: offering.id,
-        p_qty: 1,
+        p_qty: quantity,
       });
       if (got !== true) return { ok: false, reason: "no_fixed_rate", error: "sold_out" };
       stockReserved = true;
     }
     const releaseStock = async () => {
       if (stockReserved && offering) {
-        await admin.rpc("release_offering_stock", { p_offering_id: offering.id, p_qty: 1 });
+        await admin.rpc("release_offering_stock", { p_offering_id: offering.id, p_qty: quantity });
       }
     };
 
@@ -250,11 +303,18 @@ export async function createInstantBooking(
     if (!optIn || (offering == null && tenantTerms?.instantBookEnabled !== true)) {
       return { ok: false, reason: "instant_book_not_enabled" };
     }
-    const fixedRateCents = offering?.amountCents ?? menuItem?.amountCents ?? talentTerms?.fixedRateCents ?? null;
-    if (fixedRateCents == null || fixedRateCents <= 0) {
+    // D4/D5 price resolution: the chosen variant's price (when set) overrides
+    // the offering's base; quantity multiplies the unit; extras stack on top.
+    // Legacy menu/fixed-rate paths keep booking exactly one unit at base.
+    const unitCents =
+      variant?.amount_cents ?? offering?.amountCents ?? menuItem?.amountCents ?? talentTerms?.fixedRateCents ?? null;
+    if (unitCents == null || unitCents <= 0) {
       return { ok: false, reason: "no_fixed_rate" };
     }
-    const fixedRateDollars = fixedRateCents / 100;
+    const addOnTotalCents = chosenAddOns.reduce((s, a) => s + a.amount_cents, 0);
+    const orderTotalCents = unitCents * quantity + addOnTotalCents;
+    const unitDollars = unitCents / 100;
+    const orderTotalDollars = orderTotalCents / 100;
     const currency = (offering?.currency ?? input.currencyCode ?? "USD").toUpperCase();
     const talentName = (tp?.display_name as string | null)?.trim() || "Talent";
     const payInPerson = input.payInPerson === true && offering?.allowPayInPerson === true;
@@ -292,6 +352,14 @@ export async function createInstantBooking(
               // decremented here carries this flag, so cancel/expiry paths never
               // over-release a request-mode product that never reserved.
               stock_reserved: stockReserved,
+              // D5 — how many units were reserved (release paths mirror this).
+              stock_reserved_qty: stockReserved ? quantity : 0,
+              // D4/D5 — the client's selection, for the coordinator/composer.
+              quantity,
+              variant_id: variant?.id ?? null,
+              variant_label: variant?.label ?? null,
+              add_ons: chosenAddOns.map((a) => ({ id: a.id, label: a.label, amount_cents: a.amount_cents })),
+              order_total_cents: orderTotalCents,
             },
           }
         : undefined,
@@ -301,7 +369,7 @@ export async function createInstantBooking(
       initiator_role: "client",
       tenant_id: input.tenantId,
       source_workspace_id: input.sourceWorkspaceId ?? input.tenantId,
-      quantity: 1,
+      quantity,
       message: offering ? `Direct booking: ${offering.title}` : "Instant booking",
     });
     if (!(inq as { success?: boolean }).success) {
@@ -338,24 +406,41 @@ export async function createInstantBooking(
       actorUserId: staffActor,
       inquiryExpectedVersion: Number((inqV2.data as { version: number } | null)?.version ?? 1),
       offerExpectedVersion: Number((offV1.data as { version: number } | null)?.version ?? 1),
-      total_client_price: fixedRateDollars,
+      total_client_price: orderTotalDollars,
       coordinator_fee: 0,
       currency_code: currency,
       notes: null,
       lineItems: [
         {
           talent_profile_id: input.talentProfileId,
-          // Name the line after the booked offering/service when driven by one.
-          label: offering?.title ?? menuItem?.name ?? talentName,
+          // Name the line after the booked offering/service when driven by one;
+          // a chosen variant rides in the label so the thread reads the order.
+          label:
+            (offering?.title ?? menuItem?.name ?? talentName) + (variant ? ` (${variant.label})` : ""),
           pricing_unit: offering?.priceType ?? "event",
-          units: 1,
-          unit_price: fixedRateDollars,
-          total_price: fixedRateDollars,
-          talent_cost: fixedRateDollars,
+          units: quantity,
+          unit_price: unitDollars,
+          total_price: Math.round(unitCents * quantity) / 100,
+          // PER-UNIT (the resolver computes talent_full = Σ units × talent_cost
+          // and refuses talent_cost > unit_price) — never the line total.
+          talent_cost: unitDollars,
           notes: null,
           sort_order: 0,
           source_service_id: offering?.id ?? menuItem?.id ?? null, // S18 — audit stamp
         },
+        // D4 — each chosen extra is its own line (full provenance in the offer).
+        ...chosenAddOns.map((a, i) => ({
+          talent_profile_id: input.talentProfileId,
+          label: a.label,
+          pricing_unit: "flat_package" as const,
+          units: 1,
+          unit_price: a.amount_cents / 100,
+          total_price: a.amount_cents / 100,
+          talent_cost: a.amount_cents / 100,
+          notes: null,
+          sort_order: i + 1,
+          source_service_id: offering?.id ?? null,
+        })),
       ],
     });
     if (!(upd as { success?: boolean }).success) {
@@ -453,11 +538,18 @@ export async function createInstantBooking(
 
     // Persist the commission snapshot — convertToBooking's TS wrapper does this
     // after the RPC, but we call the RPC directly (client session), so it's our
-    // job. Without it the talent is never paid (executeBookingTransfers skips a
-    // booking with no snapshot). Non-fatal: a failure is logged for backfill.
+    // job. FATAL (matches the coordinator path's P1 money-hardening): a booking
+    // with no snapshot can never pay the talent AND the payment fallback would
+    // bill the raw rate (no surcharge). Compensate: return the reserved stock,
+    // delete the orphan booking (cascades its children), and fail the call —
+    // the client can retry or use the inquiry path; the inquiry itself stays
+    // for coordinator follow-up.
     const snap = await persistBookingCommissionSnapshot(admin, bookingId);
     if (!snap.ok) {
       logServerError("instantBook.commission_snapshot", new Error(`booking ${bookingId}: ${snap.reason ?? "persist_failed"}`));
+      await releaseStock();
+      await admin.from("agency_bookings").delete().eq("id", bookingId);
+      return { ok: false, reason: "engine_error", error: `commission_snapshot:${snap.reason ?? "persist_failed"}` };
     }
 
     // ── Step 8 — create + request the payment ───────────────────────────────
@@ -474,7 +566,7 @@ export async function createInstantBooking(
     // back via these snapshot sums. Falls back to the bare fixed rate only when no
     // snapshot exists (rare — the snapshot persist above failed).
     const grossChargedCents = await sumBookingGrossChargedCents(admin, bookingId);
-    const fullGrossCents = grossChargedCents > 0 ? grossChargedCents : fixedRateCents;
+    const fullGrossCents = grossChargedCents > 0 ? grossChargedCents : orderTotalCents;
     const snapshotPlatformFeeCents = await sumBookingPlatformFeeCents(admin, bookingId);
 
     // A2 — apply a deposit when the offer's resolved terms specify one. The offer
