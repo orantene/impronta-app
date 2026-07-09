@@ -330,6 +330,8 @@ const SHORTCUTS = [
   { keys: ["J"], label: "Focus next thread (Messages)" },
   { keys: ["K"], label: "Focus previous thread (Messages)" },
   { keys: ["⏎"], label: "Open focused thread" },
+  { keys: ["E"], label: "Archive focused thread (Messages)" },
+  { keys: ["R"], label: "Reply: focus the composer (Messages)" },
   { keys: ["Esc"], label: "Close drawer / modal" },
   { keys: ["?"], label: "This shortcuts panel" },
 ];

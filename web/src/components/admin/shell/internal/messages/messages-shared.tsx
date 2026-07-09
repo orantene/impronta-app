@@ -14,6 +14,14 @@ export const currentTalentId = () =>
   `t-${MY_TALENT_PROFILE.name.split(" ")[0]?.toLowerCase()}`;
 export type MessagesPov = "admin" | "talent" | "client";
 
+/**
+ * WS-7.5 — "R" reply shortcut. The inbox list dispatches this window
+ * event; whichever DraftComposer is mounted focuses its input in
+ * response. Event-based so the list doesn't need a ref into the thread
+ * pane's composer.
+ */
+export const FOCUS_COMPOSER_EVENT = "tulala:focus-composer";
+
 // ════════════════════════════════════════════════════════════════════
 // SHARED — adapters + common helpers
 // ════════════════════════════════════════════════════════════════════

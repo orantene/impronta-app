@@ -3332,14 +3332,17 @@ const SHORTCUT_GROUPS = [
     ],
   },
   // Only shortcuts that actually work are listed — an advertised-but-dead
-  // shortcut is a broken promise. E (archive) / R (reply) / "/" / Tab were
-  // listed here before they existed; re-add each one WITH its implementation.
+  // shortcut is a broken promise. "/" and Tab were listed here before they
+  // existed; re-add each one WITH its implementation. E and R are LIVE as
+  // of WS-7.5 wave 6 (admin-1.tsx keydown + FOCUS_COMPOSER_EVENT).
   {
     title: "List navigation (Messages)",
     shortcuts: [
       { keys: ["J"],         label: "Focus next thread" },
       { keys: ["K"],         label: "Focus previous thread" },
       { keys: ["⏎"],        label: "Open focused thread" },
+      { keys: ["E"],         label: "Archive focused thread" },
+      { keys: ["R"],         label: "Reply: focus the composer" },
     ],
   },
 ];

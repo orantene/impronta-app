@@ -201,6 +201,7 @@ export function AdminOperationsShell() {
         }} />
         <AdminInboxList
           inquiries={filtered}
+          allInquiries={inquiries}
           activeId={active?.id ?? ""}
           onSelect={(id) => { setActiveId(id); setMobilePane("thread"); markConvSeen(id); }}
           search={search}

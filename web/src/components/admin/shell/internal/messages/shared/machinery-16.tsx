@@ -11,6 +11,7 @@ import { COLORS, FONTS, useAdminShell } from "../../state";
 import { Avatar } from "../../primitives";
 import { MOCK_THREAD, type Conversation } from "../../talent";
 import { appendLocalMessage, readLocalMessages, useMessageStashSubscription } from "../conversation-stash";
+import { FOCUS_COMPOSER_EVENT } from "../messages-shared";
 import { FirstConvBanner, getWorkspaceIdentity, isFirstConvWith } from "./inbox-identity-1";
 import { convToInquiry } from "./machinery-1";
 import { LiveLineupPanel } from "./machinery-11";
@@ -683,6 +684,15 @@ export function DraftComposer({
   // in the input. Stores the partial query after "@" for filtering.
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // WS-7.5 — "R" reply shortcut: the inbox dispatches
+  // FOCUS_COMPOSER_EVENT; the mounted composer grabs keyboard focus so
+  // the user can type their reply immediately.
+  useEffect(() => {
+    const onFocusRequest = () => inputRef.current?.focus();
+    window.addEventListener(FOCUS_COMPOSER_EVENT, onFocusRequest);
+    return () => window.removeEventListener(FOCUS_COMPOSER_EVENT, onFocusRequest);
+  }, []);
 
   // Detect "@" trigger: find the last "@" before the cursor and derive
   // the query string (text typed after the "@"). If the user has typed

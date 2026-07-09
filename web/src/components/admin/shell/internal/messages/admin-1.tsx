@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
 import { bulkNudgeInquiries, bulkSetInquiryArchived, bulkReassignInquiriesToMe, convertInquiryToBookingAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
@@ -10,28 +10,36 @@ import { AdminInquiryDetail } from "./admin-2";
 import { AdminInquiryRow } from "./AdminOperationsShell";
 import type { AdminFilter } from "./AdminOperationsShell";
 import { __convFlags, archiveInquiry, getIncomingHandoffs, sortPinnedFirst, useFlagsSubscription, useHandoffSubscription } from "./conversation-stash";
-import { renderWithDateGroups } from "./messages-shared";
+import { FOCUS_COMPOSER_EVENT, renderWithDateGroups } from "./messages-shared";
 import { HoverActionsCss, SearchPill } from "./shared/inbox-identity-1";
 import { FilterChip } from "./shared/inbox-identity-2";
 import type { Offer } from "./shared/machinery-9";
 
 
 export function AdminInboxList({
-  inquiries, activeId, onSelect, search, onSearchChange, filter, onFilterChange, totalUnread, needsMe,
+  inquiries, allInquiries, activeId, onSelect, search, onSearchChange, filter, onFilterChange, totalUnread, needsMe,
 }: {
   inquiries: RichInquiry[];
+  /**
+   * UNFILTERED inquiry set for the chip counts. `inquiries` is already
+   * view-filtered by the parent, so counting archived/coordinating/triage
+   * over it undercounts — worst case the Archived chip read 0 the moment
+   * you archived from any other view, making archived threads unreachable.
+   */
+  allInquiries?: RichInquiry[];
   activeId: string;
   onSelect: (id: string) => void;
   search: string; onSearchChange: (s: string) => void;
   filter: AdminFilter; onFilterChange: (f: AdminFilter) => void;
   totalUnread: number; needsMe: number;
 }) {
+  const countBase = allInquiries ?? inquiries;
   const { state, toast: toastBulk, effectiveTenant, tenantSlug, bridgeSessionIdentity } = useAdminShell();
   const currentUserId = bridgeSessionIdentity?.userId ?? null;
   // "Coordinating" surfaces inquiries the CURRENT signed-in user coordinates,
   // matched by the real coordinator user-id (inquiries.coordinator_id). Pinned
   // as a saved view.
-  const coordCount = inquiries.filter(i =>
+  const coordCount = countBase.filter(i =>
     !!currentUserId && i.coordinator?.id === currentUserId,
   ).length;
   // Subscribe to handoff store + count the user's incoming handoffs.
@@ -48,7 +56,7 @@ export function AdminInboxList({
   // and pin their own (filter + search + sort). They appear at the
   // start of the chip row with a star pin so they read as
   // first-class user-curated entry points, not just filters.
-  const archivedCount = inquiries.filter(i => !!__convFlags[i.id]?.archived).length;
+  const archivedCount = countBase.filter(i => !!__convFlags[i.id]?.archived).length;
   // A7 — triage queue count: open-funnel inquiries owing coordinator action.
   // Same predicate as the triage filter; precomputed here for the chip label.
   // Inline the bucket helper since it's not in this function's scope.
@@ -61,7 +69,7 @@ export function AdminInboxList({
     if (s === "booked") return "booked";
     return "past";
   };
-  const triageCount = inquiries.filter(i => {
+  const triageCount = countBase.filter(i => {
     const isArchived = !!__convFlags[i.id]?.archived;
     if (isArchived) return false;
     if (i.nextActionBy !== "coordinator") return false;
@@ -117,6 +125,48 @@ export function AdminInboxList({
     rowsRef: rowRefs,
     disabled: bulkMode || !!state.drawer.drawerId,
   });
+
+  // E = archive/restore the FOCUSED thread (focus a row with j/k first —
+  // no focus, no action, so a stray "e" can never archive silently).
+  // R = jump to the open thread's reply composer (FOCUS_COMPOSER_EVENT).
+  // Both suppressed while typing, in bulk mode, or while a drawer owns
+  // the keyboard — same guards as j/k.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (bulkMode || !!state.drawer.drawerId) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === "r") {
+        e.preventDefault();
+        window.dispatchEvent(new Event(FOCUS_COMPOSER_EVENT));
+        return;
+      }
+      if (e.key !== "e") return;
+      const focused = document.activeElement;
+      const idx = rowRefs.current.findIndex((el) => el !== null && el === focused);
+      if (idx < 0) return;
+      const row = sortedRows[idx];
+      if (!row) return;
+      e.preventDefault();
+      const restoring = filter === "archived";
+      // Local flag first so the list re-orders immediately; persist real
+      // UUIDs in the background — same pattern as the bulk Archive button.
+      archiveInquiry(row.id);
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.id)) {
+        void bulkSetInquiryArchived(effectiveTenant.slug, [row.id], !restoring).then((r) => {
+          if (!r.ok) toastBulk(`${restoring ? "Restore" : "Archive"} failed: ${r.error}`);
+        });
+      }
+      toastBulk(`${restoring ? "Restored" : "Archived"} ${row.clientName}`);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [bulkMode, state.drawer.drawerId, sortedRows, filter, effectiveTenant.slug, toastBulk]);
 
   return (
     <aside data-tulala-list-pane style={{
@@ -219,12 +269,18 @@ export function AdminInboxList({
               </svg>
             </div>
             <div className="text-admin-ink text-admin-13 font-semibold">
-              {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "No messages yet"}
+              {search.trim()
+                ? <>No matches for &ldquo;{search}&rdquo;</>
+                : filter === "archived"
+                  ? "No archived threads"
+                  : "No messages yet"}
             </div>
             <div style={{ fontSize: 11.5, lineHeight: 1.4, maxWidth: 240 }} className="text-admin-ink-muted">
               {search.trim()
                 ? "Try a different keyword, or clear the search."
-                : "They’ll appear here as clients reach out via your storefront."}
+                : filter === "archived"
+                  ? "Threads you archive land here. Press E on a focused row to archive or restore it."
+                  : "They’ll appear here as clients reach out via your storefront."}
             </div>
             {!search.trim() && (tenantSlug || effectiveTenant?.domain) && (
               <a
