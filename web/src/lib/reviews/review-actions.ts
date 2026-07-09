@@ -35,6 +35,7 @@ import {
   isBookingReviewable,
   isValidRating,
 } from "./review-eligibility";
+import { insertOrEditTalentReview } from "./review-write";
 
 type BookingRow = {
   id: string;
@@ -229,33 +230,31 @@ export async function submitTalentReviewAction(
     return { ok: false, error: "That talent isn't on this booking." };
   }
 
-  // Upsert — one review per (booking, talent, client). RLS guarantees the row
-  // is attributed to the caller (client_user_id = auth.uid()).
-  const { error: upsertErr } = await supabase
-    .from("talent_reviews")
-    .upsert(
-      {
-        tenant_id: tenantId,
-        talent_profile_id: cleanTalentId,
-        booking_id: cleanBookingId,
-        client_user_id: user.id,
-        rating: r,
-        body: cleanBody || null,
-        would_book_again: wouldBookAgain,
-        attr_professionalism: attrProfessionalism,
-        attr_skill: attrSkill,
-        attr_communication: attrCommunication,
-        attr_reliability: attrReliability,
-        traits,
-        private_note: privateNote,
-        anon,
-        status: "published",
-      },
-      { onConflict: "booking_id,talent_profile_id,client_user_id" },
-    );
+  // One review per (booking, talent, client). RLS attributes the row to the
+  // caller (client_user_id = auth.uid()). NOTE: no `.upsert()` — an authed
+  // ON CONFLICT DO UPDATE 42501s because migration 20261110070000 revoked table
+  // SELECT to hide private_note; insertOrEditTalentReview does a plain INSERT +
+  // WHERE-based UPDATE instead. See review-write.ts.
+  const writeRes = await insertOrEditTalentReview(supabase, {
+    tenant_id: tenantId,
+    talent_profile_id: cleanTalentId,
+    booking_id: cleanBookingId,
+    client_user_id: user.id,
+    rating: r,
+    body: cleanBody || null,
+    would_book_again: wouldBookAgain,
+    attr_professionalism: attrProfessionalism,
+    attr_skill: attrSkill,
+    attr_communication: attrCommunication,
+    attr_reliability: attrReliability,
+    traits,
+    private_note: privateNote,
+    anon,
+    status: "published",
+  });
 
-  if (upsertErr) {
-    logServerError("reviews/submit/upsert", upsertErr);
+  if (!writeRes.ok) {
+    logServerError("reviews/submit/upsert", writeRes.error);
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
