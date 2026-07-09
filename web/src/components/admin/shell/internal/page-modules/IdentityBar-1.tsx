@@ -18,6 +18,7 @@ import { TULALA_BRAND } from "@/lib/brand/tulala";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { AccountMenuItem, IdentityBarIconButton, ModeTogglePill } from "./IdentityBar-2";
 import { TALENT_UNREAD } from "./WorkspaceTopbar";
+import { WorkspacePulseChip } from "./WorkspacePulseChip";
 
 
 export function TulalaIdentityBar() {
@@ -266,40 +267,43 @@ export function TulalaIdentityBar() {
 
         <div data-tulala-id-divider className="mx-[4px] h-[22px] w-px bg-admin-border-soft" />
 
-        {/* Acting-as context — flips with mode. Click opens the
-            tenant or agency switcher depending on which side.
-            Audit #4 — chevron rotates on hover to invite the click. */}
-        <button
-          type="button"
-          onClick={onActingClick}
-          aria-label={copy.isSpanish ? `Actuando como ${actingLabel} — cambiar` : `Acting as ${actingLabel} — switch`}
-          title={actingSubLabel}
-          className="tulala-acting-chip inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border-none bg-transparent px-[9px] py-[5px] font-admin-body [transition:background_var(--transition-admin-micro)]"
-          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-        >
-          <span
-            aria-hidden
-            className="h-[6px] w-[6px] shrink-0 rounded-full bg-admin-green"
-          />
-          <span
-            data-tulala-acting-label
-            className="inline-flex max-w-[220px] min-w-0 flex-col items-start overflow-hidden"
+        {/* Left context — split by surface (audit: the workspace acting-as
+            chip duplicated the sidebar tenant chip: same name, same switcher
+            drawer, 100px apart). On the workspace surface the RAIL owns
+            identity + switching, and this slot becomes the Business Pulse:
+            live money/ops signals with a breakdown popover. Talent + client
+            surfaces have no rail, so they keep the acting-as switcher. */}
+        {inWorkspace ? (
+          <WorkspacePulseChip />
+        ) : (
+          <button
+            type="button"
+            onClick={onActingClick}
+            aria-label={copy.isSpanish ? `Actuando como ${actingLabel} — cambiar` : `Acting as ${actingLabel} — switch`}
+            title={actingSubLabel}
+            className="tulala-acting-chip inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border-none bg-transparent px-[9px] py-[5px] font-admin-body hover:bg-[rgba(11,11,13,0.04)] [transition:background_var(--transition-admin-micro)]"
           >
-            <span className="inline-flex items-center gap-[6px] font-admin-body text-[13px] font-medium tracking-[-0.05px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.15] text-admin-ink">
-              {/* Plan tier moved to its own clickable <WorkspacePlanBadge> in the
-                  right utility cluster — opens a summary popover. */}
-              <span className="overflow-hidden text-ellipsis">{actingLabel}</span>
+            <span
+              aria-hidden
+              className="h-[6px] w-[6px] shrink-0 rounded-full bg-admin-green"
+            />
+            <span
+              data-tulala-acting-label
+              className="inline-flex max-w-[220px] min-w-0 flex-col items-start overflow-hidden"
+            >
+              <span className="inline-flex items-center gap-[6px] font-admin-body text-[13px] font-medium tracking-[-0.05px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.15] text-admin-ink">
+                <span className="overflow-hidden text-ellipsis">{actingLabel}</span>
+              </span>
+              <span data-tulala-acting-detail className="mt-px font-admin-body text-[10px] font-medium tracking-[0px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.1] text-admin-ink-muted">{actingDetail}</span>
             </span>
-            <span data-tulala-acting-detail className="mt-px font-admin-body text-[10px] font-medium tracking-[0px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.1] text-admin-ink-muted">{actingDetail}</span>
-          </span>
-          <span
-            aria-hidden
-            className="tulala-acting-chevron inline-flex [transition:transform_var(--transition-admin-layout)]"
-          >
-            <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
-          </span>
-        </button>
+            <span
+              aria-hidden
+              className="tulala-acting-chevron inline-flex [transition:transform_var(--transition-admin-layout)]"
+            >
+              <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
+            </span>
+          </button>
+        )}
 
         {/* Centered global search — Shopify-style. One pill in the middle of
             the chrome that opens the unified command palette (same target as

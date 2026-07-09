@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
-import { ActivityFeedItem, Affordance, Bullet, CompactLockedCard, GhostButton, Icon, MoreWithSection, PrimaryButton, PrimaryCard, SecondaryButton, SecondaryCard, StarterCard, StatDot, StatusCard } from "../primitives";
+import { ActivityFeedItem, Affordance, Bullet, CompactLockedCard, GhostButton, Icon, MoreWithSection, PrimaryButton, PrimaryCard, SecondaryCard, StarterCard, StatDot, StatusCard } from "../primitives";
 import { ACTIVATION_TASKS, COLORS, FONTS, RADIUS, RICH_INQUIRIES, TRANSITION, formatRecentActivity, getInquiries, getRoster, getTeam, meetsRole, useAdminShell } from "../state";
 
 // Time-aware greeting key for the overview header. Mirrors the hour buckets
@@ -142,10 +142,11 @@ export function OverviewPage() {
         subtitle={new Date().toLocaleDateString(t("dashboard.adminOverview.dateLocale"), { weekday: "long", month: "long", day: "numeric" })}
         actions={
           <>
-            {/* Read-only — every workspace role can review the activity log. */}
-            <SecondaryButton onClick={() => openDrawer("team-activity")}>
-              {t("dashboard.adminOverview.recentActivity")}
-            </SecondaryButton>
+            {/* De-dup audit: the "Recent activity" header button was the
+                FIRST of three controls on this page opening the same
+                team-activity drawer (card + section "View all" were the
+                others) while the feed itself renders inline below. The
+                section's "View all" is the one entry point now. */}
             {canEdit && (
               <PrimaryButton onClick={() => openDrawer("new-inquiry")}>
                 {t("dashboard.adminOverview.newInquiry")}
@@ -326,12 +327,6 @@ export function OverviewPage() {
           meta={interpolate(t(draftCount === 1 ? "dashboard.adminOverview.itemCountOne" : "dashboard.adminOverview.itemCountOther"), { count: draftCount })}
           affordance={t("dashboard.adminOverview.review")}
           onClick={() => openDrawer("drafts-holds")}
-        />
-        <SecondaryCard
-          title={t("dashboard.adminOverview.recentActivity")}
-          description={t("dashboard.adminOverview.recentActivityCardDesc")}
-          affordance={t("dashboard.adminOverview.seeFeed")}
-          onClick={() => openDrawer("team-activity")}
         />
       </Grid>
 
