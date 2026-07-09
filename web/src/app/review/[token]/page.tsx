@@ -234,8 +234,15 @@ export default async function ReviewInvitePage({
     </div>
   );
 
-  // Needs-auth: no matching session — prompt sign-in first.
-  if (!authMatched) {
+  // Guest path: an EMAIL-only invite (not tied to a known account) opened
+  // without a matching session. Possession of the single-use, booking-bound
+  // token proves inbox access, so a no-account guest may review — as an honest,
+  // UNVERIFIED "Invited review". A known-account invite still requires sign-in.
+  const guestEligible =
+    !authMatched && !invite.clientUserId && inviteEmail.length > 0;
+
+  // Needs-auth: a known-account invite opened without the matching session.
+  if (!authMatched && !guestEligible) {
     return (
       <Shell>
         {contextCard}
@@ -278,7 +285,8 @@ export default async function ReviewInvitePage({
     );
   }
 
-  // Matched — render the form.
+  // Matched (verified-capable) OR a guest reviewing an email-only invite. A
+  // guest review can never be payment-verified, so it never claims "Verified".
   return (
     <Shell>
       {contextCard}
@@ -286,7 +294,8 @@ export default async function ReviewInvitePage({
         token={invite.token}
         talentName={invite.talentName}
         talentProfileCode={invite.talentProfileCode}
-        verifiable={verifiable}
+        verifiable={verifiable && !guestEligible}
+        guestMode={guestEligible}
       />
     </Shell>
   );

@@ -4,6 +4,7 @@ import { cache } from "react";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
+import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 import { loadAgencyInboxHideSet } from "@/lib/inquiry/agency-inbox-visibility";
 export { loadInquiryMessages, loadTotalUnreadMessages } from "./inquiry-thread-messages";
 
@@ -459,6 +460,11 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
         (r) => r.talent_profile_id,
       ),
     );
+    // Reviews are a PREMIUM capability. The photo + headline on lineup chips are
+    // free, but the verified-standing trust chip (★ avg · count) shown in the
+    // inquiry thread only appears when THIS workspace has reviews enabled. Fails
+    // closed (a resolution failure hides the rating).
+    const reviewsOn = await tenantReviewsEnabled(tenantId);
     for (const row of (participantsRes.data ?? []) as Array<{
       inquiry_id: string;
       role: "client" | "coordinator" | "talent";
@@ -490,13 +496,16 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
           : null,
         // Verified standing from the SAME batched loadTalentChipInfo read
         // (no extra query / no N+1). Null when the talent has no published
-        // reviews, so the thread's trust chip renders nothing for them.
-        ratingAvg: row.talent_profile_id
-          ? (lineupChips.get(row.talent_profile_id)?.ratingAvg ?? null)
-          : null,
-        ratingCount: row.talent_profile_id
-          ? (lineupChips.get(row.talent_profile_id)?.ratingCount ?? null)
-          : null,
+        // reviews OR the workspace isn't reviews-entitled, so the thread's
+        // trust chip renders nothing for them.
+        ratingAvg:
+          reviewsOn && row.talent_profile_id
+            ? (lineupChips.get(row.talent_profile_id)?.ratingAvg ?? null)
+            : null,
+        ratingCount:
+          reviewsOn && row.talent_profile_id
+            ? (lineupChips.get(row.talent_profile_id)?.ratingCount ?? null)
+            : null,
       });
       lineup.set(row.inquiry_id, cur);
     }

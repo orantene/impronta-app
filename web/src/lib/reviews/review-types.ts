@@ -7,6 +7,13 @@
  * Contract owner: Agent 1. Kept identical across all agents in this wave.
  */
 
+/** A single approved photo attached to a review (STANDING v3 item 5). */
+export type ReviewMediaItem = {
+  id: string;
+  /** Public URL (media-public bucket). */
+  url: string;
+};
+
 export type TalentReview = {
   id: string;
   talentProfileId: string;
@@ -21,6 +28,12 @@ export type TalentReview = {
   replyBody: string | null;
   /** When the talent's reply was posted (ISO); null until they reply. */
   replyAt: string | null;
+  /**
+   * Approved photos attached to this review (STANDING v3 item 5). Optional —
+   * only the public profile loader (loadTalentReviews) populates it; the other
+   * builders omit it (undefined), so the field never churns their construction.
+   */
+  media?: ReviewMediaItem[];
 };
 
 export type TalentRatingSummary = {

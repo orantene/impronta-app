@@ -21,10 +21,8 @@
 
 import { useEffect, useState } from "react";
 import { reportReviewAction } from "@/lib/reviews/review-actions";
-import {
-  createReviewRequestAction,
-  reviewsEnabledForTenantAction,
-} from "@/lib/reviews/review-request-actions";
+import { reviewsEnabledForTenantAction } from "@/lib/reviews/review-request-actions";
+import { AskForReviewCard } from "./ReviewsAskForReviewCard";
 import {
   loadOwnerPrivateNoteThemesAction,
   loadOwnerReceivedReviewsAction,
@@ -460,135 +458,6 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
           </button>
         )}
       </div>
-    </div>
-  );
-}
-
-// ─── Ask a past client for a review ─────────────────────────────────────────
-
-/**
- * A quiet, honest request card. The talent enters a past client's email and an
- * optional note; we file a pending review_requests row. No pre-filled rating and
- * no incentive language — offering anything of value for a review is an FTC
- * problem, so the copy stays a plain, personal ask.
- */
-function AskForReviewCard({
-  tenantSlug,
-  talentProfileId,
-}: {
-  tenantSlug: string;
-  talentProfileId: string;
-}) {
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
-
-  const canSubmit = email.trim().length > 0 && !busy;
-
-  async function submit() {
-    if (!canSubmit) return;
-    setBusy(true);
-    setError(null);
-    // TODO(booking-picker): let the talent pick a specific eligible booking
-    // instead of leaving bookingId blank. For now this files an email invite
-    // with no booking attached; the booking picker is the follow-up.
-    const res = await createReviewRequestAction({
-      tenantSlug,
-      talentProfileId,
-      bookingId: "",
-      invitedEmail: email.trim(),
-      message: message.trim() || null,
-    });
-    if (res.ok) {
-      setSent(true);
-      setEmail("");
-      setMessage("");
-    } else {
-      setError(res.error || "Could not send the request.");
-    }
-    setBusy(false);
-  }
-
-  const inputClass =
-    "box-border w-full rounded-admin-sm border border-admin-border bg-white px-[11px] py-[9px] font-admin-body text-admin-13 text-admin-ink";
-
-  return (
-    <div className="flex flex-col gap-[14px] rounded-admin-lg border border-admin-border bg-admin-card p-[20px] font-admin-body">
-      <div className="flex flex-col gap-[4px]">
-        <span className="text-[14px] font-bold text-admin-ink">
-          Ask a past client for a review
-        </span>
-        <span className="text-admin-12h leading-[1.5] text-admin-ink-muted">
-          A quick, personal request. It takes about 20 seconds and helps future
-          clients decide.
-        </span>
-      </div>
-
-      {sent ? (
-        <div className="flex flex-col items-start gap-[8px]">
-          <span className="text-admin-12h font-semibold text-admin-green">
-            Request saved. We will let you know when they respond.
-          </span>
-          <button
-            type="button"
-            onClick={() => setSent(false)}
-            className="cursor-pointer rounded-admin-sm border border-admin-border bg-white px-[11px] py-[5px] font-admin-body text-admin-11h font-semibold text-admin-ink-muted"
-          >
-            Ask someone else
-          </button>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-[10px]">
-          <label className="flex flex-col gap-[5px]">
-            <span className="text-admin-11h font-semibold text-admin-ink-muted">
-              Client email
-            </span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="client@example.com"
-              disabled={busy}
-              className={inputClass}
-            />
-          </label>
-
-          <label className="flex flex-col gap-[5px]">
-            <span className="text-admin-11h font-semibold text-admin-ink-muted">
-              A short note (optional)
-            </span>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="It was a pleasure working with you. Would you share a few words?"
-              disabled={busy}
-              rows={3}
-              className={`${inputClass} min-h-[64px] resize-y`}
-            />
-          </label>
-
-          {error && (
-            <div className="text-admin-11h text-admin-red">{error}</div>
-          )}
-
-          <div className="flex items-center gap-[8px]">
-            <button
-              type="button"
-              onClick={submit}
-              disabled={!canSubmit}
-              className={`rounded-[8px] border-none px-[16px] py-[8px] font-admin-body text-admin-12h font-bold ${
-                canSubmit
-                  ? "cursor-pointer bg-admin-accent text-white"
-                  : "cursor-not-allowed bg-admin-surface-alt text-admin-ink-dim"
-              }`}
-            >
-              {busy ? "Sending…" : "Send request"}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

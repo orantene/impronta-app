@@ -24,10 +24,62 @@ import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import type {
   ClientReview,
   RatingSummary,
+  ReviewMediaItem,
   TalentRatingSummary,
   TalentReview,
   Testimonial,
 } from "./review-types";
+
+type SupabaseLike = NonNullable<ReturnType<typeof createPublicSupabaseClient>>;
+
+type ReviewMediaRow = {
+  id: string;
+  review_id: string;
+  bucket_id: string | null;
+  storage_path: string | null;
+  sort_order: number | null;
+};
+
+/**
+ * Batch-load approved photos for a set of published reviews, keyed by review_id
+ * (STANDING v3 item 5). RLS exposes only approved, non-deleted media of
+ * published reviews to the anon client, so the same public client the reviews
+ * were read with is enough. Public URLs come from the public media-public
+ * bucket. Best-effort: any failure yields an empty map (reviews still render).
+ */
+async function loadReviewMediaMap(
+  supabase: SupabaseLike,
+  reviewIds: string[],
+): Promise<Map<string, ReviewMediaItem[]>> {
+  const out = new Map<string, ReviewMediaItem[]>();
+  const ids = Array.from(new Set(reviewIds.filter(Boolean)));
+  if (ids.length === 0) return out;
+  try {
+    const { data, error } = await supabase
+      .from("talent_review_media")
+      .select("id, review_id, bucket_id, storage_path, sort_order")
+      .in("review_id", ids)
+      .is("deleted_at", null)
+      .eq("approval_state", "approved")
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })
+      .returns<ReviewMediaRow[]>();
+    if (error || !data) return out;
+    for (const m of data) {
+      if (!m.storage_path) continue;
+      const bucket = m.bucket_id || "media-public";
+      const { data: pub } = supabase.storage.from(bucket).getPublicUrl(m.storage_path);
+      const url = pub?.publicUrl;
+      if (!url) continue;
+      const list = out.get(m.review_id) ?? [];
+      list.push({ id: m.id, url });
+      out.set(m.review_id, list);
+    }
+  } catch {
+    // best-effort — reviews render without media
+  }
+  return out;
+}
 
 type ReviewRow = {
   id: string;
@@ -114,7 +166,10 @@ export async function loadTalentReviews(
 
   if (error || !data || data.length === 0) return [];
 
-  const names = await resolveClientFirstNames(data.map((r) => r.client_user_id));
+  const [names, mediaByReview] = await Promise.all([
+    resolveClientFirstNames(data.map((r) => r.client_user_id)),
+    loadReviewMediaMap(supabase, data.map((r) => r.id)),
+  ]);
 
   return data.map((r) => ({
     id: r.id,
@@ -128,6 +183,7 @@ export async function loadTalentReviews(
     createdAt: r.created_at,
     replyBody: r.reply_body ?? null,
     replyAt: r.reply_at ?? null,
+    media: mediaByReview.get(r.id) ?? [],
   }));
 }
 

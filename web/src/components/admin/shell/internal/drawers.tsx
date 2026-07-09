@@ -21,6 +21,7 @@ import { ClientTodayPulseDrawer, ClientTalentCardDrawer, ClientShortlistDetailDr
 import { PlatformTodayPulseDrawer, PlatformTenantDetailDrawer, PlatformTenantImpersonateDrawer, PlatformTenantSuspendDrawer, PlatformTenantPlanOverrideDrawer, PlatformUserDetailDrawer, PlatformUserMergeDrawer, PlatformUserResetDrawer, PlatformHubSubmissionDrawer, PlatformHubRulesDrawer, PlatformBillingInvoiceDrawer, PlatformRefundDrawer, PlatformDunningDrawer, PlatformFeatureFlagDrawer, PlatformModerationItemDrawer, PlatformSystemJobDrawer, PlatformIncidentDrawer, PlatformSupportTicketDrawer, PlatformAuditExportDrawer, PlatformHqTeamDrawer, PlatformRegionConfigDrawer } from "./platform";
 import { PaymentDetailDrawer, PaymentsSetupDrawer, PayoutReceiverPickerDrawer } from "./drawers/drawer-shared";
 import { TalentProfileShellDrawer, NewTalentDrawer } from "./drawers/profile-shell";
+import { ReviewModerationQueue } from "./drawers/profile-shell/profile-shell-modules/review-moderation-queue";
 import { TenantSummaryDrawer, SiteSetupDrawer, PlanBillingDrawer } from "./drawers/light-01";
 import { TeamDrawer, TalentTypesDrawer } from "./drawers/light-02";
 import { TalentRegistrationDrawer } from "./drawers/light-03";
@@ -612,9 +613,41 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
     case "circle-recommend":
       return <CircleRecommendDrawer />;
 
+    // ── Reviews moderation (STANDING) ─────────────────────────────────
+    case "reviews-moderation":
+      return <ReviewModerationQueueDrawer />;
+
     default:
       return <SimpleStubDrawer title="Coming up next" description="This drawer's full design lands in the next iteration." sections={[]} />;
   }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Reviews moderation drawer (STANDING) — thin wrapper so ReviewModerationQueue
+// can be reached from the shell. The report notification
+// (review-actions.ts notifyStaffOfReport → targetDrawer: "reviews-moderation")
+// opens this. Tenant id comes from the admin-shell identity bridge; the queue
+// self-loads (staff-gated at the server-action boundary) and shows empty lists
+// for a non-staff or tenant-less session rather than erroring.
+// ════════════════════════════════════════════════════════════════════
+
+function ReviewModerationQueueDrawer() {
+  const { state, closeDrawer, bridgeTenantIdentity } = useAdminShell();
+  const open = state.drawer.drawerId === "reviews-moderation";
+  const tenantId = bridgeTenantIdentity?.tenantId ?? "";
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Reported reviews"
+      description="Flagged reviews and rating-integrity signals for this workspace."
+      defaultSize="half"
+    >
+      <div className="p-[16px]">
+        <ReviewModerationQueue tenantId={tenantId} />
+      </div>
+    </DrawerShell>
+  );
 }
 
 // ════════════════════════════════════════════════════════════════════

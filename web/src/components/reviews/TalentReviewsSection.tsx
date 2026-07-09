@@ -350,7 +350,12 @@ export function TalentReviewsSection({
         </p>
       ) : null}
 
-      {/* Provenance caption — these ratings come from completed bookings. */}
+      {/* Provenance caption — these ratings come from completed bookings.
+          NOTE (item 7): this is the talent's OVERALL verified standing, blended
+          across every tenant they've worked under (portable reputation, by
+          design — talent_reviews_recompute_summary aggregates per profile, not
+          per tenant). The wording stays "from completed bookings" so it never
+          implies a single-agency scope. See reviews-standing-v3-decisions doc. */}
       <p
         data-reviews-caption
         style={{

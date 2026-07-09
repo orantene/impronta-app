@@ -31,6 +31,7 @@ import {
   type TalentReviewStanding,
 } from "@/lib/reviews/review-actions";
 import type { ReviewableBooking } from "@/lib/reviews/review-types";
+import { ReviewPhotoUploader } from "./ReviewPhotoUploader";
 
 const FONT = '"Inter", system-ui, sans-serif';
 
@@ -225,56 +226,62 @@ export function LeaveReviewCard({
           borderRadius: 12,
           padding: "16px 18px",
           fontFamily: FONT,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 30,
-            height: 30,
-            borderRadius: 999,
-            background: "rgba(26,115,72,0.16)",
-            color: C.greenDeep,
-            flexShrink: 0,
-          }}
-          aria-hidden
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 6 9 17l-5-5" />
-          </svg>
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: C.greenDeep, letterSpacing: -0.1 }}>
-            Thanks for reviewing {talentLabel}.
-          </div>
-          <div style={{ fontSize: 12, color: "rgba(26,115,72,0.75)", marginTop: 2 }}>
-            Your {rating}-star review is now published.
-          </div>
-        </div>
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
             style={{
-              marginLeft: "auto",
-              fontSize: 12,
-              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 30,
+              height: 30,
+              borderRadius: 999,
+              background: "rgba(26,115,72,0.16)",
               color: C.greenDeep,
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: 4,
-              fontFamily: FONT,
+              flexShrink: 0,
             }}
+            aria-hidden
           >
-            Done
-          </button>
-        )}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: C.greenDeep, letterSpacing: -0.1 }}>
+              Thanks for reviewing {talentLabel}.
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(26,115,72,0.75)", marginTop: 2 }}>
+              Your {rating}-star review is now published.
+            </div>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                marginLeft: "auto",
+                fontSize: 12,
+                fontWeight: 600,
+                color: C.greenDeep,
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                padding: 4,
+                fontFamily: FONT,
+              }}
+            >
+              Done
+            </button>
+          )}
+        </div>
+
+        {/* Optional photos (STANDING v3 item 5) — the review row now exists, so
+            the uploader resolves it by natural key. */}
+        <ReviewPhotoUploader
+          bookingId={booking.bookingId}
+          talentProfileId={booking.talentProfileId}
+        />
       </div>
     );
   }
