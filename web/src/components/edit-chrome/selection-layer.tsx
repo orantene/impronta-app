@@ -4833,6 +4833,11 @@ export function SelectionLayer() {
 	              onRequestInlineEdit={() => {
 	                if (selectedBuilderNodeId) requestInlineEdit(selectedBuilderNodeId);
 	              }}
+	              onReviseWithAi={
+	                selectedBuilderNodeId
+	                  ? () => setAiReviseNodeId(selectedBuilderNodeId)
+	                  : undefined
+	              }
 	              repositionKey={Math.round(renderSelectedRect.top + renderSelectedRect.left)}
 	              onCopyStyle={() => {
 	                if (!selectedBuilderNode?.props.style) return;
