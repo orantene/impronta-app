@@ -68,12 +68,20 @@ export function ReviewTokenForm({
   talentProfileCode,
   /** True when the invite's payer could not be confirmed for THIS session yet. */
   verifiable,
+  /**
+   * Guest path — a no-account reviewer on an email-only invite. The review
+   * publishes as an honest, UNVERIFIED "Invited review". Adds a name field and
+   * a "sign in for a verified review" option.
+   */
+  guestMode = false,
 }: {
   token: string;
   talentName: string;
   talentProfileCode: string | null;
   verifiable: boolean;
+  guestMode?: boolean;
 }) {
+  const [guestName, setGuestName] = useState<string>("");
   const [rating, setRating] = useState<number>(0);
   const [hover, setHover] = useState<number>(0);
   const [body, setBody] = useState<string>("");
@@ -150,6 +158,7 @@ export function ReviewTokenForm({
       traits: traits.length > 0 ? traits : null,
       privateNote: trimmedNote.length > 0 ? trimmedNote : null,
       anon,
+      guestName: guestMode ? guestName.trim() || null : null,
     });
     if (res.ok) {
       setState("saved");
@@ -246,6 +255,45 @@ export function ReviewTokenForm({
       <div style={{ fontSize: 12.5, color: C.inkMuted, marginBottom: 16, lineHeight: 1.5 }}>
         Your honest experience helps other clients decide. It takes a minute.
       </div>
+
+      {/* Guest mode — name + honest "invited review" note */}
+      {guestMode && (
+        <div style={{ marginBottom: 16 }}>
+          <label htmlFor={`${groupId}-guest-name`} style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 5, letterSpacing: 0.1 }}>
+            Your name
+          </label>
+          <input
+            id={`${groupId}-guest-name`}
+            type="text"
+            value={guestName}
+            disabled={saving}
+            maxLength={120}
+            onChange={(e) => setGuestName(e.target.value)}
+            placeholder="How your name appears on the review"
+            style={{
+              width: "100%",
+              padding: "10px 12px",
+              fontSize: 13,
+              fontFamily: FONT,
+              color: C.ink,
+              background: C.surface,
+              border: `1px solid ${C.borderSoft}`,
+              borderRadius: 9,
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+          <div style={{ fontSize: 11.5, color: C.inkMuted, lineHeight: 1.5, marginTop: 8 }}>
+            You&rsquo;re reviewing as a guest, so this publishes as an{" "}
+            <strong style={{ color: C.ink }}>invited review</strong> (not
+            payment-verified).{" "}
+            <Link href={loginHref} style={{ color: C.accent, fontWeight: 600, textDecoration: "none" }}>
+              Sign in for a verified review
+            </Link>
+            .
+          </div>
+        </div>
+      )}
 
       {/* Star picker — required */}
       <div
