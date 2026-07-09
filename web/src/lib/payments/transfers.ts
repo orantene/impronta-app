@@ -23,6 +23,8 @@
 import { getStripe } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
+import { isProductPayoutDeferred } from "@/lib/bookings/fulfillment";
 import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
 import { getConnectedAccountSnapshotById } from "@/lib/payments/stripe-connect";
 import {
@@ -170,6 +172,17 @@ export async function executeBookingTransfers(
     if (!["paid", "payout_pending", "payout_sent"].includes(txn.status as string)) return outcomes;
 
     const bookingId = txn.booking_id as string;
+
+    // PRODUCT payout gate: never release money for a physical product before it
+    // ships. The client's charge stays captured and payout_lifecycle stays
+    // 'pending' — a DEFERRAL, not a skip. markBookingFulfillment re-invokes this
+    // once shipped_at is set, so the talent IS paid, just on hand-off. Services
+    // and packages are never deferred.
+    if (await isProductPayoutDeferred(sb, bookingId)) {
+      void improntaLog("transfers.product_payout_deferred", { bookingId, transactionId });
+      return outcomes;
+    }
+
     const snapshots = await loadBookingCommissionSnapshots(sb, bookingId);
     if (!snapshots.length) {
       // QA 2026-06-13: a paid booking with NO commission snapshot means the

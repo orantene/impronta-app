@@ -8,6 +8,7 @@ import type { EngineResult } from "./inquiry-engine.types";
 import { logInquiryAction } from "./inquiry-action-log";
 import { getInquiryGroupShortfall } from "./inquiry-fulfillment";
 import { persistBookingCommissionSnapshot } from "@/lib/billing/commission-engine";
+import { readInquiryOfferingContext } from "@/lib/talent/offering-stock";
 import type { Database } from "@/lib/supabase/database.types";
 
 type InquiryRow = Database["public"]["Tables"]["inquiries"]["Row"];
@@ -292,6 +293,19 @@ export async function convertToBooking(
       currencyCode: bookingFigures?.currency_code ?? "",
       clientAccountId: bookingFigures?.client_account_id ?? null,
     });
+
+    // Stamp booking_sub_type='product' for product-offering bookings so the
+    // payout gate defers this booking's transfer until fulfillment (mirrors the
+    // instant-book path). The offering kind rides on the inquiry's
+    // source_context (stamped by both storefront paths). Best-effort.
+    const { data: inqCtx } = await supabase
+      .from("inquiries")
+      .select("source_context")
+      .eq("id", ctx.inquiryId)
+      .maybeSingle();
+    if (readInquiryOfferingContext(inqCtx?.source_context)?.kind === "product") {
+      await supabase.from("agency_bookings").update({ booking_sub_type: "product" }).eq("id", bookingId);
+    }
 
     // A6 — persist commission snapshot. This is now FATAL: a booking with no
     // commission snapshot can never pay the talent (executeBookingTransfers
