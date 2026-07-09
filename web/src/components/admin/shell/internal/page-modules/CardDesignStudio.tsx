@@ -79,7 +79,7 @@ import {
 // Registry defaults for the reviews-on-cards template tokens. Module scope so
 // readTemplateToken's dependency array can stay honest (only draftTokens varies).
 const STANDING_DEFAULTS: Record<string, string> = {
-  "directory.card.show-standing": "off",
+  "directory.card.show-standing": "compact",
   "directory.card.standing-style": "both",
   "profile.reviews-visibility": "visible",
 };

@@ -12,8 +12,10 @@
 // No behavior change. See remediation-plan §4 Phase 1d.
 // ════════════════════════════════════════════════════════════════════
 
+import { useEffect } from "react";
 import { DrawerShell } from "./primitives";
 import { useAdminShell, type DrawerId } from "./state";
+import { OPEN_DRAWER_EVENT, type OpenDrawerEventDetail } from "./open-drawer-bridge";
 import { InquiryWorkspaceDrawer } from "./workspace";
 import { InboxSnippetsDrawer, NotificationsPrefsDrawer, DataExportDrawer, AuditLogDrawer, TenantSwitcherDrawer, TalentAgencySwitcherDrawer, WorkspaceProfileDrawer, TalentShareCardDrawer, InquiryTemplatesPicker, DoubleBookingWarning, WhatsNewDrawer, HelpDrawer, TalentNotificationsDrawer, downloadCsv } from "./wave2";
 import { TalentTodayPulseDrawer, TalentOfferDetailDrawer, TalentAddEventDrawer, TalentBookingDetailDrawer, TalentClosedBookingDrawer, TalentHubDetailDrawer, TalentProfileSectionDrawer, TalentAvailabilityDrawer, TalentBlockDatesDrawer, TalentPortfolioDrawer, TalentAgencyRelationshipDrawer, TalentLeaveAgencyDrawer, TalentPrivacyDrawer, TalentPayoutsDrawer, TalentContactPreferencesDrawer, TalentEarningsDetailDrawer, TalentPhotoEditDrawer, TalentPolaroidsDrawer, TalentCreditsDrawer, TalentSkillsDrawer, TalentLimitsDrawer, TalentRateCardDrawer, TalentTravelDrawer, TalentLinksDrawer, TalentReviewsDrawer, TalentShowreelDrawer, TalentMeasurementsDrawer, TalentDocumentsDrawer, TalentEmergencyContactDrawer, TalentPublicPreviewDrawer, TalentTierCompareDrawer, TalentPersonalPageDrawer, TalentPageTemplateDrawer, TalentMediaEmbedsDrawer, TalentPressDrawer, TalentMediaKitDrawer, TalentCustomDomainDrawer, TalentConnectionsDrawer, TalentVerificationDrawer, TalentReferralsDrawer, TalentHubCompareDrawer, TalentTaxDocsDrawer, TalentConflictResolveDrawer, TalentNetworkDrawer, TalentVoiceReplyDrawer, TalentMultiAgencyPickerDrawer, TalentChatArchiveDrawer, ReplyTemplatesDrawer, TalentCareerAnalyticsDrawer, TalentReceiveReviewDrawer, TalentAgencyAnalyticsDrawer, RepresentationDrawer } from "./talent-drawers";
@@ -57,7 +59,22 @@ import { FeatureControlsDrawer, CircleManageDrawer, CircleRecommendDrawer } from
 // closed shell so the slide-out animation can play in both directions.
 
 export function DrawerRoot() {
-  const { state, closeDrawer } = useAdminShell();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
+
+  // Bridge listener: lets components that render OUTSIDE this provider
+  // (e.g. the top-bar notification bell, which self-loads and has no
+  // useAdminShell() access) ask the shell to open a specific drawer via a
+  // window CustomEvent. See open-drawer-bridge.ts.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<OpenDrawerEventDetail>).detail;
+      if (!detail?.drawerId) return;
+      openDrawer(detail.drawerId, detail.payload);
+    };
+    window.addEventListener(OPEN_DRAWER_EVENT, handler);
+    return () => window.removeEventListener(OPEN_DRAWER_EVENT, handler);
+  }, [openDrawer]);
+
   const id = state.drawer.drawerId;
   if (!id) {
     // still render the shell closed so backdrop animates out

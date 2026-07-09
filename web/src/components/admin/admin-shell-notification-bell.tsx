@@ -13,6 +13,10 @@ import {
   markNotificationsRead,
 } from "@/lib/notifications/my-notifications-actions";
 import type { MyNotification } from "@/lib/notifications/self-types";
+import {
+  fireOpenShellDrawer,
+} from "@/components/admin/shell/internal/open-drawer-bridge";
+import type { DrawerId } from "@/components/admin/shell/internal/state";
 
 function relativeTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -203,6 +207,11 @@ export function TopBarNotificationBell() {
                         className="min-w-0 flex-1 text-left"
                         onClick={() => {
                           void markOneRead(n.id);
+                          if (n.targetDrawer) {
+                            fireOpenShellDrawer(n.targetDrawer as DrawerId);
+                            setOpen(false);
+                            return;
+                          }
                           if (n.href) window.location.href = n.href;
                         }}
                       >

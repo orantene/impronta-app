@@ -22,14 +22,17 @@ import { loadTalentReviews } from "@/lib/reviews/load-reviews";
 import {
   computeStandingTier,
   meetsCredibilityFloor,
-  standingTierLabel,
+  standingTierKey,
   wouldBookAgainPhrase,
 } from "@/lib/reviews/craft-standing";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 import {
   PAGE_SIZE,
   ReviewItem,
   ReviewsShowMore,
   Stars,
+  type ReviewsSectionCopy,
   type ReviewTokens,
 } from "./ReviewsShowMore";
 
@@ -188,7 +191,7 @@ function AttrBar({
   );
 }
 
-export function TalentReviewsSection({
+export async function TalentReviewsSection({
   summary,
   reviews,
   theme = "dark",
@@ -217,9 +220,27 @@ export function TalentReviewsSection({
   if (!summary || summary.count <= 0 || reviews.length === 0) return null;
   const tokens = THEMES[theme];
 
+  // Self-resolving locale — this server component owns its own translator so
+  // the 4 profile layouts (which vary the eyebrow/heading) don't each have to
+  // thread review copy. `t(key)` returns raw strings; {token} interpolation is
+  // via `.replace`, mirroring lib/directory/directory-ui-copy.ts.
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+  const copy: ReviewsSectionCopy = {
+    starsAria: t("public.reviews.starsAria"),
+    verifiedClient: t("public.reviews.verifiedClient"),
+    responseFrom: t("public.reviews.responseFrom"),
+    reviewPhotoAlt: t("public.reviews.reviewPhotoAlt"),
+    showMore: t("public.reviews.showMore"),
+    loading: t("public.reviews.loading"),
+    loadMoreError: t("public.reviews.loadMoreError"),
+  };
+
   const avgLabel = summary.average.toFixed(1);
   const countLabel =
-    summary.count === 1 ? "1 review" : `${summary.count} reviews`;
+    summary.count === 1
+      ? t("public.reviews.countOne")
+      : t("public.reviews.countMany").replace("{count}", String(summary.count));
 
   // Standing enrichment — only credible past the review floor. Below it we omit
   // the tier chip (absence is neutral); the average header still renders.
@@ -232,15 +253,47 @@ export function TalentReviewsSection({
         wouldBookAgainPct: effectivePct,
       })
     : null;
-  const bookAgainLine = wouldBookAgainPhrase(summary.count, effectivePct);
+  // Localized would-book-again line. `wouldBookAgainPhrase` (pure/EN, used by
+  // DTOs + tests) is the shape authority: we call it only to decide WHETHER a
+  // signal exists, then render the locale-specific template with the same
+  // count/percent branching so the interpolation matches exactly.
+  const bookAgainLine = (() => {
+    if (wouldBookAgainPhrase(summary.count, effectivePct) == null) return null;
+    const count = summary.count;
+    const pct = effectivePct as number;
+    if (count < 8 && pct === 100) {
+      return t("public.reviews.wouldBookAgainAll").replace(
+        /\{count\}/g,
+        String(count),
+      );
+    }
+    if (count >= 8) {
+      return t("public.reviews.wouldBookAgainPct").replace(
+        "{pct}",
+        String(Math.round(pct)),
+      );
+    }
+    return t("public.reviews.wouldBookAgainPctOfClients").replace(
+      "{pct}",
+      String(Math.round(pct)),
+    );
+  })();
 
   // Distribution + attribute averages only past the low-volume floor. Every
   // field is treated as optional/null (the data agent may land these later).
   const showBreakdown = summary.count >= DISTRIBUTION_FLOOR;
-  const distribution =
+  // Item 9 — a low-volume histogram (n<10) hides its all-zero star rows so an
+  // all-5-star talent at n=5 shows one bar, not five with four empty. At n>=10
+  // the full 5..1 ladder reads as a real distribution, so keep every row.
+  const distributionAll =
     showBreakdown && summary.distribution && summary.distribution.length > 0
       ? summary.distribution
       : null;
+  const distribution = distributionAll
+    ? summary.count >= 10
+      ? distributionAll
+      : distributionAll.filter((d) => d.count > 0)
+    : null;
   const distMax = distribution
     ? distribution.reduce((m, d) => Math.max(m, d.count), 0)
     : 0;
@@ -248,10 +301,10 @@ export function TalentReviewsSection({
   const attrRows: { label: string; value: number }[] = attr
     ? (
         [
-          { label: "Professionalism", value: attr.professionalism },
-          { label: "Skill", value: attr.skill },
-          { label: "Communication", value: attr.communication },
-          { label: "Reliability", value: attr.reliability },
+          { label: t("public.reviews.attr.professionalism"), value: attr.professionalism },
+          { label: t("public.reviews.attr.skill"), value: attr.skill },
+          { label: t("public.reviews.attr.communication"), value: attr.communication },
+          { label: t("public.reviews.attr.reliability"), value: attr.reliability },
         ] as { label: string; value: number | null }[]
       ).filter((r): r is { label: string; value: number } => r.value != null)
     : [];
@@ -273,7 +326,7 @@ export function TalentReviewsSection({
 
   return (
     <section
-      aria-label="Client reviews"
+      aria-label={t("public.reviews.sectionAria")}
       style={{ display: "block", width: "100%" }}
     >
       {/* Section label */}
@@ -300,7 +353,7 @@ export function TalentReviewsSection({
           marginTop: 14,
         }}
       >
-        <Stars rating={summary.average} size={20} tokens={tokens} />
+        <Stars rating={summary.average} size={20} tokens={tokens} copy={copy} />
         <span
           style={{
             fontSize: 22,
@@ -331,7 +384,7 @@ export function TalentReviewsSection({
               color: tokens.star,
             }}
           >
-            {standingTierLabel(tier)}
+            {t(`public.reviews.tier.${standingTierKey(tier)}`)}
           </span>
         ) : null}
       </div>
@@ -365,7 +418,7 @@ export function TalentReviewsSection({
           color: tokens.muted,
         }}
       >
-        Verified reviews · from completed bookings
+        {t("public.reviews.provenanceCaption")}
       </p>
 
       {/* Rating distribution + attribute averages — only past the volume floor
@@ -435,7 +488,7 @@ export function TalentReviewsSection({
               borderTop: idx === 0 ? "none" : `1px solid ${tokens.divider}`,
             }}
           >
-            <ReviewItem review={review} talentName={talentName} tokens={tokens} />
+            <ReviewItem review={review} talentName={talentName} tokens={tokens} copy={copy} />
           </li>
         ))}
       </ul>
@@ -447,6 +500,7 @@ export function TalentReviewsSection({
           initialShown={reviews.length}
           talentName={talentName}
           tokens={tokens}
+          copy={copy}
         />
       ) : null}
     </section>

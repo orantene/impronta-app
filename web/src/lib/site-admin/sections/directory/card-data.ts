@@ -47,6 +47,16 @@ export type DirectoryCardData = {
    */
   fitLabels?: readonly DirectoryCardFitLabel[];
   cardAttributes?: readonly DirectoryCardAttribute[];
+  /**
+   * Craft standing signal (reviews). Mirrors `DirectoryCardDTO`'s
+   * `ratingAvg` / `ratingCount` / `wouldBookAgainPct` — the loader NULLs
+   * these for non-entitled tenants, so the entitlement gate stays
+   * authoritative upstream. Absent/null here just means "don't render the
+   * standing chip"; the credibility floor gate is applied by the renderer.
+   */
+  ratingAvg?: number | null;
+  ratingCount?: number | null;
+  wouldBookAgainPct?: number | null;
 };
 
 /** Ratified fallback string (Discover spec §5.4 / acceptance AV-2). */

@@ -141,6 +141,7 @@ export function OperationsPage() {
           <ToolRow tone={COLORS.indigo} icon={TI.funnel}   title={t("dashboard.adminOperations.conversionFunnel")} desc={t("dashboard.adminOperations.conversionFunnelDesc")}                onClick={() => openDrawer("conversion-funnel")} />
           <ToolRow tone={COLORS.indigo} icon={TI.star}     title={t("dashboard.adminOperations.topPerformers")}    desc={t("dashboard.adminOperations.topPerformersDesc")}                 onClick={() => openDrawer("top-performers")} />
           <ToolRow tone={COLORS.indigo} icon={TI.team}     title={t("dashboard.adminOperations.teamWorkload")}     desc={t("dashboard.adminOperations.teamWorkloadDesc")}            onClick={() => openDrawer("coordinator-workload")} />
+          <ToolRow tone={COLORS.indigo} icon={TI.star}     title={t("dashboard.adminOperations.reportedReviews")}  desc={t("dashboard.adminOperations.reportedReviewsDesc")}         onClick={() => openDrawer("reviews-moderation")} />
         </PageSection>
 
         <PageSection tone={COLORS.accent} title={t("dashboard.adminOperations.workflowTitle")} desc={t("dashboard.adminOperations.workflowDesc")}>

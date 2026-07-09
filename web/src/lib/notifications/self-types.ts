@@ -13,6 +13,12 @@ export type MyNotification = {
   title: string;
   body: string | null;
   href: string | null;
+  /** Shell drawer id to open on click, when the notification targets a
+   * drawer rather than (or in addition to) a page href. Null for rows
+   * with no target_drawer set. Consumers that render outside the shell
+   * provider (e.g. the top-bar bell) forward this via a window event:
+   * see components/admin/shell/internal/open-drawer-bridge.ts. */
+  targetDrawer: string | null;
   createdAt: string;
   readAt: string | null;
 };

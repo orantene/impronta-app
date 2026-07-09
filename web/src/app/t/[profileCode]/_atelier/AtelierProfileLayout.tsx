@@ -46,7 +46,9 @@ import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { buildAdaptiveThemeStyle } from "../_shared/profile-theme";
-import type { LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import { heroRatingChipLabel, type LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
+import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 
 type DetailRow = { key: string; label: string; value: string; group: string };
 
@@ -152,6 +154,8 @@ const ATELIER_CSS = `
 [data-profile-theme="atelier"] .at-split__intro .at-chips,[data-profile-theme="atelier"] .at-split__intro .at-actions,[data-profile-theme="atelier"] .at-split__intro .at-extra{ justify-content:flex-start; }
 [data-profile-theme="atelier"] .at-chip{ font-size:9.5px; letter-spacing:0.18em; text-transform:uppercase; font-weight:600; padding:6px 13px; border:1px solid var(--pp-line); border-radius:1px; color:var(--pp-ink-soft); }
 [data-profile-theme="atelier"] .at-chip--accent{ border-color:var(--pp-accent); color:var(--pp-accent); }
+[data-profile-theme="atelier"] a.at-chip{ text-decoration:none; transition:opacity .2s ease; } [data-profile-theme="atelier"] a.at-chip:hover{ opacity:0.78; }
+html:has([data-profile-theme="atelier"]){ scroll-behavior:smooth; } [data-profile-theme="atelier"] #reviews{ scroll-margin-top:96px; }
 [data-profile-theme="atelier"] .at-bio{ color:var(--pp-ink-soft); margin-top:20px; max-width:54ch; font-size:1.02rem; line-height:1.85; }
 [data-profile-theme="atelier"] .at-hero .at-bio,[data-profile-theme="atelier"] .at-cover__inner .at-bio{ margin-inline:auto; }
 [data-profile-theme="atelier"] .at-cover__inner .at-bio{ color:rgba(255,255,255,0.84); }
@@ -264,6 +268,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
     ratingSummary,
     talentReviews,
     testimonials = [],
+    heroRating,
     agencyName,
     agencyDisplayName,
     similarTalent,
@@ -358,6 +363,11 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
 
   const chips = (
     <div className="at-chips">
+      {heroRating && meetsCredibilityFloor(heroRating.ratingCount) ? (
+        <ReviewsAnchorLink className="at-chip at-chip--accent">
+          {heroRatingChipLabel(heroRating.ratingAvg, heroRating.ratingCount, locale)}
+        </ReviewsAnchorLink>
+      ) : null}
       {livesIn ? <span className="at-chip">{livesIn}</span> : null}
       {agency ? <span className="at-chip at-chip--accent">{labels.represented}</span> : null}
       {langShort.length > 0 ? <span className="at-chip">{langShort.join(" · ")}</span> : null}
@@ -629,7 +639,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
 
       {/* ── REVIEWS ──────────────────────────────────────────────────────── */}
       {hasReviews ? (
-        <section className="at-col at-section" aria-label="Client reviews" data-profile-section="reviews">
+        <section id="reviews" className="at-col at-section" aria-label="Client reviews" data-profile-section="reviews">
           <div className="at-head">
             <span className="at-head__no">{nextNo()}</span>
             <span className="at-head__dash" aria-hidden="true" />

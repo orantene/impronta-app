@@ -52,7 +52,12 @@ import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { NoirReveal } from "./NoirReveal";
-import type { LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import {
+  heroRatingChipLabel,
+  type LightProfileLayoutProps,
+} from "../_light/LightProfileLayout";
+import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
+import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 
 type DetailRow = { key: string; label: string; value: string; group: string };
 
@@ -178,6 +183,10 @@ const NOIR_CSS = `
 [data-profile-theme="noir"] .nf-chips{ display:flex; gap:10px; flex-wrap:wrap; margin-top:22px; }
 [data-profile-theme="noir"] .nf-chip{ font-size:10px; letter-spacing:0.16em; text-transform:uppercase; font-weight:500; padding:7px 15px; border:1px solid var(--nf-line); border-radius:2px; color:rgba(236,228,211,0.74); }
 [data-profile-theme="noir"] .nf-chip--gold{ border-color:rgba(224,192,116,0.55); color:var(--nf-champagne); }
+[data-profile-theme="noir"] a.nf-chip{ text-decoration:none; transition:border-color .2s ease,color .2s ease; }
+[data-profile-theme="noir"] a.nf-chip:hover{ border-color:rgba(224,192,116,0.85); color:var(--nf-champagne); }
+html:has([data-profile-theme="noir"]){ scroll-behavior:smooth; }
+[data-profile-theme="noir"] #reviews{ scroll-margin-top:96px; }
 [data-profile-theme="noir"] .nf-bio{ color:rgba(236,228,211,0.74); margin-top:24px; max-width:50ch; font-size:1rem; line-height:1.8; }
 [data-profile-theme="noir"] .nf-actions{ display:flex; gap:12px; margin-top:32px; flex-wrap:wrap; align-items:center; }
 [data-profile-theme="noir"] .nf-hero-extra{ margin-top:26px; display:flex; gap:18px; flex-wrap:wrap; align-items:center; }
@@ -295,6 +304,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
     ratingSummary,
     talentReviews,
     testimonials = [],
+    heroRating,
     agencyName,
     agencyDisplayName,
     similarTalent,
@@ -434,6 +444,11 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
           <h1>{name}</h1>
 
           <div className="nf-chips">
+            {heroRating && meetsCredibilityFloor(heroRating.ratingCount) ? (
+              <ReviewsAnchorLink className="nf-chip nf-chip--gold">
+                {heroRatingChipLabel(heroRating.ratingAvg, heroRating.ratingCount, locale)}
+              </ReviewsAnchorLink>
+            ) : null}
             {livesIn ? <span className="nf-chip">{livesIn}</span> : null}
             {agency ? <span className="nf-chip nf-chip--gold">{labels.represented}</span> : null}
             {langShort.length > 0 ? (
@@ -623,7 +638,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
 
       {/* ── 8. REVIEWS ──────────────────────────────────────────────────── */}
       {ratingSummary.count > 0 ? (
-        <section className="nf-wrap nf-section" data-profile-section="reviews" data-nf-reveal>
+        <section id="reviews" className="nf-wrap nf-section" data-profile-section="reviews" data-nf-reveal>
           <div className="nf-sec-head">
             <div>
               <span className="nf-eyebrow">{labels.reviewsEyebrow}</span>

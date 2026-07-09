@@ -38,10 +38,12 @@ import type {
 import {
   computeStandingTier,
   meetsCredibilityFloor,
-  standingTierLabel,
+  standingTierKey,
   wouldBookAgainPhrase,
 } from "@/lib/reviews/craft-standing";
 import { StaticStars } from "@/components/reviews/star-rating";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { COLORS, FONTS, RADIUS, useAdminShell } from "../../state";
 import { PageHeader } from "../shared/page-chrome-1";
 
@@ -58,7 +60,30 @@ function formatDate(iso: string | null): string {
 
 // ─── Reputation / standing header ───────────────────────────────────────────
 
+/** Localized would-book-again line — mirrors the pure/EN `wouldBookAgainPhrase`
+ *  branching (used only to decide whether a signal exists), then renders the
+ *  locale template so the count/percent interpolation matches exactly. */
+function localizedBookAgain(
+  t: ReturnType<typeof useT>,
+  count: number,
+  pct: number | null,
+): string | null {
+  if (wouldBookAgainPhrase(count, pct) == null || pct == null) return null;
+  if (count < 8 && pct === 100) {
+    return interpolate(t("dashboard.talentReviews.wouldBookAgainAll"), { count });
+  }
+  if (count >= 8) {
+    return interpolate(t("dashboard.talentReviews.wouldBookAgainPct"), {
+      pct: Math.round(pct),
+    });
+  }
+  return interpolate(t("dashboard.talentReviews.wouldBookAgainPctOfClients"), {
+    pct: Math.round(pct),
+  });
+}
+
 function StandingHeader({ summary }: { summary: TalentRatingSummary }) {
+  const t = useT();
   const count = summary.count;
   const average = summary.average;
   const wouldBookAgainPct = summary.wouldBookAgainPct ?? null;
@@ -68,8 +93,9 @@ function StandingHeader({ summary }: { summary: TalentRatingSummary }) {
     ratingAvg: average,
     wouldBookAgainPct,
   });
-  const tierLabel = standingTierLabel(tier);
-  const bookAgain = wouldBookAgainPhrase(count, wouldBookAgainPct);
+  const tierLabel = t(`dashboard.talentReviews.tier.${standingTierKey(tier)}`);
+  const bookAgain = localizedBookAgain(t, count, wouldBookAgainPct);
+  const remaining = Math.max(0, 3 - count);
 
   return (
     <div className="flex flex-col gap-[14px] rounded-admin-lg border border-admin-border bg-admin-card p-[20px] font-admin-body">
@@ -82,7 +108,7 @@ function StandingHeader({ summary }: { summary: TalentRatingSummary }) {
               : "border-admin-border bg-admin-surface-alt text-admin-ink-muted"
           }`}
         >
-          {credible ? tierLabel : "Building standing"}
+          {credible ? tierLabel : t("dashboard.talentReviews.buildingStanding")}
         </span>
 
         {/* Average + count */}
@@ -93,8 +119,15 @@ function StandingHeader({ summary }: { summary: TalentRatingSummary }) {
           </span>
           <span className="text-admin-13 text-admin-ink-muted">
             {count === 0
-              ? "No reviews yet"
-              : `from ${count} review${count === 1 ? "" : "s"}`}
+              ? t("dashboard.talentReviews.noReviewsYet")
+              : interpolate(
+                  t(
+                    count === 1
+                      ? "dashboard.talentReviews.fromCountOne"
+                      : "dashboard.talentReviews.fromCountMany",
+                  ),
+                  { count },
+                )}
           </span>
         </div>
       </div>
@@ -109,10 +142,17 @@ function StandingHeader({ summary }: { summary: TalentRatingSummary }) {
       {/* Credibility helper — sets expectation without overselling a thin record */}
       <div className="text-admin-12h leading-[1.5] text-admin-ink-muted">
         {count === 0
-          ? "Your standing appears here once clients start reviewing your work. Every completed booking is a chance to earn one."
+          ? t("dashboard.talentReviews.helperEmpty")
           : credible
-            ? "This is the reputation clients see. Standing rises with strong, consistent reviews across more bookings."
-            : `A few more reviews and your standing becomes a credible signal to clients. You need ${Math.max(0, 3 - count)} more to reach it.`}
+            ? t("dashboard.talentReviews.helperCredible")
+            : interpolate(
+                t(
+                  remaining === 1
+                    ? "dashboard.talentReviews.helperBuildingOne"
+                    : "dashboard.talentReviews.helperBuildingMany",
+                ),
+                { count: remaining },
+              )}
       </div>
     </div>
   );
@@ -127,10 +167,11 @@ function StandingHeader({ summary }: { summary: TalentRatingSummary }) {
  * Renders nothing if there's nothing meaningful to show yet.
  */
 function AnalyticsStrip({ analytics }: { analytics: ReviewAnalytics }) {
+  const t = useT();
   const stats: { label: string; value: string }[] = [];
 
   stats.push({
-    label: "Lifetime rating",
+    label: t("dashboard.talentReviews.analytics.lifetimeRating"),
     value:
       analytics.ratingCount > 0 && analytics.lifetimeAvg != null
         ? `${analytics.lifetimeAvg.toFixed(1)} (${analytics.ratingCount})`
@@ -139,14 +180,14 @@ function AnalyticsStrip({ analytics }: { analytics: ReviewAnalytics }) {
 
   if (analytics.wouldBookAgainPct != null) {
     stats.push({
-      label: "Would book again",
+      label: t("dashboard.talentReviews.analytics.wouldBookAgain"),
       value: `${analytics.wouldBookAgainPct}%`,
     });
   }
 
   if (analytics.responseRatePct != null) {
     stats.push({
-      label: "Reviews per completed booking",
+      label: t("dashboard.talentReviews.analytics.reviewsPerBooking"),
       value: `${analytics.responseRatePct}%`,
     });
   }
@@ -199,17 +240,17 @@ function AnalyticsStrip({ analytics }: { analytics: ReviewAnalytics }) {
  * encouraging and never punitive. Renders nothing when there are no notes.
  */
 function GrowthNotesCard({ notes }: { notes: OwnerPrivateNote[] }) {
+  const t = useT();
   if (notes.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-[14px] rounded-admin-lg border border-admin-border bg-admin-card p-[20px] font-admin-body">
       <div className="flex flex-col gap-[4px]">
         <span className="text-[14px] font-bold text-admin-ink">
-          Growth notes
+          {t("dashboard.talentReviews.growthTitle")}
         </span>
         <span className="text-admin-12h leading-[1.5] text-admin-ink-muted">
-          Private coaching a few clients shared just for you. Only you can see
-          these. Take what is useful and keep doing what already works.
+          {t("dashboard.talentReviews.growthBody")}
         </span>
       </div>
 
@@ -237,6 +278,7 @@ function GrowthNotesCard({ notes }: { notes: OwnerPrivateNote[] }) {
 type RowBusy = "report" | "reply" | null;
 
 function ReceivedReviewRow({ review }: { review: TalentReview }) {
+  const t = useT();
   const [busy, setBusy] = useState<RowBusy>(null);
   const [reported, setReported] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -264,7 +306,7 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
     if (res.ok) {
       setReported(true);
     } else {
-      setError(res.error || "Could not report the review.");
+      setError(res.error || t("dashboard.talentReviews.reportError"));
     }
     setBusy(null);
   }
@@ -280,7 +322,7 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
       setComposing(false);
       setDraft("");
     } else {
-      setReplyError(res.error || "Could not post your reply.");
+      setReplyError(res.error || t("dashboard.talentReviews.replyError"));
     }
     setBusy(null);
   }
@@ -294,14 +336,14 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
       <div className="flex flex-wrap items-center gap-[8px]">
         <StaticStars rating={review.rating} />
         <span className="text-admin-13 font-semibold text-admin-ink">
-          {review.clientName ?? "A client"}
+          {review.clientName ?? t("dashboard.talentReviews.clientFallback")}
         </span>
         <span className="text-admin-11h text-admin-ink-muted">
           {formatDate(review.createdAt)}
         </span>
         {hidden && (
           <span className="rounded-[999px] bg-admin-amber-soft px-[7px] py-[2px] text-admin-9h font-bold uppercase tracking-[0.4px] text-admin-amber-deep">
-            Hidden
+            {t("dashboard.talentReviews.hidden")}
           </span>
         )}
       </div>
@@ -328,7 +370,7 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
         >
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 11.5, fontWeight: 700 }} className="text-admin-ink">
-              Your response
+              {t("dashboard.talentReviews.yourResponse")}
             </span>
             {reply.at && (
               <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
@@ -350,7 +392,7 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Thank the client or add helpful context. This reply is public on your profile."
+            placeholder={t("dashboard.talentReviews.replyPlaceholder")}
             disabled={busy === "reply"}
             rows={3}
             autoFocus
@@ -389,7 +431,9 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
                 fontFamily: FONTS.body,
               }}
             >
-              {busy === "reply" ? "Posting…" : "Post reply"}
+              {busy === "reply"
+                ? t("dashboard.talentReviews.posting")
+                : t("dashboard.talentReviews.postReply")}
             </button>
             <button
               type="button"
@@ -411,7 +455,7 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
                 fontFamily: FONTS.body,
               }}
             >
-              Cancel
+              {t("dashboard.talentReviews.cancel")}
             </button>
           </div>
         </div>
@@ -438,12 +482,12 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
               fontFamily: FONTS.body,
             }}
           >
-            Reply publicly
+            {t("dashboard.talentReviews.replyPublicly")}
           </button>
         )}
         {reported ? (
           <span className="text-admin-11h font-semibold text-admin-green">
-            Reported. Staff will look into it.
+            {t("dashboard.talentReviews.reported")}
           </span>
         ) : (
           <button
@@ -454,7 +498,9 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
               busy === "report" ? "cursor-wait" : "cursor-pointer"
             }`}
           >
-            {busy === "report" ? "Reporting…" : "Report"}
+            {busy === "report"
+              ? t("dashboard.talentReviews.reporting")
+              : t("dashboard.talentReviews.report")}
           </button>
         )}
       </div>
@@ -465,6 +511,7 @@ function ReceivedReviewRow({ review }: { review: TalentReview }) {
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export function ReviewsPage() {
+  const t = useT();
   const { bridgeTalentSelfProfile, tenantSlug } = useAdminShell();
   const talentId = bridgeTalentSelfProfile?.id ?? null;
 
@@ -517,7 +564,7 @@ export function ReviewsPage() {
         if (!cancelled) setData(res);
       })
       .catch(() => {
-        if (!cancelled) setLoadError("Could not load your reviews.");
+        if (!cancelled) setLoadError(t("dashboard.talentReviews.loadError"));
       });
     // Private coaching notes load independently — a failure here never blocks
     // the reviews list; the card simply stays hidden.
@@ -545,9 +592,9 @@ export function ReviewsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Reputation"
-        title="Reviews"
-        subtitle="What clients say after working with you, and the standing they build."
+        eyebrow={t("dashboard.talentReviews.eyebrow")}
+        title={t("dashboard.talentReviews.title")}
+        subtitle={t("dashboard.talentReviews.subtitle")}
       />
 
       {entitled === false ? (
@@ -564,11 +611,10 @@ export function ReviewsPage() {
           }}
         >
           <span style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
-            Reviews are a premium feature on this workspace.
+            {t("dashboard.talentReviews.premiumTitle")}
           </span>
           <span style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
-            Once it is enabled, client reviews and your public standing will
-            appear here.
+            {t("dashboard.talentReviews.premiumBody")}
           </span>
         </div>
       ) : loadError ? (
@@ -593,7 +639,7 @@ export function ReviewsPage() {
           }}
           className="text-admin-ink-muted"
         >
-          Loading reviews…
+          {t("dashboard.talentReviews.loading")}
         </div>
       ) : (
         <div className="flex flex-col gap-[16px] font-admin-body">
@@ -614,12 +660,12 @@ export function ReviewsPage() {
 
           <div className="flex flex-col gap-[10px]">
             <span className="text-admin-10h font-bold uppercase tracking-[0.8px] text-admin-ink-muted">
-              All reviews
+              {t("dashboard.talentReviews.allReviews")}
             </span>
 
             {data.reviews.length === 0 ? (
               <div className="rounded-admin-md border border-dashed border-admin-border p-[18px] text-center text-admin-13 text-admin-ink-muted">
-                No reviews yet. Completed bookings are where they start.
+                {t("dashboard.talentReviews.empty")}
               </div>
             ) : (
               <div className="flex flex-col gap-[10px]">
