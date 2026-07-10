@@ -16,6 +16,7 @@ import { useEditContext } from "./edit-context";
 import { useFloatingDrag } from "./floating-panel";
 import {
   CHROME,
+  CHROME_SHADOWS,
   COMMAND_DOCK_CHROME_TOP_PX,
   COMMAND_DOCK_COLLAPSED_STORAGE_KEY,
   COMMAND_DOCK_LEFT_PX,
@@ -34,8 +35,7 @@ const DOCK_LEFT = COMMAND_DOCK_LEFT_PX;
 const DOCK_TOP = COMMAND_DOCK_CHROME_TOP_PX;
 const DOCK_WIDTH = COMMAND_DOCK_WIDTH_PX;
 const DOCK_RADIUS_PX = 20;
-const DOCK_SHADOW =
-  "0 1px 2px rgba(0,0,0,0.04), 0 10px 28px -12px rgba(0,0,0,0.14)";
+const DOCK_SHADOW = CHROME_SHADOWS.railCard;
 
 /** Left inset for dock-launched floating panels (dock + gap). */
 export const COMMAND_DOCK_PANEL_INSET_PX =

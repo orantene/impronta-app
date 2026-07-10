@@ -20,6 +20,7 @@ import {
 } from "./inspector-tab-config";
 import {
   CHROME,
+  CHROME_SHADOWS,
   INSPECTOR_CHROME_TOP_PX,
   INSPECTOR_RAIL_COLLAPSED_STORAGE_KEY,
   INSPECTOR_RAIL_PINNED_STORAGE_KEY,
@@ -37,8 +38,7 @@ import { useInspectorVisibleTabs } from "./use-inspector-visible-tabs";
 const RAIL_RADIUS_PX = 20;
 const TAB_ICON_PX = 22;
 const TAB_LABEL_PX = 11;
-const RAIL_SHADOW =
-  "0 1px 2px rgba(0,0,0,0.04), 0 10px 28px -12px rgba(0,0,0,0.14)";
+const RAIL_SHADOW = CHROME_SHADOWS.railCard;
 
 function RailTabButton({
   tabKey,
