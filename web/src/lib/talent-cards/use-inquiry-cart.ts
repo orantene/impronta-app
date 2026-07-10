@@ -123,7 +123,10 @@ export function useInquiryCart(): UseInquiryCartResult {
   const openInquiry = useCallback(
     (options?: OpenInquiryOptions) => {
       noteSourcePage(options?.sourcePage);
-      inquiryModal?.openInquiry();
+      // W2-E — route to the canonical CHAT launcher (the one floating inquiry
+      // surface), not the legacy InquiryDrawer sheet. requestOpenChat falls back
+      // to the sheet only when no launcher is mounted (no dead CTA).
+      inquiryModal?.requestOpenChat();
     },
     [inquiryModal, noteSourcePage],
   );
