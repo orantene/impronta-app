@@ -493,6 +493,7 @@ function DirectoryReactiveResultsInner({
               view={view}
               ui={ui}
               isFetching={isGridFetching}
+              reviewsEnabled={initialPage.reviewsEnabled}
             />
           ) : null}
 
