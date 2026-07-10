@@ -581,7 +581,7 @@ function AccountMenuTrigger({
           {isWorkspaceSurface && (
             <AccountMenuItem
               label="Plan & billing"
-              sub={`${PLAN_META[state.plan].label} plan · seats, invoices, payouts`}
+              sub="Seats, invoices, payouts"
               onClick={() => {
                 setOpen(false);
                 window.location.assign(tenantSlug ? `/${tenantSlug}/admin/account` : "/admin/account");

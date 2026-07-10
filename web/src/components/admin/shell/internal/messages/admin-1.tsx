@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
 import { bulkNudgeInquiries, bulkSetInquiryArchived, bulkReassignInquiriesToMe, convertInquiryToBookingAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { useDashboardText } from "../dashboard-i18n";
 import { useKeyboardListNav } from "../primitives";
 import { useAdminShell, COLORS, FONTS, type RichInquiry } from "../state";
 import { AdminInquiryDetail } from "./admin-2";
@@ -35,6 +36,7 @@ export function AdminInboxList({
 }) {
   const countBase = allInquiries ?? inquiries;
   const { state, toast: toastBulk, effectiveTenant, tenantSlug, bridgeSessionIdentity } = useAdminShell();
+  const copy = useDashboardText();
   const currentUserId = bridgeSessionIdentity?.userId ?? null;
   // "Coordinating" surfaces inquiries the CURRENT signed-in user coordinates,
   // matched by the real coordinator user-id (inquiries.coordinator_id). Pinned
@@ -159,14 +161,24 @@ export function AdminInboxList({
       archiveInquiry(row.id);
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.id)) {
         void bulkSetInquiryArchived(effectiveTenant.slug, [row.id], !restoring).then((r) => {
-          if (!r.ok) toastBulk(`${restoring ? "Restore" : "Archive"} failed: ${r.error}`);
+          if (!r.ok) {
+            toastBulk(
+              copy.isSpanish
+                ? `${restoring ? "Error al restaurar" : "Error al archivar"}: ${r.error}`
+                : `${restoring ? "Restore" : "Archive"} failed: ${r.error}`,
+            );
+          }
         });
       }
-      toastBulk(`${restoring ? "Restored" : "Archived"} ${row.clientName}`);
+      toastBulk(
+        copy.isSpanish
+          ? `${restoring ? "Restaurado" : "Archivado"}: ${row.clientName}`
+          : `${restoring ? "Restored" : "Archived"} ${row.clientName}`,
+      );
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [bulkMode, state.drawer.drawerId, sortedRows, filter, effectiveTenant.slug, toastBulk]);
+  }, [bulkMode, state.drawer.drawerId, sortedRows, filter, effectiveTenant.slug, toastBulk, copy]);
 
   return (
     <aside data-tulala-list-pane style={{
@@ -272,14 +284,16 @@ export function AdminInboxList({
               {search.trim()
                 ? <>No matches for &ldquo;{search}&rdquo;</>
                 : filter === "archived"
-                  ? "No archived threads"
+                  ? (copy.isSpanish ? "No hay conversaciones archivadas" : "No archived threads")
                   : "No messages yet"}
             </div>
             <div style={{ fontSize: 11.5, lineHeight: 1.4, maxWidth: 240 }} className="text-admin-ink-muted">
               {search.trim()
                 ? "Try a different keyword, or clear the search."
                 : filter === "archived"
-                  ? "Threads you archive land here. Press E on a focused row to archive or restore it."
+                  ? (copy.isSpanish
+                      ? "Las conversaciones archivadas aparecen aquí. Pulsa E en una fila enfocada para archivar o restaurar."
+                      : "Threads you archive land here. Press E on a focused row to archive or restore it.")
                   : "They’ll appear here as clients reach out via your storefront."}
             </div>
             {!search.trim() && (tenantSlug || effectiveTenant?.domain) && (
