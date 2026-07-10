@@ -25,6 +25,7 @@ import { isLocale } from "@/lib/site-admin/locales";
 import CmsPublicPage, {
   generateMetadata as cmsPageMetadata,
 } from "@/app/(public)/p/[[...slug]]/page";
+import { PublicChatSurface } from "@/app/(public)/_chat/PublicChatSurface";
 
 /** Server reads cookies (Supabase / host-context header); must not be statically prerendered. */
 export const dynamic = "force-dynamic";
@@ -223,7 +224,22 @@ export default async function HomePage() {
         isLocale(homeLocale) ? homeLocale : "en",
       );
       if (homeSlug) {
-        return <CmsPublicPage params={Promise.resolve({ slug: [homeSlug] })} />;
+        // Builder-authored home. `CmsPublicPage` is rendered here from the
+        // route-group ROOT (app/page.tsx), OUTSIDE `(public)/layout.tsx`, so it
+        // gets neither the discovery/inquiry providers nor the guest-chat
+        // launcher that the legacy `AgencyHomeStorefront` mounts. Wrap it in
+        // `PublicChatSurface` (the same provider stack as the layout) + mount the
+        // launcher gated on `show_on_home` (sourcePage "/"). Pass
+        // `mountChatLauncher={false}` so `CmsPublicPage`'s own generic /p mount
+        // doesn't double up here.
+        return (
+          <PublicChatSurface sourcePage="/">
+            <CmsPublicPage
+              params={Promise.resolve({ slug: [homeSlug] })}
+              mountChatLauncher={false}
+            />
+          </PublicChatSurface>
+        );
       }
       return <AgencyHomeStorefront tenantId={ctx.tenantId} />;
     }

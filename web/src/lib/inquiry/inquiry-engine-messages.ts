@@ -7,6 +7,7 @@ import type { EngineResult } from "./inquiry-engine.types";
 import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitNotificationToUsers } from "@/lib/notifications/emit";
 import { notifyMentionedParticipants } from "@/lib/notifications/mention-notify";
+import { maybeSendGuestReplyNudge } from "./guest-reply-nudge";
 import { logServerError } from "@/lib/server/safe-error";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. Every read/write against
@@ -240,6 +241,21 @@ export async function sendMessage(
         await Promise.all(promises);
       })
       .catch((err) => logServerError("inquiry-engine-messages.notifyFanout", err));
+
+    // W2-F — email the GUEST that the agency replied. When a staff/coordinator
+    // writes into the guest-visible PRIVATE thread, a guest who left the site
+    // otherwise never learns a reply landed (the in-app bell above only reaches
+    // a signed-in client). maybeSendGuestReplyNudge self-gates on
+    // guest-originated + real contact + guest-not-live + 6h throttle and routes
+    // through the notification dispatcher (suppression + unsubscribe + retry).
+    // Fire-and-forget + never throws — a mail failure can't break the send.
+    if (ctx.threadType === "private" && ctx.actorUserId) {
+      void maybeSendGuestReplyNudge({
+        inquiryId: ctx.inquiryId,
+        tenantId: ctx.tenantId,
+        senderUserId: ctx.actorUserId,
+      }).catch((err) => logServerError("inquiry-engine-messages.guestReplyNudge", err));
+    }
 
     // C3 — @mention notifications. Separate fire-and-forget pass: parses
     // @Name tokens from the body and notifies the matched thread participants
