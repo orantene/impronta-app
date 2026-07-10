@@ -80,7 +80,6 @@ export function SendToAgencyBar({
   brandName,
   disabled = false,
   sent,
-  typicalReply = null,
   surfaceMode = "light",
   onSend,
 }: SendToAgencyBarProps) {
@@ -131,7 +130,8 @@ export function SendToAgencyBar({
         {ctaLabel}
       </button>
 
-      {/* Jon 360 Phase 1: trust pre-frame under the Send button. */}
+      {/* DOCK v2: a single, quiet reassurance line under the button (no stacked
+          sublines). "No payment now" is the one thing that matters here. */}
       <p
         style={{
           margin: 0,
@@ -144,20 +144,6 @@ export function SendToAgencyBar({
       >
         {noPaymentLine}
       </p>
-      {typicalReply ? (
-        <p
-          style={{
-            margin: 0,
-            fontSize: 11,
-            fontWeight: 500,
-            color: C.inkDim,
-            textAlign: "center",
-            lineHeight: 1.4,
-          }}
-        >
-          {interpolate(t("public.guestChat.sendTypicalReply"), { when: typicalReply })}
-        </p>
-      ) : null}
     </div>
   );
 }
