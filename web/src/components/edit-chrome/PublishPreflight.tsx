@@ -261,7 +261,7 @@ export function PublishPreflight({
         </span>
         <span className="text-[10px] text-muted-foreground">
           {errors > 0 ? `${errors} blocker${errors === 1 ? "" : "s"} · ` : ""}
-          {warns} advisory{warns === 1 ? "" : "s"}
+          {warns} advisor{warns === 1 ? "y" : "ies"}
         </span>
       </div>
       <p className="m-0 text-[11px] leading-snug text-muted-foreground">

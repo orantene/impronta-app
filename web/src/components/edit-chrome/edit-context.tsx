@@ -148,6 +148,7 @@ import {
   publishAdditionalSelectedIds,
   publishAdditionalSelectedBuilderNodeIds,
 } from "./selection-bridge";
+import { resolveMobileEditModeTransition } from "./mobile-edit-mode";
 import { publishDirty } from "./dirty-bridge";
 import { publishBuilderTree } from "./builder-tree-bridge";
 import { publishCanUndo, publishCanRedo } from "./history-bridge";
@@ -2333,24 +2334,24 @@ export function EditProvider({
   const setMobileEditMode = useCallback(
     (next: boolean) => {
       setMobileEditModeRaw(next);
-      if (next) {
-        // Reuse Wave-2B viewport sync — do NOT duplicate it.
-        setDeviceRaw((prev) => {
-          if (prev !== "mobile") setPreviewFrame(DEFAULT_PREVIEW_FRAME);
-          return "mobile";
-        });
-        // Mobile editing and visitor-preview are mutually exclusive: preview
-        // hides ALL chrome, mobile-edit ADDS a chrome panel. Leave preview.
-        setPreviewingRaw(false);
-        if (typeof document !== "undefined") {
-          delete document.body.dataset.editPreview;
-        }
-      } else {
-        // Return to desktop editing (the pre-feature default canvas).
-        setDeviceRaw((prev) => {
-          if (prev !== "desktop") setPreviewFrame(DEFAULT_PREVIEW_FRAME);
-          return "desktop";
-        });
+      // Pure, unit-tested transition (mobile-edit-mode.ts): a viewport/mode
+      // switch is CLIENT STATE ONLY — it never navigates, pushes a URL, or
+      // toggles a query param (which would remount the editor tree and lose
+      // selection + scroll + undo). We apply the resolved effects through the
+      // same `setDeviceRaw` the topbar switcher uses (reusing the Wave-2B
+      // viewport sync — never duplicating it).
+      const targetDevice = next ? "mobile" : "desktop";
+      setDeviceRaw((prevDevice) => {
+        const t = resolveMobileEditModeTransition(next, prevDevice);
+        if (t.resetPreviewFrame) setPreviewFrame(DEFAULT_PREVIEW_FRAME);
+        return t.device;
+      });
+      const effects = resolveMobileEditModeTransition(next, targetDevice);
+      // Mobile editing and visitor-preview are mutually exclusive: preview
+      // hides ALL chrome, mobile-edit ADDS a chrome panel. Leave preview.
+      if (effects.leavePreview === true) setPreviewingRaw(false);
+      if (effects.clearBodyEditPreview && typeof document !== "undefined") {
+        delete document.body.dataset.editPreview;
       }
     },
     [],
