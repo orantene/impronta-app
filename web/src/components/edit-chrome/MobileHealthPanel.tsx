@@ -233,7 +233,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
                   color: CHROME.muted,
                 }}
               >
-                Advisory only — these do not block publish. Review them before going
+                Advisory only, these do not block publish. Review them before going
                 live on mobile devices.
               </p>
               {(["tiny_text", "tap_target", "overflow"] as const)

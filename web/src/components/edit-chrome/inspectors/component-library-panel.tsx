@@ -264,7 +264,7 @@ export function ComponentLibraryPanel({
                       <button
                         type="button"
                         data-builder-node-component-update-master={component.id}
-                        title="Push the selected block into this master — instances update live"
+                        title="Push the selected block into this master, instances update live"
                         className={KIT.ghostButton}
                         disabled={busy}
                         onClick={() => void onUpdateMaster(component)}

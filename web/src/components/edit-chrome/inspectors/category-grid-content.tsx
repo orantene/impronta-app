@@ -175,7 +175,7 @@ export function CategoryGridContentInspector({
           <input
             type="text"
             className={KIT.input}
-            placeholder="Optional — e.g. Services"
+            placeholder="Optional, e.g. Services"
             maxLength={60}
             value={eyebrow}
             onChange={(e) => update({ eyebrow: e.target.value || undefined })}
@@ -199,7 +199,7 @@ export function CategoryGridContentInspector({
             onChange={(next) => update({ copy: next || undefined })}
             variant="multi"
             tenantId={tenantId}
-            placeholder="Optional — a short paragraph under the headline"
+            placeholder="Optional, a short paragraph under the headline"
             ariaLabel="Intro copy"
           />
         </div>
@@ -271,7 +271,7 @@ export function CategoryGridContentInspector({
           />
         </div>
         <div className={KIT.field}>
-          <label className={KIT.label}>Desktop columns — {columnsDesktop}</label>
+          <label className={KIT.label}>Desktop columns: {columnsDesktop}</label>
           <input
             type="range"
             min={2}
@@ -386,7 +386,7 @@ function CategoryRow({
             <input
               type="text"
               className={KIT.input}
-              placeholder="Optional — short support line"
+              placeholder="Optional, short support line"
               maxLength={120}
               value={item.tagline ?? ""}
               onChange={(e) =>

@@ -305,7 +305,7 @@ function PagePicker({
         }
       })
       .catch(() => {
-        setFetchErr("Couldn't load pages — try again.");
+        setFetchErr("Couldn't load pages. Try again.");
         setPages([]);
         setAvailability(null);
       })
@@ -952,7 +952,7 @@ function SaveStatus({
           borderColor: CHROME.amberLine,
         }}
         title="Edits are only in your draft until you publish. If the canvas or device preview looks one step behind, wait for autosave to finish or switch viewport to refresh the preview."
-        aria-label="Unsaved draft — changes are not fully saved yet, or the preview may still be catching up."
+        aria-label="Unsaved draft. Changes are not fully saved yet, or the preview may still be catching up."
       >
         <span
           className={dot}
@@ -979,8 +979,8 @@ function SaveStatus({
         style={{ color: CHROME.muted }}
         title={
           lastDraftSavedAt
-            ? `Draft last saved at ${new Date(lastDraftSavedAt).toLocaleString()} — visitors see the last published version until you publish.`
-            : "Draft is saved on our servers — visitors still see the published site until you click Publish."
+            ? `Draft last saved at ${new Date(lastDraftSavedAt).toLocaleString()}. Visitors see the last published version until you publish.`
+            : "Draft is saved on our servers. Visitors still see the published site until you click Publish."
         }
         aria-label={savedAgoText}
       >
@@ -1090,9 +1090,9 @@ function viewportTierActive(device: EditDevice, key: EditDevice): boolean {
 
 function viewportPreviewTitle(device: EditDevice, label: string): string {
   if (device === "desktop") {
-    return `${label} — full-width editing canvas`;
+    return `${label}: full-width editing canvas`;
   }
-  return `${label} — device-width iframe preview; reloads when the draft saves so breakpoints stay accurate`;
+  return `${label}: device-width iframe preview, reloads when the draft saves so breakpoints stay accurate`;
 }
 
 /**
@@ -1185,8 +1185,8 @@ function ContentLocaleToggle({
             }}
             title={
               isDefault
-                ? `Show the page in ${label} (default) — ←/→ to cycle`
-                : `Translate / preview the page in ${label} — untranslated blocks dim — ←/→ to cycle`
+                ? `Show the page in ${label} (default). ←/→ to cycle`
+                : `Translate / preview the page in ${label} (untranslated blocks dim). ←/→ to cycle`
             }
             onClick={() => selectLocale(code)}
             className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[7px] text-[13px] font-semibold uppercase tracking-[0.04em] transition-all"
@@ -1297,7 +1297,7 @@ function ViewportSwitcher({
               onClick={() => selectTier(opt.key)}
               title={
                 opt.key === "mobile" && mobileEditAvailable
-                  ? "Mobile editing — edit the mobile layout: scope style edits to mobile, hide/reorder blocks per-phone, run mobile health checks"
+                  ? "Mobile editing: edit the mobile layout, scope style edits to mobile, hide/reorder blocks per-phone, run mobile health checks"
                   : viewportPreviewTitle(opt.key, label)
               }
               aria-label={
@@ -1467,8 +1467,8 @@ function ViewportFrameTools({
           isCustom
             ? "Clear the custom width to rotate the device frame"
             : isRotated
-              ? "Portrait — rotate the frame back"
-              : "Landscape — rotate the device frame (breakpoints re-fire at the wider width)"
+              ? "Portrait, rotate the frame back"
+              : "Landscape, rotate the device frame (breakpoints re-fire at the wider width)"
         }
         className="inline-flex items-center gap-[5px] rounded-full border-none px-[10px] py-[5px] text-[11px] font-semibold tracking-[-0.005em] transition-all"
         style={{
@@ -1558,8 +1558,8 @@ function PreviewToggle({
       onClick={() => setPreviewing(!previewing)}
       title={
         previewing
-          ? "Exit preview — show editing tools"
-          : "Preview — hide editing tools and interact with the page"
+          ? "Exit preview, show editing tools"
+          : "Preview, hide editing tools and interact with the page"
       }
       ariaLabel={previewing ? "Exit preview" : "Preview"}
     >
@@ -2139,7 +2139,7 @@ function BreakpointsPopover() {
     <div className="relative shrink-0" data-breakpoints-popover>
       <TbIconBtn
         id={triggerId}
-        title="Breakpoints — custom viewport tiers"
+        title="Breakpoints, custom screen sizes"
         ariaLabel="Breakpoints"
         ariaExpanded={open}
         ariaHaspopup="dialog"

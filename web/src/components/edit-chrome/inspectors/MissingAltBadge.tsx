@@ -71,7 +71,7 @@ export function MissingAltBadge({ findings, onFocusNode }: MissingAltBadgeProps)
                       : undefined
                   }
                 >
-                  {f.label} has no alt text — add a short description for screen
+                  {f.label} has no alt text. Add a short description for screen
                   readers.
                 </Tag>
               </li>

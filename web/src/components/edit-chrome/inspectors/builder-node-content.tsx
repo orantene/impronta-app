@@ -348,7 +348,7 @@ export function BuilderNodeContentInspector({
         <BuilderNodeFlatPanel>
           <p className={KIT.hint}>
             Raw HTML blocks can only be edited by a platform owner. The block
-            stays live on the page — ask an owner to change its markup.
+            stays live on the page. Ask an owner to change its markup.
           </p>
         </BuilderNodeFlatPanel>
       );
@@ -506,7 +506,7 @@ export function BuilderNodeContentInspector({
                 void commitPatch({ priority: next || undefined });
               }}
               label="Load priority (LCP)"
-              helper="Mark this as the page's hero image. Loads eagerly with high fetch priority — use on at most one above-the-fold image."
+              helper="Mark this as the page's hero image. Loads eagerly with high fetch priority. Use on at most one above-the-fold image."
             />
           </div>
         </BuilderNodeSection>
@@ -518,7 +518,7 @@ export function BuilderNodeContentInspector({
     return (
       <div className="flex flex-col gap-3">
         <Card state="active">
-          <CardHead title="Icon node" sub="Inline SVG" iconAccent="blue" />
+          <CardHead title="Icon" sub="Inline SVG" iconAccent="blue" />
           <CardBody>
             <div className="flex flex-col gap-3">
               <Field flush>
@@ -1116,7 +1116,7 @@ export function BuilderNodeContentInspector({
                       void commitPatch({ tiers: nextTiers });
                     }}
                     label="Highlighted"
-                    helper="Shows this tier with a visual accent — usually the recommended plan."
+                    helper="Shows this tier with a visual accent, usually the recommended plan."
                   />
                 </div>
 
@@ -1358,7 +1358,7 @@ export function BuilderNodeContentInspector({
                     })}
                   />
                   <Helper>
-                    Required for inbox delivery — the id of the form section to record
+                    Required for inbox delivery, the id of the form section to record
                     submissions under. Without it the form renders but submissions are
                     rejected.
                   </Helper>
@@ -2782,7 +2782,7 @@ export function BuilderNodeContentInspector({
     return (
       <div className="flex flex-col gap-3">
         <Card state="active">
-          <CardHead title="Divider node" sub="Horizontal rule" iconAccent="blue" />
+          <CardHead title="Divider" sub="Horizontal rule" iconAccent="blue" />
           <CardBody>
             <Field flush>
               <FieldLabel>Tone</FieldLabel>
@@ -2810,7 +2810,7 @@ export function BuilderNodeContentInspector({
     return (
       <div className="flex flex-col gap-3">
         <Card state="active">
-          <CardHead title="Spacer node" sub="Vertical gap" iconAccent="blue" />
+          <CardHead title="Spacer" sub="Vertical gap" iconAccent="blue" />
           <CardBody>
             <Field flush>
               <FieldLabel>Size</FieldLabel>
@@ -3385,7 +3385,7 @@ function NestedBlocksCard({
                           disabled={index === 0}
                           title={
                             index === 0
-                              ? "Already first — can't move up"
+                              ? "Already first, can't move up"
                               : "Move block up one position"
                           }
                           aria-label="Move block up"
@@ -3401,7 +3401,7 @@ function NestedBlocksCard({
                           disabled={index === nodes.length - 1}
                           title={
                             index === nodes.length - 1
-                              ? "Already last — can't move down"
+                              ? "Already last, can't move down"
                               : "Move block down one position"
                           }
                           aria-label="Move block down"
@@ -3522,7 +3522,7 @@ function contentHint(node: Exclude<BuilderNode, { kind: "section" }>): string {
     case "masonry":
       return "Masonry content is managed through its child blocks. Add images or cards in Structure; columns and gap live in Layout.";
     case "card":
-      return "Card blocks wrap heading, paragraph, image, and button children — not nested layout shells. Edit blocks in Structure; surface style in Layout.";
+      return "Card blocks wrap heading, paragraph, image, and button children, not nested layout shells. Edit blocks in Structure; surface style in Layout.";
     case "cta_group":
       return "CTA groups hold buttons only. Add headline or body copy as sibling blocks outside this group (e.g. in a container). Row vs stack lives in Layout.";
     case "divider":
@@ -3936,7 +3936,7 @@ function VariantPicker({
         }}
         options={options.map((v) => ({ value: v, label: variantLabel(v) }))}
       />
-      <Helper>Restyles to a preset look — your content stays.</Helper>
+      <Helper>Restyles to a preset look, your content stays.</Helper>
     </Field>
   );
 }

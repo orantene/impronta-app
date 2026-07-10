@@ -209,7 +209,7 @@ function QuoteGuidance({ len }: { len: number }) {
   if (len <= 220) {
     return (
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-amber-500">Getting long — may wrap on mobile</span>
+        <span className="text-[10px] text-amber-500">Getting long, may wrap on mobile</span>
         <span className="text-[10px] tabular-nums text-amber-500">{len}</span>
       </div>
     );
@@ -252,7 +252,7 @@ function VoiceSlot({
           </span>
           {isEmpty && (
             <span className="text-[10px] text-stone-500">
-              Empty — won&apos;t appear on page
+              Empty, won&apos;t appear on page
             </span>
           )}
         </div>

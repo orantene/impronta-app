@@ -433,7 +433,7 @@ async function handleShareClick(
     setMutationError(
       error instanceof Error
         ? error.message
-        : "Couldn't create the share link — try again.",
+        : "Couldn't create the share link. Try again.",
     );
     return null;
   }
@@ -724,7 +724,7 @@ function EditShellInner({
       if (!isNetworkShape) return;
       e.preventDefault();
       reportMutationError(
-        "Network error — your changes are saved as a draft. Check your connection and try again.",
+        "Network error. Your changes are saved as a draft. Check your connection and try again.",
       );
     }
     window.addEventListener("unhandledrejection", onRejection);
@@ -1834,7 +1834,7 @@ function DraftSavedToast() {
       <span className="flex max-w-[min(420px,calc(100vw-96px))] flex-col gap-0.5">
         <span>Draft saved · {stamp}</span>
         <span className="font-normal opacity-85">
-          Live preview can lag a moment after inserts — the draft on the server is still what
+          Live preview can lag a moment after inserts. The draft on the server is still what
           Publish will read.
         </span>
       </span>
@@ -1971,7 +1971,7 @@ function MutationErrorToast() {
       return `${names} ${peopleNames.length === 1 ? "is" : "are"} also editing this page.`;
     }
     if (myOtherTabs > 0) {
-      return "You have this page open in another tab — that edit landed first.";
+      return "You have this page open in another tab. That edit landed first.";
     }
     return null;
   })();
@@ -2117,7 +2117,7 @@ function PresenceBannerInner() {
     message = `${names} ${peopleNames.length === 1 ? "is" : "are"} also editing this page`;
     if (myOtherTabs > 0) message += " · also open in another tab of yours";
   } else if (myOtherTabs > 0) {
-    message = `You have this page open in ${myOtherTabs === 1 ? "another tab" : `${myOtherTabs} other tabs`} — edits there can conflict`;
+    message = `You have this page open in ${myOtherTabs === 1 ? "another tab" : `${myOtherTabs} other tabs`}, edits there can conflict`;
   }
   if (!message) return null;
 

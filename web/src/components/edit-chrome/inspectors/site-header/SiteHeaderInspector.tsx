@@ -397,7 +397,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
         } catch (e) {
           setStatus({
             kind: "error",
-            message: e instanceof Error ? e.message : "Couldn't save — try again.",
+            message: e instanceof Error ? e.message : "Couldn't save. Try again.",
           });
           // Keep the entry in the queue so a retry could pick it up.
           return;
@@ -721,7 +721,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
             color: CHROME.amber,
           }}
         >
-          <p className="m-0">Couldn’t load header config — {loadError}</p>
+          <p className="m-0">Couldn’t load header config: {loadError}</p>
           {/* QA 2026-05-13 — without a Retry, a transient network blip
               forced the operator to close + reopen the entire
               inspector to recover. Now we expose a Retry that

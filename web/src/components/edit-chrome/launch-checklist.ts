@@ -128,14 +128,14 @@ export const LAUNCH_CHECKLIST_STEPS: ReadonlyArray<{
     key: "content",
     label: "Edit the words",
     hint:
-      "Headlines and copy are placeholders — click any text to rewrite it.",
+      "Headlines and copy are placeholders. Click any text to rewrite it.",
     cta: "Start editing",
   },
   {
     key: "theme",
     label: "Set your brand style",
     hint:
-      "Pick your color and fonts once — the whole page updates automatically.",
+      "Pick your color and fonts once, the whole page updates automatically.",
     cta: "Open Theme",
   },
   {

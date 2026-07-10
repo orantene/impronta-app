@@ -243,12 +243,12 @@ export function LayoutTab({ config, patch }: Props) {
                   patch.patchSection({ variant: e.target.value })
                 }
               >
-                <option value="standard">Standard — brand left, nav right</option>
-                <option value="minimal">Minimal — centered, compact</option>
-                <option value="split">Split — three columns</option>
-                <option value="editorial">Editorial — centered premium serif</option>
+                <option value="standard">Standard: brand left, nav right</option>
+                <option value="minimal">Minimal: centered, compact</option>
+                <option value="split">Split: three columns</option>
+                <option value="editorial">Editorial: centered premium serif</option>
                 <option value="editorial-split">
-                  Editorial split — premium agency (recommended)
+                  Editorial split, premium agency (recommended)
                 </option>
               </select>
             </div>
@@ -263,7 +263,7 @@ export function LayoutTab({ config, patch }: Props) {
               >
                 <option value="image-and-text">Logo image + wordmark</option>
                 <option value="text">
-                  Wordmark text only — Cinzel + tagline
+                  Wordmark text only, Cinzel + tagline
                 </option>
                 <option value="image">Logo image only</option>
               </select>
@@ -382,7 +382,7 @@ export function LayoutTab({ config, patch }: Props) {
 
           <InspectorGroup
             title="Header style"
-            info="Overall visual treatment of the bar. Try one — colors below let you customize from there."
+            info="Overall visual treatment of the bar. Try one, colors below let you customize from there."
           >
             <ChipGrid
               options={HEADER_VARIANT_OPTIONS}
@@ -423,7 +423,7 @@ export function LayoutTab({ config, patch }: Props) {
 
       <InspectorGroup
         title="Page background"
-        info="The canvas the header sits on. A curated mood — or leave it and customize the surface above."
+        info="The canvas the header sits on. A curated mood, or leave it and customize the surface above."
       >
         <div className="grid grid-cols-2 gap-2">
           {BACKGROUND_MODES.map((opt) => {
@@ -433,7 +433,7 @@ export function LayoutTab({ config, patch }: Props) {
                 key={opt.value}
                 type="button"
                 onClick={() => patch.patchToken("background.mode", opt.value)}
-                title={`${opt.label} — ${opt.helper}`}
+                title={`${opt.label}: ${opt.helper}`}
                 aria-label={opt.label}
                 className={`group flex flex-col items-stretch gap-1.5 rounded-lg border p-2 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
                   active
@@ -541,7 +541,7 @@ function ChipGrid({
             onClick={() => onChange(opt.value)}
             // Helper text moves to native title — appears on hover
             // without occupying every chip's vertical real estate.
-            title={`${opt.label} — ${opt.helper}`}
+            title={`${opt.label}: ${opt.helper}`}
             aria-label={opt.label}
             className={`group flex flex-col items-stretch gap-1.5 rounded-lg border p-2 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
               active

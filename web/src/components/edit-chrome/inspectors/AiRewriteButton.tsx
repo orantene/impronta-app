@@ -33,7 +33,7 @@ interface AiRewriteButtonProps {
 }
 
 const PRESETS: ReadonlyArray<{ label: string; instruction: string }> = [
-  { label: "Polish", instruction: "Polish lightly — keep meaning, tighten phrasing." },
+  { label: "Polish", instruction: "Polish lightly, keep meaning, tighten phrasing." },
   { label: "Shorter", instruction: "Cut to roughly half the length, keep the most concrete details." },
   { label: "Punchier", instruction: "Make it sharper and more confident. Drop hedging." },
   { label: "Friendlier", instruction: "Warmer, more conversational, less corporate." },

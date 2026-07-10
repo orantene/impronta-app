@@ -101,7 +101,7 @@ export function ColorRow({ label, hint, value, onChange }: ColorRowProps) {
         <input
           type="text"
           className="flex-1 bg-transparent font-mono text-[12px] text-stone-700 placeholder:text-stone-500 focus:outline-none"
-          placeholder="#— or rgba()"
+          placeholder="e.g. #111111 or rgba()"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => {

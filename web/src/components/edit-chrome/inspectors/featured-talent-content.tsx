@@ -253,7 +253,7 @@ export function FeaturedTalentContentInspector({
         <input
           type="text"
           className={KIT.input}
-          placeholder="Optional — e.g. Featured this month"
+          placeholder="Optional, e.g. Featured this month"
           maxLength={60}
           value={eyebrow}
           onChange={(e) => update({ eyebrow: e.target.value || undefined })}
@@ -277,7 +277,7 @@ export function FeaturedTalentContentInspector({
           onChange={(next) => update({ copy: next || undefined })}
           variant="multi"
           tenantId={tenantId}
-          placeholder="Optional — one paragraph of context"
+          placeholder="Optional, one paragraph of context"
           ariaLabel="Description"
         />
       </div>
@@ -532,7 +532,7 @@ export function FeaturedTalentContentInspector({
         storageKey="featured_talent:advanced"
       >
         <div className={KIT.field}>
-          <label className={KIT.label}>Maximum cards — {limit}</label>
+          <label className={KIT.label}>Maximum cards: {limit}</label>
           <input
             type="range"
             min={1}
@@ -545,7 +545,7 @@ export function FeaturedTalentContentInspector({
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>
-            Desktop columns — {columnsDesktop}
+            Desktop columns: {columnsDesktop}
           </label>
           <input
             type="range"

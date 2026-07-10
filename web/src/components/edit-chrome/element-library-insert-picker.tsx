@@ -301,7 +301,7 @@ export function ElementLibraryInsertPicker({
         }}
       >
         No elements can be inserted here right now (catalog empty). Reload the page
-        or pick another section — if this persists, the builder tree may still be
+        or pick another section. If this persists, the builder tree may still be
         loading.
       </div>
     );

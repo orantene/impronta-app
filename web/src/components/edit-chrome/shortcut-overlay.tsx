@@ -244,7 +244,7 @@ export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
                 >
                   {advanced
                     ? "Data + Motion tabs, Wide / Compact / custom viewports, and reusable style presets & linked classes are shown."
-                    : "Off keeps the editor minimal. Turn on for Data + Motion tabs, extra viewport tiers, and advanced style controls."}
+                    : "Off keeps the editor minimal. Turn on for Data + Motion tabs, extra screen sizes, and advanced style controls."}
                 </div>
               </div>
               <button

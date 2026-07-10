@@ -80,7 +80,7 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-          Fonts — {slot}
+          Fonts: {slot}
         </span>
         {current ? (
           <button

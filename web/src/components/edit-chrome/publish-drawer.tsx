@@ -630,7 +630,7 @@ export function PublishDrawer() {
         fallback: {
           ok: false as const,
           error:
-            "Network error — your changes are saved as a draft. Check your connection and try again.",
+            "Network error. Your changes are saved as a draft. Check your connection and try again.",
           code: "network",
         },
       },
@@ -664,7 +664,7 @@ export function PublishDrawer() {
         fallback: {
           ok: false as const,
           error:
-            "Network error — couldn't reset the draft. Check your connection and try again.",
+            "Network error. Couldn't reset the draft. Check your connection and try again.",
           code: "network",
         },
       },
@@ -723,12 +723,12 @@ export function PublishDrawer() {
   // the deeper reasons (blocking checks, missing sections) — the
   // tooltip is the at-a-glance hint.
   const publishDisabledReason = (() => {
-    if (state.kind === "publishing") return "Publishing — please wait.";
+    if (state.kind === "publishing") return "Publishing. Please wait.";
     if (hasConflictRecovery)
       return "This page changed in another tab or session. Resolve the conflict banner first: Reload latest or Keep editing this copy.";
-    if (saving) return "Saving draft — try again in a moment.";
+    if (saving) return "Saving draft. Try again in a moment.";
     if (dirty)
-      return "Unsaved changes — autosave is catching up; try again in a moment.";
+      return "Unsaved changes. Autosave is catching up; try again in a moment.";
     if (preflightLoading) return "Running publish checks…";
     if (preflightBlockingErrors > 0)
       return `Fix ${preflightBlockingErrors} blocking publish check${
@@ -737,9 +737,9 @@ export function PublishDrawer() {
     if (summary.missing.length > 0)
       return `${summary.missing.length} section${
         summary.missing.length === 1 ? "" : "s"
-      } missing from the latest published version — reload composition to recover.`;
+      } missing from the latest published version. Reload composition to recover.`;
     if (getCompositionCasVersion() === null)
-      return "Page version unavailable — reload and try again.";
+      return "Page version unavailable. Reload and try again.";
     return null;
   })();
   /**
@@ -758,7 +758,7 @@ export function PublishDrawer() {
       reasons.push(
         `${preflightBlockingErrors} publish check${
           preflightBlockingErrors === 1 ? "" : "s"
-        } marked Blocker above must be fixed. Warnings are advisory — they do not stop publish.`,
+        } marked Blocker above must be fixed. Warnings are advisory. They do not stop publish.`,
       );
     }
     if (getCompositionCasVersion() === null) {
@@ -876,7 +876,7 @@ export function PublishDrawer() {
                   work as a <strong style={{ color: CHROME.text }}>draft</strong>.{" "}
                   <strong style={{ color: CHROME.text }}>Publishing</strong> promotes this{" "}
                   <strong style={{ color: CHROME.text }}>template</strong>{" "}into the
-                  page-builder gallery — so the live builders&rsquo;{" "}
+                  page-builder gallery, so the live builders&rsquo;{" "}
                   <strong style={{ color: CHROME.text }}>+ Add</strong> can use it. The canvas here
                   is a sandbox; no live page changes.
                 </p>
@@ -886,14 +886,14 @@ export function PublishDrawer() {
                   work as a <strong style={{ color: CHROME.text }}>draft</strong>.{" "}
                   <strong style={{ color: CHROME.text }}>Publishing</strong> replaces the current{" "}
                   <strong style={{ color: CHROME.text }}>public</strong> version of{" "}
-                  {pageSlug ? "this page" : "your homepage"} with that draft — so visitors then
+                  {pageSlug ? "this page" : "your homepage"} with that draft, so visitors then
                   see this page as you have it now. Other pages are unchanged. Use{" "}
                   <strong style={{ color: CHROME.text }}>Revisions</strong> to roll back to a
                   previous snapshot if needed.
                 </p>
               )}
               <p style={{ margin: "8px 0 0", fontSize: 11, color: CHROME.muted2, lineHeight: 1.45 }}>
-                Saving only stores your draft — it does not mean visitors see these changes. Scroll the
+                Saving only stores your draft. It does not mean visitors see these changes. Scroll the
                 canvas, try Preview mode, and review the publish checks below before publishing.
               </p>
             </div>
@@ -1033,7 +1033,7 @@ export function PublishDrawer() {
                             color: CHROME.muted2,
                           }}
                         >
-                          Diff shows no section changes vs last publish — the canvas or device
+                          Diff shows no section changes vs last publish. The canvas or device
                           preview can still lag your saved draft. Use Preview, review checks below,
                           wait for autosave, or reload composition if the tree looks stale.
                         </p>
@@ -1529,7 +1529,7 @@ export function PublishDrawer() {
                       style={{ fontSize: 11.5, color: CHROME.muted, padding: "4px 0" }}
                     >
                       {builderDiffIds
-                        ? "Nothing published yet — this will be the first published version."
+                        ? "Nothing published yet. This will be the first published version."
                         : "Builder diff unavailable."}
                     </div>
                   ) : builderDiffIds ? (
@@ -1606,7 +1606,7 @@ export function PublishDrawer() {
               >
                 {saving
                   ? "Saving your last edit…"
-                  : "You have unsaved edits — wait for them to save first."}
+                  : "You have unsaved edits. Wait for them to save first."}
               </div>
             ) : null}
 
@@ -1815,7 +1815,7 @@ export function PublishDrawer() {
                   state.kind === "publishing"
                     ? "Publishing to the live site, please wait"
                     : publishDisabledReason
-                      ? `Publish now — ${publishDisabledReason}`
+                      ? `Publish now (${publishDisabledReason})`
                       : undefined
                 }
                 title={publishDisabled ? publishDisabledReason ?? undefined : undefined}
@@ -2088,10 +2088,10 @@ function SuccessBody({
             }}
           >
             {surfaceKind === "platform_lab"
-              ? "This template is now in the page-builder gallery. Keep editing — your next publish updates it when you click Publish again."
+              ? "This template is now in the page-builder gallery. Keep editing. Your next publish updates it when you click Publish again."
               : surfaceKind === "homepage"
-                ? "Visitors see the new homepage now. Keep editing — your next publish only replaces the live page when you click Publish again."
-                : "Visitors see the new page now. Keep editing — your next publish only replaces the live page when you click Publish again."}
+                ? "Visitors see the new homepage now. Keep editing. Your next publish only replaces the live page when you click Publish again."
+                : "Visitors see the new page now. Keep editing. Your next publish only replaces the live page when you click Publish again."}
           </p>
         </div>
       </div>

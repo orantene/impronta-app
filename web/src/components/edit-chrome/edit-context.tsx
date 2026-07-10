@@ -4134,7 +4134,7 @@ export function EditProvider({
         }
       } catch (err) {
         setCompositionError(
-          err instanceof Error ? err.message : "Couldn't load the page — try again.",
+          err instanceof Error ? err.message : "Couldn't load the page. Try again.",
         );
       } finally {
         setCompositionLoading(false);
@@ -4593,7 +4593,7 @@ export function EditProvider({
           // the previous bespoke removeSection).
           const targetId = mutation.sectionId;
           const dm = dispatchMutationRef.current;
-          if (!dm) return { ok: false, error: "The editor is still starting — try again in a second." };
+          if (!dm) return { ok: false, error: "The editor is still starting. Try again in a second." };
           const result = await dm((prev) => {
             const nextSlots: Record<string, CompositionSectionRef[]> = {};
             let removed = false;
@@ -4611,14 +4611,14 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Couldn't remove this section — try again.",
+            error: result.error ?? "Couldn't remove this section. Try again.",
           };
         }
 
         case "composition.metadata": {
           const { metadata } = mutation;
           const dm = dispatchMutationRef.current;
-          if (!dm) return { ok: false, error: "The editor is still starting — try again in a second." };
+          if (!dm) return { ok: false, error: "The editor is still starting. Try again in a second." };
           const result = await dm((prev) => ({
             ...prev,
             // Mutation type uses `Record<string, unknown>` to keep the
@@ -4633,7 +4633,7 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Couldn't save your changes — try again.",
+            error: result.error ?? "Couldn't save your changes. Try again.",
           };
         }
 
@@ -4643,7 +4643,7 @@ export function EditProvider({
           // breaks the temporal-dead-zone (moveSectionTo declared
           // below dispatch in the file).
           const fn = moveSectionToRef.current;
-          if (!fn) return { ok: false, error: "The editor is still starting — try again in a second." };
+          if (!fn) return { ok: false, error: "The editor is still starting. Try again in a second." };
           const result = await fn(
             mutation.sectionId,
             mutation.targetSlotKey,
@@ -4655,7 +4655,7 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Couldn't move this section — try again.",
+            error: result.error ?? "Couldn't move this section. Try again.",
           };
         }
 
@@ -4665,7 +4665,7 @@ export function EditProvider({
           // newSectionId on the unified DispatchResult envelope so the
           // chip / picker can promote the new section to selection.
           const fn = insertSectionRef.current;
-          if (!fn) return { ok: false, error: "The editor is still starting — try again in a second." };
+          if (!fn) return { ok: false, error: "The editor is still starting. Try again in a second." };
           const result = await fn(mutation.target, mutation.sectionTypeKey);
           if (result.ok) {
             recordDispatchAudit(result.newSectionId ?? null);
@@ -4673,7 +4673,7 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Couldn't add this section — try again.",
+            error: result.error ?? "Couldn't add this section. Try again.",
           };
         }
 
@@ -4682,7 +4682,7 @@ export function EditProvider({
           // (server-generated id, splice into slots, surface
           // newSectionId).
           const fn = duplicateSectionRef.current;
-          if (!fn) return { ok: false, error: "The editor is still starting — try again in a second." };
+          if (!fn) return { ok: false, error: "The editor is still starting. Try again in a second." };
           const result = await fn(mutation.sectionId);
           if (result.ok) {
             recordDispatchAudit(result.newSectionId ?? mutation.sectionId);
@@ -4690,7 +4690,7 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Couldn't duplicate this section — try again.",
+            error: result.error ?? "Couldn't duplicate this section. Try again.",
           };
         }
 
@@ -4698,7 +4698,7 @@ export function EditProvider({
           return {
             ok: false,
             error:
-              "This edit is not available yet — reload the page and try again.",
+              "This edit is not available yet. Reload the page and try again.",
             code: "NOT_ROUTED",
           };
       }
@@ -4732,11 +4732,11 @@ export function EditProvider({
       compute: (prev: CompositionSnapshot) => CompositionSnapshot | null,
     ): Promise<{ ok: boolean; error?: string }> => {
       if (pageVersionRef.current === null) {
-        return { ok: false, error: "This page is still loading — try again in a moment." };
+        return { ok: false, error: "This page is still loading. Try again in a moment." };
       }
       const snap = currentSnapshot();
       const nextRaw = compute(snap);
-      if (!nextRaw) return { ok: false, error: "Nothing changed — try again if that was unexpected." };
+      if (!nextRaw) return { ok: false, error: "Nothing changed. Try again if that was unexpected." };
       const normalizedSlots = normalizeCompositionSlots(nextRaw.slots);
       const next = { ...nextRaw, slots: normalizedSlots };
 
@@ -4767,7 +4767,7 @@ export function EditProvider({
         setSlotsAndBuilderTree(snap.slots);
         setPageMetadata(snap.metadata);
         setPast((p) => p.slice(0, -1));
-        return { ok: false, error: "This page is still loading — try again in a moment." };
+        return { ok: false, error: "This page is still loading. Try again in a moment." };
       }
 
       const save = await safeAction(
@@ -4793,7 +4793,7 @@ export function EditProvider({
           fallback: {
             ok: false as const,
             error:
-              "Network error — your draft could not be saved. Refresh and try again.",
+              "Network error. Your draft could not be saved. Refresh and try again.",
             code: "network",
           },
         },
@@ -4844,7 +4844,7 @@ export function EditProvider({
     async (target, sectionTypeKey, options) => {
       const activePageVersion = pageVersionRef.current;
       if (activePageVersion === null) {
-        return { ok: false, error: "This page is still loading — try again in a moment." };
+        return { ok: false, error: "This page is still loading. Try again in a moment." };
       }
       const snap = currentSnapshot();
       // capture history + clear future BEFORE the round-trip so if the
@@ -4977,7 +4977,7 @@ export function EditProvider({
   const duplicateSection = useCallback<EditContextValue["duplicateSection"]>(
     async (sectionId) => {
       if (pageVersion === null) {
-        return { ok: false, error: "This page is still loading — try again in a moment." };
+        return { ok: false, error: "This page is still loading. Try again in a moment." };
       }
       const snap = currentSnapshot();
       setPast((p) =>
@@ -5241,7 +5241,7 @@ export function EditProvider({
         return {
           ok: false as const,
           code: "SAVE_FAILED" as const,
-          error: "This page is still loading — try again in a moment.",
+          error: "This page is still loading. Try again in a moment.",
         };
       }
       const prevTree = rollbackTarget ?? builderTreeRef.current;
@@ -5273,7 +5273,7 @@ export function EditProvider({
           fallback: {
             ok: false as const,
             error:
-              "Network error — your block changes could not be saved. Refresh and try again.",
+              "Network error. Your block changes could not be saved. Refresh and try again.",
             code: "network",
           },
         },
@@ -5655,7 +5655,7 @@ export function EditProvider({
         return {
           ok: false,
           code: "SAVE_FAILED",
-          error: "This page is still loading — try again in a moment.",
+          error: "This page is still loading. Try again in a moment.",
         };
       }
 
@@ -5761,7 +5761,7 @@ export function EditProvider({
         return {
           ok: false,
           error:
-            "That block was not found on the page — select it on the canvas and try again.",
+            "That block was not found on the page. Select it on the canvas and try again.",
         };
       }
       if (targetIndex < 0 || targetIndex >= location.siblingCount) {
@@ -5802,7 +5802,7 @@ export function EditProvider({
         return {
           ok: false,
           error:
-            "That block was not found on the page — select it on the canvas and try again.",
+            "That block was not found on the page. Select it on the canvas and try again.",
         };
       }
       if (targetIndex < 0) {
@@ -5951,7 +5951,7 @@ export function EditProvider({
       if (pageVersionRef.current === null) {
         return {
           ok: false,
-          error: "This page is still loading — try again in a moment.",
+          error: "This page is still loading. Try again in a moment.",
         };
       }
       // Snapshot the pre-apply tree BEFORE the write so Undo restores it intact.
@@ -6017,7 +6017,7 @@ export function EditProvider({
                   ok: false,
                   error:
                     saved.error ??
-                    "Could not apply the design — try again.",
+                    "Could not apply the design. Try again.",
                 };
               }
               return { ok: true, tree: baked.builderTree };
@@ -6047,7 +6047,7 @@ export function EditProvider({
         if (!saved.ok) {
           return {
             ok: false,
-            error: saved.error ?? "Could not apply the page — try again.",
+            error: saved.error ?? "Could not apply the page. Try again.",
           };
         }
         return { ok: true, tree };
@@ -6502,7 +6502,7 @@ export function EditProvider({
       }
       const duplicatedNodeId = duplicated.nodeId ?? null;
       if (!duplicatedNodeId) {
-        return { ok: false, error: "Duplicate did not finish — refresh the page and try again." };
+        return { ok: false, error: "Duplicate did not finish. Refresh the page and try again." };
       }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         duplicated.tree,
@@ -6535,13 +6535,13 @@ export function EditProvider({
         return {
           ok: false,
           error:
-            "That block was not found on the page — select it on the canvas and try again.",
+            "That block was not found on the page. Select it on the canvas and try again.",
         };
       }
       if (location.node.kind === "section") {
         return {
           ok: false,
-          error: "To duplicate a whole section, use Duplicate section from the section menu — not Copy block.",
+          error: "To duplicate a whole section, use Duplicate section from the section menu, not Copy block.",
         };
       }
       const copiedNode = cloneBuilderNode(location.node);
@@ -6661,7 +6661,7 @@ export function EditProvider({
       }
       const pastedNodeId = pasted.nodeId ?? null;
       if (!pastedNodeId) {
-        return { ok: false, error: "Paste did not finish — refresh the page and try again." };
+        return { ok: false, error: "Paste did not finish. Refresh the page and try again." };
       }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         pasted.tree,
@@ -6724,7 +6724,7 @@ export function EditProvider({
       }
       const pastedNodeId = pasted.nodeId ?? null;
       if (!pastedNodeId) {
-        return { ok: false, error: "Paste did not finish — refresh the page and try again." };
+        return { ok: false, error: "Paste did not finish. Refresh the page and try again." };
       }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         pasted.tree,
@@ -6817,7 +6817,7 @@ export function EditProvider({
         return {
           ok: false,
           error:
-            "That block was not found on the page — select it on the canvas and try again.",
+            "That block was not found on the page. Select it on the canvas and try again.",
         };
       }
       const currentStyle =
@@ -6885,7 +6885,7 @@ export function EditProvider({
         return {
           ok: false,
           error:
-            "That block was not found on the page — select it on the canvas and try again.",
+            "That block was not found on the page. Select it on the canvas and try again.",
         };
       }
       if (direction === "up" && location.index <= 0) {
@@ -7262,7 +7262,7 @@ export function EditProvider({
           fallback: {
             ok: false as const,
             error:
-              "Network error — undo/redo couldn't reach the server. Refresh and try again.",
+              "Network error. Undo/redo couldn't reach the server. Refresh and try again.",
             code: "network" as const,
           },
         },
@@ -7732,7 +7732,7 @@ export function EditProvider({
   const restoreRevision = useCallback<EditContextValue["restoreRevision"]>(
     async (revisionId) => {
       if (pageVersion === null) {
-        return { ok: false, error: "This page is still loading — try again in a moment." };
+        return { ok: false, error: "This page is still loading. Try again in a moment." };
       }
       setSaving(true);
       // T4.5: Branch on homepage vs non-homepage page. The homepage is keyed
@@ -7746,7 +7746,7 @@ export function EditProvider({
       // guard on its presence.
       if (!surfaceAdapter.restoreRevision) {
         setSaving(false);
-        const message = "This surface does not support restoring revisions.";
+        const message = "This page doesn't support restoring revisions.";
         reportMutationError(message);
         return { ok: false, error: message };
       }
@@ -7825,7 +7825,7 @@ export function EditProvider({
         : {
             ok: false,
             error:
-              result.error ?? "Couldn't save your changes — try again.",
+              result.error ?? "Couldn't save your changes. Try again.",
           };
     },
     [dispatch],
@@ -7845,7 +7845,7 @@ export function EditProvider({
     }
     const casVersion = pageVersionRef.current;
     if (casVersion === null) {
-      return { ok: false, error: "This page is still loading — try again in a moment." };
+      return { ok: false, error: "This page is still loading. Try again in a moment." };
     }
     const snap = currentSnapshot();
     setSaving(true);
@@ -7875,7 +7875,7 @@ export function EditProvider({
         fallback: {
           ok: false as const,
           error:
-            "Network error — your draft could not be saved. Refresh and try again.",
+            "Network error. Your draft could not be saved. Refresh and try again.",
           code: "network",
         },
       },

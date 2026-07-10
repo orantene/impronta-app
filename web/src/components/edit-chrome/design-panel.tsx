@@ -80,9 +80,9 @@ export function DesignPanel({ open, onClose }: DesignPanelProps) {
             className="m-0 text-[12px] leading-relaxed"
             style={{ color: CHROME.muted }}
           >
-            Global theme &amp; tokens — colours, typography, spacing, effects,
-            and the code view for the whole site. This opens the full-height
-            theme editor.
+            Global theme and brand styles: colours, typography, spacing,
+            effects, and the code view for the whole site. This opens the
+            full-height theme editor.
           </p>
           <button
             type="button"

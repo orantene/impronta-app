@@ -102,7 +102,7 @@ export function LocaleFieldTabs({
                 aria-selected={active}
                 title={`Edit ${localeLabel(code)}${
                   code === defaultLocale ? " (default)" : ""
-                }${filled ? " — translated" : " — empty"}`}
+                }${filled ? ": translated" : ": empty"}`}
                 onClick={() => setActiveTab(code)}
                 className={`inline-flex items-center gap-1.5 rounded-[6px] px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.04em] transition-colors ${
                   active

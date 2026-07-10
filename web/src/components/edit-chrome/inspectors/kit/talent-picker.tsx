@@ -247,7 +247,7 @@ export function TalentPicker({
                 ))}
                 {more ? (
                   <div className="col-span-3 pt-1 text-center text-[11px] text-stone-500">
-                    Showing 18 matches — refine your search to narrow.
+                    Showing 18 matches, refine your search to narrow.
                   </div>
                 ) : null}
               </div>

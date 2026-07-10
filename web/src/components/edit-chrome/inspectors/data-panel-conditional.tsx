@@ -359,9 +359,9 @@ export function ABTestCard({
         sub={
           active
             ? variants.length > 2
-              ? `${variants.length} variants — visitors split, conversions tracked`
-              : "Two variants — visitors split, conversions tracked"
-            : "Off — one version for everyone"
+              ? `${variants.length} variants: visitors split, conversions tracked`
+              : "Two variants: visitors split, conversions tracked"
+            : "Off, one version for everyone"
         }
         iconAccent={active ? "green" : "blue"}
         action={
@@ -384,7 +384,7 @@ export function ABTestCard({
           <div className="flex flex-col gap-3" data-builder-experiment-config>
             <p className="text-[11px] leading-snug text-stone-500">
               Variant A is the version you see on the canvas. Add one or more
-              challengers below — visitors split between them. We record an
+              challengers below, visitors split between them. We record an
               impression and a conversion (
               {kind === "form" ? "form submit" : "click"}) for each.
             </p>
@@ -509,7 +509,7 @@ export function ABTestCard({
 
             <Helper>
               Leave a field blank to keep variant A’s value for it. A challenger
-              with no overrides is dropped. Weights are relative — leave them
+              with no overrides is dropped. Weights are relative, leave them
               blank for an even split.
             </Helper>
           </div>

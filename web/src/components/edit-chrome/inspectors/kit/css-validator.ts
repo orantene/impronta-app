@@ -36,7 +36,7 @@ export interface CssError {
 export function validateCss(css: string): CssError[] {
   const trimmed = css.trim();
   if (!trimmed) {
-    return [{ message: "No CSS — editor is empty.", severity: "warning" }];
+    return [{ message: "No CSS, editor is empty.", severity: "warning" }];
   }
 
   const errors: CssError[] = [];
@@ -57,8 +57,8 @@ export function validateCss(css: string): CssError[] {
     errors.push({
       message:
         depth > 0
-          ? `Unbalanced braces — ${depth} opening brace${depth === 1 ? "" : "s"} without a closing "}"`.trim()
-          : `Unbalanced braces — extra "}" found.`,
+          ? `Unbalanced braces: ${depth} opening brace${depth === 1 ? "" : "s"} without a closing "}"`.trim()
+          : `Unbalanced braces: extra "}" found.`,
       severity: "error",
     });
   }
@@ -69,7 +69,7 @@ export function validateCss(css: string): CssError[] {
   // supports, keyframes, font-face, container) are fine.
   const atMatches = stripped.match(/@[-\w]+/g) ?? [];
   const BLOCKED_AT: Record<string, string> = {
-    "@import": "@import is not supported in scoped CSS — it will be ignored.",
+    "@import": "@import is not supported in scoped CSS, it will be ignored.",
     "@charset": "@charset is not valid inside an embedded style block.",
     "@namespace": "@namespace is not useful in scoped CSS.",
   };

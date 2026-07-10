@@ -324,7 +324,7 @@ function MobileStructureControls({
         aria-pressed={hidden}
         title={
           hidden
-            ? "This block is hidden on mobile — show it again"
+            ? "This block is hidden on mobile, show it again"
             : "Hide this block on mobile only (desktop + tablet unaffected)"
         }
         style={{
@@ -578,7 +578,7 @@ export function MobileEditPanel() {
           type="button"
           onClick={() => ctx.setMobileEditMode(false)}
           title="Exit to desktop editing"
-          aria-label="Exit mobile editing — back to desktop"
+          aria-label="Exit mobile editing, back to desktop"
           style={{
             display: "inline-flex",
             alignItems: "center",

@@ -90,7 +90,7 @@ export function runCommitText(
   if (hit.occurrences > 1) {
     deps.setBanner({
       kind: "error",
-      text: "This text appears more than once in this section — edit it from the inspector to disambiguate.",
+      text: "This text appears more than once in this section. Edit it from the inspector to disambiguate.",
     });
     return false;
   }

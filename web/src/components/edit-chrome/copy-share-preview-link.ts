@@ -30,7 +30,7 @@ export async function copySharePreviewLinkToClipboard(
     }
   } catch (err) {
     reportMutationError(
-      err instanceof Error ? err.message : "Couldn't create the share link — try again.",
+      err instanceof Error ? err.message : "Couldn't create the share link. Try again.",
     );
   }
 }

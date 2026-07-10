@@ -307,7 +307,7 @@ export function PageSettingsDrawer() {
     const res = await savePageMetadata(draft);
     setSubmitting(false);
     if (!res.ok) {
-      setErrorMsg(res.error ?? "Couldn't save page settings — try again.");
+      setErrorMsg(res.error ?? "Couldn't save page settings. Try again.");
       return;
     }
     closePageSettings();
@@ -350,7 +350,7 @@ export function PageSettingsDrawer() {
         savingRef.current = false;
         setSubmitting(false);
         if (!res.ok) {
-          setErrorMsg(res.error ?? "Couldn't save page settings — try again.");
+          setErrorMsg(res.error ?? "Couldn't save page settings. Try again.");
         }
       });
     }, 800);
@@ -472,7 +472,7 @@ export function PageSettingsDrawer() {
                     )
                   }
                   style={inputStyle()}
-                  placeholder="Optional — defaults to page title when empty"
+                  placeholder="Optional, defaults to page title when empty"
                 />
                 <Helper>
                   <span>Shown in browser tabs and search when set.</span>
@@ -990,7 +990,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
       () => savePageSlugAction({ pageId, slug: slugDraft.trim() }),
       {
         name: "savePageSlugAction",
-        fallback: { ok: false as const, error: "Network error — try again." },
+        fallback: { ok: false as const, error: "Network error. Try again." },
       },
     );
     setSlugBusy(false);
@@ -1012,7 +1012,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
         () => savePageSeoFlagsAction({ pageId, includeInSitemap: next }),
         {
           name: "savePageSeoFlagsAction.sitemap",
-          fallback: { ok: false as const, error: "Network error — try again." },
+          fallback: { ok: false as const, error: "Network error. Try again." },
         },
       );
       setSitemapBusy(false);
@@ -1034,7 +1034,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
       () => savePageSeoFlagsAction({ pageId, jsonLdRaw: jsonLdDraft }),
       {
         name: "savePageSeoFlagsAction.jsonLd",
-        fallback: { ok: false as const, error: "Network error — try again." },
+        fallback: { ok: false as const, error: "Network error. Try again." },
       },
     );
     setJsonLdBusy(false);
@@ -1296,7 +1296,7 @@ function RedirectsCard({ open, host }: { open: boolean; host: string }) {
         }),
       {
         name: "createRedirectAction",
-        fallback: { ok: false as const, error: "Network error — try again." },
+        fallback: { ok: false as const, error: "Network error. Try again." },
       },
     );
     setBusy(false);
@@ -1318,7 +1318,7 @@ function RedirectsCard({ open, host }: { open: boolean; host: string }) {
       () => setRedirectActiveAction({ id: row.id, active: next }),
       {
         name: "setRedirectActiveAction",
-        fallback: { ok: false as const, error: "Network error — try again." },
+        fallback: { ok: false as const, error: "Network error. Try again." },
       },
     );
     if (!res.ok) {
@@ -1335,7 +1335,7 @@ function RedirectsCard({ open, host }: { open: boolean; host: string }) {
     setRows((prev) => prev.filter((r) => r.id !== snapshot));
     const res = await safeAction(() => deleteRedirectAction({ id }), {
       name: "deleteRedirectAction",
-      fallback: { ok: false as const, error: "Network error — try again." },
+      fallback: { ok: false as const, error: "Network error. Try again." },
     });
     if (!res.ok) setError(res.error);
   }, []);
