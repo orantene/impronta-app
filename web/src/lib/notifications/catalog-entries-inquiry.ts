@@ -2,6 +2,7 @@ import "server-only";
 
 import * as React from "react";
 import ClientInquiryReceived from "../../../emails/client/InquiryReceived";
+import ClientReplyReady from "../../../emails/client/ReplyReady";
 import ClientOfferReady from "../../../emails/client/OfferReady";
 import ClientBookingConfirmed from "../../../emails/client/BookingConfirmed";
 import TalentInquiryInvited from "../../../emails/talent/InquiryInvited";
@@ -405,6 +406,48 @@ const INQUIRY_CANCELLED: CatalogEntry = {
 };
 
 /**
+ * inquiry.guest_reply.guest (wave W2-F, decision D7) — email the GUEST that the
+ * agency replied in their private thread. The gap message.new leaves open:
+ * `messageThreadAudience` does NOT include the client/guest on the PRIVATE
+ * thread, so a coordinator's reply never reaches a guest who left the site.
+ *
+ * This entry is triggered by a dedicated `inquiry.guest_reply_nudge` event that
+ * `maybeSendGuestReplyNudge` (guest-reply-nudge.ts) emits ONLY after gating on:
+ * staff-authored + private thread + guest-originated + real contact + guest not
+ * live + not throttled (6h). So the audience here is simply the client/guest.
+ * `clientOrGuest` prefers the provisioned client account (user member) so the
+ * unsubscribe footer + suppression work; it falls back to the raw guest email.
+ * Immediate (not digest) — a "you have a reply" nudge is time-sensitive.
+ */
+const GUEST_REPLY_READY: CatalogEntry = {
+  id: "inquiry.guest_reply.guest",
+  category: "messages",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["inquiry.guest_reply_nudge"],
+  hydrate: loadInquiryView,
+  resolveAudience: clientOrGuest,
+  email: {
+    templateId: "client.reply_ready",
+    // Localized (EN/ES) subject with {brand} lives in email-copy; this English
+    // fallback is only used if that key is ever removed.
+    subject: () => "You have a reply about your inquiry",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(ClientReplyReady, {
+        contactName: recipient.displayName ?? str(event.payload.contactName),
+        agencyName: brand.accountName ?? "the agency",
+        // The guest full-window thread. Guest access is proven server-side from
+        // the HMAC guest cookie (middleware x-impronta-guest → getGuestFullThread),
+        // so the link opens the conversation on the same browser the guest used.
+        threadUrl: pageUrl(brand, `/c/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "messages",
+      }),
+  },
+};
+
+/**
  * message.new (spec §6.2) — notify every thread participant except the sender
  * that a new message landed. EMAIL-ONLY + digest-batched: the in-app bell is
  * already fanned out by `sendMessage`, and the email is collapsed by the digest
@@ -457,5 +500,6 @@ export const INQUIRY_CATALOG_ENTRIES: CatalogEntry[] = [
   COORDINATOR_ASSIGNMENT_TIMED_OUT,
   ROSTER_TALENT_DECLINED,
   INQUIRY_CANCELLED,
+  GUEST_REPLY_READY,
   MESSAGE_NEW,
 ];
