@@ -733,10 +733,13 @@ export async function proxy(request: NextRequest) {
     method: request.method,
   });
 
-  const sessionRes = await updateSession(innerRequest, {
-    pathnameForAuth,
-    languageSettings: effectiveLangSettings,
-  });
+  // `forwardedRequestHeaders` carries the guest/actor/locale headers updateSession
+  // injected; the rewrite below MUST forward them (see UpdateSessionResult).
+  const { response: sessionRes, requestHeaders: forwardedRequestHeaders } =
+    await updateSession(innerRequest, {
+      pathnameForAuth,
+      languageSettings: effectiveLangSettings,
+    });
 
   if (sessionRes.headers.get("location")) {
     syncLocaleCookieForPath(sessionRes, originalPathname, effectiveLangSettings, request);
@@ -753,8 +756,10 @@ export async function proxy(request: NextRequest) {
     const rewriteUrl = request.nextUrl.clone();
     rewriteUrl.pathname = pathnameForAuth;
 
+    // Forward updateSession's headers (with `x-impronta-guest`), NOT the
+    // pre-session `requestHeaders` which lacks it — see the destructure above.
     const res = NextResponse.rewrite(rewriteUrl, {
-      request: { headers: requestHeaders },
+      request: { headers: forwardedRequestHeaders },
     });
 
     for (const cookie of sessionRes.cookies.getAll()) {

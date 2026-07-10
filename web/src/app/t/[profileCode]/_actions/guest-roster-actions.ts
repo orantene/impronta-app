@@ -72,8 +72,23 @@ async function resolvePublicTenant(
     return { ok: false, failure: fail("db_unavailable", "Messaging is temporarily unavailable.") };
   }
 
-  const guestKey = (await headers()).get(GUEST_HEADER);
+  const requestHeaders = await headers();
+  const guestKey = requestHeaders.get(GUEST_HEADER);
   if (!guestKey) {
+    // Observability: the middleware-injected guest header should ALWAYS be
+    // present here (proxy.ts forwards it on both passthrough and rewrite paths).
+    // Its absence means a header-plumbing regression, not a real sessionless
+    // visitor — and it used to fail SILENTLY, which made the marketing-apex
+    // roster outage hard to diagnose. Log the forwarded x-impronta-* header
+    // names (never values) so a recurrence is immediately visible.
+    logServerError(
+      `${logTag}/no-guest-header`,
+      `missing ${GUEST_HEADER}; forwarded impronta headers: [${[
+        ...requestHeaders.keys(),
+      ]
+        .filter((k) => k.startsWith("x-impronta-"))
+        .join(", ")}]`,
+    );
     return {
       ok: false,
       failure: fail(
