@@ -61,3 +61,57 @@ test("diffPublishedRows tracks removed live rows and unchanged draft rows", () =
   assert.deepEqual(result.removedSectionIds, ["old"]);
   assert.equal(result.draftSectionChanges.get("a"), "unchanged");
 });
+
+// ── W1-L2 — builder-tree (freeform) publish diff ────────────────────────────
+
+import { diffBuilderTreesForPublish } from "./publish-diff";
+
+const node = (id: string, extra?: Record<string, unknown>) => ({
+  id,
+  kind: "container",
+  ...extra,
+});
+
+test("diffBuilderTreesForPublish: identical trees report zero changes", () => {
+  const tree = [node("a"), node("b")];
+  const result = diffBuilderTreesForPublish(tree, [node("a"), node("b")]);
+  assert.deepEqual(result.summary, { added: 0, removed: 0, moved: 0, total: 0 });
+  assert.equal(result.changed, 0);
+});
+
+test("diffBuilderTreesForPublish: a new top-level layer counts as added", () => {
+  const result = diffBuilderTreesForPublish(
+    [node("a"), node("hero")],
+    [node("a")],
+  );
+  assert.deepEqual(result.summary, { added: 1, removed: 0, moved: 0, total: 1 });
+});
+
+test("diffBuilderTreesForPublish: a deleted top-level layer counts as removed", () => {
+  const result = diffBuilderTreesForPublish([node("a")], [node("a"), node("b")]);
+  assert.deepEqual(result.summary, { added: 0, removed: 1, moved: 0, total: 1 });
+});
+
+test("diffBuilderTreesForPublish: an edited subtree (same id, same position) counts as one change", () => {
+  // The 2-section repro from the W1-L2 audit: a 2-layer page with an edit used
+  // to show "0 changes since last publish" because only slot rows were diffed.
+  const result = diffBuilderTreesForPublish(
+    [node("a", { props: { text: "EDITED" } }), node("b")],
+    [node("a", { props: { text: "original" } }), node("b")],
+  );
+  assert.equal(result.changed, 1);
+  assert.deepEqual(result.summary, { added: 0, removed: 0, moved: 1, total: 1 });
+});
+
+test("diffBuilderTreesForPublish: reordered layers count as moved", () => {
+  const result = diffBuilderTreesForPublish(
+    [node("b"), node("a")],
+    [node("a"), node("b")],
+  );
+  assert.deepEqual(result.summary, { added: 0, removed: 0, moved: 2, total: 2 });
+});
+
+test("diffBuilderTreesForPublish: draft vs EMPTY published tree marks everything added", () => {
+  const result = diffBuilderTreesForPublish([node("a"), node("b")], []);
+  assert.deepEqual(result.summary, { added: 2, removed: 0, moved: 0, total: 2 });
+});

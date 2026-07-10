@@ -87,3 +87,98 @@ test("empty-over-good guard wins even over a session mismatch", () => {
   );
   assert.deepEqual(decision, { apply: false, reason: "EMPTY_OVER_GOOD" });
 });
+
+// ── W1-L2 — same-session SAVE ADOPTION (conflict classification) ────────────
+//
+// The save/publish CAS lane reuses the beacon's decision to classify a
+// stale-`expectedVersion` write: SAME-SESSION-RELOAD (the editor's own pagehide
+// beacon bumped the version during its reload → adopt) vs GENUINE-FOREIGN-
+// CHANGE (another tab / co-editor / unstamped writer → hard conflict).
+
+import {
+  decideSameSessionSaveAdoption,
+  isSameSessionNewerWrite,
+} from "./beacon-last-write-wins";
+
+test("adoption: same-session reload (same token, newer seq) is ADOPTED", () => {
+  const decision = decideSameSessionSaveAdoption(
+    { editSessionId: SESSION_A, draftSeq: 10, storedHasContent: true },
+    { editSessionId: SESSION_A, draftSeq: 11, incomingHasContent: true },
+  );
+  assert.deepEqual(decision, { apply: true });
+});
+
+test("adoption: a genuine second tab (different token) stays a HARD conflict", () => {
+  const decision = decideSameSessionSaveAdoption(
+    { editSessionId: SESSION_B, draftSeq: 10, storedHasContent: true },
+    { editSessionId: SESSION_A, draftSeq: 11, incomingHasContent: true },
+  );
+  assert.deepEqual(decision, { apply: false, reason: "SESSION_MISMATCH" });
+});
+
+test("adoption: an unstamped last writer (NULL stored token) stays a HARD conflict", () => {
+  // Publish / restore / composer writes clear the stamps; adoption must never
+  // ride over them (#310-class draft-integrity guard).
+  const decision = decideSameSessionSaveAdoption(
+    { editSessionId: null, draftSeq: null, storedHasContent: true },
+    { editSessionId: SESSION_A, draftSeq: 11, incomingHasContent: true },
+  );
+  assert.deepEqual(decision, { apply: false, reason: "SESSION_MISMATCH" });
+});
+
+test("adoption: a stale replay (seq not strictly newer) is refused", () => {
+  const decision = decideSameSessionSaveAdoption(
+    { editSessionId: SESSION_A, draftSeq: 11, storedHasContent: true },
+    { editSessionId: SESSION_A, draftSeq: 11, incomingHasContent: true },
+  );
+  assert.deepEqual(decision, { apply: false, reason: "STALE_SEQ" });
+});
+
+test("adoption: an EMPTY incoming tree never adopts over good stored content", () => {
+  const decision = decideSameSessionSaveAdoption(
+    { editSessionId: SESSION_A, draftSeq: 10, storedHasContent: true },
+    { editSessionId: SESSION_A, draftSeq: 11, incomingHasContent: false },
+  );
+  assert.deepEqual(decision, { apply: false, reason: "EMPTY_OVER_GOOD" });
+});
+
+test("adoption: an empty incoming tree over an ALREADY-EMPTY draft may adopt (operator emptied the page on purpose)", () => {
+  const decision = decideSameSessionSaveAdoption(
+    { editSessionId: SESSION_A, draftSeq: 10, storedHasContent: false },
+    { editSessionId: SESSION_A, draftSeq: 11, incomingHasContent: false },
+  );
+  assert.deepEqual(decision, { apply: true });
+});
+
+test("isSameSessionNewerWrite: shared core used by the publish adoption lane", () => {
+  assert.equal(
+    isSameSessionNewerWrite(
+      { editSessionId: SESSION_A, draftSeq: 3 },
+      { editSessionId: SESSION_A, draftSeq: 4 },
+    ),
+    true,
+  );
+  assert.equal(
+    isSameSessionNewerWrite(
+      { editSessionId: SESSION_B, draftSeq: 3 },
+      { editSessionId: SESSION_A, draftSeq: 4 },
+    ),
+    false,
+  );
+  assert.equal(
+    isSameSessionNewerWrite(
+      { editSessionId: null, draftSeq: null },
+      { editSessionId: SESSION_A, draftSeq: 4 },
+    ),
+    false,
+    "NULL stored stamp (unstamped writer) never matches",
+  );
+  assert.equal(
+    isSameSessionNewerWrite(
+      { editSessionId: SESSION_A, draftSeq: null },
+      { editSessionId: SESSION_A, draftSeq: 1 },
+    ),
+    true,
+    "NULL stored seq is -infinity so the session's first stamped write wins",
+  );
+});

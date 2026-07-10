@@ -939,7 +939,7 @@ function SaveStatus({
           label={label}
           title={
             mutationError?.code === "VERSION_CONFLICT"
-              ? "This page changed elsewhere — choose Reload latest or Keep my version in the banner."
+              ? "This page changed in another tab or session. Choose Reload latest or Keep editing this copy in the banner."
               : "Your last draft didn't save. It will retry on your next edit; reload the editor if it persists."
           }
         />

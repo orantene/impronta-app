@@ -108,7 +108,9 @@ export function formatBuilderNodeMutationError(input: {
     case "GUARDED_NODE":
       return input.message;
     case "VERSION_CONFLICT":
-      return "Your draft changed in another session. Latest state was reloaded; retry your edit.";
+      // W1-L2 — honest conflict protocol: nothing is auto-reloaded anymore.
+      // The toast offers the choice; this copy must describe the real state.
+      return "This page changed in another tab or session, so your last change was not saved. Your work here is untouched. Reload latest to take those changes (this resets undo), or keep editing this copy to overwrite them.";
     case "SAVE_FAILED":
       return input.message || "Couldn't save this builder change.";
     default:

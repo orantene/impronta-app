@@ -651,7 +651,16 @@ export interface EditContextValue {
    *  switcher. Empty until the first composition load resolves. */
   availableLocales: ReadonlyArray<string>;
 
-  refreshComposition: () => Promise<void>;
+  /**
+   * Reload authoritative composition state from the server, replacing local
+   * state and RESETTING undo history. W1-L2 — the optional `undoResetReason`
+   * picks the honest explanation shown when the reset actually discards work:
+   * "conflict" (this page changed in another tab or session) vs the default
+   * "reload" (the editor reloaded this page — publish, restore, locale switch).
+   */
+  refreshComposition: (opts?: {
+    undoResetReason?: "conflict" | "reload";
+  }) => Promise<void>;
   /**
    * P9-1 — RAF-coalesced `router.refresh()` for the storefront RSC tree.
    * Prefer over `useRouter().refresh()` from any component under `EditProvider`.
@@ -1390,22 +1399,39 @@ export interface EditContextValue {
   reportMutationError: (message: string | EditMutationError) => void;
 
   /**
-   * W3-T2(c/d) — when a builder-tree save loses a CAS race (VERSION_CONFLICT),
-   * the operator's rejected tree is parked here so the conflict toast can offer
-   * a real choice instead of silently discarding the edit:
-   *   - true  → a recovery is pending (toast shows "Reload latest" / "Keep my
-   *             version"). The latest server state is ALREADY loaded (the
-   *             reload ran), so "Reload latest" is just `clearMutationError`.
-   *   - false → no pending recovery.
+   * W3-T2(c/d) / W1-L2 — when a builder-tree save loses a GENUINE CAS race
+   * (VERSION_CONFLICT from a different edit session), the operator's tree is
+   * parked and the conflict toast offers a real choice instead of silently
+   * discarding the edit or wiping undo:
+   *   - true  → a conflict is pending. The editor KEEPS the operator's local
+   *             tree + undo history untouched (W1-L2: no more auto-reload/
+   *             auto-wipe). The toast shows "Reload latest" (runs
+   *             `reloadLatestAfterConflict`, which reloads server state and
+   *             resets undo with an explanation) / "Keep editing this copy"
+   *             (runs `keepMyVersionAfterConflict`, which re-saves the local
+   *             tree over the foreign change and keeps undo).
+   *   - false → no pending conflict.
    * Cleared on any successful save, an explicit reload, or keep-mine.
    */
   hasConflictRecovery: boolean;
   /**
-   * Re-apply the operator's conflict-rejected tree on top of the freshly
-   * reloaded base version (CAS now matches, so it persists). Preserves the
-   * operator's work across the conflict. No-op when nothing is parked.
+   * Re-save the operator's local tree over the conflicting foreign change:
+   * refreshes ONLY the CAS version from the server, then re-issues the save
+   * with the local tree (undo history intact). The overwritten change stays
+   * recoverable via Revisions. No-op when no conflict is pending.
    */
   keepMyVersionAfterConflict: () => Promise<void>;
+  /**
+   * W1-L2 — resolve a pending conflict by loading the latest server state.
+   * Discards the local unsaved tree and RESETS undo (explained via toast).
+   */
+  reloadLatestAfterConflict: () => Promise<void>;
+  /**
+   * WS1-D / W1-L2 — mint the next {per-tab edit-session token, monotonic draft
+   * seq} pair. Every version-bumping write from this editor should carry it so
+   * the server can stamp the row (beacon LWW + same-session adoption).
+   */
+  nextEditSession: () => { id: string; seq: number };
 }
 
 const EditContext = createContext<EditContextValue | null>(null);
@@ -2630,20 +2656,27 @@ export function EditProvider({
       if (!raw) return [];
       const parsed = JSON.parse(raw) as unknown;
       // W1-T5(a) — the persisted payload is now a VERSIONED envelope
-      // { baseVersion, entries }. A persisted stack's `pre`/`post` trees are
-      // only safe to replay against the page version they were authored on. If
-      // another session (another browser/tab) advanced the page version while
-      // this stack sat in localStorage, replaying it would write a STALE tree
-      // wholesale at the current version — CAS accepts it → silent clobber. So
-      // we DROP the persisted stack whenever its baseVersion ≠ the version we
-      // just loaded. Same-session reloads match (the stack was stamped with the
-      // version current at persist time) and survive.
+      // { baseVersion, sessionId, entries }. A persisted stack's `pre`/`post`
+      // trees are only safe to replay against the page version they were
+      // authored on. If another session (another browser/tab) advanced the page
+      // version while this stack sat in localStorage, replaying it would write
+      // a STALE tree wholesale at the current version — CAS accepts it → silent
+      // clobber. So we DROP the persisted stack whenever its baseVersion ≠ the
+      // version we just loaded... EXCEPT (W1-L2) when the version advance was
+      // provably OUR OWN: the envelope's per-tab session token matches BOTH the
+      // current tab's token (sessionStorage survives a same-tab reload) AND the
+      // `edit_session_id` stamped on the loaded row by its last draft write —
+      // i.e. the mismatch is the pagehide beacon of THIS session bumping the
+      // version during its own reload, and the loaded content is this stack's
+      // own latest post-tree. A foreign writer leaves a different (or NULL)
+      // stamp and still drops the stack.
       //
       // Legacy bare-array payloads (pre-W1-T5) have no baseVersion → we cannot
       // prove they're same-session, so we conservatively drop them once.
       const loadedVersion = initialComposition?.pageVersion ?? null;
       let entriesRaw: unknown[] = [];
       let baseVersion: number | null = null;
+      let envelopeSessionId: string | null = null;
       if (Array.isArray(parsed)) {
         // Legacy format — unversioned. Drop (can't prove freshness).
         return [];
@@ -2656,6 +2689,8 @@ export function EditProvider({
         entriesRaw = (parsed as { entries: unknown[] }).entries;
         const bv = (parsed as { baseVersion?: unknown }).baseVersion;
         baseVersion = typeof bv === "number" ? bv : null;
+        const sid = (parsed as { sessionId?: unknown }).sessionId;
+        envelopeSessionId = typeof sid === "string" && sid.length > 0 ? sid : null;
       } else {
         return [];
       }
@@ -2666,7 +2701,12 @@ export function EditProvider({
         baseVersion !== null &&
         baseVersion !== loadedVersion
       ) {
-        return [];
+        const lastWriter = initialComposition?.lastWriterEditSessionId ?? null;
+        const ownSessionAdvance =
+          envelopeSessionId !== null &&
+          envelopeSessionId === getEditSessionId() &&
+          lastWriter === envelopeSessionId;
+        if (!ownSessionAdvance) return [];
       }
       const valid = entriesRaw.filter(isKnownHistoryEntry);
       return valid.slice(-UNDO_PERSIST_CAP);
@@ -2746,9 +2786,15 @@ export function EditProvider({
       const tail = latestPast.slice(-UNDO_PERSIST_CAP);
       // W1-T5(a) — write a VERSIONED envelope so rehydrate can drop a stack that
       // a concurrent session has made stale (baseVersion ≠ loaded version).
+      // W1-L2 — also stamp the per-tab session token so a same-tab reload can
+      // recognise its OWN beacon-driven version advance and keep the stack.
       window.localStorage.setItem(
         key,
-        JSON.stringify({ baseVersion, entries: tail }),
+        JSON.stringify({
+          baseVersion,
+          sessionId: getEditSessionId(),
+          entries: tail,
+        }),
       );
     } catch {
       // Quota exceeded or private-browsing block — silently skip.
@@ -3381,8 +3427,9 @@ export function EditProvider({
     fingerprint: string;
     at: number;
   } | null>(null);
-  // W3-T2(c/d) — the operator's tree that lost a CAS race, parked so the
-  // conflict toast can re-apply it on the reloaded base ("Keep my version").
+  // W3-T2(c/d) / W1-L2 — the operator's tree that lost a genuine CAS race,
+  // parked while the conflict toast offers "Reload latest" / "Keep editing
+  // this copy" (the local tree stays applied; nothing auto-reloads).
   // A ref holds the (large) tree; a boolean state drives the toast affordance.
   const conflictRecoveryTreeRef = useRef<BuilderNodeTree | null>(null);
   const [hasConflictRecovery, setHasConflictRecovery] = useState(false);
@@ -4050,39 +4097,50 @@ export function EditProvider({
     setCompositionError(null);
   }, []);
 
-  const refreshComposition = useCallback(async () => {
-    setCompositionLoading(true);
-    try {
-      const res = await surfaceAdapter.load({ locale, pageSlug, pageId });
-      if (res.ok) {
-        applyComposition(res.data);
-        // Reloading authoritative state also clears history — the stack
-        // captures only session-local mutations and stale snapshots would
-        // confuse undo after a concurrent edit.
-        //
-        // W1-T5(b) — when this wipe actually DISCARDS undo/redo work (the
-        // page changed elsewhere and we reloaded), it used to be silent: the
-        // operator's ⌘Z stack vanished with no explanation. Surface a toast so
-        // the reset is understood, not mysterious. (The wipe itself stays — a
-        // stale stack is dangerous to replay; W0-T4 pins this behavior.)
-        if (historyDepthRef.current > 0) {
-          reportMutationError(
-            "Undo history was reset because this page changed in another tab or session.",
-          );
+  const refreshComposition = useCallback(
+    async (opts?: { undoResetReason?: "conflict" | "reload" }) => {
+      setCompositionLoading(true);
+      try {
+        const res = await surfaceAdapter.load({ locale, pageSlug, pageId });
+        if (res.ok) {
+          applyComposition(res.data);
+          // Reloading authoritative state also clears history — the stack
+          // captures only session-local mutations and stale snapshots would
+          // confuse undo after a concurrent edit.
+          //
+          // W1-T5(b) — when this wipe actually DISCARDS undo/redo work, it used
+          // to be silent: the operator's ⌘Z stack vanished with no explanation.
+          // Surface a toast so the reset is understood, not mysterious. (The
+          // wipe itself stays — a stale stack is dangerous to replay; W0-T4
+          // pins this behavior.)
+          //
+          // W1-L2 — the explanation is now HONEST about why: only a genuine
+          // cross-session conflict says "changed in another tab or session";
+          // every other reload (publish, restore, locale switch, explicit
+          // refresh) says the editor reloaded the page. The old copy blamed a
+          // phantom second tab for the editor's own reloads.
+          if (historyDepthRef.current > 0) {
+            reportMutationError(
+              opts?.undoResetReason === "conflict"
+                ? "Undo history was reset because this page changed in another tab or session."
+                : "Undo history was reset because the editor reloaded this page.",
+            );
+          }
+          setPast([]);
+          setFuture([]);
+        } else {
+          setCompositionError(res.error);
         }
-        setPast([]);
-        setFuture([]);
-      } else {
-        setCompositionError(res.error);
+      } catch (err) {
+        setCompositionError(
+          err instanceof Error ? err.message : "Couldn't load the page — try again.",
+        );
+      } finally {
+        setCompositionLoading(false);
       }
-    } catch (err) {
-      setCompositionError(
-        err instanceof Error ? err.message : "Couldn't load the page — try again.",
-      );
-    } finally {
-      setCompositionLoading(false);
-    }
-  }, [locale, pageSlug, pageId, surfaceAdapter, applyComposition, reportMutationError]);
+    },
+    [locale, pageSlug, pageId, surfaceAdapter, applyComposition, reportMutationError],
+  );
 
   // Initial load: only once per provider lifetime. Subsequent reloads go
   // through refreshComposition on mutation conflicts or explicit refresh.
@@ -4723,6 +4781,9 @@ export function EditProvider({
               builderTree: builderTreeForSave,
               styleClasses: styleClassesForSave(pageId),
               stylePresets: stylePresetsForSave(pageId),
+              // WS1-D / W1-L2 — stamp the write with this tab's session token
+              // + seq so structural section ops keep the LWW/adoption lane.
+              editSession: nextEditSession(),
             },
           ),
         {
@@ -4743,7 +4804,7 @@ export function EditProvider({
         setPageMetadata(snap.metadata);
         setPast((p) => p.slice(0, -1));
         if (save.code === "VERSION_CONFLICT") {
-          await refreshComposition();
+          await refreshComposition({ undoResetReason: "conflict" });
         }
         reportMutationError(save.error);
         return { ok: false, error: save.error };
@@ -4765,6 +4826,8 @@ export function EditProvider({
       setSlotsAndBuilderTree,
       reportMutationError,
       captureHistorySelection,
+      // WS1-D / W1-L2 — session stamp for structural composition writes.
+      nextEditSession,
     ],
   );
 
@@ -4814,6 +4877,8 @@ export function EditProvider({
             sectionTemplateStarterId: options?.sectionTemplateStarterId ?? null,
             sectionTemplateStarterStylePresetId:
               options?.sectionTemplateStarterStylePresetId ?? null,
+            // WS1-D / W1-L2 — stamp the write with this tab's session token + seq.
+            editSession: nextEditSession(),
           }),
         {
           name: "createAndInsertSectionAction",
@@ -4831,7 +4896,7 @@ export function EditProvider({
       if (!res.ok) {
         setPast((p) => p.slice(0, -1));
         if (res.code === "VERSION_CONFLICT") {
-          await refreshComposition();
+          await refreshComposition({ undoResetReason: "conflict" });
         }
         reportMutationError(res.error);
         return { ok: false, error: res.error };
@@ -4886,6 +4951,8 @@ export function EditProvider({
       setSelectedSectionId,
       markNavigatorAddition,
       captureHistorySelection,
+      // WS1-D / W1-L2 — session stamp for the insert write.
+      nextEditSession,
     ],
   );
 
@@ -4936,13 +5003,15 @@ export function EditProvider({
         // this callback (and rebuild the value memo via its 1 call-site).
         builderTree: builderTreeRef.current,
         sourceSectionId: sectionId,
+        // WS1-D / W1-L2 — stamp the write with this tab's session token + seq.
+        editSession: nextEditSession(),
       });
       setSaving(false);
 
       if (!res.ok) {
         setPast((p) => p.slice(0, -1));
         if (res.code === "VERSION_CONFLICT") {
-          await refreshComposition();
+          await refreshComposition({ undoResetReason: "conflict" });
         }
         reportMutationError(res.error);
         return { ok: false, error: res.error };
@@ -5005,6 +5074,8 @@ export function EditProvider({
       setSelectedSectionId,
       markNavigatorAddition,
       captureHistorySelection,
+      // WS1-D / W1-L2 — session stamp for the duplicate write.
+      nextEditSession,
     ],
   );
 
@@ -5230,17 +5301,23 @@ export function EditProvider({
       }
       setSaving(false);
       if (!save.ok) {
-        builderTreeRef.current = prevTree;
-        setBuilderTree(prevTree);
         if (save.code === "VERSION_CONFLICT") {
-          // W3-T2(c/d) — park the operator's rejected tree BEFORE the reload
-          // overwrites local state, so "Keep my version" can re-apply it on the
-          // fresh base. The reload pulls in the co-editor's authoritative state
-          // (so "Reload latest" is just dismiss); the toast then offers the
-          // choice instead of silently winning for the other tab.
+          // W1-L2 — HONEST CONFLICT PROTOCOL. A genuine cross-session conflict
+          // (the server's same-session adoption lane already absorbed the
+          // editor's own reload/beacon case) used to auto-reload the foreign
+          // state, silently wiping the operator's undo history and reverting
+          // their tree before they understood anything happened. Now:
+          //   - the operator's LOCAL tree stays applied (no rollback),
+          //   - undo history is untouched,
+          //   - the tree is parked and the conflict toast offers the choice:
+          //     "Reload latest" (reloadLatestAfterConflict — reloads + resets
+          //     undo with an explanation) or "Keep editing this copy"
+          //     (keepMyVersionAfterConflict — re-saves this tree over the
+          //     foreign change, undo intact).
+          // Until resolved, further saves keep conflicting and re-raise the
+          // toast; the publish drawer blocks with the conflict as its reason.
           conflictRecoveryTreeRef.current = nextTree;
           setHasConflictRecovery(true);
-          await refreshComposition();
           const error = formatBuilderNodeMutationError({
             operation: "patch",
             code: "VERSION_CONFLICT",
@@ -5257,6 +5334,8 @@ export function EditProvider({
             error,
           };
         }
+        builderTreeRef.current = prevTree;
+        setBuilderTree(prevTree);
         const error = formatBuilderNodeMutationError({
           operation: "patch",
           code: "SAVE_FAILED",
@@ -5339,7 +5418,6 @@ export function EditProvider({
       pageSlug,
       pageId,
       surfaceAdapter,
-      refreshComposition,
       queueRouterRefresh,
       reportMutationError,
       // WS1-D — stamps each save with the per-tab session token + next seq.
@@ -5349,17 +5427,47 @@ export function EditProvider({
     ],
   );
 
-  // W3-T2(c/d) — "Keep my version": re-apply the conflict-rejected tree on top
-  // of the now-reloaded base version. `persistBuilderTree` reads the current
-  // (fresh) `pageVersionRef`, so the CAS re-issue succeeds and the operator's
-  // work survives the race. Clears the recovery on the success path inside
-  // `persistBuilderTree`; on a second conflict it re-parks the latest attempt.
+  // W3-T2(c/d) / W1-L2 — "Keep editing this copy": resolve a genuine conflict
+  // in the operator's favour WITHOUT the old auto-reload (which wiped undo).
+  // The local tree is still applied (the conflict branch no longer rolls back),
+  // so we refresh ONLY the CAS version from the server, then re-issue the save
+  // with the LATEST local tree. Undo history stays intact; the overwritten
+  // foreign change remains recoverable via Revisions. Clears the recovery on
+  // the success path inside `persistBuilderTree`; on a second conflict it
+  // re-parks the latest attempt.
   const keepMyVersionAfterConflict = useCallback(async () => {
-    const parked = conflictRecoveryTreeRef.current;
-    if (parked === null) return;
+    if (conflictRecoveryTreeRef.current === null) return;
+    const mine = builderTreeRef.current;
     clearMutationError();
-    await persistBuilderTree(parked);
-  }, [persistBuilderTree, clearMutationError]);
+    // Version-only refresh: take the server's current CAS version but do NOT
+    // apply its content (that would clobber the copy the operator chose to
+    // keep) and do NOT touch undo history.
+    const res = await surfaceAdapter.load({ locale, pageSlug, pageId });
+    if (res.ok) {
+      pageVersionRef.current = res.data.pageVersion;
+      setPageVersion(res.data.pageVersion);
+    }
+    const saved = await persistBuilderTree(mine);
+    if (saved.ok && pendingTreeRef.current === null) {
+      setDirty(false);
+    }
+  }, [persistBuilderTree, clearMutationError, surfaceAdapter, locale, pageSlug, pageId]);
+
+  // W1-L2 — "Reload latest": resolve a genuine conflict by taking the other
+  // session's state. Discards the local unsaved tree (cancelling any pending
+  // debounced save so it cannot re-save the stale tree after the reload) and
+  // resets undo — refreshComposition explains the reset with a toast.
+  const reloadLatestAfterConflict = useCallback(async () => {
+    if (builderSaveTimerRef.current !== null) {
+      clearTimeout(builderSaveTimerRef.current);
+      builderSaveTimerRef.current = null;
+    }
+    pendingTreeRef.current = null;
+    pendingHistoryCountRef.current = 0;
+    clearMutationError();
+    await refreshComposition({ undoResetReason: "conflict" });
+    setDirty(false);
+  }, [clearMutationError, refreshComposition]);
 
   // ── flush: persist the coalesced pending builder tree NOW ──────────────
   // Cancels any scheduled debounce and enqueues a single `persistBuilderTree`
@@ -5410,6 +5518,14 @@ export function EditProvider({
       // burst's edits, the spinner, and the eventual dirty=false. Touching
       // history/dirty here would double-count or flicker, so bail early.
       if (result && !result.ok && result.code === "ABORTED") {
+        return;
+      }
+      // W1-L2 — a VERSION_CONFLICT no longer rolls anything back: the
+      // operator's tree and undo entries stay live while the conflict toast
+      // offers the resolution choice. Keep the burst's history (the edits are
+      // still applied) and keep `dirty` TRUE (the draft is NOT saved — the
+      // publish drawer and beforeunload guard must both know that).
+      if (result && !result.ok && result.code === "VERSION_CONFLICT") {
         return;
       }
       // persistBuilderTree clears `saving`; mirror dirty so the unsaved-changes
@@ -7135,6 +7251,8 @@ export function EditProvider({
               builderTree: builderTreeForSave,
               styleClasses: styleClassesForSave(pageId),
               stylePresets: stylePresetsForSave(pageId),
+              // WS1-D / W1-L2 — stamp the write with this tab's session token + seq.
+              editSession: nextEditSession(),
             },
           ),
         {
@@ -7153,7 +7271,7 @@ export function EditProvider({
         if (save.code === "VERSION_CONFLICT") {
           // Server-driven recovery: refreshComposition replaces local
           // state with authoritative server state.
-          await refreshComposition();
+          await refreshComposition({ undoResetReason: "conflict" });
         } else {
           // Network / unexpected — revert the optimistic apply so the
           // canvas matches the server's state.
@@ -7166,7 +7284,7 @@ export function EditProvider({
       void queueRouterRefresh();
       return true;
     },
-    [locale, pageSlug, pageId, surfaceAdapter, refreshComposition, queueRouterRefresh, setSlotsAndBuilderTree],
+    [locale, pageSlug, pageId, surfaceAdapter, refreshComposition, queueRouterRefresh, setSlotsAndBuilderTree, nextEditSession],
   );
 
   /**
@@ -7638,7 +7756,7 @@ export function EditProvider({
       setSaving(false);
       if (!res.ok) {
         if (res.code === "VERSION_CONFLICT") {
-          await refreshComposition();
+          await refreshComposition({ undoResetReason: "conflict" });
         }
         reportMutationError(res.error);
         return { ok: false, error: res.error };
@@ -7745,6 +7863,9 @@ export function EditProvider({
             ),
             styleClasses: styleClassesForSave(pageId),
             stylePresets: stylePresetsForSave(pageId),
+            // WS1-D / W1-L2 — stamp the explicit Save draft press too, so the
+            // beacon LWW lane + same-session adoption keep working after it.
+            editSession: nextEditSession(),
           },
         ),
       {
@@ -7761,7 +7882,18 @@ export function EditProvider({
     setSaving(false);
     if (!res.ok) {
       if (res.code === "VERSION_CONFLICT") {
-        await refreshComposition();
+        // W1-L2 — honest conflict protocol (same as the autosave path): keep
+        // the operator's local state + undo, park the tree, and let the toast
+        // offer "Reload latest" / "Keep editing this copy" instead of the old
+        // silent reload + undo wipe.
+        conflictRecoveryTreeRef.current = builderTreeRef.current;
+        setHasConflictRecovery(true);
+        reportMutationError({
+          message: res.error,
+          operation: "patch",
+          code: "VERSION_CONFLICT",
+        });
+        return { ok: false, error: res.error };
       }
       reportMutationError(res.error);
       return { ok: false, error: res.error };
@@ -7775,8 +7907,8 @@ export function EditProvider({
     pageSlug,
     pageId,
     surfaceAdapter,
-    refreshComposition,
     reportMutationError,
+    nextEditSession,
   ]);
 
   /**
@@ -8092,6 +8224,8 @@ export function EditProvider({
       reportMutationError,
       hasConflictRecovery,
       keepMyVersionAfterConflict,
+      reloadLatestAfterConflict,
+      nextEditSession,
     }),
     [
       tenantId,
@@ -8327,6 +8461,8 @@ export function EditProvider({
       reportMutationError,
       hasConflictRecovery,
       keepMyVersionAfterConflict,
+      reloadLatestAfterConflict,
+      nextEditSession,
     ],
   );
 

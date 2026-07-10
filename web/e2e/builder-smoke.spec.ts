@@ -171,11 +171,12 @@ async function stripStrayLayers(page: Page) {
   await waitDraftSaved(page);
 }
 
-/** Undo a leftover marker on the seeded heading (self-heal a prior aborted run). */
+/** Undo a leftover marker on the seeded heading (self-heal a prior aborted run).
+ *  Covers the W0-A marker AND the W1-L2 scenario markers (PBM_W1L2_*). */
 async function revertHeadingMarker(page: Page) {
   const cur = await headingText(page).catch(() => "");
-  if (!cur.includes(MARKER)) return;
-  await setHeadingText(page, cur.replace(new RegExp(`\\s*${MARKER}`, "g"), "").trim());
+  if (!/PBM_\w+/.test(cur)) return;
+  await setHeadingText(page, cur.replace(/\s*PBM_\w+/g, "").trim());
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
 }
@@ -305,11 +306,16 @@ test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish
     // Do NOT publish.
   });
 
-  // W1-L2: the publish drawer checks could hang in a skeleton and a false
-  // "changed in another tab" conflict could block publish. Quarantined until the
-  // lane lands, then flip `test.fixme` -> `test`. (In THIS environment the checks
-  // resolved and Publish now enabled; see the PR notes.)
-  test.fixme("7. the publish drawer checks resolve without hanging (W1-L2)", async () => {
+  // W1-L2 (SHIPPED): the publish drawer checks now carry hard timeouts +
+  // failed/retry states, so they can never hang as a skeleton; the counters
+  // compute from the real draft tree (freeform pages used to claim "0 sections
+  // ready" / "0 changes"). Flipped from `test.fixme` with the lane.
+  test("7. the publish drawer checks resolve without hanging and the counters are honest (W1-L2)", async () => {
+    // Count the page's top-level layers first — the drawer's "sections ready"
+    // must match them for a freeform page.
+    await openStructurePanel(page);
+    const layerCount = await topLayers(page).count();
+
     const drawer = page.locator('[data-edit-drawer="publish"]');
     if (!(await drawer.isVisible().catch(() => false))) {
       await page.getByRole("button", { name: /^publish$/i }).click();
@@ -318,9 +324,145 @@ test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish
     await expect(
       page.getByRole("status", { name: /Running publish checks/i }),
     ).toBeHidden({ timeout: 60_000 });
+
+    // Counters: "N sections ready" reflects the real tree (not the empty slot
+    // count), and "changes since last publish" resolves to a real number (the
+    // dash placeholder must not stick around once the loaders settle).
+    const sectionsReady = drawer.getByTestId("publish-stat-sections-ready");
+    // (count and label are separate spans — match them tolerantly)
+    await expect(sectionsReady).toContainText(
+      new RegExp(`${layerCount}\\s*sections? ready`),
+      { timeout: 30_000 },
+    );
+    const changes = drawer.getByTestId("publish-stat-changes");
+    await expect(changes).toBeVisible({ timeout: 30_000 });
+    await expect(changes).not.toContainText("—", { timeout: 30_000 });
+
     await expect(drawer.getByRole("button", { name: /publish now/i })).toBeEnabled({
       timeout: 30_000,
     });
-    // Do NOT publish.
+    // Do NOT publish here (scenario 8 exercises a real publish).
+    await drawer.getByRole("button", { name: /^cancel$/i }).click();
+    await expect(drawer).toBeHidden({ timeout: 10_000 }).catch(() => {});
+  });
+
+  // W1-L2 scenario A — the false-conflict repro. Editing and reloading used to
+  // make the editor treat ITS OWN pagehide-beacon write as a foreign change:
+  // yellow "changed in another tab or session" banner, undo wiped, publish
+  // blocked. With session adoption the editor's own reload must be seamless.
+  test("8. edit -> hard reload -> edit -> publish succeeds with no conflict banner and undo intact (W1-L2 scenario A)", async () => {
+    const conflictToast = page.locator('[data-edit-overlay="mutation-toast"]');
+    const undoButton = page.locator('button[title="Undo (⌘Z)"]');
+    const marker = "PBM_W1L2_A";
+    const original = await headingText(page);
+    expect(original).not.toContain(marker);
+
+    // Edit and reload IMMEDIATELY (inside the ~750ms save debounce) so the
+    // pagehide beacon carries the pending tree and bumps the version — the
+    // exact self-reload sequence that used to produce the false conflict.
+    await openHeadingOverlay(page);
+    const editable = overlayEditable(page);
+    await editable.click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.type(`${original} ${marker}`);
+    await page.locator("[data-edit-topbar]").click({ position: { x: 6, y: 6 } }); // blur-commit
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
+
+    // The beacon write must have landed; if the reload's server render raced
+    // ahead of it, one more reload shows it.
+    if (!(await headingText(page)).includes(marker)) {
+      await page.waitForTimeout(2_000);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
+    }
+    expect(await headingText(page)).toContain(marker);
+
+    // No false conflict banner after the editor's own reload.
+    await expect(conflictToast).toBeHidden();
+    // Undo survived the self-reload (persisted stack accepted — the version
+    // advance was our own beacon, not a foreign write).
+    await expect(undoButton).toBeEnabled({ timeout: 30_000 });
+
+    // Second edit (the revert) — its save carries a stale expectedVersion when
+    // the beacon bumped the version; the server must ADOPT it, not 409.
+    await setHeadingText(page, original);
+    await expect(conflictToast).toBeHidden();
+    expect(await headingText(page)).toBe(original);
+    await expect(undoButton).toBeEnabled();
+
+    // Publish must go through (drawer checks resolve; no conflict block).
+    const drawer = page.locator('[data-edit-drawer="publish"]');
+    await page.getByRole("button", { name: /^publish$/i }).click();
+    await expect(drawer).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.getByRole("status", { name: /Running publish checks/i }),
+    ).toBeHidden({ timeout: 60_000 });
+    const publishNow = drawer.getByRole("button", { name: /publish now/i });
+    await expect(publishNow).toBeEnabled({ timeout: 60_000 });
+    await publishNow.click();
+    await expect(drawer.getByText(/^Published /)).toBeVisible({ timeout: 90_000 });
+    // The banner must never have claimed a phantom second tab.
+    await expect(conflictToast.getByText(/another tab or session/i)).toBeHidden();
+    await drawer.getByRole("button", { name: /^close$/i }).click();
+    await expect(drawer).toBeHidden({ timeout: 10_000 }).catch(() => {});
+  });
+
+  // W1-L2 scenario B — a GENUINE conflict (two real browser contexts, so two
+  // different per-tab edit sessions) must still be caught, and must surface the
+  // honest two-action banner instead of silently reloading + wiping undo.
+  test("9. a genuine second-session conflict shows the honest banner with both actions and does not wipe undo (W1-L2 scenario B)", async ({ browser }) => {
+    const conflictToast = page.locator('[data-edit-overlay="mutation-toast"]');
+    const undoButton = page.locator('button[title="Undo (⌘Z)"]');
+    const original = await headingText(page);
+    const theirs = `${original} PBM_W1L2_B2`;
+    const mine = `${original} PBM_W1L2_B1`;
+
+    // Second, independent session edits (and saves) first.
+    const context2 = await browser.newContext();
+    const page2 = await context2.newPage();
+    page2.setDefaultTimeout(30_000);
+    page2.setDefaultNavigationTimeout(180_000);
+    try {
+      await devSignIn(page2);
+      await openEditor(page2);
+      await setHeadingText(page2, theirs);
+    } finally {
+      await page2.close().catch(() => {});
+      await context2.close().catch(() => {});
+    }
+
+    // First session (now holding a stale version) edits — its save must lose
+    // the CAS to the genuinely-foreign write and raise the honest banner.
+    // (Inline edit WITHOUT waitDraftSaved: this save is expected to conflict,
+    // so the "Draft saved" chip never appears.)
+    await openHeadingOverlay(page);
+    const editable = overlayEditable(page);
+    await editable.click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.type(mine);
+    await page.locator("[data-edit-topbar]").click({ position: { x: 6, y: 6 } }); // blur-commit
+    await expect(conflictToast).toBeVisible({ timeout: 60_000 });
+    await expect(conflictToast.getByRole("button", { name: /reload latest/i })).toBeVisible();
+    await expect(
+      conflictToast.getByRole("button", { name: /keep editing this copy/i }),
+    ).toBeVisible();
+    // NOT silently reloaded: the local copy is still on the canvas and undo
+    // history is still there.
+    expect(await headingText(page)).toBe(mine);
+    await expect(undoButton).toBeEnabled();
+
+    // Resolve by taking the other session's change; only now does the editor
+    // reload (and reset undo, with its own explanation toast).
+    await conflictToast.getByRole("button", { name: /reload latest/i }).click();
+    await expect
+      .poll(async () => headingText(page), { timeout: 60_000 })
+      .toBe(theirs);
+
+    // Cleanup: restore the seeded heading (fresh version, normal save).
+    await setHeadingText(page, original);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
+    expect(await headingText(page)).toBe(original);
   });
 });
