@@ -58,6 +58,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "@/lib/inquiry/inquiry-events";
 import { isGuestChipWritableStatus } from "@/lib/inquiry/guest-chip-write-policy";
+import { buildLineupNoteBody, deepEqualJson, sameStringSet } from "@/lib/inquiry/lineup-note-coalesce";
+import { writeCoalescedLineupNote } from "@/lib/inquiry/lineup-note-writer";
 import type {
   GetGuestInquiryDetailsResult,
   GuestChatErrorCode,
@@ -425,15 +427,11 @@ function buildDetailNote(kind: GuestChipKind, appliedSummary: string): string {
       return `Event type set to ${safe}.`;
     case "budget":
       return `Budget: ${safe}.`;
-    case "talent":
-      // safe already reads e.g. "Added Sofia to your inquiry" /
-      // "Let the agency recommend".
-      return `${safe}.`;
+    // NOTE: `talent` no longer routes here — see writeCoalescedLineupNote (P1-7).
     case "brief":
       return "Brief updated.";
     case "contact":
-      // Never echo the raw email/phone back into the thread (PII restraint);
-      // a neutral confirmation is enough for every surface to reconcile.
+      // Never echo the raw email/phone back into the thread (PII restraint).
       return "Contact details updated.";
     default:
       return `${safe}.`;
@@ -508,6 +506,46 @@ export async function captureGuestChip(input: GuestChipInput): Promise<GuestChip
       input,
     );
 
+    // ── SAME-VALUE GUARD (P1-7) ──────────────────────────────────────────────
+    // If this chip write changes nothing, skip the data write AND both note
+    // emissions so we never stack an identical bubble. Talent compares as an
+    // order-insensitive SET (+ mode) — the client re-emits the FULL set on every
+    // debounce settle, sometimes reordered. Every other kind deep-equals the
+    // merged interpreted_query against what is stored (each flat column derives
+    // from the same input, so an unchanged query means unchanged flat columns).
+    const existingQuery = inquiry.interpretedQuery;
+    const mergedTalent = (mergedQuery.talent as Record<string, unknown> | undefined) ?? {};
+    const newTalentIds = Array.isArray(mergedTalent.selected_ids)
+      ? (mergedTalent.selected_ids as unknown[]).filter((id): id is string => typeof id === "string")
+      : [];
+    const newTalentMode =
+      typeof mergedTalent.selection_mode === "string"
+        ? mergedTalent.selection_mode
+        : "agency_recommends";
+
+    let unchanged: boolean;
+    if (input.kind === "talent") {
+      const existingTalent =
+        (existingQuery?.talent as Record<string, unknown> | undefined) ?? undefined;
+      const existingIds =
+        existingTalent && Array.isArray(existingTalent.selected_ids)
+          ? (existingTalent.selected_ids as unknown[]).filter(
+              (id): id is string => typeof id === "string",
+            )
+          : [];
+      const existingMode =
+        existingTalent && typeof existingTalent.selection_mode === "string"
+          ? existingTalent.selection_mode
+          : null;
+      unchanged = sameStringSet(existingIds, newTalentIds) && existingMode === newTalentMode;
+    } else {
+      unchanged = existingQuery !== null && deepEqualJson(mergedQuery, existingQuery);
+    }
+    if (unchanged) {
+      // Idempotent no-op: nothing to persist, no note to emit. Return the summary.
+      return { ok: true, appliedSummary };
+    }
+
     // Write back via tenantScopedQuery (lint ratchet: no raw .from() allowed)
     const updatePayload: Record<string, unknown> = {
       interpreted_query: mergedQuery,
@@ -523,35 +561,40 @@ export async function captureGuestChip(input: GuestChipInput): Promise<GuestChip
       return fail("engine_error", "Couldn't save that detail. Please try again.");
     }
 
-    // Optionally append a group-thread system_event bubble so the coordinator
-    // sees the detail update in-thread ("Added: 40 guests"). We insert directly
-    // (bypassing sendMessage / validateActorPermission) because this is a
-    // platform-generated system event, not a user message — it has no sender
-    // (sender_user_id: null, guest_session_id: null) so deriveAuthorRole()
-    // renders it as a "system" bubble (centered/neutral). Best-effort — failure
-    // here is non-fatal; the chip data is already written. Skip entirely when
-    // appliedSummary is empty (e.g. a chip that produced no text) so we never
-    // insert a blank or misleading system bubble.
+    // Append the coordinator group bubble + guest-visible private note. Skip when
+    // appliedSummary is empty so we never insert a blank/misleading system note.
     if (appliedSummary) {
-      try {
-        // Sanitize the bubble body: cap length, strip control characters
-        // (newlines, carriage returns, other ASCII control chars) so
-        // guest-supplied free text (city / event_type) cannot inject newlines
-        // or spoof system copy. The "Added: " prefix is platform-authored;
-        // only the summary segment comes from guest input. For `contact` we
-        // never echo the email/phone into the group thread (PII restraint) and
-        // use a neutral confirmation instead.
-        const sanitizedSummary =
-          input.kind === "contact"
-            ? "Contact details"
-            : appliedSummary
-                .replace(/[\x00-\x1F\x7F]/g, " ")
-                .trim()
-                .slice(0, 200);
-        const bubbleBody =
-          input.kind === "contact" ? "Contact details updated" : `Added: ${sanitizedSummary}`;
-        await tenantScopedQuery(admin, "inquiry_messages", inquiry.tenantId)
-          .insert({
+      if (input.kind === "talent") {
+        // ── LINEUP NOTE COALESCING (P1-7) ────────────────────────────────────
+        // Talent chips regenerate the WHOLE lineup on every write and fire on
+        // every debounce settle + park + picker add, so a naive insert stacked
+        // 3-6 identical "Added N talent…" bubbles. Collapse a run into ONE
+        // updating line (writeCoalescedLineupNote); the canonical body
+        // "Lineup · N talent" also fixes the old double-prefix.
+        const noteBody = buildLineupNoteBody(newTalentIds.length, newTalentMode);
+        await writeCoalescedLineupNote(admin, inquiry.tenantId, inquiry.id, "group", noteBody);
+        await writeCoalescedLineupNote(admin, inquiry.tenantId, inquiry.id, "private", noteBody);
+      } else {
+        // Non-talent chips keep the ORIGINAL one-note-per-write behavior; the
+        // same-value guard above already suppresses no-op repeats.
+        //
+        // Group bubble: a platform-generated system_event (sender_user_id: null,
+        // guest_session_id: null → deriveAuthorRole renders it as a neutral
+        // system bubble). Sanitize the body (cap length, strip control chars) so
+        // guest free text (city / event_type) cannot inject newlines or spoof
+        // system copy; the "Added: " prefix is platform-authored. For `contact`
+        // never echo the email/phone into the thread (PII restraint).
+        try {
+          const sanitizedSummary =
+            input.kind === "contact"
+              ? "Contact details"
+              : appliedSummary
+                  .replace(/[\x00-\x1F\x7F]/g, " ")
+                  .trim()
+                  .slice(0, 200);
+          const bubbleBody =
+            input.kind === "contact" ? "Contact details updated" : `Added: ${sanitizedSummary}`;
+          await tenantScopedQuery(admin, "inquiry_messages", inquiry.tenantId).insert({
             inquiry_id: inquiry.id,
             thread_type: "group",
             sender_user_id: null,
@@ -560,37 +603,34 @@ export async function captureGuestChip(input: GuestChipInput): Promise<GuestChip
             message_kind: "system_event",
             metadata: { chip_kind: input.kind },
           });
-      } catch (bubbleErr) {
-        // Non-fatal. The chip data is already written.
-        logServerError("guest-detail-chips-actions.captureGuestChip/bubble", bubbleErr);
-      }
+        } catch (bubbleErr) {
+          // Non-fatal. The chip data is already written.
+          logServerError("guest-detail-chips-actions.captureGuestChip/bubble", bubbleErr);
+        }
 
-      // Emit the canonical inquiry_details_updated engine event with a
-      // PRIVATE-thread system note (§6.1 / B.7). The private (client) thread is
-      // the one the guest reads (readGuestVisibleMessages) AND the one admin
-      // Messages / the client dashboard / the talent workspace render, so this
-      // single emit keeps all four surfaces coherent: use-inquiry-realtime
-      // debounces a router.refresh() on the inquiry_messages insert and every
-      // surface re-renders with the same gentle note. actorUserId is null — a
-      // guest is not an authenticated user. Best-effort: the listener chain
-      // swallows its own failures into failed_engine_effects, and the chip data
-      // is already persisted, so an emit failure never fails the chip.
-      try {
-        const note = buildDetailNote(input.kind, appliedSummary);
-        await emitStandardEngineEvent(admin, {
-          type: ENGINE_EVENT_TYPES.INQUIRY_DETAILS_UPDATED,
-          inquiryId: inquiry.id,
-          actorUserId: null,
-          data: { chip_kind: input.kind },
-          systemMessage: {
-            threadType: "private",
-            eventType: "inquiry_details_updated",
-            body: note,
-          },
-        });
-      } catch (emitErr) {
-        // Non-fatal — the structured spine is already written.
-        logServerError("guest-detail-chips-actions.captureGuestChip/emit", emitErr);
+        // Emit the canonical inquiry_details_updated engine event with a
+        // PRIVATE-thread system note (§6.1 / B.7). The private (client) thread is
+        // the one the guest reads AND the one admin Messages / the client
+        // dashboard / the talent workspace render, so this single emit keeps all
+        // four surfaces coherent via use-inquiry-realtime. Best-effort: the
+        // listener chain swallows its own failures into failed_engine_effects.
+        try {
+          const note = buildDetailNote(input.kind, appliedSummary);
+          await emitStandardEngineEvent(admin, {
+            type: ENGINE_EVENT_TYPES.INQUIRY_DETAILS_UPDATED,
+            inquiryId: inquiry.id,
+            actorUserId: null,
+            data: { chip_kind: input.kind },
+            systemMessage: {
+              threadType: "private",
+              eventType: "inquiry_details_updated",
+              body: note,
+            },
+          });
+        } catch (emitErr) {
+          // Non-fatal — the structured spine is already written.
+          logServerError("guest-detail-chips-actions.captureGuestChip/emit", emitErr);
+        }
       }
     }
 
