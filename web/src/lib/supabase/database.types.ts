@@ -13650,6 +13650,7 @@ export type Database = {
           greeting: string | null
           guest_conversation_limit: number
           show_on_directory: boolean
+          show_on_home: boolean
           show_on_talent: boolean
           tenant_id: string
           updated_at: string
@@ -13663,6 +13664,7 @@ export type Database = {
           greeting?: string | null
           guest_conversation_limit?: number
           show_on_directory?: boolean
+          show_on_home?: boolean
           show_on_talent?: boolean
           tenant_id: string
           updated_at?: string
@@ -13676,6 +13678,7 @@ export type Database = {
           greeting?: string | null
           guest_conversation_limit?: number
           show_on_directory?: boolean
+          show_on_home?: boolean
           show_on_talent?: boolean
           tenant_id?: string
           updated_at?: string

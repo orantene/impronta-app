@@ -34,6 +34,7 @@ export function GuestChatSettingsDrawer() {
   const [enabled, setEnabled] = useState(true);
   const [showOnTalent, setShowOnTalent] = useState(true);
   const [showOnDirectory, setShowOnDirectory] = useState(true);
+  const [showOnHome, setShowOnHome] = useState(true);
   const [greeting, setGreeting] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(!!tenantSlug);
@@ -50,6 +51,7 @@ export function GuestChatSettingsDrawer() {
           setEnabled(res.data.enabled);
           setShowOnTalent(res.data.showOnTalent);
           setShowOnDirectory(res.data.showOnDirectory);
+          setShowOnHome(res.data.showOnHome);
           setGreeting(res.data.greeting ?? "");
         }
       } finally {
@@ -71,6 +73,7 @@ export function GuestChatSettingsDrawer() {
         enabled,
         showOnTalent,
         showOnDirectory,
+        showOnHome,
         greeting: greeting.trim() ? greeting.trim() : null,
       });
       if (!result.ok) {
@@ -88,7 +91,7 @@ export function GuestChatSettingsDrawer() {
     }
   };
 
-  const noSurface = enabled && !showOnTalent && !showOnDirectory;
+  const noSurface = enabled && !showOnTalent && !showOnDirectory && !showOnHome;
 
   return (
     <DrawerShell
@@ -126,8 +129,14 @@ export function GuestChatSettingsDrawer() {
             <ToggleControl value={showOnTalent} onChange={setShowOnTalent} label="" />
           </FieldRow>
           <FieldRow
-            label={copy.t("Directory & home page")}
-            hint={copy.t("A “Message {agency}” button on your home and directory pages, starts a general inquiry to your team.")}
+            label={copy.t("Home page")}
+            hint={copy.t("A “Message {agency}” button on your home page, starts a general inquiry to your team.")}
+          >
+            <ToggleControl value={showOnHome} onChange={setShowOnHome} label="" />
+          </FieldRow>
+          <FieldRow
+            label={copy.t("Directory page")}
+            hint={copy.t("A “Message {agency}” button on your directory page, starts a general inquiry to your team.")}
           >
             <ToggleControl
               value={showOnDirectory}
