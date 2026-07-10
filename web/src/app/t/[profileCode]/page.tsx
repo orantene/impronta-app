@@ -2346,6 +2346,7 @@ export default async function PublicTalentProfilePage({
           talentProfileCode={profile.profile_code}
           talentDisplayName={name}
           tenantSlug={chatTenantSlug}
+          tenantId={chatTenantId}
           agencyName={chatBrandName}
           accentColor={chatAccentColor}
           logoUrl={watermarkLogoUrl}

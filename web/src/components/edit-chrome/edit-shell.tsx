@@ -42,7 +42,15 @@ import { PresenceProvider, usePagePresence } from "./presence-provider";
 import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
 import { RemoteCursorsLayer } from "./remote-cursors-layer";
 import { ThemePreviewProjector } from "./theme-preview-projector";
-import { CHROME, CHROME_SHADOWS, EDIT_TOPBAR_H } from "./kit";
+import {
+  CHROME,
+  CHROME_SHADOWS,
+  EDIT_TOPBAR_H,
+  COMMAND_DOCK_LEFT_PX,
+  COMMAND_DOCK_WIDTH_PX,
+  COMMAND_DOCK_PANEL_GAP_PX,
+  INSPECTOR_PANEL_RIGHT_INSET_PX,
+} from "./kit";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
 import {
   loadChecklistState,
@@ -1039,6 +1047,7 @@ function EditShellInner({
         navigatorOpen={navigatorOpen}
         navigatorWidth={navigatorWidth}
         inspectorOpen={inspectorDockOpen}
+        previewing={previewing}
       />
       {/* data-edit-chrome marks all editor UI so CanvasLinkInterceptor can
           exclude these links (locale switcher, page picker, admin nav) from
@@ -1763,16 +1772,34 @@ function MakeItYoursChecklist() {
   );
 }
 
+// Command dock (left) + inspector tab rail (right) are PERSISTENT chrome —
+// unlike the Navigator/Inspector panels they aren't opt-in, so in fullBleed
+// mode (the only mode this shell currently uses — canvasMode is hardcoded
+// to DEFAULT_WORKSPACE_CANVAS_MODE above) `resolveBodyHorizontalPadding`
+// always reserved 0px for them. That let the storefront render content
+// (most visibly a left-aligned hero headline) directly underneath the
+// always-on rail with no gutter. These two constants mirror each rail's own
+// left/right + width + gap footprint (same formula as each rail's own
+// `*_PANEL_INSET_PX` / `*_RIGHT_INSET_PX`) so the DEFAULT resting position
+// never occludes canvas content — the rails stay draggable; this only
+// affects the storefront's own layout margin.
+const COMMAND_DOCK_MIN_SAFE_LEFT_PX =
+  COMMAND_DOCK_LEFT_PX + COMMAND_DOCK_WIDTH_PX + COMMAND_DOCK_PANEL_GAP_PX;
+const INSPECTOR_RAIL_MIN_SAFE_RIGHT_PX = INSPECTOR_PANEL_RIGHT_INSET_PX;
+
 function BodyPaddingController({
   canvasMode,
   navigatorOpen,
   navigatorWidth,
   inspectorOpen,
+  previewing,
 }: {
   canvasMode: WorkspaceCanvasMode;
   navigatorOpen: boolean;
   navigatorWidth: number;
   inspectorOpen: boolean;
+  /** Preview mode hides both rails entirely — no gutter to reserve then. */
+  previewing: boolean;
 }) {
   const { left, right } = resolveBodyHorizontalPadding({
     mode: canvasMode,
@@ -1780,9 +1807,13 @@ function BodyPaddingController({
     navigatorWidth,
     inspectorOpen,
   });
-  if (left === 0 && right === 0) return null;
+  const dockGutter = previewing ? 0 : COMMAND_DOCK_MIN_SAFE_LEFT_PX;
+  const railGutter = previewing ? 0 : INSPECTOR_RAIL_MIN_SAFE_RIGHT_PX;
+  const effectiveLeft = Math.max(left, dockGutter);
+  const effectiveRight = Math.max(right, railGutter);
+  if (effectiveLeft === 0 && effectiveRight === 0) return null;
   return (
-    <style>{`@media (min-width: 1024px) { body { padding-left: ${left}px !important; padding-right: ${right}px !important; transition: padding-left 200ms ease, padding-right 200ms ease; } }`}</style>
+    <style>{`@media (min-width: 1024px) { body { padding-left: ${effectiveLeft}px !important; padding-right: ${effectiveRight}px !important; transition: padding-left 200ms ease, padding-right 200ms ease; } }`}</style>
   );
 }
 

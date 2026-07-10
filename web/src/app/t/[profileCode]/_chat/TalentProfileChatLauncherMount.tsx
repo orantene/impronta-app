@@ -32,6 +32,7 @@ import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import type { GuestChatOffering } from "@/lib/inquiry/guest-chat-contract";
 import { surfaceModeFromBackgroundMode } from "./mini-chat-styles";
 import { createTranslator } from "@/i18n/messages";
+import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import {
   resolveLauncherLifecycleInputs,
 } from "./launcher-lifecycle-inputs";
@@ -113,6 +114,14 @@ export async function TalentProfileChatLauncherMount({
 }: TalentProfileChatLauncherMountProps) {
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
+
+  // P2 chrome hygiene — defense-in-depth mirror of AgencyChatLauncherMount's
+  // edit-mode gate. EditChromeMount currently never mounts on `/t/` profile
+  // paths (see NON_STOREFRONT_PREFIXES in edit-chrome-mount.tsx), so this is
+  // a no-op today, but the launcher shouldn't rely on that exclusion staying
+  // true forever — the tenant-scoped edit cookie is the single source of
+  // truth for "the builder canvas is active", so check it here too.
+  if (tenantId && (await isEditModeActiveForTenant(tenantId))) return null;
 
   const t = createTranslator(locale ?? "en");
 

@@ -49,6 +49,7 @@ import { flushCanvasTextStylePatches } from "./canvas-lexical-bridge";
 import { isAnyBuilderNodeCanvasMounted } from "./client-builder-canvas-bridge";
 import { applyOptimisticInlineRepaint } from "./inline-editor-repaint";
 import { useInlineEditorCommitHandoff } from "./use-inline-editor-commit-handoff";
+import { dismissCoachmark } from "./builder-coachmarks";
 import {
   findBuilderNodeById,
   resolveBuilderNodeTextValue,
@@ -279,6 +280,11 @@ export function InlineEditor() {
         e.preventDefault();
         e.stopPropagation();
         selectBuilderNode(builderNodeTarget.id);
+        // The operator just performed the exact gesture the "double-click any
+        // text to edit it inline" coachmark teaches — dismiss it now so it
+        // doesn't dangle near the text once the edit overlay opens over it
+        // (P2 chrome hygiene: see builder-coachmark-tip.tsx's live-dismiss sub).
+        dismissCoachmark("double-click-edit");
         setActiveEdit({
           el: editable,
           original,
@@ -313,6 +319,8 @@ export function InlineEditor() {
       const variant: "single" | "multi" = SINGLE_LINE_TAGS.has(editable.tagName)
         ? "single"
         : "multi";
+      // Same gesture-taught dismiss as the freeform builder-node path above.
+      dismissCoachmark("double-click-edit");
       setActiveEdit({ el: editable, original, variant });
     }
 
