@@ -3201,7 +3201,14 @@ test.describe("smoke: login → builder → publish → share", () => {
     }
   });
 
-  test("impronta structure inspector inserts composition section packs", async ({ page }) => {
+  // W2-C4 (Advanced-mode gate) removed the in-content "Section packs" gallery
+  // from the Content inspector — the Add dock gallery is now the single insert
+  // surface for composition packs (the presets + live-data wiring are unchanged
+  // in the data model, and remain insertable via the inline "Insert block here"
+  // picker and the Add gallery). This test drove the deleted gallery's search /
+  // category-filter DOM; skipped pending a rewrite against the Add dock at the
+  // integrator's browser-verification gate.
+  test.skip("impronta structure inspector inserts composition section packs", async ({ page }) => {
     test.setTimeout(240_000);
     await openImprontaBuilderDirect(page);
 

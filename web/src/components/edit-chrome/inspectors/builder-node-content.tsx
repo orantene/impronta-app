@@ -18,7 +18,6 @@ import {
   gateNestedInsertKinds,
   type BuilderIconName,
   type BuilderNode,
-  type BuilderNodeCompositionPreset,
   type BuilderNodeCompositionPresetId,
   type BuilderNodeKind,
 } from "@/lib/site-admin/builder-node";
@@ -2930,10 +2929,6 @@ function NestedBlocksCard({
   const [selectedChildIds, setSelectedChildIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  const [packQuery, setPackQuery] = useState("");
-  const [packCategory, setPackCategory] = useState<
-    "all" | BuilderNodeCompositionPreset["category"]
-  >("all");
   // INS-3: inline naming for "Save pattern" (replaces window.prompt).
   const [savePatternNamingOpen, setSavePatternNamingOpen] = useState(false);
   useEffect(() => {
@@ -2948,31 +2943,6 @@ function NestedBlocksCard({
   const compositionPresets = BUILDER_NODE_COMPOSITION_PRESETS.filter((preset) =>
     addKinds.includes(preset.rootKind),
   );
-  const packCategories = useMemo(() => {
-    const categories = new Set<BuilderNodeCompositionPreset["category"]>();
-    for (const preset of compositionPresets) categories.add(preset.category);
-    return ["all", ...categories] as const;
-  }, [compositionPresets]);
-  const visibleCompositionPresets = useMemo(() => {
-    const q = packQuery.trim().toLowerCase();
-    return compositionPresets.filter((preset) => {
-      if (packCategory !== "all" && preset.category !== packCategory) {
-        return false;
-      }
-      if (!q) return true;
-      const hay = [
-        preset.label,
-        preset.description,
-        preset.category,
-        preset.dataMode,
-        preset.rootKind,
-        ...preset.keywords,
-      ]
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [compositionPresets, packCategory, packQuery]);
   const toggleSelectedChild = (nodeId: string) => {
     setSelectedChildIds((current) => {
       const next = new Set(current);
@@ -3207,112 +3177,11 @@ function NestedBlocksCard({
               onCancel={() => setSavePatternNamingOpen(false)}
             />
           ) : null}
-          {compositionPresets.length > 0 ? (
-            <details
-              data-builder-node-composition-presets=""
-              className="rounded-lg border border-stone-200 bg-white px-3 py-2"
-              open={nodes.length <= 3}
-            >
-              <summary className="cursor-pointer text-[11px] font-semibold text-stone-700">
-                Section packs ({compositionPresets.length})
-              </summary>
-              <div className="mt-2 flex flex-col gap-2">
-                <div className="flex flex-col gap-2 rounded-md border border-stone-200 bg-[#faf9f6] p-2">
-                  <input
-                    data-builder-node-composition-search=""
-                    type="search"
-                    value={packQuery}
-                    onChange={(event) => setPackQuery(event.currentTarget.value)}
-                    placeholder="Search section packs"
-                    className={KIT.input}
-                  />
-                  <div
-                    data-builder-node-composition-category-filter=""
-                    className="flex flex-wrap gap-1.5"
-                  >
-                    {packCategories.map((category) => (
-                      <button
-                        key={category}
-                        type="button"
-                        className={
-                          packCategory === category
-                            ? KIT.primaryButton
-                            : KIT.ghostButton
-                        }
-                        onClick={() =>
-                          setPackCategory(
-                            category as "all" | BuilderNodeCompositionPreset["category"],
-                          )
-                        }
-                      >
-                        {category === "all" ? "All" : category}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {visibleCompositionPresets.map((preset) => (
-                  <div
-                    key={preset.id}
-                    className="rounded-md border border-stone-200 bg-[#faf9f6] px-3 py-2"
-                  >
-                    <div className="flex items-start gap-3">
-                      <CompositionPresetPreview preset={preset} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[11px] font-semibold text-stone-800">
-                          {preset.label}
-                        </span>
-                        <span className="mt-0.5 block text-[10.5px] leading-snug text-stone-500">
-                          {preset.description}
-                        </span>
-                        <span className="mt-1 inline-flex text-[10px] font-semibold uppercase tracking-[0.10em] text-stone-500">
-                          {formatPresetLabel(preset.category)} · {preset.sectionCount} blocks
-                        </span>
-                        <span className="mt-2 flex flex-wrap gap-1">
-                          <span
-                            data-builder-node-composition-data-mode={preset.dataMode}
-                            className={
-                              preset.dataMode === "data-ready"
-                                ? "border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.08em] text-emerald-700"
-                                : "border border-stone-200 bg-white px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.08em] text-stone-500"
-                            }
-                          >
-                            {preset.dataMode === "data-ready" ? "Data ready" : "Starter"}
-                          </span>
-                          {preset.keywords.slice(0, 3).map((keyword) => (
-                            <span
-                              key={`${preset.id}-${keyword}`}
-                              className="border border-stone-200 bg-white px-1.5 py-0.5 text-[9.5px] font-medium text-stone-500"
-                            >
-                              {keyword}
-                            </span>
-                          ))}
-                        </span>
-                      </span>
-                      <button
-                        type="button"
-                        data-builder-node-composition-preset={preset.id}
-                        className={KIT.subtleButton}
-                        onClick={() => {
-                          void onAddCompositionPreset(preset.id);
-                        }}
-                      >
-                        Insert
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {visibleCompositionPresets.length === 0 ? (
-                  <div
-                    data-builder-node-composition-empty=""
-                    className="rounded-md border border-dashed border-stone-300 bg-white px-3 py-3 text-[11.5px] text-stone-500"
-                  >
-                    No section packs match this search. Try a category, data-ready,
-                    roster, map, FAQ, or story.
-                  </div>
-                ) : null}
-              </div>
-            </details>
-          ) : null}
+          {/* W2-C4 — the in-content "Section packs" gallery was REMOVED. The
+              Add gallery (command dock) is the single insert surface; a second
+              full gallery here duplicated it. The composition presets are still
+              reachable inline via the contextual "Insert block here" picker
+              (renderInsertPicker) and remain fully in the data model. */}
           <MyBlocksPanel parentNodeId={parentNodeId} />
           <ComponentLibraryPanel parentNodeId={parentNodeId} />
           {presets.length > 0 ? (
@@ -3602,66 +3471,6 @@ function NestedBlocksCard({
         </div>
       </CardBody>
     </Card>
-  );
-}
-
-function CompositionPresetPreview({
-  preset,
-}: {
-  preset: BuilderNodeCompositionPreset;
-}) {
-  const rows =
-    preset.category === "data"
-      ? ["wide", "grid", "grid", "grid"]
-      : preset.category === "hero"
-        ? ["wide", "thin", "wide", "chips"]
-        : preset.category === "story"
-          ? ["split", "split", "thin"]
-          : preset.category === "trust"
-            ? ["thin", "chips", "wide"]
-            : ["thin", "wide", "wide", "button"];
-  return (
-    <span
-      aria-hidden
-      className="grid shrink-0 gap-1 border border-stone-200 bg-white p-1.5"
-      style={{ width: 66, minHeight: 48 }}
-    >
-      {rows.map((row, index) => {
-        if (row === "grid") {
-          return (
-            <span key={`${preset.id}:${index}`} className="grid grid-cols-3 gap-1">
-              <span className="h-3 bg-stone-200" />
-              <span className="h-3 bg-stone-200" />
-              <span className="h-3 bg-stone-200" />
-            </span>
-          );
-        }
-        if (row === "split") {
-          return (
-            <span key={`${preset.id}:${index}`} className="grid grid-cols-2 gap-1">
-              <span className="h-4 bg-stone-200" />
-              <span className="h-4 bg-stone-100" />
-            </span>
-          );
-        }
-        if (row === "chips") {
-          return (
-            <span key={`${preset.id}:${index}`} className="grid grid-cols-3 gap-1">
-              <span className="h-2 bg-stone-100" />
-              <span className="h-2 bg-stone-100" />
-              <span className="h-2 bg-stone-100" />
-            </span>
-          );
-        }
-        return (
-          <span
-            key={`${preset.id}:${index}`}
-            className={row === "button" ? "h-3 bg-stone-800" : "bg-stone-200"}
-            style={{ height: row === "thin" ? 4 : 12 }}
-          />
-        );
-      })}
-    </span>
   );
 }
 
