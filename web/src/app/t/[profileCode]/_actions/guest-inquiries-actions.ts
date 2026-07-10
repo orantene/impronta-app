@@ -390,6 +390,17 @@ export async function listGuestInquiries(input: {
         : `[${lastMsg.message_kind.replace(/_/g, " ")}]`
       : null;
     const lastMessageAt = lastMsg?.created_at ?? null;
+    // W2-A dock — author side of the newest private-thread message, from the
+    // columns this query already selects. guest_session_id set = the guest's
+    // own message; sender_user_id set = a signed-in (agency-side) sender;
+    // neither = a system note (null, treated as awaiting downstream).
+    const lastMessageAuthor: "guest" | "agency" | null = lastMsg
+      ? lastMsg.guest_session_id
+        ? "guest"
+        : lastMsg.sender_user_id
+          ? "agency"
+          : null
+      : null;
 
     const typicalReplyLabel = talentProfileId
       ? (typicalLabelByTalent.get(talentProfileId) ?? null)
@@ -406,6 +417,7 @@ export async function listGuestInquiries(input: {
       agencyName,
       lastMessagePreview,
       lastMessageAt,
+      lastMessageAuthor,
       unreadHint: false, // panel computes this client-side
       threadStatus: toThreadStatus(row.status),
       typicalReplyLabel,
