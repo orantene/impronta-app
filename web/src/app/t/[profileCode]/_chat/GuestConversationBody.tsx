@@ -139,9 +139,14 @@ export function GuestConversationBody({
           locale={brand.locale ?? "en"}
           surfaceMode={surfaceMode}
         />
-      ) : rows.length === 0 ? (
-        // P1-15: the static greeting is a pre-send, empty-thread affordance. Once
-        // any row exists it must NOT double up above the conversation.
+      ) : rows.every((m) => m.authorRole === "system") ? (
+        // P1-15 (revised in W1 live-QA): the static greeting is a pre-send
+        // affordance. It must NOT double up once a real CONVERSATION message
+        // exists (the original auto-ack double-render bug) — but a fresh draft
+        // whose only rows are SYSTEM notes (e.g. "Lineup · 3 talent") should
+        // still show the greeting, so the panel opens alive instead of blank.
+        // So: show while every row is a system note; hide once any
+        // guest/coordinator message lands.
         <div
           style={{
             alignSelf: "flex-start",
