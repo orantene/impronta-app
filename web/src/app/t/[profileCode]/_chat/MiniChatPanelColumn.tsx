@@ -35,65 +35,23 @@ import { interpolate } from "@/i18n/interpolate";
 
 import type { StreamRow } from "./MiniChatMessageBubble";
 
-import { ClaimEmailRecap } from "./ClaimEmailRecap";
 import { ConversationStatusStrip } from "./ConversationStatusStrip";
 import { DraftPrivacyBanner } from "./DraftPrivacyBanner";
-import { GuestAccountToolkit } from "./GuestAccountToolkit";
+import { GuestConversationBody } from "./GuestConversationBody";
 import { GuestDetailChips } from "./GuestDetailChips";
 import { InquiryDetailsRail } from "./InquiryDetailsRail";
 import { GuestPanelHeader } from "./GuestPanelHeader";
 import { GuestPanelHeaderExtras } from "./GuestPanelHeaderExtras";
-import { InquiryReceiptCard } from "./InquiryReceiptCard";
 import { MiniChatComposer } from "./MiniChatComposer";
 import { MiniChatGateForm } from "./MiniChatGateForm";
-import { MiniChatMessageBubble } from "./MiniChatMessageBubble";
-import { NewMessagePulse } from "./NewMessagePulse";
 import { OpenFullConversationLink } from "./OpenFullConversationLink";
 import { SendToAgencyBar } from "./SendToAgencyBar";
-import { SentAirlock } from "./SentAirlock";
-import { TrustGateNudge } from "./TrustGateNudge";
+import { buildGateLineupRecap } from "./guest-gate-lineup-recap";
 import {
   EMAIL_RE,
-  FONT_DISPLAY,
-  firstNameOf,
   paletteFor,
   type SurfaceMode,
 } from "./mini-chat-styles";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Phase 6 — gate lineup recap
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Build the quiet contact-gate recap line anchoring the value of the ask, e.g.
- * "We will use this to send you {agency} reply about {Jane, +2}". Lists the
- * lineup talent FIRST names with a +N overflow (max two named, then +remaining).
- * Returns null when the lineup is empty so the gate renders without a recap.
- */
-function buildGateLineupRecap(
-  cartTalentNames: string[],
-  agencyName: string,
-  t: (key: string) => string,
-): string | null {
-  const names = cartTalentNames
-    .map((n) => firstNameOf(n))
-    .filter((n) => n.length > 0);
-  if (names.length === 0) return null;
-
-  const MAX_NAMED = 2;
-  const namedList =
-    names.length > MAX_NAMED
-      ? interpolate(t("public.guestChat.gateRecapOverflow"), {
-          names: names.slice(0, MAX_NAMED).join(", "),
-          count: names.length - MAX_NAMED,
-        })
-      : names.join(", ");
-
-  return interpolate(t("public.guestChat.gateRecapOne"), {
-    agency: agencyName || t("public.guestChat.sectionTalent"),
-    names: namedList,
-  });
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props
@@ -450,153 +408,34 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {/* ── Conversation area: floating details rail (compact) + body ────── */}
-      <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", minWidth: 0 }}>
-        {/* Compact: the rail floats over the conversation (collapsed left strip /
-            expanded overlay) so it never stacks below + pushes the thread up. */}
-        {compactRailFloating && detailsRail}
-        <div
-          ref={scrollRef}
-          style={{
-            // position:relative anchors the SENT airlock overlay to the body box.
-            position: "relative",
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-            padding: "14px 14px 6px",
-            // Clear the floating left rail strip (48px) when it is present.
-            paddingLeft: compactRailFloating ? 60 : 14,
-            display: "flex",
-            flexDirection: "column",
-            gap: 9,
-            background: C.surface,
-          }}
-        >
-        {/* Jon 360 Phase 1: SENT airlock — non-blocking overlay on a real send. */}
-        {showSentAirlock && (
-          <SentAirlock
-            agencyName={brand.agencyName}
-            accent={accent}
-            t={t}
-            surfaceMode={surfaceMode}
-          />
-        )}
-
-        <NewMessagePulse active={pulseActive} accent={accent} />
-
-        {/* Jon 360 Phase 2: the SENT->RECEIVED receipt, pinned as the FIRST item
-            of the now-shared thread. It replaces the assistant greeting opener
-            once sent (the greeting is a pre-send affordance), and the server has
-            already suppressed the thin auto-ack bubble in its favor. */}
-        {receipt ? (
-          <InquiryReceiptCard
-            receipt={receipt}
-            agencyName={brand.agencyName}
-            accent={accent}
-            t={t}
-            locale={brand.locale ?? "en"}
-            surfaceMode={surfaceMode}
-          />
-        ) : (
-          <div
-            style={{
-              alignSelf: "flex-start",
-              maxWidth: "88%",
-              background: C.surfaceCool,
-              color: C.ink,
-              borderRadius: "14px 14px 14px 4px",
-              padding: "11px 14px",
-              // Jon 360 Phase 7 — the greeting is agency identity copy, so it
-              // takes the editorial serif (display axis); subsequent thread
-              // bubbles stay system-sans.
-              fontFamily: FONT_DISPLAY,
-              fontSize: 14.5,
-              lineHeight: 1.5,
-            }}
-          >
-            {/* Talent-pick-first lead (empty cart, plan §B.2): steer the visitor to
-                pick specific talent OR let the agency recommend. The Talent section
-                auto-opens below (railOpenToSection="talent"), exposing the roster
-                search + "Let the agency recommend". Otherwise the normal opener. */}
-            {talentPickFirst
-              ? t("public.guestChat.greetingTalentPickFirst")
-              : brand.greeting?.trim()
-                ? brand.greeting.trim()
-                : interpolate(t("public.guestChat.greetingDefault"), {
-                    name: talentFirst,
-                  })}
-          </div>
-        )}
-
-        {rows.map((m) => (
-          <MiniChatMessageBubble
-            key={m.id}
-            m={m}
-            accent={accent}
-            locale={brand.locale ?? "en"}
-            surfaceMode={surfaceMode}
-          />
-        ))}
-
-        {limitNudge && limitNudge.tier !== "account" && (
-          <TrustGateNudge
-            tier={limitNudge.tier}
-            activeCount={limitNudge.activeCount}
-            limit={limitNudge.limit}
-            accent={accent}
-            accentInk={accentInk}
-            surfaceMode={surfaceMode}
-            canVerify={
-              Boolean(onAddClaimEmail) &&
-              Boolean(inquiryId) &&
-              Boolean(guestContactEmail)
-            }
-            onVerifyEmail={() => {
-              const addr = guestContactEmail;
-              if (onAddClaimEmail && inquiryId && addr) {
-                void onAddClaimEmail({ inquiryId, email: addr });
-              }
-            }}
-          />
-        )}
-
-        {emailedTo && (
-          <ClaimEmailRecap
-            emailedTo={emailedTo}
-            inquiryId={inquiryId}
-            accent={accent}
-            accentInk={accentInk}
-            onAddClaimEmail={onAddClaimEmail}
-            surfaceMode={surfaceMode}
-          />
-        )}
-
-        {inquiryId && (
-          <GuestAccountToolkit
-            inquiryId={inquiryId}
-            guestEmail={guestContactEmail}
-            identity={
-              guestContactEmail
-                ? identity === "guest"
-                  ? "identified"
-                  : identity
-                : identity
-            }
-            accent={accent}
-            accentInk={accentInk}
-            onAddClaimEmail={onAddClaimEmail}
-            onCheckClaimEmail={onCheckClaimEmail}
-            onGuestEmailUpdated={onGuestEmailUpdated}
-            surfaceMode={surfaceMode}
-            deemphasizeButton={
-              threadStatus === "offer_pending" ||
-              threadStatus === "approved" ||
-              threadStatus === "booked"
-            }
-          />
-        )}
-        </div>
-      </div>
+      {/* ── Conversation area: floating details rail (compact) + body ─────
+          Extracted to GuestConversationBody (W1-A decomposition pre-pass). */}
+      <GuestConversationBody
+        compactRailFloating={compactRailFloating}
+        detailsRail={detailsRail}
+        scrollRef={scrollRef}
+        C={C}
+        showSentAirlock={showSentAirlock}
+        brand={brand}
+        accent={accent}
+        accentInk={accentInk}
+        t={t}
+        surfaceMode={surfaceMode}
+        pulseActive={pulseActive}
+        receipt={receipt}
+        talentPickFirst={talentPickFirst}
+        talentFirst={talentFirst}
+        rows={rows}
+        limitNudge={limitNudge}
+        onAddClaimEmail={onAddClaimEmail}
+        onCheckClaimEmail={onCheckClaimEmail}
+        inquiryId={inquiryId}
+        guestContactEmail={guestContactEmail}
+        emailedTo={emailedTo}
+        onGuestEmailUpdated={onGuestEmailUpdated}
+        identity={identity}
+        threadStatus={threadStatus}
+      />
 
       {/* ── Inline gate ─────────────────────────────────────────────────── */}
       {showGate && (

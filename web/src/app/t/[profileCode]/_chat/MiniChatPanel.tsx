@@ -23,7 +23,6 @@ import type {
   GuestChipKind,
   GuestChipValue,
   GuestIdentityTier,
-  GuestInquirySummary,
   GuestThreadMessage,
   GuestThreadStatus,
   InquiryReceiptData,
@@ -46,14 +45,12 @@ import {
   NOOP_ENSURE_INQUIRY,
   deriveTalentPickState,
   makeRemoteNoteRows,
-  reconcileCartRemovals,
 } from "./mini-chat-panel-helpers";
 import { useGuestDetailReconcile } from "./use-guest-detail-reconcile";
-import { chipValueToPatch, chipValuesToServerIntent } from "./unified-inquiry-bridge";
+import { chipValuesToServerIntent } from "./unified-inquiry-bridge";
 import type { StreamRow } from "./MiniChatMessageBubble";
 import {
   DEFAULT_ACCENT,
-  EMAIL_RE,
   firstNameOf,
   paletteFor,
   readableOn,
@@ -64,6 +61,11 @@ import { useCompactViewport } from "./use-compact-viewport";
 import type { MiniChatPanelLocalProps } from "./mini-chat-panel-props";
 import { OfferingQuickPicker, offeringDraftPrefix, type ChatOffering } from "./OfferingQuickPicker";
 import { setPendingOffering } from "./pending-offering-store";
+import { useGateEmailCheck } from "./use-gate-email-check";
+import { useGuestInquiriesList } from "./use-guest-inquiries-list";
+import { createApplyFailure } from "./mini-chat-panel-apply-failure";
+import { useDetailHandlers } from "./use-mini-chat-detail-handlers";
+import { useRegisterRemoveTalentRunner } from "./use-register-remove-talent-runner";
 
 type Stage = "intro" | "gate" | "thread";
 
@@ -143,8 +145,13 @@ export function MiniChatPanel({
   const [threadMeta, setThreadMeta] = useState<{ typicalReply: string | null; receipt: InquiryReceiptData | null }>({ typicalReply: null, receipt: null });
   const [threadStatus, setThreadStatus] = useState<GuestThreadStatus>("open");
   const [emailedTo, setEmailedTo] = useState<string | null>(null);
-  const [gateEmailNotice, setGateEmailNotice] = useState<string | null>(null);
-  const [gateEmailBlocksSubmit, setGateEmailBlocksSubmit] = useState(false);
+  // Debounced claim-email check at the gate — extracted to useGateEmailCheck
+  // (W1-A decomposition pre-pass).
+  const { gateEmailNotice, gateEmailBlocksSubmit } = useGateEmailCheck({
+    stage,
+    email,
+    onCheckClaimEmail,
+  });
 
   const [pulseActive, setPulseActive] = useState(false);
   const [seenAtByInquiry, setSeenAtByInquiry] = useState<Record<string, string>>({});
@@ -168,8 +175,14 @@ export function MiniChatPanel({
   // hook below.
   const [serverIntent, setServerIntent] = useState<InquiryIntent | null>(null);
 
-  // F4: inquiries list for the expanded left pane.
-  const [inquiries, setInquiries] = useState<GuestInquirySummary[]>([]);
+  // F4: inquiries list for the expanded left pane. Extracted to
+  // useGuestInquiriesList (W1-A decomposition pre-pass).
+  const inquiries = useGuestInquiriesList({
+    open,
+    expanded,
+    onListGuestInquiries,
+    tenantSlug,
+  });
 
   // Finding #2: post-"Send to agency" success note (one-shot confirmation).
   const [sentNote, setSentNote] = useState(false);
@@ -231,67 +244,33 @@ export function MiniChatPanel({
     patch: unified.patch,
   });
 
-  // Named switch handler — shared by mini-mode dropdown + expanded left pane.
-  function handleSwitchInquiry(id: string) {
-    if (id === inquiryId) return;
-    setInquiryId(id);
-    setRows([]);
-    lastSeenIsoRef.current = null;
-    setStage("thread");
-    setCapturedChipKinds([]);
-  }
-
-  // F4: load the inquiries list when open (for both mini switcher + expanded pane).
-  useEffect(() => {
-    if (!open || !onListGuestInquiries || !tenantSlug) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await onListGuestInquiries({ tenantSlug });
-        if (!cancelled && res.ok) setInquiries(res.inquiries);
-      } catch {
-        /* transient */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, expanded, onListGuestInquiries, tenantSlug]);
-
-  useEffect(() => {
-    if (stage !== "gate" || !onCheckClaimEmail) {
-      setGateEmailNotice(null);
-      setGateEmailBlocksSubmit(false);
-      return;
-    }
-
-    const addr = email.trim();
-    if (!EMAIL_RE.test(addr)) {
-      setGateEmailNotice(null);
-      setGateEmailBlocksSubmit(false);
-      return;
-    }
-
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        const res = await onCheckClaimEmail({ email: addr, replacePrimary: false });
-        if (cancelled) return;
-        if (!res.ok) {
-          setGateEmailNotice(null);
-          setGateEmailBlocksSubmit(false);
-          return;
-        }
-        setGateEmailNotice(res.message ?? null);
-        setGateEmailBlocksSubmit(Boolean(res.blocksSubmit));
-      })();
-    }, 350);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [email, onCheckClaimEmail, stage]);
+  // Thread-switch + chip/talent/brief/contact/retry-sync handlers — extracted
+  // to useDetailHandlers (W1-A decomposition pre-pass). Named as a hook since
+  // it closes over refs (lastSeenIsoRef, lastPatchRef); see that file's header.
+  const {
+    handleSwitchInquiry,
+    handleRetrySync,
+    handleChipPatch,
+    handleTalentChange,
+    handleBriefChange,
+    handleContactChange,
+  } = useDetailHandlers({
+    inquiryId,
+    setInquiryId,
+    setRows,
+    lastSeenIsoRef,
+    setStage,
+    setCapturedChipKinds,
+    setCapturedChipValues,
+    lastPatchRef,
+    patch: unified.patch,
+    promoteContact: unified.promoteContact,
+    cartTalentIds,
+    onRemoveCartTalent,
+    setFirstName,
+    setLastName,
+    setEmail,
+  });
 
   function mergeServer(incoming: GuestThreadMessage[]) {
     if (incoming.length === 0) return;
@@ -438,51 +417,19 @@ export function MiniChatPanel({
     };
   }, [open, onClose]);
 
-  function applyFailure(
-    code: string,
-    message: string,
-    retryAfterMs?: number,
-    extra?: { gateTier?: GuestIdentityTier; activeCount?: number; limit?: number },
-  ) {
-    if (code === "rate_limited") {
-      setCooldownSecs(Math.max(1, Math.ceil((retryAfterMs ?? 30_000) / 1000)));
-      setError(message || t("public.guestChat.errRateLimited"));
-      return;
-    }
-    if (code === "captcha_required") {
-      setCaptchaRequired(true);
-      setError(message || "Quick check to confirm you're human.");
-      return;
-    }
-    if (code === "disposable_email") {
-      setError(message || "Please use a non-disposable email so we can reach you.");
-      return;
-    }
-    if (code === "blocked") {
-      setError(message || "This conversation can't continue.");
-      return;
-    }
-    if (code === "limit_reached") {
-      const tier: GuestIdentityTier =
-        extra?.gateTier ??
-        (identity === "account"
-          ? "account"
-          : identity === "email_verified"
-            ? "email_verified"
-            : identity === "identified" ||
-                (Boolean(firstName.trim()) && EMAIL_RE.test(email.trim()))
-              ? "identified"
-              : "guest");
-      setLimitNudge({
-        tier,
-        activeCount: extra?.activeCount ?? 0,
-        limit: extra?.limit ?? 0,
-      });
-      setError(message);
-      return;
-    }
-    setError(message || "Something went wrong. Please try again.");
-  }
+  // applyFailure — rate-limit / captcha / disposable-email / blocked /
+  // limit-reached error routing. Extracted to createApplyFailure (W1-A
+  // decomposition pre-pass). A plain closure factory (not a hook).
+  const applyFailure = createApplyFailure({
+    identity,
+    firstName,
+    email,
+    t,
+    setCooldownSecs,
+    setError,
+    setCaptchaRequired,
+    setLimitNudge,
+  });
 
   // Send state machine (handleFirstSend / handleReply / submit) extracted to keep
   // this orchestrator under its line cap. submit() routes on contactPromoted so an
@@ -527,97 +474,18 @@ export function MiniChatPanel({
     },
   });
 
-  // Finding #3: re-run the exact last failed patch when the draft banner's retry
-  // is tapped (no-op when nothing has been patched yet).
-  function handleRetrySync() {
-    const last = lastPatchRef.current;
-    if (last) void unified.patch(last);
-  }
-
-  // P1-T1/T2: a chip edit routes through the unified hook (optimistic local
-  // display, then patch() the single record; micro-status via unified.fieldState).
-  async function handleChipPatch(kind: GuestChipKind, value: GuestChipValue) {
-    setCapturedChipValues((prev) => ({ ...prev, [kind]: value }));
-    setCapturedChipKinds((k) => (k.includes(kind) ? k : [...k, kind]));
-    const patch = chipValueToPatch(kind, value);
-    if (!patch) return;
-    lastPatchRef.current = patch;
-    await unified.patch(patch);
-  }
-
-  // Phase 2 / Addendum A: Talent / Brief / Contact editors route through the SAME
-  // useUnifiedInquiry.patch path as the chips (one record, synced thread note).
-  async function handleTalentChange(
-    selectedIds: string[],
-    selectionMode: "i_know_who" | "agency_recommends",
-    selectedNames: string[],
-  ) {
-    // Keep the launcher cart (the rail's single source) in sync: a cart talent
-    // dropped in-chat is also removed from the cart, so rail + form + record agree.
-    reconcileCartRemovals(selectedIds, cartTalentIds, onRemoveCartTalent);
-    lastPatchRef.current = { kind: "talent", selectedIds, selectionMode, selectedNames };
-    await unified.patch({ kind: "talent", selectedIds, selectionMode, selectedNames });
-  }
-
   // B6: register the unified talent-patch runner up to the launcher so the rail
   // X-remove routes the RECORD write through the SAME useUnifiedInquiry.patch path
   // as the in-chat change above (same saving state + grace window + retry). The
   // launcher owns the local cart op, so this runner does only the record write (no
   // reconcileCartRemovals re-mirror — that would recurse into the launcher's own
   // cart removal). Add and remove patch { kind:"talent" } with the full id set.
-  const unifiedPatch = unified.patch;
-  useEffect(() => {
-    if (!onRegisterRemoveTalent) return;
-    onRegisterRemoveTalent(
-      (
-        selectedIds: string[],
-        selectionMode: "i_know_who" | "agency_recommends",
-        selectedNames: string[],
-      ) => {
-        lastPatchRef.current = { kind: "talent", selectedIds, selectionMode, selectedNames };
-        void unifiedPatch({ kind: "talent", selectedIds, selectionMode, selectedNames });
-      },
-    );
-    return () => onRegisterRemoveTalent(null);
-  }, [onRegisterRemoveTalent, unifiedPatch]);
-
-  async function handleBriefChange(summary: string) {
-    lastPatchRef.current = { kind: "brief", summary };
-    await unified.patch({ kind: "brief", summary });
-  }
-
-  async function handleContactChange(value: {
-    name: string;
-    email: string;
-    phone: string;
-  }) {
-    // Mirror into the gate state so a later first-message send is pre-satisfied.
-    if (value.name) {
-      const parts = splitGuestFullName(value.name);
-      setFirstName(parts.firstName);
-      setLastName(parts.lastName);
-    }
-    if (value.email) setEmail(value.email);
-    // When the editor supplies a complete, valid contact, PROMOTE the early row
-    // (flips contactPromoted) so a later send continues the thread instead of
-    // re-forcing the gate. Partial edits fall back to a debounced patch.
-    if (value.name.trim() && EMAIL_RE.test(value.email.trim())) {
-      await unified.promoteContact({
-        name: value.name.trim(),
-        email: value.email.trim(),
-        phone: value.phone.trim() || null,
-      });
-      return;
-    }
-    const contactPatch: UnifiedInquiryPatch = {
-      kind: "contact",
-      name: value.name || null,
-      email: value.email || null,
-      phone: value.phone || null,
-    };
-    lastPatchRef.current = contactPatch;
-    await unified.patch(contactPatch);
-  }
+  // Extracted to useRegisterRemoveTalentRunner (W1-A decomposition pre-pass).
+  useRegisterRemoveTalentRunner({
+    onRegisterRemoveTalent,
+    patch: unified.patch,
+    lastPatchRef,
+  });
 
   const selectedTalentIds = unified.intent.talent?.selected_ids ?? [];
   // Phase 3: empty-state talent-pick-first lead + Talent-section deep-link (§B.1/§B.2).
