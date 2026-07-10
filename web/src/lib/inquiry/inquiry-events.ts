@@ -77,7 +77,19 @@ export const ENGINE_EVENT_TYPES = {
 export type EngineEventType = (typeof ENGINE_EVENT_TYPES)[keyof typeof ENGINE_EVENT_TYPES];
 
 export type EngineNotification = { userId: string; title: string; body?: string | null };
-export type EngineSystemMessage = { threadType: "private" | "group"; body: string; eventType: SystemEventType };
+export type EngineSystemMessage = {
+  threadType: "private" | "group";
+  body: string;
+  eventType: SystemEventType;
+  /**
+   * Optional extra metadata stamped onto the system note alongside
+   * `system_event_type`. `insertSystemMessage` spreads it after the event-type
+   * key. Callers use it to tag a note for later matching — e.g. the guest chip
+   * lineup notes carry `{ chip_kind: "talent" }` so the coalescer (P1-7) can
+   * recognize and update-in-place a prior lineup note instead of stacking.
+   */
+  metadata?: Record<string, unknown>;
+};
 
 export type EngineEvent = {
   type: EngineEventType;
@@ -110,6 +122,7 @@ const listeners: Listener[] = [
           threadType: "private" | "group";
           body: string;
           eventType: SystemEventType;
+          metadata?: Record<string, unknown>;
         }
       | undefined;
     if (sm) {
@@ -118,6 +131,7 @@ const listeners: Listener[] = [
         threadType: sm.threadType,
         eventType: sm.eventType,
         body: sm.body,
+        metadata: sm.metadata,
       });
     }
   },
