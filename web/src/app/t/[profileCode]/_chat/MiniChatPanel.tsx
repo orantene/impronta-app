@@ -66,6 +66,7 @@ import { useGuestInquiriesList } from "./use-guest-inquiries-list";
 import { createApplyFailure } from "./mini-chat-panel-apply-failure";
 import { useDetailHandlers } from "./use-mini-chat-detail-handlers";
 import { useRegisterRemoveTalentRunner } from "./use-register-remove-talent-runner";
+import type { GuestDockView } from "./guest-dock-view";
 
 type Stage = "intro" | "gate" | "thread";
 
@@ -176,13 +177,18 @@ export function MiniChatPanel({
   const [serverIntent, setServerIntent] = useState<InquiryIntent | null>(null);
 
   // F4: inquiries list for the expanded left pane. Extracted to
-  // useGuestInquiriesList (W1-A decomposition pre-pass).
+  // useGuestInquiriesList (W1-A decomposition pre-pass). W2-A: also feeds the
+  // Projects dock view (compact + expanded).
   const inquiries = useGuestInquiriesList({
     open,
     expanded,
     onListGuestInquiries,
     tenantSlug,
   });
+
+  // W2-A: the active dock view (Chat / Lineup / Projects). Chat is the default;
+  // the column swaps its body on this and renders the segmented switcher.
+  const [dockView, setDockView] = useState<GuestDockView>("chat");
 
   // Finding #2: post-"Send to agency" success note (one-shot confirmation).
   const [sentNote, setSentNote] = useState(false);
@@ -636,6 +642,12 @@ export function MiniChatPanel({
     offerings: offerings as ChatOffering[],
     onPickOffering: handlePickOffering,
     textareaRef,
+    // W2-A: the 3-view dock (switcher + Lineup/Projects bodies).
+    dockView,
+    onDockViewChange: setDockView,
+    inquiries,
+    sourcePage,
+    onRemoveCartTalent,
   };
 
   // ── Expanded 2-pane mode (F4) ─────────────────────────────────────────────
