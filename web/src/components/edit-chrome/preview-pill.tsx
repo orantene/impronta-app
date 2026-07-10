@@ -167,7 +167,7 @@ function PreviewBanner() {
           height: 6,
           borderRadius: 999,
           background: CHROME.amber,
-          boxShadow: "0 0 0 3px rgba(180, 83, 9, 0.18)",
+          boxShadow: "0 0 0 3px rgba(58, 123, 255, 0.18)",
         }}
       />
       <span>Previewing as visitor</span>

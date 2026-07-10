@@ -10,8 +10,10 @@
  *     focus rings (`ring-indigo-400/20`), `border-[#e5e0d5]` (warm line).
  *   - Labels: warm stone palette (`text-stone-600`) instead of cold zinc.
  *   - Group titles: warm stone-500, refined tracking.
- *   - Primary buttons: indigo accent (`#3d4f7c`) — reads as "premium
- *     editorial tool", not "black internal button."
+ *   - Primary buttons: violet accent (`bg-violet-600`, aligned with
+ *     CHROME.accent `#7c3aed`) — reads as "premium editorial tool", not
+ *     "black internal button." (Historical note: an earlier pass used a
+ *     navy `#3d4f7c`; the code below is now on the one violet accent.)
  *   - Enum chips: active state uses soft indigo tint, not white-on-dark.
  *   - Ghost/subtle buttons: warmer borders and hover states.
  *

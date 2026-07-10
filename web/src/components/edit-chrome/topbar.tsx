@@ -964,7 +964,7 @@ function SaveStatus({
       >
         <span
           className={dot}
-          style={{ width: 6, height: 6, background: CHROME.amber, boxShadow: "0 0 8px rgba(180,83,9,0.6)" }}
+          style={{ width: 6, height: 6, background: CHROME.amber, boxShadow: "0 0 8px rgba(58,123,255,0.6)" }}
           aria-hidden
         />
         Unsaved draft
