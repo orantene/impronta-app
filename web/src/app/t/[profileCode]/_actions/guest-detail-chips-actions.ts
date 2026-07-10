@@ -39,15 +39,6 @@
  *     — the lint ratchet forbids it).
  *   • Best-effort + NEVER throws. On any failure return a GuestChatFailure.
  *
- * Integration note (WIRING):
- *   The integration agent must add the following to guest-chat-contract.ts:
- *     export type GuestChipKind = "date"|"location"|"headcount"|"event_type"|"budget";
- *     export type GuestChipValue = { ... }; (see local copy below)
- *     export type GuestChipInput = { inquiryId: string; kind: GuestChipKind; value: GuestChipValue };
- *     export type GuestChipResult = { ok: true; appliedSummary: string } | GuestChatFailure;
- *     export type CaptureGuestChipCallback = (input: GuestChipInput) => Promise<GuestChipResult>;
- *   Until then the types are local to this file (they compile standalone).
- *
  * NO migration required — interpreted_query (jsonb) + flat columns
  * (event_date, event_location, quantity) already exist on inquiries.
  */
@@ -59,7 +50,10 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "@/lib/inquiry/inquiry-events";
 import { isGuestChipWritableStatus } from "@/lib/inquiry/guest-chip-write-policy";
 import { buildLineupNoteBody, deepEqualJson, sameStringSet } from "@/lib/inquiry/lineup-note-coalesce";
-import { writeCoalescedLineupNote } from "@/lib/inquiry/lineup-note-writer";
+import {
+  repairLineupNoteBody,
+  writeCoalescedLineupNote,
+} from "@/lib/inquiry/lineup-note-writer";
 import type {
   GetGuestInquiryDetailsResult,
   GuestChatErrorCode,
@@ -507,12 +501,9 @@ export async function captureGuestChip(input: GuestChipInput): Promise<GuestChip
     );
 
     // ── SAME-VALUE GUARD (P1-7) ──────────────────────────────────────────────
-    // If this chip write changes nothing, skip the data write AND both note
-    // emissions so we never stack an identical bubble. Talent compares as an
-    // order-insensitive SET (+ mode) — the client re-emits the FULL set on every
-    // debounce settle, sometimes reordered. Every other kind deep-equals the
-    // merged interpreted_query against what is stored (each flat column derives
-    // from the same input, so an unchanged query means unchanged flat columns).
+    // A no-op chip write skips the data write and note emissions (no stacked
+    // bubbles). Talent compares as an order-insensitive SET (+ mode); other
+    // kinds deep-equal the merged query (flat columns derive from it).
     const existingQuery = inquiry.interpretedQuery;
     const mergedTalent = (mergedQuery.talent as Record<string, unknown> | undefined) ?? {};
     const newTalentIds = Array.isArray(mergedTalent.selected_ids)
@@ -542,7 +533,16 @@ export async function captureGuestChip(input: GuestChipInput): Promise<GuestChip
       unchanged = existingQuery !== null && deepEqualJson(mergedQuery, existingQuery);
     }
     if (unchanged) {
-      // Idempotent no-op: nothing to persist, no note to emit. Return the summary.
+      // Idempotent no-op for the DATA — but the lineup NOTE may still be stale:
+      // the directory card add projects the cart into selected_ids server-side
+      // (cart-selected-ids-projection), so the panel's chip settle often arrives
+      // with data already written. Repair the note to the current count
+      // (update-only; no-ops when the body already matches).
+      if (input.kind === "talent") {
+        const body = buildLineupNoteBody(newTalentIds.length, newTalentMode);
+        await repairLineupNoteBody(admin, inquiry.tenantId, inquiry.id, "group", body);
+        await repairLineupNoteBody(admin, inquiry.tenantId, inquiry.id, "private", body);
+      }
       return { ok: true, appliedSummary };
     }
 

@@ -181,3 +181,27 @@ export function deepEqualJson(a: unknown, b: unknown): boolean {
   }
   return true;
 }
+
+/**
+ * Pick the newest still-visible platform-authored talent lineup note out of a
+ * newest-first window of thread rows. Used by the REPAIR path (see
+ * lineup-note-writer.repairLineupNoteBody): when a chip write is a data no-op
+ * (the cart projection already wrote selected_ids server-side), the note may
+ * still be stale and must converge to the current count.
+ */
+export function pickNewestLineupNote<
+  T extends {
+    metadata?: unknown;
+    sender_user_id?: string | null;
+    guest_session_id?: string | null;
+    deleted_at?: string | null;
+  },
+>(newestFirstRows: readonly T[]): T | null {
+  for (const row of newestFirstRows) {
+    if (row.deleted_at) continue;
+    if (row.sender_user_id || row.guest_session_id) continue;
+    if (!isTalentLineupNoteMetadata(row.metadata)) continue;
+    return row;
+  }
+  return null;
+}

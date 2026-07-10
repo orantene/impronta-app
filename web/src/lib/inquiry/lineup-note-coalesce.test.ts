@@ -20,6 +20,7 @@ import {
   decideLineupNoteWrite,
   deepEqualJson,
   isTalentLineupNoteMetadata,
+  pickNewestLineupNote,
   sameStringSet,
   talentSelectionUnchanged,
 } from "./lineup-note-coalesce";
@@ -267,5 +268,46 @@ describe("deepEqualJson — generic non-talent same-value guard", () => {
   it("null handling", () => {
     assert.equal(deepEqualJson(null, null), true);
     assert.equal(deepEqualJson(null, {}), false);
+  });
+});
+
+describe("pickNewestLineupNote (repair path, W0-E follow-up)", () => {
+  const note = (over: Record<string, unknown> = {}) => ({
+    metadata: { chip_kind: "talent" },
+    sender_user_id: null,
+    guest_session_id: null,
+    deleted_at: null,
+    ...over,
+  });
+
+  it("picks the newest matching lineup note from a newest-first window", () => {
+    const rows = [
+      { metadata: { chip_kind: "date" }, sender_user_id: null, guest_session_id: null, deleted_at: null },
+      note({ id: "newest-lineup" }),
+      note({ id: "older-lineup" }),
+    ];
+    assert.equal((pickNewestLineupNote(rows) as { id?: string }).id, "newest-lineup");
+  });
+
+  it("skips deleted and human-authored rows", () => {
+    const rows = [
+      note({ id: "deleted", deleted_at: "2026-07-10T00:00:00Z" }),
+      note({ id: "guest-msg", guest_session_id: "gs1" }),
+      note({ id: "coordinator", sender_user_id: "u1" }),
+      note({ id: "valid" }),
+    ];
+    assert.equal((pickNewestLineupNote(rows) as { id?: string }).id, "valid");
+  });
+
+  it("returns null when no lineup note exists in the window", () => {
+    const rows = [
+      { metadata: { chip_kind: "budget" }, sender_user_id: null, guest_session_id: null, deleted_at: null },
+      note({ metadata: { chip_kind: "location" } }),
+    ];
+    assert.equal(pickNewestLineupNote(rows), null);
+  });
+
+  it("returns null on an empty window", () => {
+    assert.equal(pickNewestLineupNote([]), null);
   });
 });

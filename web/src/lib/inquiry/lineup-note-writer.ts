@@ -10,7 +10,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "@/lib/inquiry/inquiry-events";
-import { decideLineupNoteWrite, type LineupNoteCandidate } from "@/lib/inquiry/lineup-note-coalesce";
+import {
+  decideLineupNoteWrite,
+  pickNewestLineupNote,
+  type LineupNoteCandidate,
+} from "@/lib/inquiry/lineup-note-coalesce";
 
 /**
  * Write a talent lineup note into ONE thread, coalescing a run of writes into a
@@ -31,6 +35,39 @@ import { decideLineupNoteWrite, type LineupNoteCandidate } from "@/lib/inquiry/l
  * fresh private note is stamped with `{ chip_kind: "talent" }` so the NEXT write
  * can recognize and update it.
  */
+async function insertFreshLineupNote(
+  admin: SupabaseClient,
+  tenantId: string,
+  inquiryId: string,
+  thread: "group" | "private",
+  noteBody: string,
+): Promise<void> {
+  if (thread === "group") {
+    await tenantScopedQuery(admin, "inquiry_messages", tenantId).insert({
+      inquiry_id: inquiryId,
+      thread_type: "group",
+      sender_user_id: null,
+      guest_session_id: null,
+      body: noteBody,
+      message_kind: "system_event",
+      metadata: { chip_kind: "talent" },
+    });
+  } else {
+    await emitStandardEngineEvent(admin, {
+      type: ENGINE_EVENT_TYPES.INQUIRY_DETAILS_UPDATED,
+      inquiryId,
+      actorUserId: null,
+      data: { chip_kind: "talent" },
+      systemMessage: {
+        threadType: "private",
+        eventType: "inquiry_details_updated",
+        body: noteBody,
+        metadata: { chip_kind: "talent" },
+      },
+    });
+  }
+}
+
 export async function writeCoalescedLineupNote(
   admin: SupabaseClient,
   tenantId: string,
@@ -38,32 +75,8 @@ export async function writeCoalescedLineupNote(
   thread: "group" | "private",
   noteBody: string,
 ): Promise<void> {
-  const insertFresh = async (): Promise<void> => {
-    if (thread === "group") {
-      await tenantScopedQuery(admin, "inquiry_messages", tenantId).insert({
-        inquiry_id: inquiryId,
-        thread_type: "group",
-        sender_user_id: null,
-        guest_session_id: null,
-        body: noteBody,
-        message_kind: "system_event",
-        metadata: { chip_kind: "talent" },
-      });
-    } else {
-      await emitStandardEngineEvent(admin, {
-        type: ENGINE_EVENT_TYPES.INQUIRY_DETAILS_UPDATED,
-        inquiryId,
-        actorUserId: null,
-        data: { chip_kind: "talent" },
-        systemMessage: {
-          threadType: "private",
-          eventType: "inquiry_details_updated",
-          body: noteBody,
-          metadata: { chip_kind: "talent" },
-        },
-      });
-    }
-  };
+  const insertFresh = (): Promise<void> =>
+    insertFreshLineupNote(admin, tenantId, inquiryId, thread, noteBody);
 
   try {
     // Most-recent message in this thread, newest-first. A tenant-scoped RAW read
@@ -120,5 +133,62 @@ export async function writeCoalescedLineupNote(
     } catch (insErr) {
       logServerError("lineup-note-writer.writeCoalescedLineupNote/insert", insErr);
     }
+  }
+}
+
+/**
+ * REPAIR path (W0-E follow-up, found in live QA): converge the newest lineup
+ * note to the CURRENT count without inserting duplicates.
+ *
+ * Why it exists: the directory card add writes `saved_talent` and the server
+ * projects that straight into `interpreted_query.talent.selected_ids`
+ * (cart-selected-ids-projection). When the panel's chip write then settles with
+ * the SAME set, captureGuestChip's same-value guard correctly skips the data
+ * write — but the note in the thread may still read a stale count from an
+ * earlier write. This repairs the newest visible lineup note in the thread
+ * (update-only when one exists; a single fresh insert when none does). A repeat
+ * call with a matching body is a full no-op, so repair can run on every no-op
+ * chip settle without churn.
+ */
+export async function repairLineupNoteBody(
+  admin: SupabaseClient,
+  tenantId: string,
+  inquiryId: string,
+  thread: "group" | "private",
+  noteBody: string,
+): Promise<void> {
+  try {
+    const { data: rows, error } = await admin
+      .from("inquiry_messages")
+      .select("id, body, metadata, sender_user_id, guest_session_id, deleted_at, created_at")
+      .eq("inquiry_id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .eq("thread_type", thread)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (error) return; // repair is best-effort; the next changed write heals it
+
+    type NoteRow = {
+      id: string;
+      body?: string | null;
+      metadata?: unknown;
+      sender_user_id?: string | null;
+      guest_session_id?: string | null;
+      deleted_at?: string | null;
+    };
+    const note = pickNewestLineupNote<NoteRow>((rows ?? []) as NoteRow[]);
+    if (!note) {
+      await insertFreshLineupNote(admin, tenantId, inquiryId, thread, noteBody);
+      return;
+    }
+    if ((note.body ?? "") === noteBody) return; // already truthful — nothing to do
+
+    await tenantScopedQuery(admin, "inquiry_messages", tenantId)
+      .update({ body: noteBody })
+      .eq("id", note.id)
+      .is("deleted_at", null);
+  } catch (err) {
+    logServerError("lineup-note-writer.repairLineupNoteBody", err);
   }
 }
