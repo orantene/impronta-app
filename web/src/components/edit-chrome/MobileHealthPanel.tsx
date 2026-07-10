@@ -194,7 +194,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
               marginRight: 4,
             }}
           >
-            {total} advisory{total === 1 ? "" : "s"}
+            {total} advisor{total === 1 ? "y" : "ies"}
           </span>
         )}
         <span style={{ color: CHROME.muted2 }}>
