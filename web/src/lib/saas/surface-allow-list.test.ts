@@ -165,6 +165,19 @@ test("read-only deploy diagnostics: /api/health/* allowed on every host kind", (
   }
 });
 
+test("QA guest-session reset: /api/dev/reset-guest allowed on every host kind (W0-H)", () => {
+  // Unlike the rest of /api/dev/* (bypassed in proxy.ts for dev + preview
+  // only), this single route must also reach its handler on PRODUCTION hosts
+  // so a logged-in staff member can reset a guest cookie while QA-ing the live
+  // guest chat panel. The route's own gate (dev/preview OR staff session)
+  // is what actually restricts it; this allow-list entry only lets the
+  // request past host resolution. Host-agnostic like /api/health.
+  const p = "/api/dev/reset-guest";
+  for (const kind of ["app", "agency", "hub", "marketing"] as const) {
+    assert.equal(isPathAllowedForHostKind(kind, p), true, `${kind} should allow ${p}`);
+  }
+});
+
 test("hub host: auth + workspace slug paths + shared routes allowed", () => {
   const allowed = [
     "/",

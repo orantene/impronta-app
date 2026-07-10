@@ -79,6 +79,17 @@ const PROTOTYPE_PREFIX = "/prototypes" as const;
  *                              deployed runtime without a session; without this
  *                              entry the proxy rewrote it to a 404 and the
  *                              smoke check could never read the anti-spam signal.
+ *   - `/api/dev/reset-guest` → QA/E2E fresh-guest-session reset (W0-H). Unlike
+ *                              the rest of `/api/dev/*` (bypassed in proxy.ts
+ *                              for dev + preview ONLY), this single route is
+ *                              also allowed through on production hosts
+ *                              because its own gate accepts either dev/preview
+ *                              OR an authenticated staff session — production
+ *                              staff need it to get a clean guest cookie while
+ *                              QA-ing the live guest chat panel. It clears only
+ *                              the `impronta_guest` cookie (no DB writes) and
+ *                              404s (never 403) when neither gate passes, so
+ *                              listing it here does not advertise a capability.
  * These never leak tenant data and have their own gates.
  */
 const SHARED_API_PREFIXES = [
@@ -86,6 +97,7 @@ const SHARED_API_PREFIXES = [
   "/api/analytics/events",
   "/api/stripe",
   "/api/health",
+  "/api/dev/reset-guest",
 ] as const;
 
 /**
