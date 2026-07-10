@@ -18,8 +18,9 @@
  *   - Reads slots from EditContext, flattens them in slot-def order.
  *   - Selecting a row → `setSelectedSectionId` (matches canvas selection).
  *   - Drag-reorder → `moveSectionTo` (existing CAS-safe action).
- *   - Footer "Page setup" → `openPageSettings` (SEO / URL / social — not workspace settings).
- *   - Footer Theme button → `openTheme` (Phase 5 ThemeDrawer).
+ *   - Footer Theme button → `openTheme` (Phase 5 ThemeDrawer). Page Settings is
+ *     no longer launched from here (W2-C3) — its single home is the topbar
+ *     publish menu.
  *
  * Visibility toggle:
  *   Wires through `setSectionVisibility(sectionId, "hidden" | "always")`
@@ -277,7 +278,6 @@ export function NavigatorPanel() {
     getCopiedBuilderNodePastePreview,
     removeBuilderNode,
     duplicateSection,
-    openPageSettings,
     openTheme,
     canEditSiteShell,
     surfaceKind,
@@ -1552,7 +1552,11 @@ export function NavigatorPanel() {
     </div>
   );
 
-  const navigatorFooter = (
+  // W2-C3: the footer "Page setup" shortcut was one of three Page Settings
+  // entry points — it is removed here so Page Settings has a single home in the
+  // topbar publish menu. Only the shell-surface Theme shortcut remains, so the
+  // whole footer collapses away on non-shell surfaces.
+  const navigatorFooter = canEditSiteShell ? (
     <div
       style={{
         borderTop: `1px solid ${CHROME.line}`,
@@ -1570,23 +1574,15 @@ export function NavigatorPanel() {
           marginBottom: 6,
         }}
       >
-        Page
+        Design
       </div>
       <div className="flex gap-1.5">
-        <FooterShortcut
-          onClick={openPageSettings}
-          title="Page setup — title, SEO, social preview, URL"
-        >
-          Page setup
+        <FooterShortcut onClick={openTheme} title="Edit colours, type, and spacing">
+          Theme
         </FooterShortcut>
-        {canEditSiteShell ? (
-          <FooterShortcut onClick={openTheme} title="Edit colours, type, and spacing">
-            Theme
-          </FooterShortcut>
-        ) : null}
       </div>
     </div>
-  );
+  ) : null;
 
   return (
     <DockFloatingPanel
