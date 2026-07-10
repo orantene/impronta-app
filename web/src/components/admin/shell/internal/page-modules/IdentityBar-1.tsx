@@ -403,25 +403,15 @@ export function TulalaIdentityBar() {
           </svg>
         </a>
 
-        {/* User identity — Shopify-style right-most avatar menu. One human,
+        {/* User identity — Shopify/Gmail-style avatar-only menu trigger.
+            The name used to sit inline and wrapped to two lines whenever
+            the bar got tight (the recurring breakage). It's an avatar
+            button now: never wraps, and the full name + email live in the
+            dropdown header, the aria-label, and a hover tooltip. One human,
             one menu: profile, settings, plan & billing, notifications,
             language, help, shortcuts, sign out. */}
         <AccountMenuTrigger userName={userName} userInitials={userInitials} align="right">
-          <Avatar initials={userInitials} size={26} tone="ink" hashSeed={userName} photoUrl={userPhotoUrl} />
-          <span
-            data-tulala-identity-name
-            className="font-admin-body text-[13px] font-medium tracking-[-0.05px] text-admin-ink"
-          >
-            {userName}
-          </span>
-          {/* Hamburger icon — universal "menu" affordance. Replaces the
-              ambiguous chevron-down so the avatar reads as a tappable
-              menu trigger, not just identity. */}
-          <span aria-hidden className="ml-px inline-flex items-center text-admin-ink-muted">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-            </svg>
-          </span>
+          <Avatar initials={userInitials} size={28} tone="ink" hashSeed={userName} photoUrl={userPhotoUrl} />
         </AccountMenuTrigger>
       </div>
 
@@ -508,14 +498,16 @@ function AccountMenuTrigger({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={`${copy.t("Open account menu")} — ${copy.t("Signed in as")} ${userName}`}
+        title={userName}
         aria-haspopup="menu"
         aria-expanded={open}
-        // Always-on subtle pill so the trigger reads as a button, not just an
-        // avatar. Stronger when open / hovered. Border makes it visually
-        // distinct from a static avatar. The open/hover shades flow through CSS
-        // custom properties so the imperative hover handlers stay no-render and
-        // React still reconciles the open-state color on toggle.
-        className="inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border border-[var(--ib-pill-bd)] bg-[var(--ib-pill-bg)] pt-[3px] pr-[8px] pb-[3px] pl-[3px] font-admin-body [transition:background_var(--transition-admin-micro),border-color_var(--transition-admin-micro)]"
+        // Circular avatar button — the avatar IS the affordance (Gmail /
+        // Shopify pattern), so a fixed round ring around it can never wrap
+        // or reflow no matter how tight the bar gets. Symmetric p-[3px] +
+        // rounded-full keeps it a perfect circle. Hover/open shades flow
+        // through CSS custom properties so the imperative handlers stay
+        // no-render while React reconciles the open-state color on toggle.
+        className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-[var(--ib-pill-bd)] bg-[var(--ib-pill-bg)] p-[3px] font-admin-body [transition:background_var(--transition-admin-micro),border-color_var(--transition-admin-micro)]"
         style={{
           "--ib-pill-bg": open ? "rgba(11,11,13,0.08)" : "rgba(11,11,13,0.035)",
           "--ib-pill-bd": open ? "rgba(11,11,13,0.12)" : "rgba(11,11,13,0.07)",
