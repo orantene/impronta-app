@@ -69,10 +69,9 @@ import { MobileEditPanel } from "./mobile-edit-panel";
 import { NavigatorPanel } from "./navigator-panel";
 import { AddGalleryPanel } from "./add-gallery/add-gallery-panel";
 import { AllPagesPanel } from "./all-pages-panel";
-import { BrandQuickPanel } from "./brand-quick-panel";
+import { DesignPanel } from "./design-panel";
 import { CommandDock } from "./command-dock";
 import { InspectorCommandRail } from "./inspector-command-rail";
-import { SearchPanel } from "./search-panel";
 import { ShortcutOverlay } from "./shortcut-overlay";
 import { TopBar } from "./topbar";
 import { CanvasLinkInterceptor } from "./canvas-link-interceptor";
@@ -1149,14 +1148,13 @@ function EditShellInner({
          *  for a real visitor. SelectionLayer owns the hover ring,
          *  drag toolbar chip, and click-selection capture. */}
         {!previewing ? <SelectionLayer /> : null}
-        {/* Slim left command dock — launches the floating panels (Search, Add,
-            All Pages, Page Structure, Page Settings, Brand, Theme, Help).
-            Suppressed in preview so the page reads as a real visitor view. */}
+        {/* Slim left command dock — launches the floating panels (Add, Pages,
+            Structure, Design, Assets, Help). Search now lives only in the ⌘K
+            command palette; Page Settings has a single home in the topbar
+            publish menu. Suppressed in preview so the page reads as a real
+            visitor view. */}
         {!previewing ? <CommandDock /> : null}
         {!previewing ? <InspectorCommandRail /> : null}
-        {!previewing ? (
-          <SearchPanel open={searchPanelOpen} onClose={closeSearchPanel} />
-        ) : null}
         {!previewing ? (
           <AddGalleryPanel open={addMenuOpen} onClose={closeAddMenu} />
         ) : null}
@@ -1164,7 +1162,7 @@ function EditShellInner({
           <AllPagesPanel open={allPagesPanelOpen} onClose={closeAllPagesPanel} />
         ) : null}
         {!previewing ? (
-          <BrandQuickPanel open={brandPanelOpen} onClose={closeBrandPanel} />
+          <DesignPanel open={brandPanelOpen} onClose={closeBrandPanel} />
         ) : null}
         <InlineEditor />
         <NavigatorPanel />

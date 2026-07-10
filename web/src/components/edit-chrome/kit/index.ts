@@ -14,17 +14,13 @@ export {
   CHROME_RADII,
   CHROME_SHADOWS,
   COMMAND_DOCK_CHROME_TOP_PX,
-  COMMAND_DOCK_COLLAPSED_STORAGE_KEY,
   COMMAND_DOCK_LEFT_PX,
   COMMAND_DOCK_PANEL_GAP_PX,
   COMMAND_DOCK_PANEL_MAX_HEIGHT,
-  COMMAND_DOCK_PINNED_STORAGE_KEY,
   COMMAND_DOCK_TOP_GAP_PX,
   COMMAND_DOCK_WIDTH_PX,
   INSPECTOR_CHROME_TOP_PX,
   INSPECTOR_DOCK_OPEN_STORAGE_KEY,
-  INSPECTOR_RAIL_COLLAPSED_STORAGE_KEY,
-  INSPECTOR_RAIL_PINNED_STORAGE_KEY,
   INSPECTOR_PANEL_RIGHT_INSET_PX,
   INSPECTOR_RAIL_PANEL_GAP_PX,
   INSPECTOR_RAIL_RIGHT_PX,
@@ -58,14 +54,6 @@ export {
   FloatingPanelHeader,
   FloatingPanelCloseButton,
 } from "./floating-panel-header";
-export { RailHandle, useRailCollapsed, type RailHandleProps } from "./rail-handle";
-export {
-  PinnableRailItem,
-  useRailPinned,
-  type PinnableRailItemProps,
-  type RailPinned,
-} from "./rail-pin";
-
 export { Card, CardHead, CardBody, CardAction } from "./card";
 export { CardSubHead } from "./card-subhead";
 export { SelectDropdown, type SelectOption } from "./select-dropdown";
