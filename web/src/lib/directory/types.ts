@@ -124,6 +124,14 @@ export type DirectoryPageResponse = {
   taxonomyTermIds: string[];
   /** Present when items were produced from AI search with explanations enabled. */
   aiOverlayByTalentId?: Record<string, DirectoryAiCardOverlay>;
+  /**
+   * Whether the tenant surface has the reviews (STANDING) entitlement — the
+   * same gate that nulls the per-card rating fields. The toolbar uses it to
+   * hide the "Top rated" sort option where rating can never affect order.
+   * Absent (older responses / early-exit paths) reads as enabled so the
+   * option never flickers off on the platform host.
+   */
+  reviewsEnabled?: boolean;
 };
 
 /** URL `ff` facet: OR within `values`, AND across different `fieldKey`s. */

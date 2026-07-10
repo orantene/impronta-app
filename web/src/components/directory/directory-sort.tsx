@@ -11,10 +11,17 @@ export function DirectorySort({
   current,
   className,
   sortCopy,
+  showTopRated = true,
 }: {
   current: DirectorySortValue;
   className?: string;
   sortCopy: DirectoryUiCopy["sort"];
+  /**
+   * Hide the "Top rated" option on surfaces without the reviews entitlement
+   * (rating can never affect order there). The option stays visible while the
+   * URL already says sort=top_rated so the select never misrepresents state.
+   */
+  showTopRated?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -23,14 +30,19 @@ export function DirectorySort({
 
   const options = useMemo(
     () =>
-      [
-        { value: "recommended" as const, label: sortCopy.recommended },
-        { value: "featured" as const, label: sortCopy.featured },
-        { value: "top_rated" as const, label: sortCopy.topRated },
-        { value: "recent" as const, label: sortCopy.recent },
-        { value: "updated" as const, label: sortCopy.updated },
-      ] as const,
-    [sortCopy],
+      (
+        [
+          { value: "recommended" as const, label: sortCopy.recommended },
+          { value: "featured" as const, label: sortCopy.featured },
+          { value: "top_rated" as const, label: sortCopy.topRated },
+          { value: "recent" as const, label: sortCopy.recent },
+          { value: "updated" as const, label: sortCopy.updated },
+        ] as const
+      ).filter(
+        (opt) =>
+          opt.value !== "top_rated" || showTopRated || current === "top_rated",
+      ),
+    [sortCopy, showTopRated, current],
   );
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {

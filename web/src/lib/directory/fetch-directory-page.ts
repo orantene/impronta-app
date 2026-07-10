@@ -355,7 +355,7 @@ export async function fetchDirectoryPage(
       ),
   );
   if (requestedTaxonomyTermIds.length > 0 && taxonomyTermIds.length === 0) {
-    return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds: [] };
+    return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds: [], reviewsEnabled: reviewsStandingEnabled };
   }
 
   const [{ fitLabelsEnabled, heightCardDef, scalarCardDefs }, heightFilterCatalog] =
@@ -390,7 +390,7 @@ export async function fetchDirectoryPage(
     );
 
     if (locationError || !locationRow) {
-      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds, reviewsEnabled: reviewsStandingEnabled };
     }
 
     locationId = locationRow.id;
@@ -451,7 +451,7 @@ export async function fetchDirectoryPage(
     termMetaById = nextMeta;
 
     if (taxonomyTermIds.length > 0 && (termRows?.length ?? 0) === 0) {
-      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds, reviewsEnabled: reviewsStandingEnabled };
     }
   }
 
@@ -478,7 +478,7 @@ export async function fetchDirectoryPage(
     }
     const locIds = ((locationRows ?? []) as { id: string }[]).map((r) => r.id);
     if (locIds.length === 0) {
-      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds, reviewsEnabled: reviewsStandingEnabled };
     }
     const { data: locTalentRows, error: locTalentErr } = await auditTime(
       audit,
@@ -497,7 +497,7 @@ export async function fetchDirectoryPage(
     }
     locationTaxonomyTalentIds = ((locTalentRows ?? []) as { id: string }[]).map((r) => r.id);
     if (locationTaxonomyTalentIds.length === 0) {
-      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds, reviewsEnabled: reviewsStandingEnabled };
     }
   }
 
@@ -529,10 +529,11 @@ export async function fetchDirectoryPage(
         items: [],
         nextCursor: null,
         taxonomyTermIds,
+        reviewsEnabled: reviewsStandingEnabled,
       };
     }
     if (tenantRosterIds.length === 0) {
-      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds, reviewsEnabled: reviewsStandingEnabled };
     }
   }
 
@@ -566,13 +567,13 @@ export async function fetchDirectoryPage(
         ...new Set(uniqueIds((taxonomyRows ?? []) as { talent_profile_id: string }[])),
       ];
       if (ids.length === 0) {
-        return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
+        return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds, reviewsEnabled: reviewsStandingEnabled };
       }
       perKindSets.push(ids);
     }
     filteredTalentIds = intersectSortedIds(perKindSets);
     if (filteredTalentIds.length === 0) {
-      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds, reviewsEnabled: reviewsStandingEnabled };
     }
   }
 
@@ -588,7 +589,7 @@ export async function fetchDirectoryPage(
       ? filteredTalentIds.filter((id) => rosterSet.has(id))
       : tenantRosterIds;
     if (filteredTalentIds.length === 0) {
-      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds, reviewsEnabled: reviewsStandingEnabled };
     }
   }
 
@@ -634,7 +635,7 @@ export async function fetchDirectoryPage(
       : searchIds;
 
     if (filteredTalentIds.length === 0) {
-      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds, reviewsEnabled: reviewsStandingEnabled };
     }
   }
 
@@ -658,7 +659,7 @@ export async function fetchDirectoryPage(
       }),
     );
     if (facetOutcome.isEmpty) {
-      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds, reviewsEnabled: reviewsStandingEnabled };
     }
     filteredTalentIds = facetOutcome.filteredTalentIds;
   }
@@ -1225,6 +1226,7 @@ export async function fetchDirectoryPage(
     nextCursor,
     ...(totalCount !== undefined ? { totalCount } : {}),
     taxonomyTermIds,
+    reviewsEnabled: reviewsStandingEnabled,
   };
 }
 

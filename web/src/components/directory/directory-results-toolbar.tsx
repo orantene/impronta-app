@@ -17,12 +17,19 @@ export function DirectoryResultsToolbar({
   view,
   ui,
   isFetching = false,
+  reviewsEnabled,
 }: {
   totalCount: number;
   sort: DirectorySortValue;
   view: DirectoryViewMode;
   ui: DirectoryUiCopy;
   isFetching?: boolean;
+  /**
+   * Tenant reviews entitlement (DirectoryPageResponse.reviewsEnabled). When
+   * explicitly false the "Top rated" sort option is hidden — rating can never
+   * affect order on a non-entitled surface. Absent = enabled (platform host).
+   */
+  reviewsEnabled?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -110,7 +117,12 @@ export function DirectoryResultsToolbar({
               <MapIcon className="size-4" />
             </button>
           </div>
-          <DirectorySort current={sort} className="min-w-[10.5rem]" sortCopy={ui.sort} />
+          <DirectorySort
+            current={sort}
+            className="min-w-[10.5rem]"
+            sortCopy={ui.sort}
+            showTopRated={reviewsEnabled !== false}
+          />
         </div>
       </div>
     </div>
