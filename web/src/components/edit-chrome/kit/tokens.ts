@@ -205,6 +205,10 @@ export const CHROME_SHADOWS = {
   dropLine:
     "0 0 0 4px rgba(58, 123, 255, 0.12)," +
     " 0 0 16px 4px rgba(58, 123, 255, 0.40)",
+  // Left command dock + right inspector rail cards. One shared value so the two
+  // mirrored rails can't drift; replaces the identical bespoke DOCK_SHADOW /
+  // RAIL_SHADOW strings that used to be redeclared in each file.
+  railCard: "0 1px 2px rgba(0,0,0,0.04), 0 10px 28px -12px rgba(0,0,0,0.14)",
 } as const;
 
 /**
