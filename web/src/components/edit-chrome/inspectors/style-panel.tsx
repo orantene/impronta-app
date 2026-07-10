@@ -3555,8 +3555,8 @@ export function StylePanel({
     setSelectedViewport(next);
     if (next === "desktop") setSelectedStandaloneStyleScope("viewport");
     // Job #2 — push the choice to the canvas device so the preview frame +
-    // ResponsivePanel + this panel all read the same breakpoint. The effect
-    // above keeps `selectedViewport` mirrored on the way back.
+    // this panel all read the same breakpoint. The effect above keeps
+    // `selectedViewport` mirrored on the way back.
     if (device !== next) setDevice(next);
   }
 
