@@ -17,7 +17,7 @@
  */
 
 import { setPendingOffering } from "./pending-offering-store";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
@@ -33,13 +33,6 @@ import {
 import type { InquiryWorkflowPhase } from "@/lib/inquiry/inquiry-lifecycle";
 import { launcherLabelForCta } from "@/lib/inquiry/launcher-cta-label";
 
-import {
-  trackChatOpened,
-  trackLineupAdd,
-  trackLineupRemove,
-  type Jon360FunnelContext,
-} from "@/lib/analytics/jon360-funnel-events";
-
 import { MiniChatPanel } from "./MiniChatPanel";
 import { LauncherProjectPicker } from "./LauncherProjectPicker";
 import { NewMessagePulse } from "./NewMessagePulse";
@@ -50,6 +43,10 @@ import { useCartTalents } from "./use-cart-talents";
 import { useCartTalentRegistry } from "./cart-talent-registry";
 import { useResolveCartPortraits } from "./use-resolve-cart-portraits";
 import { useNarrowLauncherViewport } from "./use-compact-viewport";
+import { ChatGlyph, CloseGlyph } from "./chat-launcher-glyphs";
+import { useLauncherSessionRestore } from "./use-launcher-session-restore";
+import { useDirectoryFrontDoorSync } from "./use-directory-front-door-sync";
+import { useJon360LauncherTracking } from "./use-jon360-launcher-tracking";
 import {
   DEFAULT_ACCENT,
   GUEST_CHAT_LAUNCHER_BOTTOM_PX,
@@ -179,12 +176,6 @@ export function TalentProfileChatLauncher({
   // When the +N chip / a rail avatar is tapped, open the panel scrolled to the
   // Talent section. The panel reads this one-shot intent and clears it.
   const [openToTalent, setOpenToTalent] = useState(false);
-  // Phase 8 returning-visitor REPLIED pulse — a one-shot rising edge the pill's
-  // NewMessagePulse consumes. Fired ~1.2s after mount when a returning visitor
-  // lands with an unread coordinator reply on a CLOSED launcher, so the pulse
-  // dot draws the eye to "{agency} replied". Cleared once the visitor opens the
-  // panel (they have now seen the reply).
-  const [repliedPulse, setRepliedPulse] = useState(false);
 
   // ── The launcher pill IS the inquiry cart (plan §4.A) ──────────────────────
   // The rail's avatars are a pure projection of the single source of truth
@@ -327,50 +318,17 @@ export function TalentProfileChatLauncher({
     setOpen(true);
   }
 
-  // Restore the open panel across a refresh (B1) so the conversation doesn't
-  // appear to reset. sessionStorage is per-tab → a refresh restores; closing the
-  // tab forgets. Only auto-restore when there's a LIVE thread to show — never
-  // auto-open an empty intro chat, which would read as spammy (strategy §10).
-  const openStateKey = `tulala_guestchat_open:${talentProfileId}`;
-  useEffect(() => {
-    if (!existingInquiryId) return;
-    try {
-      if (sessionStorage.getItem(openStateKey) === "1") setOpen(true);
-    } catch {
-      /* sessionStorage blocked (some privacy modes) — stay closed, no-op. */
-    }
-    // existingInquiryId + openStateKey are stable for a given mount, so this
-    // restores once and never re-opens after the user manually closes.
-  }, [existingInquiryId, openStateKey]);
-  useEffect(() => {
-    try {
-      if (open) sessionStorage.setItem(openStateKey, "1");
-      else sessionStorage.removeItem(openStateKey);
-    } catch {
-      /* ignore — persistence is best-effort. */
-    }
-  }, [open, openStateKey]);
+  // Restore the open panel across a refresh (B1). Extracted to
+  // useLauncherSessionRestore (W1-A decomposition pre-pass).
+  useLauncherSessionRestore({ existingInquiryId, talentProfileId, open, setOpen });
 
-  // Phase 3 — announce this launcher to the shared modal context so a repointed
-  // front door's requestOpenChat() targets the chat surface (and falls back to
-  // the legacy sheet only when no launcher is mounted).
-  const registerChatLauncher = inquiryModal?.registerChatLauncher;
-  useEffect(() => {
-    if (!registerChatLauncher) return;
-    return registerChatLauncher();
-  }, [registerChatLauncher]);
-
-  // Phase 3 — open this panel when a repointed directory front door asks for it
-  // (the cue is a monotonically-increasing counter; the initial 0 is ignored so
-  // the panel never auto-opens on mount). This is what makes the chat launcher
-  // the single canonical inquiry surface.
-  const lastOpenChatCue = useRef(openChatCue);
-  useEffect(() => {
-    if (openChatCue === 0) return;
-    if (openChatCue === lastOpenChatCue.current) return;
-    lastOpenChatCue.current = openChatCue;
-    setOpen(true);
-  }, [openChatCue]);
+  // Phase 3 — directory front-door registration + repointed-cue open. Extracted
+  // to useDirectoryFrontDoorSync (W1-A decomposition pre-pass).
+  useDirectoryFrontDoorSync({
+    registerChatLauncher: inquiryModal?.registerChatLauncher,
+    openChatCue,
+    setOpen,
+  });
 
   // Stable names array — cartTalents is already identity-stable (useCartTalents
   // memoizes on its signature), so this yields a stable reference and avoids
@@ -380,66 +338,19 @@ export function TalentProfileChatLauncher({
     [cartTalents],
   );
 
-  // Phase 0c CRO — the standard Jon-360 funnel context, rebuilt per render from
-  // the live cart. liveInquiryIdRef tracks the early-row id once it exists.
-  const funnelCtx = useCallback(
-    (): Jon360FunnelContext => ({
-      inquiryId: liveInquiryIdRef.current,
-      tenantId,
-      lineupCount: cart.cartCount,
-      identity: ctaIdentity,
-      source: sourcePage,
-    }),
-    [tenantId, cart.cartCount, ctaIdentity, sourcePage],
-  );
-
-  // Phase 0c CRO — lineup_add / lineup_remove from a single cartIds diff so both
-  // the rail X and a directory card "+" route through one firing point (no
-  // double-count). Skips the initial mount snapshot (restored saved_talent ids
-  // are not fresh adds).
-  const prevCartIdsRef = useRef<readonly string[] | null>(null);
-  useEffect(() => {
-    const prev = prevCartIdsRef.current;
-    const next = cart.cartIds;
-    prevCartIdsRef.current = next;
-    if (prev === null) return; // first snapshot — not a user action
-    const prevSet = new Set(prev);
-    const nextSet = new Set(next);
-    for (const id of next) {
-      if (!prevSet.has(id)) trackLineupAdd(funnelCtx(), id);
-    }
-    for (const id of prev) {
-      if (!nextSet.has(id)) trackLineupRemove(funnelCtx(), id);
-    }
-  }, [cart.cartIds, funnelCtx]);
-
-  // Phase 0c CRO — chat_opened once per open transition (not on every render
-  // while open). Covers every open path (pill click, +N chip, restored session,
-  // repointed front-door cue).
-  const prevOpenRef = useRef(false);
-  useEffect(() => {
-    if (open && !prevOpenRef.current) trackChatOpened(funnelCtx());
-    prevOpenRef.current = open;
-  }, [open, funnelCtx]);
-
-  // Phase 8 — REPLIED pulse one-shot. When a returning visitor lands with an
-  // unread coordinator reply and the launcher is still closed, fire the pulse
-  // once shortly after mount (a beat so it reads as "new", not a flash on paint).
-  // Opening the panel marks the reply seen and suppresses the pulse. The fired
-  // flag below is reset to false right after so NewMessagePulse only sees a
-  // single false->true->false rising edge. Reduced-motion is handled inside the
-  // pulse (it degrades to a static highlight), so no extra guard here.
-  const repliedPulseFiredRef = useRef(false);
-  useEffect(() => {
-    if (!unreadCoordinatorReply || open || repliedPulseFiredRef.current) return;
-    repliedPulseFiredRef.current = true;
-    const fire = window.setTimeout(() => setRepliedPulse(true), 1200);
-    const settle = window.setTimeout(() => setRepliedPulse(false), 1900);
-    return () => {
-      window.clearTimeout(fire);
-      window.clearTimeout(settle);
-    };
-  }, [unreadCoordinatorReply, open]);
+  // Phase 0c CRO funnel firing (lineup_add/remove, chat_opened) + Phase 8
+  // returning-visitor REPLIED pulse. Extracted to useJon360LauncherTracking
+  // (W1-A decomposition pre-pass).
+  const { repliedPulse } = useJon360LauncherTracking({
+    tenantId,
+    cartCount: cart.cartCount,
+    cartIds: cart.cartIds,
+    ctaIdentity,
+    sourcePage,
+    open,
+    unreadCoordinatorReply,
+    liveInquiryIdRef,
+  });
 
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
@@ -738,42 +649,5 @@ export function TalentProfileChatLauncher({
         }}
       />
     </>
-  );
-}
-
-function ChatGlyph({ color }: { color: string }) {
-  return (
-    <svg
-      width="19"
-      height="19"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-    </svg>
-  );
-}
-
-function CloseGlyph({ color }: { color: string }) {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color}
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
   );
 }
