@@ -50,10 +50,20 @@ const LINEUP_PILL = /Your lineup/;
 const SENT_PILL = /Inquiry sent/;
 /** The coalesced system note. Exactly ONE must exist per inquiry. */
 const LINEUP_NOTE = /^Lineup · \d+ talent$/;
-/** The private-draft banner (present only pre-send). */
-const DRAFT_BANNER = /Draft\. Only you can see this\./;
+/**
+ * DOCK v2: the private-draft indicator is now the header LOCK CHIP (visible text
+ * "Private draft"), whose accessible name still carries the full reassurance copy
+ * "Draft. Only you can see this." — matched by role+name so the behavior is
+ * guarded against the new one-row header.
+ */
+const DRAFT_LOCK_NAME = /Draft\. Only you can see this\./;
 /** The post-send beat (airlock/receipt: "{agency} has your inquiry."). */
 const SENT_BEAT = /has your inquiry|Inquiry sent/i;
+
+/** The DOCK v2 header draft-lock chip (present only pre-send). */
+function draftLockChip(page: Page) {
+  return page.getByRole("button", { name: DRAFT_LOCK_NAME });
+}
 
 /** The chat panel is a role=dialog labelled "Message {agency}" (never a bare
  *  dialog: an unrelated closed dialog also lives in the directory DOM). */
@@ -118,6 +128,18 @@ async function openPanel(page: Page): Promise<void> {
   // evaluate().click(): bypass the overhanging-avatar occluder entirely.
   await pill.evaluate((el) => (el as HTMLButtonElement).click());
   await panel.waitFor({ state: "visible", timeout: 120_000 });
+  // DOCK v2: the dock opens into one of four views (Home/Chat/Lineup/Projects)
+  // via a bottom tab bar. An active lineup lands on Chat, but ensure it here so
+  // the draft/composer/send assertions below always run against the Chat view.
+  await ensureChatView(page);
+}
+
+/** Select the Chat tab in the DOCK v2 bottom nav if it is not already active. */
+async function ensureChatView(page: Page): Promise<void> {
+  const chatTab = chatPanel(page).getByRole("tab", { name: "Chat" });
+  if (!(await chatTab.isVisible().catch(() => false))) return;
+  if ((await chatTab.getAttribute("aria-selected")) === "true") return;
+  await chatTab.click();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,9 +162,9 @@ test("draft resume keeps one thread + coalesced note + honest pill", async ({
     ).toHaveCount(0);
   });
 
-  await test.step("3. open panel; the private-draft banner renders", async () => {
+  await test.step("3. open panel; the private-draft lock chip renders", async () => {
     await openPanel(page);
-    await expect(page.getByText(DRAFT_BANNER)).toBeVisible(ASSERT);
+    await expect(draftLockChip(page)).toBeVisible(ASSERT);
   });
 
   await test.step("4. exactly ONE coalesced lineup note", async () => {
@@ -182,8 +204,8 @@ test("draft resume keeps one thread + coalesced note + honest pill", async ({
     // previously the client assumed any resumed id was promoted and a returning
     // guest could neither see the draft state nor send it through the gate.
     await expect(
-      page.getByText(/Draft\. Only you can see this\./),
-      "a resumed unsent draft must keep the draft privacy banner",
+      draftLockChip(page),
+      "a resumed unsent draft must keep the draft lock chip",
     ).toBeVisible(ASSERT);
     await expect(
       page.getByRole("button", { name: "Send to agency" }),
@@ -206,9 +228,9 @@ test("draft send: contact gate -> sent beat -> send-to-agency freeze", async ({
   await test.step("build a fresh two-talent draft and open it", async () => {
     await seedLineup(page);
     await openPanel(page);
-    // The early row has to exist (draft banner) before the "Send to agency"
+    // The early row has to exist (draft lock chip) before the "Send to agency"
     // submit + gate are meaningful.
-    await expect(page.getByText(DRAFT_BANNER)).toBeVisible(ASSERT);
+    await expect(draftLockChip(page)).toBeVisible(ASSERT);
     await expect(
       page.getByText(LINEUP_NOTE),
       "the lineup note must be coalesced into a single row",
@@ -233,8 +255,8 @@ test("draft send: contact gate -> sent beat -> send-to-agency freeze", async ({
 
     // The sent beat: the airlock/receipt reads "{agency} has your inquiry."
     await expect(page.getByText(SENT_BEAT).first()).toBeVisible(ASSERT);
-    // The draft is now sent, so its private-draft banner is gone.
-    await expect(page.getByText(DRAFT_BANNER)).toHaveCount(0);
+    // The draft is now sent, so its private-draft lock chip is gone.
+    await expect(draftLockChip(page)).toHaveCount(0);
   });
 
   await test.step("7. post-send freeze — the send affordance is gone", async () => {
