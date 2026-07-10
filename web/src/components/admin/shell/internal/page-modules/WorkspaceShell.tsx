@@ -2,14 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { WorkspaceMediaPage } from "../media-page";
-import { Avatar, Icon, PrimaryButton, useRovingTabindex } from "../primitives";
-import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, FONTS, PAGE_META, TRANSITION, WORKSPACE_PAGES, meetsRole, useAdminShell } from "../state";
+import { useDashboardText } from "../dashboard-i18n";
+import { Avatar, Icon, useRovingTabindex } from "../primitives";
+import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, PAGE_META, PLAN_META, useAdminShell } from "../state";
 import type { FabPaletteChangedDetail, WorkspacePage } from "../state";
 import { ShortcutHelpOverlay, useKeyboardLayer } from "../workspace";
 import { CalendarPage } from "./CalendarPage";
 import { ClientsPage } from "./ClientsPage";
-import { PAGE_ICON } from "./ControlBar";
 import { TulalaIdentityBar } from "./IdentityBar-1";
 import { UnifiedInboxPage, WorkspaceMessagesPage } from "./InboxPage";
 import { OperationsPage, ProductionPage } from "./OperationsPage";
@@ -21,7 +22,6 @@ import { TalentPage } from "./TalentPage-1";
 import { WebsitePage } from "./WebsitePage-1";
 import { WorkPage } from "./WorkPage";
 import { WorkspacePageView } from "./WorkspacePageView";
-import { WorkspaceTopbar } from "./WorkspaceTopbar";
 import { MessagesShell } from "./pages-dynamic";
 
 
@@ -77,23 +77,12 @@ export function WorkspaceShell() {
 
   return (
     <HybridShell>
-      {state.workspaceLayout === "sidebar" ? (
-        <WorkspaceSidebarShell />
-      ) : (
-        <div style={{ minHeight: "calc(100vh - 56px - 56px - 50px)" }} className="bg-admin-surface">
-          <WorkspaceTopbar onOpenSearch={openPalette} />
-          <main
-            data-tulala-surface-main
-            style={{
-              padding: "28px 28px 60px",
-              maxWidth: 1320,
-              margin: "0 auto",
-            }}
-          >
-            <PageRouter page={state.page} />
-          </main>
-        </div>
-      )}
+      {/* The sidebar rail is the ONE canonical workspace chrome. The legacy
+          horizontal-topbar layout (workspaceLayout === "topbar") is retired:
+          it duplicated the rail's nav as a second parallel surface. The
+          workspaceLayout pref is ignored here on purpose — do not re-add a
+          branch without a product decision. */}
+      <WorkspaceSidebarShell />
       {/* WS-7.5 Shortcut help overlay */}
       <ShortcutHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
     </HybridShell>
@@ -101,44 +90,247 @@ export function WorkspaceShell() {
 }
 
 /**
- * X2: SidebarShell — workspace-style vertical rail layout. Used by
- * hybrid talent owners who prefer a workspace-y mental model. Carries
- * the same content as the topbar shell (PageRouter), just with a
- * fixed-width sidebar on the left and the main column flexing.
+ * Sidebar nav IA — Shopify-style grouped rail. Small uppercase group
+ * labels, every destination carries an icon, live badges on Messages
+ * (unread) + Roster (pending approvals/verifications), and Settings
+ * pinned to the bottom of the rail like Shopify's admin.
+ */
+const SIDEBAR_GROUPS: Array<{ label: string | null; pages: WorkspacePage[] }> = [
+  { label: null, pages: ["overview"] },
+  { label: "Operate", pages: ["messages", "calendar", "roster", "clients"] },
+  { label: "Grow", pages: ["pitches", "operations", "production"] },
+  { label: "Site", pages: ["website", "media"] },
+];
+
+/** Complete icon coverage for the rail — PAGE_ICON only maps the canonical 6. */
+const SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
+  overview: "home",
+  messages: "mail",
+  calendar: "calendar",
+  roster: "team",
+  clients: "briefcase",
+  pitches: "send",
+  operations: "layers",
+  production: "camera",
+  website: "globe",
+  media: "image",
+  settings: "settings",
+};
+
+function SidebarNavButton({
+  page,
+  active,
+  badge,
+  badgeTone = "amber",
+  badgeTitle,
+  onSelect,
+  label,
+  description,
+}: {
+  page: WorkspacePage;
+  active: boolean;
+  badge?: number;
+  badgeTone?: "amber" | "brand";
+  badgeTitle?: string;
+  onSelect: () => void;
+  label: string;
+  description?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      title={description}
+      aria-label={description ? `${label} — ${description}` : label}
+      aria-current={active ? "page" : undefined}
+      className={`flex w-full cursor-pointer items-center gap-[10px] rounded-[8px] border px-[10px] py-[8px] text-left font-admin-body text-[13px] tracking-[0.05px] [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro),box-shadow_var(--transition-admin-micro)] ${
+        active
+          ? "border-admin-border-soft bg-white font-semibold text-admin-ink shadow-admin-rest"
+          : "border-transparent bg-transparent font-medium text-admin-ink-muted hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink"
+      }`}
+    >
+      <Icon
+        name={SIDEBAR_ICON[page] ?? "circle"}
+        size={15}
+        stroke={1.6}
+        color="currentColor"
+      />
+      <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+        {label}
+      </span>
+      {badge != null && badge > 0 && (
+        <span
+          title={badgeTitle}
+          aria-label={badgeTitle ?? `${badge} pending`}
+          className={`inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-[5px] text-[10px] font-bold leading-none text-white ${
+            badgeTone === "brand" ? "bg-admin-brand" : "bg-admin-amber"
+          }`}
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/**
+ * X2: SidebarShell — workspace-style vertical rail layout, redesigned to
+ * the Shopify admin mental model: grey rail on the left with grouped,
+ * icon-complete nav (white active pill), live badges, Website sub-links
+ * when that section is active, and Settings pinned at the bottom. The
+ * main column carries the same PageRouter content as the topbar shell.
  */
 function WorkspaceSidebarShell() {
-  const { state, setPage, openDrawer, setWorkspaceLayout, effectiveTenant } = useAdminShell();
-  const { role } = state;
-  const canCreate = meetsRole(role, "editor");
+  const {
+    state,
+    setPage,
+    openDrawer,
+    effectiveTenant,
+    totalUnread,
+    effectiveRoster,
+    verificationRequests,
+    overviewMetrics,
+    tenantSlug,
+  } = useAdminShell();
+  const copy = useDashboardText();
+  const router = useRouter();
+  const pathname = usePathname();
   // WS-12.6 — roving tabindex on sidebar nav: arrow keys move between pages
   const sidebarNavRef = useRef<HTMLElement | null>(null);
   useRovingTabindex(sidebarNavRef, "button");
+
+  // Badge sources — mirrors WorkspaceTopbar so both layouts agree on counts.
+  const pendingVerifications = verificationRequests.filter(
+    (r) => r.status === "submitted" || r.status === "in_review" || r.status === "pending_user_action",
+  ).length;
+  const livePendingCount = effectiveRoster.filter((p) => p.state === "awaiting-approval").length;
+  const rosterPending =
+    (overviewMetrics !== null ? (overviewMetrics.pendingApprovals ?? 0) : livePendingCount) +
+    pendingVerifications;
+
+  // Nested sub-nav (Shopify pattern) — shown under the active section.
+  // Website sub-views + the Roster queues (Applications carries the pending
+  // count so the parent badge is actionable in one click).
+  const adminBase = tenantSlug ? `/${tenantSlug}/admin` : "/admin";
+  const websiteBase = `${adminBase}/website`;
+  const rosterBase = `${adminBase}/roster`;
+  const pendingApplications =
+    overviewMetrics !== null ? (overviewMetrics.pendingApprovals ?? 0) : livePendingCount;
+  const subItemsFor = (
+    p: WorkspacePage,
+  ): Array<{ label: string; href: string; exact?: boolean; count?: number }> | null => {
+    if (p === "website") {
+      return [
+        { label: "Overview", href: websiteBase, exact: true },
+        { label: "Card Design", href: `${websiteBase}/card-design` },
+        { label: "Profile Pages", href: `${websiteBase}/profile-pages` },
+      ];
+    }
+    if (p === "roster") {
+      return [
+        {
+          label: copy.isSpanish ? "Todos" : "All",
+          href: rosterBase,
+          exact: true,
+        },
+        {
+          label: copy.isSpanish ? "Solicitudes" : "Applications",
+          href: `${rosterBase}/applications`,
+          count: pendingApplications,
+        },
+        {
+          label: copy.isSpanish ? "Registro" : "Registration",
+          href: `${rosterBase}/registration`,
+        },
+      ];
+    }
+    return null;
+  };
+
+  const pageLabel = (p: WorkspacePage) =>
+    p === "roster"
+      ? copy.t(ENTITY_TYPE_META[state.entityType].rosterLabel)
+      : copy.t(PAGE_META[p].label);
+  const pageDescription = (p: WorkspacePage) =>
+    PAGE_META[p].description ? copy.t(PAGE_META[p].description as string) : undefined;
+
+  const renderItem = (p: WorkspacePage) => {
+    const active =
+      state.page === p ||
+      (p === "settings" && state.page === "workspace") ||
+      (p === "messages" && state.page === "inbox") ||
+      (p === "website" && state.page === "site") ||
+      (p === "roster" && state.page === "talent");
+    const badge = p === "messages" ? totalUnread : p === "roster" ? rosterPending : 0;
+    const badgeTitle =
+      p === "messages"
+        ? copy.isSpanish
+          ? `${totalUnread} sin leer`
+          : `${totalUnread} unread`
+        : p === "roster"
+          ? copy.isSpanish
+            ? `${rosterPending} pendientes de revisión`
+            : `${rosterPending} awaiting review`
+          : undefined;
+    return (
+      <div key={p}>
+        <SidebarNavButton
+          page={p}
+          active={active}
+          badge={badge}
+          badgeTone={p === "messages" ? "brand" : "amber"}
+          badgeTitle={badgeTitle}
+          onSelect={() => setPage(p)}
+          label={pageLabel(p)}
+          description={pageDescription(p)}
+        />
+        {/* Sub-links — Shopify-style nested nav under the active section.
+            Sub-destinations are real Next routes, so navigate via router. */}
+        {active && subItemsFor(p) && (
+          <div className="mb-[3px] mt-[2px] flex flex-col gap-px pl-[25px]">
+            {(subItemsFor(p) ?? []).map((sub) => {
+              const subActive = sub.exact
+                ? pathname === sub.href
+                : (pathname ?? "").startsWith(sub.href);
+              return (
+                <button
+                  key={sub.href}
+                  type="button"
+                  onClick={() => router.push(sub.href)}
+                  aria-current={subActive ? "page" : undefined}
+                  className={`flex cursor-pointer items-center gap-[8px] border-y-0 border-r-0 border-l-2 border-solid bg-transparent px-[10px] py-[5px] text-left font-admin-body text-[12.5px] hover:text-admin-ink [transition:color_var(--transition-admin-micro),border-color_var(--transition-admin-micro)] ${
+                    subActive
+                      ? "border-l-admin-ink font-semibold text-admin-ink"
+                      : "border-l-admin-border font-medium text-admin-ink-muted"
+                  }`}
+                >
+                  <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                    {copy.t(sub.label)}
+                  </span>
+                  {sub.count != null && sub.count > 0 && (
+                    <span className="inline-flex h-[15px] min-w-[16px] items-center justify-center rounded-full bg-admin-amber-soft px-[4px] text-[9.5px] font-bold leading-none text-admin-amber-deep">
+                      {sub.count > 99 ? "99+" : sub.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div
       data-tulala-workspace-grid
-      style={{
-        display: "grid",
-        gridTemplateColumns: "232px 1fr",
-        background: COLORS.surface,
-        minHeight: "calc(100vh - 56px - 56px - 50px)",
-      }}
+      className="grid grid-cols-[240px_1fr] bg-admin-surface min-h-[calc(100vh-56px-56px-50px)]"
     >
+      {/* Full viewport-column height (not max-height) so the tinted rail
+          never ends mid-page — it reads as chrome, not a floating card. */}
       <aside
         data-tulala-app-sidebar
-        style={{
-          background: "#fff",
-          borderRight: `1px solid ${COLORS.borderSoft}`,
-          padding: "20px 14px",
-          position: "sticky",
-          top: "calc(var(--proto-cbar, 50px) + 56px)",
-          alignSelf: "flex-start",
-          maxHeight: "calc(100vh - var(--proto-cbar, 50px) - 56px)",
-          overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          fontFamily: FONTS.body,
-        }}
+        className="sticky top-[calc(var(--proto-cbar,50px)+56px)] flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] flex-col gap-[12px] self-start overflow-y-auto border-r border-admin-border-soft bg-admin-surface-alt px-[10px] pb-[12px] pt-[14px] font-admin-body"
       >
         {/* WS-12.10 — secondary skip link lets keyboard users bypass the
             sidebar nav and jump straight to the page content area. */}
@@ -152,30 +344,15 @@ function WorkspaceSidebarShell() {
         <button
           type="button"
           onClick={() => openDrawer("tenant-switcher")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 9,
-            padding: "8px 10px",
-            background: COLORS.surfaceAlt,
-            border: "none",
-            borderRadius: 9,
-            cursor: "pointer",
-            width: "100%",
-            textAlign: "left",
-            fontFamily: FONTS.body,
-            transition: `background ${TRANSITION.micro}`,
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.accentSoft)}
-          onMouseLeave={(e) => (e.currentTarget.style.background = COLORS.surfaceAlt)}
+          className="flex w-full cursor-pointer items-center gap-[9px] rounded-[9px] border border-admin-border-soft bg-white px-[10px] py-[8px] text-left font-admin-body shadow-admin-rest hover:border-admin-border-strong [transition:border-color_var(--transition-admin-micro),box-shadow_var(--transition-admin-micro)]"
         >
           <Avatar initials={effectiveTenant.name.slice(0, 2).toUpperCase()} size={26} tone="ink" />
           <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">
+            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[12.5px] font-semibold text-admin-ink">
               {effectiveTenant.name}
             </div>
-            <div style={{ fontSize: 10.5, textTransform: "capitalize" }} className="text-admin-ink-muted">
-              {state.plan} · {state.entityType}
+            <div className="text-[10.5px] text-admin-ink-muted">
+              {(PLAN_META[state.plan]?.label ?? state.plan) + (copy.isSpanish ? " · plan" : " plan")}
             </div>
           </div>
           <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
@@ -183,72 +360,32 @@ function WorkspaceSidebarShell() {
 
         {/* Page nav — the one thing the sidebar owns. Tenant identity,
             mode toggle, bell/help all live in the persistent identity
-            bar above. Clean. */}
-        <nav ref={sidebarNavRef} aria-label="Workspace sections" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {WORKSPACE_PAGES.map((p) => {
-            const active = state.page === p;
-            const iconName = PAGE_ICON[p];
-            return (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPage(p)}
-                title={PAGE_META[p].description}
-                aria-label={PAGE_META[p].description ? `${PAGE_META[p].label} — ${PAGE_META[p].description}` : PAGE_META[p].label}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "9px 12px",
-                  background: active ? "rgba(11,11,13,0.06)" : "transparent",
-                  border: "none",
-                  borderRadius: 7,
-                  cursor: "pointer",
-                  fontFamily: FONTS.body,
-                  fontSize: 13,
-                  fontWeight: active ? 600 : 500,
-                  color: active ? COLORS.ink : COLORS.inkMuted,
-                  textAlign: "left",
-                  letterSpacing: 0.05,
-                  transition: `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
-                }}
-                onMouseEnter={(e) => {
-                  if (!active) {
-                    e.currentTarget.style.background = "rgba(11,11,13,0.025)";
-                    e.currentTarget.style.color = COLORS.ink;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = COLORS.inkMuted;
-                  }
-                }}
-              >
-                {iconName && <Icon name={iconName} size={14} stroke={1.6} color={active ? COLORS.ink : COLORS.inkMuted} />}
-                {p === "roster" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label}
-              </button>
-            );
-          })}
+            bar above. Grouped Shopify-style. */}
+        <nav ref={sidebarNavRef} aria-label="Workspace sections" className="flex flex-col gap-[2px]">
+          {SIDEBAR_GROUPS.map((group, gi) => (
+            <div key={group.label ?? `group-${gi}`} className="flex flex-col gap-[2px]">
+              {group.label && (
+                <div
+                  aria-hidden
+                  className="px-[10px] pb-[4px] pt-[10px] text-[10px] font-bold uppercase tracking-[0.14em] text-admin-ink-dim"
+                >
+                  {copy.t(group.label)}
+                </div>
+              )}
+              {group.pages.map(renderItem)}
+            </div>
+          ))}
         </nav>
 
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
 
-        {canCreate && (
-          <PrimaryButton onClick={() => openDrawer("new-inquiry")}>+ New inquiry</PrimaryButton>
-        )}
-
-        {/* Switch back to topbar layout */}
-        <button
-          type="button"
-          onClick={() => setWorkspaceLayout("topbar")}
-          style={{
-            display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", background: "transparent", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 7, cursor: "pointer", fontFamily: FONTS.body, fontSize: 11.5, transition: `border-color ${TRANSITION.micro}, color ${TRANSITION.micro}`, }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.ink; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.color = COLORS.inkMuted; }} className="text-admin-ink-muted">
-          <Icon name="arrow-right" size={11} stroke={1.8} />
-          Topbar layout
-        </button>
+        {/* Settings — pinned to the rail's bottom, Shopify-style. No create
+            CTA here: "New inquiry" already lives in the Overview header, the
+            + FAB, the ⌘K palette, and the C shortcut — a fifth entry point
+            would be duplication, not convenience. */}
+        <div className="flex flex-col gap-[6px] border-t border-admin-border pt-[6px]">
+          {renderItem("settings")}
+        </div>
       </aside>
 
       <main

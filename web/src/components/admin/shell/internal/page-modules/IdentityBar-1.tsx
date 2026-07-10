@@ -13,12 +13,12 @@ import type { Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
 import { Avatar, Icon, ShortcutsModal } from "../primitives";
-import { COLORS, MY_TALENT_PROFILE, PLAN_META, meetsRole, useAdminShell } from "../state";
+import { COLORS, FAB_PALETTE_OPEN_EVENT, MY_TALENT_PROFILE, PLAN_META, meetsRole, useAdminShell } from "../state";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
-import { AccountMenuItem, IdentityBarIconButton, LocaleToggle, ModeTogglePill } from "./IdentityBar-2";
+import { AccountMenuItem, IdentityBarIconButton, ModeTogglePill } from "./IdentityBar-2";
 import { TALENT_UNREAD } from "./WorkspaceTopbar";
-import { WorkspacePlanBadge } from "./WorkspacePlanBadge";
+import { WorkspacePulseChip } from "./WorkspacePulseChip";
 
 
 export function TulalaIdentityBar() {
@@ -232,8 +232,11 @@ export function TulalaIdentityBar() {
       data-tulala-identity-bar
       className="sticky top-[var(--proto-cbar,50px)] z-50 h-[56px] border-b border-admin-border-soft bg-white px-[24px]"
     >
+      {/* Full-bleed row (no centered max-width box): brand hugs the left
+          edge above the sidebar rail, controls hug the right — Shopify
+          edge alignment. */}
       <div
-        className="mx-auto flex h-full max-w-[1440px] items-center gap-[14px]"
+        className="flex h-full w-full items-center gap-[14px]"
       >
         {/* Brand mark — talent surface is Tulala-canonical (L41): always the
             platform wordmark, never the active agency logo. Workspace/client
@@ -264,77 +267,87 @@ export function TulalaIdentityBar() {
 
         <div data-tulala-id-divider className="mx-[4px] h-[22px] w-px bg-admin-border-soft" />
 
-        {/* User identity — the one human across modes. Click opens
-            the account menu (audit #3). */}
-        <AccountMenuTrigger userName={userName} userInitials={userInitials}>
-          <Avatar initials={userInitials} size={26} tone="ink" hashSeed={userName} photoUrl={userPhotoUrl} />
-          <span
-            data-tulala-identity-name
-            className="font-admin-body text-[14px] font-medium tracking-[-0.05px] text-admin-ink"
+        {/* Left context — split by surface (audit: the workspace acting-as
+            chip duplicated the sidebar tenant chip: same name, same switcher
+            drawer, 100px apart). On the workspace surface the RAIL owns
+            identity + switching, and this slot becomes the Business Pulse:
+            live money/ops signals with a breakdown popover. Talent + client
+            surfaces have no rail, so they keep the acting-as switcher. */}
+        {inWorkspace ? (
+          <WorkspacePulseChip />
+        ) : (
+          <button
+            type="button"
+            onClick={onActingClick}
+            aria-label={copy.isSpanish ? `Actuando como ${actingLabel} — cambiar` : `Acting as ${actingLabel} — switch`}
+            title={actingSubLabel}
+            className="tulala-acting-chip inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border-none bg-transparent px-[9px] py-[5px] font-admin-body hover:bg-[rgba(11,11,13,0.04)] [transition:background_var(--transition-admin-micro)]"
           >
-            {userName}
-          </span>
-          {/* Hamburger icon — universal "menu" affordance. Replaces the
-              ambiguous chevron-down so the avatar reads as a tappable
-              menu trigger, not just identity. */}
-          <span aria-hidden className="ml-px inline-flex items-center text-admin-ink-muted">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-            </svg>
-          </span>
-        </AccountMenuTrigger>
-
-        {/* Subtle separator dot between identity and acting-as.
-            Hidden at phone widths (where the name text also collapses). */}
-        <span
-          aria-hidden
-          data-tulala-id-slash
-          className="-ml-[2px] font-admin-body text-[14px] text-admin-ink-dim"
-        >
-          /
-        </span>
-
-        {/* Acting-as context — flips with mode. Click opens the
-            tenant or agency switcher depending on which side.
-            Audit #4 — chevron rotates on hover to invite the click. */}
-        <button
-          type="button"
-          onClick={onActingClick}
-          aria-label={copy.isSpanish ? `Actuando como ${actingLabel} — cambiar` : `Acting as ${actingLabel} — switch`}
-          title={actingSubLabel}
-          className="tulala-acting-chip inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border-none bg-transparent px-[9px] py-[5px] font-admin-body [transition:background_var(--transition-admin-micro)]"
-          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-        >
-          <span
-            aria-hidden
-            className="h-[6px] w-[6px] shrink-0 rounded-full bg-admin-green"
-          />
-          <span
-            data-tulala-acting-label
-            className="inline-flex max-w-[220px] min-w-0 flex-col items-start overflow-hidden"
-          >
-            <span className="inline-flex items-center gap-[6px] font-admin-body text-[13px] font-medium tracking-[-0.05px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.15] text-admin-ink">
-              {/* Plan tier moved to its own clickable <WorkspacePlanBadge> in the
-                  right utility cluster — opens a summary popover. */}
-              <span className="overflow-hidden text-ellipsis">{actingLabel}</span>
+            <span
+              aria-hidden
+              className="h-[6px] w-[6px] shrink-0 rounded-full bg-admin-green"
+            />
+            <span
+              data-tulala-acting-label
+              className="inline-flex max-w-[220px] min-w-0 flex-col items-start overflow-hidden"
+            >
+              <span className="inline-flex items-center gap-[6px] font-admin-body text-[13px] font-medium tracking-[-0.05px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.15] text-admin-ink">
+                <span className="overflow-hidden text-ellipsis">{actingLabel}</span>
+              </span>
+              <span data-tulala-acting-detail className="mt-px font-admin-body text-[10px] font-medium tracking-[0px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.1] text-admin-ink-muted">{actingDetail}</span>
             </span>
-            <span data-tulala-acting-detail className="mt-px font-admin-body text-[10px] font-medium tracking-[0px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.1] text-admin-ink-muted">{actingDetail}</span>
-          </span>
-          <span
-            aria-hidden
-            className="tulala-acting-chevron inline-flex [transition:transform_var(--transition-admin-layout)]"
-          >
-            <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
-          </span>
-        </button>
+            <span
+              aria-hidden
+              className="tulala-acting-chevron inline-flex [transition:transform_var(--transition-admin-layout)]"
+            >
+              <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
+            </span>
+          </button>
+        )}
 
-        <div className="flex-1" />
+        {/* Centered global search — Shopify-style. One pill in the middle of
+            the chrome that opens the unified command palette (same target as
+            ⌘K). Workspace surface only; hidden on mobile where the bottom
+            FAB is the single command surface. */}
+        {inWorkspace ? (
+          <>
+            <div className="flex-1" />
+            <button
+              type="button"
+              data-tulala-topbar-search
+              onClick={() => window.dispatchEvent(new Event(FAB_PALETTE_OPEN_EVENT))}
+              aria-label={copy.isSpanish ? "Buscar en el workspace" : "Search workspace"}
+              className="hidden h-[34px] w-[min(420px,32vw)] min-w-[180px] cursor-pointer items-center gap-[8px] rounded-[9px] border border-admin-border-soft bg-admin-surface px-[10px] font-admin-body text-[12.5px] text-admin-ink-dim md:inline-flex [transition:border-color_var(--transition-admin-micro),background_var(--transition-admin-micro)]"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = COLORS.border;
+                e.currentTarget.style.background = "#fff";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "";
+                e.currentTarget.style.background = "";
+              }}
+            >
+              <Icon name="search" size={13} color={COLORS.inkDim} />
+              <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-left">
+                {copy.isSpanish ? "Buscar" : "Search"}
+              </span>
+              <span
+                aria-hidden
+                className="inline-flex h-[18px] items-center rounded-[5px] border border-admin-border-soft bg-white px-[5px] font-mono text-[10px] font-semibold text-admin-ink-dim"
+              >
+                ⌘K
+              </span>
+            </button>
+            <div className="flex-1" />
+          </>
+        ) : (
+          <div className="flex-1" />
+        )}
 
-        {/* Workspace plan badge — clickable tier chip + summary popover
-            (registration, renewal, seats, subscription, plan override).
-            Workspace surface only: talent + client have no workspace plan. */}
-        {inWorkspace && <WorkspacePlanBadge />}
+        {/* Plan chip / locale pills / help "?" / sign-out icon all moved
+            into the account menu (right-most avatar): the sidebar tenant
+            chip already shows the plan, and Language + Sign out lived in
+            the menu anyway — the standalone controls were duplicates. */}
 
         {/* Mode toggle — only for hybrid users (talent who also have a
             workspace). Hidden on the client surface — clients are
@@ -367,21 +380,6 @@ export function TulalaIdentityBar() {
           <NotificationsBell />
         )}
 
-        <IdentityBarIconButton
-          aria-label={copy.t("Help")}
-          onClick={() => openDrawer("help")}
-        >
-          <span className="font-admin-body text-[13px] font-bold">?</span>
-        </IdentityBarIconButton>
-
-        {/* Locale toggle — the always-visible top-bar pill. Threaded from the
-            shell bridge so registry-added languages (e.g. `fr`) appear, not
-            just the static en/es fallback; hides for single-locale tenants. */}
-        <LocaleToggle
-          supportedLocales={supportedLocales}
-          defaultLocale={tenantDefaultLocale}
-        />
-
         {/* Preview public site — opens the agency homepage in a new tab */}
         <a
           href={tenantSlug ? `/${tenantSlug}` : "/"}
@@ -405,21 +403,26 @@ export function TulalaIdentityBar() {
           </svg>
         </a>
 
-        {/* Sign out — calls the real signOut server action (clears the
-            Supabase session + redirects to "/"). Previously a prototype
-            stub that only fired a toast and never logged the user out. */}
-        <IdentityBarIconButton
-          aria-label={copy.t("Sign out")}
-          onClick={() => {
-            void signOut();
-          }}
-        >
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <path d="m16 17 5-5-5-5" />
-            <path d="M21 12H9" />
-          </svg>
-        </IdentityBarIconButton>
+        {/* User identity — Shopify-style right-most avatar menu. One human,
+            one menu: profile, settings, plan & billing, notifications,
+            language, help, shortcuts, sign out. */}
+        <AccountMenuTrigger userName={userName} userInitials={userInitials} align="right">
+          <Avatar initials={userInitials} size={26} tone="ink" hashSeed={userName} photoUrl={userPhotoUrl} />
+          <span
+            data-tulala-identity-name
+            className="font-admin-body text-[13px] font-medium tracking-[-0.05px] text-admin-ink"
+          >
+            {userName}
+          </span>
+          {/* Hamburger icon — universal "menu" affordance. Replaces the
+              ambiguous chevron-down so the avatar reads as a tappable
+              menu trigger, not just identity. */}
+          <span aria-hidden className="ml-px inline-flex items-center text-admin-ink-muted">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
+          </span>
+        </AccountMenuTrigger>
       </div>
 
       {/* Shared dialog — mounted at the bar level so the account menu,
@@ -444,10 +447,13 @@ function AccountMenuTrigger({
   userName,
   userInitials: _userInitials,
   children,
+  align = "left",
 }: {
   userName: string;
   userInitials: string;
   children: ReactNode;
+  /** Which edge the dropdown hugs — "right" when the trigger sits at the bar's right end. */
+  align?: "left" | "right";
 }) {
   const { state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, bridgeSessionIdentity, supportedLocales, tenantDefaultLocale } = useAdminShell();
   const copy = useDashboardText();
@@ -532,7 +538,7 @@ function AccountMenuTrigger({
       {open && (
         <div
           role="menu"
-          className="absolute left-0 top-[calc(100%_+_6px)] z-[200] min-w-[240px] rounded-[12px] border border-admin-border-soft bg-white p-[6px] font-admin-body shadow-[0_10px_40px_rgba(11,11,13,0.16)] [animation:tulala-menu-fade_.14s_ease]"
+          className={`absolute ${align === "right" ? "right-0" : "left-0"} top-[calc(100%_+_6px)] z-[200] min-w-[240px] rounded-[12px] border border-admin-border-soft bg-white p-[6px] font-admin-body shadow-[0_10px_40px_rgba(11,11,13,0.16)] [animation:tulala-menu-fade_.14s_ease]`}
         >
           <style>{`@keyframes tulala-menu-fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
           {/* Header — signed-in-as identity */}
@@ -570,6 +576,18 @@ function AccountMenuTrigger({
             sub="Name, domain, branding, team"
             onClick={() => { setOpen(false); openDrawer("workspace-settings"); }}
           />
+          {/* Plan & billing — absorbs the old top-bar plan chip (the sidebar
+              tenant chip still shows the plan name at a glance). */}
+          {isWorkspaceSurface && (
+            <AccountMenuItem
+              label="Plan & billing"
+              sub={`${PLAN_META[state.plan].label} plan · seats, invoices, payouts`}
+              onClick={() => {
+                setOpen(false);
+                window.location.assign(tenantSlug ? `/${tenantSlug}/admin/account` : "/admin/account");
+              }}
+            />
+          )}
           {/* Talent-surface CTA — let a talent provision their own free
               workspace without leaving their identity. Mirrors the Pure-Workspace
               "Create your talent page" pattern below. The dialog itself is
@@ -599,6 +617,11 @@ function AccountMenuTrigger({
               defaultLocale={tenantDefaultLocale}
             />
           </div>
+          <AccountMenuItem
+            label="Help & guides"
+            sub="How-it-works, docs, support"
+            onClick={() => { setOpen(false); openDrawer("help"); }}
+          />
           <AccountMenuItem
             label="Keyboard shortcuts"
             sub="Press ? anywhere"

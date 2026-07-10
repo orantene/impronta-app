@@ -316,19 +316,22 @@ export function ConfirmModal({
 // ─── ShortcutsModal (#18) ────────────────────────────────────────────
 // ⌘? keyboard cheatsheet. Triggered by pressing ? anywhere in the app.
 
+// Every entry here must be a WORKING shortcut — this panel previously
+// advertised ⌘N / ⌘F / ⌘/ / E / R with no handlers behind them, and
+// "G R" for a binding that is actually G T (workspace.tsx keyboard
+// layer). Re-add an entry only together with its implementation.
 const SHORTCUTS = [
   { keys: ["⌘", "K"], label: "Command palette" },
-  { keys: ["⌘", "N"], label: "New inquiry" },
-  { keys: ["⌘", "F"], label: "Global search" },
-  { keys: ["⌘", "/"], label: "Toggle sidebar" },
+  { keys: ["C"], label: "New inquiry (compose)" },
   { keys: ["G", "O"], label: "Go to Overview" },
-  { keys: ["G", "I"], label: "Go to Inbox" },
+  { keys: ["G", "I"], label: "Go to Messages" },
   { keys: ["G", "C"], label: "Go to Calendar" },
-  { keys: ["G", "R"], label: "Go to Roster" },
-  { keys: ["J"], label: "Next item in list" },
-  { keys: ["K"], label: "Previous item in list" },
-  { keys: ["E"], label: "Mark as read / done" },
-  { keys: ["R"], label: "Reply" },
+  { keys: ["G", "T"], label: "Go to Roster" },
+  { keys: ["J"], label: "Focus next thread (Messages)" },
+  { keys: ["K"], label: "Focus previous thread (Messages)" },
+  { keys: ["⏎"], label: "Open focused thread" },
+  { keys: ["E"], label: "Archive focused thread (Messages)" },
+  { keys: ["R"], label: "Reply: focus the composer (Messages)" },
   { keys: ["Esc"], label: "Close drawer / modal" },
   { keys: ["?"], label: "This shortcuts panel" },
 ];

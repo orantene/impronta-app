@@ -1435,7 +1435,10 @@ export function AdminShellProvider({
     return score >= 60;
   }, [talentContactGates, profileVerifications, claimStatusByTalent]);
   const [density, setDensityState] = useState<Density>("comfortable");
-  const [workspaceLayout, setWorkspaceLayoutState] = useState<WorkspaceLayout>("topbar");
+  // Sidebar-first (Shopify mental model) — the vertical rail is the default
+  // workspace chrome; users who explicitly picked the topbar keep it via the
+  // localStorage hydration below.
+  const [workspaceLayout, setWorkspaceLayoutState] = useState<WorkspaceLayout>("sidebar");
   // Roster-card badge prefs — seeded SSR from the bridge, mutated by the studio.
   const [rosterCardBadges, setRosterCardBadgesState] = useState<RosterCardBadgePrefs>(
     () => normalizeRosterCardBadges(initialBridgeData?.rosterCardBadges),

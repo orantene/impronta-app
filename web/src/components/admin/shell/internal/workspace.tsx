@@ -3331,21 +3331,18 @@ const SHORTCUT_GROUPS = [
       { keys: ["?"],         label: "Keyboard shortcuts" },
     ],
   },
+  // Only shortcuts that actually work are listed — an advertised-but-dead
+  // shortcut is a broken promise. "/" and Tab were listed here before they
+  // existed; re-add each one WITH its implementation. E and R are LIVE as
+  // of WS-7.5 wave 6 (admin-1.tsx keydown + FOCUS_COMPOSER_EVENT).
   {
-    title: "List navigation",
+    title: "List navigation (Messages)",
     shortcuts: [
-      { keys: ["J"],         label: "Next item" },
-      { keys: ["K"],         label: "Previous item" },
-      { keys: ["E"],         label: "Archive selected" },
-      { keys: ["R"],         label: "Reply" },
-      { keys: ["⏎"],        label: "Open selected" },
-    ],
-  },
-  {
-    title: "Messaging",
-    shortcuts: [
-      { keys: ["/"],         label: "Search messages" },
-      { keys: ["Tab"],       label: "Switch thread (Private ↔ Group)" },
+      { keys: ["J"],         label: "Focus next thread" },
+      { keys: ["K"],         label: "Focus previous thread" },
+      { keys: ["⏎"],        label: "Open focused thread" },
+      { keys: ["E"],         label: "Archive focused thread" },
+      { keys: ["R"],         label: "Reply: focus the composer" },
     ],
   },
 ];

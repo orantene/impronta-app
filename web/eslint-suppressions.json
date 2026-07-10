@@ -731,7 +731,7 @@
   },
   "src/components/admin/shell/internal/page-modules/WorkspaceShell.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 13
+      "count": 2
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkspaceTopbar.tsx": {

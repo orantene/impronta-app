@@ -253,6 +253,12 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   (s) => s[0] === "admin" && s[1] === "triage",
   // /<tenant>/admin/financials — Business Financials page (L46).
   (s) => s[0] === "admin" && s[1] === "financials",
+  // /<tenant>/admin/bookings/** + /admin/account — these server pages have
+  // no SPA counterpart ("bookings"/"account" are not WorkspacePage ids), so
+  // without a matcher the route rendered BOTH the server page and the SPA
+  // overview stacked on one screen. Yield to the real page.
+  (s) => s[0] === "admin" && s[1] === "bookings",
+  (s) => s[0] === "admin" && s[1] === "account",
   // /<tenant>/admin/roster/applications — apply-flow inbox (L48).
   (s) => s[0] === "admin" && s[1] === "roster" && s[2] === "applications",
   // /<tenant>/admin/roster/registration — Tenant Registration Engine settings.
