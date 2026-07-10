@@ -32,6 +32,7 @@ function vsb(): "smooth" | "auto" {
     : "smooth";
 }
 import { MentionTypeahead } from "./wave2";
+import { useDashboardText } from "./dashboard-i18n";
 import { sendInquiryMessageAsAdmin } from "@/lib/server-actions/admin-inquiries";
 import { sendInquiryMessageAsClient } from "@/lib/server-actions/client-pipeline";
 import { sendInquiryMessageAsTalent } from "@/lib/server-actions/talent-pipeline";
@@ -3354,6 +3355,7 @@ export function ShortcutHelpOverlay({
   open: boolean;
   onClose: () => void;
 }) {
+  const copy = useDashboardText();
   useEffect(() => {
     if (!open) return;
     const h = (e: KeyboardEvent) => { if (e.key === "Escape" || e.key === "?") onClose(); };
@@ -3389,7 +3391,7 @@ export function ShortcutHelpOverlay({
           marginBottom: 12,
         }}>
           <span style={{ fontSize: 15, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">
-            Keyboard shortcuts
+            {copy.t("Keyboard shortcuts")}
           </span>
           <button
             type="button"
@@ -3414,7 +3416,7 @@ export function ShortcutHelpOverlay({
           {SHORTCUT_GROUPS.map((group) => (
             <div key={group.title}>
               <div style={{ fontSize:      10, fontWeight:    700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily:    FONTS.body, marginBottom:  8 }} className="text-admin-ink-dim">
-                {group.title}
+                {copy.t(group.title)}
               </div>
               <div className="flex flex-col gap-1">
                 {group.shortcuts.map((sc, i) => (
@@ -3425,7 +3427,7 @@ export function ShortcutHelpOverlay({
                     gap:         8,
                   }}>
                     <span style={{ fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-                      {sc.label}
+                      {copy.t(sc.label)}
                     </span>
                     <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
                       {sc.keys.map((k, ki) => (

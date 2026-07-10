@@ -352,7 +352,9 @@ function WorkspaceSidebarShell() {
               {effectiveTenant.name}
             </div>
             <div className="text-[10.5px] text-admin-ink-muted">
-              {(PLAN_META[state.plan]?.label ?? state.plan) + (copy.isSpanish ? " · plan" : " plan")}
+              {copy.isSpanish
+                ? `Plan ${copy.t(PLAN_META[state.plan]?.label ?? state.plan)}`
+                : `${PLAN_META[state.plan]?.label ?? state.plan} plan`}
             </div>
           </div>
           <Icon name="chevron-down" size={10} color={COLORS.inkDim} />

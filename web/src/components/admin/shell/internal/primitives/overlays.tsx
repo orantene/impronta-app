@@ -6,6 +6,7 @@
 // Extracted from primitives.tsx — Phase 1f decomposition.
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useDashboardText } from "../dashboard-i18n";
 import { COLORS, FONTS, RADIUS } from "../state";
 
 // ─── Popover ─────────────────────────────────────────────────────────
@@ -343,6 +344,7 @@ export function ShortcutsModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const copy = useDashboardText();
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -371,7 +373,7 @@ export function ShortcutsModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Keyboard shortcuts"
+        aria-label={copy.t("Keyboard shortcuts")}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "#fff",
@@ -386,7 +388,7 @@ export function ShortcutsModal({
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <h2 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, margin: 0 }} className="text-admin-ink">
-            Keyboard shortcuts
+            {copy.t("Keyboard shortcuts")}
           </h2>
           <button
             type="button"
@@ -412,7 +414,7 @@ export function ShortcutsModal({
                 borderRadius: 8,
               }}
             >
-              <span className="text-admin-ink text-admin-13">{label}</span>
+              <span className="text-admin-ink text-admin-13">{copy.t(label)}</span>
               <span className="inline-flex gap-1">
                 {keys.map((k) => (
                   <kbd
