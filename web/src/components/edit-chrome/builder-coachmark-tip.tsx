@@ -6,6 +6,7 @@ import {
   dismissCoachmark,
   isCoachmarkDismissed,
   nextUndismissedCoachmark,
+  subscribeCoachmarkDismissed,
   type CoachmarkId,
 } from "./builder-coachmarks";
 import { CHROME, CHROME_SHADOWS } from "./kit/tokens";
@@ -48,6 +49,18 @@ export function BuilderCoachmarkTip({
     setVisible(true);
   }, [id, sequence]);
 
+  // Hide immediately when this id is dismissed from ANYWHERE — not just this
+  // tip's own "Got it" button. Covers the case where the operator performs
+  // the taught gesture directly (e.g. double-clicking text opens the inline
+  // editor, which dismisses "double-click-edit" programmatically) — without
+  // this the already-mounted, already-visible tip has no way to learn its id
+  // was dismissed and stays dangling near the canvas until manually closed.
+  useEffect(() => {
+    return subscribeCoachmarkDismissed((dismissedId) => {
+      if (dismissedId === id) setVisible(false);
+    });
+  }, [id]);
+
   const dismiss = useCallback(() => {
     dismissCoachmark(id);
     setVisible(false);
@@ -60,7 +73,11 @@ export function BuilderCoachmarkTip({
         <div
           role="status"
           data-edit-overlay={`coachmark-${id}`}
-          className="pointer-events-auto absolute z-[130] flex max-w-[220px] items-start gap-2 rounded-lg px-2.5 py-2"
+          // min-w prevents the shrink-to-fit sizing of an absolutely-positioned
+          // box with a flex-1 text child from collapsing to its narrowest word
+          // (flex-basis: 0% starves the max-content width calc) — without it
+          // the message rendered one word per line in a ~90px column.
+          className="pointer-events-auto absolute z-[130] flex min-w-[180px] max-w-[220px] items-start gap-2 whitespace-normal rounded-lg px-2.5 py-2"
           style={{
             ...(placement === "below"
               ? { top: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)" }
