@@ -723,7 +723,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search elements, sections, and connected blocks"
+              placeholder="Search sections and blocks"
               className="w-full rounded-[10px] border py-[9px] pl-[34px] pr-[12px] text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/35"
               style={{
                 borderColor: CHROME.line,

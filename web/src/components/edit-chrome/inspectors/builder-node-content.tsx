@@ -321,7 +321,7 @@ export function BuilderNodeContentInspector({
       <div className="flex flex-col gap-3">
         <Card state="active">
           <CardHead
-            title="Tulala component"
+            title="Tulala block"
             sub={node.props.sectionTypeKey}
             iconAccent="blue"
           />

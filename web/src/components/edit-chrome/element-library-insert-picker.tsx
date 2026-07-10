@@ -317,7 +317,7 @@ export function ElementLibraryInsertPicker({
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search elements…"
+        placeholder="Search blocks…"
         autoComplete="off"
         data-element-library-search=""
         style={searchStyle}

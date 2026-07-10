@@ -636,7 +636,7 @@ export function CanvasTextToolbar({
           <button
             type="button"
             title="Revise with AI"
-            aria-label="Revise this element with AI"
+            aria-label="Revise this block with AI"
             data-canvas-text-action="ai"
             disabled={disabled}
             onMouseDown={(e) => e.preventDefault()}

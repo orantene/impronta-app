@@ -1165,7 +1165,7 @@ function ContentLocaleToggle({
         boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
       }}
       role="radiogroup"
-      aria-label="Content language (in-session preview + per-element translation)"
+      aria-label="Content language (in-session preview + per-block translation)"
       onKeyDown={handleKey}
     >
       {orderedLocales.map((code, i) => {
