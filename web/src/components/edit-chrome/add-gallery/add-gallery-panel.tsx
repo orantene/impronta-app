@@ -2,9 +2,8 @@
 
 /**
  * AddGalleryPanel — builder Add Gallery (Elements / Sections / Connected).
- * CANVAS-1: inserts land adjacent to the current selection via
- * resolveGalleryInsertHint; scroll-into-view is inherited from the
- * selection-layer effect that fires on selectedBuilderNodeId change.
+ * W1-L4: inserts land via resolveInsertAnchor (selection → viewport section →
+ * end) then scroll into view + flash via locateCanvasNode.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -50,6 +49,7 @@ import {
 } from "./add-gallery-preview-modal";
 import { AddGallerySectionPreview } from "./add-gallery-section-previews";
 import { resolveInsertAnchor } from "./gallery-insert-hint";
+import { getViewportSectionNodeId } from "./viewport-section-anchor";
 import { locateCanvasNode } from "../freeform-layer-row";
 
 const PANEL_WIDTH = 592;
@@ -63,52 +63,6 @@ const CODE_TAB_DEFS_SEED: ReadonlyArray<{ id: AddGalleryTab; label: string }> =
 interface AddGalleryPanelProps {
   open: boolean;
   onClose: () => void;
-}
-
-/**
- * W1-L4 — the builder-node id of the root section currently occupying the top of
- * the canvas viewport, or `null` when none can be determined. Feeds
- * resolveInsertAnchor as the "insert after what I'm looking at" fallback when
- * nothing is selected, so a click-to-insert lands in view instead of at the far
- * bottom of the page.
- *
- * Canvas sections carry both `data-cms-section` and `data-builder-node-id`;
- * chrome (topbar / drawers / overlays) is excluded so a panel's own markup is
- * never mistaken for a canvas section.
- */
-function getViewportSectionNodeId(): string | null {
-  if (typeof document === "undefined" || typeof window === "undefined") {
-    return null;
-  }
-  const sections = Array.from(
-    document.querySelectorAll<HTMLElement>(
-      "[data-cms-section][data-builder-node-id]",
-    ),
-  ).filter(
-    (el) =>
-      !el.closest("[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]"),
-  );
-  if (sections.length === 0) return null;
-
-  // An anchor line a little below the fixed edit topbar — the section straddling
-  // it is the one the user is reading.
-  const anchorY = Math.min(window.innerHeight * 0.33, 240);
-  let firstBelow: { id: string; top: number } | null = null;
-  let lastId: string | null = null;
-
-  for (const el of sections) {
-    const id = el.getAttribute("data-builder-node-id");
-    if (!id) continue;
-    lastId = id;
-    const r = el.getBoundingClientRect();
-    if (r.top <= anchorY && r.bottom > anchorY) return id;
-    if (r.top > anchorY && (firstBelow === null || r.top < firstBelow.top)) {
-      firstBelow = { id, top: r.top };
-    }
-  }
-  // No straddling section (anchor sits in a gap or above the first): prefer the
-  // nearest section below the anchor, else the last section on the page.
-  return firstBelow?.id ?? lastId;
 }
 
 function TabBar({
@@ -642,16 +596,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       if (pending || !isAddGalleryItemAvailable(item)) return;
       setPending(true);
       try {
-        // W1-L4 — decide where the insert lands. Priority: (1) adjacent to the
-        // current selection, (2) after the section in the canvas viewport, (3)
-        // end-of-tree. Never silently at the far bottom when the user is looking
-        // elsewhere — resolveInsertAnchor always returns a concrete anchor and
-        // the post-insert locateCanvasNode scrolls + flashes it into view.
-        const anchor = resolveInsertAnchor(
-          builderTree,
-          selectedBuilderNodeId,
-          getViewportSectionNodeId(),
-        );
+        // W1-L4 — selection → viewport section → end-of-tree; never the far bottom.
+        const anchor = resolveInsertAnchor(builderTree, selectedBuilderNodeId, getViewportSectionNodeId());
         const result = await performAddGalleryInsert(
           item,
           anchor,
@@ -671,15 +617,9 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
         if (result.ok && item.tab === "page_templates") {
           notifyTemplateApplied(item.label);
         }
-        // Select AND wayfind: selectBuilderNode drives selection state (and the
-        // selection-layer scroll effect); locateCanvasNode is the robust retrying
-        // scroll-into-view + brief flash so the user SEES where the freshly
-        // inserted block landed (it retries a few frames for DOM that lags the
-        // RSC refresh). Together they fix the "click did nothing → duplicate"
-        // defect.
         if (result.nodeId) {
           selectBuilderNode(result.nodeId);
-          locateCanvasNode(result.nodeId);
+          locateCanvasNode(result.nodeId); // scroll into view + flash it
         }
         onClose();
       } finally {
