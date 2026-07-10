@@ -54,10 +54,29 @@ const ACTOR_HEADERS_TO_STRIP = [
 ];
 
 
+/**
+ * The result of `updateSession`. `response` is the middleware response as
+ * before; `requestHeaders` is the FORWARDED request-header set that middleware
+ * mutated (guest id, verified actor identity, resolved locale).
+ *
+ * Callers that return `response` unchanged (a plain passthrough) already carry
+ * these headers downstream via the `NextResponse.next({ request })` embedded in
+ * `response`. Callers that instead issue their OWN `NextResponse.rewrite(...)`
+ * MUST forward `requestHeaders` into that rewrite's `request.headers` — otherwise
+ * the guest/actor/locale headers are dropped for the rewritten destination. That
+ * exact drop silently broke the guest roster picker on the marketing apex, where
+ * `/directory` is rewritten to `/global-directory`: `x-impronta-guest` never
+ * reached the server action, so it returned `forbidden`.
+ */
+export type UpdateSessionResult = {
+  response: NextResponse;
+  requestHeaders: Headers;
+};
+
 export async function updateSession(
   request: NextRequest,
   options?: { pathnameForAuth?: string; languageSettings?: LanguageSettings },
-) {
+): Promise<UpdateSessionResult> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -122,7 +141,7 @@ export async function updateSession(
   let supabaseResponse = attachGuestCookie(nextPreservingUrl());
 
   if (!url || !anon) {
-    return supabaseResponse;
+    return { response: supabaseResponse, requestHeaders: forwardedHeaders };
   }
 
   // Scope auth cookies to the shared parent domain (".tulala.digital") so a
@@ -381,14 +400,20 @@ export async function updateSession(
       }
     }
 
-    return clearStaleAuthCookies(
-      applyImpersonationCookieClear(
-        attachAuthDebug(attachGuestCookie(NextResponse.redirect(redirectUrl))),
+    return {
+      response: clearStaleAuthCookies(
+        applyImpersonationCookieClear(
+          attachAuthDebug(attachGuestCookie(NextResponse.redirect(redirectUrl))),
+        ),
       ),
-    );
+      requestHeaders: forwardedHeaders,
+    };
   }
 
-  return clearStaleAuthCookies(
-    applyImpersonationCookieClear(attachAuthDebug(supabaseResponse)),
-  );
+  return {
+    response: clearStaleAuthCookies(
+      applyImpersonationCookieClear(attachAuthDebug(supabaseResponse)),
+    ),
+    requestHeaders: forwardedHeaders,
+  };
 }
