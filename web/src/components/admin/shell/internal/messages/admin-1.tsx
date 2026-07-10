@@ -381,7 +381,9 @@ export function AdminInboxList({
       {bulkMode && selectedIds.size > 0 && (
         <div style={{ flexShrink: 0, padding: "10px 14px", color: "#fff", borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-fill">
           <span className="font-bold">
-            {selectedIds.size} {copy.t("selected")}
+            {copy.isSpanish
+              ? `${selectedIds.size} seleccionada${selectedIds.size === 1 ? "" : "s"}`
+              : `${selectedIds.size} selected`}
           </span>
           <span style={{ flex: 1 }} />
           <button type="button"
