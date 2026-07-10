@@ -20,25 +20,17 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  GUEST_CHAT_DEFAULTS,
+  mapGuestChatSettingsRow,
+  type GuestChatSettings,
+} from "@/lib/inquiry/guest-chat-settings-shape";
 
-export type GuestChatSettings = {
-  /** Master switch — false hides the launcher on every public surface. */
-  enabled: boolean;
-  /** Show the launcher on individual talent profile pages (/t/{code}). */
-  showOnTalent: boolean;
-  /** Show the launcher on the agency directory + home pages. */
-  showOnDirectory: boolean;
-  /** Optional custom opener line; null → the built-in brand-voiced greeting. */
-  greeting: string | null;
-};
-
-/** All-on default — preserves the pre-settings behavior + the directory rollout. */
-export const GUEST_CHAT_DEFAULTS: GuestChatSettings = {
-  enabled: true,
-  showOnTalent: true,
-  showOnDirectory: true,
-  greeting: null,
-};
+// Re-export the shape (type + all-on default) so existing importers of this
+// server-only module keep working; the mapper + type now live in the pure
+// `-shape` sibling so they stay unit-testable and shareable with the admin path.
+export { GUEST_CHAT_DEFAULTS };
+export type { GuestChatSettings };
 
 /**
  * Resolve the guest-chat settings for a tenant. Returns the all-on default when
@@ -55,7 +47,7 @@ export async function loadGuestChatSettings(
 
     const { data, error } = await admin
       .from("tenant_guest_chat_settings")
-      .select("enabled, show_on_talent, show_on_directory, greeting")
+      .select("enabled, show_on_talent, show_on_directory, show_on_home, greeting")
       .eq("tenant_id", tenantId)
       .maybeSingle();
 
@@ -63,19 +55,7 @@ export async function loadGuestChatSettings(
       logServerError("guest-chat-settings/load", error);
       return GUEST_CHAT_DEFAULTS;
     }
-    if (!data) return GUEST_CHAT_DEFAULTS;
-
-    const greeting =
-      typeof data.greeting === "string" && data.greeting.trim().length > 0
-        ? data.greeting.trim()
-        : null;
-
-    return {
-      enabled: data.enabled !== false,
-      showOnTalent: data.show_on_talent !== false,
-      showOnDirectory: data.show_on_directory !== false,
-      greeting,
-    };
+    return mapGuestChatSettingsRow(data);
   } catch (err) {
     logServerError("guest-chat-settings/load.unexpected", err);
     return GUEST_CHAT_DEFAULTS;

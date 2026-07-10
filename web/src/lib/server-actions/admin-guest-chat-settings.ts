@@ -19,6 +19,7 @@ import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { GUEST_CHAT_DEFAULTS, type GuestChatSettings } from "@/lib/inquiry/guest-chat-settings";
+import { mapGuestChatSettingsRow } from "@/lib/inquiry/guest-chat-settings-shape";
 
 export type LoadGuestChatSettingsResult =
   | { ok: true; data: GuestChatSettings }
@@ -28,6 +29,7 @@ export type SaveGuestChatSettingsInput = {
   enabled: boolean;
   showOnTalent: boolean;
   showOnDirectory: boolean;
+  showOnHome: boolean;
   greeting: string | null;
 };
 
@@ -39,6 +41,7 @@ const saveSchema = z.object({
   enabled: z.boolean(),
   showOnTalent: z.boolean(),
   showOnDirectory: z.boolean(),
+  showOnHome: z.boolean(),
   greeting: z
     .string()
     .max(280, "Keep the greeting under 280 characters.")
@@ -60,7 +63,7 @@ export async function loadGuestChatSettingsForAdmin(): Promise<LoadGuestChatSett
     "tenant_guest_chat_settings",
     tenantId,
   )
-    .select("enabled, show_on_talent, show_on_directory, greeting")
+    .select("enabled, show_on_talent, show_on_directory, show_on_home, greeting")
     .maybeSingle();
 
   if (error) {
@@ -70,27 +73,7 @@ export async function loadGuestChatSettingsForAdmin(): Promise<LoadGuestChatSett
 
   if (!data) return { ok: true, data: GUEST_CHAT_DEFAULTS };
 
-  const row = data as {
-    enabled?: boolean | null;
-    show_on_talent?: boolean | null;
-    show_on_directory?: boolean | null;
-    greeting?: string | null;
-  };
-
-  const greeting =
-    typeof row.greeting === "string" && row.greeting.trim().length > 0
-      ? row.greeting.trim()
-      : null;
-
-  return {
-    ok: true,
-    data: {
-      enabled: row.enabled !== false,
-      showOnTalent: row.show_on_talent !== false,
-      showOnDirectory: row.show_on_directory !== false,
-      greeting,
-    },
-  };
+  return { ok: true, data: mapGuestChatSettingsRow(data) };
 }
 
 /**
@@ -122,6 +105,7 @@ export async function saveGuestChatSettings(
       enabled: v.enabled,
       show_on_talent: v.showOnTalent,
       show_on_directory: v.showOnDirectory,
+      show_on_home: v.showOnHome,
       greeting,
       updated_by: user.id,
     },
