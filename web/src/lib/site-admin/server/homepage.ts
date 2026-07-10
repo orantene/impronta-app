@@ -93,7 +93,11 @@ import {
 import { enforceFreePlanNestedBuilderDraftGuard } from "./free-plan-draft-save-guard";
 import type { PageRow } from "./pages";
 import { recoverBuilderTreeIfEmpty } from "./recover-builder-tree";
-import { decideBeaconLastWriteWins } from "./beacon-last-write-wins";
+import {
+  decideBeaconLastWriteWins,
+  decideSameSessionSaveAdoption,
+  isSameSessionNewerWrite,
+} from "./beacon-last-write-wins";
 
 // ---- row shapes -----------------------------------------------------------
 
@@ -755,7 +759,28 @@ export async function saveHomepageDraftComposition(
   }
 
   if (beforeRow.version !== values.expectedVersion) {
-    return versionConflict(beforeRow.version);
+    // W1-L2 — SESSION ADOPTION. The editor's own full-page reload (exiting
+    // mobile edit mode, F5) fires the pagehide beacon, which applies the
+    // pending draft under LWW and bumps `version` — so the reloaded editor's
+    // first save carries a stale `expectedVersion` for ITS OWN prior write.
+    // When the stored stamp shows the SAME per-tab session token and the
+    // incoming seq is strictly newer (and the incoming tree is not an empty
+    // tree over good content), adopt the save at the CURRENT version instead
+    // of returning a false conflict. A genuine second tab / co-editor has a
+    // different token and still hard-fails here.
+    const adopted = params.editSession
+      ? await maybeAdoptSameSessionSave(supabase, {
+          tenantId,
+          pageId: beforeRow.id,
+          pageVersion: beforeRow.version,
+          editSession: params.editSession,
+          incomingHasContent: homepageSaveValuesHaveContent(values),
+          correlationId,
+        })
+      : false;
+    if (!adopted) {
+      return versionConflict(beforeRow.version);
+    }
   }
 
   // --- gates 4+5+6: resolve sections + enforce tenant + slot rules ---
@@ -867,12 +892,16 @@ export async function saveHomepageDraftComposition(
       updated_by: actorProfileId,
       // WS1-D — stamp the writer's edit-session token + draft seq so the pagehide
       // beacon can later compare against the stored draft for last-write-wins.
+      // W1-L2 — an UNSTAMPED save (composer, internal seeds) must CLEAR the
+      // stamps: leaving a stale stamp behind would let a later same-session
+      // save/beacon LWW past this write and silently overwrite it (#310-class
+      // hazard). NULL stamps mean "last writer unknown → hard CAS only".
       ...(params.editSession
         ? {
             edit_session_id: params.editSession.id,
             draft_seq: params.editSession.seq,
           }
-        : {}),
+        : { edit_session_id: null, draft_seq: null }),
     })
     .eq("id", beforeRow.id)
     .eq("tenant_id", tenantId)
@@ -1154,6 +1183,71 @@ async function homepageDraftHasContent(
   return Array.isArray(recovered) && recovered.length > 0;
 }
 
+/** W1-L2 — does an incoming draft-save envelope carry real content? (Any
+ *  builder nodes OR any slot entries.) Mirror of the beacon's payload check. */
+function homepageSaveValuesHaveContent(values: HomepageSaveDraftValues): boolean {
+  if (Array.isArray(values.builderTree) && values.builderTree.length > 0) {
+    return true;
+  }
+  return Object.values(values.slots).some(
+    (entries) => Array.isArray(entries) && entries.length > 0,
+  );
+}
+
+/**
+ * W1-L2 — SESSION ADOPTION check for a CAS-losing draft save. Reads the WS1-D
+ * stamps on the page row and grants the save the same three-gate LWW decision
+ * the pagehide beacon uses (same session token + strictly newer seq + never an
+ * empty tree over good content). Defensive: any read error refuses adoption so
+ * the caller falls back to the hard version conflict.
+ */
+async function maybeAdoptSameSessionSave(
+  supabase: SupabaseClient,
+  params: {
+    tenantId: string;
+    pageId: string;
+    pageVersion: number;
+    editSession: { id: string; seq: number };
+    incomingHasContent: boolean;
+    correlationId: string;
+  },
+): Promise<boolean> {
+  const { data: stampRow, error: stampErr } = await supabase
+    .from("cms_pages")
+    .select("edit_session_id, draft_seq")
+    .eq("id", params.pageId)
+    .eq("tenant_id", params.tenantId)
+    .maybeSingle<{ edit_session_id: string | null; draft_seq: number | null }>();
+  if (stampErr || !stampRow) return false;
+
+  const storedHasContent = await homepageDraftHasContent(supabase, {
+    tenantId: params.tenantId,
+    pageId: params.pageId,
+    pageVersion: params.pageVersion,
+  });
+  const decision = decideSameSessionSaveAdoption(
+    {
+      editSessionId: stampRow.edit_session_id,
+      draftSeq: stampRow.draft_seq,
+      storedHasContent,
+    },
+    {
+      editSessionId: params.editSession.id,
+      draftSeq: params.editSession.seq,
+      incomingHasContent: params.incomingHasContent,
+    },
+  );
+  void improntaLog("site_admin_homepage.info", {
+    message: decision.apply
+      ? "[site-admin/homepage] stale-version save ADOPTED (same edit session continuing after its own reload)"
+      : `[site-admin/homepage] stale-version save NOT adopted (${decision.apply === false ? decision.reason : ""}) — hard version conflict`,
+    tenantId: params.tenantId,
+    pageId: params.pageId,
+    correlationId: params.correlationId,
+  });
+  return decision.apply;
+}
+
 // ---- publishHomepage -----------------------------------------------------
 
 /**
@@ -1211,6 +1305,15 @@ export async function publishHomepage(
     /** STYLE-1 — site-scoped presets + clipboard baked into the published
      *  snapshot alongside styleClasses (same client-supplied envelope). */
     stylePresets?: BuilderStylePresetRegistry;
+    /**
+     * W1-L2 — the publisher's per-tab edit-session token + monotonic draft
+     * seq. When the CAS `expectedVersion` is stale but the stored stamp shows
+     * the SAME session with an older seq (the editor's own pagehide beacon
+     * bumped the version during its reload), the publish is adopted at the
+     * current version instead of failing with a false conflict. Optional:
+     * legacy callers omit it and keep the hard CAS.
+     */
+    editSession?: { id: string; seq: number };
   },
 ): Promise<
   Phase5Result<{ id: string; version: number; publishedAt: string }>
@@ -1242,7 +1345,40 @@ export async function publishHomepage(
   if (!beforeRow) return fail("NOT_FOUND", "Homepage row not found");
 
   if (beforeRow.version !== values.expectedVersion) {
-    return versionConflict(beforeRow.version);
+    // W1-L2 — SESSION ADOPTION (see saveHomepageDraftComposition). A stale
+    // expectedVersion caused by this same session's own beacon bump publishes
+    // the CURRENT stored draft — exactly what the operator sees and intends.
+    // A different/unknown session still hard-fails the CAS.
+    const stamps = await supabase
+      .from("cms_pages")
+      .select("edit_session_id, draft_seq")
+      .eq("id", beforeRow.id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle<{ edit_session_id: string | null; draft_seq: number | null }>();
+    const adopted =
+      params.editSession &&
+      !stamps.error &&
+      stamps.data &&
+      isSameSessionNewerWrite(
+        {
+          editSessionId: stamps.data.edit_session_id,
+          draftSeq: stamps.data.draft_seq,
+        },
+        {
+          editSessionId: params.editSession.id,
+          draftSeq: params.editSession.seq,
+        },
+      );
+    if (!adopted) {
+      return versionConflict(beforeRow.version);
+    }
+    void improntaLog("site_admin_homepage.info", {
+      message:
+        "[site-admin/homepage] stale-version publish ADOPTED (same edit session continuing after its own reload)",
+      tenantId,
+      pageId: beforeRow.id,
+      correlationId,
+    });
   }
 
   // --- gate 4: template schema parse ---
@@ -1460,6 +1596,15 @@ export async function publishHomepage(
       template_schema_version: homepageTemplate.currentVersion,
       version: nextVersion,
       updated_by: actorProfileId,
+      // W1-L2 — a stamped publish keeps the session's LWW lane alive for the
+      // pagehide beacon; an unstamped publish clears the stamps so a stale
+      // stamp can never grant adoption past a foreign write.
+      ...(params.editSession
+        ? {
+            edit_session_id: params.editSession.id,
+            draft_seq: params.editSession.seq,
+          }
+        : { edit_session_id: null, draft_seq: null }),
     })
     .eq("id", beforeRow.id)
     .eq("tenant_id", tenantId)
@@ -1675,6 +1820,11 @@ export async function restoreHomepageRevision(
       hero,
       version: nextVersion,
       updated_by: actorProfileId,
+      // W1-L2 — restore / copy-from-live rewrite the draft outside any edit
+      // session; clear the WS1-D stamps so a stale stamp can never grant a
+      // later beacon/save LWW adoption past this write.
+      edit_session_id: null,
+      draft_seq: null,
     })
     .eq("id", beforeRow.id)
     .eq("tenant_id", tenantId)
@@ -1954,6 +2104,11 @@ export async function copyPublishedToDraft(
       hero,
       version: nextVersion,
       updated_by: actorProfileId,
+      // W1-L2 — restore / copy-from-live rewrite the draft outside any edit
+      // session; clear the WS1-D stamps so a stale stamp can never grant a
+      // later beacon/save LWW adoption past this write.
+      edit_session_id: null,
+      draft_seq: null,
     })
     .eq("id", beforeRow.id)
     .eq("tenant_id", tenantId)

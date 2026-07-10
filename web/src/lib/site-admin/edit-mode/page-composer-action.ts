@@ -279,6 +279,10 @@ export async function publishPageSnapshot(input: {
       published_page_snapshot: snapshot,
       version: page.version + 1,
       updated_by: auth.user.id,
+      // W1-L2 — unstamped version bump: clear the WS1-D edit-session stamps so
+      // a stale stamp can never grant a later beacon/save LWW past this write.
+      edit_session_id: null,
+      draft_seq: null,
     })
     .eq("id", input.pageId)
     .eq("tenant_id", scope.tenantId)

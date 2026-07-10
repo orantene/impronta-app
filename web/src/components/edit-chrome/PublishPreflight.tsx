@@ -14,8 +14,15 @@ import {
   runPublishPreflight,
   type PreflightIssue,
 } from "@/lib/site-admin/edit-mode/publish-preflight-action";
+import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import { useEditContext } from "./edit-context";
 import { DrawerSkeleton } from "./kit";
+
+/** W1-L2 — hard ceiling for the preflight action. A hung server action used to
+ *  leave the drawer as a skeleton forever AND "Publish now" disabled with
+ *  "Running publish checks…" as its reason; now it resolves to a visible
+ *  failure with a Retry button. */
+const PREFLIGHT_TIMEOUT_MS = 30_000;
 
 const CATEGORY_LABEL: Record<PreflightIssue["category"], string> = {
   headings: "Headings",
@@ -59,6 +66,12 @@ export function PublishPreflight({
   const [issues, setIssues] = useState<ReadonlyArray<PreflightIssue> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // W1-L2 — Retry re-runs the checks after a failure/timeout without closing
+  // and reopening the drawer.
+  const [retryNonce, setRetryNonce] = useState(0);
+  // W1-L2 — visible elapsed-seconds ticker while the checks run, so a slow
+  // action reads as "still working on it", never as a dead skeleton.
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,7 +87,18 @@ export function PublishPreflight({
     setError(null);
     onStatusChange?.({ loading: true, blockingErrors: 0 });
     void (async () => {
-      const result = await runPublishPreflight({ locale });
+      // W1-L2 — safeAction adds the hard timeout; a hung/dead action resolves
+      // to the fallback instead of leaving the skeleton (and the disabled
+      // Publish button) stuck forever.
+      const result = await safeAction(() => runPublishPreflight({ locale }), {
+        name: "runPublishPreflight",
+        timeoutMs: PREFLIGHT_TIMEOUT_MS,
+        fallback: {
+          ok: false as const,
+          error:
+            "Publish checks timed out. The draft is safe; retry the checks.",
+        },
+      });
       if (cancelled) return;
       setLoading(false);
       if (result.ok) {
@@ -84,7 +108,7 @@ export function PublishPreflight({
         ).length;
         onStatusChange?.({ loading: false, blockingErrors });
       } else {
-        setError(result.error);
+        setError(result.error ?? "Publish checks could not load.");
         reportMutationError(
           result.error ?? "Publish checks could not load — try again.",
         );
@@ -94,12 +118,33 @@ export function PublishPreflight({
     return () => {
       cancelled = true;
     };
-  }, [enabled, refreshKey, locale, pageId, onStatusChange, reportMutationError]);
+  }, [enabled, refreshKey, retryNonce, locale, pageId, onStatusChange, reportMutationError]);
+
+  // Tick the elapsed counter once a second while loading.
+  useEffect(() => {
+    if (!loading) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [loading]);
 
   if (loading) {
     return (
       <div role="status" aria-live="polite" aria-label="Running publish checks">
         <DrawerSkeleton rows={3} />
+        <p className="m-0 mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span
+            aria-hidden
+            className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-current"
+          />
+          Running publish checks…
+          {elapsedSeconds >= 3 ? ` ${elapsedSeconds}s` : null}
+        </p>
       </div>
     );
   }
@@ -111,7 +156,14 @@ export function PublishPreflight({
         aria-atomic="true"
         className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300"
       >
-        Publish checks could not load: {error}
+        <p className="m-0">Publish checks could not load: {error}</p>
+        <button
+          type="button"
+          onClick={() => setRetryNonce((n) => n + 1)}
+          className="mt-1.5 inline-flex cursor-pointer items-center rounded border border-amber-500/60 bg-white/70 px-2 py-0.5 text-[11px] font-semibold text-amber-800 hover:bg-white dark:bg-transparent dark:text-amber-200"
+        >
+          Retry checks
+        </button>
       </div>
     );
   }

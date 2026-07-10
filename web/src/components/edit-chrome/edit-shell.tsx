@@ -1989,6 +1989,7 @@ function MutationErrorToast() {
     clearMutationError,
     hasConflictRecovery,
     keepMyVersionAfterConflict,
+    reloadLatestAfterConflict,
   } = useEditContext();
   // WS1-A — attribute a version conflict to the editor(s) who caused it, turning
   // "version conflict" into "Sofía is also editing" (or "your other tab").
@@ -2072,32 +2073,37 @@ function MutationErrorToast() {
           <span className="mt-2 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={clearMutationError}
+              onClick={() => {
+                // W1-L2 — the reload no longer happens automatically; choosing
+                // this loads the other session's state and resets undo (with an
+                // explanation toast from refreshComposition).
+                void reloadLatestAfterConflict();
+              }}
               className="rounded-sm border border-amber-300 bg-white/70 px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:bg-white"
-              title="Discard your change and keep the version that's already loaded."
+              title="Load the changes from the other tab or session. Your unsaved local changes are discarded and undo history resets."
             >
               Reload latest
             </button>
             <button
               type="button"
               onClick={() => {
-                // WS1-D — "Keep my version" re-applies the operator's WHOLE tree on
-                // top of the freshly-loaded base, which silently overwrites the
-                // change that just saved. Confirm first so a co-editor's (or your
-                // other tab's) work isn't lost without a heads-up. Names the editor
-                // when presence knows who saved.
+                // WS1-D / W1-L2 — "Keep editing this copy" saves the operator's
+                // local tree over the change that just landed elsewhere. Confirm
+                // first so a co-editor's (or your other tab's) work isn't lost
+                // without a heads-up. Names the editor when presence knows who
+                // saved. Undo history stays intact.
                 const who = conflictWho
                   ? ` (${conflictWho.replace(/\.$/, "")})`
                   : "";
                 const ok = window.confirm(
-                  `Keep your version?\n\nA newer change was just saved${who}. Keeping yours overwrites it — that work will be lost.`,
+                  `Keep editing this copy?\n\nA newer change was just saved${who}. Keeping this copy overwrites that change. It stays recoverable in Revisions.`,
                 );
                 if (ok) void keepMyVersionAfterConflict();
               }}
               className="rounded-sm border border-amber-400 bg-amber-200/80 px-2 py-1 text-[11px] font-semibold text-amber-950 transition hover:bg-amber-200"
-              title="Re-apply your change on top of the latest version (overwrites the change that just saved)."
+              title="Save your copy over the change from the other tab or session. Your undo history is kept."
             >
-              Keep my version
+              Keep editing this copy
             </button>
           </span>
         ) : null}
@@ -2234,7 +2240,7 @@ function mutationCodeSuggestion(code: string): string | null {
     case "GUARDED_NODE":
       return "This area is protected by plan or shell rules.";
     case "VERSION_CONFLICT":
-      return "State has been refreshed. Re-apply your change.";
+      return "Pick one: Reload latest to take the other change, or Keep editing this copy to save yours over it.";
     case "SAVE_FAILED":
       return "Try again. If it persists, reload the editor.";
     default:

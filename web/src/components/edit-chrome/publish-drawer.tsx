@@ -53,10 +53,14 @@ import {
 } from "@/lib/site-admin/edit-mode/revisions-actions";
 import { RevisionsDiffPanel } from "./revisions-diff-panel";
 import {
+  diffBuilderTreesForPublish,
   diffPublishedRows,
+  effectiveSectionsReadyCount,
   type PublishDiffRow,
+  type PublishDiffSummary,
   type SectionChangeKind,
 } from "@/lib/site-admin/edit-mode/publish-diff";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import {
   Card,
   CardAction,
@@ -252,6 +256,12 @@ export function PublishDrawer() {
     surfaceKind,
     publishViaSurfaceAdapter,
     reportMutationError,
+    // W1-L2 — a pending version conflict must block publish with an honest
+    // reason (the banner offers the resolution).
+    hasConflictRecovery,
+    // W1-L2 — stamp the publish with this tab's session token + seq so the
+    // server can adopt a stale expectedVersion caused by our own beacon bump.
+    nextEditSession,
   } = useEditContext();
   // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
   const builderTree = useBuilderTree();
@@ -275,6 +285,16 @@ export function PublishDrawer() {
   >(null);
   const [lastPublishedAt, setLastPublishedAt] = useState<string | null>(null);
   const [publishedRowsLoading, setPublishedRowsLoading] = useState(false);
+  // W1-L2 — HONEST states: the snapshot loader can fail or hang; the drawer
+  // must show "couldn't load" + Retry, never a forever-skeleton or a fake "0".
+  const [publishedRowsFailed, setPublishedRowsFailed] = useState(false);
+  const [publishedRowsRetryNonce, setPublishedRowsRetryNonce] = useState(0);
+  // W1-L2 — the published snapshot's builder tree, for the FREEFORM change
+  // count ("N changes since last publish" used to be a hardcoded 0 for pages
+  // whose content lives in the builder tree, not curated slots).
+  const [publishedBuilderTree, setPublishedBuilderTree] =
+    useState<BuilderNodeTree | null>(null);
+  const [hasPublishedSnapshot, setHasPublishedSnapshot] = useState(false);
   const [reloadCompositionBusy, setReloadCompositionBusy] = useState(false);
   // #19 — builder-tree diff: revision IDs for the draft vs published snapshot.
   const [builderDiffIds, setBuilderDiffIds] = useState<{
@@ -282,6 +302,8 @@ export function PublishDrawer() {
     publishedRevisionId: string | null;
   } | null>(null);
   const [builderDiffLoading, setBuilderDiffLoading] = useState(false);
+  const [builderDiffFailed, setBuilderDiffFailed] = useState(false);
+  const [builderDiffRetryNonce, setBuilderDiffRetryNonce] = useState(0);
 
   // Local mini-edit working copy for the page-settings card. Resyncs from
   // upstream metadata on open; commits via savePageMetadata on blur.
@@ -319,59 +341,98 @@ export function PublishDrawer() {
       setPublishedRows(null);
       setLastPublishedAt(null);
       setPublishedRowsLoading(false);
+      setPublishedRowsFailed(false);
+      setPublishedBuilderTree(null);
+      setHasPublishedSnapshot(false);
       setMiniTitle(pageMetadata?.title ?? "");
       setMiniDesc(pageMetadata?.metaDescription ?? "");
       setCopyState({ kind: "idle" });
       setBuilderDiffIds(null);
       setBuilderDiffLoading(false);
+      setBuilderDiffFailed(false);
     }
   }, [publishOpen, pageMetadata, surfaceKind]);
 
+  // W1-L2 — snapshot loader with a hard timeout + explicit failed state. The
+  // audit saw this hang as a skeleton forever ("Last published loading…"); now
+  // a slow/dead action resolves to `publishedRowsFailed` with a Retry button,
+  // and the diff/counters render "unavailable" instead of a fake 0.
   useEffect(() => {
     let cancelled = false;
     if (!publishOpen || !pageId) return;
     setPublishedRowsLoading(true);
+    setPublishedRowsFailed(false);
     void (async () => {
-      const result = await loadPublishedSnapshotRowsAction({ pageId });
+      const result = await safeAction(
+        () => loadPublishedSnapshotRowsAction({ pageId }),
+        {
+          name: "loadPublishedSnapshotRows",
+          timeoutMs: 20_000,
+          fallback: {
+            ok: false as const,
+            error: "Timed out loading the last published snapshot.",
+          },
+        },
+      );
       if (cancelled) return;
       if (result.ok) {
         setPublishedRows(result.rows);
         setLastPublishedAt(result.publishedAt);
+        setPublishedBuilderTree(result.publishedBuilderTree);
+        setHasPublishedSnapshot(result.hasPublishedSnapshot);
+        setPublishedRowsFailed(false);
       } else {
         setPublishedRows(null);
         setLastPublishedAt(null);
+        setPublishedBuilderTree(null);
+        setHasPublishedSnapshot(false);
+        setPublishedRowsFailed(true);
       }
       setPublishedRowsLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [publishOpen, pageId]);
+  }, [publishOpen, pageId, publishedRowsRetryNonce]);
 
   // #19 — Load draft + published revision IDs when the drawer opens and the
   // builder tree is non-empty. We only do this for builder-tree pages (those
   // with actual builderTree nodes) because the section-slot diff in
   // `publishDiff` already covers legacy-slot pages adequately.
+  // W1-L2 — same timeout + failed/retry treatment as the snapshot loader.
   useEffect(() => {
     let cancelled = false;
     if (!publishOpen || !pageId || builderTree.length === 0) return;
     setBuilderDiffLoading(true);
+    setBuilderDiffFailed(false);
     void (async () => {
-      const result: PublishDiffRevisionIdsResult =
-        await loadPublishDiffRevisionIdsAction({ pageId });
+      const result: PublishDiffRevisionIdsResult = await safeAction(
+        () => loadPublishDiffRevisionIdsAction({ pageId }),
+        {
+          name: "loadPublishDiffRevisionIds",
+          timeoutMs: 20_000,
+          fallback: {
+            ok: false as const,
+            error: "Timed out loading the draft vs published diff.",
+          },
+        },
+      );
       if (cancelled) return;
       if (result.ok) {
         setBuilderDiffIds({
           draftRevisionId: result.draftRevisionId,
           publishedRevisionId: result.publishedRevisionId,
         });
+        setBuilderDiffFailed(false);
+      } else {
+        setBuilderDiffFailed(true);
       }
       setBuilderDiffLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [publishOpen, pageId, builderTree.length]);
+  }, [publishOpen, pageId, builderTree.length, builderDiffRetryNonce]);
 
   const summary = useMemo(() => {
     type Row = {
@@ -418,6 +479,18 @@ export function PublishDrawer() {
   }, [slots, slotDefs]);
 
   const publishDiff = useMemo(() => {
+    const emptySummary: PublishDiffSummary = {
+      added: 0,
+      removed: 0,
+      moved: 0,
+      total: 0,
+    };
+    const emptyDiff = {
+      summary: emptySummary,
+      draftSectionChanges: new Map<string, SectionChangeKind>(),
+      removedSectionIds: [] as string[],
+      firstPublish: false,
+    };
     const draftRows: PublishDiffRow[] = summary.rows.flatMap((row) =>
       row.sections.map((section) => ({
         sectionId: section.id,
@@ -425,17 +498,43 @@ export function PublishDrawer() {
         sortOrder: section.sortOrder,
       })),
     );
-    if (!publishedRows) {
+    // W1-L2 — honest tri-state. While loading OR after a failure the counters
+    // must never claim "0 changes" (that read as "nothing to publish" on a
+    // page with real edits during the audit's degraded state).
+    if (publishedRowsLoading) {
+      return { loading: true, failed: false, ...emptyDiff };
+    }
+    if (publishedRowsFailed || publishedRows === null) {
+      return { loading: false, failed: true, ...emptyDiff };
+    }
+    // W1-L2 — FREEFORM pages (all content in the builder tree, no curated slot
+    // rows) diff the DRAFT TREE against the tree baked into the published
+    // snapshot; the slot-row diff below would always report 0 for them.
+    if (draftRows.length === 0 && builderTree.length > 0) {
+      if (!hasPublishedSnapshot) {
+        // Never published: everything the draft has is new.
+        return {
+          loading: false,
+          failed: false,
+          ...emptyDiff,
+          firstPublish: true,
+          summary: {
+            added: builderTree.length,
+            removed: 0,
+            moved: 0,
+            total: builderTree.length,
+          },
+        };
+      }
+      const treeDiff = diffBuilderTreesForPublish(
+        builderTree,
+        publishedBuilderTree ?? [],
+      );
       return {
-        loading: publishedRowsLoading,
-        summary: {
-          added: 0,
-          removed: 0,
-          moved: 0,
-          total: 0,
-        },
-        draftSectionChanges: new Map<string, SectionChangeKind>(),
-        removedSectionIds: [] as string[],
+        loading: false,
+        failed: false,
+        ...emptyDiff,
+        summary: treeDiff.summary,
       };
     }
     const liveRows: PublishDiffRow[] = publishedRows.map((row) => ({
@@ -445,9 +544,19 @@ export function PublishDrawer() {
     }));
     return {
       loading: false,
+      failed: false,
+      firstPublish: false,
       ...diffPublishedRows(draftRows, liveRows),
     };
-  }, [summary.rows, publishedRows, publishedRowsLoading]);
+  }, [
+    summary.rows,
+    publishedRows,
+    publishedRowsLoading,
+    publishedRowsFailed,
+    builderTree,
+    publishedBuilderTree,
+    hasPublishedSnapshot,
+  ]);
 
   const removedLiveSections = useMemo(() => {
     if (!publishedRows || publishDiff.removedSectionIds.length === 0) return [];
@@ -506,6 +615,10 @@ export function PublishDrawer() {
               expectedVersion: casVersion,
               styleClasses,
               stylePresets,
+              // W1-L2 — session stamp so the server can adopt a stale
+              // expectedVersion caused by this session's own beacon bump
+              // (editor reload) instead of failing with a false conflict.
+              editSession: nextEditSession(),
             })
           : publishViaSurfaceAdapter({
               expectedVersion: casVersion,
@@ -587,6 +700,9 @@ export function PublishDrawer() {
 
   const publishDisabled =
     state.kind === "publishing" ||
+    // W1-L2 — a pending version conflict blocks publish until the operator
+    // resolves it (the banner offers Reload latest / Keep editing this copy).
+    hasConflictRecovery ||
     dirty ||
     saving ||
     preflightLoading ||
@@ -608,6 +724,8 @@ export function PublishDrawer() {
   // tooltip is the at-a-glance hint.
   const publishDisabledReason = (() => {
     if (state.kind === "publishing") return "Publishing — please wait.";
+    if (hasConflictRecovery)
+      return "This page changed in another tab or session. Resolve the conflict banner first: Reload latest or Keep editing this copy.";
     if (saving) return "Saving draft — try again in a moment.";
     if (dirty)
       return "Unsaved changes — autosave is catching up; try again in a moment.";
@@ -631,6 +749,11 @@ export function PublishDrawer() {
    */
   const publishHardBlockReasons = useMemo(() => {
     const reasons: string[] = [];
+    if (hasConflictRecovery) {
+      reasons.push(
+        "This page changed in another tab or session. Use the conflict banner to reload latest or keep editing this copy, then publish.",
+      );
+    }
     if (preflightBlockingErrors > 0) {
       reasons.push(
         `${preflightBlockingErrors} publish check${
@@ -642,9 +765,19 @@ export function PublishDrawer() {
       reasons.push("Page version is unavailable. Reload and try again.");
     }
     return reasons;
-  }, [getCompositionCasVersion, preflightBlockingErrors]);
+  }, [getCompositionCasVersion, preflightBlockingErrors, hasConflictRecovery]);
 
   const isSuccess = state.kind === "success";
+
+  // W1-L2 — "N sections ready" used to count only curated SLOT rows, so a
+  // freeform page (all content as top-level builder-tree layers) showed
+  // "0 sections ready" while the canvas rendered a full page. Pure helper
+  // (unit-tested in publish-diff.test.ts): slot count when curated, top-level
+  // tree layer count when freeform.
+  const effectiveSectionsReady = effectiveSectionsReadyCount(
+    summary.totalSections,
+    builderTree.length,
+  );
 
   // Header meta line — schema for `lastPublishedAt` lands later; for now
   // surface the just-published timestamp from the in-flight success state
@@ -667,7 +800,11 @@ export function PublishDrawer() {
       <span style={{ color: CHROME.muted2 }}>
         {publishedRowsLoading && !lastPublishedAt
           ? "loading…"
-          : formatPublishedAt(lastPublishedAt)}
+          : publishedRowsFailed
+            ? // W1-L2 — the loader failed/timed out; say so instead of the
+              // never-published em-dash (retry lives in the stats card below).
+              "couldn't load"
+            : formatPublishedAt(lastPublishedAt)}
       </span>
     </span>
   );
@@ -791,8 +928,9 @@ export function PublishDrawer() {
                   <PreviewThumb />
                   <div className="flex-1 min-w-0">
                     <StatLine
-                      count={summary.totalSections}
-                      label={`section${summary.totalSections === 1 ? "" : "s"} ready`}
+                      testId="publish-stat-sections-ready"
+                      count={effectiveSectionsReady}
+                      label={`section${effectiveSectionsReady === 1 ? "" : "s"} ready`}
                       tone="ink"
                     />
                     {/* QA 2026-05-13 — while `publishDiff.loading` is true,
@@ -801,17 +939,68 @@ export function PublishDrawer() {
                         as junk data ("blue badge with garbage in it"). Now
                         the chip stays muted with the same dash placeholder
                         we use elsewhere for not-yet-loaded data; once the
-                        loader settles, the real count + tone come back. */}
+                        loader settles, the real count + tone come back.
+                        W1-L2 — a FAILED load also shows the dash (never a
+                        fake 0) plus an inline retry below. */}
                     <StatLine
-                      count={publishDiff.loading ? "—" : publishDiff.summary.total}
-                      label="changes since last publish"
-                      tone={publishDiff.loading ? "ink" : "blue"}
+                      testId="publish-stat-changes"
+                      count={
+                        publishDiff.loading || publishDiff.failed
+                          ? "—"
+                          : publishDiff.summary.total
+                      }
+                      label={
+                        publishDiff.firstPublish
+                          ? "changes since last publish (first publish)"
+                          : "changes since last publish"
+                      }
+                      tone={
+                        publishDiff.loading || publishDiff.failed ? "ink" : "blue"
+                      }
                       muted={
                         publishDiff.loading ||
+                        publishDiff.failed ||
                         publishDiff.summary.total === 0
                       }
                     />
-                    {!publishDiff.loading && publishDiff.summary.total > 0 ? (
+                    {publishDiff.loading ? (
+                      <div
+                        role="status"
+                        aria-live="polite"
+                        style={{ marginTop: 6, fontSize: 11, color: CHROME.muted2 }}
+                      >
+                        Checking the last published snapshot…
+                      </div>
+                    ) : null}
+                    {publishDiff.failed ? (
+                      <div
+                        role="status"
+                        aria-live="polite"
+                        style={{ marginTop: 6, fontSize: 11, color: CHROME.amber }}
+                      >
+                        Couldn&rsquo;t load the last published snapshot, so the
+                        change count is unavailable.{" "}
+                        <button
+                          type="button"
+                          onClick={() => setPublishedRowsRetryNonce((n) => n + 1)}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            padding: 0,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: CHROME.amber,
+                            textDecoration: "underline",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : null}
+                    {!publishDiff.loading &&
+                    !publishDiff.failed &&
+                    publishDiff.summary.total > 0 ? (
                       <div
                         style={{
                           marginTop: 6,
@@ -824,7 +1013,9 @@ export function PublishDrawer() {
                         {publishDiff.summary.removed} removed
                       </div>
                     ) : null}
-                    {!publishDiff.loading && publishDiff.summary.total === 0 ? (
+                    {!publishDiff.loading &&
+                    !publishDiff.failed &&
+                    publishDiff.summary.total === 0 ? (
                       <p className="sr-only" role="status" aria-live="polite">
                         Publish diff shows zero changes versus the last published
                         snapshot. If the canvas or mobile preview still looks wrong,
@@ -979,7 +1170,7 @@ export function PublishDrawer() {
               <CardHead
                 icon={<ChangesIcon />}
                 title="What's going live"
-                sub={`${summary.totalSections} section${summary.totalSections === 1 ? "" : "s"}`}
+                sub={`${effectiveSectionsReady} section${effectiveSectionsReady === 1 ? "" : "s"}`}
               />
               <CardBody padding="flush">
                 <ul
@@ -1302,7 +1493,31 @@ export function PublishDrawer() {
                   sub="Draft vs published"
                 />
                 <CardBody>
-                  {builderDiffLoading && !builderDiffIds ? (
+                  {builderDiffFailed && !builderDiffIds ? (
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      style={{ fontSize: 11.5, color: CHROME.amber, padding: "4px 0" }}
+                    >
+                      Couldn&rsquo;t load the builder diff.{" "}
+                      <button
+                        type="button"
+                        onClick={() => setBuilderDiffRetryNonce((n) => n + 1)}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          padding: 0,
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          color: CHROME.amber,
+                          textDecoration: "underline",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  ) : builderDiffLoading && !builderDiffIds ? (
                     <div
                       style={{ fontSize: 11.5, color: CHROME.muted, padding: "6px 0" }}
                       aria-busy="true"
@@ -1415,7 +1630,7 @@ export function PublishDrawer() {
                   <button
                     type="button"
                     onClick={() => {
-                      void refreshComposition();
+                      void refreshComposition({ undoResetReason: "conflict" });
                       setState({ kind: "idle" });
                     }}
                     style={{
@@ -1714,11 +1929,13 @@ function StatLine({
   label,
   tone,
   muted,
+  testId,
 }: {
   count: number | string;
   label: string;
   tone: "ink" | "blue";
   muted?: boolean;
+  testId?: string;
 }) {
   const palette =
     tone === "blue"
@@ -1726,6 +1943,7 @@ function StatLine({
       : { bg: CHROME.accent, fg: "#fff" };
   return (
     <div
+      data-testid={testId}
       style={{
         display: "flex",
         alignItems: "center",
