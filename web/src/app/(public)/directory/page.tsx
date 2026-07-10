@@ -109,7 +109,16 @@ export default async function DirectoryPage() {
         <Suspense fallback={null}>
           <DirectoryInquiryUrlSync />
         </Suspense>
-        <CmsPublicPage params={Promise.resolve({ slug: [assignedDirectorySlug] })} />
+        {/* Assigned directory served through the full storefront renderer. Pass
+            mountChatLauncher={false} and mount the launcher here with the
+            directory sourcePage so it gates on show_on_directory (CmsPublicPage's
+            own generic /p mount would gate enabled-only and double up). The
+            discovery/inquiry providers come from (public)/layout.tsx. */}
+        <CmsPublicPage
+          params={Promise.resolve({ slug: [assignedDirectorySlug] })}
+          mountChatLauncher={false}
+        />
+        <AgencyChatLauncherMount sourcePage="/directory" />
       </>
     );
   }

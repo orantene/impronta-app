@@ -25,6 +25,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
 import { requireStaff } from "@/lib/server/action-guards";
+import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import {
   jsonLdDocumentToScript,
   type JsonLdDocument,
@@ -150,12 +151,27 @@ export async function generateMetadata({
 
 export default async function CmsPublicPage({
   params,
+  // Guest-chat launcher mount. Default ON: a generic `/p/<slug>` visit renders
+  // under `(public)/layout.tsx` (which supplies the discovery/inquiry providers)
+  // and should carry the floating "Message {agency}" launcher, gated on the
+  // master `enabled` switch only (a generic CMS page has no per-page flag).
+  // Callers that render CmsPublicPage AS the home or directory surface
+  // (app/page.tsx home role, directory/page.tsx assigned-directory role) pass
+  // `false` and mount the launcher themselves with the correct per-surface
+  // sourcePage ("/" → show_on_home, "/directory" → show_on_directory) — this
+  // prevents a double launcher on those surfaces.
+  mountChatLauncher = true,
 }: {
   params: Promise<{ slug?: string[] }>;
+  mountChatLauncher?: boolean;
 }) {
   const { slug: slugParam } = await params;
   const slugPath = slugPathFromParams(slugParam);
   if (!slugPath) notFound();
+
+  // Generic-page sourcePage — never "/" or "/directory", so AgencyChatLauncherMount
+  // gates on `enabled` alone (no per-page flag for arbitrary CMS pages).
+  const launcherSourcePage = `/p/${slugPath}`;
 
   const locale = await getRequestLocale();
   const supabase = await getCachedServerSupabase();
@@ -295,6 +311,9 @@ export default async function CmsPublicPage({
             })}
           </main>
           <PublicFooter />
+          {mountChatLauncher ? (
+            <AgencyChatLauncherMount sourcePage={launcherSourcePage} />
+          ) : null}
         </>
       );
     }
@@ -325,6 +344,9 @@ export default async function CmsPublicPage({
           />
         </main>
         <PublicFooter />
+        {mountChatLauncher ? (
+          <AgencyChatLauncherMount sourcePage={launcherSourcePage} />
+        ) : null}
       </>
     );
   }
@@ -363,6 +385,9 @@ export default async function CmsPublicPage({
         </article>
       </main>
       <PublicFooter />
+      {mountChatLauncher ? (
+        <AgencyChatLauncherMount sourcePage={launcherSourcePage} />
+      ) : null}
     </>
   );
 }
