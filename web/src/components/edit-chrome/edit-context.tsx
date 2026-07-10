@@ -3129,9 +3129,9 @@ export function EditProvider({
       if (typeof el.animate !== "function") return;
       el.animate(
         [
-          { boxShadow: "0 0 0 0 rgba(61,79,124,0)" },
-          { boxShadow: "0 0 0 3px rgba(61,79,124,0.55)" },
-          { boxShadow: "0 0 0 0 rgba(61,79,124,0)" },
+          { boxShadow: "0 0 0 0 rgba(124,58,237,0)" },
+          { boxShadow: "0 0 0 3px rgba(124,58,237,0.55)" },
+          { boxShadow: "0 0 0 0 rgba(124,58,237,0)" },
         ],
         { duration: 720, easing: "ease-out", fill: "none" },
       );

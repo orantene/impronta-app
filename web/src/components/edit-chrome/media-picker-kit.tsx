@@ -125,7 +125,7 @@ export function MediaThumb({
     const ext =
       item.storagePath.split(".").pop()?.toLowerCase().slice(0, 4) ?? "doc";
     return (
-      <span className="flex aspect-[4/5] w-full flex-col items-center justify-center gap-1.5 bg-[#f3f1ec] text-[#3d4f7c]">
+      <span className="flex aspect-[4/5] w-full flex-col items-center justify-center gap-1.5 bg-[#f3f1ec] text-violet-600">
         <FileText className="size-7" />
         <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
           {ext}
@@ -163,7 +163,7 @@ export function KindButton({
       style={{
         background: active ? "#f2f0ea" : "#ffffff",
         borderColor: active ? CHROME.accent : CHROME.lineStrong,
-        color: active ? "#25304f" : "#5f605d",
+        color: active ? CHROME.accent : "#5f605d",
       }}
       title={label}
     >
@@ -198,7 +198,7 @@ export function TagEditor({
           {tags.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center gap-1 rounded-full bg-[#eef0f6] px-2 py-0.5 text-[10px] font-medium text-[#3d4f7c]"
+              className="inline-flex items-center gap-1 rounded-full bg-[#eef0f6] px-2 py-0.5 text-[10px] font-medium text-violet-600"
             >
               {tag}
               <button
@@ -206,7 +206,7 @@ export function TagEditor({
                 aria-label={`Remove tag ${tag}`}
                 disabled={saving}
                 onClick={() => onRemove(tag)}
-                className="text-[#3d4f7c]/70 transition hover:text-[#242942]"
+                className="text-violet-600/70 transition hover:text-violet-800"
               >
                 <X className="size-2.5" />
               </button>
@@ -251,7 +251,7 @@ export function SourceButton({
       style={{
         background: active ? "#f2f0ea" : "#ffffff",
         borderColor: active ? CHROME.accent : CHROME.lineStrong,
-        color: active ? "#25304f" : "#5f605d",
+        color: active ? CHROME.accent : "#5f605d",
       }}
       title={hint ? `${label} — ${hint}` : label}
     >
@@ -287,13 +287,13 @@ export function AlbumButton({
       style={{
         background: active ? "#f2f0ea" : "#ffffff",
         borderColor: active ? CHROME.accent : CHROME.lineStrong,
-        color: active ? "#25304f" : "#5f605d",
+        color: active ? CHROME.accent : "#5f605d",
       }}
       title={label}
     >
       <span
         className="inline-flex size-4 items-center justify-center rounded-sm"
-        style={{ background: color ?? "#e7e1d6", color: active ? "#25304f" : "#6b665e" }}
+        style={{ background: color ?? "#e7e1d6", color: active ? CHROME.accent : "#6b665e" }}
         aria-hidden
       >
         <FolderOpen className="size-3" />
@@ -318,7 +318,7 @@ export function StatePanel({
   return (
     <div className="flex min-h-[280px] items-center justify-center rounded-lg border border-dashed border-stone-300 bg-[#faf9f6] p-8 text-center">
       <div className="grid justify-items-center gap-2 text-stone-600">
-        <span className="inline-flex size-9 items-center justify-center rounded-full border border-stone-200 bg-white text-[#3d4f7c]">
+        <span className="inline-flex size-9 items-center justify-center rounded-full border border-stone-200 bg-white text-violet-600">
           {icon}
         </span>
         <p className="text-sm font-semibold text-stone-800">{title}</p>

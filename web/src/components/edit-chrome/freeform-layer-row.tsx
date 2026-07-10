@@ -163,9 +163,9 @@ export const LAYERS_FLASH_KEYFRAMES_ID = "freeform-layers-flash-keyframes";
 const LAYERS_FLASH_ANIM = "freeform-layers-flash";
 export const LAYERS_FLASH_KEYFRAMES = `
 @keyframes ${LAYERS_FLASH_ANIM} {
-  0%   { box-shadow: 0 0 0 2px rgba(61,79,124,0.0), 0 0 0 6px rgba(61,79,124,0.0); }
-  18%  { box-shadow: inset 0 0 0 2px rgba(61,79,124,0.9), 0 0 0 4px rgba(61,79,124,0.28); }
-  100% { box-shadow: 0 0 0 2px rgba(61,79,124,0.0), 0 0 0 6px rgba(61,79,124,0.0); }
+  0%   { box-shadow: 0 0 0 2px rgba(124,58,237,0.0), 0 0 0 6px rgba(124,58,237,0.0); }
+  18%  { box-shadow: inset 0 0 0 2px rgba(124,58,237,0.9), 0 0 0 4px rgba(124,58,237,0.28); }
+  100% { box-shadow: 0 0 0 2px rgba(124,58,237,0.0), 0 0 0 6px rgba(124,58,237,0.0); }
 }
 [data-builder-node-flash="1"] {
   animation: ${LAYERS_FLASH_ANIM} 720ms ease-out 1;

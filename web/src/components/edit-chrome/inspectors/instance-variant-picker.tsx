@@ -80,7 +80,7 @@ export function InstanceVariantPicker({
               className="cursor-pointer rounded-md px-2 py-1 text-[10.5px] font-semibold"
               style={{
                 border: `1px solid ${active ? CHROME.accent : CHROME.lineMid}`,
-                background: active ? "rgba(61,79,124,0.12)" : CHROME.surface,
+                background: active ? "rgba(124,58,237,0.12)" : CHROME.surface,
                 color: active ? CHROME.accentInk : CHROME.text,
                 opacity: busy ? 0.6 : 1,
               }}

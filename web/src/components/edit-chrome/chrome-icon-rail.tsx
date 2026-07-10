@@ -48,7 +48,7 @@ export function RailIconButton({
   primary = false,
 }: RailIconButtonProps) {
   const [hovered, setHovered] = useState(false);
-  const restBackground = primary ? "rgba(61, 79, 124, 0.10)" : "transparent";
+  const restBackground = primary ? "rgba(124, 58, 237, 0.10)" : "transparent";
   const restColor = primary ? CHROME.accent : CHROME.muted;
   return (
     <button
@@ -67,7 +67,7 @@ export function RailIconButton({
         border: "none",
         background: hovered
           ? primary
-            ? "rgba(61, 79, 124, 0.16)"
+            ? "rgba(124, 58, 237, 0.16)"
             : "rgba(24, 24, 27, 0.06)"
           : restBackground,
         color: hovered ? (primary ? CHROME.accentInk : CHROME.ink2) : restColor,

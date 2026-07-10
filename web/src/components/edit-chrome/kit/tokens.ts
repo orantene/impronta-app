@@ -209,6 +209,10 @@ export const CHROME_SHADOWS = {
   // mirrored rails can't drift; replaces the identical bespoke DOCK_SHADOW /
   // RAIL_SHADOW strings that used to be redeclared in each file.
   railCard: "0 1px 2px rgba(0,0,0,0.04), 0 10px 28px -12px rgba(0,0,0,0.14)",
+  // Inspector panel + canvas toolbar card shadow. One shared value so the
+  // inspector kit (BUILDER_VISUAL.panelShadow / toolbarShadow) derives from
+  // the one chrome source instead of re-declaring the identical string.
+  panel: "0 8px 28px -8px rgba(0,0,0,0.14), 0 0 0 1px rgba(24,24,27,0.08)",
 } as const;
 
 /**
@@ -237,6 +241,11 @@ export const CHROME_RADII = {
   md: 8,
   lg: 10,
   xl: 14,
+  // One documented larger step above the mockup `--r-*` scale, reserved for the
+  // big floating "card" chrome: the left command dock + right inspector rail
+  // pill. Both mirrored rails reference this single token (via DOCK_RADIUS_PX /
+  // RAIL_RADIUS_PX) so the two can't drift, instead of each re-declaring `20`.
+  xxl: 20,
 } as const;
 
 /** Drawer widths by kind, taken from the mockup's `.dw-*` classes. */

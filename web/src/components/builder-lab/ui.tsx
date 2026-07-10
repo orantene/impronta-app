@@ -11,6 +11,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
+import { CHROME_RADII } from "../edit-chrome/kit/tokens";
+
 // ── Tokens ────────────────────────────────────────────────────────────────────
 export const LAB = {
   // surfaces
@@ -41,7 +43,12 @@ export const LAB = {
   toastMs: 2400,
 } as const;
 
-export const RADII = { control: 8, card: 12, icon: 7, pill: 999 } as const;
+// The Lab keeps its own DARK color identity (platform-internal tool) but shares
+// the chrome RADIUS scale rather than re-declaring primitives: `control` snaps
+// onto CHROME_RADII.md (8, exact). `card`/`icon`/`pill` stay local — they sit
+// off the chrome 4/6/8/10/14 scale (12 / 7 / full-round) and are bespoke to the
+// dark Lab surface, so folding them in would either regress or muddy the scale.
+export const RADII = { control: CHROME_RADII.md, card: 12, icon: 7, pill: 999 } as const;
 
 const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DD3A0]/60";

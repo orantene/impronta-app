@@ -872,7 +872,7 @@ export function FreeformLayersTree({
                 : row.locked
                   ? "inset 3px 0 0 rgba(250,174,0,0.5)"
                   : canvasHovered
-                    ? "inset 3px 0 0 rgba(61,79,124,0.45)"
+                    ? "inset 3px 0 0 rgba(124,58,237,0.45)"
                     : "none",
               transition: "background 140ms ease, box-shadow 140ms ease, color 80ms ease",
             }}
@@ -1092,12 +1092,12 @@ function HeaderAddButton({
         height: 24,
         padding: "0 9px 0 7px",
         borderRadius: 999,
-        border: `1px solid ${lit ? "rgba(61,79,124,0.45)" : "rgba(61,79,124,0.28)"}`,
+        border: `1px solid ${lit ? "rgba(124,58,237,0.45)" : "rgba(124,58,237,0.28)"}`,
         background: disabled
           ? "transparent"
           : lit
-            ? "rgba(61,79,124,0.14)"
-            : "rgba(61,79,124,0.07)",
+            ? "rgba(124,58,237,0.14)"
+            : "rgba(124,58,237,0.07)",
         color: disabled ? CHROME.muted2 : CHROME.accent,
         fontSize: 11,
         fontWeight: 600,

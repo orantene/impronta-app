@@ -98,7 +98,7 @@ export function CtaDuoEditor({
         data-hero-node-role={primaryNodeRole}
       >
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#3d4f7c] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
             Primary
           </span>
           <button

@@ -548,7 +548,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
             <div
               key={page.id}
               className="group mb-[4px] flex items-center gap-[4px] rounded-[10px] px-[4px] py-[3px]"
-              style={{ background: isCurrent ? "rgba(61,79,124,0.08)" : "transparent" }}
+              style={{ background: isCurrent ? "rgba(124,58,237,0.08)" : "transparent" }}
             >
               <button
                 type="button"

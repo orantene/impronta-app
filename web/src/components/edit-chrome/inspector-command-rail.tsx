@@ -20,6 +20,7 @@ import {
 } from "./inspector-tab-config";
 import {
   CHROME,
+  CHROME_RADII,
   CHROME_SHADOWS,
   INSPECTOR_CHROME_TOP_PX,
   INSPECTOR_RAIL_COLLAPSED_STORAGE_KEY,
@@ -35,7 +36,7 @@ import {
 import { useInspectorRailCoupling } from "./use-inspector-rail-coupling";
 import { useInspectorVisibleTabs } from "./use-inspector-visible-tabs";
 
-const RAIL_RADIUS_PX = 20;
+const RAIL_RADIUS_PX = CHROME_RADII.xxl;
 const TAB_ICON_PX = 22;
 const TAB_LABEL_PX = 11;
 const RAIL_SHADOW = CHROME_SHADOWS.railCard;

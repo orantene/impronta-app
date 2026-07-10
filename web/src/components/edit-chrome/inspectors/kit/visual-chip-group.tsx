@@ -77,7 +77,7 @@ export function VisualChipGroup<T extends string>({
             }}
             className={`group flex cursor-pointer flex-col items-stretch gap-1.5 rounded-lg border bg-white p-2 text-left transition ${
               active
-                ? "border-indigo-400 shadow-[0_0_0_1px_rgba(61,79,124,0.4)]"
+                ? "border-indigo-400 shadow-[0_0_0_1px_rgba(124,58,237,0.4)]"
                 : "border-stone-200 hover:border-stone-400"
             }`}
           >

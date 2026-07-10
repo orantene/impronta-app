@@ -597,7 +597,7 @@ export function MediaPickerDrawer({
                           </span>
                         ) : null}
                         {selected ? (
-                          <span className="absolute right-2 top-2 inline-flex size-6 items-center justify-center rounded-full bg-[#3d4f7c] text-white shadow">
+                          <span className="absolute right-2 top-2 inline-flex size-6 items-center justify-center rounded-full bg-violet-600 text-white shadow">
                             <Check className="size-3.5" />
                           </span>
                         ) : null}
