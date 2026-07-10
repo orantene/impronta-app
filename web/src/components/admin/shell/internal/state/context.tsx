@@ -1986,9 +1986,9 @@ export function AdminShellProvider({
   const effectiveWebsiteState = useMemo(
     () =>
       bridgeWebsite != null
-        ? mergeWebsiteStateFromBridge(bridgeWebsite, bridgeTenantIdentity?.slug ?? "")
+        ? mergeWebsiteStateFromBridge(bridgeWebsite, bridgeTenantIdentity?.slug ?? "", effectiveTeamMembers)
         : WEBSITE_STATE,
-    [bridgeWebsite, bridgeTenantIdentity?.slug],
+    [bridgeWebsite, bridgeTenantIdentity?.slug, effectiveTeamMembers],
   );
 
   // Payouts surface — pass-through bridge payload consumed by the in-shell

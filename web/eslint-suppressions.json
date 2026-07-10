@@ -703,7 +703,7 @@
   },
   "src/components/admin/shell/internal/page-modules/WebsitePage-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 84
+      "count": 83
     }
   },
   "src/components/admin/shell/internal/page-modules/WebsitePage-2.tsx": {
@@ -1293,11 +1293,6 @@
     }
   },
   "src/components/edit-chrome/inspectors/layout-panel.tsx": {
-    "max-lines": {
-      "count": 1
-    }
-  },
-  "src/components/edit-chrome/inspectors/responsive-panel.tsx": {
     "max-lines": {
       "count": 1
     }

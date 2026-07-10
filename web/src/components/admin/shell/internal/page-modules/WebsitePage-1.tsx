@@ -526,7 +526,7 @@ export function WebsitePage() {
           </span>
         </div>
         <p style={{ margin: "0 0 12px", fontSize: 12, fontFamily: FONTS.body, lineHeight: 1.45 }} className="text-admin-ink-muted">
-          {t("dashboard.adminWebsite.pagesHelpBefore")}<span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }}>?edit=1</span>{t("dashboard.adminWebsite.pagesHelpAfter")}
+          {t("dashboard.adminWebsite.pagesHelp")}
         </p>
         {w.pages.length === 0 ? (
           <EmptyState
@@ -704,10 +704,10 @@ export function WebsitePage() {
               <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.seoDefaultsLabel")}</span>
               <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: w.seo.robotsMode === "indexable" ? COLORS.successSoft : COLORS.amberSoft, color: w.seo.robotsMode === "indexable" ? COLORS.successDeep : COLORS.amberDeep, textTransform: "uppercase", letterSpacing: 0.5 }}>{w.seo.robotsMode === "indexable" ? t("dashboard.adminWebsite.seoIndexable") : t("dashboard.adminWebsite.seoNoIndex")}</span>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, lineHeight: 1.3 }} className="text-admin-ink">{w.seo.siteTitle}</div>
-            <div style={{ fontSize: 11.5, marginBottom: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">{w.seo.description}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, lineHeight: 1.3 }} className="text-admin-ink">{w.seo.siteTitle || t("dashboard.adminWebsite.notSet")}</div>
+            <div style={{ fontSize: 11.5, marginBottom: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">{w.seo.description || t("dashboard.adminWebsite.notSet")}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11.5 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">{t("dashboard.adminWebsite.seoTitleTemplate")}</span><span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }} className="text-admin-ink">{w.seo.titleTemplate}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">{t("dashboard.adminWebsite.seoTitleTemplate")}</span><span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }} className="text-admin-ink">{w.seo.titleTemplate || t("dashboard.adminWebsite.notSet")}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">{t("dashboard.adminWebsite.seoSitemap")}</span><span style={{ color: w.seo.sitemapEnabled ? COLORS.successDeep : COLORS.amberDeep, fontWeight: 600 }}>{w.seo.sitemapEnabled ? t("dashboard.adminWebsite.seoEnabled") : t("dashboard.adminWebsite.seoDisabled")}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">{t("dashboard.adminWebsite.seoCanonical")}</span><span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }} className="text-admin-ink">{w.seo.canonicalDomain}</span></div>
             </div>

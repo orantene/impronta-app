@@ -4913,8 +4913,18 @@ export const WEBSITE_STATE: WebsiteState = {
  *  - Analytics zeroed out — real analytics loader is Phase C. `WebsitePerformance`
  *    renders cleanly with all-zeros (top-performer tables filter to `visits > 0`).
  *  - Announcement disabled — SS27 fixture copy removed; real announcement is Phase C.
+ *
+ * `teamMembers` resolves `cms_pages.updated_by` (a raw profile UUID) to the
+ * member's display name for the page cards' "By {name}" line. A member who
+ * has since left the workspace won't resolve — the card shows nothing
+ * rather than a raw UUID (W1-L9 polish).
  */
-export function mergeWebsiteStateFromBridge(live: WebsiteData, tenantSlug: string): WebsiteState {
+export function mergeWebsiteStateFromBridge(
+  live: WebsiteData,
+  tenantSlug: string,
+  teamMembers: TeamMember[] = [],
+): WebsiteState {
+  const memberNameById = new Map(teamMembers.map((m) => [m.id, m.name]));
   const host =
     live.domainSummary.primaryHost ??
     live.domainSummary.customDomainHost ??
@@ -4946,7 +4956,10 @@ export function mergeWebsiteStateFromBridge(live: WebsiteData, tenantSlug: strin
       slug,
       status: mapRowStatus(p.status),
       updatedAt: p.updatedAt ?? new Date().toISOString(),
-      lastEditedBy: p.updatedBy ?? "—",
+      // Resolve the raw profile UUID to a display name. Unresolvable (member
+      // left, or no author recorded) → "" so the card renders nothing
+      // instead of a raw UUID.
+      lastEditedBy: (p.updatedBy && memberNameById.get(p.updatedBy)) || "",
       template: p.templateKey?.replace(/_/g, " ") ?? "page",
       hits7d: 0,
     };
@@ -4995,10 +5008,18 @@ export function mergeWebsiteStateFromBridge(live: WebsiteData, tenantSlug: strin
     sslStatus: sslOk ? "active" : WEBSITE_STATE.domain.sslStatus,
   };
 
+  // Real tenant name (agency_business_identity.public_name), NOT the
+  // "Acme Models" prototype fixture — that placeholder was leaking into
+  // every real tenant's SEO Defaults card (title + title template).
+  const tenantName = live.tenantName?.trim() || "";
   const seoPatch: WebsiteSeoDefaults = {
     ...WEBSITE_STATE.seo,
-    siteTitle: live.seoTitle ?? WEBSITE_STATE.seo.siteTitle,
-    description: live.seoDescription ?? WEBSITE_STATE.seo.description,
+    // Empty string is the "unset" sentinel — the render layer shows a
+    // localized "Not set" state instead of baking an English fallback
+    // string into the data (WebsitePage-1.tsx SEO card).
+    siteTitle: live.seoTitle ?? tenantName,
+    titleTemplate: tenantName ? `%s | ${tenantName}` : "",
+    description: live.seoDescription ?? "",
     canonicalDomain: host,
   };
 

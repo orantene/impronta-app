@@ -58,6 +58,10 @@ export type WebsiteData = {
   redirects: WebsiteRedirectItem[];
   seoTitle: string | null;
   seoDescription: string | null;
+  /** `agency_business_identity.public_name` — the tenant's real display
+   *  name. Used to derive SEO defaults (title / title template) instead of
+   *  a hardcoded placeholder. Null when identity hasn't been set up yet. */
+  tenantName: string | null;
   domainSummary: WorkspaceDomainSummary;
   /**
    * ANALYTICS-2 — real first-party page-view analytics for this tenant
@@ -98,6 +102,7 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
     pages: [], posts: [], redirects: [],
     seoTitle: null,
     seoDescription: null,
+    tenantName: null,
     domainSummary: emptyDomainSummary,
     analytics: emptyWebsiteAnalytics(),
     conversion: emptyWebsiteConversionMetrics(),
@@ -130,15 +135,23 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
     type RedirectRow = { id: string; old_path: string; new_path: string; status_code: number; active: boolean };
 
     return {
-      pages: pagesRaw.map((p) => ({
-        id: p.id,
-        slug: p.slug,
-        title: p.title,
-        status: p.status,
-        updatedAt: p.updated_at ?? null,
-        updatedBy: p.updated_by ?? null,
-        templateKey: p.template_key ?? null,
-      })),
+      // The site shell (`system_template_key = 'site_shell'`, slug
+      // `__site_shell__`) is a header/footer composition row, not a
+      // navigable page — one is seeded per supported locale, so a
+      // bilingual tenant would otherwise show 2+ duplicate "site shell"
+      // cards in the Website → Pages grid. Exclude it here so it never
+      // reaches the grid, counts, or analytics matching.
+      pages: pagesRaw
+        .filter((p) => p.system_template_key !== "site_shell")
+        .map((p) => ({
+          id: p.id,
+          slug: p.slug,
+          title: p.title,
+          status: p.status,
+          updatedAt: p.updated_at ?? null,
+          updatedBy: p.updated_by ?? null,
+          templateKey: p.template_key ?? null,
+        })),
       posts: ((postsRes.data ?? []) as unknown as PostRow[]).map((p) => ({
         id: p.id,
         title: p.title,
@@ -155,6 +168,7 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
       })),
       seoTitle: identity?.seo_default_title ?? null,
       seoDescription: identity?.seo_default_description ?? null,
+      tenantName: identity?.public_name?.trim() || null,
       domainSummary,
       analytics,
       conversion,
