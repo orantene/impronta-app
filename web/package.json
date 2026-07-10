@@ -105,7 +105,7 @@
     "verify:builder-ownership": "npm run test:builder-node-bindings && npm run test:builder-chrome && npm run test:publish-preflight && npm run verify:published-page-snapshots:strict",
     "test:phase1-i18n": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/translation/phase1-invariants.test.ts",
     "test:locale-precedence": "tsx --test src/i18n/locale-precedence.test.ts",
-    "test:inquiry-workspace": "tsx --test src/lib/inquiry/inquiry-workspace.test.ts src/lib/inquiry/alternates-logic.test.ts src/lib/inquiry/agency-inbox-visibility.test.ts src/lib/inquiry/inquiry-rehome.test.ts src/lib/inquiry/guest-draft-resume.test.ts",
+    "test:inquiry-workspace": "tsx --test src/lib/inquiry/inquiry-workspace.test.ts src/lib/inquiry/alternates-logic.test.ts src/lib/inquiry/agency-inbox-visibility.test.ts src/lib/inquiry/inquiry-rehome.test.ts src/lib/inquiry/guest-draft-resume.test.ts src/lib/inquiry/guest-send-gate.test.ts",
     "validate:inquiry-workspace-db": "node --env-file=.env.local scripts/validate-inquiry-workspace-db.mjs",
     "test:ai-guardrails": "tsx --test src/lib/ai/inquiry-draft-guardrails.test.ts src/lib/ai/resolve-location-from-query.test.ts src/lib/ai/interpret-taxonomy-synonyms.test.ts src/lib/ai/deterministic-gender-taxonomy.test.ts src/lib/ai/providers/anthropic-adapter.test.ts",
     "create:test-clients": "node --env-file=.env.local scripts/create-test-clients.mjs",

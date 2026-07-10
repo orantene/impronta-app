@@ -39,6 +39,7 @@ import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
 import { sendMessage } from "@/lib/inquiry/inquiry-engine-messages";
 import { promoteEarlyInquiryToSubmitted } from "@/lib/inquiry/promote-early-inquiry";
+import { isSeedContact, shouldRefuseGuestSend } from "@/lib/inquiry/guest-send-gate";
 import {
   pickGuestEnsureTargetOrForceNew,
   pickGuestResumeTarget,
@@ -90,25 +91,13 @@ import type {
 const GUEST_HEADER = "x-impronta-guest";
 const MAX_BODY = 10_000;
 
-// The synthetic early-row contact seed (see ensureGuestChatInquiry). A row is
-// "contact promoted" once it no longer carries this placeholder, i.e. the guest
-// has supplied real contact details via the ContactCard gate. Centralized here
-// so the seed shape is asserted in exactly ONE place; the client never
-// string-matches the placeholder (it reads the contactPromoted flag instead).
-const SEED_CONTACT_NAME = "Guest";
-function isSeedContact(
-  contactName: string | null | undefined,
-  contactEmail: string | null | undefined,
-): boolean {
-  const email = (contactEmail ?? "").trim().toLowerCase();
-  const name = (contactName ?? "").trim();
-  const looksLikePendingEmail =
-    email.startsWith("pending-") && email.endsWith("@guest.impronta");
-  // The email is the load-bearing signal (always rewritten on promotion); the
-  // name check guards the rare case a real guest is literally named "Guest" yet
-  // already has a real email.
-  return looksLikePendingEmail || (name === SEED_CONTACT_NAME && email.length === 0);
-}
+// isSeedContact — the synthetic early-row contact seed detector (see
+// ensureGuestChatInquiry below). A row is "contact promoted" once it no longer
+// carries this placeholder, i.e. the guest has supplied real contact details
+// via the ContactCard gate. Lives in guest-send-gate.ts (pure, DB-free) so the
+// seed shape is asserted in exactly ONE place and is unit-testable alongside
+// shouldRefuseGuestSend (P0-6 / W0-D); the client never string-matches the
+// placeholder itself (it reads the contactPromoted flag instead).
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small failure helper.
@@ -1101,6 +1090,56 @@ export async function sendGuestMessageAction(
     return fail("blocked", "This conversation can't continue.");
   }
 
+  // ── Placeholder-contact gate (P0-6 / W0-D) — BEFORE the insert. Refuse
+  // (write nothing) when the target inquiry is STILL a pre-send DRAFT and its
+  // contact is STILL the synthetic seed placeholder. Previously this same
+  // check ran only AFTER the message was already inserted (gating just the
+  // submitted-promotion), so a call that skipped the client's promote-then-send
+  // flow (a replayed/direct call to this action) could durably write a message
+  // into inquiry_messages while the inquiry stayed a hidden draft with an
+  // UNREACHABLE contact. The legitimate first-send flow (continueEarlyInquiry /
+  // sendToAgency in use-mini-chat-send.ts) always awaits promoteContact —
+  // which durably writes the REAL contact via captureGuestChip(kind:"contact")
+  // — BEFORE calling this action, so a legitimate send's contact row is already
+  // real by the time we read it here and this never trips for a real guest. A
+  // non-draft inquiry (already promoted, or any other lifecycle status) skips
+  // this read entirely and proceeds exactly as before. Pure predicate +
+  // isRealContact reused below so the post-send promotion doesn't re-query.
+  // See guest-send-gate.ts for the decision logic + its unit tests.
+  let isRealContact = true;
+  if (owned.inquiry.status === "draft") {
+    const { data: contactRow, error: contactErr } = await admin
+      .from("inquiries")
+      .select("contact_name, contact_email")
+      .eq("id", owned.inquiry.id)
+      .eq("tenant_id", owned.inquiry.tenantId)
+      .maybeSingle();
+    if (contactErr) {
+      logServerError("guest-chat-actions.sendGuestMessageAction/contactRead", contactErr);
+      return fail("engine_error", "Could not send your message.");
+    }
+    if (!contactRow) {
+      // The inquiry vanished between the ownership check above and this read
+      // (contact_name/contact_email are NOT NULL columns, so a row that exists
+      // always has a value in both — the only way to get here is no row at
+      // all). Treat as not-found rather than silently sending into an
+      // unverifiable draft.
+      return fail("not_found", "This conversation no longer exists.");
+    }
+    const contactName = contactRow.contact_name as string | null;
+    const contactEmail = contactRow.contact_email as string | null;
+    if (
+      shouldRefuseGuestSend({
+        status: owned.inquiry.status,
+        contactName,
+        contactEmail,
+      })
+    ) {
+      return fail("forbidden", "You don't have access to this conversation.");
+    }
+    isRealContact = !isSeedContact(contactName, contactEmail);
+  }
+
   // Send the follow-up onto the PRIVATE/client thread — the guest IS the
   // client, so this is the same client↔coordinator thread the talent's Client
   // tab and a registered client read/write.
@@ -1126,37 +1165,23 @@ export async function sendGuestMessageAction(
   }
 
   // Promote a pre-send DRAFT early-row to `submitted` + coordinator on this, its
-  // FIRST real send — mirroring the fresh-create path (submitInquiry). Gated so a
-  // row whose contact is still the synthetic placeholder is NEVER promoted: the
-  // client send-gate already requires a promoted contact, but we re-verify
-  // server-side (the placeholder email is the load-bearing signal, same as
-  // isSeedContact). Idempotent: promoteEarlyInquiryToSubmitted no-ops once the
-  // status is no longer `draft`, so later messages don't re-promote. Best-effort:
-  // a promotion failure must not fail the (already persisted) send.
-  if (owned.inquiry.status === "draft") {
-    const { data: contactRow } = await admin
-      .from("inquiries")
-      .select("contact_name, contact_email")
-      .eq("id", owned.inquiry.id)
-      .eq("tenant_id", owned.inquiry.tenantId)
-      .maybeSingle();
-    const isRealContact =
-      contactRow != null &&
-      !isSeedContact(
-        contactRow.contact_name as string | null,
-        contactRow.contact_email as string | null,
+  // FIRST real send — mirroring the fresh-create path (submitInquiry). The
+  // placeholder-contact case was already refused above (before the insert), so
+  // isRealContact is always true here when status was 'draft' — this branch is
+  // now just the (unchanged) idempotent promotion, not a contact re-check.
+  // Idempotent: promoteEarlyInquiryToSubmitted no-ops once the status is no
+  // longer `draft`, so later messages don't re-promote. Best-effort: a
+  // promotion failure must not fail the (already persisted) send.
+  if (owned.inquiry.status === "draft" && isRealContact) {
+    const promoted = await promoteEarlyInquiryToSubmitted(admin, {
+      inquiryId: owned.inquiry.id,
+      tenantId: owned.inquiry.tenantId,
+    });
+    if (!promoted.success) {
+      logServerError(
+        "guest-chat-actions.sendGuestMessageAction/promote",
+        new Error(promoted.error ?? promoted.reason ?? "promote_failed"),
       );
-    if (isRealContact) {
-      const promoted = await promoteEarlyInquiryToSubmitted(admin, {
-        inquiryId: owned.inquiry.id,
-        tenantId: owned.inquiry.tenantId,
-      });
-      if (!promoted.success) {
-        logServerError(
-          "guest-chat-actions.sendGuestMessageAction/promote",
-          new Error(promoted.error ?? promoted.reason ?? "promote_failed"),
-        );
-      }
     }
   }
 
