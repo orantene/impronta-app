@@ -1,5 +1,5 @@
 /**
- * Shared responsive field utilities extracted from responsive-panel.
+ * Shared responsive field utilities used by the inspector viewport rail.
  */
 
 import {
