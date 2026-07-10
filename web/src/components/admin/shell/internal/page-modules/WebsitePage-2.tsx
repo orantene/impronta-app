@@ -2,11 +2,46 @@
 
 import { useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
 import { COLORS, FONTS, TRANSITION, fmtMoney } from "../state";
 import type { WebsiteAnalytics, WebsitePageRow, WebsitePeriodMetrics } from "../state";
 import { PageStatusChip } from "./SitePage";
 
+const MIN_MS = 60_000;
+const HOUR_MS = 60 * MIN_MS;
+const DAY_MS = 24 * HOUR_MS;
+const WEEK_MS = 7 * DAY_MS;
+
+/**
+ * Short, locale-aware "updated" timestamp for a page card (W1-L9 polish —
+ * cards previously showed the raw ISO timestamp verbatim). Relative for the
+ * first week ("2h ago", "3d ago" — same convention as Inbox/Pitches), then
+ * a short absolute date ("Jul 9", or "Jul 9, 2025" across a year boundary).
+ */
+function formatPageUpdatedAt(
+  iso: string,
+  t: (key: string) => string,
+  locale: string,
+): string {
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return "";
+  const diff = Math.max(0, Date.now() - then);
+  if (diff < MIN_MS) return t("dashboard.adminWebsite.relJustNow");
+  if (diff < HOUR_MS) return interpolate(t("dashboard.adminWebsite.relMinsAgo"), { count: Math.round(diff / MIN_MS) });
+  if (diff < DAY_MS) return interpolate(t("dashboard.adminWebsite.relHoursAgo"), { count: Math.round(diff / HOUR_MS) });
+  if (diff < WEEK_MS) return interpolate(t("dashboard.adminWebsite.relDaysAgo"), { count: Math.round(diff / DAY_MS) });
+  const sameYear = new Date(then).getFullYear() === new Date().getFullYear();
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      year: sameYear ? undefined : "numeric",
+    }).format(then);
+  } catch {
+    return new Date(then).toDateString();
+  }
+}
 
 export function HeroStat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -25,6 +60,7 @@ export function HeroStat({ label, value, sub }: { label: string; value: string; 
 // an inline bar showing relative hits-7d compared to top page in the set.
 export function PageVisualCard({ page, maxHits, onClick }: { page: WebsitePageRow; maxHits: number; onClick?: () => void }) {
   const t = useT();
+  const locale = useDashboardLocale();
   const hits = page.hits7d ?? 0;
   const fillPct = maxHits > 0 ? (hits / maxHits) * 100 : 0;
   const isLive = page.status === "published";
@@ -68,8 +104,10 @@ export function PageVisualCard({ page, maxHits, onClick }: { page: WebsitePageRo
           {t("dashboard.adminWebsite.visualEditorArrow")}
         </div>
         <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", fontSize: 11 }} className="text-admin-ink-muted">
-          <span>{interpolate(t("dashboard.adminWebsite.byAuthor"), { name: page.lastEditedBy })}</span>
-          <span>{page.updatedAt}</span>
+          {/* Author resolves to a display name upstream (mergeWebsiteStateFromBridge);
+              an unresolvable/blank editor renders nothing rather than a raw UUID. */}
+          <span>{page.lastEditedBy ? interpolate(t("dashboard.adminWebsite.byAuthor"), { name: page.lastEditedBy }) : ""}</span>
+          <span>{formatPageUpdatedAt(page.updatedAt, t, locale)}</span>
         </div>
       </div>
     </button>
