@@ -28,6 +28,7 @@ import {
   quickDeletePageAction,
   quickRenamePageAction,
 } from "@/lib/server-actions/admin-site-pages-inline";
+import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
 import {
   convertLegacyHomepageToPageAction,
   readPageRolesAction,
@@ -252,6 +253,11 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   const [roleBusyId, setRoleBusyId] = useState<string | null>(null);
 
   const workspaceWebsiteHref = "/admin/website/pages";
+  const workspaceBillingHref = "/admin/account";
+  // W1-L6 — pure mapping from the picker's plan-gate availability to the
+  // copy shown inline; null means creation is allowed (or availability
+  // hasn't loaded yet), so nothing renders.
+  const addPageDenialMessage = resolveAddPageDenialMessage(availability);
 
   const loadPages = useCallback(() => {
     setLoading(true);
@@ -270,7 +276,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
         }
       })
       .catch(() => {
-        setFetchErr("Couldn't load pages — try again.");
+        setFetchErr("Couldn't load pages. Try again.");
         setPages([]);
       })
       .finally(() => setLoading(false));
@@ -287,7 +293,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
         if (!res.ok) setFetchErr(res.error);
         else loadPages();
       } catch {
-        setFetchErr("Couldn't update the page role — try again.");
+        setFetchErr("Couldn't update the page role. Try again.");
       } finally {
         setRoleBusyId(null);
       }
@@ -306,7 +312,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
       if (!res.ok) setFetchErr(res.error);
       else loadPages();
     } catch {
-      setFetchErr("Couldn't convert the homepage — try again.");
+      setFetchErr("Couldn't convert the homepage. Try again.");
     } finally {
       setConverting(false);
     }
@@ -346,12 +352,12 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   }
 
   async function handleCreatePage() {
-    if (availability && !availability.canCreatePages) {
-      setFetchErr(
-        availability.createPageHint ?? "Upgrade your plan to create additional pages.",
-      );
-      return;
-    }
+    // The plan-gate reason is always visible inline (see addPageDenialMessage
+    // below), never gated behind a click — but the button still has to
+    // ANSWER a click rather than silently doing nothing, so a click while
+    // denied just re-confirms nothing changed instead of hitting the server
+    // for a request we already know will be denied.
+    if (addPageDenialMessage) return;
     setCreating(true);
     setFetchErr(null);
     try {
@@ -370,16 +376,19 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
       } else {
         setFetchErr(result.error);
       }
+    } catch {
+      // Unexpected server-action failure (network blip, uncaught throw
+      // upstream of upsertPage's own try/catch) — surface it instead of
+      // leaving the button silently reset with no explanation.
+      setFetchErr("Couldn't create the page. Try again.");
     } finally {
       setCreating(false);
     }
   }
 
   async function handleDuplicate(sourceId: string) {
-    if (availability && !availability.canCreatePages) {
-      setFetchErr(
-        availability.createPageHint ?? "Upgrade your plan to create additional pages.",
-      );
+    if (addPageDenialMessage) {
+      setFetchErr(addPageDenialMessage);
       return;
     }
     setDuplicatingId(sourceId);
@@ -396,6 +405,8 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
         setFetchErr(result.error);
         loadPages();
       }
+    } catch {
+      setFetchErr("Couldn't duplicate the page. Try again.");
     } finally {
       setDuplicatingId(null);
     }
@@ -427,7 +438,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[10px] py-[10px]">
         <button
           type="button"
-          disabled={creating || (availability != null && !availability.canCreatePages)}
+          disabled={creating}
           onClick={() => void handleCreatePage()}
           className="mb-[8px] flex w-full cursor-pointer items-center gap-[8px] rounded-[10px] border-none px-[10px] py-[9px] text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           style={{ background: CHROME.paper2, color: CHROME.ink }}
@@ -439,6 +450,28 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
             {creating ? "Creating…" : "Add page"}
           </span>
         </button>
+
+        {/* W1-L6 — the plan gate denies additional pages on Free (server-side,
+            cmsAdditionalPageDeniedReason); shown proactively so the button
+            above is never a silent dead end, plus a real path to fix it. */}
+        {addPageDenialMessage ? (
+          <div
+            className="mb-[8px] rounded-[10px] border px-[10px] py-[9px]"
+            style={{ borderColor: CHROME.blueLine, background: CHROME.blueBg }}
+          >
+            <p className="mb-[6px] text-[12px] leading-[1.4]" style={{ color: CHROME.ink }}>
+              {addPageDenialMessage}
+            </p>
+            <Link
+              href={workspaceBillingHref}
+              target="_blank"
+              className="text-[12px] font-semibold no-underline"
+              style={{ color: CHROME.blue }}
+            >
+              Upgrade plan
+            </Link>
+          </div>
+        ) : null}
 
         <button
           type="button"
