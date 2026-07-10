@@ -3,14 +3,12 @@
 /**
  * MiniChatPanel — the talent-profile conversational-inquiry popup (Lane D / F2).
  *
- * THE UX-CRITICAL surface of the guest-chat MVP. A guest on a talent profile
- * opens this floating panel, types a first message freely (never blocked),
- * fills a one-line name+email gate, and a real inquiry is created. The thread
- * then renders live (initial load + ~4s poll) and the guest keeps chatting.
+ * THE UX-CRITICAL surface of the guest-chat MVP: floating panel, free first
+ * message, one-line name+email gate, then a live thread (initial load + ~4s
+ * poll) backed by a real inquiry.
  *
- * F4 (Lane C): the panel can be expanded in-place into a 2-pane layout via the
- * `expanded` + `onToggleExpand` local props; ExpandedChatLayout wraps
- * MiniChatPanelColumn as the right pane and adds a left conversation-list pane.
+ * F4 (Lane C): `expanded` + `onToggleExpand` switch to the 2-pane
+ * ExpandedChatLayout (conversation list left, MiniChatPanelColumn right).
  *
  * Design constraints (strategy §10 + deep-dives Part C): async-first honest
  * presence (NO fake "online now"); first message NEVER blocked (gate at send
@@ -83,6 +81,7 @@ export function MiniChatPanel({
   sourcePage,
   brand,
   existingInquiryId = null,
+  existingContactPromoted = null,
   prefill = null,
   offerings = [],
   onAttachOffering = null,
@@ -196,6 +195,7 @@ export function MiniChatPanel({
     talentProfileCode: talentProfileCode || null,
     sourcePage,
     existingInquiryId: inquiryId,
+    existingContactPromoted,
     serverIntent,
     ensureInquiry: onEnsureInquiry ?? NOOP_ENSURE_INQUIRY,
     onCaptureChip: onCaptureChip ?? NOOP_CAPTURE_CHIP,

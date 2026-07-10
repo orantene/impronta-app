@@ -175,6 +175,20 @@ test("draft resume keeps one thread + coalesced note + honest pill", async ({
       note,
       "resume must find the existing draft, not spawn a duplicate",
     ).toHaveCount(1);
+
+    // W0 follow-up: a resumed UNSENT draft keeps its DRAFT framing. The server
+    // now reports contactPromoted on resume (getActiveGuestInquiry), so the
+    // privacy banner and the "Send to agency" affordance survive the reload —
+    // previously the client assumed any resumed id was promoted and a returning
+    // guest could neither see the draft state nor send it through the gate.
+    await expect(
+      page.getByText(/Draft\. Only you can see this\./),
+      "a resumed unsent draft must keep the draft privacy banner",
+    ).toBeVisible(ASSERT);
+    await expect(
+      page.getByRole("button", { name: "Send to agency" }),
+      "a resumed unsent draft must still offer Send to agency",
+    ).toBeVisible(ASSERT);
   });
 });
 

@@ -177,6 +177,7 @@ export async function AgencyChatLauncherMount({
       }}
       label={t("public.guestChat.bookNow")}
       existingInquiryId={active?.inquiryId ?? null}
+      existingContactPromoted={active?.contactPromoted ?? null}
       prefill={active?.prefill ?? null}
       onStartInquiry={startGuestChatInquiry}
       onSendMessage={sendGuestMessageAction}

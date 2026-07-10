@@ -110,6 +110,7 @@ export function TalentProfileChatLauncher({
   sourcePage,
   brand,
   existingInquiryId = null,
+  existingContactPromoted = null,
   prefill = null,
   offerings = [],
   onAttachOffering = null,
@@ -708,6 +709,7 @@ export function TalentProfileChatLauncher({
         isHub={isHub}
         surfaceMode={surfaceMode}
         existingInquiryId={existingInquiryId}
+        existingContactPromoted={existingContactPromoted}
         prefill={prefill}
         onStartInquiry={onStartInquiry}
         onSendMessage={onSendMessage}

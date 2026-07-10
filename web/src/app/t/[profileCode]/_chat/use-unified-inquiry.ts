@@ -122,6 +122,15 @@ export type UseUnifiedInquiryArgs = {
   existingInquiryId?: string | null;
 
   /**
+   * Server-resolved truth for whether the resumed inquiry's contact is REAL
+   * (getActiveGuestInquiry → ActiveGuestInquiry.contactPromoted). Without it a
+   * resumed DRAFT was assumed promoted (ensure() never runs again for an
+   * existing id to correct the guess), which erased the draft banner + the
+   * "Send to agency" flow after a reload. Null/omitted = legacy assume-promoted.
+   */
+  existingContactPromoted?: boolean | null;
+
+  /**
    * The latest server-loaded details for this inquiry, in InquiryIntent shape.
    * Re-supplied by the panel after a realtime-driven router.refresh() so this
    * hook can reconcile inbound changes into `intent`. Optional — when omitted
@@ -284,6 +293,7 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
     talentProfileCode,
     sourcePage,
     existingInquiryId,
+    existingContactPromoted = null,
     serverIntent,
     ensureInquiry,
     onCaptureChip,
@@ -295,11 +305,14 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
   const [localIntent, setLocalIntent] = useState<InquiryIntent>(serverIntent ?? EMPTY_INTENT);
   const [syncState, setSyncState] = useState<UnifiedSyncState>("idle");
   const [fieldState, setFieldState] = useState<Record<string, UnifiedSyncState>>({});
-  // Real-contact flag (see UseUnifiedInquiryResult.contactPromoted). A returning
-  // guest resumed with an existing id may already be promoted; ensureGuestChatInquiry
-  // reports the true state, so we treat an injected existingInquiryId as promoted
-  // (it was created through the real start path) and let ensure() correct it.
-  const [contactPromoted, setContactPromoted] = useState<boolean>(Boolean(existingInquiryId));
+  // Real-contact flag (see UseUnifiedInquiryResult.contactPromoted). For a
+  // resumed id the SERVER's answer (existingContactPromoted, from
+  // getActiveGuestInquiry) is authoritative — ensure() short-circuits for
+  // existing ids and never corrects a wrong guess. Only when the mount didn't
+  // supply it (legacy callers) do we fall back to assuming promoted.
+  const [contactPromoted, setContactPromoted] = useState<boolean>(
+    existingInquiryId ? (existingContactPromoted ?? true) : false,
+  );
 
   // Subscribe to the tenant-wide realtime channels so remote edits drive a
   // refresh. Gated: the guest chat surface leaves this OFF and relies on the

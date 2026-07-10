@@ -1653,14 +1653,25 @@ export async function getActiveGuestInquiry(input: {
     if (!picked) return { ok: true, active: null };
     const chosen = picked.row;
 
+    // W0 follow-up (found by the lifecycle E2E): report whether the resumed
+    // row's contact is REAL. The panel's client state used to assume any
+    // resumed id was already promoted, which erased the draft banner + the
+    // "Send to agency" affordance on a reloaded draft — and the server send
+    // gate (W0-D) would then refuse the send with no gate shown to fix it.
+    // Seed placeholder values are also kept out of the gate prefill.
+    const contactPromoted = !isSeedContact(
+      chosen.contact_name as string | null,
+      chosen.contact_email as string | null,
+    );
     return {
       ok: true,
       active: {
         inquiryId: chosen.id as string,
         containsTalent: picked.containsTalent,
+        contactPromoted,
         prefill: {
-          name: (chosen.contact_name as string | null)?.trim() || null,
-          email: (chosen.contact_email as string | null)?.trim() || null,
+          name: contactPromoted ? (chosen.contact_name as string | null)?.trim() || null : null,
+          email: contactPromoted ? (chosen.contact_email as string | null)?.trim() || null : null,
           phone: (chosen.contact_phone as string | null)?.trim() || null,
         },
       },
