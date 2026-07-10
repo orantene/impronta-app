@@ -48,6 +48,8 @@ export type GuestDetailsControlProps = {
   onBriefChange?: (summary: string) => void;
   onContactChange?: (value: { name: string; email: string; phone: string }) => void;
   onScanConversation?: ScanGuestConversationCallback | null;
+  /** Unsent composer text, threaded down to the sheet's AI scan. */
+  composerDraft?: string;
   inquiryId: string | null;
   /** Deep-link: open the sheet when the launcher points at a section. */
   openToSection?: "talent" | null;
@@ -68,6 +70,7 @@ export function GuestDetailsControl({
   onBriefChange,
   onContactChange,
   onScanConversation = null,
+  composerDraft = "",
   inquiryId,
   openToSection = null,
   onConsumeOpenTo,
@@ -159,6 +162,7 @@ export function GuestDetailsControl({
         onBriefChange={onBriefChange}
         onContactChange={onContactChange}
         onScanConversation={onScanConversation}
+        composerDraft={composerDraft}
         inquiryId={inquiryId}
       />
     </div>

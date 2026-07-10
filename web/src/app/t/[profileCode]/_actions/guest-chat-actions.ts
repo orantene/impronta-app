@@ -56,6 +56,7 @@ import {
 import { isBlocked } from "@/lib/inquiry/recipient-safety";
 import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitGuestAutoAck } from "@/lib/inquiry/guest-auto-ack";
+import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 import { sendGuestClaimEmail } from "@/lib/inquiry/guest-claim-link";
 import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
 import {
@@ -1138,6 +1139,23 @@ export async function sendGuestMessageAction(
       return fail("forbidden", "You don't have access to this conversation.");
     }
     isRealContact = !isSeedContact(contactName, contactEmail);
+  }
+
+  // ── W2-I auto-scan: on the FIRST real send (still a draft, contact already
+  // real) run the AI conversation scan over the OUTGOING body BEFORE the
+  // insert + promotion freeze the inquiry — the only window where empty-field
+  // fills are still legal. The scan is prefiltered (no model call unless the
+  // text looks like event details), EMPTY-ONLY, and best-effort: any failure
+  // or timeout never blocks the send.
+  if (owned.inquiry.status === "draft" && isRealContact) {
+    try {
+      await scanGuestConversationForDetails({
+        inquiryId: owned.inquiry.id,
+        draftText: body,
+      });
+    } catch (scanErr) {
+      logServerError("guest-chat-actions.sendGuestMessageAction/autoScan", scanErr);
+    }
   }
 
   // Send the follow-up onto the PRIVATE/client thread — the guest IS the

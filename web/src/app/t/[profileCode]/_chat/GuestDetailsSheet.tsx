@@ -171,6 +171,8 @@ export type GuestDetailsSheetProps = {
   onContactChange?: (value: { name: string; email: string; phone: string }) => void;
   /** The AI conversation scan (fill empty fields from the chat). Null hides it. */
   onScanConversation?: ScanGuestConversationCallback | null;
+  /** The guest's unsent composer text — the scan's main input pre-send. */
+  composerDraft?: string;
   /** The inquiry the scan targets. Null hides the scan button. */
   inquiryId: string | null;
 };
@@ -191,6 +193,7 @@ export function GuestDetailsSheet({
   onBriefChange,
   onContactChange,
   onScanConversation = null,
+  composerDraft = "",
   inquiryId,
 }: GuestDetailsSheetProps) {
   const C = paletteFor(surfaceMode);
@@ -220,7 +223,7 @@ export function GuestDetailsSheet({
     setScanState("scanning");
     setScanNote(null);
     try {
-      const res = await onScanConversation({ inquiryId });
+      const res = await onScanConversation({ inquiryId, draftText: composerDraft });
       if (res.ok && res.scanned && res.filledKinds.length > 0) {
         const labels = res.filledKinds
           .map((k) => t(SECTION_LABEL_KEY[k as RowKind] ?? "public.guestChat.sectionBrief"))

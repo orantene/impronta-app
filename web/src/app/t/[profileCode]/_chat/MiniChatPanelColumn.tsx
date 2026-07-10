@@ -629,6 +629,7 @@ export function MiniChatPanelColumn({
           onBriefChange={onBriefChange}
           onContactChange={onContactChange}
           onScanConversation={onScanConversation}
+          composerDraft={draft}
           inquiryId={inquiryId}
           openToSection={railOpenToSection}
           onConsumeOpenTo={onConsumeRailOpenTo}
