@@ -86,6 +86,8 @@ export function formatBuilderNodeMutationError(input: {
   switch (input.code) {
     case "NODE_NOT_FOUND":
       return `${operationPrefix}. That block no longer exists. Refresh and retry.${detailSuffix}`;
+    case "NODE_AMBIGUOUS":
+      return `${operationPrefix}. This block has a duplicated id on the page, so it can't be changed safely. Reload the page and try again.`;
     case "NODE_KIND_NOT_DUPLICABLE":
       return `${operationPrefix}. This block can't be duplicated here; use section duplicate instead.`;
     case "PARENT_NOT_FOUND":

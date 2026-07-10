@@ -60,8 +60,11 @@ async function devSignIn(page: Page) {
 
 async function openEditor(page: Page) {
   await page.goto(`/${TENANT}?edit=1`, { waitUntil: "domcontentloaded" });
-  // Cold webpack dev compiles are slow; the editor boot can take 60-120s.
-  await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 180_000 });
+  // Cold webpack dev compiles are slow, and a shared QA machine often runs
+  // several lanes' tsc/dev servers at once — a route or client-chunk compile can
+  // stall for minutes under that load. The bigger budgets absorb the stall;
+  // no assertion is weakened.
+  await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 300_000 });
   await expect(page.getByRole("button", { name: /^publish$/i })).toBeVisible({
     timeout: 60_000,
   });
@@ -180,7 +183,7 @@ async function revertHeadingMarker(page: Page) {
   if (!/PBM_\w+/.test(cur)) return;
   await setHeadingText(page, cur.replace(/\s*PBM_\w+/g, "").trim());
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
+  await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 300_000 });
 }
 
 // --- shared, long-lived editor session (boot once; steps run serially) --------
@@ -190,17 +193,17 @@ let initialTopCount = 0;
 test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish", () => {
   // Cold webpack dev compiles are slow, so every step (and the boot hook) needs
   // a generous budget well above Playwright's 30s default.
-  test.describe.configure({ mode: "serial", timeout: 240_000 });
+  test.describe.configure({ mode: "serial", timeout: 420_000 });
   test.skip(
     !IS_LOCAL_DEV,
     "Requires a local dev server (dev-signin + QA tenant). Set PLAYWRIGHT_BASE_URL=http://localhost:<port>.",
   );
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(600_000);
     page = await browser.newPage();
     page.setDefaultTimeout(30_000);
-    page.setDefaultNavigationTimeout(180_000);
+    page.setDefaultNavigationTimeout(300_000);
     await devSignIn(page);
     await openEditor(page);
     // Self-heal any residue from an earlier aborted run BEFORE measuring the
@@ -213,7 +216,7 @@ test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish
   });
 
   test.afterAll(async () => {
-    test.setTimeout(240_000);
+    test.setTimeout(600_000);
     // Best-effort restore even if a step failed mid-flow, then release the page.
     try {
       if (page && !page.isClosed()) {
@@ -281,14 +284,14 @@ test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish
 
     // Durability: it also persists a full reload (the core regression guarantee).
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
+    await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 300_000 });
     expect(await headingText(page)).toContain(MARKER);
 
     // Revert the same way and confirm the revert repaints immediately + persists.
     await setHeadingText(page, original);
     expect(await headingText(page)).not.toContain(MARKER);
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
+    await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 300_000 });
     const reverted = await headingText(page);
     expect(reverted).not.toContain(MARKER);
     expect(reverted).toBe(original);
@@ -326,11 +329,17 @@ test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish
     expect(await headingText(page)).toBe(original);
   });
 
-  // W1-L1: deleting a section via the layers X unwrapped it, promoting its
-  // children (Stack/Row/Carousel) to page-level orphans. Quarantined until the
-  // lane lands, then flip `test.fixme` -> `test`. (In THIS environment the
-  // delete already removed the subtree cleanly; see the PR notes.)
-  test.fixme("4. deleting Hero Centered via the layers X leaves no orphan layers (W1-L1)", async () => {
+  // W1-L1 (FIXED): deleting a section via the layers X removes the whole subtree
+  // and never leaves page-level orphans. The audit's "unwrap" was a Page
+  // Structure rendering artifact: `flattenTree` hoisted a lone container root's
+  // children to depth 0, so a delete that collapsed the tree to one container
+  // root read as an unwrap. Depth is now stable (freeform-layers-tree.tsx), and
+  // removeBuilderNode refuses a duplicated id instead of guessing. The
+  // discriminating regression (a container-root sibling can't be built through
+  // the gallery UI) lives in the unit suites:
+  //   src/lib/site-admin/builder-node/operations.test.ts
+  //   src/components/edit-chrome/freeform-layers-tree.test.ts
+  test("4. deleting Hero Centered via the layers X leaves no orphan layers (W1-L1)", async () => {
     await openStructurePanel(page);
     await deleteLayerRow(page);
     await expect(topLayers(page)).toHaveCount(initialTopCount, { timeout: 30_000 });

@@ -160,8 +160,22 @@ function findFirstContainer(nodes: ReadonlyArray<BuilderNode>): BuilderNode | nu
 }
 
 /**
- * Flatten the tree to indented rows in document order. When the single root is a
- * layout wrapper container, its children start at depth 0 (not nested under it).
+ * Flatten the tree to indented rows in document order.
+ *
+ * W1-L1 — depth is a STABLE function of each node's real position in the tree:
+ * a node always renders at its true nesting level and its container always keeps
+ * its own row. This intentionally does NOT special-case "the whole page is one
+ * wrapper container" by hoisting that wrapper's children to depth 0. That hoist
+ * was keyed on `tree.length === 1`, so it flipped ON/OFF as the root count
+ * changed — and a delete that collapsed a multi-root page down to a single
+ * container root would suddenly lift THAT survivor's children to page level and
+ * hide its wrapper row. To the operator this read as "deleting a section
+ * unwrapped its children into page-level orphans" (P0, audit 2026-07-09), even
+ * though the tree data was intact and the canvas was unchanged — a pure layers
+ * panel artifact. Rendering the real nesting removes the flip entirely: deleting
+ * one node never changes where any other node appears. A lone container root
+ * still reads cleanly because `resolveLayerDisplayName` borrows the heading it
+ * wraps for the row name (not a bare "Container").
  */
 export function flattenTree(tree: BuilderNodeTree): FlattenedTree {
   const rows: LayerRow[] = [];
@@ -207,38 +221,11 @@ export function flattenTree(tree: BuilderNodeTree): FlattenedTree {
     return subtreeIds;
   };
 
-  // A freeform full-page design is usually a single wrapper container holding
-  // the whole page. Hoist its children to the top level so the list reads as a
-  // page of blocks, not one giant root. Only collapse a *container* root (it's
-  // the structural page wrapper); a lone section/block root stays visible.
-  const onlyRoot =
-    tree.length === 1 &&
-    tree[0] &&
-    tree[0].kind === "container" &&
-    "children" in tree[0] &&
-    Array.isArray(tree[0].children) &&
-    tree[0].children.length > 0
-      ? tree[0]
-      : null;
-
-  if (onlyRoot && "children" in onlyRoot && Array.isArray(onlyRoot.children)) {
-    // The hoisted wrapper has NO row of its own, so the header must target it by
-    // id + its real child kinds — else the kind-gated pill never renders. The
-    // hoisted children's real parent IS the wrapper, so the drop resolver routes
-    // a depth-0 reorder back through it (not the page root).
-    walk(onlyRoot.children, 0, onlyRoot.id, onlyRoot.kind, onlyRoot.locked === true);
-    return {
-      rows,
-      rootContainerId: onlyRoot.id,
-      rootContainerKinds: rawChildKindsForKind(onlyRoot.kind),
-      descendantsByNode,
-    };
-  }
-
   walk(tree, 0, null, null, false);
-  // No hoisted wrapper: target the first container ANYWHERE (a page may nest its
-  // only container under a section). With none, target tree root (`null`) + the
-  // container catalog so the operator can still seed a first block.
+  // The "+ Add block" header appends into the first container ANYWHERE in the
+  // tree (a page's only container may be nested under a section/wrapper). With no
+  // container at all, target the tree root (`null`) + the container catalog so
+  // the operator can still seed a first block.
   const firstContainer = findFirstContainer(tree);
   return {
     rows,

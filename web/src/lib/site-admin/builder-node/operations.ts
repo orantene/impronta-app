@@ -13,6 +13,7 @@ import { stripLockedKeysFromPatch } from "./prop-lock";
 
 export type BuilderNodeOpCode =
   | "NODE_NOT_FOUND"
+  | "NODE_AMBIGUOUS"
   | "NODE_KIND_NOT_DUPLICABLE"
   | "PARENT_NOT_FOUND"
   | "PARENT_DOES_NOT_ALLOW_CHILDREN"
@@ -250,6 +251,31 @@ function findNodeLocation(
     return null;
   }
   return walk(tree, [], null);
+}
+
+/**
+ * W1-L1 — count how many nodes in the whole tree carry `nodeId`. A healthy tree
+ * has unique ids (0 = missing, 1 = the one node). A DUPLICATED id (>1) means the
+ * tree is corrupt — classically after a bad merge / an external tree replacement
+ * on a session desync, or a clone path that failed to re-mint ids. A structural
+ * mutation keyed on that id would resolve to whichever copy `findNodeLocation`
+ * hits FIRST (document order) and silently mutate an arbitrary one — the exact
+ * "delete removed the wrong thing / looked like an unwrap" footgun. Callers use
+ * this to REFUSE the operation (surfacing a toast) instead of guessing.
+ */
+function countNodeOccurrences(
+  tree: ReadonlyArray<BuilderNode>,
+  nodeId: string,
+): number {
+  let count = 0;
+  const visit = (nodes: ReadonlyArray<BuilderNode>): void => {
+    for (const node of nodes) {
+      if (node.id === nodeId) count += 1;
+      if ("children" in node && Array.isArray(node.children)) visit(node.children);
+    }
+  };
+  visit(tree);
+  return count;
 }
 
 function getNodeByPath(
@@ -534,6 +560,25 @@ export function removeBuilderNode(input: {
   tree: BuilderNodeTree;
   nodeId: string;
 }): BuilderNodeOpResult {
+  // W1-L1 — resolve defensively. If the id is duplicated (corrupt tree), refuse
+  // rather than delete whichever copy comes first in document order: removing an
+  // arbitrary node is how a delete "removes the wrong thing" and looks like an
+  // unwrap. One clean occurrence is required.
+  const occurrences = countNodeOccurrences(input.tree, input.nodeId);
+  if (occurrences > 1) {
+    return {
+      ok: false,
+      code: "NODE_AMBIGUOUS",
+      message: `Node "${input.nodeId}" appears ${occurrences} times on this page.`,
+      issues: [
+        {
+          path: "source.nodeId",
+          message:
+            "This block can't be deleted safely because the page has a duplicated block id. Reload the page and try again.",
+        },
+      ],
+    };
+  }
   const location = findNodeLocation(input.tree, input.nodeId);
   if (!location) {
     return {
