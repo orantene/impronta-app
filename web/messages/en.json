@@ -858,6 +858,8 @@
       "sendHub": "Send",
       "sendHubNoPayment": "No payment now. We'll route your inquiry to the right people.",
       "sendHubSent": "Sent. {brand} will route your inquiry to the right people.",
+      "hubConciergeName": "{brand} Concierge",
+      "hubConciergeGreeting": "Tell us about your event and we'll line up the right talent from across our network.",
       "syncSaving": "Saving…",
       "syncSaved": "Saved",
       "syncRetry": "Couldn't save, tap to retry.",

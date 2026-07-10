@@ -41,6 +41,7 @@ import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/
 import { loadGuestChatSettings } from "@/lib/inquiry/guest-chat-settings";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 
 /**
@@ -146,7 +147,25 @@ export async function AgencyChatLauncherMount({
     loadPublicBranding(tenantId),
   ]);
 
-  const agencyName = identity?.public_name?.trim() || fallbackName;
+  // W3 — Tulala Concierge framing. On a hub host the panel identity reads
+  // "Tulala Concierge" (not the bare platform brand with a generic monogram) and
+  // the opener invites an event brief. This override flows through `brand`:
+  //   - agencyName / talentDisplayName → panel header + monogram ("T") + the
+  //     inquiry receipt / status strip ("{agency} has your inquiry"), so those
+  //     surfaces read "Tulala Concierge has your inquiry" honestly on the hub —
+  //     no new isHub prop threaded into the panel internals (parallel lane).
+  //   - greeting → the opener line in the conversation body.
+  // Agencies are unchanged: they keep their own public_name.
+  const conciergeName = interpolate(t("public.guestChat.hubConciergeName"), {
+    brand: PLATFORM_BRAND.name,
+  });
+  const agencyName = isHub
+    ? conciergeName
+    : identity?.public_name?.trim() || fallbackName;
+  // Hub opener: prefer a tenant-configured greeting, else the concierge default.
+  const greeting = isHub
+    ? settings.greeting?.trim() || t("public.guestChat.hubConciergeGreeting")
+    : settings.greeting;
   const accentColor = branding?.primary_color ?? branding?.accent_color ?? null;
   const theme =
     typeof branding?.theme_json === "object" && branding.theme_json !== null
@@ -194,7 +213,7 @@ export async function AgencyChatLauncherMount({
         talentDisplayName: agencyName,
         accentColor,
         logoUrl,
-        greeting: settings.greeting,
+        greeting,
         locale,
       }}
       label={t("public.guestChat.bookNow")}

@@ -303,6 +303,8 @@
       "sendHub": "Envoyer",
       "sendHubNoPayment": "Aucun paiement maintenant. Nous transmettrons votre demande aux bonnes personnes.",
       "sendHubSent": "Envoyé. {brand} transmettra votre demande aux bonnes personnes.",
+      "hubConciergeName": "{brand} Concierge",
+      "hubConciergeGreeting": "Parlez-nous de votre événement et nous réunirons les bons talents de tout notre réseau.",
       "syncSaving": "Enregistrement…",
       "syncSaved": "Enregistré",
       "syncRetry": "Échec de l'enregistrement, touchez pour réessayer.",
