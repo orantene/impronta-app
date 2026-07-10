@@ -24,8 +24,10 @@
  *     NOT the CMS section navigator. Page-level layers = treeitem[aria-level=1].
  *   - Seeded baseline = exactly ONE top-level layer (a container carrying the
  *     "A photograph should remember..." heading + paragraph).
- *   - Inline text commits on blur and survives a full reload (Escape discards,
- *     which is the W1-L3 defect, not exercised here).
+ *   - Inline text commits on blur, repaints the canvas IMMEDIATELY (no reload —
+ *     the W1-L3 optimistic-repaint guarantee), and survives a full reload.
+ *     Escape now ALSO commits (keeps the typed text; the old silent-discard was
+ *     the W1-L3 defect), verified in its own step below.
  *   - Delete via the layer row X removed the whole subtree cleanly in this
  *     environment; the audit saw it unwrap children into page-level orphans, so
  *     that assertion is quarantined as W1-L1 fixme until the lane lands.
@@ -130,8 +132,8 @@ async function setHeadingText(page: Page, value: string) {
   await editable.click();
   await page.keyboard.press("ControlOrMeta+a");
   await page.keyboard.type(value);
-  // Commit by clicking away from the overlay (blur). Escape would DISCARD
-  // (W1-L3), so the test deliberately never presses it.
+  // Commit by clicking away from the overlay (blur). (Escape now also commits —
+  // see the dedicated Escape step; this shared helper stays on the blur gesture.)
   await page.locator("[data-edit-topbar]").click({ position: { x: 6, y: 6 } });
   await expect(page.locator('[data-edit-overlay="canvas-edit"]'))
     .toHaveCount(0, { timeout: 15_000 })
@@ -253,24 +255,74 @@ test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish
     await waitDraftSaved(page);
   });
 
-  test("3. inline text edit commits on blur and survives a full reload", async () => {
+  test("3. inline text edit commits on blur, repaints immediately (no reload), and survives a reload", async () => {
     const original = await headingText(page);
     expect(original).not.toContain(MARKER);
+    const next = `${original} ${MARKER}`;
 
-    await setHeadingText(page, `${original} ${MARKER}`);
+    // Type + blur-commit, WITHOUT waiting for the save or reloading.
+    await openHeadingOverlay(page);
+    const editable = overlayEditable(page);
+    await editable.click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.type(next);
+    await page.locator("[data-edit-topbar]").click({ position: { x: 6, y: 6 } });
+    await expect(page.locator('[data-edit-overlay="canvas-edit"]')).toHaveCount(0, {
+      timeout: 15_000,
+    });
 
-    // Blur-commit must persist a full reload (the core regression guarantee).
+    // W1-L3 OPTIMISTIC REPAINT: the canvas shows the committed text at once —
+    // no save-settle, no reload. Before the fix it stayed stale until a full
+    // reload (the "my edit vanished" report).
+    expect(await headingText(page)).toContain(MARKER);
+
+    await waitDraftSaved(page);
+
+    // Durability: it also persists a full reload (the core regression guarantee).
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
     expect(await headingText(page)).toContain(MARKER);
 
-    // Revert the same way and confirm the revert also persists.
+    // Revert the same way and confirm the revert repaints immediately + persists.
     await setHeadingText(page, original);
+    expect(await headingText(page)).not.toContain(MARKER);
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
     const reverted = await headingText(page);
     expect(reverted).not.toContain(MARKER);
     expect(reverted).toBe(original);
+  });
+
+  test("3b. Escape commits the typed text (keeps it, does NOT silently discard)", async () => {
+    const original = await headingText(page);
+    expect(original).not.toContain(MARKER);
+
+    await openHeadingOverlay(page);
+    const editable = overlayEditable(page);
+    await editable.click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.type(`${original} ${MARKER}`);
+    // The W1-L3 fix: Escape COMMITS (keeps the text), it no longer discards.
+    await page.keyboard.press("Escape");
+    await expect(page.locator('[data-edit-overlay="canvas-edit"]')).toHaveCount(0, {
+      timeout: 15_000,
+    });
+
+    // Kept + optimistically repainted right away.
+    expect(await headingText(page)).toContain(MARKER);
+
+    await waitDraftSaved(page);
+
+    // The Escape-commit really saved: it survives a full reload.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
+    expect(await headingText(page)).toContain(MARKER);
+
+    // Restore the seeded heading for the following steps / cleanup.
+    await setHeadingText(page, original);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
+    expect(await headingText(page)).toBe(original);
   });
 
   // W1-L1: deleting a section via the layers X unwrapped it, promoting its
