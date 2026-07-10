@@ -35,65 +35,23 @@ import { interpolate } from "@/i18n/interpolate";
 
 import type { StreamRow } from "./MiniChatMessageBubble";
 
-import { ClaimEmailRecap } from "./ClaimEmailRecap";
 import { ConversationStatusStrip } from "./ConversationStatusStrip";
-import { DraftPrivacyBanner } from "./DraftPrivacyBanner";
-import { GuestAccountToolkit } from "./GuestAccountToolkit";
+import { GuestConversationBody } from "./GuestConversationBody";
 import { GuestDetailChips } from "./GuestDetailChips";
-import { InquiryDetailsRail } from "./InquiryDetailsRail";
+import { GuestDetailChipRow } from "./GuestDetailChipRow";
 import { GuestPanelHeader } from "./GuestPanelHeader";
 import { GuestPanelHeaderExtras } from "./GuestPanelHeaderExtras";
-import { InquiryReceiptCard } from "./InquiryReceiptCard";
 import { MiniChatComposer } from "./MiniChatComposer";
 import { MiniChatGateForm } from "./MiniChatGateForm";
-import { MiniChatMessageBubble } from "./MiniChatMessageBubble";
-import { NewMessagePulse } from "./NewMessagePulse";
+import { OfferingQuickPicker, type ChatOffering } from "./OfferingQuickPicker";
 import { OpenFullConversationLink } from "./OpenFullConversationLink";
 import { SendToAgencyBar } from "./SendToAgencyBar";
-import { SentAirlock } from "./SentAirlock";
-import { TrustGateNudge } from "./TrustGateNudge";
+import { buildGateLineupRecap } from "./guest-gate-lineup-recap";
 import {
   EMAIL_RE,
-  FONT_DISPLAY,
-  firstNameOf,
   paletteFor,
   type SurfaceMode,
 } from "./mini-chat-styles";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Phase 6 — gate lineup recap
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Build the quiet contact-gate recap line anchoring the value of the ask, e.g.
- * "We will use this to send you {agency} reply about {Jane, +2}". Lists the
- * lineup talent FIRST names with a +N overflow (max two named, then +remaining).
- * Returns null when the lineup is empty so the gate renders without a recap.
- */
-function buildGateLineupRecap(
-  cartTalentNames: string[],
-  agencyName: string,
-  t: (key: string) => string,
-): string | null {
-  const names = cartTalentNames
-    .map((n) => firstNameOf(n))
-    .filter((n) => n.length > 0);
-  if (names.length === 0) return null;
-
-  const MAX_NAMED = 2;
-  const namedList =
-    names.length > MAX_NAMED
-      ? interpolate(t("public.guestChat.gateRecapOverflow"), {
-          names: names.slice(0, MAX_NAMED).join(", "),
-          count: names.length - MAX_NAMED,
-        })
-      : names.join(", ");
-
-  return interpolate(t("public.guestChat.gateRecapOne"), {
-    agency: agencyName || t("public.guestChat.sectionTalent"),
-    names: namedList,
-  });
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Props
@@ -176,17 +134,17 @@ export type MiniChatPanelColumnProps = {
   /** Kinds a remote edit just changed, for the accent flash (P1-T3). */
   chipRemoteFlashKinds?: GuestChipKind[];
   /**
-   * Finding #3: the panel-level sync state, folded into the DraftPrivacyBanner's
-   * sub-line so failed Talent / Brief / Contact writes are visible while the
-   * inquiry is a private draft (the rail editors close on submit).
+   * Finding #3: the panel-level sync state, folded into the header draft lock
+   * chip's sub-text so failed writes are visible while the inquiry is a private
+   * draft (Wave 1 subsumed the old DraftPrivacyBanner band into the header).
    */
   syncState?: UnifiedSyncState;
-  /** Re-run the last failed patch (the draft banner's retry action). */
+  /** Re-run the last failed patch (the draft lock chip's retry action). */
   onRetrySync?: () => void;
   /**
    * Jon 360 Phase 1: the inquiry is a private draft (an early row exists but the
    * contact is not yet promoted, so nothing has reached the agency). Drives the
-   * DraftPrivacyBanner, which subsumes the old SyncStatusBar save states.
+   * header draft lock chip (Wave 1; formerly the DraftPrivacyBanner band).
    */
   inquiryRecordExists?: boolean;
   /** Whether the inquiry's contact has been promoted (real send happened). */
@@ -266,6 +224,14 @@ export type MiniChatPanelColumnProps = {
    * SendToAgencyBar copy so the send button + notes drop the agency framing.
    */
   isHub?: boolean;
+  /**
+   * W1-G: the talent's services, rendered as the OfferingQuickPicker strip ABOVE
+   * the composer inside the column (moved in from MiniChatPanel's outer div, where
+   * it was clipped below the rounded footer). Empty array hides the strip.
+   */
+  offerings?: ChatOffering[];
+  /** Pick a service: prefill the composer + attach it to the inquiry. */
+  onPickOffering?: (o: ChatOffering) => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
 };
 
@@ -349,6 +315,8 @@ export function MiniChatPanelColumn({
   onToggleExpand,
   identity,
   isHub = false,
+  offerings = [],
+  onPickOffering,
   textareaRef,
 }: MiniChatPanelColumnProps) {
   // Guest UI locale rides along on `brand` (resolved server-side from the
@@ -372,35 +340,14 @@ export function MiniChatPanelColumn({
     !showGate &&
     !showSentAirlock;
 
-  // Addendum A details rail — the canonical synced "form view". ONE element,
-  // mounted per mode: compact -> FLOATS over the conversation (collapsed icon
-  // strip / expanded overlay) so it never stacks below the thread and pushes it
-  // up; two-pane -> in-flow below the body (rendered further down).
-  const detailsRail =
-    !showGate && extrasEnabled && inquiryIntent ? (
-      <InquiryDetailsRail
-        intent={inquiryIntent}
-        accent={accent}
-        accentInk={accentInk}
-        tenantSlug={tenantSlug}
-        t={t}
-        onListRoster={onListRoster}
-        capturedValues={capturedChipValues}
-        defaultCollapsed={!expanded}
-        bounded={!expanded}
-        floating={!expanded}
-        surfaceMode={surfaceMode}
-        openToSection={railOpenToSection}
-        onConsumeOpenTo={onConsumeRailOpenTo}
-        onPatchChip={(kind, value) => {
-          if (onPatchChip) void onPatchChip(kind, value);
-        }}
-        onTalentChange={(ids, mode, names) => onTalentChange?.(ids, mode, names)}
-        onBriefChange={(summary) => onBriefChange?.(summary)}
-        onContactChange={(value) => onContactChange?.(value)}
-      />
-    ) : null;
-  const compactRailFloating = !expanded && detailsRail !== null;
+  // Wave 1 (W1-B): the InquiryDetailsRail is retired. Details are now a horizontal
+  // chip row above the composer (GuestDetailChipRow, rendered in the composer band
+  // below) in BOTH the compact panel and the expanded right pane, so the
+  // conversation is the only vertical grower and nothing floats over the thread.
+  const showChipRow = !showGate && extrasEnabled && inquiryIntent !== null;
+  // The SendToAgencyBar is showing (an un-sent draft) whenever the parent supplies
+  // onSendToAgency; the save-card must not co-render with it (P1-10).
+  const sendBarActive = !showGate && extrasEnabled && Boolean(onSendToAgency);
 
   return (
     <>
@@ -416,6 +363,9 @@ export function MiniChatPanelColumn({
         threadStatus={threadStatus}
         typicalReply={typicalReply}
         receipt={receipt}
+        isPrivateDraft={isPrivateDraft}
+        syncState={syncState}
+        onRetrySync={onRetrySync}
         t={t}
         onClose={onClose}
       />
@@ -436,167 +386,34 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {/* ── Jon 360 Phase 1: draft-privacy banner (above the thread) ───────
-          Shown only while the inquiry is a private draft (early row exists, not
-          yet sent). Subsumes the old SyncStatusBar: the three save states fold
-          into its sub-line. */}
-      {isPrivateDraft && (
-        <DraftPrivacyBanner
-          agencyName={brand.agencyName}
-          syncState={syncState}
-          t={t}
-          onRetry={onRetrySync}
-          surfaceMode={surfaceMode}
-        />
-      )}
-
-      {/* ── Conversation area: floating details rail (compact) + body ────── */}
-      <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", minWidth: 0 }}>
-        {/* Compact: the rail floats over the conversation (collapsed left strip /
-            expanded overlay) so it never stacks below + pushes the thread up. */}
-        {compactRailFloating && detailsRail}
-        <div
-          ref={scrollRef}
-          style={{
-            // position:relative anchors the SENT airlock overlay to the body box.
-            position: "relative",
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-            padding: "14px 14px 6px",
-            // Clear the floating left rail strip (48px) when it is present.
-            paddingLeft: compactRailFloating ? 60 : 14,
-            display: "flex",
-            flexDirection: "column",
-            gap: 9,
-            background: C.surface,
-          }}
-        >
-        {/* Jon 360 Phase 1: SENT airlock — non-blocking overlay on a real send. */}
-        {showSentAirlock && (
-          <SentAirlock
-            agencyName={brand.agencyName}
-            accent={accent}
-            t={t}
-            surfaceMode={surfaceMode}
-          />
-        )}
-
-        <NewMessagePulse active={pulseActive} accent={accent} />
-
-        {/* Jon 360 Phase 2: the SENT->RECEIVED receipt, pinned as the FIRST item
-            of the now-shared thread. It replaces the assistant greeting opener
-            once sent (the greeting is a pre-send affordance), and the server has
-            already suppressed the thin auto-ack bubble in its favor. */}
-        {receipt ? (
-          <InquiryReceiptCard
-            receipt={receipt}
-            agencyName={brand.agencyName}
-            accent={accent}
-            t={t}
-            locale={brand.locale ?? "en"}
-            surfaceMode={surfaceMode}
-          />
-        ) : (
-          <div
-            style={{
-              alignSelf: "flex-start",
-              maxWidth: "88%",
-              background: C.surfaceCool,
-              color: C.ink,
-              borderRadius: "14px 14px 14px 4px",
-              padding: "11px 14px",
-              // Jon 360 Phase 7 — the greeting is agency identity copy, so it
-              // takes the editorial serif (display axis); subsequent thread
-              // bubbles stay system-sans.
-              fontFamily: FONT_DISPLAY,
-              fontSize: 14.5,
-              lineHeight: 1.5,
-            }}
-          >
-            {/* Talent-pick-first lead (empty cart, plan §B.2): steer the visitor to
-                pick specific talent OR let the agency recommend. The Talent section
-                auto-opens below (railOpenToSection="talent"), exposing the roster
-                search + "Let the agency recommend". Otherwise the normal opener. */}
-            {talentPickFirst
-              ? t("public.guestChat.greetingTalentPickFirst")
-              : brand.greeting?.trim()
-                ? brand.greeting.trim()
-                : interpolate(t("public.guestChat.greetingDefault"), {
-                    name: talentFirst,
-                  })}
-          </div>
-        )}
-
-        {rows.map((m) => (
-          <MiniChatMessageBubble
-            key={m.id}
-            m={m}
-            accent={accent}
-            locale={brand.locale ?? "en"}
-            surfaceMode={surfaceMode}
-          />
-        ))}
-
-        {limitNudge && limitNudge.tier !== "account" && (
-          <TrustGateNudge
-            tier={limitNudge.tier}
-            activeCount={limitNudge.activeCount}
-            limit={limitNudge.limit}
-            accent={accent}
-            accentInk={accentInk}
-            surfaceMode={surfaceMode}
-            canVerify={
-              Boolean(onAddClaimEmail) &&
-              Boolean(inquiryId) &&
-              Boolean(guestContactEmail)
-            }
-            onVerifyEmail={() => {
-              const addr = guestContactEmail;
-              if (onAddClaimEmail && inquiryId && addr) {
-                void onAddClaimEmail({ inquiryId, email: addr });
-              }
-            }}
-          />
-        )}
-
-        {emailedTo && (
-          <ClaimEmailRecap
-            emailedTo={emailedTo}
-            inquiryId={inquiryId}
-            accent={accent}
-            accentInk={accentInk}
-            onAddClaimEmail={onAddClaimEmail}
-            surfaceMode={surfaceMode}
-          />
-        )}
-
-        {inquiryId && (
-          <GuestAccountToolkit
-            inquiryId={inquiryId}
-            guestEmail={guestContactEmail}
-            identity={
-              guestContactEmail
-                ? identity === "guest"
-                  ? "identified"
-                  : identity
-                : identity
-            }
-            accent={accent}
-            accentInk={accentInk}
-            onAddClaimEmail={onAddClaimEmail}
-            onCheckClaimEmail={onCheckClaimEmail}
-            onGuestEmailUpdated={onGuestEmailUpdated}
-            surfaceMode={surfaceMode}
-            deemphasizeButton={
-              threadStatus === "offer_pending" ||
-              threadStatus === "approved" ||
-              threadStatus === "booked"
-            }
-          />
-        )}
-        </div>
-      </div>
+      {/* ── Conversation area (the ONLY vertical grower). The old floating
+          details rail is gone; details live in the chip row below the thread.
+          The draft-privacy state is now a one-line lock chip in the header. ── */}
+      <GuestConversationBody
+        scrollRef={scrollRef}
+        C={C}
+        showSentAirlock={showSentAirlock}
+        brand={brand}
+        accent={accent}
+        accentInk={accentInk}
+        t={t}
+        surfaceMode={surfaceMode}
+        pulseActive={pulseActive}
+        receipt={receipt}
+        talentPickFirst={talentPickFirst}
+        talentFirst={talentFirst}
+        rows={rows}
+        limitNudge={limitNudge}
+        onAddClaimEmail={onAddClaimEmail}
+        onCheckClaimEmail={onCheckClaimEmail}
+        inquiryId={inquiryId}
+        guestContactEmail={guestContactEmail}
+        emailedTo={emailedTo}
+        onGuestEmailUpdated={onGuestEmailUpdated}
+        identity={identity}
+        threadStatus={threadStatus}
+        sendBarActive={sendBarActive}
+      />
 
       {/* ── Inline gate ─────────────────────────────────────────────────── */}
       {showGate && (
@@ -660,15 +477,10 @@ export function MiniChatPanelColumn({
         </div>
       )}
 
-      {/* ── U4 / P1: detail chips ────────────────────────────────────────── */}
-      {/* Unified path (onPatchChip): chips are live even BEFORE an inquiryId so
-          the first Date/Location commit lazily creates the early-partial row.
-          Legacy path: chips only after an inquiry exists + a direct capture.
-          Finding #1: when extrasEnabled the InquiryDetailsRail (below) is the
-          SINGLE detail surface — it re-exposes the same 5 kinds with its own
-          editor, so rendering the chip row too would duplicate every editor in a
-          380px panel. Suppress the chips there; show them only as the compact
-          quick-edit on the legacy (no-rail) path. */}
+      {/* ── U4 / P1: LEGACY detail chips (no unified inquiry) ─────────────── */}
+      {/* Legacy path only (no onEnsureInquiry): chips after an inquiry exists +
+          a direct capture. The unified (extrasEnabled) path uses GuestDetailChipRow
+          below the conversation instead — the single detail surface. */}
       {!showGate && !extrasEnabled && (onPatchChip || (inquiryId && onCaptureChip)) && (
         <GuestDetailChips
           inquiryId={inquiryId}
@@ -694,10 +506,10 @@ export function MiniChatPanelColumn({
           }}
           onAddMoreDetails={
             // #683: /client/messages requires an authenticated client, so a guest
-            // would 404 there; hide the escalation for guests. Addendum A: when the
-            // unified rail (InquiryDetailsRail, below) is the canonical detail
-            // surface (extrasEnabled), suppress the chip escalation too. Only the
-            // legacy non-guest path keeps the deep-link to the full form.
+            // would 404 there; hide the escalation for guests. When extrasEnabled
+            // the GuestDetailChipRow is the canonical detail surface, so this
+            // legacy chip block never renders there anyway; only the legacy
+            // non-guest path keeps the deep-link to the full form.
             identity === "guest" || extrasEnabled
               ? undefined
               : () => {
@@ -709,15 +521,6 @@ export function MiniChatPanelColumn({
           }
         />
       )}
-
-      {/* ── Addendum A: inquiry-details rail. The compact panel floats it over
-          the conversation (rendered above); the two-pane renders it in-flow
-          here below the body. Same element, positioned per mode. ──────────── */}
-      {expanded && detailsRail}
-
-      {/* Sync status (finding #3) is now subsumed by the DraftPrivacyBanner above
-          the thread, which folds the saving / saved / error states into its
-          sub-line while the inquiry is a private draft. */}
 
       {/* Jon 360 CONVERSATION strip: "whose turn / what is next", above the
           composer; self-gates to the post-send window (see component). */}
@@ -732,6 +535,44 @@ export function MiniChatPanelColumn({
         t={t}
         surfaceMode={surfaceMode}
       />
+
+      {/* ── W1-B: detail chip row (unified path). The single detail surface,
+          above the composer in BOTH compact + expanded. Each chip opens its
+          editor in a bottom sheet (GuestDetailBottomSheet). ──────────────── */}
+      {showChipRow && inquiryIntent && (
+        <GuestDetailChipRow
+          intent={inquiryIntent}
+          accent={accent}
+          accentInk={accentInk}
+          t={t}
+          surfaceMode={surfaceMode}
+          tenantSlug={tenantSlug}
+          capturedValues={capturedChipValues}
+          fieldState={chipFieldState}
+          remoteFlashKinds={chipRemoteFlashKinds}
+          onListRoster={onListRoster}
+          onPatchChip={(kind, value) => {
+            if (onPatchChip) void onPatchChip(kind, value);
+          }}
+          onTalentChange={onTalentChange}
+          onBriefChange={onBriefChange}
+          onContactChange={onContactChange}
+          openToSection={railOpenToSection}
+          onConsumeOpenTo={onConsumeRailOpenTo}
+        />
+      )}
+
+      {/* ── W1-G: services strip, above the composer, inside the palette. ─── */}
+      {!showGate && onPickOffering && offerings.length > 0 && (
+        <OfferingQuickPicker
+          offerings={offerings}
+          locale={brand.locale ?? "en"}
+          t={t}
+          surfaceMode={surfaceMode}
+          onPick={onPickOffering}
+        />
+      )}
+
       {/* ── Composer ─────────────────────────────────────────────────────── */}
       {!showGate && (
         <MiniChatComposer

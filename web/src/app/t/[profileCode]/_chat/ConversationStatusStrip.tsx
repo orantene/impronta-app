@@ -119,9 +119,16 @@ export function ConversationStatusStrip({
     !isCrossAgency && receipt?.coordinator
       ? firstNameOf(receipt.coordinator.displayName)
       : "";
-  // Who the next step belongs to / who is being reassured. Prefer the named
-  // coordinator; fall back to the agency name.
-  const actor = coordinatorFirst || resolvedAgency;
+  // Who the next step belongs to / who is being reassured. A bare first name
+  // ("Oran is on it") reads as a stranger, so when we have a named coordinator
+  // qualify them with the agency ("Oran from Impronta"); otherwise fall back to
+  // the agency name alone (P1-12).
+  const actor = coordinatorFirst
+    ? interpolate(t("public.guestChat.stripActorFromAgency"), {
+        first: coordinatorFirst,
+        agency: resolvedAgency,
+      })
+    : resolvedAgency;
 
   const baseWrap = {
     display: "flex",
