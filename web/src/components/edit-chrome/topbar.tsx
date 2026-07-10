@@ -11,6 +11,8 @@ import {
   saveCustomBreakpoints,
   type BuilderBreakpoint,
 } from "./breakpoint-registry";
+import { useAdvancedMode } from "./advanced-mode";
+import { visibleViewportTiers } from "./advanced-mode-visibility";
 
 /**
  * EditTopBar — mission control bar for the canvas editor.
@@ -1081,13 +1083,6 @@ const VIEWPORT_OPTS: ReadonlyArray<{
   },
 ];
 
-/** Mockup topbar shows Desktop · Tablet · Mobile only (icon toggles). */
-const MOCKUP_VIEWPORT_KEYS: readonly EditDevice[] = [
-  "desktop",
-  "tablet",
-  "mobile",
-];
-
 function viewportTierActive(device: EditDevice, key: EditDevice): boolean {
   if (device === key) return true;
   return key === "desktop" && (device === "wide" || device === "compact");
@@ -1255,6 +1250,7 @@ function ViewportSwitcher({
 }) {
   const mobileEditAvailable = typeof setMobileEditMode === "function";
   const breakpoints = useBuilderBreakpoints();
+  const { advanced } = useAdvancedMode();
   // Picking a tier: Mobile enters the editing mode; the others exit it. When no
   // mode plumbing is present, this is exactly the old `setDevice`.
   const selectTier = (key: EditDevice) => {
@@ -1267,17 +1263,20 @@ function ViewportSwitcher({
     }
     setDevice(key);
   };
-  // The frame tools (#17) only make sense on a non-desktop device frame, and
-  // only when the context setters are present.
+  // The frame tools (#17) — custom width + landscape — are a power-user surface:
+  // available only on a non-desktop frame, only with the context setters, AND
+  // only when Advanced is ON (W2-C4). The core per-breakpoint editing stays.
   const frameToolsAvailable =
+    advanced &&
     device !== "desktop" &&
     previewFrame != null &&
     typeof setPreviewFrameWidth === "function" &&
     typeof togglePreviewRotated === "function";
 
-  const visibleOpts = VIEWPORT_OPTS.filter((opt) =>
-    MOCKUP_VIEWPORT_KEYS.includes(opt.key),
-  );
+  // W2-C4 — default (Advanced OFF) shows Desktop · Tablet · Mobile; Advanced ON
+  // adds Wide + Compact. Order follows the canonical VIEWPORT_OPTS list.
+  const visibleTierKeys = new Set(visibleViewportTiers(advanced));
+  const visibleOpts = VIEWPORT_OPTS.filter((opt) => visibleTierKeys.has(opt.key));
 
   return (
     <div className="inline-flex shrink-0 items-center gap-2">
