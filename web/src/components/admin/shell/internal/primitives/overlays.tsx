@@ -136,6 +136,7 @@ export function Popover({
 // Detects browser offline/online events and shows a sticky banner.
 
 export function OfflineBanner() {
+  const copy = useDashboardText();
   // Always start `false` so the server-rendered HTML and the client's first
   // paint agree. We sync the real `navigator.onLine` state in the effect
   // below — matters because on the client this component mounts BEFORE
@@ -182,7 +183,7 @@ export function OfflineBanner() {
       }}
     >
       <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: "#f87171", flexShrink: 0 }} />
-      Connection lost · retrying…
+      {copy.t("Connection lost · retrying…")}
       <button
         type="button"
         onClick={() => { setRetrying(true); setTimeout(() => setRetrying(false), 1500); }}
@@ -199,7 +200,7 @@ export function OfflineBanner() {
           cursor: "pointer",
         }}
       >
-        {retrying ? "Retrying…" : "Retry now"}
+        {retrying ? copy.t("Retrying…") : copy.t("Retry now")}
       </button>
     </div>
   );

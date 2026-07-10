@@ -597,20 +597,24 @@ function BottomActionFab() {
   // mixes "create X" actions with "go to Y" jumps in one filterable list,
   // replacing the legacy Cmd-K palette's separate sections.
   type Item = { id: string; label: string; sub: string; icon: AdminShellIconName; shortcut?: string; canDo: boolean; run: () => void };
+  // Palette rows are translated at CONSTRUCTION (not render) so the query
+  // filter below matches what the user actually sees in ES.
+  const goTo = (label: string) =>
+    copy.isSpanish ? `Ir a ${copy.t(label)}` : `Go to ${label}`;
   const items: Item[] = (() => {
     if (state.surface === "talent") {
       const create: Item[] = [
-        { id: "block-dates",    label: "Block dates",     sub: "Mark days you're not available",    icon: "calendar", canDo: true,
+        { id: "block-dates",    label: copy.t("Block dates"), sub: copy.t("Mark days you're not available"),    icon: "calendar", canDo: true,
           run: () => openDrawer("talent-block-dates") },
-        { id: "edit-profile",   label: "Edit profile",     sub: "Update photos, bio, rates",         icon: "user",     canDo: true,
+        { id: "edit-profile",   label: copy.t("Edit profile"), sub: copy.t("Update photos, bio, rates"),         icon: "user",     canDo: true,
           run: () => openDrawer("talent-profile-edit") },
-        { id: "polaroids",      label: "Add polaroids",    sub: "Front · side · back · smile",       icon: "plus",     canDo: true,
+        { id: "polaroids",      label: copy.t("Add polaroids"), sub: copy.t("Front · side · back · smile"),       icon: "plus",     canDo: true,
           run: () => openDrawer("talent-profile-edit", { mode: "edit-self", section: "polaroids" }) },
       ];
       const nav: Item[] = (Object.keys(TALENT_PAGE_META) as Array<keyof typeof TALENT_PAGE_META>).map((p) => ({
         id: `nav-talent-${p}`,
-        label: `Go to ${TALENT_PAGE_META[p].label}`,
-        sub: "Talent surface",
+        label: goTo(TALENT_PAGE_META[p].label),
+        sub: copy.t("Talent surface"),
         icon: "arrow-right",
         canDo: true,
         run: () => setTalentPage(p),
@@ -619,15 +623,15 @@ function BottomActionFab() {
     }
     if (state.surface === "client") {
       const create: Item[] = [
-        { id: "new-inquiry",    label: "Send an inquiry",  sub: "Brief us — we'll reply in <2h",     icon: "plus",     canDo: true,
+        { id: "new-inquiry",    label: copy.t("Send an inquiry"), sub: copy.t("Brief us — we'll reply in <2h"),     icon: "plus",     canDo: true,
           run: () => openDrawer("client-send-inquiry") },
-        { id: "shortlist",      label: "Build a shortlist", sub: "Save talent + share a brief",       icon: "team",     canDo: true,
+        { id: "shortlist",      label: copy.t("Build a shortlist"), sub: copy.t("Save talent + share a brief"),       icon: "team",     canDo: true,
           run: () => openDrawer("client-new-shortlist") },
       ];
       const nav: Item[] = (Object.keys(CLIENT_PAGE_META) as Array<keyof typeof CLIENT_PAGE_META>).map((p) => ({
         id: `nav-client-${p}`,
-        label: `Go to ${CLIENT_PAGE_META[p].label}`,
-        sub: "Client surface",
+        label: goTo(CLIENT_PAGE_META[p].label),
+        sub: copy.t("Client surface"),
         icon: "arrow-right",
         canDo: true,
         run: () => setClientPage(p),
@@ -636,15 +640,15 @@ function BottomActionFab() {
     }
     if (state.surface === "platform") {
       const create: Item[] = [
-        { id: "new-tenant",     label: "New tenant",       sub: "Onboard an agency or hub",          icon: "plus",     canDo: true,
+        { id: "new-tenant",     label: copy.t("New tenant"), sub: copy.t("Onboard an agency or hub"),          icon: "plus",     canDo: true,
           run: () => toast("Open tenant intake") },
-        { id: "ops",            label: "Operations alerts", sub: "Cross-tenant flags",                icon: "info",     canDo: true,
+        { id: "ops",            label: copy.t("Operations alerts"), sub: copy.t("Cross-tenant flags"),                icon: "info",     canDo: true,
           run: () => toast("Open operations") },
       ];
       const nav: Item[] = (Object.keys(PLATFORM_PAGE_META) as Array<keyof typeof PLATFORM_PAGE_META>).map((p) => ({
         id: `nav-platform-${p}`,
-        label: `Go to ${PLATFORM_PAGE_META[p].label}`,
-        sub: "Platform surface",
+        label: goTo(PLATFORM_PAGE_META[p].label),
+        sub: copy.t("Platform surface"),
         icon: "arrow-right",
         canDo: true,
         run: () => setPlatformPage(p),
@@ -653,25 +657,25 @@ function BottomActionFab() {
     }
     // workspace (default)
     const create: Item[] = [
-      { id: "new-inquiry",    label: "New inquiry",       sub: "Capture a lead from a client",        icon: "plus",     shortcut: "G I", canDo: meetsRole(state.role, "manager") || state.plan === "free",
+      { id: "new-inquiry",    label: copy.t("New inquiry"), sub: copy.t("Capture a lead from a client"),        icon: "plus",     shortcut: "G I", canDo: meetsRole(state.role, "manager") || state.plan === "free",
         run: () => openDrawer("new-inquiry") },
-      { id: "new-booking",    label: "New booking",       sub: "Confirmed job — skip the inquiry",    icon: "calendar", shortcut: "G B", canDo: meetsRole(state.role, "manager"),
+      { id: "new-booking",    label: copy.t("New booking"), sub: copy.t("Confirmed job — skip the inquiry"),    icon: "calendar", shortcut: "G B", canDo: meetsRole(state.role, "manager"),
         run: () => openDrawer("new-booking") },
-      { id: "new-talent",     label: "Add talent",        sub: "Create a roster profile",             icon: "user",     shortcut: "G T", canDo: meetsRole(state.role, "editor"),
+      { id: "new-talent",     label: copy.t("Add talent"), sub: copy.t("Create a roster profile"),             icon: "user",     shortcut: "G T", canDo: meetsRole(state.role, "editor"),
         run: () => openDrawer("new-talent") },
-      { id: "new-client",     label: "Add client",        sub: "Track a relationship",                icon: "team",     shortcut: "G C", canDo: meetsRole(state.role, "manager") && state.plan !== "free",
+      { id: "new-client",     label: copy.t("Add client"), sub: copy.t("Track a relationship"),                icon: "team",     shortcut: "G C", canDo: meetsRole(state.role, "manager") && state.plan !== "free",
         run: () => openDrawer("client-profile", { id: "new" }) },
-      { id: "invite-team",    label: "Invite teammate",   sub: "Manager or editor",                   icon: "plus",     shortcut: "G U", canDo: meetsRole(state.role, "admin"),
+      { id: "invite-team",    label: copy.t("Invite teammate"), sub: copy.t("Manager or editor"),                   icon: "plus",     shortcut: "G U", canDo: meetsRole(state.role, "admin"),
         run: () => openDrawer("team") },
-      { id: "snippets",       label: "New snippet",       sub: "Reusable reply for the composer",     icon: "plus",     shortcut: "G S", canDo: meetsRole(state.role, "manager"),
+      { id: "snippets",       label: copy.t("New snippet"), sub: copy.t("Reusable reply for the composer"),     icon: "plus",     shortcut: "G S", canDo: meetsRole(state.role, "manager"),
         run: () => openDrawer("inbox-snippets") },
-      { id: "share-card",     label: "Share talent",      sub: "Send a client-facing standalone link", icon: "plus",    shortcut: "G H", canDo: meetsRole(state.role, "manager"),
+      { id: "share-card",     label: copy.t("Share talent"), sub: copy.t("Send a client-facing standalone link"), icon: "plus",    shortcut: "G H", canDo: meetsRole(state.role, "manager"),
         run: () => openDrawer("talent-share-card") },
     ];
     const nav: Item[] = WORKSPACE_PAGES.map((p) => ({
       id: `nav-ws-${p}`,
-      label: `Go to ${PAGE_META[p]?.label ?? p}`,
-      sub: PAGE_META[p]?.description ?? "Workspace surface",
+      label: goTo(PAGE_META[p]?.label ?? p),
+      sub: copy.t(PAGE_META[p]?.description ?? "Workspace surface"),
       icon: "arrow-right",
       canDo: true,
       run: () => setPage(p),

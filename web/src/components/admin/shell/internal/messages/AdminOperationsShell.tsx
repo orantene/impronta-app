@@ -5,6 +5,7 @@ import { DemoBadge } from "@/components/demo-badge";
 import { isFixtureInquiryId } from "@/lib/fixtures/is-fixture-id";
 import { useAdminShell, RICH_INQUIRIES, COLORS, FONTS, type RichInquiry } from "../state";
 import { Avatar, ClientTrustBadge } from "../primitives";
+import { useDashboardText } from "../dashboard-i18n";
 import { AdminInboxList } from "./admin-1";
 import { AdminInquiryDetail } from "./admin-2";
 import { EmptyDetail } from "./client-1";
@@ -296,6 +297,8 @@ export function AdminOperationsShell() {
 export function AdminInquiryRow({
   inquiry, active, onClick, hideNeedsYouChip,
 }: { inquiry: RichInquiry; active: boolean; onClick: () => void; hideNeedsYouChip: boolean }) {
+  const copy = useDashboardText();
+  const es = copy.isSpanish;
   const totalUnread = inquiry.unreadGroup + inquiry.unreadPrivate;
   const allTalents = inquiry.requirementGroups.flatMap(g => g.talents);
   const lineupTotal = allTalents.length;
@@ -336,28 +339,40 @@ export function AdminInquiryRow({
     // Operational next-action verb prefix when this row needs me.
     if (surfaceNeedsMe) {
       if (inquiry.stage === "submitted" || inquiry.stage === "draft")
-        return `→ Add talent · ${lineupTotal === 0 ? "shortlist empty" : `${lineupAccepted}/${lineupTotal} accepted`}`;
+        return es
+          ? `→ Agregar talento · ${lineupTotal === 0 ? "selección vacía" : `${lineupAccepted}/${lineupTotal} aceptaron`}`
+          : `→ Add talent · ${lineupTotal === 0 ? "shortlist empty" : `${lineupAccepted}/${lineupTotal} accepted`}`;
       if (inquiry.stage === "coordination" && lineupAccepted < lineupTotal)
-        return `→ Nudge talent · ${lineupTotal - lineupAccepted} not responded`;
+        return es
+          ? `→ Recordar al talento · ${lineupTotal - lineupAccepted} sin responder`
+          : `→ Nudge talent · ${lineupTotal - lineupAccepted} not responded`;
       if (inquiry.stage === "coordination")
-        return "→ Draft offer · lineup confirmed";
+        return es ? "→ Redactar oferta · selección confirmada" : "→ Draft offer · lineup confirmed";
       if (inquiry.stage === "offer_pending")
         return inquiry.offer?.total
-          ? `→ Awaiting client · offer ${inquiry.offer.total}`
-          : "→ Awaiting client decision";
+          ? (es ? `→ Esperando al cliente · oferta ${inquiry.offer.total}` : `→ Awaiting client · offer ${inquiry.offer.total}`)
+          : (es ? "→ Esperando la decisión del cliente" : "→ Awaiting client decision");
       if (lastMsg && !lastMsg.isYou)
-        return `→ Reply to client · "${(lastMsg.body || "").slice(0, 48)}"`;
+        return es
+          ? `→ Responder al cliente · "${(lastMsg.body || "").slice(0, 48)}"`
+          : `→ Reply to client · "${(lastMsg.body || "").slice(0, 48)}"`;
     }
-    if (inquiry.stage === "draft")          return "Draft · not yet sent to talent";
-    if (inquiry.stage === "submitted")      return "Inviting talent to the shortlist";
-    if (inquiry.stage === "coordination")   return lineupAccepted < lineupTotal ? `Coordinating · ${lineupAccepted}/${lineupTotal} confirmed` : "All talent confirmed · drafting offer";
-    if (inquiry.stage === "offer_pending")  return inquiry.offer?.total ? `Offer ${inquiry.offer.total} · awaiting client` : "Offer with client · awaiting approval";
-    if (inquiry.stage === "approved")       return "Client approved · prep production";
-    if (inquiry.stage === "booked")         return inquiry.offer?.total ? `Booked · ${inquiry.offer.total}` : "Booked · schedule confirmed";
-    if (inquiry.stage === "rejected")       return "Rejected by client";
-    if (inquiry.stage === "expired")        return "Expired · client never replied";
-    if (lastMsg) return (lastMsg.isYou ? "You: " : "") + (lastMsg.body || "").slice(0, 64);
-    return "No messages yet";
+    if (inquiry.stage === "draft")          return es ? "Borrador · aún no enviado al talento" : "Draft · not yet sent to talent";
+    if (inquiry.stage === "submitted")      return es ? "Invitando talento a la selección" : "Inviting talent to the shortlist";
+    if (inquiry.stage === "coordination")   return lineupAccepted < lineupTotal
+      ? (es ? `Coordinando · ${lineupAccepted}/${lineupTotal} confirmados` : `Coordinating · ${lineupAccepted}/${lineupTotal} confirmed`)
+      : (es ? "Todo el talento confirmado · redactando oferta" : "All talent confirmed · drafting offer");
+    if (inquiry.stage === "offer_pending")  return inquiry.offer?.total
+      ? (es ? `Oferta ${inquiry.offer.total} · esperando al cliente` : `Offer ${inquiry.offer.total} · awaiting client`)
+      : (es ? "Oferta con el cliente · esperando aprobación" : "Offer with client · awaiting approval");
+    if (inquiry.stage === "approved")       return es ? "Cliente aprobó · preparar producción" : "Client approved · prep production";
+    if (inquiry.stage === "booked")         return inquiry.offer?.total
+      ? (es ? `Reservada · ${inquiry.offer.total}` : `Booked · ${inquiry.offer.total}`)
+      : (es ? "Reservada · agenda confirmada" : "Booked · schedule confirmed");
+    if (inquiry.stage === "rejected")       return es ? "Rechazada por el cliente" : "Rejected by client";
+    if (inquiry.stage === "expired")        return es ? "Expirada · el cliente nunca respondió" : "Expired · client never replied";
+    if (lastMsg) return (lastMsg.isYou ? (es ? "Tú: " : "You: ") : "") + (lastMsg.body || "").slice(0, 64);
+    return es ? "Aún no hay mensajes" : "No messages yet";
   })();
   const isActionNeeded = surfaceNeedsMe;
 

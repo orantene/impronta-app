@@ -79,20 +79,20 @@ export function AdminInboxList({
     return bucket === "inquiry" || bucket === "hold";
   }).length;
   const chips: { id: AdminFilter; label: string; count?: number; pin?: boolean }[] = [
-    { id: "all", label: "All" },
-    { id: "needs-me", label: `Needs me${needsMe > 0 ? ` (${needsMe})` : ""}` },
+    { id: "all", label: copy.t("All") },
+    { id: "needs-me", label: `${copy.t("Needs me")}${needsMe > 0 ? ` (${needsMe})` : ""}` },
     // Triage chip — only appears when there's something to triage so it
     // doesn't add visual noise on an empty backlog.
-    ...(triageCount > 0 ? [{ id: "triage" as const, label: `Triage${triageCount > 0 ? ` (${triageCount})` : ""}`, pin: true }] : []),
-    { id: "unread", label: `Unread${totalUnread > 0 ? ` (${totalUnread})` : ""}` },
-    ...(handoffCount > 0 ? [{ id: "handoffs" as const, label: "Handoffs", count: handoffCount, pin: true }] : []),
-    ...(coordCount > 0 ? [{ id: "coordinating" as const, label: "Coordinating", count: coordCount, pin: true }] : []),
-    { id: "inquiry", label: "Inquiry" },
-    { id: "hold", label: "Offer pending" },
-    { id: "approved", label: "Approved" },
-    { id: "booked", label: "Booked" },
-    { id: "past", label: "Past" },
-    ...(archivedCount > 0 ? [{ id: "archived" as const, label: `Archived${archivedCount > 0 ? ` (${archivedCount})` : ""}` }] : []),
+    ...(triageCount > 0 ? [{ id: "triage" as const, label: `${copy.t("Triage")}${triageCount > 0 ? ` (${triageCount})` : ""}`, pin: true }] : []),
+    { id: "unread", label: `${copy.t("Unread")}${totalUnread > 0 ? ` (${totalUnread})` : ""}` },
+    ...(handoffCount > 0 ? [{ id: "handoffs" as const, label: copy.t("Handoffs"), count: handoffCount, pin: true }] : []),
+    ...(coordCount > 0 ? [{ id: "coordinating" as const, label: copy.t("Coordinating"), count: coordCount, pin: true }] : []),
+    { id: "inquiry", label: copy.t("Inquiry") },
+    { id: "hold", label: copy.t("Offer pending") },
+    { id: "approved", label: copy.t("Approved") },
+    { id: "booked", label: copy.t("Booked") },
+    { id: "past", label: copy.t("Past") },
+    ...(archivedCount > 0 ? [{ id: "archived" as const, label: `${copy.t("Archived")}${archivedCount > 0 ? ` (${archivedCount})` : ""}` }] : []),
   ];
 
   // Bulk-select state — flipping into bulk mode reveals row checkboxes
@@ -193,17 +193,21 @@ export function AdminInboxList({
         minWidth: 0, maxWidth: "100%",
       }}>
         <div data-tulala-list-header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
-          <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, margin: 0 }} className="text-admin-ink">Inbox</h3>
+          <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, margin: 0 }} className="text-admin-ink">{copy.t("Inbox")}</h3>
           <div className="flex items-center gap-2">
             <span className="text-admin-ink-muted text-admin-11">
-              {inquiries.length === 0 ? "0 pending" : `${inquiries.length} thread${inquiries.length === 1 ? "" : "s"}`}
+              {inquiries.length === 0
+                ? (copy.isSpanish ? "0 pendientes" : "0 pending")
+                : copy.isSpanish
+                  ? `${inquiries.length} conversación${inquiries.length === 1 ? "" : "es"}`
+                  : `${inquiries.length} thread${inquiries.length === 1 ? "" : "s"}`}
             </span>
             {/* Bulk-select toggle — admin+ only. Visible chevron pill
                 so the affordance reads as "switch into bulk mode" not
                 some hidden gesture. */}
             <button type="button"
               onClick={() => setBulkMode(b => !b)}
-              title={bulkMode ? "Exit bulk select" : "Select multiple threads"}
+              title={bulkMode ? copy.t("Exit bulk select") : copy.t("Select multiple threads")}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 4,
                 padding: "3px 9px", borderRadius: 999,
@@ -219,7 +223,7 @@ export function AdminInboxList({
                 <rect x="1.5" y="7" width="3.5" height="3.5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
                 <rect x="7" y="7" width="3.5" height="3.5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
               </svg>
-              {bulkMode ? "Done" : "Select"}
+              {bulkMode ? copy.t("Done") : copy.t("Select")}
             </button>
           </div>
         </div>
@@ -242,7 +246,7 @@ export function AdminInboxList({
           }
         `}</style>
         <div data-tulala-inbox-search style={{ marginBottom: 10 }}>
-          <SearchPill value={search} onChange={onSearchChange} placeholder="Search clients, briefs…" />
+          <SearchPill value={search} onChange={onSearchChange} placeholder={copy.t("Search clients, briefs…")} />
         </div>
         <div data-tulala-inbox-chips style={{ display: "flex", gap: 5, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2 }}>
           {chips.map(c => (
@@ -282,19 +286,19 @@ export function AdminInboxList({
             </div>
             <div className="text-admin-ink text-admin-13 font-semibold">
               {search.trim()
-                ? <>No matches for &ldquo;{search}&rdquo;</>
+                ? <>{copy.isSpanish ? "Sin coincidencias para" : "No matches for"} &ldquo;{search}&rdquo;</>
                 : filter === "archived"
                   ? (copy.isSpanish ? "No hay conversaciones archivadas" : "No archived threads")
-                  : "No messages yet"}
+                  : copy.t("No messages yet")}
             </div>
             <div style={{ fontSize: 11.5, lineHeight: 1.4, maxWidth: 240 }} className="text-admin-ink-muted">
               {search.trim()
-                ? "Try a different keyword, or clear the search."
+                ? copy.t("Try a different keyword, or clear the search.")
                 : filter === "archived"
                   ? (copy.isSpanish
                       ? "Las conversaciones archivadas aparecen aquí. Pulsa E en una fila enfocada para archivar o restaurar."
                       : "Threads you archive land here. Press E on a focused row to archive or restore it.")
-                  : "They’ll appear here as clients reach out via your storefront."}
+                  : copy.t("They’ll appear here as clients reach out via your storefront.")}
             </div>
             {!search.trim() && (tenantSlug || effectiveTenant?.domain) && (
               <a
@@ -320,7 +324,7 @@ export function AdminInboxList({
                 border: `1px solid ${COLORS.border}`, background: "transparent",
                 color: COLORS.ink, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
                 fontFamily: FONTS.body,
-              }}>Clear search</button>
+              }}>{copy.t("Clear search")}</button>
             )}
           </div>
         ) : renderWithDateGroups(
@@ -366,6 +370,7 @@ export function AdminInboxList({
                 </div>
               )
             ),
+            copy.t,
           )}
       </div>
       {/* Bulk action bar — sticky bottom strip when one+ rows selected.
@@ -376,7 +381,9 @@ export function AdminInboxList({
       {bulkMode && selectedIds.size > 0 && (
         <div style={{ flexShrink: 0, padding: "10px 14px", color: "#fff", borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-fill">
           <span className="font-bold">
-            {selectedIds.size} selected
+            {copy.isSpanish
+              ? `${selectedIds.size} seleccionada${selectedIds.size === 1 ? "" : "s"}`
+              : `${selectedIds.size} selected`}
           </span>
           <span style={{ flex: 1 }} />
           <button type="button"
@@ -388,11 +395,13 @@ export function AdminInboxList({
               );
               if (realIds.length > 0) {
                 void bulkNudgeInquiries(effectiveTenant.slug, realIds).then((r) => {
-                  if (!r.ok) toastBulk(`Bulk nudge failed: ${r.error}`);
-                  else if (r.data?.failed) toastBulk(`Nudged ${r.data.ok} (${r.data.failed} failed)`);
+                  if (!r.ok) toastBulk(copy.isSpanish ? `Error al recordar: ${r.error}` : `Bulk nudge failed: ${r.error}`);
+                  else if (r.data?.failed) toastBulk(copy.isSpanish ? `${r.data.ok} recordadas (${r.data.failed} fallaron)` : `Nudged ${r.data.ok} (${r.data.failed} failed)`);
                 });
               }
-              toastBulk(`Nudged ${count} thread${count === 1 ? "" : "s"}`);
+              toastBulk(copy.isSpanish
+                ? `${count} conversación${count === 1 ? "" : "es"} recordada${count === 1 ? "" : "s"}`
+                : `Nudged ${count} thread${count === 1 ? "" : "s"}`);
               exitBulk();
             }}
             style={{
@@ -402,7 +411,7 @@ export function AdminInboxList({
               fontSize: 11.5, fontWeight: 600, cursor: "pointer",
               fontFamily: FONTS.body,
             }}>
-            Nudge
+            {copy.t("Nudge")}
           </button>
           <button type="button"
             onClick={() => {
@@ -419,10 +428,14 @@ export function AdminInboxList({
               );
               if (realIds.length > 0) {
                 void bulkSetInquiryArchived(effectiveTenant.slug, realIds, !restoring).then((r) => {
-                  if (!r.ok) toastBulk(`Bulk ${restoring ? "restore" : "archive"} failed: ${r.error}`);
+                  if (!r.ok) toastBulk(copy.isSpanish
+                    ? `Error al ${restoring ? "restaurar" : "archivar"}: ${r.error}`
+                    : `Bulk ${restoring ? "restore" : "archive"} failed: ${r.error}`);
                 });
               }
-              toastBulk(`${restoring ? "Restored" : "Archived"} ${count} thread${count === 1 ? "" : "s"}`);
+              toastBulk(copy.isSpanish
+                ? `${count} conversación${count === 1 ? "" : "es"} ${restoring ? "restaurada" : "archivada"}${count === 1 ? "" : "s"}`
+                : `${restoring ? "Restored" : "Archived"} ${count} thread${count === 1 ? "" : "s"}`);
               exitBulk();
             }}
             style={{
@@ -432,7 +445,7 @@ export function AdminInboxList({
               fontSize: 11.5, fontWeight: 600, cursor: "pointer",
               fontFamily: FONTS.body,
             }}>
-            {filter === "archived" ? "Restore" : "Archive"}
+            {filter === "archived" ? copy.t("Restore") : copy.t("Archive")}
           </button>
           <button type="button"
             onClick={() => {
@@ -443,11 +456,13 @@ export function AdminInboxList({
               );
               if (realIds.length > 0) {
                 void bulkReassignInquiriesToMe(effectiveTenant.slug, realIds).then((r) => {
-                  if (!r.ok) toastBulk(`Bulk reassign failed: ${r.error}`);
-                  else if (r.data?.failed) toastBulk(`Reassigned ${r.data.ok} (${r.data.failed} failed)`);
+                  if (!r.ok) toastBulk(copy.isSpanish ? `Error al reasignar: ${r.error}` : `Bulk reassign failed: ${r.error}`);
+                  else if (r.data?.failed) toastBulk(copy.isSpanish ? `${r.data.ok} reasignadas (${r.data.failed} fallaron)` : `Reassigned ${r.data.ok} (${r.data.failed} failed)`);
                 });
               }
-              toastBulk(`Reassigned ${count} thread${count === 1 ? "" : "s"} to you`);
+              toastBulk(copy.isSpanish
+                ? `${count} conversación${count === 1 ? "" : "es"} reasignada${count === 1 ? "" : "s"} a ti`
+                : `Reassigned ${count} thread${count === 1 ? "" : "s"} to you`);
               exitBulk();
             }}
             style={{
@@ -457,7 +472,7 @@ export function AdminInboxList({
               fontSize: 11.5, fontWeight: 700, cursor: "pointer",
               fontFamily: FONTS.body,
             }}>
-            Reassign
+            {copy.t("Reassign")}
           </button>
         </div>
       )}
@@ -494,6 +509,7 @@ export const NEXT_STAGES: Record<string, { label: string; value: string }[]> = {
 
 export function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: InquiryStage }) {
   const { toast, effectiveTenant } = useAdminShell();
+  const copy = useDashboardText();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -544,7 +560,7 @@ export function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; s
           opacity: pending ? 0.7 : 1,
         }}
       >
-        {pending ? "Moving…" : "Move to"}
+        {pending ? copy.t("Moving…") : copy.t("Move to")}
         <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden>
           <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
@@ -571,7 +587,7 @@ export function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; s
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = COLORS.surfaceAlt; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
             >
-              {opt.label}
+              {copy.t(opt.label)}
             </button>
           ))}
         </div>
