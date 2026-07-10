@@ -97,6 +97,11 @@ async function resolveGuestSessionIdLocal(
 
 function toThreadStatus(status: string): GuestThreadStatus {
   switch (status) {
+    case "draft":
+      // Mirror guest-chat-actions: a draft reads as a DRAFT, not "open". The
+      // switcher already keys its draft pill on the dedicated `isDraft` field;
+      // this keeps threadStatus honest for any status-based consumer (W0-B).
+      return "draft";
     case "offer_pending":
       return "offer_pending";
     case "approved":

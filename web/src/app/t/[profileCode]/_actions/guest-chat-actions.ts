@@ -40,7 +40,7 @@ import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract"
 import { sendMessage } from "@/lib/inquiry/inquiry-engine-messages";
 import { promoteEarlyInquiryToSubmitted } from "@/lib/inquiry/promote-early-inquiry";
 import {
-  pickGuestEnsureTarget,
+  pickGuestEnsureTargetOrForceNew,
   pickGuestResumeTarget,
 } from "@/lib/inquiry/guest-draft-resume";
 import {
@@ -478,6 +478,11 @@ async function loadParticipantIdentities(
 /** Map inquiries.status → the coarse popup header status. */
 function toThreadStatus(status: string): GuestThreadStatus {
   switch (status) {
+    case "draft":
+      // Early-partial row: built but NOT yet sent. Must surface as a DRAFT so
+      // the launcher pill reads its working state ("Your lineup · N") and never
+      // "Inquiry sent" (P0-2 / W0-B). Drafts stay out of every agency inbox.
+      return "draft";
     case "offer_pending":
       return "offer_pending";
     case "approved":
@@ -1732,7 +1737,16 @@ export async function ensureGuestChatInquiry(
     // already contains this talent). NEVER insert while the session holds ANY
     // live draft for this tenant, and NEVER pick a sent row as the write
     // target. Selection logic is the pure, unit-tested picker.
-    const picked = pickGuestEnsureTarget(live, talentProfileId);
+    //
+    // W0-B — the project-park's "start a SEPARATE inquiry" step passes
+    // forceNew:true to bypass the reuse and always mint a distinct project row
+    // (otherwise it would get the just-parked draft back and later chip writes
+    // could overwrite the parked lineup). All other callers keep the reuse.
+    const picked = pickGuestEnsureTargetOrForceNew(
+      live,
+      talentProfileId,
+      input.forceNew === true,
+    );
     if (picked) {
       return {
         ok: true,

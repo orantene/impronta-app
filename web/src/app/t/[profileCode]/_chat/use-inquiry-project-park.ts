@@ -145,11 +145,19 @@ export function useInquiryProjectPark(ctx: ProjectParkContext): UseInquiryProjec
         // project, not a continuation of the parked one. Best-effort: the panel
         // also lazily ensures on the first structured commit, so a failure here
         // does not lose the seeded cart.
+        //
+        // forceNew:true is REQUIRED here (W0-B): the draft we just parked is
+        // still live, and ensureGuestChatInquiry now reuses an existing live
+        // draft rather than inserting (W0-A). Without forceNew we would get the
+        // parked draft back and the new project's chip writes could overwrite
+        // the parked lineup. This is the ONLY call site that mints a separate
+        // project, so it is the only one that sets forceNew.
         await c.ensureInquiry({
           tenantSlug: c.tenantSlug,
           talentProfileId: input.talent.talentProfileId,
           talentProfileCode: c.talentProfileCode ?? null,
           sourcePage: c.sourcePage,
+          forceNew: true,
         });
 
         return { ok: true };

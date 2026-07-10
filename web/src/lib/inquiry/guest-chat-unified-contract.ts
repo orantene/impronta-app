@@ -86,6 +86,16 @@ export type EnsureGuestInquiryInput = {
   talentProfileId?: string | null;
   talentProfileCode?: string | null;
   sourcePage: string;
+  /**
+   * Park-flow ONLY (W0-B). ensureGuestChatInquiry normally reuses an existing
+   * live DRAFT rather than minting a duplicate (W0-A idempotency). The project
+   * park's "start a SEPARATE inquiry with just {name}" step needs a genuinely
+   * FRESH row even though the just-parked draft is still live, so it passes
+   * `forceNew: true` to skip the existing-draft reuse and always insert. Every
+   * other guard (tenant scope, roster check, ownership) is unchanged. Default
+   * false/omitted keeps the idempotent reuse for all other callers.
+   */
+  forceNew?: boolean;
 };
 
 export type EnsureGuestInquiryResult =

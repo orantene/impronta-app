@@ -367,6 +367,7 @@ export type GetGuestThreadResult =
 
 /** Coarse status for the popup header. Maps from inquiries.status, not 1:1. */
 export type GuestThreadStatus =
+  | "draft"         // early-partial row (status="draft"): built but NOT yet sent; stays out of every agency inbox. Must read as a DRAFT (never "sent") on every launcher pill (P0-2 / W0-B).
   | "open"          // submitted / coordination / active conversation
   | "offer_pending" // an offer card exists awaiting the client
   | "approved"      // all-parties approved, pre-booking

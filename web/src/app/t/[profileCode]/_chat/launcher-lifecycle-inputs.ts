@@ -68,6 +68,13 @@ const EMPTY: LauncherLifecycleInputs = {
  */
 function threadStatusToPhase(status: GuestThreadStatus): InquiryWorkflowPhase {
   switch (status) {
+    case "draft":
+      // P0-2 (W0-B): a DRAFT maps to the lifecycle's pre-send `draft` phase.
+      // `draft` is NOT in the resolver's SENT_LIVE_PHASES and is not terminal,
+      // so rule 1 (sent_awaiting / "Inquiry sent") no longer short-circuits a
+      // pure draft; the resolver falls through to its draft/lineup/resume states
+      // (add_to_lineup / in_lineup / review_lineup / resume_draft) instead.
+      return "draft";
     case "offer_pending":
       return "offer_pending";
     case "approved":
@@ -197,10 +204,17 @@ export async function resolveLauncherLifecycleInputs(args: {
         coordinatorId != null && lastMessageRole === "coordinator";
     }
 
+    // "Other open inquiries" (resolver rule 2 -> pick_inquiry) means SENT/live
+    // threads the viewer could jump into instead of starting fresh. A working
+    // DRAFT is NOT one of those: it is the working state itself, already carried
+    // by hasActiveDraft + the lineup. Including sibling drafts here would let a
+    // second draft (e.g. one minted by the project-park flow) fire pick_inquiry
+    // and override the anchored draft's own "Your lineup (N)" label. Exclude
+    // drafts so a draft reads as a draft on every surface (P0-2 / W0-B).
     const otherOpenInquiries: OtherOpenInquiry[] =
       listRes.ok
         ? listRes.inquiries
-            .filter((inq) => inq.inquiryId !== anchoredInquiryId)
+            .filter((inq) => inq.inquiryId !== anchoredInquiryId && !inq.isDraft)
             .map((inq) => ({
               id: inq.inquiryId,
               phase: threadStatusToPhase(inq.threadStatus),

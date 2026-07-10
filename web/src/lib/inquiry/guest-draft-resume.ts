@@ -111,3 +111,23 @@ export function pickGuestEnsureTarget<T extends GuestResumeCandidateRow>(
   }
   return { row: drafts[0], containsTalent: true };
 }
+
+/**
+ * WRITE-target pick WITH the park-flow `forceNew` override (W0-B).
+ *
+ * `forceNew` short-circuits the reuse entirely and returns null, signalling the
+ * caller to INSERT a fresh row even while the session holds a live draft. This
+ * is the project-park's "start a SEPARATE inquiry with just {name}" path: under
+ * the W0-A rule (never insert while any live draft exists) a plain ensure would
+ * hand back the just-parked draft and later chip writes could overwrite the
+ * parked lineup. Every OTHER caller passes forceNew=false and keeps the
+ * idempotent reuse of pickGuestEnsureTarget.
+ */
+export function pickGuestEnsureTargetOrForceNew<T extends GuestResumeCandidateRow>(
+  liveRows: readonly T[],
+  talentProfileId: string | null,
+  forceNew: boolean,
+): GuestResumePick<T> | null {
+  if (forceNew) return null;
+  return pickGuestEnsureTarget(liveRows, talentProfileId);
+}

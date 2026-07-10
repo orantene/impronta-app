@@ -267,6 +267,11 @@ type Translator = (key: string) => string;
 
 /** Maps a guest thread status → its i18n key under `public.guestChat.*`. */
 const STATUS_COPY_KEYS: Record<GuestThreadStatus, string> = {
+  // A draft the guest is actively composing reads as an open conversation in the
+  // panel subtitle (the panel is literally open). Reuses the existing key rather
+  // than inventing draft copy — the launcher PILL is where draft-vs-sent matters,
+  // and that reads from the resolver, not this map (W0-B).
+  draft: "public.guestChat.statusOpen",
   open: "public.guestChat.statusOpen",
   offer_pending: "public.guestChat.statusOfferPending",
   approved: "public.guestChat.statusApproved",

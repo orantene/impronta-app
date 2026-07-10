@@ -18,6 +18,7 @@ import { describe, it } from "node:test";
 
 import {
   pickGuestEnsureTarget,
+  pickGuestEnsureTargetOrForceNew,
   pickGuestResumeTarget,
   readSelectedIds,
 } from "./guest-draft-resume";
@@ -122,6 +123,48 @@ describe("pickGuestEnsureTarget (the ensure/write-target pick)", () => {
     const picked = pickGuestEnsureTarget([sentNewest, draftMid, draftOld], null);
     assert.ok(picked);
     assert.equal(picked.row.id, "draft-2");
+  });
+});
+
+describe("pickGuestEnsureTargetOrForceNew (park-flow forceNew override, W0-B)", () => {
+  it("forceNew=false behaves exactly like pickGuestEnsureTarget — reuses the live draft", () => {
+    const draft1 = row("draft-1", "draft", [TALENT_A]);
+    const picked = pickGuestEnsureTargetOrForceNew([draft1], TALENT_A, false);
+    assert.ok(picked, "default (forceNew=false) must reuse the existing draft");
+    assert.equal(picked.row.id, "draft-1");
+    assert.equal(picked.containsTalent, true);
+  });
+
+  it("forceNew=false with a DIFFERENT talent still reuses the draft (no duplicate)", () => {
+    const draft1 = row("draft-1", "draft", [TALENT_A]);
+    const picked = pickGuestEnsureTargetOrForceNew([draft1], TALENT_B, false);
+    assert.ok(picked);
+    assert.equal(picked.row.id, "draft-1");
+    assert.equal(picked.containsTalent, false);
+  });
+
+  it("forceNew=true returns null (insert a fresh row) EVEN WHILE a live draft exists", () => {
+    // The park flow's "start a SEPARATE inquiry" step: the just-parked draft is
+    // still live, but the new project must get its own row. null tells the action
+    // to insert instead of reusing the parked draft.
+    const parkedDraft = row("draft-1", "draft", [TALENT_A]);
+    assert.equal(pickGuestEnsureTargetOrForceNew([parkedDraft], TALENT_A, true), null);
+  });
+
+  it("forceNew=true returns null even with MULTIPLE live drafts and a talent match", () => {
+    const draftA = row("draft-1", "draft", [TALENT_A]);
+    const draftB = row("draft-2", "draft", [TALENT_B]);
+    assert.equal(pickGuestEnsureTargetOrForceNew([draftA, draftB], TALENT_B, true), null);
+  });
+
+  it("forceNew=true returns null on the agency branch (no talent) too", () => {
+    const draft = row("draft-1", "draft", []);
+    assert.equal(pickGuestEnsureTargetOrForceNew([draft], null, true), null);
+  });
+
+  it("with no live drafts both modes return null (nothing to reuse either way)", () => {
+    assert.equal(pickGuestEnsureTargetOrForceNew([], TALENT_A, false), null);
+    assert.equal(pickGuestEnsureTargetOrForceNew([], TALENT_A, true), null);
   });
 });
 
