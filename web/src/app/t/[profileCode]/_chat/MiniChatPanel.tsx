@@ -59,7 +59,7 @@ import {
 import { miniPanelContainerStyle } from "./mini-chat-panel-geometry";
 import { useCompactViewport } from "./use-compact-viewport";
 import type { MiniChatPanelLocalProps } from "./mini-chat-panel-props";
-import { OfferingQuickPicker, offeringDraftPrefix, type ChatOffering } from "./OfferingQuickPicker";
+import { offeringDraftPrefix, type ChatOffering } from "./OfferingQuickPicker";
 import { setPendingOffering } from "./pending-offering-store";
 import { useGateEmailCheck } from "./use-gate-email-check";
 import { useGuestInquiriesList } from "./use-guest-inquiries-list";
@@ -509,6 +509,29 @@ export function MiniChatPanel({
 
   const sendDisabled = !draft.trim() || sending || inCooldown;
 
+  // W1-G: pick a service from the in-column OfferingQuickPicker — prefill the
+  // composer draft + attach the offering to the live inquiry. Moved off the outer
+  // container (where the strip was clipped by the rounded footer) into the column.
+  const handlePickOffering = (o: ChatOffering) => {
+    setPendingOffering({ ...o, intent: "request" });
+    if (sentNote) setSentNote(false);
+    setDraft(offeringDraftPrefix(o, brand.locale ?? "en"));
+    // Live thread → also attach as structured provenance (best-effort).
+    if (inquiryId && onAttachOffering) {
+      void onAttachOffering({
+        inquiryId,
+        offering: {
+          offering_id: o.offeringId,
+          title: o.title,
+          amount_cents: o.amountCents,
+          currency: o.currency,
+          price_type: o.priceType,
+          kind: o.kind,
+        },
+      });
+    }
+  };
+
   // Shared column props passed to MiniChatPanelColumn (avoids duplication).
   const columnProps = {
     brand,
@@ -608,7 +631,11 @@ export function MiniChatPanel({
     openFullHref,
     onListGuestInquiries,
     onToggleExpand,
-    identity, textareaRef,
+    identity,
+    // W1-G: the services strip now lives inside the column (above the composer).
+    offerings: offerings as ChatOffering[],
+    onPickOffering: handlePickOffering,
+    textareaRef,
   };
 
   // ── Expanded 2-pane mode (F4) ─────────────────────────────────────────────
@@ -639,30 +666,6 @@ export function MiniChatPanel({
       style={miniPanelContainerStyle(P, compactSheet)}
     >
       <MiniChatPanelColumn {...columnProps} />
-      {/* W2-B — the talent's services inside the chat: tap → the request. */}
-      <OfferingQuickPicker
-        offerings={offerings as ChatOffering[]}
-        locale={brand.locale ?? "en"}
-        onPick={(o) => {
-          setPendingOffering({ ...o, intent: "request" });
-          if (sentNote) setSentNote(false);
-          setDraft(offeringDraftPrefix(o, brand.locale ?? "en"));
-          // Live thread → also attach as structured provenance (best-effort).
-          if (inquiryId && onAttachOffering) {
-            void onAttachOffering({
-              inquiryId,
-              offering: {
-                offering_id: o.offeringId,
-                title: o.title,
-                amount_cents: o.amountCents,
-                currency: o.currency,
-                price_type: o.priceType,
-                kind: o.kind,
-              },
-            });
-          }
-        }}
-      />
     </div>
   );
 }
