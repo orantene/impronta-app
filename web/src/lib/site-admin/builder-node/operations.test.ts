@@ -497,6 +497,98 @@ test("removeBuilderNode rejects removing the last accordion item", () => {
   assert.ok(removed.issues?.some((issue) => issue.path === "source.group"));
 });
 
+// W1-L1 — deleting a container removes the ENTIRE subtree (wrapper + every
+// descendant). It never promotes/hoists children up to the parent list (that
+// would be an "unwrap", which delete must never do). Guards the P0 where a
+// section delete appeared to leave its children as page-level orphans.
+test("removeBuilderNode deletes the whole subtree, never hoisting children up", () => {
+  const tree: BuilderNodeTree = [
+    {
+      id: "seed-section",
+      kind: "section",
+      props: {
+        sectionId: "33333333-3333-4333-8333-333333333333",
+        sectionTypeKey: "hero",
+        slotKey: "body",
+        sortOrder: 0,
+      },
+      children: [{ id: "seed-heading", kind: "heading", props: { text: "Seed", level: 2 } }],
+    },
+    {
+      id: "wrapper",
+      kind: "container",
+      props: { layout: "stack", gap: "m" },
+      children: [
+        { id: "stack-a", kind: "container", props: { layout: "stack" }, children: [] },
+        { id: "stack-b", kind: "container", props: { layout: "stack" }, children: [] },
+        { id: "row-a", kind: "container", props: { layout: "row" }, children: [] },
+        { id: "carousel-a", kind: "carousel", props: {}, children: [] },
+      ],
+    },
+  ];
+  const removed = removeBuilderNode({ tree, nodeId: "wrapper" });
+  assert.equal(removed.ok, true);
+  if (!removed.ok) return;
+  // Only the seed section remains at root; the wrapper AND all four of its
+  // children are gone — none were spliced up to page level.
+  assert.deepEqual(
+    removed.tree.map((node) => node.id),
+    ["seed-section"],
+  );
+  const orphanIds = ["wrapper", "stack-a", "stack-b", "row-a", "carousel-a"];
+  const stillPresent = (nodes: BuilderNodeTree): string[] =>
+    nodes.flatMap((node) => [
+      node.id,
+      ...("children" in node && Array.isArray(node.children)
+        ? stillPresent(node.children)
+        : []),
+    ]);
+  const present = new Set(stillPresent(removed.tree));
+  for (const id of orphanIds) {
+    assert.equal(present.has(id), false, `${id} must not survive the delete`);
+  }
+});
+
+// W1-L1 — defensive resolution: a DUPLICATED node id (corrupt tree, e.g. after
+// an external tree replacement on a session desync) is refused, not silently
+// resolved to whichever copy comes first. Removing an arbitrary duplicate is how
+// a delete "removes the wrong thing" and reads as an unwrap.
+test("removeBuilderNode refuses a duplicated id instead of guessing", () => {
+  const tree: BuilderNodeTree = [
+    {
+      id: "dupe",
+      kind: "container",
+      props: { layout: "stack" },
+      children: [{ id: "child-a", kind: "heading", props: { text: "A", level: 2 } }],
+    },
+    {
+      id: "dupe",
+      kind: "container",
+      props: { layout: "stack" },
+      children: [{ id: "child-b", kind: "heading", props: { text: "B", level: 2 } }],
+    },
+  ];
+  const removed = removeBuilderNode({ tree, nodeId: "dupe" });
+  assert.equal(removed.ok, false);
+  if (removed.ok) return;
+  assert.equal(removed.code, "NODE_AMBIGUOUS");
+  // Nothing was mutated: both copies (and their children) are intact.
+  assert.equal(tree.length, 2);
+});
+
+test("removeBuilderNode still deletes a unique id after the duplicate guard", () => {
+  const removed = removeBuilderNode({
+    tree: fixtureTree(),
+    nodeId: "container-1",
+  });
+  assert.equal(removed.ok, true);
+  if (!removed.ok) return;
+  assert.deepEqual(
+    removed.tree.map((node) => node.id),
+    ["section-1"],
+  );
+});
+
 test("duplicateBuilderNode duplicates a nested leaf after the source", () => {
   const duplicated = duplicateBuilderNode({
     tree: fixtureTree(),
