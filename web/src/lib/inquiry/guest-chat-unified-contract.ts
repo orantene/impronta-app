@@ -51,6 +51,15 @@ export type GuestInquirySummary = {
   agencyName: string;
   lastMessagePreview: string | null;
   lastMessageAt: string | null;
+  /**
+   * W2-A dock — the newest private-thread message's author side, so the
+   * Projects view can honestly distinguish "Sent · awaiting {agency}" from
+   * "{agency} replied". "guest" = the guest's own message, "agency" = a
+   * signed-in sender (coordinator/staff), null = no message or a system note.
+   * Optional for back-compat with older summaries; consumers must degrade a
+   * missing value to "awaiting", never to "replied".
+   */
+  lastMessageAuthor?: "guest" | "agency" | null;
   unreadHint: boolean;
   threadStatus: GuestThreadStatus;
   typicalReplyLabel: string | null;
