@@ -511,6 +511,31 @@ export type GuestChipResult = { ok: true; appliedSummary: string } | GuestChatFa
 
 export type CaptureGuestChipCallback = (input: GuestChipInput) => Promise<GuestChipResult>;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 4c-bis. W2-I — AI conversation scan. `scanGuestConversationForDetails` reads
+// the recent guest chat, runs a cheap model over it, and auto-fills EMPTY inquiry
+// detail fields (never overwriting a user value; draft-only). The UI lane wires
+// this to a "Scan conversation" button (and, later, an auto path).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ScanGuestConversationResult =
+  | {
+      ok: true;
+      /**
+       * Whether the model was actually invoked. `false` when the pre-filter
+       * found no scannable detail, the inquiry is frozen (non-draft), or there
+       * was nothing to read — the scan short-circuited before any AI call.
+       */
+      scanned: boolean;
+      /** The detail kinds the scan auto-filled (empty before, AI-suggested now). */
+      filledKinds: GuestChipKind[];
+    }
+  | GuestChatFailure;
+
+export type ScanGuestConversationCallback = (input: {
+  inquiryId: string;
+}) => Promise<ScanGuestConversationResult>;
+
 // 4d/4e. Unified-inquiry-cart contract slice — split to guest-chat-unified-contract.ts; re-exported here.
 export type {
   AvatarStackItem,
