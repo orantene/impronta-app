@@ -13,6 +13,12 @@ export type MiniChatPanelLocalProps = MiniChatPanelProps & {
    * tenants are byte-identical.
    */
   surfaceMode?: SurfaceMode;
+  /**
+   * P0-5 / W0-F — the panel is mounted on a HUB host (platform/network hub or
+   * the marketing apex), not an agency. Drives the SEND-path copy so the send
+   * button + notes never call the platform "the agency". Default false.
+   */
+  isHub?: boolean;
   /** When true, render 2-pane expanded mode. Owned by TalentProfileChatLauncher. */
   expanded?: boolean;
   /** Toggle handler from TalentProfileChatLauncher's setExpanded. */

@@ -35,6 +35,7 @@ import {
 import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadGuestChatSettings } from "@/lib/inquiry/guest-chat-settings";
@@ -78,9 +79,16 @@ export async function AgencyChatLauncherMount({
   //  - marketing / app (the tulala.digital platform apex, which has no tenant
   //    of its own) → the in-house platform network hub, so visitors can
   //    "message the platform" and the inquiry lands in the hub's Messages.
+  // Hub hosts (the platform/network hub `kind: "hub"`, plus the marketing/app
+  // apex that resolves to the platform hub) are NOT agencies. This flag drives
+  // the SEND-path copy so the send button + notes never call Tulala "the agency".
+  const isHub = ctx.kind !== "agency";
+
   let tenantId: string;
   let tenantSlug: string;
-  let fallbackName = "the agency";
+  // Default sender name when the tenant has no public_name. Agencies keep the
+  // generic "the agency"; a hub host defaults to the platform brand instead.
+  let fallbackName = isHub ? PLATFORM_BRAND.name : "the agency";
   if ((ctx.kind === "agency" || ctx.kind === "hub") && ctx.tenantId) {
     tenantId = ctx.tenantId;
     // Only the agency arm of PublicHostContext carries a slug; the hub arm does
@@ -155,6 +163,9 @@ export async function AgencyChatLauncherMount({
       talentProfileId=""
       talentProfileCode=""
       sourcePage={sourcePage}
+      // Hub host: drives the SEND-path copy (send button "Send", route-not-agency
+      // subline + notes). The roster picker resolves the hub source server-side.
+      isHub={isHub}
       brand={{
         agencyName,
         // Drives the opener voice ("Hi — I'm {agency}'s booking assistant").

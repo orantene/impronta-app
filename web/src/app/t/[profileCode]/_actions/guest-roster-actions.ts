@@ -24,12 +24,22 @@ import {
   loadDefaultStorefrontRoster,
   loadRosterPortraitsByIds,
 } from "@/lib/home/default-storefront-roster";
+import { loadDiscoverTalents } from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
+import { discoverTalentsToRosterItems } from "@/lib/inquiry/hub-roster-adapter";
 import type {
   GuestChatErrorCode,
   GuestChatFailure,
   ListGuestTenantRosterResult,
   ResolveGuestCartPortraitsResult,
 } from "@/lib/inquiry/guest-chat-contract";
+
+/**
+ * How many cross-tenant profiles the hub talent picker loads. The picker is a
+ * client-filtered search list, so this is the upper bound of the searchable set
+ * (the agency path caps at 24 via loadDefaultStorefrontRoster; the hub reads the
+ * wider platform index up to the loader's own max).
+ */
+const HUB_ROSTER_LIMIT = 60;
 
 const GUEST_HEADER = "x-impronta-guest";
 
@@ -38,7 +48,7 @@ function fail(code: GuestChatErrorCode, message: string): GuestChatFailure {
 }
 
 type ResolvedTenant =
-  | { ok: true; tenantId: string }
+  | { ok: true; tenantId: string; isHub: boolean }
   | { ok: false; failure: GuestChatFailure };
 
 /**
@@ -75,7 +85,7 @@ async function resolvePublicTenant(
 
   const { data: agency, error: agencyErr } = await admin
     .from("agencies")
-    .select("id, status")
+    .select("id, status, kind")
     .eq("slug", slug)
     .limit(1)
     .maybeSingle();
@@ -87,7 +97,10 @@ async function resolvePublicTenant(
     return { ok: false, failure: fail("tenant_unavailable", "We couldn't find this workspace.") };
   }
 
-  return { ok: true, tenantId: agency.id as string };
+  // A hub tenant (platform hub or a network hub) owns no roster of its own — its
+  // talent comes from the cross-tenant Discover index. Callers branch on this so
+  // the hub picker never hits the empty agency-scoped roster path.
+  return { ok: true, tenantId: agency.id as string, isHub: agency.kind === "hub" };
 }
 
 export async function listGuestTenantRoster(input: {
@@ -99,6 +112,14 @@ export async function listGuestTenantRoster(input: {
       "guest-roster-actions.listGuestTenantRoster",
     );
     if (!tenant.ok) return tenant.failure;
+
+    // Hub host: the tenant has no own roster, so source the picker from the
+    // cross-tenant Discover index (the same platform-wide set the global
+    // directory lists) instead of the empty agency-scoped roster.
+    if (tenant.isHub) {
+      const { items } = await loadDiscoverTalents({ limit: HUB_ROSTER_LIMIT });
+      return { ok: true, roster: discoverTalentsToRosterItems(items) };
+    }
 
     const rows = await loadDefaultStorefrontRoster(tenant.tenantId);
     return {
