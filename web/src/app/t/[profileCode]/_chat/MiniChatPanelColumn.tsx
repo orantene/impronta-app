@@ -22,6 +22,7 @@ import type {
   GuestChipKind,
   GuestChipValue,
   GuestIdentityTier,
+  GuestInquirySummary,
   GuestThreadStatus,
   InquiryReceiptData,
   ListGuestInquiriesCallback,
@@ -37,6 +38,10 @@ import type { StreamRow } from "./MiniChatMessageBubble";
 
 import { ConversationStatusStrip } from "./ConversationStatusStrip";
 import { GuestConversationBody } from "./GuestConversationBody";
+import { GuestDockLineupView } from "./GuestDockLineupView";
+import { GuestDockProjectsView } from "./GuestDockProjectsView";
+import { GuestDockViewSwitcher } from "./GuestDockViewSwitcher";
+import type { GuestDockView } from "./guest-dock-view";
 import { GuestDetailChips } from "./GuestDetailChips";
 import { GuestDetailChipRow } from "./GuestDetailChipRow";
 import { GuestPanelHeader } from "./GuestPanelHeader";
@@ -233,6 +238,20 @@ export type MiniChatPanelColumnProps = {
   /** Pick a service: prefill the composer + attach it to the inquiry. */
   onPickOffering?: (o: ChatOffering) => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
+  // ── W2-A: the 3-view dock (Chat / Lineup / Projects) ───────────────────────
+  /** Active dock view. "chat" (default) renders today's panel unchanged. */
+  dockView?: GuestDockView;
+  /** Switch the dock view. Absent → the switcher band never renders. */
+  onDockViewChange?: (view: GuestDockView) => void;
+  /** The guest's inquiries (useGuestInquiriesList) — the Projects view data. */
+  inquiries?: GuestInquirySummary[];
+  /** Source attribution for a Lineup-view "move to inquiry" add. */
+  sourcePage?: string;
+  /**
+   * The launcher's unified remove path (cart flip + record patch + Undo) — the
+   * Lineup view's per-tile remove routes through THIS, same as the rail X.
+   */
+  onRemoveCartTalent?: (talentProfileId: string) => void;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -318,6 +337,11 @@ export function MiniChatPanelColumn({
   offerings = [],
   onPickOffering,
   textareaRef,
+  dockView = "chat",
+  onDockViewChange,
+  inquiries = [],
+  sourcePage = "",
+  onRemoveCartTalent,
 }: MiniChatPanelColumnProps) {
   // Guest UI locale rides along on `brand` (resolved server-side from the
   // tenant's default_locale, since guests have no LOCALE_COOKIE).
@@ -349,6 +373,14 @@ export function MiniChatPanelColumn({
   // onSendToAgency; the save-card must not co-render with it (P1-10).
   const sendBarActive = !showGate && extrasEnabled && Boolean(onSendToAgency);
 
+  // W2-A: the 3-view dock. The switcher renders only on the unified path
+  // (extrasEnabled) with a wired handler, and never at the gate (the gate is
+  // its own moment). While Lineup/Projects is active, the whole chat band
+  // stack below the header (thread rail, conversation, chips, composer, send
+  // bar) is replaced by that view; Chat renders today's stack unchanged.
+  const dockEnabled = extrasEnabled && !showGate && Boolean(onDockViewChange);
+  const activeDockView: GuestDockView = dockEnabled ? dockView : "chat";
+
   return (
     <>
       {/* ── Header (extracted to GuestPanelHeader to hold the 800-line cap) ── */}
@@ -370,6 +402,53 @@ export function MiniChatPanelColumn({
         onClose={onClose}
       />
 
+      {/* ── W2-A: dock view switcher (Chat · Lineup · Projects) ──────────── */}
+      {dockEnabled && (
+        <GuestDockViewSwitcher
+          active={activeDockView}
+          onChange={(view) => onDockViewChange?.(view)}
+          accent={accent}
+          C={C}
+          t={t}
+          lineupCount={cartTalentNames.length}
+          projectsCount={inquiries.length}
+        />
+      )}
+
+      {/* ── W2-A: Lineup view — cart + saved favorites, two shelves, two
+          stores (saved_talent vs client_favorites), unified VISUALLY only. ── */}
+      {activeDockView === "lineup" && (
+        <GuestDockLineupView
+          accent={accent}
+          accentInk={accentInk}
+          surfaceMode={surfaceMode}
+          t={t}
+          sourcePage={sourcePage}
+          onRemoveCartTalent={onRemoveCartTalent}
+        />
+      )}
+
+      {/* ── W2-A: Projects view — the guest's inquiries as project cards.
+          Selecting one reuses the existing thread-switch path + hops back to
+          Chat. ───────────────────────────────────────────────────────────── */}
+      {activeDockView === "projects" && (
+        <GuestDockProjectsView
+          inquiries={inquiries}
+          activeInquiryId={inquiryId}
+          seenAtByInquiry={seenAtByInquiry}
+          accent={accent}
+          agencyName={brand.agencyName}
+          surfaceMode={surfaceMode}
+          t={t}
+          onSelect={(id) => {
+            onSwitchInquiry(id);
+            onDockViewChange?.("chat");
+          }}
+        />
+      )}
+
+      {activeDockView === "chat" && (
+        <>
       {/* ── U2: thread switcher (mini mode only; expanded left pane replaces) ─ */}
       {!expanded && onListGuestInquiries && (
         <GuestPanelHeaderExtras
@@ -610,6 +689,8 @@ export function MiniChatPanelColumn({
           typicalReply={typicalReply}
           onSend={onSendToAgency}
         />
+      )}
+        </>
       )}
 
       {/* ── Footer: expand/collapse (F4) or hard-nav fallback ────────────── */}

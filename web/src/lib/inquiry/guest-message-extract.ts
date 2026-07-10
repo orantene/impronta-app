@@ -267,6 +267,7 @@ function timeoutNull<T>(ms: number): Promise<T | null> {
 export async function captureGuestMessageDetails(
   firstMessage: string,
   tenantId?: string,
+  options?: { model?: string },
 ): Promise<GuestMessageCapture> {
   const message = (firstMessage ?? "").trim().slice(0, MAX_MESSAGE_CHARS);
   if (!message) return {};
@@ -292,6 +293,10 @@ export async function captureGuestMessageDetails(
       userMessage: message,
       temperature: 0.1,
       maxTokens: 400,
+      // Per-call model override (W2-I): the conversation scan pins the cheap
+      // Haiku tier for high-volume auto-fill. Unset (the single-message
+      // fresh-create path) falls back to the adapter's configured default.
+      ...(options?.model ? { model: options.model } : {}),
       jsonSchema: {
         name: CAPTURE_JSON_SCHEMA.name,
         strict: CAPTURE_JSON_SCHEMA.strict,
