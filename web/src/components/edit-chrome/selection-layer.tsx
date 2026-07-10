@@ -58,6 +58,11 @@ import {
   type CanvasDropResult,
 } from "@/lib/site-admin/builder-node/canvas-node-drop";
 import {
+  classifyCanvasBlockPointerGesture,
+  pointerMovedPastThreshold,
+  resolveCanvasNodeMoveIndex,
+} from "@/lib/site-admin/builder-node/canvas-block-move-gesture";
+import {
   ArrowDown,
   ArrowUp,
   ClipboardPaste,
@@ -799,6 +804,33 @@ export function SelectionLayer() {
   });
   const [marquee, setMarquee] = useState<MarqueeState>({ phase: "idle" });
   const suppressNextClickRef = useRef(false);
+  // W1-L7 — pointer-driven block move-drag. `blockMoveDepsRef` mirrors the
+  // selection facts the pointerdown classifier needs (kept current every render
+  // by an effect below); `blockMovePointerRef` tracks a live gesture (null when
+  // idle, `armed` once past the click-vs-drag threshold).
+  const blockMoveDepsRef = useRef<{
+    selectedCanvasNodeId: string | null;
+    selectedNodeKind: BuilderNodeKind | null;
+    selectedNodeIsEditableBlock: boolean;
+    selectedNodeIsLocked: boolean;
+    label: string;
+  }>({
+    selectedCanvasNodeId: null,
+    selectedNodeKind: null,
+    selectedNodeIsEditableBlock: false,
+    selectedNodeIsLocked: false,
+    label: "",
+  });
+  const blockMovePointerRef = useRef<{
+    pointerId: number;
+    nodeId: string;
+    draggedKind: BuilderNodeKind;
+    label: string;
+    sourceParentNodeId: string | null;
+    startX: number;
+    startY: number;
+    armed: boolean;
+  } | null>(null);
   const autoscrollRafRef = useRef<number | null>(null);
   const selectionScrollRetryRef = useRef<number | null>(null);
 
@@ -1973,23 +2005,15 @@ export function SelectionLayer() {
           deps.builderTree,
           state.nodeId,
         );
-        const sameParent = location?.parentNodeId === drop.parentNodeId;
-        const resolvedIndex = sameParent
-          ? (() => {
-              const gap = siblingDropGapToMoveIndex({
-                dropGapIndex:
-                  // Re-expand the gap to the FULL sibling list: the resolver
-                  // measured against siblings WITHOUT the dragged node, so any
-                  // gap at/after the source slot is shifted up by one.
-                  location && drop.index >= location.sourceSiblingIndex
-                    ? drop.index + 1
-                    : drop.index,
-                sourceSiblingIndex: location?.sourceSiblingIndex ?? 0,
-                sameParent: true,
-              });
-              return gap.kind === "noop" ? null : gap.targetSiblingIndex;
-            })()
-          : drop.index;
+        // W1-L7 — shared with the pointer-driven block move (same drop math so
+        // both paths land a block identically). Re-expands the resolver's
+        // excluded-node gap to the full sibling list and applies the −1 removal
+        // shift; a same-slot drop returns null (no-op).
+        const resolvedIndex = resolveCanvasNodeMoveIndex({
+          location,
+          dropParentNodeId: drop.parentNodeId,
+          dropIndex: drop.index,
+        });
         if (resolvedIndex === null) return;
         void deps
           .moveBuilderNodeToParentIndex(
@@ -2121,6 +2145,210 @@ export function SelectionLayer() {
       }
     });
   }, [computeCanvasNodeDrop]);
+
+  // ── W1-L7: pointer-driven MOVE-DRAG of the selected block on the canvas ─────
+  //
+  // Defect (P1): dragging a selected text/block on the canvas did NOT move it —
+  // the block body had no drag handler, so the gesture fell through to the
+  // browser's native text-range selection (and the transient selection stacked a
+  // second "1 selected" toolbar over the block toolbar). The universal builder
+  // gesture — drag = move/reorder — did the wrong thing.
+  //
+  // The chip grip already arms an EXISTING-block move via native HTML5 drag; a
+  // block element itself can't be made `draggable` (it's server-rendered
+  // content), so we drive an equivalent POINTER move here and reuse the SAME
+  // drop-policy resolver (`computeCanvasNodeDrop`) + commit path
+  // (`moveBuilderNodeToParentIndex`, via the shared `resolveCanvasNodeMoveIndex`
+  // math). Setting `canvasNodeDrag` to phase "move" lights up the existing
+  // drop-indicator + labeled ghost for free.
+  //
+  // Gesture discipline (see `classifyCanvasBlockPointerGesture`): only a primary
+  // drag directly on the SELECTED, editable, unlocked block starts a move; a
+  // pointerdown inside an inline text editor (contenteditable) or on edit chrome
+  // is left to native behavior, so double-click → text editing still selects
+  // text normally. Native selection is suppressed for the whole gesture
+  // (preventDefault on the arming pointerdown + a `selectstart` guard) so a drag
+  // never paints a text range.
+  useEffect(() => {
+    const CHROME_SELECTOR =
+      "[data-edit-topbar],[data-edit-drawer],[data-edit-overlay],[data-selection-chip],[data-selection-chip-grip]";
+    const INLINE_EDIT_SELECTOR =
+      "[contenteditable='true'],[data-edit-overlay='canvas-edit']";
+
+    const overChromeAtPoint = (x: number, y: number): boolean => {
+      const el = document.elementFromPoint(x, y);
+      return Boolean(el instanceof Element && el.closest(CHROME_SELECTOR));
+    };
+
+    const endGesture = () => {
+      blockMovePointerRef.current = null;
+      document.body.style.userSelect = "";
+    };
+
+    function onPointerDown(event: PointerEvent) {
+      if (blockMovePointerRef.current) return;
+      const deps = blockMoveDepsRef.current;
+      const target = event.target instanceof Element ? event.target : null;
+      const selectedId = deps.selectedCanvasNodeId;
+      const nearestNodeId =
+        target?.closest("[data-builder-node-id]")?.getAttribute(
+          "data-builder-node-id",
+        ) ?? null;
+      const gesture = classifyCanvasBlockPointerGesture({
+        button: event.button,
+        previewing: document.body.dataset.editPreview === "1",
+        selectedNodeIsEditableBlock: deps.selectedNodeIsEditableBlock,
+        selectedNodeIsLocked: deps.selectedNodeIsLocked,
+        pointerOnSelectedBlock:
+          !!selectedId && nearestNodeId === selectedId,
+        targetInEditChrome: !!target && !!target.closest(CHROME_SELECTOR),
+        targetInInlineEdit: !!target && !!target.closest(INLINE_EDIT_SELECTOR),
+      });
+      if (gesture !== "move-drag" || !selectedId || !deps.selectedNodeKind) {
+        return;
+      }
+      // Suppress the native text-range selection this drag would otherwise start.
+      event.preventDefault();
+      const sourceParentNodeId =
+        findCanvasNodeParentContext(
+          canvasDropDepsRef.current.builderTree,
+          selectedId,
+        )?.parentNodeId ?? null;
+      blockMovePointerRef.current = {
+        pointerId: event.pointerId,
+        nodeId: selectedId,
+        draggedKind: deps.selectedNodeKind,
+        label: deps.label,
+        sourceParentNodeId,
+        startX: event.clientX,
+        startY: event.clientY,
+        armed: false,
+      };
+    }
+
+    function onPointerMove(event: PointerEvent) {
+      const gesture = blockMovePointerRef.current;
+      if (!gesture || event.pointerId !== gesture.pointerId) return;
+      if (!gesture.armed) {
+        if (
+          !pointerMovedPastThreshold(
+            event.clientX - gesture.startX,
+            event.clientY - gesture.startY,
+          )
+        ) {
+          return;
+        }
+        gesture.armed = true;
+        // Seed the drop-candidate index once at drag-start (kept warm on
+        // scroll/resize by the canvasDragGestureKey effect below).
+        rebuildCanvasDropIndex();
+        document.body.style.userSelect = "none";
+      }
+      event.preventDefault();
+      const drop = overChromeAtPoint(event.clientX, event.clientY)
+        ? null
+        : computeCanvasNodeDrop(
+            event.clientX,
+            event.clientY,
+            gesture.draggedKind,
+            gesture.nodeId,
+            null,
+          );
+      setCanvasNodeDrag({
+        phase: "move",
+        nodeId: gesture.nodeId,
+        draggedKind: gesture.draggedKind,
+        drop,
+        label: gesture.label,
+        sourceParentNodeId: gesture.sourceParentNodeId,
+        cursorX: event.clientX,
+        cursorY: event.clientY,
+      });
+    }
+
+    function onPointerUp(event: PointerEvent) {
+      const gesture = blockMovePointerRef.current;
+      if (!gesture || event.pointerId !== gesture.pointerId) return;
+      const wasArmed = gesture.armed;
+      endGesture();
+      // A press without movement is a plain click — leave the selection intact.
+      if (!wasArmed) return;
+      const deps = canvasDropDepsRef.current;
+      const drop = overChromeAtPoint(event.clientX, event.clientY)
+        ? null
+        : computeCanvasNodeDrop(
+            event.clientX,
+            event.clientY,
+            gesture.draggedKind,
+            gesture.nodeId,
+            null,
+          );
+      setCanvasNodeDrag({ phase: "idle" });
+      // Invalid drop (disallowed by policy, over chrome, off-canvas) → no-op.
+      if (!drop || !drop.allowed) return;
+      const location = findCanvasNodeParentContext(
+        deps.builderTree,
+        gesture.nodeId,
+      );
+      const resolvedIndex = resolveCanvasNodeMoveIndex({
+        location,
+        dropParentNodeId: drop.parentNodeId,
+        dropIndex: drop.index,
+      });
+      if (resolvedIndex === null) return;
+      void deps
+        .moveBuilderNodeToParentIndex(
+          gesture.nodeId,
+          drop.parentNodeId,
+          resolvedIndex,
+        )
+        .then((result) => {
+          if (!result.ok && result.error) deps.reportMutationError(result.error);
+          else deps.selectBuilderNode(gesture.nodeId);
+        });
+    }
+
+    function onPointerCancel(event: PointerEvent) {
+      const gesture = blockMovePointerRef.current;
+      if (!gesture || event.pointerId !== gesture.pointerId) return;
+      const wasArmed = gesture.armed;
+      endGesture();
+      if (wasArmed) setCanvasNodeDrag({ phase: "idle" });
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      const gesture = blockMovePointerRef.current;
+      if (!gesture) return;
+      const wasArmed = gesture.armed;
+      endGesture();
+      if (wasArmed) setCanvasNodeDrag({ phase: "idle" });
+    }
+
+    function onSelectStart(event: Event) {
+      // Kill any text selection the browser tries to start while a block-move
+      // gesture is live (covers the pre-threshold window before user-select:none).
+      if (blockMovePointerRef.current) event.preventDefault();
+    }
+
+    // Capture phase so this runs before the marquee's document listener and can
+    // preventDefault the native selection at source.
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointercancel", onPointerCancel);
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("selectstart", onSelectStart);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerCancel);
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("selectstart", onSelectStart);
+      if (blockMovePointerRef.current) endGesture();
+    };
+  }, [computeCanvasNodeDrop, rebuildCanvasDropIndex]);
 
   // ── P3-PERF: maintain the cached drop-candidate index for the active drag ───
   //
@@ -2500,6 +2728,12 @@ export function SelectionLayer() {
 
   const isDragging =
     drag.phase === "dragging" && drag.id === selectedSectionId;
+  // W1-L7 — a canvas block move is in flight (pointer-driven body drag OR the
+  // chip grip's native drag). While it is, suppress ALL selection toolbars so
+  // exactly one z-band of chrome exists at a time — no bar stacks over the drag
+  // ghost/indicator; they reappear on drop.
+  const canvasBlockMoveActive = canvasNodeDrag.phase === "move";
+  const dragChromeSuppressed = isDragging || canvasBlockMoveActive;
 
   // Derived display values for the chip / ghost.
   //
@@ -2923,6 +3157,29 @@ export function SelectionLayer() {
   // patch flow, so undo/redo and persistence come for free.
   // P3-LOCK: locked nodes suppress all direct-manipulation handles.
   const selectedNodeIsLocked = selectedBuilderNode?.locked === true;
+  // W1-L7 — publish the current selection facts to the pointerdown classifier so
+  // the mount-time move-drag listener reads today's selection without
+  // re-subscribing. A move only starts on a single, editable, unlocked block.
+  useEffect(() => {
+    blockMoveDepsRef.current = {
+      selectedCanvasNodeId: selectedCanvasNodeId ?? null,
+      selectedNodeKind:
+        selectedBuilderNode && selectedBuilderNode.kind !== "section"
+          ? selectedBuilderNode.kind
+          : null,
+      selectedNodeIsEditableBlock:
+        selectedNodeIsEditableBlock && !multiNodeSelectionActive,
+      selectedNodeIsLocked,
+      label: chipPrimaryLabel,
+    };
+  }, [
+    selectedCanvasNodeId,
+    selectedBuilderNode,
+    selectedNodeIsEditableBlock,
+    multiNodeSelectionActive,
+    selectedNodeIsLocked,
+    chipPrimaryLabel,
+  ]);
   const canResizeSelectedNode =
     selectedNodeIsEditableBlock && !multiNodeSelectionActive && device === "desktop" && !selectedNodeIsLocked;
   // #21 — gap handles apply only to the layout-container kinds that honour the
@@ -3377,7 +3634,8 @@ export function SelectionLayer() {
     selectedBuilderNode.kind === "container" &&
     selectedNodeIsEditableBlock;
   const showMultiSelectionToolbar =
-    multiNodeSelectionActive || canUngroupSelectedNode;
+    (multiNodeSelectionActive || canUngroupSelectedNode) &&
+    !dragChromeSuppressed;
   const canManageSelectedNodeChildren =
     drag.phase === "idle" &&
     !multiNodeSelectionActive &&
@@ -4307,7 +4565,7 @@ export function SelectionLayer() {
               panel. One bar is clearer. */}
 
           {/* Direct manipulation — drag the right edge to set width. */}
-          {canResizeSelectedNode && !isDragging ? (
+          {canResizeSelectedNode && !dragChromeSuppressed ? (
             <CanvasResizeHandles
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
@@ -4318,7 +4576,7 @@ export function SelectionLayer() {
 
           {/* Direct manipulation — devtools box-model: drag the inner bars to
               set padding, the outer bars to set margin (#25). */}
-          {canResizeSelectedNode && !isDragging ? (
+          {canResizeSelectedNode && !dragChromeSuppressed ? (
             <CanvasSpacingHandles
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
@@ -4330,7 +4588,7 @@ export function SelectionLayer() {
 
           {/* #21 — visual auto-layout: drag the pill in a gap between children
               to set the container's gap (flex/grid containers only). */}
-          {isSelectedLayoutContainer && !isDragging ? (
+          {isSelectedLayoutContainer && !dragChromeSuppressed ? (
             <CanvasGapHandles
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
@@ -4340,7 +4598,7 @@ export function SelectionLayer() {
           ) : null}
 
           {/* Direct manipulation — drag the centre grip to move (translate). */}
-	          {canResizeSelectedNode && !isDragging ? (
+	          {canResizeSelectedNode && !dragChromeSuppressed ? (
 	            <CanvasMoveHandle
 	              rect={renderSelectedRect}
 	              liveEl={getSelectedBuilderNodeEl()}
@@ -4349,7 +4607,7 @@ export function SelectionLayer() {
 	            />
 	          ) : null}
 
-	          {multiNodeSelectionActive && !isDragging ? (
+	          {multiNodeSelectionActive && !dragChromeSuppressed ? (
 	            <MultiSelectionMoveHandle
 	              rect={renderSelectedRect}
 	              nodeIds={selectedBuilderNodeRects.map((rect) => rect.id)}
@@ -4791,6 +5049,7 @@ export function SelectionLayer() {
 	          ) : null}
 	          {/* Text layers — bottom-docked formatting bar (decoupled from element). */}
 	          {!multiNodeSelectionActive &&
+	          !dragChromeSuppressed &&
 	          selectedBuilderNode &&
 	          isCanvasTextToolbarKind(selectedBuilderNode) ? (
 	            <CanvasTextToolbar
@@ -4923,8 +5182,10 @@ export function SelectionLayer() {
               fontFamily:
                 'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
               whiteSpace: "nowrap",
-              pointerEvents: "auto",
-              opacity: isDragging ? 0 : 1,
+              // Hidden AND click-through while a block move is in flight so it
+              // never stacks over the drag ghost/indicator (W1-L7).
+              pointerEvents: dragChromeSuppressed ? "none" : "auto",
+              opacity: dragChromeSuppressed ? 0 : 1,
               transition: "opacity 120ms linear",
               userSelect: "none",
             }}
