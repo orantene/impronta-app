@@ -19,7 +19,10 @@
 import { setPendingOffering } from "./pending-offering-store";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
+import type {
+  ScanGuestConversationCallback,
+  TalentChatLauncherProps,
+} from "@/lib/inquiry/guest-chat-contract";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
@@ -76,6 +79,8 @@ type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   draftInquiryId?: string | null;
   otherOpenInquiries?: OtherOpenInquiry[];
   ctaIdentity?: "guest" | "client";
+  /** DOCK v2 — forwarded to the panel: the AI conversation scan action. */
+  onScanConversation?: ScanGuestConversationCallback | null;
   /**
    * P0-5 / W0-F — this launcher is mounted on a HUB host (platform/network hub
    * or the marketing apex), not an agency. Threaded to the panel so the SEND
@@ -122,6 +127,7 @@ export function TalentProfileChatLauncher({
   onLoadDetails = null,
   onListRoster = null,
   onResolveCartPortraits = null,
+  onScanConversation = null,
   soundOnReply = true,
   identity = "guest",
   // `label` (legacy static override) is intentionally NOT destructured: the
@@ -607,6 +613,7 @@ export function TalentProfileChatLauncher({
         onEnsureInquiry={onEnsureInquiry}
         onLoadDetails={onLoadDetails}
         onListRoster={onListRoster}
+        onScanConversation={onScanConversation}
         soundOnReply={soundOnReply}
         identity={identity}
         openFullHref={openFullHref}
