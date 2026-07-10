@@ -23,6 +23,7 @@ import {
   COMMAND_DOCK_PANEL_GAP_PX,
   COMMAND_DOCK_WIDTH_PX,
   Z_INDEX,
+  ensureButtonStyles,
 } from "./kit";
 import { useCommandDockCoupling } from "./use-command-dock-coupling";
 
@@ -53,6 +54,7 @@ interface DockItem {
 }
 
 function DockButton({ item }: { item: DockItem }) {
+  ensureButtonStyles();
   const { active, disabled } = item;
   const reduceMotion = useReducedMotion();
   const isAdd = item.id === "add";
@@ -124,21 +126,8 @@ function DockButton({ item }: { item: DockItem }) {
       aria-pressed={active}
       data-dock-item={item.id}
       data-dock-active={active ? "true" : undefined}
-      className="group relative flex w-full shrink-0 cursor-pointer flex-col items-center gap-[6px] rounded-[14px] border-none px-[4px] py-[11px] transition-[transform,background-color,color] motion-safe:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
-      style={{
-        background: active ? "rgba(124, 58, 237, 0.10)" : "transparent",
-        color: active ? CHROME.accent : CHROME.muted,
-      }}
-      onMouseEnter={(e) => {
-        if (disabled || active) return;
-        e.currentTarget.style.background = "rgba(124, 58, 237, 0.06)";
-        e.currentTarget.style.color = CHROME.ink2;
-      }}
-      onMouseLeave={(e) => {
-        if (disabled || active) return;
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = CHROME.muted;
-      }}
+      data-active={active ? "true" : undefined}
+      className="ec-rail-item group relative flex w-full shrink-0 cursor-pointer flex-col items-center gap-[6px] rounded-[14px] border-none px-[4px] py-[11px] transition-[transform,background-color,color] motion-safe:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
     >
       {active ? (
         <motion.span

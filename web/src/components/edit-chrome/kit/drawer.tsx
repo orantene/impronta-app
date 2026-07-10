@@ -67,6 +67,7 @@ import {
   Z_INDEX,
   type DrawerKind,
 } from "./tokens";
+import { Button } from "./button";
 import { acquireBehindDrawerInert } from "./drawer-modal-inert";
 import {
   FloatingPanelDragProvider,
@@ -582,28 +583,16 @@ function ToolButton({
   children: ReactNode;
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size="md"
+      iconOnly
       onClick={onClick}
       title={title}
       aria-label={ariaLabel}
-      className="inline-flex size-[30px] cursor-pointer items-center justify-center rounded-[6px] transition-colors hover:shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
-      style={{
-        background: "transparent",
-        color: CHROME.muted,
-        border: "none",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = CHROME.surface;
-        e.currentTarget.style.color = CHROME.ink;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = CHROME.muted;
-      }}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 

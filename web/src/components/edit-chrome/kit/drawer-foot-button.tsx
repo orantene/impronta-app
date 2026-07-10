@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-import { CHROME } from "./tokens";
+import { Button } from "./button";
 
 export type DrawerFootButtonVariant = "secondary" | "primary";
 
@@ -17,7 +17,15 @@ interface DrawerFootButtonProps {
   "aria-busy"?: boolean;
 }
 
-/** Shared footer button styles for drawer primary/secondary actions. */
+/**
+ * Shared footer button for drawer primary/secondary actions.
+ *
+ * W2-C2: this is now a thin alias over the ONE {@link Button} primitive so the
+ * footer CTA can't drift from the rest of the chrome. The `variant` names map
+ * straight through (primary/secondary). Kept as a named component because its
+ * call sites read as "drawer foot button" and it pins the size/shape a footer
+ * wants.
+ */
 export function DrawerFootButton({
   children,
   onClick,
@@ -28,34 +36,18 @@ export function DrawerFootButton({
   "aria-label": ariaLabel,
   "aria-busy": ariaBusy,
 }: DrawerFootButtonProps) {
-  const isPrimary = variant === "primary";
   return (
-    <button
-      type={type}
+    <Button
+      variant={variant}
+      size="md"
       onClick={onClick}
       disabled={disabled}
+      type={type}
       title={title}
       aria-label={ariaLabel}
       aria-busy={ariaBusy}
-      style={{
-        height: 30,
-        padding: isPrimary ? "0 14px" : "0 12px",
-        fontSize: 12,
-        fontWeight: isPrimary ? 600 : 500,
-        color: isPrimary ? "#fff" : disabled ? CHROME.muted2 : CHROME.text2,
-        background: isPrimary
-          ? disabled
-            ? CHROME.muted2
-            : CHROME.accent
-          : CHROME.surface,
-        border: isPrimary ? "none" : `1px solid ${CHROME.lineMid}`,
-        borderRadius: 7,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? (isPrimary ? 1 : 0.6) : 1,
-        boxShadow: isPrimary && !disabled ? "0 1px 2px rgba(0,0,0,0.10)" : "none",
-      }}
     >
       {children}
-    </button>
+    </Button>
   );
 }

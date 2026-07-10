@@ -22,6 +22,7 @@ import {
   INSPECTOR_RAIL_RIGHT_PX,
   INSPECTOR_RAIL_WIDTH_PX,
   Z_INDEX,
+  ensureButtonStyles,
 } from "./kit";
 import { useInspectorRailCoupling } from "./use-inspector-rail-coupling";
 import { useInspectorVisibleTabs } from "./use-inspector-visible-tabs";
@@ -47,30 +48,18 @@ function RailTabButton({
   onSelect: (key: InspectorTabKey) => void;
 }) {
   const reduceMotion = useReducedMotion();
+  ensureButtonStyles();
   return (
     <button
       type="button"
       role="tab"
       aria-selected={active}
       data-inspector-rail-tab={tabKey}
+      data-active={active ? "true" : undefined}
       onClick={() => onSelect(tabKey)}
       title={hint}
       aria-label={label}
-      className="relative flex w-full shrink-0 cursor-pointer flex-col items-center gap-[6px] rounded-[14px] border-none px-[4px] py-[11px] transition-colors"
-      style={{
-        background: active ? "rgba(124, 58, 237, 0.10)" : "transparent",
-        color: active ? CHROME.accent : CHROME.muted,
-      }}
-      onMouseEnter={(e) => {
-        if (active) return;
-        e.currentTarget.style.background = "rgba(124, 58, 237, 0.06)";
-        e.currentTarget.style.color = CHROME.ink2;
-      }}
-      onMouseLeave={(e) => {
-        if (active) return;
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = CHROME.muted;
-      }}
+      className="ec-rail-item relative flex w-full shrink-0 cursor-pointer flex-col items-center gap-[6px] rounded-[14px] border-none px-[4px] py-[11px] transition-colors"
     >
       <Icon size={TAB_ICON_PX} strokeWidth={2} aria-hidden />
       <span

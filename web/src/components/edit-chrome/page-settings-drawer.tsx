@@ -33,6 +33,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  Button,
   Card,
   CardBody,
   CardHead,
@@ -863,34 +864,6 @@ function SocialPreview({
 
 // ── small button helpers (match the footer button language) ──────────────────
 
-function primaryButtonStyle(disabled: boolean): React.CSSProperties {
-  return {
-    height: 28,
-    padding: "0 12px",
-    fontSize: 11.5,
-    fontWeight: 600,
-    color: "#fff",
-    background: disabled ? CHROME.muted2 : CHROME.accent,
-    border: "none",
-    borderRadius: 7,
-    cursor: disabled ? "not-allowed" : "pointer",
-  };
-}
-
-function ghostButtonStyle(disabled?: boolean): React.CSSProperties {
-  return {
-    height: 28,
-    padding: "0 10px",
-    fontSize: 11.5,
-    fontWeight: 500,
-    color: CHROME.text2,
-    background: CHROME.surface,
-    border: `1px solid ${CHROME.lineMid}`,
-    borderRadius: 7,
-    cursor: disabled ? "not-allowed" : "pointer",
-  };
-}
-
 function FieldError({ message }: { message: string | null }) {
   if (!message) return null;
   return (
@@ -1107,14 +1080,14 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
               }}
             />
             {!slugLocked ? (
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={saveSlug}
                 disabled={!slugDirty || slugBusy || !seoLoaded}
-                style={primaryButtonStyle(!slugDirty || slugBusy || !seoLoaded)}
               >
                 {slugBusy ? "Saving…" : "Save"}
-              </button>
+              </Button>
             ) : null}
           </div>
           <div style={{ marginTop: 8 }}>
@@ -1192,19 +1165,18 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
                 alignItems: "center",
               }}
             >
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={saveJsonLd}
                 disabled={!jsonLdDirty || jsonLdBusy || !seoLoaded || Boolean(jsonLdLiveError)}
-                style={primaryButtonStyle(
-                  !jsonLdDirty || jsonLdBusy || !seoLoaded || Boolean(jsonLdLiveError),
-                )}
               >
                 {jsonLdBusy ? "Saving…" : "Save structured data"}
-              </button>
+              </Button>
               {jsonLdDraft.trim().length === 0 ? (
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() =>
                     setJsonLdDraft(
                       organizationJsonLdStub({
@@ -1214,10 +1186,9 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
                     )
                   }
                   disabled={!seoLoaded}
-                  style={ghostButtonStyle(!seoLoaded)}
                 >
                   Insert Organization stub
-                </button>
+                </Button>
               ) : null}
             </div>
           </Field>
@@ -1402,16 +1373,14 @@ function RedirectsCard({ open, host }: { open: boolean; host: string }) {
               onChange={setPermanent}
               label={permanent ? "Permanent (301)" : "Temporary (302)"}
             />
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="sm"
               onClick={addRedirect}
               disabled={busy || fromPath.trim() === "" || toPath.trim() === ""}
-              style={primaryButtonStyle(
-                busy || fromPath.trim() === "" || toPath.trim() === "",
-              )}
             >
               {busy ? "Adding…" : "Add redirect"}
-            </button>
+            </Button>
           </div>
           <FieldError message={error} />
         </div>
@@ -1459,26 +1428,22 @@ function RedirectsCard({ open, host }: { open: boolean; host: string }) {
                       {row.statusCode} · {row.active ? "active" : "disabled"}
                     </div>
                   </div>
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => void toggleActive(row)}
-                    style={ghostButtonStyle()}
                     title={row.active ? "Disable" : "Enable"}
                   >
                     {row.active ? "Disable" : "Enable"}
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
                     onClick={() => void removeRedirect(row.id)}
-                    style={{
-                      ...ghostButtonStyle(),
-                      color: CHROME.rose,
-                      borderColor: CHROME.roseLine,
-                    }}
                     title="Delete"
                   >
                     Delete
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
