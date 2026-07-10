@@ -41,6 +41,7 @@ import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/
 import { loadGuestChatSettings } from "@/lib/inquiry/guest-chat-settings";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 
 /**
  * Resolve agencies.slug from a tenant id (service-role read). The hub arm of
@@ -115,6 +116,15 @@ export async function AgencyChatLauncherMount({
   // Null-guard: every guest action behind this launcher is slug-based, so an
   // empty slug yields a non-functional launcher. Never render a dead one.
   if (!tenantSlug.trim()) return null;
+
+  // P2 chrome hygiene — the in-place page builder (EditChromeMount) can mount
+  // on this same storefront path (homepage / directory) with its topbar +
+  // canvas chrome, and this launcher's fixed floating bubble has no
+  // awareness of that — it rendered on top of the editor canvas with no way
+  // to suppress it. Gate on the same tenant-scoped edit cookie the editor
+  // itself reads, so the live-site "Message {agency}" bubble never fights
+  // the builder chrome while an operator is actively editing this tenant.
+  if (await isEditModeActiveForTenant(tenantId)) return null;
 
   const settings = await loadGuestChatSettings(tenantId);
   if (!settings.enabled || !settings.showOnDirectory) return null;
