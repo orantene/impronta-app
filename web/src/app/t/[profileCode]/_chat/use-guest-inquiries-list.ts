@@ -19,11 +19,19 @@ export function useGuestInquiriesList({
   expanded,
   onListGuestInquiries,
   tenantSlug,
+  refreshKey,
 }: {
   open: boolean;
   expanded: boolean;
   onListGuestInquiries: ListGuestInquiriesCallback | null;
   tenantSlug: string;
+  /**
+   * W2-A: bump/change to force a refetch while the panel stays open. The panel
+   * passes the active dock view so opening the Projects view always pulls a
+   * fresh list (a draft created mid-session after the initial open would
+   * otherwise never appear until the panel is reopened).
+   */
+  refreshKey?: unknown;
 }): GuestInquirySummary[] {
   const [inquiries, setInquiries] = useState<GuestInquirySummary[]>([]);
 
@@ -41,7 +49,7 @@ export function useGuestInquiriesList({
     return () => {
       cancelled = true;
     };
-  }, [open, expanded, onListGuestInquiries, tenantSlug]);
+  }, [open, expanded, onListGuestInquiries, tenantSlug, refreshKey]);
 
   return inquiries;
 }

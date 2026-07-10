@@ -177,18 +177,22 @@ export function MiniChatPanel({
   const [serverIntent, setServerIntent] = useState<InquiryIntent | null>(null);
 
   // F4: inquiries list for the expanded left pane. Extracted to
+  // W2-A: the active dock view (Chat / Lineup / Projects). Chat is the default;
+  // the column swaps its body on this and renders the segmented switcher.
+  const [dockView, setDockView] = useState<GuestDockView>("chat");
+
   // useGuestInquiriesList (W1-A decomposition pre-pass). W2-A: also feeds the
-  // Projects dock view (compact + expanded).
+  // Projects dock view (compact + expanded). The refreshKey flips only when the
+  // guest ENTERS the Projects view (not on every Chat<->Lineup switch), forcing
+  // exactly one refetch so an inquiry created earlier in this open session shows
+  // up without reopening the panel.
   const inquiries = useGuestInquiriesList({
     open,
     expanded,
     onListGuestInquiries,
     tenantSlug,
+    refreshKey: dockView === "projects",
   });
-
-  // W2-A: the active dock view (Chat / Lineup / Projects). Chat is the default;
-  // the column swaps its body on this and renders the segmented switcher.
-  const [dockView, setDockView] = useState<GuestDockView>("chat");
 
   // Finding #2: post-"Send to agency" success note (one-shot confirmation).
   const [sentNote, setSentNote] = useState(false);
