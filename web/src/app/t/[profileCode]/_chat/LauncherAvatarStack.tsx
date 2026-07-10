@@ -1,24 +1,25 @@
 "use client";
 
 /**
- * LauncherAvatarStack — the face-focus avatar cart that sits ON the
+ * LauncherAvatarStack — the face-focus avatar cart that sits above the
  * "Message {agency}" launcher pill (plan §4.A). A row of overlapping circular
- * avatars (newest on top, breaking the top edge of the pill), each with an
- * always-visible X-remove control; once over the cap a neutral "+N" chip takes
- * the last slot and deep-links the panel to the Talent section.
+ * avatars (newest on top); once over the cap a neutral "+N" chip takes the last
+ * slot and deep-links the panel to the Talent section. The stack is DISPLAY-ONLY
+ * for the count — the faces plus the single "+N" chip ARE the count. Individual
+ * removal lives in the panel's lineup surface (routed via the launcher's
+ * onRegisterRemoveTalent), NOT on the pill: W1-D removed the per-avatar X so
+ * overlapping X badges can no longer collide with neighbours or steal pill
+ * clicks. Tapping a face (or the +N chip) opens the panel to the Talent section.
  *
  * SELF-CONTAINED + REUSABLE:
  *   • Reads NOTHING globally — `cartTalents` (AvatarStackItem[]) is derived at
  *     the page level by joining the live cart (useInquiryCart().cartIds) with
  *     portraits (loadTalentCardThumbs / GuestInquirySummary.talentPortraitUrl)
  *     and passed in. No second cart store (house rule / single source of truth).
- *   • Removal is delegated up via `onRemoveTalent(id)` — the host calls
- *     `useInquiryCart().setInCart(id, false)` so the cart, the form, and this
- *     rail all reflect one source.
  *
- * Empty cart → renders nothing (§4.A.8). Accent-token themed; the X + the +N
- * chip stay neutral ink/white by design (§4.A.11). Keyboard + aria accessible
- * (§4.A.12); reduced-motion-safe (§4.A.10).
+ * Empty cart → renders nothing (§4.A.8). Accent-token themed; the +N chip stays
+ * neutral ink/white by design (§4.A.11). Keyboard + aria accessible (§4.A.12);
+ * reduced-motion-safe (§4.A.10).
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -44,8 +45,6 @@ import {
 export type LauncherAvatarStackProps = {
   /** Derived at the page level from cartIds + portraits. Empty → renders null. */
   cartTalents: AvatarStackItem[];
-  /** Remove one talent from the cart (host calls setInCart(id, false)). */
-  onRemoveTalent: (talentProfileId: string) => void;
   /** Deep-link the panel to the Talent section (tapped from the +N chip). */
   onOpenToTalentSection?: () => void;
   /** Brand accent (the pill's color) — used only for the initials medallion. */
@@ -62,7 +61,6 @@ const NEUTRAL_WHITE = "#ffffff";
 
 export function LauncherAvatarStack({
   cartTalents,
-  onRemoveTalent,
   onOpenToTalentSection,
   accent,
   accentInk,
@@ -180,19 +178,6 @@ export function LauncherAvatarStack({
     avatarRefs.current[clamped]?.focus();
   };
 
-  // Keyboard remove: the focused button unmounts, so move focus to a surviving
-  // sibling on the next frame instead of dropping to <body> (§4.A.12). `i` is the
-  // removed avatar's roving index; after the list shrinks the next valid index is
-  // min(i, lastIndex-1) (the chip may also disappear when overflow clears).
-  const removeAndRefocus = (i: number, talentProfileId: string) => {
-    onRemoveTalent(talentProfileId);
-    const next = Math.max(0, Math.min(i, lastIndex - 1));
-    requestAnimationFrame(() => {
-      setActiveIndex(next);
-      avatarRefs.current[next]?.focus();
-    });
-  };
-
   return (
     <>
     <ul
@@ -287,7 +272,6 @@ export function LauncherAvatarStack({
               accentInk={accentInk}
               t={t}
               landing={isLanding}
-              compact={compact}
               isActive={i === activeIndex}
               buttonRef={(el) => {
                 avatarRefs.current[i] = el;
@@ -297,7 +281,6 @@ export function LauncherAvatarStack({
                 if (dir === "next") focusAt(i + 1);
                 else if (dir === "prev") focusAt(i - 1);
               }}
-              onRemove={() => removeAndRefocus(i, talent.talentProfileId)}
               onActivate={onOpenToTalentSection}
             />
           </li>
@@ -328,7 +311,9 @@ export function LauncherAvatarStack({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// One circular face-focus avatar + its always-visible X-remove control.
+// One circular face-focus avatar. DISPLAY + deep-link only — the per-avatar
+// X-remove was removed in W1-D (removal now lives in the panel's lineup surface),
+// so nothing on the pill overlaps a neighbour or steals the pill's clicks.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type AvatarCircleProps = {
@@ -338,12 +323,10 @@ type AvatarCircleProps = {
   accentInk: string;
   t: Translator;
   landing: boolean;
-  compact: boolean;
   isActive: boolean;
   buttonRef: (el: HTMLButtonElement | null) => void;
   onFocus: () => void;
   onKeyNav: (dir: "next" | "prev") => void;
-  onRemove: () => void;
   onActivate?: () => void;
 };
 
@@ -354,20 +337,17 @@ function AvatarCircle({
   accentInk,
   t,
   landing,
-  compact,
   isActive,
   buttonRef,
   onFocus,
   onKeyNav,
-  onRemove,
   onActivate,
 }: AvatarCircleProps) {
   const [hovered, setHovered] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
   const showImage = Boolean(talent.portraitUrl) && !imgFailed;
 
-  const xVisible = compact ? 16 + 2 : 16; // 18px mobile / 16px desktop
-  const xClass = landing ? `${UIC}-avatar--landing` : "";
+  const landingClass = landing ? `${UIC}-avatar--landing` : "";
 
   return (
     <span
@@ -389,15 +369,12 @@ function AvatarCircle({
           } else if (e.key === "ArrowLeft") {
             e.preventDefault();
             onKeyNav("next");
-          } else if (e.key === "Delete" || e.key === "Backspace") {
-            e.preventDefault();
-            onRemove();
           }
         }}
         aria-label={interpolate(t("public.guestChat.avatarOpenInquiryAria"), {
           name: talent.displayName,
         })}
-        className={xClass}
+        className={landingClass}
         style={{
           width: diameter,
           height: diameter,
@@ -449,111 +426,6 @@ function AvatarCircle({
           />
         )}
       </button>
-
-      <RemoveAvatarButton
-        displayName={talent.displayName}
-        size={xVisible}
-        coarse={compact}
-        active={isActive}
-        t={t}
-        onRemove={onRemove}
-      />
     </span>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RemoveAvatarButton — the always-visible X (§4.A.4). Neutral ink/white by
-// design; a transparent ::before-style hit padding gives a >=24px target.
-// ─────────────────────────────────────────────────────────────────────────────
-
-type RemoveAvatarButtonProps = {
-  displayName: string;
-  size: number;
-  /** Coarse pointer (mobile): always full opacity + larger hit area. */
-  coarse: boolean;
-  /** Part of the roving group: keep the X in Tab order only when its avatar is active. */
-  active: boolean;
-  t: Translator;
-  onRemove: () => void;
-};
-
-function RemoveAvatarButton({
-  displayName,
-  size,
-  coarse,
-  active: inTabOrder,
-  t,
-  onRemove,
-}: RemoveAvatarButtonProps) {
-  const [hovered, setHovered] = useState(false);
-  const [active, setActive] = useState(false);
-  // Hit padding: 40px (mobile) / 28px (desktop) total around the visible circle.
-  const hitPad = coarse ? Math.max(0, (40 - size) / 2) : Math.max(0, (28 - size) / 2);
-
-  return (
-    <button
-      type="button"
-      tabIndex={inTabOrder ? 0 : -1}
-      aria-label={interpolate(t("public.guestChat.avatarRemoveAria"), {
-        name: displayName,
-      })}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => {
-        setHovered(false);
-        setActive(false);
-      }}
-      onMouseDown={() => setActive(true)}
-      onMouseUp={() => setActive(false)}
-      onClick={(e) => {
-        e.stopPropagation();
-        onRemove();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " " || e.key === "Delete" || e.key === "Backspace") {
-          e.preventDefault();
-          e.stopPropagation();
-          onRemove();
-        }
-      }}
-      style={{
-        position: "absolute",
-        top: -4,
-        right: -4,
-        width: size,
-        height: size,
-        // Transparent hit padding (the >=24px target) via box-sizing + padding.
-        boxSizing: "content-box",
-        padding: hitPad,
-        margin: -hitPad,
-        borderRadius: "50%",
-        background: "#16181d",
-        backgroundClip: "content-box",
-        border: "1.5px solid #ffffff",
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        opacity: coarse ? 1 : hovered ? 1 : 0.85,
-        transform: active ? "scale(0.92)" : hovered ? "scale(1.12)" : "scale(1)",
-        transition: "transform 120ms ease, opacity 120ms ease",
-        zIndex: 1,
-      }}
-    >
-      <svg
-        width="9"
-        height="9"
-        viewBox="0 0 12 12"
-        fill="none"
-        stroke="#ffffff"
-        strokeWidth="2"
-        strokeLinecap="round"
-        aria-hidden="true"
-        style={{ display: "block" }}
-      >
-        <line x1="2.5" y1="2.5" x2="9.5" y2="9.5" />
-        <line x1="9.5" y1="2.5" x2="2.5" y2="9.5" />
-      </svg>
-    </button>
   );
 }

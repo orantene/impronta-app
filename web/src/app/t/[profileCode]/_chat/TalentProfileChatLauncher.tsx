@@ -391,13 +391,6 @@ export function TalentProfileChatLauncher({
   // Phase 8 — forward the live lineup count so a resumed STALE draft reads
   // "Finish your inquiry (N)" (the resume_draft state carries no count itself).
   const launcherLabel = launcherLabelForCta(ctaState, t, brandVoice, cart.cartCount);
-  // When the label already reads "Your lineup (N)" the separate count chip is a
-  // duplicate number on the same pill — suppress it in that case.
-  const labelShowsCount =
-    (ctaState.kind === "in_lineup" ||
-      ctaState.kind === "add_to_lineup" ||
-      ctaState.kind === "review_lineup") &&
-    cart.cartCount > 0;
 
   if (!mounted) return null;
 
@@ -421,38 +414,43 @@ export function TalentProfileChatLauncher({
       <FlyingAvatar flight={flight} onDone={onFlightDone} />
 
       {/* Floating launcher pill wrapper. Bottom-right, above the panel's anchor.
-          When the cart is non-empty AND there is enough lateral room (audit item
-          7 — narrowLauncher gate below), the avatar rail breaks the TOP edge of
-          the pill, so the wrapper gets a top margin to keep overhanging circles
-          from clipping the viewport (plan §4.A.3). Below ~700px the rail is
-          suppressed entirely (folded into the pill's count badge instead), so no
-          floating element ever extends above the pill's own footprint on a
-          narrow viewport — it stays in one consistent bottom-right safe area. */}
+          W1-D — the wrapper is a bottom-anchored flex COLUMN (align to the right
+          edge). The avatar rail, the pick-inquiry picker, and the pill are all
+          in-flow children, so each reserves its own real vertical space: the rail
+          no longer overhangs an out-of-flow, unreserved zone above a bottom-fixed
+          box (the old `position:absolute; top:-16` + ineffective `marginTop:18`
+          combo that both clipped the circles AND overlaid — and stole — clicks
+          meant for the pill). The rail sits ABOVE the pill and only kisses its
+          top edge (marginBottom:-6), so the pill button stays the topmost hit
+          target at its own centre and label. Below ~700px the rail is suppressed
+          entirely (audit item 7 — no floating cluster on narrow viewports). */}
       <div
         style={{
           position: "fixed",
           right: "max(16px, env(safe-area-inset-right))",
           bottom: `calc(${GUEST_CHAT_LAUNCHER_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
           zIndex: 95,
-          marginTop: showAvatarRail ? 18 : 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
         }}
       >
-        {/* The avatar cart — only renders when the cart is non-empty AND the
-            viewport has enough lateral room not to drift the circles over page
-            content (§4.A.8 + audit item 7). Absolutely positioned breaking the
-            pill's top edge; newest rightmost. */}
+        {/* The avatar cart — DISPLAY-ONLY count (faces + a single "+N"). Only when
+            the cart is non-empty AND there is enough lateral room (§4.A.8 + audit
+            item 7). In-flow above the pill (reserves its own height); newest
+            rightmost. marginBottom:-6 lets the faces kiss the pill's top edge for
+            the lifted look without covering the pill's clickable centre. */}
         {showAvatarRail && (
           <div
             style={{
-              position: "absolute",
-              top: -16,
-              right: 12,
+              marginRight: 12,
+              marginBottom: -6,
+              position: "relative",
               zIndex: 1,
             }}
           >
             <LauncherAvatarStack
               cartTalents={cartTalents}
-              onRemoveTalent={handleRemoveTalent}
               onOpenToTalentSection={handleOpenToTalent}
               accent={accent}
               accentInk={accentInk}
@@ -556,34 +554,11 @@ export function TalentProfileChatLauncher({
             <ChatGlyph color={accentInk} />
           )}
           <span>{open ? "Close" : launcherLabel}</span>
-          {/* Jon 360 Phase 7 — cart count chip ON the pill. Shows how many talents
-              are in the inquiry cart (only when closed + non-empty). Frosted neutral
-              chip so it reads on any accent without re-clamping. */}
-          {!open && hasCart && !labelShowsCount && (
-            <span
-              aria-hidden
-              style={{
-                minWidth: 20,
-                height: 20,
-                padding: "0 6px",
-                marginLeft: 1,
-                borderRadius: 10,
-                background: "rgba(255,255,255,0.22)",
-                color: accentInk,
-                border: "1px solid rgba(255,255,255,0.4)",
-                fontSize: 12,
-                fontWeight: 700,
-                lineHeight: "18px",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backdropFilter: "blur(4px)",
-                WebkitBackdropFilter: "blur(4px)",
-              }}
-            >
-              {cartTalents.length}
-            </span>
-          )}
+          {/* W1-D — the separate cart count chip (the "9" bubble) was REMOVED. It
+              double-counted against the avatar stack (faces + a single "+N" chip
+              ARE the count) and, in states like `sent_awaiting`, `labelShowsCount`
+              left BOTH visible. The count is now carried by the faces, or — when
+              there are no faces — by the label's own "(N)" in the lineup states. */}
         </button>
       </div>
 
