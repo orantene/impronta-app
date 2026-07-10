@@ -50,6 +50,8 @@ import {
   COMMAND_DOCK_WIDTH_PX,
   COMMAND_DOCK_PANEL_GAP_PX,
   INSPECTOR_PANEL_RIGHT_INSET_PX,
+  Button,
+  EditToast,
 } from "./kit";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
 import {
@@ -1824,43 +1826,19 @@ function DraftSavedToast() {
     minute: "2-digit",
   });
   return (
-    <div
-      data-edit-overlay="draft-saved-toast"
-      className="pointer-events-auto fixed left-1/2 top-[66px] z-[120] flex -translate-x-1/2 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-900 shadow-lg"
+    <EditToast
+      overlayId="draft-saved-toast"
+      tone="success"
+      onDismiss={clearDraftSavedToast}
     >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <polyline points="20 6 9 17 4 12" />
-      </svg>
-      <span className="flex max-w-[min(420px,calc(100vw-96px))] flex-col gap-0.5 leading-snug">
+      <span className="flex max-w-[min(420px,calc(100vw-96px))] flex-col gap-0.5">
         <span>Draft saved · {stamp}</span>
-        <span className="font-normal text-emerald-800/85">
+        <span className="font-normal opacity-85">
           Live preview can lag a moment after inserts — the draft on the server is still what
           Publish will read.
         </span>
       </span>
-      <button
-        type="button"
-        onClick={clearDraftSavedToast}
-        className="rounded-sm px-1 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-900"
-        aria-label="Dismiss"
-        title="Dismiss"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-    </div>
+    </EditToast>
   );
 }
 
@@ -1879,52 +1857,14 @@ function ClipboardActionToast() {
     clipboardActionToast.count,
   );
   return (
-    <div
-      data-edit-overlay="clipboard-action-toast"
+    <EditToast
+      overlayId="clipboard-action-toast"
       data-clipboard-action={clipboardActionToast.action}
-      role="status"
-      aria-live="polite"
-      className="pointer-events-auto fixed left-1/2 top-[66px] z-[120] flex -translate-x-1/2 items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-800 shadow-lg"
+      tone="neutral"
+      onDismiss={clearClipboardActionToast}
     >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="text-stone-500"
-        aria-hidden
-      >
-        <polyline points="20 6 9 17 4 12" />
-      </svg>
-      <span className="max-w-[min(360px,calc(100vw-120px))] leading-snug">
-        {label}
-      </span>
-      <button
-        type="button"
-        onClick={clearClipboardActionToast}
-        className="rounded-sm px-1 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
-        aria-label="Dismiss"
-        title="Dismiss"
-      >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-    </div>
+      <span className="max-w-[min(360px,calc(100vw-120px))]">{label}</span>
+    </EditToast>
   );
 }
 
@@ -1939,76 +1879,44 @@ function TemplateAppliedToast() {
     useEditContext();
   if (!templateAppliedToast) return null;
   return (
-    <div
-      data-edit-overlay="template-applied-toast"
-      role="status"
-      aria-live="polite"
-      className="pointer-events-auto fixed left-1/2 top-[66px] z-[120] flex -translate-x-1/2 items-center gap-3 rounded-md border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-800 shadow-lg"
+    <EditToast
+      overlayId="template-applied-toast"
+      tone="neutral"
+      onDismiss={clearTemplateAppliedToast}
+      action={
+        <Button
+          variant="subtle"
+          size="sm"
+          onClick={() => {
+            clearTemplateAppliedToast();
+            void undo();
+          }}
+          leadingIcon={
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M9 14 4 9l5-5" />
+              <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+            </svg>
+          }
+        >
+          Undo
+        </Button>
+      }
     >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="text-stone-500"
-        aria-hidden
-      >
-        <polyline points="20 6 9 17 4 12" />
-      </svg>
-      <span className="max-w-[min(360px,calc(100vw-160px))] leading-snug">
+      <span className="max-w-[min(360px,calc(100vw-160px))]">
         <span className="font-semibold">{templateAppliedToast.label}</span>{" "}
         applied.
       </span>
-      <button
-        type="button"
-        onClick={() => {
-          clearTemplateAppliedToast();
-          void undo();
-        }}
-        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-[11px] font-semibold text-stone-700 transition hover:border-stone-300 hover:bg-stone-100"
-      >
-        <svg
-          width="11"
-          height="11"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="M9 14 4 9l5-5" />
-          <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
-        </svg>
-        Undo
-      </button>
-      <button
-        type="button"
-        onClick={clearTemplateAppliedToast}
-        className="rounded-sm px-1 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
-        aria-label="Dismiss"
-        title="Dismiss"
-      >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-    </div>
+    </EditToast>
   );
 }
 
@@ -2069,101 +1977,99 @@ function MutationErrorToast() {
   })();
 
   return (
-    <div
-      data-edit-overlay="mutation-toast"
+    <EditToast
+      overlayId="mutation-toast"
       role="alert"
-      aria-live="assertive"
-      aria-atomic="true"
-      className="pointer-events-auto fixed left-1/2 top-[66px] z-[120] flex max-w-[min(92vw,680px)] -translate-x-1/2 items-start gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 shadow-lg"
+      tone="error"
+      onDismiss={clearMutationError}
+      icon={null}
+      className="max-w-[min(92vw,680px)]"
     >
-      <span className="min-w-0 flex-1">
-        <span className="block text-[10px] uppercase tracking-[0.06em] text-amber-700">
-          Builder change blocked
-        </span>
-        <span className="block leading-snug">{mutationError.message}</span>
-        {operationLabel || mutationError.code ? (
-          <span className="mt-1 block text-[10px] uppercase tracking-[0.04em] text-amber-700">
-            {[operationLabel, mutationError.code?.replaceAll("_", " ")]
-              .filter(Boolean)
-              .join(" · ")}
-          </span>
-        ) : null}
-        {suggestion ? (
-          <span className="mt-1 block text-[11px] font-normal leading-snug text-amber-900">
-            Next step: {suggestion}
-          </span>
-        ) : null}
-        {conflictWho ? (
-          <span className="mt-1 block text-[11px] font-semibold leading-snug text-amber-900">
-            {conflictWho}
-          </span>
-        ) : null}
-        {showConflictRecovery ? (
-          <span className="mt-2 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                // W1-L2 — the reload no longer happens automatically; choosing
-                // this loads the other session's state and resets undo (with an
-                // explanation toast from refreshComposition).
-                void reloadLatestAfterConflict();
-              }}
-              className="rounded-sm border border-amber-300 bg-white/70 px-2 py-1 text-[11px] font-semibold text-amber-900 transition hover:bg-white"
-              title="Load the changes from the other tab or session. Your unsaved local changes are discarded and undo history resets."
-            >
-              Reload latest
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                // WS1-D / W1-L2 — "Keep editing this copy" saves the operator's
-                // local tree over the change that just landed elsewhere. Confirm
-                // first so a co-editor's (or your other tab's) work isn't lost
-                // without a heads-up. Names the editor when presence knows who
-                // saved. Undo history stays intact.
-                const who = conflictWho
-                  ? ` (${conflictWho.replace(/\.$/, "")})`
-                  : "";
-                const ok = window.confirm(
-                  `Keep editing this copy?\n\nA newer change was just saved${who}. Keeping this copy overwrites that change. It stays recoverable in Revisions.`,
-                );
-                if (ok) void keepMyVersionAfterConflict();
-              }}
-              className="rounded-sm border border-amber-400 bg-amber-200/80 px-2 py-1 text-[11px] font-semibold text-amber-950 transition hover:bg-amber-200"
-              title="Save your copy over the change from the other tab or session. Your undo history is kept."
-            >
-              Keep editing this copy
-            </button>
-          </span>
-        ) : null}
-        {detailLines.length > 0 ? (
-          <span className="mt-1 block text-[11px] font-normal leading-snug text-amber-800/90">
-            <span className="block text-[10px] uppercase tracking-[0.04em] text-amber-700">
-              Details
-            </span>
-            <span className="mt-0.5 block">
-              {detailLines.map((line, index) => (
-                <span key={`${line}-${index}`} className="block break-words">
-                  • {line}
-                </span>
-              ))}
-            </span>
-          </span>
-        ) : null}
+      <span className="block text-[10px] uppercase tracking-[0.06em] opacity-80">
+        Builder change blocked
       </span>
-      <button
-        type="button"
-        onClick={clearMutationError}
-        className="rounded-sm px-1 text-amber-700 transition hover:bg-amber-100 hover:text-amber-900"
-        aria-label="Dismiss"
-        title="Dismiss"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-    </div>
+      <span className="block" style={{ color: CHROME.text2 }}>
+        {mutationError.message}
+      </span>
+      {operationLabel || mutationError.code ? (
+        <span className="mt-1 block text-[10px] uppercase tracking-[0.04em] opacity-80">
+          {[operationLabel, mutationError.code?.replaceAll("_", " ")]
+            .filter(Boolean)
+            .join(" · ")}
+        </span>
+      ) : null}
+      {suggestion ? (
+        <span
+          className="mt-1 block text-[11px] font-normal"
+          style={{ color: CHROME.text2 }}
+        >
+          Next step: {suggestion}
+        </span>
+      ) : null}
+      {conflictWho ? (
+        <span
+          className="mt-1 block text-[11px] font-semibold"
+          style={{ color: CHROME.text2 }}
+        >
+          {conflictWho}
+        </span>
+      ) : null}
+      {showConflictRecovery ? (
+        <span className="mt-2 flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              // W1-L2 — the reload no longer happens automatically; choosing
+              // this loads the other session's state and resets undo (with an
+              // explanation toast from refreshComposition).
+              void reloadLatestAfterConflict();
+            }}
+            title="Load the changes from the other tab or session. Your unsaved local changes are discarded and undo history resets."
+          >
+            Reload latest
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() => {
+              // WS1-D / W1-L2 — "Keep editing this copy" saves the operator's
+              // local tree over the change that just landed elsewhere. Confirm
+              // first so a co-editor's (or your other tab's) work isn't lost
+              // without a heads-up. Names the editor when presence knows who
+              // saved. Undo history stays intact.
+              const who = conflictWho
+                ? ` (${conflictWho.replace(/\.$/, "")})`
+                : "";
+              const ok = window.confirm(
+                `Keep editing this copy?\n\nA newer change was just saved${who}. Keeping this copy overwrites that change. It stays recoverable in Revisions.`,
+              );
+              if (ok) void keepMyVersionAfterConflict();
+            }}
+            title="Save your copy over the change from the other tab or session. Your undo history is kept."
+          >
+            Keep editing this copy
+          </Button>
+        </span>
+      ) : null}
+      {detailLines.length > 0 ? (
+        <span
+          className="mt-1 block text-[11px] font-normal"
+          style={{ color: CHROME.muted }}
+        >
+          <span className="block text-[10px] uppercase tracking-[0.04em] opacity-90">
+            Details
+          </span>
+          <span className="mt-0.5 block">
+            {detailLines.map((line, index) => (
+              <span key={`${line}-${index}`} className="block break-words">
+                • {line}
+              </span>
+            ))}
+          </span>
+        </span>
+      ) : null}
+    </EditToast>
   );
 }
 
