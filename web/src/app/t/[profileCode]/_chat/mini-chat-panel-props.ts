@@ -1,4 +1,7 @@
-import type { MiniChatPanelProps } from "@/lib/inquiry/guest-chat-contract";
+import type {
+  MiniChatPanelProps,
+  ScanGuestConversationCallback,
+} from "@/lib/inquiry/guest-chat-contract";
 
 import type { SurfaceMode } from "./mini-chat-styles";
 
@@ -55,4 +58,10 @@ export type MiniChatPanelLocalProps = MiniChatPanelProps & {
    * structured commit creates one).
    */
   onInquiryIdChange?: (inquiryId: string | null) => void;
+  /**
+   * DOCK v2 — the shipped AI conversation scan (fill empty inquiry detail fields
+   * from the chat). Threaded to the "Fill from conversation" button in the Add
+   * details sheet. Null hides the scan affordance.
+   */
+  onScanConversation?: ScanGuestConversationCallback | null;
 };
