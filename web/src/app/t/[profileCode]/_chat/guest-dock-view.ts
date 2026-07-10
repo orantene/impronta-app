@@ -12,8 +12,13 @@
 
 import type { GuestThreadStatus } from "@/lib/inquiry/guest-chat-contract";
 
-/** The three dock views. "chat" is the default and renders today's panel. */
-export type GuestDockView = "chat" | "lineup" | "projects";
+/**
+ * The dock views. DOCK v2 adds "home" — the friendly landing hub (agency hero +
+ * a few big action cards) that the panel opens into for a fresh visitor. "chat"
+ * renders the conversation; "lineup" and "projects" are the two roster/inquiry
+ * surfaces.
+ */
+export type GuestDockView = "home" | "chat" | "lineup" | "projects";
 
 /**
  * A project's honest lifecycle phase for the status chip:

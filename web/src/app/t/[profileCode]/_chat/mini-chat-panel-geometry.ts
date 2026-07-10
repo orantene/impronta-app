@@ -50,20 +50,26 @@ export function miniPanelContainerStyle(
       fontFamily: FONT,
     };
   }
+  // DOCK v2 — a bigger, calmer messages-app footprint. Widened to ~408px and
+  // grown toward a real chat product's height so the conversation dominates and
+  // the new bottom-tab nav + composer have room to breathe. Still clamps to the
+  // viewport (never wider than the screen, never taller than the visible area
+  // above the launcher pill).
   return {
     position: "fixed",
     right: "max(16px, env(safe-area-inset-right))",
     bottom: `calc(${GUEST_CHAT_PANEL_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
     zIndex: 90,
-    width: "min(380px, calc(100vw - 32px))",
-    maxHeight: "min(620px, calc(100vh - 140px))",
+    width: "min(408px, calc(100vw - 32px))",
+    height: "min(720px, calc(100vh - 120px))",
+    maxHeight: "calc(100vh - 120px)",
     display: "flex",
     flexDirection: "column",
     background: palette.surface,
-    borderRadius: 18,
+    borderRadius: 20,
     border: `1px solid ${palette.border}`,
     boxShadow:
-      "0 24px 60px -18px rgba(16,18,29,0.45), 0 6px 18px -8px rgba(16,18,29,0.25)",
+      "0 28px 68px -20px rgba(16,18,29,0.48), 0 8px 22px -10px rgba(16,18,29,0.26)",
     overflow: "hidden",
     fontFamily: FONT,
   };
