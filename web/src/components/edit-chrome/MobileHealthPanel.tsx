@@ -97,7 +97,7 @@ const KIND_LABEL: Record<MobileHealthCheckKind, string> = {
 };
 
 const KIND_COLOR: Record<MobileHealthCheckKind, string> = {
-  tiny_text: "#b45309", // amber-700
+  tiny_text: "#2c5fdb", // cool attention blue (no gold/rust in admin chrome)
   tap_target: "#c2410c", // orange-700
   overflow: "#1d4ed8",   // blue-700
 };

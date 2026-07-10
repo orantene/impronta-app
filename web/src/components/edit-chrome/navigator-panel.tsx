@@ -3934,7 +3934,7 @@ function OutlineTree({
                 background: selected
                   ? "rgba(255,255,255,0.18)"
                   : node.level === 1
-                    ? "rgba(180, 83, 9, 0.10)" // amber tint for the page H1
+                    ? "rgba(58, 123, 255, 0.10)" // cool attention tint for the page H1 (no gold/rust)
                     : CHROME.paper2,
                 color: selected
                   ? "rgba(255,255,255,0.92)"

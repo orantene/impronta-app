@@ -114,9 +114,14 @@ export const CHROME = {
   green: "#14732e",
   greenBg: "rgba(20, 115, 46, 0.10)",
   greenLine: "rgba(20, 115, 46, 0.20)",
-  amber: "#b45309",
-  amberBg: "rgba(180, 83, 9, 0.10)",
-  amberLine: "rgba(180, 83, 9, 0.22)",
+  // "amber" is retained as a token NAME for import stability, but it no
+  // longer resolves to gold/rust: admin chrome must never use gold/rust/amber
+  // (owner rule). It now maps to the cool BLUE "attention / pending" role, so
+  // the most-seen dirty-state ("Unpublished changes") pill + preflight
+  // warnings read as calm cool signals instead of alarm-gold. Errors stay rose.
+  amber: "#2c5fdb",
+  amberBg: "rgba(58, 123, 255, 0.10)",
+  amberLine: "rgba(58, 123, 255, 0.24)",
   rose: "#b42323",
   roseBg: "rgba(180, 35, 35, 0.10)",
   roseLine: "rgba(180, 35, 35, 0.22)",
