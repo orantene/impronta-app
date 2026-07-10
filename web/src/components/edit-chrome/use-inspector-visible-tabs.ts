@@ -14,6 +14,11 @@ import {
   resolveInspectorVisibleTabs,
   type InspectorTabKey,
 } from "./inspector-tab-config";
+import {
+  filterInspectorTabsByAdvanced,
+  hasHiddenAdvancedInspectorTabs,
+} from "./advanced-mode-visibility";
+import { useAdvancedMode } from "./advanced-mode";
 import { resolveStandaloneBuilderNodeForContent } from "./inspectors/builder-node-content-utils";
 
 function cleanSectionName(raw: string | null | undefined): string | null {
@@ -51,15 +56,25 @@ export function useInspectorVisibleTabs() {
     }
   }
 
-  const visibleTabKeys = resolveInspectorVisibleTabs({
+  const { advanced } = useAdvancedMode();
+
+  const resolvedTabKeys = resolveInspectorVisibleTabs({
     sectionTypeKey:
       loadedSection?.sectionTypeKey ?? skeletonHint?.typeKey ?? null,
     selectedStandaloneBuilderNode,
   });
 
+  // Advanced OFF hides Data (bindings) + Motion — the node keeps any overrides
+  // it already has (styles still render); only the editing tab is hidden.
+  const visibleTabKeys = filterInspectorTabsByAdvanced(resolvedTabKeys, advanced);
+  const hasHiddenAdvancedTabs = hasHiddenAdvancedInspectorTabs(
+    resolvedTabKeys,
+    advanced,
+  );
+
   const tabItems = inspectorTabItemsForKeys(visibleTabKeys);
 
-  return { tabItems, visibleTabKeys };
+  return { tabItems, visibleTabKeys, hasHiddenAdvancedTabs };
 }
 
 export type { InspectorTabKey };

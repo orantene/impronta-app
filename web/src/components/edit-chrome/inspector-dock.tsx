@@ -65,6 +65,8 @@ import { MultiSelectionStylePanel } from "./inspectors/multi-selection-style-pan
 import { DataPanel } from "./inspectors/data-panel";
 import { MotionPanel } from "./inspectors/motion-panel";
 import { NodeMotionPanel } from "./inspectors/node-motion-panel";
+import { useAdvancedMode } from "./advanced-mode";
+import { filterInspectorTabsByAdvanced } from "./advanced-mode-visibility";
 import {
   InspectorDraftStatus,
   InspectorViewportRail,
@@ -1154,7 +1156,9 @@ export function InspectorDock() {
   // DEFAULT_TABS (Content + Style + Layout). Falls back to all 5 only
   // while the section row is still loading, so the strip doesn't jump
   // size at hand-off.
+  const { advanced } = useAdvancedMode();
   const visibleTabs = useMemo<ReadonlyArray<TabKey>>(() => {
+    let resolved: TabKey[];
     if (selectedStandaloneBuilderNode) {
       const tabs: TabKey[] = ["content", "style"];
       if (nodeUsesLayoutInspector(selectedStandaloneBuilderNode)) {
@@ -1166,17 +1170,21 @@ export function InspectorDock() {
         tabs.push("data");
       }
       tabs.push("motion");
-      return tabs;
+      resolved = tabs;
+    } else {
+      const allowed = currentLoadedSection
+        ? tabsForSection(currentLoadedSection.sectionTypeKey)
+        : skeletonHint
+          ? tabsForSection(skeletonHint.typeKey)
+          : DEFAULT_TABS;
+      const set = new Set(allowed);
+      // Preserve the canonical TABS order.
+      resolved = TABS.filter((t) => set.has(t.key)).map((t) => t.key);
     }
-    const allowed = currentLoadedSection
-      ? tabsForSection(currentLoadedSection.sectionTypeKey)
-      : skeletonHint
-        ? tabsForSection(skeletonHint.typeKey)
-        : DEFAULT_TABS;
-    const set = new Set(allowed);
-    // Preserve the canonical TABS order.
-    return TABS.filter((t) => set.has(t.key)).map((t) => t.key);
-  }, [currentLoadedSection, selectedStandaloneBuilderNode, skeletonHint]);
+    // W2-C4 — Advanced OFF hides Data + Motion tabs (data model untouched; the
+    // fallback effect below resets an orphaned active tab to Content).
+    return filterInspectorTabsByAdvanced(resolved, advanced);
+  }, [currentLoadedSection, selectedStandaloneBuilderNode, skeletonHint, advanced]);
 
   // Vertical icon-rail items removed — tab strip lives on InspectorCommandRail.
 
