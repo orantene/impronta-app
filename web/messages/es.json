@@ -913,6 +913,7 @@
       "pickerStartNew": "Inicia una nueva solicitud solo con {name}",
       "pickerStartingNew": "Iniciando...",
       "pickerTrigger": "Agrega a {name}",
+      "pickerSentLockedHint": "Las solicitudes que ya enviaste quedan bloqueadas. Inicia una nueva para agregar a {name}.",
       "switcherNewMessageSuffix": "mensaje nuevo",
       "customQuoteChip": "Cotización a medida"
     },

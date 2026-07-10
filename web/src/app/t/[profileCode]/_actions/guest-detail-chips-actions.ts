@@ -57,6 +57,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "@/lib/inquiry/inquiry-events";
+import { isGuestChipWritableStatus } from "@/lib/inquiry/guest-chip-write-policy";
 import type {
   GetGuestInquiryDetailsResult,
   GuestChatErrorCode,
@@ -483,17 +484,22 @@ export async function captureGuestChip(input: GuestChipInput): Promise<GuestChip
     if (!owned.ok) return owned.failure;
     const { inquiry } = owned;
 
-    // Refuse writes on terminal / finalized inquiries. A booked or closed
-    // inquiry's structured spine must not be mutated by a guest chip — the
-    // coordinator or admin owns the data at that point. Mirrors the
-    // TERMINAL_STATUSES set in guest-trust-gate.ts + the "booked"/"closed"
-    // buckets from toThreadStatus in guest-chat-actions.ts.
-    const terminalStatuses = new Set([
-      "cancelled", "closed", "archived", "rejected", "expired", "closed_lost",
-      "booked", "converted",
-    ]);
-    if (terminalStatuses.has(inquiry.status)) {
-      return { ok: true, appliedSummary: "" }; // silent no-op, data already settled
+    // FREEZE ON SEND (decision D3): a guest chip may ONLY mutate a private DRAFT
+    // inquiry. The moment an inquiry is sent it leaves `draft` (promoted to
+    // `submitted`, then coordination / offer_pending / ...), and from that point
+    // its lineup + structured details must never change under the agency. This is
+    // an ALLOWLIST, not a terminal blocklist: the previous set refused only a few
+    // terminal statuses, so `submitted` (and every other live status) stayed
+    // writable and a guest could keep editing an already-sent inquiry (P0-3).
+    // Ownership was already proven above; a non-draft status returns a TYPED
+    // refusal WITHOUT writing (best-effort, never throws). Guests only ever edit
+    // their own active draft; sent-thread edits belong to a later change-request
+    // flow, not a silent spine mutation.
+    if (!isGuestChipWritableStatus(inquiry.status)) {
+      return fail(
+        "forbidden",
+        "This inquiry was already sent. Start a new one to change the lineup.",
+      );
     }
 
     // Merge chip payload into interpreted_query
