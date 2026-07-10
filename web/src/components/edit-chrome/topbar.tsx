@@ -3002,7 +3002,9 @@ export function TopBar({
       {/* ── Right cluster — history · collaboration · save & publish ──
        * Page-level tools only. Element/section editing lives in the inspector
        * and the floating toolbar; tool panels launch from the left command
-       * dock. Search · Add · Page settings · Theme · Help now live in the dock.
+       * dock (Add · Pages · Structure · Design · Assets · Help). Search lives
+       * only in the ⌘K command palette; Page Settings has its single home in
+       * the publish menu below.
        */}
       <TbIconBtn title="Undo (⌘Z)" onClick={onUndo} disabled={!canUndo}>
         <svg width={TB_ICON_PX} height={TB_ICON_PX} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
