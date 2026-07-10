@@ -38,6 +38,7 @@ import { KbdSequence } from "./kit/kbd";
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./kit/tokens";
 import { useEditContext } from "./edit-context";
 import { useModalFocusTrap } from "./modal-focus-trap";
+import { useAdvancedMode } from "./advanced-mode";
 
 interface ShortcutOverlayProps {
   open: boolean;
@@ -55,6 +56,7 @@ const CATEGORY_ORDER: ReadonlyArray<ShortcutCategory> = [
 
 export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
   const { canEditSiteShell, pageSlug } = useEditContext();
+  const { advanced, toggle: toggleAdvanced } = useAdvancedMode();
   const dialogRef = useModalFocusTrap(open, onClose);
   // Escape close lives both here (when focus is within the overlay) and
   // in edit-shell.tsx (so background focus still dismisses). Two layers
@@ -190,6 +192,97 @@ export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
         </header>
 
         <div style={{ padding: 20, display: "grid", gap: 20 }}>
+          {/* W2-C4 — the single home for the Advanced toggle. Default (OFF) keeps
+              the editor minimal: Layout · Content · Style tabs, Desktop · Tablet
+              · Mobile viewports, no reusable style presets / linked classes.
+              Turning it ON returns Data + Motion tabs, Wide + Compact + custom
+              viewport widths, and the advanced style controls. Nothing is ever
+              removed from the data model — only the editing surface changes. */}
+          <section>
+            <h3
+              style={{
+                margin: "0 0 8px",
+                fontSize: 11,
+                fontWeight: 600,
+                color: CHROME.muted,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+            >
+              Editor mode
+            </h3>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "12px 14px",
+                background: CHROME.surface,
+                border: `1px solid ${CHROME.line}`,
+                borderRadius: CHROME_RADII.md,
+              }}
+            >
+              <div className="min-w-0">
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: CHROME.ink,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  Advanced tools
+                </div>
+                <div
+                  style={{
+                    marginTop: 2,
+                    fontSize: 11.5,
+                    color: CHROME.muted,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {advanced
+                    ? "Data + Motion tabs, Wide / Compact / custom viewports, and reusable style presets & linked classes are shown."
+                    : "Off keeps the editor minimal. Turn on for Data + Motion tabs, extra viewport tiers, and advanced style controls."}
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={advanced}
+                aria-label="Advanced tools"
+                onClick={toggleAdvanced}
+                title="Show power-user tools (Data + Motion tabs, extra viewports, style presets & classes)"
+                style={{
+                  position: "relative",
+                  flexShrink: 0,
+                  width: 42,
+                  height: 24,
+                  borderRadius: 999,
+                  border: `1px solid ${advanced ? CHROME.accent : CHROME.line}`,
+                  background: advanced ? CHROME.accent : CHROME.surface2,
+                  cursor: "pointer",
+                  transition: "background 120ms ease, border-color 120ms ease",
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    top: 2,
+                    left: advanced ? 20 : 2,
+                    width: 18,
+                    height: 18,
+                    borderRadius: 999,
+                    background: "#fff",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                    transition: "left 120ms ease",
+                  }}
+                />
+              </button>
+            </div>
+          </section>
           {CATEGORY_ORDER.map((cat) => {
             const entries = buckets[cat];
             if (entries.length === 0) return null;

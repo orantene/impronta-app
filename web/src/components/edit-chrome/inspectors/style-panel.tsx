@@ -73,6 +73,7 @@ import {
 } from "./style-panel-preview-helpers";
 import { StylePresetsBar } from "./style-presets-bar";
 import { LinkedStyleClassesBar } from "./linked-style-classes-bar";
+import { useAdvancedMode } from "../advanced-mode";
 import { NodeThemeInheritancePanel } from "./node-theme-inheritance-panel";
 import { buildFieldInheritRows } from "./inherit-override-fields";
 import { useComponentDefaultsPreview } from "../component-defaults-bridge";
@@ -1931,6 +1932,11 @@ export function StylePanel({
   const builderTree = useBuilderTree();
   const canUndo = useCanUndo();
   const canRedo = useCanRedo();
+  // W2-C4 — reusable style presets + named/linked style CLASSES are power-user
+  // controls; they surface only when Advanced is ON. Per-node styling, theme
+  // inheritance, and all per-tenant token/brand editing stay at the default
+  // level, so a tenant fully brands their site without Advanced.
+  const { advanced } = useAdvancedMode();
   // #3b — resolved component-default map for the inherit/override inspector.
   // Prefers the operator's working draft (published to the bridge by the Theme
   // drawer's Components tab) so the panel matches the live canvas preview; null
@@ -5578,17 +5584,21 @@ export function StylePanel({
               </>
             ) : null}
 
-            <StylePresetsBar
-              pageId={pageId}
-              currentStyle={selectedStandaloneFullStyle ?? undefined}
-              onApply={(style) => patchSelectedBaseStyle(style)}
-            />
+            {advanced ? (
+              <>
+                <StylePresetsBar
+                  pageId={pageId}
+                  currentStyle={selectedStandaloneFullStyle ?? undefined}
+                  onApply={(style) => patchSelectedBaseStyle(style)}
+                />
 
-            <LinkedStyleClassesBar
-              pageId={pageId}
-              currentStyle={selectedStandaloneFullStyle ?? undefined}
-              onSetStyle={(style) => setSelectedStandaloneStyleObject(style)}
-            />
+                <LinkedStyleClassesBar
+                  pageId={pageId}
+                  currentStyle={selectedStandaloneFullStyle ?? undefined}
+                  onSetStyle={(style) => setSelectedStandaloneStyleObject(style)}
+                />
+              </>
+            ) : null}
 
             {/* #3b — per-field Inherit / Override (Figma/Webflow-style). Writes
                 route through patchSelectedBaseStyle, the SAME base-style chain
