@@ -80,6 +80,12 @@ type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   otherOpenInquiries?: OtherOpenInquiry[];
   ctaIdentity?: "guest" | "client";
   /**
+   * P0-5 / W0-F — this launcher is mounted on a HUB host (platform/network hub
+   * or the marketing apex), not an agency. Threaded to the panel so the SEND
+   * path drops the "the agency" framing. Default false (agency + talent hosts).
+   */
+  isHub?: boolean;
+  /**
    * Phase 8 returning-visitor REPLIED pulse — true when the active SENT inquiry
    * has an unread coordinator reply as its latest message (derived server-side
    * in launcher-lifecycle-inputs from the SAME thread read; no client refetch).
@@ -104,6 +110,7 @@ export function TalentProfileChatLauncher({
   sourcePage,
   brand,
   existingInquiryId = null,
+  existingContactPromoted = null,
   prefill = null,
   offerings = [],
   onAttachOffering = null,
@@ -135,6 +142,7 @@ export function TalentProfileChatLauncher({
   otherOpenInquiries = [],
   ctaIdentity = "guest",
   unreadCoordinatorReply = false,
+  isHub = false,
 }: TalentProfileChatLauncherLocalProps) {
   const mounted = useClientMounted();
   const [open, setOpen] = useState(false);
@@ -698,8 +706,10 @@ export function TalentProfileChatLauncher({
         talentProfileCode={talentProfileCode}
         sourcePage={sourcePage}
         brand={brand}
+        isHub={isHub}
         surfaceMode={surfaceMode}
         existingInquiryId={existingInquiryId}
+        existingContactPromoted={existingContactPromoted}
         prefill={prefill}
         onStartInquiry={onStartInquiry}
         onSendMessage={onSendMessage}

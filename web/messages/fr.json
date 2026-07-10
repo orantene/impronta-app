@@ -293,6 +293,9 @@
       "avatarRemoveAria": "Retirer {name} de votre demande",
       "sendToAgency": "Envoyer à l'agence",
       "sendToAgencySent": "Envoyé. L'agence répondra sous peu.",
+      "sendHub": "Envoyer",
+      "sendHubNoPayment": "Aucun paiement maintenant. Nous transmettrons votre demande aux bonnes personnes.",
+      "sendHubSent": "Envoyé. {brand} transmettra votre demande aux bonnes personnes.",
       "syncSaving": "Enregistrement…",
       "syncSaved": "Enregistré",
       "syncRetry": "Échec de l'enregistrement, touchez pour réessayer.",
@@ -353,6 +356,7 @@
       "pickerStartNew": "Démarrer une nouvelle demande avec seulement {name}",
       "pickerStartingNew": "Démarrage...",
       "pickerTrigger": "Ajouter {name}",
+      "pickerSentLockedHint": "Les demandes déjà envoyées sont verrouillées. Démarrez-en une nouvelle pour ajouter {name}.",
       "switcherNewMessageSuffix": "nouveau message",
       "customQuoteChip": "Devis sur mesure"
     }

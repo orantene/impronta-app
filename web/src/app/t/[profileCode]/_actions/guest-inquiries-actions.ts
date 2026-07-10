@@ -35,6 +35,7 @@ import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolve
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { deriveProjectLabel, shortDateFragment } from "@/lib/inquiry/project-label";
+import { readSelectedIds } from "@/lib/inquiry/guest-draft-resume";
 
 import type { AvatarStackItem } from "@/lib/inquiry/guest-chat-unified-contract";
 import type {
@@ -96,6 +97,11 @@ async function resolveGuestSessionIdLocal(
 
 function toThreadStatus(status: string): GuestThreadStatus {
   switch (status) {
+    case "draft":
+      // Mirror guest-chat-actions: a draft reads as a DRAFT, not "open". The
+      // switcher already keys its draft pill on the dedicated `isDraft` field;
+      // this keeps threadStatus honest for any status-based consumer (W0-B).
+      return "draft";
     case "offer_pending":
       return "offer_pending";
     case "approved":
@@ -128,19 +134,12 @@ function isTerminal(status: string): boolean {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Private: read the Phase 5 PROJECT spine off an inquiry's interpreted_query.
-// The lineup is interpreted_query.talent.selected_ids (replace-semantics set the
-// chip writer maintains); the project name is interpreted_query.client.job_name.
-// Tolerant of any legacy/partial shape — never throws, always returns arrays.
+// The lineup read (interpreted_query.talent.selected_ids) is the shared
+// readSelectedIds helper from guest-draft-resume.ts — the SAME spine the P0-1
+// resume/ensure pickers key on; the project name is
+// interpreted_query.client.job_name. Tolerant of any legacy/partial shape —
+// never throws, always returns arrays.
 // ─────────────────────────────────────────────────────────────────────────────
-
-function readSelectedIds(interpretedQuery: unknown): string[] {
-  if (!interpretedQuery || typeof interpretedQuery !== "object") return [];
-  const talent = (interpretedQuery as Record<string, unknown>).talent;
-  if (!talent || typeof talent !== "object") return [];
-  const raw = (talent as Record<string, unknown>).selected_ids;
-  if (!Array.isArray(raw)) return [];
-  return [...new Set(raw.filter((x): x is string => typeof x === "string" && x.length > 0))];
-}
 
 function readJobName(interpretedQuery: unknown): string | null {
   if (!interpretedQuery || typeof interpretedQuery !== "object") return null;

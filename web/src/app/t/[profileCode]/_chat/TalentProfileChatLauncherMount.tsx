@@ -184,6 +184,7 @@ export async function TalentProfileChatLauncherMount({
       label={t("public.guestChat.bookNow")}
       // Returning guest → reopen the thread + prefill the gate (B1). null → fresh.
       existingInquiryId={active?.inquiryId ?? null}
+      existingContactPromoted={active?.contactPromoted ?? null}
       prefill={active?.prefill ?? null}
       offerings={chatOfferings}
       onAttachOffering={attachOfferingToGuestInquiry}

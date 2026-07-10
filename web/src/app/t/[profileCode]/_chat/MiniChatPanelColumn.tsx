@@ -261,6 +261,11 @@ export type MiniChatPanelColumnProps = {
   onListGuestInquiries?: ListGuestInquiriesCallback | null;
   onToggleExpand?: () => void;
   identity: GuestIdentityTier;
+  /**
+   * P0-5 / W0-F — hub host (platform/network hub or marketing apex). Drives the
+   * SendToAgencyBar copy so the send button + notes drop the agency framing.
+   */
+  isHub?: boolean;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
 };
 
@@ -343,6 +348,7 @@ export function MiniChatPanelColumn({
   onListGuestInquiries,
   onToggleExpand,
   identity,
+  isHub = false,
   textareaRef,
 }: MiniChatPanelColumnProps) {
   // Guest UI locale rides along on `brand` (resolved server-side from the
@@ -755,6 +761,8 @@ export function MiniChatPanelColumn({
           accent={accent}
           accentInk={accentInk}
           t={t}
+          isHub={isHub}
+          brandName={brand.agencyName}
           surfaceMode={surfaceMode}
           disabled={sending || inCooldown}
           sent={sentNote}

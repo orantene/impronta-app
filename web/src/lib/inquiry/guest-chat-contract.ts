@@ -367,6 +367,7 @@ export type GetGuestThreadResult =
 
 /** Coarse status for the popup header. Maps from inquiries.status, not 1:1. */
 export type GuestThreadStatus =
+  | "draft"         // early-partial row (status="draft"): built but NOT yet sent; stays out of every agency inbox. Must read as a DRAFT (never "sent") on every launcher pill (P0-2 / W0-B).
   | "open"          // submitted / coordination / active conversation
   | "offer_pending" // an offer card exists awaiting the client
   | "approved"      // all-parties approved, pre-booking
@@ -400,6 +401,23 @@ export type GuestChatOffering = {
 export type ActiveGuestInquiry = {
   /** inquiries.id to reopen — the panel mounts straight into the thread stage. */
   inquiryId: string;
+  /**
+   * P0-1 (W0-A, additive/optional) — whether the resumed row's lineup
+   * (interpreted_query.talent.selected_ids) already contains the talent whose
+   * page initiated the resume. `false` = the session's live working DRAFT was
+   * resumed but this talent is not on its lineup yet; the panel's normal
+   * talent chip-add flow appends them. Omitted/`true` when there is no talent
+   * context (agency launcher) or the lineup already carries the talent.
+   */
+  containsTalent?: boolean;
+  /**
+   * Whether the resumed row already carries a REAL contact (vs the seeded
+   * pending-{session}@guest.impronta placeholder). Drives the panel's
+   * draft-vs-live framing on resume: `false` keeps the draft banner + the
+   * "Send to agency" flow (contact gate included) alive after a reload.
+   * Optional/additive; omitted = treat as promoted (legacy behavior).
+   */
+  contactPromoted?: boolean;
   /** Captured contact fields, so a returning guest never re-types the gate. */
   prefill: {
     name: string | null;
@@ -573,6 +591,14 @@ export type MiniChatPanelProps = {
   existingInquiryId?: string | null;
 
   /**
+   * Server-resolved truth for whether the resumed inquiry's contact is REAL
+   * (ActiveGuestInquiry.contactPromoted). Null/omitted with an existing id =
+   * legacy behavior (assume promoted). `false` keeps the resumed row in the
+   * DRAFT framing: privacy banner, contact gate and "Send to agency" stay live.
+   */
+  existingContactPromoted?: boolean | null;
+
+  /**
    * Pre-fill for the inline name/email gate when known (e.g. returning guest
    * whose cookie maps to a prior contact). All optional.
    */
@@ -661,6 +687,8 @@ export type TalentChatLauncherProps = {
   tenantId?: string | null;
   brand: MiniChatBrand;
   existingInquiryId?: string | null;
+  /** Forwarded to the panel — see MiniChatPanelProps.existingContactPromoted. */
+  existingContactPromoted?: boolean | null;
   /** W3-5 — attach a tapped service to a LIVE thread as structured provenance. */
   onAttachOffering?: MiniChatPanelProps["onAttachOffering"];
   prefill?: MiniChatPanelProps["prefill"];

@@ -376,6 +376,95 @@ describe("resolveInquiryCta — resume_draft staleness boundary", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// DRAFT reads as a DRAFT — never "Inquiry sent" (P0-2 / W0-B).
+//
+// A pure early-partial row anchors the resolver with activePhase "draft" (the
+// lifecycle's pre-send phase). "draft" is NOT in SENT_LIVE_PHASES and is not
+// terminal, so rule 1 (sent_awaiting) must NEVER fire for it — the resolver
+// falls through to its lineup/draft/resume states. Those states map in
+// launcher-cta-label.ts to the LINEUP keys ("Your lineup (N)" / resume copy),
+// NOT ctaSent ("Inquiry sent"). A genuinely SENT thread still yields
+// sent_awaiting. This suite is the regression pin for the live "pure draft shows
+// Inquiry sent" bug.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("resolveInquiryCta — a draft phase never reads as sent (P0-2 / W0-B)", () => {
+  const draftBase: Partial<InquiryCtaInput> = {
+    activePhase: "draft",
+    activeStatus: "draft",
+    hasActiveDraft: true,
+    draftInquiryId: "draft-1",
+  };
+
+  it("draft-only, talent already in lineup -> in_lineup (never sent_awaiting)", () => {
+    // rule 1 (sent) is skipped for the draft phase; rule 3 (in_lineup) wins.
+    // in_lineup -> launcher key ctaLineup ("Your lineup (N)"), not ctaSent.
+    const out = resolve({ ...draftBase, isInLineup: true, lineupCount: 3 });
+    assert.deepEqual(out, { kind: "in_lineup", lineupCount: 3 });
+    assert.notEqual(out.kind, "sent_awaiting");
+  });
+
+  it("draft-only, talent NOT yet on the draft's lineup -> add_to_lineup", () => {
+    // rule 4 — the draft carries a lineup the chip-add flow will append to.
+    const out = resolve({ ...draftBase, isInLineup: false, lineupCount: 2 });
+    assert.deepEqual(out, { kind: "add_to_lineup", lineupCount: 2 });
+    assert.notEqual(out.kind, "sent_awaiting");
+  });
+
+  it("draft-only on a talent-less surface (cart/agency launcher) -> review_lineup", () => {
+    // rule 6 — no talent focus + non-empty lineup. "Your lineup (N)".
+    const out = resolve({ ...draftBase, talentProfileId: null, lineupCount: 4 });
+    assert.deepEqual(out, { kind: "review_lineup", lineupCount: 4 });
+    assert.notEqual(out.kind, "sent_awaiting");
+  });
+
+  it("draft-only, empty lineup, talent focus -> add_to_lineup (rule 4 via hasActiveDraft), never sent_awaiting", () => {
+    // A draft anchor always carries hasActiveDraft:true, so rule 4 wins even at
+    // count 0 (launcher-cta-label then reads count 0 as "Message {agency}", NOT
+    // "Inquiry sent"). The load-bearing invariant is only: never sent_awaiting.
+    const out = resolve({ ...draftBase, isInLineup: false, lineupCount: 0 });
+    assert.deepEqual(out, { kind: "add_to_lineup", lineupCount: 0 });
+    assert.notEqual(out.kind, "sent_awaiting");
+  });
+
+  it("SENT session (coordination) still yields sent_awaiting", () => {
+    // The sent path is untouched: a real submitted/coordination thread reads as
+    // "Inquiry sent" exactly as before.
+    const out = resolve({ activePhase: "coordination", activeStatus: "coordination" });
+    assert.deepEqual(out, { kind: "sent_awaiting", phase: "coordination" });
+  });
+
+  it("draft+sent MIXED, anchored on the draft (cart surface) -> reflects the DRAFT lineup, never sent", () => {
+    // The launcher excludes sibling DRAFTS from otherOpenInquiries; a genuinely
+    // SENT sibling can still populate it, but on the talent-less cart surface
+    // rule 2 (pick_inquiry) requires a talent focus and so does not fire. The
+    // anchored draft's own working lineup wins -> review_lineup ("Your lineup").
+    const out = resolve({
+      ...draftBase,
+      talentProfileId: null,
+      lineupCount: 5,
+      otherOpenInquiries: [{ id: "sent-1", phase: "coordination", label: "Editorial" }],
+    });
+    assert.deepEqual(out, { kind: "review_lineup", lineupCount: 5 });
+    assert.notEqual(out.kind, "sent_awaiting");
+  });
+
+  it("draft phase is not terminal and not sent — control across the loaded forward context", () => {
+    // With every forward signal set, a draft-phase anchor must resolve to a
+    // forward/lineup kind, never terminal and never sent_awaiting.
+    const out = resolve({
+      ...draftBase,
+      isInLineup: true,
+      lineupCount: 9,
+      lastActivityAt: new Date(NOW - STALE_DRAFT_MS - 1).toISOString(),
+    });
+    assert.equal(out.kind, "in_lineup");
+    assert.notEqual(out.kind, "terminal");
+    assert.notEqual(out.kind, "sent_awaiting");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // deriveTerminalReason — explicit reason mapping.
 // ─────────────────────────────────────────────────────────────────────────────
 

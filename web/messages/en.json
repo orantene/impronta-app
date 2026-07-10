@@ -848,6 +848,9 @@
       "avatarRemoveAria": "Remove {name} from your inquiry",
       "sendToAgency": "Send to agency",
       "sendToAgencySent": "Sent. The agency will reply shortly.",
+      "sendHub": "Send",
+      "sendHubNoPayment": "No payment now. We'll route your inquiry to the right people.",
+      "sendHubSent": "Sent. {brand} will route your inquiry to the right people.",
       "syncSaving": "Saving…",
       "syncSaved": "Saved",
       "syncRetry": "Couldn't save, tap to retry.",
@@ -913,6 +916,7 @@
       "pickerStartNew": "Start a new inquiry with just {name}",
       "pickerStartingNew": "Starting...",
       "pickerTrigger": "Add {name}",
+      "pickerSentLockedHint": "Inquiries you already sent are locked. Start a new one to add {name}.",
       "switcherNewMessageSuffix": "new message",
       "customQuoteChip": "Custom quote"
     },
