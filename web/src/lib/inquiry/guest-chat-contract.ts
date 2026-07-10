@@ -400,6 +400,15 @@ export type GuestChatOffering = {
 export type ActiveGuestInquiry = {
   /** inquiries.id to reopen — the panel mounts straight into the thread stage. */
   inquiryId: string;
+  /**
+   * P0-1 (W0-A, additive/optional) — whether the resumed row's lineup
+   * (interpreted_query.talent.selected_ids) already contains the talent whose
+   * page initiated the resume. `false` = the session's live working DRAFT was
+   * resumed but this talent is not on its lineup yet; the panel's normal
+   * talent chip-add flow appends them. Omitted/`true` when there is no talent
+   * context (agency launcher) or the lineup already carries the talent.
+   */
+  containsTalent?: boolean;
   /** Captured contact fields, so a returning guest never re-types the gate. */
   prefill: {
     name: string | null;

@@ -40,6 +40,10 @@ import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract"
 import { sendMessage } from "@/lib/inquiry/inquiry-engine-messages";
 import { promoteEarlyInquiryToSubmitted } from "@/lib/inquiry/promote-early-inquiry";
 import {
+  pickGuestEnsureTarget,
+  pickGuestResumeTarget,
+} from "@/lib/inquiry/guest-draft-resume";
+import {
   checkGuestInquiryAbuse,
   checkGuestMessageAbuse,
 } from "@/lib/inquiry/guest-abuse-guard";
@@ -1556,10 +1560,14 @@ export async function getGuestThreadMessages(
 // only an inquiry the cookie OWNS (guest_session_id match) is ever returned.
 // Cross-device / cleared-cookie recovery stays the emailed magic link.
 //
-// Scope: the newest NON-terminal inquiry owned by this guest session on this
-// tenant where THIS talent participates (so a guest who messaged several talents
-// reopens the conversation for the page they're on). Returns { active: null } —
-// NOT an error — when there's nothing to resume.
+// Scope: resume keys primarily on guest session + tenant. On a talent page the
+// preference order is: newest live DRAFT whose lineup contains this talent >
+// any live draft (returned with containsTalent:false so the chip-add flow can
+// append the talent) > newest sent/live thread whose lineup contains the talent.
+// The talent match reads interpreted_query.talent.selected_ids — NOT
+// inquiry_participants: early drafts deliberately carry no participant rows
+// (P0-1; see guest-draft-resume.ts). Returns { active: null } — NOT an error —
+// when there's nothing to resume.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getActiveGuestInquiry(input: {
@@ -1584,7 +1592,9 @@ export async function getActiveGuestInquiry(input: {
     // own inquiries. Keep the set small — the guest funnel never makes many.
     const { data: rows, error } = await admin
       .from("inquiries")
-      .select("id, contact_name, contact_email, contact_phone, status, created_at")
+      .select(
+        "id, contact_name, contact_email, contact_phone, status, created_at, interpreted_query",
+      )
       .eq("guest_session_id", guestSessionId)
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
@@ -1603,28 +1613,21 @@ export async function getActiveGuestInquiry(input: {
     });
     if (live.length === 0) return { ok: true, active: null };
 
-    let chosen = live[0];
-    // On a specific talent's page, prefer the newest live thread where THIS
-    // talent participates, so we never reopen a different talent's conversation
-    // here. No match ⇒ fresh start for this talent (the other thread is still
-    // recoverable via the switcher / magic link).
-    if (talentProfileId) {
-      const ids = live.map((r) => r.id as string);
-      const { data: parts } = await admin
-        .from("inquiry_participants")
-        .select("inquiry_id")
-        .in("inquiry_id", ids)
-        .eq("talent_profile_id", talentProfileId);
-      const withTalent = new Set((parts ?? []).map((p) => p.inquiry_id as string));
-      const match = live.find((r) => withTalent.has(r.id as string));
-      if (!match) return { ok: true, active: null };
-      chosen = match;
-    }
+    // P0-1 fix — pick the resume target off the lineup spine
+    // (interpreted_query.talent.selected_ids), NOT inquiry_participants: early
+    // drafts deliberately carry no participant rows, so the old participants
+    // gate could never find them and every panel open minted a duplicate. The
+    // preference order (draft-with-talent > any draft > sent-with-talent) lives
+    // in the pure, unit-tested picker.
+    const picked = pickGuestResumeTarget(live, talentProfileId);
+    if (!picked) return { ok: true, active: null };
+    const chosen = picked.row;
 
     return {
       ok: true,
       active: {
         inquiryId: chosen.id as string,
+        containsTalent: picked.containsTalent,
         prefill: {
           name: (chosen.contact_name as string | null)?.trim() || null,
           email: (chosen.contact_email as string | null)?.trim() || null,
@@ -1651,9 +1654,14 @@ export async function getActiveGuestInquiry(input: {
 // is the x-impronta-guest cookie, resolved SERVER-SIDE; it is NEVER a client
 // argument, and the row is written under guest_session_id ownership.
 //
-// IDEMPOTENCY: if an owned, non-terminal inquiry already exists for this guest +
-// tenant (+ this talent, when one is supplied), its id is returned instead of
-// creating a duplicate — mirrors getActiveGuestInquiry's resume scope.
+// IDEMPOTENCY (P0-1): if an owned, live DRAFT already exists for this guest +
+// tenant, its id is returned instead of creating a duplicate — a session never
+// holds more than one working draft per tenant. The talent match reads the
+// lineup spine (interpreted_query.talent.selected_ids), NOT inquiry_participants
+// (early drafts deliberately carry no participant rows); a draft that does not
+// contain the requested talent is STILL returned (the chip-add flow appends the
+// talent). Only drafts are ever the write target — a sent inquiry is never
+// silently chosen (read-resume of sent threads is getActiveGuestInquiry's job).
 //
 // SCHEMA HONESTY: inquiries.contact_name / contact_email are NOT NULL, so a truly
 // empty skeleton cannot be inserted. We seed clearly-synthetic placeholders that
@@ -1705,7 +1713,7 @@ export async function ensureGuestChatInquiry(
     // placeholder.
     const { data: existingRows, error: existingErr } = await admin
       .from("inquiries")
-      .select("id, status, created_at, contact_name, contact_email")
+      .select("id, status, created_at, contact_name, contact_email, interpreted_query")
       .eq("guest_session_id", guestSessionId)
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
@@ -1720,41 +1728,20 @@ export async function ensureGuestChatInquiry(
       return s !== "cancelled" && toThreadStatus(s) !== "closed";
     });
 
-    if (live.length > 0) {
-      if (talentProfileId) {
-        // On a specific talent's page, prefer the newest live inquiry where THIS
-        // talent participates, so we never resurface a different talent's
-        // partial. No match falls through to creating a fresh partial for this
-        // talent (the other thread stays recoverable via the switcher).
-        const ids = live.map((r) => r.id as string);
-        const { data: parts } = await admin
-          .from("inquiry_participants")
-          .select("inquiry_id")
-          .in("inquiry_id", ids)
-          .eq("talent_profile_id", talentProfileId);
-        const withTalent = new Set((parts ?? []).map((p) => p.inquiry_id as string));
-        const match = live.find((r) => withTalent.has(r.id as string));
-        if (match) {
-          return {
-            ok: true,
-            inquiryId: match.id as string,
-            contactPromoted: !isSeedContact(
-              match.contact_name as string | null,
-              match.contact_email as string | null,
-            ),
-          };
-        }
-      } else {
-        // Agency-level partial (no talent): any live owned inquiry is reusable.
-        return {
-          ok: true,
-          inquiryId: live[0].id as string,
-          contactPromoted: !isSeedContact(
-            live[0].contact_name as string | null,
-            live[0].contact_email as string | null,
-          ),
-        };
-      }
+    // P0-1 fix — reuse the newest live DRAFT (prefer one whose lineup spine
+    // already contains this talent). NEVER insert while the session holds ANY
+    // live draft for this tenant, and NEVER pick a sent row as the write
+    // target. Selection logic is the pure, unit-tested picker.
+    const picked = pickGuestEnsureTarget(live, talentProfileId);
+    if (picked) {
+      return {
+        ok: true,
+        inquiryId: picked.row.id as string,
+        contactPromoted: !isSeedContact(
+          picked.row.contact_name as string | null,
+          picked.row.contact_email as string | null,
+        ),
+      };
     }
 
     // No reusable partial — create the minimal early row. Placeholder contact
