@@ -127,7 +127,19 @@ export async function AgencyChatLauncherMount({
   if (await isEditModeActiveForTenant(tenantId)) return null;
 
   const settings = await loadGuestChatSettings(tenantId);
-  if (!settings.enabled || !settings.showOnDirectory) return null;
+  // Per-surface gate. `enabled` is the master switch; then each public surface
+  // has its own flag. The home ("/") and directory ("/directory") surfaces are
+  // controlled independently (show_on_home vs show_on_directory). Any OTHER
+  // source page (a generic /p/* CMS page) has no per-page flag — it rides the
+  // master `enabled` switch only.
+  if (!settings.enabled) return null;
+  const surfaceEnabled =
+    sourcePage === "/"
+      ? settings.showOnHome
+      : sourcePage === "/directory"
+        ? settings.showOnDirectory
+        : true;
+  if (!surfaceEnabled) return null;
 
   const [identity, branding] = await Promise.all([
     loadPublicIdentity(tenantId),
