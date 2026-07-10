@@ -858,6 +858,8 @@
       "sendHub": "Enviar",
       "sendHubNoPayment": "Sin pago ahora. Dirigiremos tu consulta a las personas indicadas.",
       "sendHubSent": "Enviado. {brand} dirigirá tu consulta a las personas indicadas.",
+      "hubConciergeName": "{brand} Concierge",
+      "hubConciergeGreeting": "Cuéntanos sobre tu evento y reuniremos al talento indicado de toda nuestra red.",
       "syncSaving": "Guardando…",
       "syncSaved": "Guardado",
       "syncRetry": "No se pudo guardar, toca para reintentar.",
