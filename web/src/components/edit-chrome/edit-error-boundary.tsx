@@ -75,7 +75,7 @@ export class EditErrorBoundary extends Component<Props, State> {
         <div className="mb-1 font-semibold">Editor hit an error</div>
         <p className="mb-3 text-xs leading-relaxed text-rose-800">
           Something went wrong rendering the editor. Your published page is
-          unaffected. Reload the editor to retry — if it keeps happening,
+          unaffected. Reload the editor to retry. If it keeps happening,
           send the message below to support.
         </p>
         <pre className="mb-3 max-h-24 overflow-auto rounded border border-rose-200 bg-white/60 p-2 text-[10px] text-rose-900">

@@ -61,8 +61,8 @@ const STYLE_FIELDS: ReadonlyArray<{
   label: string;
   placeholder: string;
 }> = [
-  { key: "textColor", label: "Text color", placeholder: "#111 / token" },
-  { key: "backgroundColor", label: "Background", placeholder: "#fff / token" },
+  { key: "textColor", label: "Text color", placeholder: "e.g. #111111" },
+  { key: "backgroundColor", label: "Background", placeholder: "e.g. #ffffff" },
   { key: "borderRadius", label: "Radius", placeholder: "12px" },
   { key: "paddingY", label: "Pad Y", placeholder: "none / s / m / l" },
 ];
@@ -179,7 +179,7 @@ export function InstanceOverridesPanel({
         Instance content
       </span>
       <p className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
-        Swap text, images, or links for just this instance — structure stays
+        Swap text, images, or links for just this instance. Structure stays
         linked to the master. Applies on the published page.
       </p>
 
@@ -189,12 +189,12 @@ export function InstanceOverridesPanel({
         </span>
       ) : errored ? (
         <span className="text-[11px]" style={{ color: CHROME.rose }}>
-          Couldn’t load the master component — overrides are unavailable right
+          Couldn’t load the master component. Overrides are unavailable right
           now. Try reopening this panel.
         </span>
       ) : missing ? (
         <span className="text-[11px]" style={{ color: CHROME.muted }}>
-          Master component not found — this instance renders its stored copy.
+          Master component not found. This instance renders its stored copy.
         </span>
       ) : slots.length === 0 ? (
         <span className="text-[11px]" style={{ color: CHROME.muted }}>

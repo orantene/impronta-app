@@ -1324,7 +1324,7 @@ export function NavigatorPanel() {
             "Performance issues detected:\n" +
             builderPerformanceIssues.map((issue) => `• ${issue.message}`).join("\n")
           }
-          aria-label={`${builderPerformanceIssues.length} performance ${builderPerformanceIssues.length === 1 ? "issue" : "issues"} detected — hover for details`}
+          aria-label={`${builderPerformanceIssues.length} performance ${builderPerformanceIssues.length === 1 ? "issue" : "issues"} detected, hover for details`}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -1351,7 +1351,7 @@ export function NavigatorPanel() {
             "Performance hints:\n" +
             builderPerformanceIssues.map((issue) => `• ${issue.message}`).join("\n")
           }
-          aria-label={`${builderPerformanceIssues.length} builder ${builderPerformanceIssues.length === 1 ? "hint" : "hints"} — hover for details`}
+          aria-label={`${builderPerformanceIssues.length} builder ${builderPerformanceIssues.length === 1 ? "hint" : "hints"}, hover for details`}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -1485,7 +1485,7 @@ export function NavigatorPanel() {
           <BuilderCoachmarkTip
             key={mode}
             id="outline-tab"
-            message="Outline shows just the headings — jump through long pages faster."
+            message="Outline shows just the headings. Jump through long pages faster."
             placement="below"
             wrapperStyle={{ flex: isPrimary ? 1.25 : 1, display: "inline-flex" }}
           >
@@ -1493,7 +1493,7 @@ export function NavigatorPanel() {
               type="button"
               role="radio"
               aria-checked={active}
-              aria-label={`${displayLabel} — ${description}`}
+              aria-label={`${displayLabel}: ${description}`}
               title={description}
               onClick={() => setViewMode(mode)}
               style={{
@@ -1524,7 +1524,7 @@ export function NavigatorPanel() {
             type="button"
             role="radio"
             aria-checked={active}
-            aria-label={`${displayLabel} — ${description}`}
+            aria-label={`${displayLabel}: ${description}`}
             title={description}
             onClick={() => setViewMode(mode)}
             style={{
@@ -1587,11 +1587,11 @@ export function NavigatorPanel() {
   return (
     <DockFloatingPanel
       panelId="navigator"
-      title="Page Structure"
+      title="Structure"
       titleId="structure-navigator-label"
       open={navigatorOpen}
       onClose={toggleNavigator}
-      closeAriaLabel="Close Page Structure"
+      closeAriaLabel="Close Structure"
       width={navigatorWidth}
       testId="navigator-panel"
       dataEditOverlay="navigator-panel"
@@ -2131,7 +2131,7 @@ export function NavigatorPanel() {
                   lineHeight: 1.45,
                 }}
               >
-                No sections on this page yet. Open Add gallery — new blocks appear here and on the canvas.
+                No sections on this page yet. Open Add gallery, new blocks appear here and on the canvas.
               </div>
               <button
                 type="button"
@@ -3364,10 +3364,10 @@ function VisibilityEye({
   const partial =
     visibility === "desktop-only" || visibility === "mobile-only";
   const titleText = hidden
-    ? "Hidden on every breakpoint — click to show"
+    ? "Hidden on every breakpoint, click to show"
     : partial
       ? `Visible on ${visibility === "desktop-only" ? "desktop" : "mobile"} only`
-      : "Visible everywhere — click to hide";
+      : "Visible everywhere, click to hide";
   // Match NodeInlineActionButton exactly so the eye reads as the same kind of
   // button as its neighbours. (Earlier bug: a white icon for `selected` rows —
   // invisible now that the eye sits in a light action chip. Never white.)
@@ -4228,7 +4228,7 @@ function ClassManagerPanel({
             data-builder-class-row={klass.id}
             role="button"
             tabIndex={isRenaming ? -1 : 0}
-            aria-label={`${klass.name} — ${count} block${count === 1 ? "" : "s"}. Click to select on canvas.`}
+            aria-label={`${klass.name}: ${count} block${count === 1 ? "" : "s"}. Click to select on canvas.`}
             onClick={() => {
               if (isRenaming) return;
               onFocusClass(klass.id);

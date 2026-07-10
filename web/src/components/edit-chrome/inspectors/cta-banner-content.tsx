@@ -157,7 +157,7 @@ export function CtaBannerContentInspector({
         <input
           type="text"
           className={KIT.input}
-          placeholder="Optional — e.g. Ready when you are"
+          placeholder="Optional, e.g. Ready when you are"
           maxLength={60}
           value={eyebrow}
           onChange={(e) => update({ eyebrow: e.target.value || undefined })}
@@ -181,7 +181,7 @@ export function CtaBannerContentInspector({
           onChange={(next) => update({ copy: next || undefined })}
           variant="multi"
           tenantId={tenantId}
-          placeholder="Optional — one reassuring paragraph under the headline"
+          placeholder="Optional, one reassuring paragraph under the headline"
           ariaLabel="Description"
         />
       </div>
@@ -192,7 +192,7 @@ export function CtaBannerContentInspector({
           onChange={(next) => update({ reassurance: next || undefined })}
           variant="single"
           tenantId={tenantId}
-          placeholder="Optional — italic line below the buttons"
+          placeholder="Optional, italic line below the buttons"
           ariaLabel="Reassurance line"
         />
       </div>
@@ -235,7 +235,7 @@ export function CtaBannerContentInspector({
           {variant === "centered-overlay" ? (
             <div className={KIT.field}>
               <label className={KIT.label}>
-                Overlay darkness — {overlayOpacity}%
+                Overlay darkness: {overlayOpacity}%
               </label>
               <input
                 type="range"
@@ -295,7 +295,7 @@ export function CtaBannerContentInspector({
             onChange={(e) => update({ insetCard: e.target.checked })}
             className="size-3.5 accent-stone-900"
           />
-          Inset card — wraps the banner in a bordered card
+          Inset card, wraps the banner in a bordered card
         </label>
         {variant === "split-image" ? (
           <div className={KIT.field}>

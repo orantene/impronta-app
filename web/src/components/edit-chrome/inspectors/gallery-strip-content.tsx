@@ -394,7 +394,7 @@ export function GalleryStripContentInspector({
         {tooFew && (
           <div className="rounded-md bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
             Add {3 - rawItems.length} more{" "}
-            {3 - rawItems.length === 1 ? "photo" : "photos"} — minimum 3
+            {3 - rawItems.length === 1 ? "photo" : "photos"}, minimum 3
             required to publish.
           </div>
         )}
@@ -444,7 +444,7 @@ export function GalleryStripContentInspector({
             }
           />
           <p className={KIT.hint}>
-            Renders in italic serif below the grid. Optional — leave blank to
+            Renders in italic serif below the grid. Optional, leave blank to
             omit.
           </p>
         </div>

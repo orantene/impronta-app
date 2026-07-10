@@ -649,10 +649,10 @@ function fieldBindingPropLabel(prop: BuilderFieldBindingProp): string {
 function UnsupportedDataNodeCard({ kind }: { kind: string }) {
   return (
     <Card state="muted">
-      <CardHead title="Manual node" sub={kind} iconAccent="default" />
+      <CardHead title="Set manually" sub={kind} iconAccent="default" />
       <CardBody>
         <p className="text-[12px] leading-5 text-stone-500">
-          This node is edited directly. Bind the parent container when the whole
+          This block is edited directly. Bind the parent container when the whole
           group should repeat from live workspace data.
         </p>
       </CardBody>

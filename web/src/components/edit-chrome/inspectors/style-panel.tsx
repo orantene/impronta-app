@@ -1851,7 +1851,7 @@ function ThemeBindRow({
             }}
             className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
             style={{ background: "transparent", border: "none", color: CHROME.muted, padding: 0 }}
-            title="Detach from theme (back to a raw value)"
+            title="Stop following the brand style (use a fixed value)"
           >
             Detach
           </button>
@@ -1861,7 +1861,7 @@ function ThemeBindRow({
             onClick={() => setBindOpen((o) => !o)}
             className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
             style={{ background: "transparent", border: "none", color: CHROME.blue, padding: 0 }}
-            title="Bind this property to a theme token"
+            title="Use a brand style for this property"
             aria-expanded={bindOpen}
           >
             {bindOpen ? "Cancel" : "Bind"}
@@ -1881,7 +1881,7 @@ function ThemeBindRow({
             color: CHROME.ink,
             padding: "5px 8px",
           }}
-          title={`This value matches the theme "${followToken.label}" token — bind to follow the theme`}
+          title={`This value matches the brand style "${followToken.label}". Use it to follow the theme`}
         >
           Follow theme · {followToken.label}
         </button>
@@ -3183,12 +3183,12 @@ export function StylePanel({
       parsed = JSON.parse(raw);
     } catch {
       setImportPresetsError(
-        "That isn't valid JSON — paste the presets array you exported from this panel.",
+        "That isn't valid JSON. Paste the presets array you exported from this panel.",
       );
       return;
     }
     if (!Array.isArray(parsed)) {
-      setImportPresetsError("Paste a JSON array of presets — use Export from this panel first.");
+      setImportPresetsError("Paste a JSON array of presets. Use Export from this panel first.");
       return;
     }
 
@@ -4025,7 +4025,7 @@ export function StylePanel({
       {selectedNodeRole && selectedNodeLabel ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <div className={SECTION_TITLE}>Selected node</div>
+            <div className={SECTION_TITLE}>Selected block</div>
             <span className={INHERIT_HINT}>{selectedNodeLabel}</span>
           </div>
           <div
@@ -4383,7 +4383,7 @@ export function StylePanel({
                 <p className={HINT}>
                   Viewport is controlled by the device rail above (synced to the canvas).
                   {selectedViewport !== "desktop"
-                    ? ` Editing ${selectedViewport} — ${selectedViewportOverrideCount} override${
+                    ? ` Editing ${selectedViewport}: ${selectedViewportOverrideCount} override${
                         selectedViewportOverrideCount === 1 ? "" : "s"
                       }.`
                     : ""}
@@ -4394,7 +4394,7 @@ export function StylePanel({
                       ? `${selectedViewportOverrideCount} field${
                           selectedViewportOverrideCount === 1 ? "" : "s"
                         } overridden on ${selectedViewport}; ${inheritedDesktopCount} inheriting desktop.`
-                      : `No ${selectedViewport} overrides yet — all fields inherit desktop.`}
+                      : `No ${selectedViewport} overrides yet, all fields inherit desktop.`}
                   </span>
                 ) : null}
                 {nodeStyleClipboard ? (
@@ -5458,7 +5458,7 @@ export function StylePanel({
             <p className={HINT}>
               Viewport is controlled by the device rail above the inspector (synced to the canvas).
               {selectedViewport !== "desktop"
-                ? ` Editing ${selectedViewport} overrides — ${selectedStandaloneViewportOverrideCount} field${
+                ? ` Editing ${selectedViewport} overrides: ${selectedStandaloneViewportOverrideCount} field${
                     selectedStandaloneViewportOverrideCount === 1 ? "" : "s"
                   } set.`
                 : ""}
@@ -6321,7 +6321,7 @@ export function StylePanel({
                     <NumberUnit
                       units={["px", "rem", "%"]}
                       defaultUnit="px"
-                      placeholder="Token"
+                      placeholder="Linked"
                       value={parseCssLength(selectedStandaloneViewportStyle?.borderRadius)}
                       onChange={(next) =>
                         patchSelectedStandaloneStyle({
@@ -6895,7 +6895,7 @@ export function StylePanel({
                     <NumberUnit
                       units={["px", "rem", "%"]}
                       defaultUnit="px"
-                      placeholder="Token"
+                      placeholder="Linked"
                       value={parseCssLength(selectedStandaloneViewportStyle?.gap)}
                       onChange={(next) =>
                         patchSelectedStandaloneStyle({
@@ -7603,7 +7603,7 @@ export function StylePanel({
                 </summary>
               <div className="flex flex-col gap-2 mt-2">
               <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                Distributes this box&apos;s own children — works on row / grid
+                Distributes this box&apos;s own children, works on row / grid
                 containers (container, split, card, CTA group).
               </span>
               <div
@@ -7964,7 +7964,7 @@ export function StylePanel({
                     color: CHROME.ink,
                     outline: "none",
                   }}
-                  placeholder="1px #111 · 2px var(--token-color-text)"
+                  placeholder="e.g. 1px #111111"
                   value={selectedStandaloneViewportStyle?.textStroke ?? ""}
                   onChange={(e) =>
                     patchSelectedStandaloneStyle({
@@ -8051,7 +8051,7 @@ export function StylePanel({
                     color: CHROME.ink,
                     outline: "none",
                   }}
-                  placeholder="#6366f1 · var(--token-color-primary)"
+                  placeholder="e.g. #6366f1"
                   value={selectedStandaloneViewportStyle?.accentColor ?? ""}
                   onChange={(e) =>
                     patchSelectedStandaloneStyle({
@@ -8359,7 +8359,7 @@ export function StylePanel({
                   }
                 />
                 <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
-                  Overrides the named easing. Any CSS timing function —
+                  Overrides the named easing. Any CSS timing function:
                   cubic-bezier(), steps(), linear().
                 </span>
               </div>
@@ -8409,7 +8409,7 @@ export function StylePanel({
                 selectedStandaloneViewportStyle.parallax !== "none" ? (
                   <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
                     The block glides vertically over its on-screen pass. Drives
-                    the entrance slot when both are set — entrance plays once,
+                    the entrance slot when both are set. Entrance plays once,
                     parallax is what keeps moving.
                   </span>
                 ) : null}
@@ -9473,7 +9473,7 @@ export function StylePanel({
                 ? (PRESENTATION_OPTIONS.background.find(
                     (o) => o.value === backgroundValue,
                   )?.label ?? backgroundValue)
-                : "Match canvas — follows the tenant theme."}
+                : "Match canvas, follows the tenant theme."}
           </span>
         </div>
         {/* Free-color override — Phase 1 (pixel-first) escape from the
@@ -9524,7 +9524,7 @@ export function StylePanel({
                   },
                 })
               }
-              placeholder="#— or rgba()"
+              placeholder="e.g. #111111 or rgba()"
               className="flex-1 px-2"
               style={{
                 height: 30,
@@ -9628,7 +9628,7 @@ export function StylePanel({
           <span className={HINT}>
             Per-section escape hatch. Wrapped in{" "}
             <code>[data-section-id]</code> so it can&apos;t leak across
-            sections. Use <code>&amp;</code> to nest. Use sparingly — most
+            sections. Use <code>&amp;</code> to nest. Use sparingly, most
             visual changes belong in Layout, Style, or the Theme drawer.
           </span>
         </section>
@@ -9830,7 +9830,7 @@ export function StylePanel({
             try {
               const result = await uploadCmsMedia({ file, tenantId, kind: "image" });
               if (!result.ok || !result.item?.publicUrl) {
-                setImageCropError("Couldn't save the cropped image — try again.");
+                setImageCropError("Couldn't save the cropped image. Try again.");
                 setImageCropSaving(false);
                 return;
               }
@@ -9841,7 +9841,7 @@ export function StylePanel({
               setImageCropOpen(false);
               setImageCropError(null);
             } catch {
-              setImageCropError("Couldn't save the cropped image — try again.");
+              setImageCropError("Couldn't save the cropped image. Try again.");
             } finally {
               setImageCropSaving(false);
             }

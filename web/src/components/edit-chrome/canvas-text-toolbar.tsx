@@ -445,7 +445,7 @@ export function CanvasTextToolbar({
   const usesThemeFontSize = !storedFontSizePx;
   const fontSizeTitle =
     usesThemeFontSize && activeTextRole
-      ? `Theme size — ${readThemeTypographySize(activeTextRole)}. Adjust to override.`
+      ? `Theme size: ${readThemeTypographySize(activeTextRole)}. Adjust to override.`
       : "Custom font size on this block";
   const fontFamily = (style.fontFamily as string | undefined) ?? "";
   const selectedFontLabel =
@@ -613,7 +613,7 @@ export function CanvasTextToolbar({
           type="button"
           onClick={onOpenInspector}
           title={label}
-          aria-label={`${label} — open in inspector`}
+          aria-label={`${label}, open in inspector`}
           className="inline-flex cursor-pointer items-center justify-center border-none bg-transparent p-0"
           onMouseDown={(e) => e.preventDefault()}
         >
@@ -636,7 +636,7 @@ export function CanvasTextToolbar({
           <button
             type="button"
             title="Revise with AI"
-            aria-label="Revise this element with AI"
+            aria-label="Revise this block with AI"
             data-canvas-text-action="ai"
             disabled={disabled}
             onMouseDown={(e) => e.preventDefault()}
@@ -993,7 +993,7 @@ export function CanvasTextToolbar({
       <Divider />
 
       <ToolbarBtn
-        title="Advanced — open inspector"
+        title="Advanced, open inspector"
         disabled={disabled}
         onClick={onOpenInspector}
       >

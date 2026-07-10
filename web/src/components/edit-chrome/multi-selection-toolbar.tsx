@@ -143,7 +143,7 @@ export function MultiSelectionToolbar({
     <>
     <BuilderCoachmarkTip
       id="multi-select-toolbar"
-      message="Shift-click to select multiple blocks — align, group, and style them together."
+      message="Shift-click to select multiple blocks: align, group, and style them together."
       placement="above"
     >
       <span

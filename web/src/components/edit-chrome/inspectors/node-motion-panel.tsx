@@ -368,7 +368,7 @@ export function NodeMotionPanel({ node, onPatchNodeProps }: NodeMotionPanelProps
       {nonDesktop ? (
         <InspectorNotice tone="info">
           Motion applies to the published page and is the same across all viewports.
-          Switch to Desktop to edit — controls are always live.
+          Switch to Desktop to edit. Controls are always live.
         </InspectorNotice>
       ) : null}
 
@@ -491,7 +491,7 @@ export function NodeMotionPanel({ node, onPatchNodeProps }: NodeMotionPanelProps
         description={
           hasReveal
             ? `${REVEAL_OPTIONS.find((o) => o.value === revealOnView)?.label ?? revealOnView} · plays once on scroll into view`
-            : "IntersectionObserver-driven reveal. Plays once when the node scrolls into view — works in all modern browsers."
+            : "IntersectionObserver-driven reveal. Plays once when the node scrolls into view. Works in all modern browsers."
         }
       >
         <Segmented<RevealOnView>
@@ -513,7 +513,7 @@ export function NodeMotionPanel({ node, onPatchNodeProps }: NodeMotionPanelProps
           options={REVEAL_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
         />
         <span className={HINT}>
-          Skipped for visitors who prefer reduced motion — they see the node at its resting
+          Skipped for visitors who prefer reduced motion. They see the node at its resting
           state immediately.
         </span>
       </InspectorSection>
@@ -605,7 +605,7 @@ export function NodeMotionPanel({ node, onPatchNodeProps }: NodeMotionPanelProps
         description={
           parallax && parallax !== "none"
             ? `${parallax.charAt(0).toUpperCase() + parallax.slice(1)} vertical drift as the visitor scrolls.`
-            : "Scroll-driven vertical drift. Independent of entrance animation — a node can have both."
+            : "Scroll-driven vertical drift. Independent of entrance animation, a node can have both."
         }
       >
         <Segmented<Parallax>
@@ -712,7 +712,7 @@ export function NodeMotionPanel({ node, onPatchNodeProps }: NodeMotionPanelProps
       {/* Reduced-motion notice */}
       <InspectorNotice>
         All animations respect <em>prefers-reduced-motion</em>. Visitors who
-        request reduced motion see the node at its resting state — no transition,
+        request reduced motion see the node at its resting state, no transition,
         no delay.
       </InspectorNotice>
     </InspectorBody>

@@ -30,7 +30,7 @@ export function AIBriefInput({
   disabled,
   placeholder,
   title = "Design with AI",
-  description = "Describe it in a line and AI builds it as editable blocks — then make it yours.",
+  description = "Describe it in a line and AI builds it as editable blocks, then make it yours.",
   ctaLabel = "Design with AI",
   pendingLabel = "Designing…",
   variant = "card",
@@ -62,7 +62,7 @@ export function AIBriefInput({
     setError(null);
     const result = await onCompose(value);
     if (!result.ok) {
-      setError(result.error ?? "Could not build that — try rephrasing.");
+      setError(result.error ?? "Could not build that. Try rephrasing.");
     }
   }
 

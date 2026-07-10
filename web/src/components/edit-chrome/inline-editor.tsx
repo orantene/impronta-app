@@ -537,7 +537,7 @@ export function InlineEditor() {
       if (hit.occurrences > 1) {
         setBanner({
           kind: "error",
-          text: "This image URL appears more than once in this section — replace it from the inspector.",
+          text: "This image URL appears more than once in this section. Replace it from the inspector.",
         });
         return;
       }

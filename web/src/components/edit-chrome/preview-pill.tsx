@@ -389,7 +389,7 @@ function ShareButton({
       }
     } catch (err) {
       onError(
-        err instanceof Error ? err.message : "Couldn't create the share link — try again.",
+        err instanceof Error ? err.message : "Couldn't create the share link. Try again.",
       );
     } finally {
       setBusy(false);

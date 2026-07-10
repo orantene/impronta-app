@@ -154,7 +154,7 @@ export function EmptyCanvasStarter({
       if (!editCtx) {
         return {
           ok: false,
-          error: "AI needs an active editor — reload and try again.",
+          error: "AI needs an active editor. Reload and try again.",
         };
       }
       setAiPending(true);
@@ -174,7 +174,7 @@ export function EmptyCanvasStarter({
         if (!generated.ok) {
           return {
             ok: false,
-            error: generated.error ?? "Could not design that — try again.",
+            error: generated.error ?? "Could not design that. Try again.",
           };
         }
         const sectionLabels = generated.builderTree.map((n) => {
@@ -210,7 +210,7 @@ export function EmptyCanvasStarter({
         label: pendingGen.label,
       });
       if (!result.ok) {
-        setPreviewError(result.error ?? "Could not add it — try again.");
+        setPreviewError(result.error ?? "Could not add it. Try again.");
         return;
       }
       setPendingGen(null);
@@ -348,7 +348,7 @@ export function EmptyCanvasStarter({
               >
                 <p className="text-[12.5px] font-semibold" style={{ color: CHROME.ink }}>
                   AI drafted {pendingGen.sectionLabels.length}{" "}
-                  {pendingGen.sectionLabels.length === 1 ? "section" : "sections"} — review, then add
+                  {pendingGen.sectionLabels.length === 1 ? "section" : "sections"}, review, then add
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {pendingGen.sectionLabels.map((l, i) => (

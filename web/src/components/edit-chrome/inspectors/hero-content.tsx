@@ -232,7 +232,7 @@ export function HeroContentInspector({
           <input
             type="text"
             className={KIT.input}
-            placeholder="Optional — e.g. IMPRONTA MODELS"
+            placeholder="Optional, e.g. IMPRONTA MODELS"
             maxLength={80}
             value={eyebrow}
             onChange={(e) => patchEyebrow(e.target.value)}

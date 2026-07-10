@@ -235,7 +235,7 @@ export function CommandDock() {
     {
       id: "structure",
       label: "Structure",
-      title: "Page structure (⌘\\)",
+      title: "Structure (⌘\\)",
       active: navigatorOpen,
       onClick: () => toggleNavigator(),
       icon: (
@@ -250,7 +250,7 @@ export function CommandDock() {
     {
       id: "design",
       label: "Design",
-      title: "Design — brand + theme",
+      title: "Design (brand + theme)",
       active: brandPanelOpen,
       onClick: () => toggleBrandPanel(),
       icon: (

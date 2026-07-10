@@ -165,7 +165,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
             </div>
             <span className="text-[10px] text-muted-foreground/70">
               Best-effort scan for brand colors + Google Fonts on the page.
-              Result fills the box below — review then click Apply.
+              Result fills the box below, review then click Apply.
             </span>
           </div>
           <textarea
@@ -183,7 +183,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground">
               Hex colors normalize to <code>#rrggbb</code>. Unknown keys are
-              dropped on save. Apply does not save — review then click
+              dropped on save. Apply does not save, review then click
               Save&nbsp;draft.
             </span>
             <button

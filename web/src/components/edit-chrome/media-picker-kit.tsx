@@ -253,7 +253,7 @@ export function SourceButton({
         borderColor: active ? CHROME.accent : CHROME.lineStrong,
         color: active ? CHROME.accent : "#5f605d",
       }}
-      title={hint ? `${label} — ${hint}` : label}
+      title={hint ? `${label}: ${hint}` : label}
     >
       <span className="flex items-center gap-1.5 text-xs font-semibold">
         {label}

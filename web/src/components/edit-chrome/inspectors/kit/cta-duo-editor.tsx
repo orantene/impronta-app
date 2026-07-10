@@ -112,7 +112,7 @@ export function CtaDuoEditor({
         <input
           type="text"
           className={KIT.input}
-          placeholder="Button label — e.g. Start a booking"
+          placeholder="Button label, e.g. Start a booking"
           value={primary?.label ?? ""}
           maxLength={60}
           onChange={(e) => patchPrimary({ label: e.target.value })}
@@ -160,7 +160,7 @@ export function CtaDuoEditor({
           <input
             type="text"
             className={KIT.input}
-            placeholder="Button label — e.g. Explore services"
+            placeholder="Button label, e.g. Explore services"
             value={secondary?.label ?? ""}
             maxLength={60}
             onChange={(e) => patchSecondary({ label: e.target.value })}

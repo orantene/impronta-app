@@ -672,7 +672,7 @@ export function MediaPickerDrawer({
                     ? "No uploads yet"
                     : "No photos yet"
               }
-              detail="Use Upload above to add a photo — or add photos to your profile and they'll appear here too."
+              detail="Use Upload above to add a photo, or add photos to your profile and they'll appear here too."
             />
           ) : (
             <StatePanel

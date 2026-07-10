@@ -120,7 +120,7 @@ export function LinkedStyleClassesBar({
     }
     if (Object.keys(styleSnapshot).length === 0) {
       setInlineMessage(
-        "Style this block first — set padding, color, or another property below — then save it as a class.",
+        "Style this block first, set padding, color, or another property below, then save it as a class.",
       );
       clearNaming();
       return;
@@ -173,7 +173,7 @@ export function LinkedStyleClassesBar({
     setPicking(false);
     if (!hasStyle) {
       setInlineMessage(
-        "Style this block first — set padding, color, or another property below — then save it as a class.",
+        "Style this block first, set padding, color, or another property below, then save it as a class.",
       );
       clearNaming();
       return;

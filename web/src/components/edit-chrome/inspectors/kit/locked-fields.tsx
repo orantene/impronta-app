@@ -73,7 +73,7 @@ export function useLockedFields(
 
 /** Tooltip copy shared by every locked affordance. */
 export const LOCKED_FIELD_TITLE =
-  "Locked by the platform admin — this keeps the component on-brand and can’t be changed here.";
+  "Locked by the platform admin. This keeps the component on-brand and can’t be changed here.";
 
 /**
  * The 🔒 badge — matches the inspector-dock locked-props banner palette (the

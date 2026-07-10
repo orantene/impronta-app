@@ -498,8 +498,16 @@ export function InspectorDeviceCards<T extends string>({
             aria-pressed={active}
             aria-label={
               hasBadge
-                ? `${opt.label} — ${opt.badgeCount} mobile health issue${opt.badgeCount === 1 ? "" : "s"}`
+                ? `${opt.label}: ${opt.badgeCount} mobile health issue${opt.badgeCount === 1 ? "" : "s"}`
                 : opt.label
+            }
+            title={
+              // W2-C5: the red count badge on this card had no hover
+              // explanation (audit finding); the aria-label already spells it
+              // out for screen readers, mirror it as a visible tooltip too.
+              hasBadge
+                ? `${opt.badgeCount} mobile health issue${opt.badgeCount === 1 ? "" : "s"}, review in Mobile preview`
+                : undefined
             }
             className="relative flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-2 py-3 transition-colors"
             style={{
@@ -638,7 +646,7 @@ export function InspectorOverrideBadge({
   const label = breakpointLabelForDevice(device);
   const title =
     tooltip ??
-    `${label} override — tap Reset to inherit ${breakpointLabelForDevice(baseBreakpointId()).toLowerCase()}`;
+    `${label} override. Tap Reset to inherit ${breakpointLabelForDevice(baseBreakpointId()).toLowerCase()}`;
   return (
     <span
       title={title}

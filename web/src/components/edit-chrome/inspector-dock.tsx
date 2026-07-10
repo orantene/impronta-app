@@ -603,7 +603,7 @@ export function InspectorDock() {
         // for ~3.5s after the refresh lands so the operator sees what
         // happened — silently overwriting their working copy is the
         // single biggest "did the editor eat my work?" trust break.
-        setSaveError("Section was edited elsewhere — your view has been refreshed with the latest version.");
+        setSaveError("Section was edited elsewhere. Your view has been refreshed with the latest version.");
         const fresh = await loadSectionForEditAction(loaded.id);
         if (fresh.ok) {
           setLoadedSection(fresh.section);
@@ -613,7 +613,7 @@ export function InspectorDock() {
             // Only clear if no new error has arrived in the meantime.
             setSaveError((cur) =>
               cur ===
-              "Section was edited elsewhere — your view has been refreshed with the latest version."
+              "Section was edited elsewhere. Your view has been refreshed with the latest version."
                 ? null
                 : cur,
             );
@@ -985,12 +985,16 @@ export function InspectorDock() {
       : selectedSectionId && loadingId
         ? "Loading…"
         : "Select a block";
+  // W2-C5: a single small kind label under the header. The block/section
+  // NAME itself renders once, via DrawerHead's own `title` (sectionTitle
+  // below); this line only says what KIND of block it is, so the header
+  // never repeats "Carousel" three times.
   const sectionMeta = isSiteHeaderSelected
-    ? "SITE SHELL"
+    ? "Site header"
     : selectedStandaloneBuilderNode
-      ? `BUILDER BLOCK · ${BUILDER_NODE_REGISTRY[selectedStandaloneBuilderNode.kind].label.toUpperCase()}`
+      ? `${BUILDER_NODE_REGISTRY[selectedStandaloneBuilderNode.kind].label} block`
       : sectionTypeKey
-        ? `BUILDER BLOCK · ${inspectorBlockTitle(sectionTypeKey).toUpperCase()}`
+        ? `${inspectorBlockTitle(sectionTypeKey)} section`
         : undefined;
   const inspectorBreadcrumbCrumbs = useMemo<
     ReadonlyArray<InspectorBreadcrumbCrumb>
@@ -1056,20 +1060,16 @@ export function InspectorDock() {
     }
     return (
       <div className="flex min-w-0 flex-col gap-1">
+        {/* W2-C5: the block/section NAME (sectionTitle) already renders once
+            via DrawerHead's own `title`. This sub-line only adds the kind
+            label, so the header never repeats the name a second (or third)
+            time. */}
         {sectionMeta ? (
           <span
             className="truncate text-[11px] font-semibold uppercase tracking-[0.06em]"
             style={{ color: CHROME.muted }}
           >
             {sectionMeta}
-          </span>
-        ) : null}
-        {sectionTitle && sectionTitle !== "Select a block" ? (
-          <span
-            className="truncate text-[16px] font-semibold tracking-[-0.02em]"
-            style={{ color: CHROME.ink }}
-          >
-            {sectionTitle}
           </span>
         ) : null}
         {inspectorBreadcrumbCrumbs.length > 0 ? (

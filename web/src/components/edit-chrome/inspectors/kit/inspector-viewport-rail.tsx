@@ -163,7 +163,7 @@ export function InspectorViewportRail({
         </div>
       ) : (
         <p style={{ fontSize: 11, color: CHROME.muted2, margin: 0, lineHeight: 1.4 }}>
-          {baseLabel} is the base — switch tiers to add overrides.
+          {baseLabel} is the base, switch tiers to add overrides.
         </p>
       )}
     </div>

@@ -228,7 +228,7 @@ export function BrandTab({ config, patch, tenantId }: Props) {
           <input
             type="text"
             className={KIT.input}
-            placeholder="Optional — e.g. Models & image agency"
+            placeholder="Optional, e.g. Models & image agency"
             maxLength={160}
             value={config.identity.tagline ?? ""}
             onChange={(e) =>
@@ -240,7 +240,7 @@ export function BrandTab({ config, patch, tenantId }: Props) {
 
       <InspectorGroup
         title="Social & contact"
-        info="Shown in the premium header cluster (and the footer — one source of truth). Leave a field blank to hide it. Nothing is auto-generated; only what you enter renders."
+        info="Shown in the premium header cluster (and the footer, one source of truth). Leave a field blank to hide it. Nothing is auto-generated; only what you enter renders."
       >
         {SOCIAL_CONTACT_FIELDS.map((field) => {
           const value = (config.identity[field.key] as string | null) ?? "";
@@ -298,7 +298,7 @@ export function BrandTab({ config, patch, tenantId }: Props) {
                 onClick={() =>
                   patch.patchToken("shell.header-brand-position", opt.value)
                 }
-                title={`${opt.label} — ${opt.helper}`}
+                title={`${opt.label}: ${opt.helper}`}
                 aria-label={opt.label}
                 className={`group flex flex-col items-stretch gap-1.5 rounded-lg border p-2 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
                   active
@@ -334,7 +334,7 @@ export function BrandTab({ config, patch, tenantId }: Props) {
                 onClick={() =>
                   patch.patchToken("shell.header-brand-layout", opt.value)
                 }
-                title={`${opt.label} — ${opt.helper}`}
+                title={`${opt.label}: ${opt.helper}`}
                 aria-label={opt.label}
                 className={`group flex flex-col items-stretch gap-1.5 rounded-lg border p-2 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
                   active
@@ -358,7 +358,7 @@ export function BrandTab({ config, patch, tenantId }: Props) {
 
       <InspectorGroup
         title="Brand colors"
-        info="Primary drives the CTA button + active states across the site. Accent is the gold/highlight register — small chips, link underlines, dividers."
+        info="Primary drives the CTA button + active states across the site. Accent is the gold/highlight register: small chips, link underlines, dividers."
       >
         <ColorRow
           label="Primary"
@@ -371,7 +371,7 @@ export function BrandTab({ config, patch, tenantId }: Props) {
         <div className="h-2" />
         <ColorRow
           label="Accent"
-          hint="Secondary highlight — gold-line dividers, link underlines."
+          hint="Secondary highlight: gold-line dividers, link underlines."
           value={config.branding.accentColor ?? ""}
           onChange={(hex) =>
             patch.patchBranding({ accentColor: hex || null })

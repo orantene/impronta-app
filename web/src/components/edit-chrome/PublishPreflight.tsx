@@ -110,7 +110,7 @@ export function PublishPreflight({
       } else {
         setError(result.error ?? "Publish checks could not load.");
         reportMutationError(
-          result.error ?? "Publish checks could not load — try again.",
+          result.error ?? "Publish checks could not load. Try again.",
         );
         onStatusChange?.({ loading: false, blockingErrors: 0 });
       }
@@ -268,7 +268,7 @@ export function PublishPreflight({
         <strong className="font-semibold text-foreground">Blockers</strong> disable{" "}
         <span className="font-medium text-foreground">Publish now</span> until fixed.{" "}
         <strong className="font-semibold text-foreground">Advisory</strong> items are
-        non-blocking — review them, then publish if you accept the risk.
+        non-blocking, review them, then publish if you accept the risk.
       </p>
       {blockingIssues.length > 0 ? (
         <div className="rounded-md border border-rose-300/70 bg-rose-50/50 p-2">
@@ -307,7 +307,7 @@ export function PublishPreflight({
       {warningIssues.length > 0 ? (
         <div className="rounded-md border border-amber-300/70 bg-amber-50/40 p-2">
           <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-            Advisory — non-blocking ({warningIssues.length})
+            Advisory, non-blocking ({warningIssues.length})
           </div>
           <ul className="flex flex-col gap-1.5 text-stone-800">
             {warningIssues.map((issue, index) =>
