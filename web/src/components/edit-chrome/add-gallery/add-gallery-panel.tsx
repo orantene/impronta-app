@@ -2,9 +2,8 @@
 
 /**
  * AddGalleryPanel — builder Add Gallery (Elements / Sections / Connected).
- * CANVAS-1: inserts land adjacent to the current selection via
- * resolveGalleryInsertHint; scroll-into-view is inherited from the
- * selection-layer effect that fires on selectedBuilderNodeId change.
+ * W1-L4: inserts land via resolveInsertAnchor (selection → viewport section →
+ * end) then scroll into view + flash via locateCanvasNode.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -49,7 +48,9 @@ import {
   GalleryPreviewTrigger,
 } from "./add-gallery-preview-modal";
 import { AddGallerySectionPreview } from "./add-gallery-section-previews";
-import { resolveGalleryInsertHint } from "./gallery-insert-hint";
+import { resolveInsertAnchor } from "./gallery-insert-hint";
+import { getViewportSectionNodeId } from "./viewport-section-anchor";
+import { locateCanvasNode } from "../freeform-layer-row";
 
 const PANEL_WIDTH = 592;
 const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
@@ -595,14 +596,11 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       if (pending || !isAddGalleryItemAvailable(item)) return;
       setPending(true);
       try {
-        // CANVAS-1 — insert adjacent to the current selection; null hint falls
-        // back to end-of-tree. resolveGalleryInsertHint guards stale selections.
-        const hint = selectedBuilderNodeId !== null
-          ? resolveGalleryInsertHint(builderTree, selectedBuilderNodeId)
-          : null;
+        // W1-L4 — selection → viewport section → end-of-tree; never the far bottom.
+        const anchor = resolveInsertAnchor(builderTree, selectedBuilderNodeId, getViewportSectionNodeId());
         const result = await performAddGalleryInsert(
           item,
-          hint ?? { parentId: null, index: builderTree.length },
+          anchor,
           { insertBuilderNode, insertBuilderSectionEmbed, insertBuilderComponent },
         );
         if (!result.ok && result.error) {
@@ -619,8 +617,10 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
         if (result.ok && item.tab === "page_templates") {
           notifyTemplateApplied(item.label);
         }
-        // selectBuilderNode triggers the selection-layer scroll-into-view effect.
-        if (result.nodeId) selectBuilderNode(result.nodeId);
+        if (result.nodeId) {
+          selectBuilderNode(result.nodeId);
+          locateCanvasNode(result.nodeId); // scroll into view + flash it
+        }
         onClose();
       } finally {
         setPending(false);

@@ -173,6 +173,21 @@ export const LAYERS_FLASH_KEYFRAMES = `
 }
 `;
 
+/**
+ * Idempotently inject the locate/flash keyframes into <head>. FreeformLayersTree
+ * renders the same `<style>` when it is mounted, but locateCanvasNode is called
+ * from surfaces where that tree isn't present (add-gallery insert, mobile health
+ * panel). The id guard keeps this a no-op when the style already exists.
+ */
+export function ensureLocateFlashKeyframes(): void {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(LAYERS_FLASH_KEYFRAMES_ID)) return;
+  const style = document.createElement("style");
+  style.id = LAYERS_FLASH_KEYFRAMES_ID;
+  style.textContent = LAYERS_FLASH_KEYFRAMES;
+  document.head.appendChild(style);
+}
+
 function prefersReducedMotion(): boolean {
   return (
     typeof window !== "undefined" &&
@@ -217,6 +232,7 @@ export function locateCanvasNode(nodeId: string): void {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
     if (prefersReducedMotion()) return;
+    ensureLocateFlashKeyframes();
     el.setAttribute("data-builder-node-flash", "1");
     window.setTimeout(() => {
       el.removeAttribute("data-builder-node-flash");
