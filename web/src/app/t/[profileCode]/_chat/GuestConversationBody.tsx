@@ -10,7 +10,7 @@
  * MiniChatPanelColumn. No logic changes.
  */
 
-import type { ReactNode, RefObject } from "react";
+import type { RefObject } from "react";
 
 import type {
   GuestIdentityTier,
@@ -36,8 +36,6 @@ import type {
 } from "@/lib/inquiry/guest-chat-contract";
 
 export type GuestConversationBodyProps = {
-  compactRailFloating: boolean;
-  detailsRail: ReactNode;
   scrollRef: RefObject<HTMLDivElement | null>;
   C: Palette;
   showSentAirlock: boolean;
@@ -64,11 +62,15 @@ export type GuestConversationBodyProps = {
   onGuestEmailUpdated?: (email: string) => void;
   identity: GuestIdentityTier;
   threadStatus: GuestThreadStatus;
+  /**
+   * P1-10: the SendToAgencyBar is showing (an un-sent draft). The save-card
+   * (GuestAccountToolkit "create your free account") must NOT render at the same
+   * time — it belongs AFTER a real send. Mutually exclusive with the send bar.
+   */
+  sendBarActive?: boolean;
 };
 
 export function GuestConversationBody({
-  compactRailFloating,
-  detailsRail,
   scrollRef,
   C,
   showSentAirlock,
@@ -91,12 +93,10 @@ export function GuestConversationBody({
   onGuestEmailUpdated,
   identity,
   threadStatus,
+  sendBarActive = false,
 }: GuestConversationBodyProps) {
   return (
     <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", minWidth: 0 }}>
-      {/* Compact: the rail floats over the conversation (collapsed left strip /
-          expanded overlay) so it never stacks below + pushes the thread up. */}
-      {compactRailFloating && detailsRail}
       <div
         ref={scrollRef}
         style={{
@@ -105,9 +105,9 @@ export function GuestConversationBody({
           flex: 1,
           minHeight: 0,
           overflowY: "auto",
+          // P0-4b: keep wheel/touch scroll inside the thread, never the page.
+          overscrollBehavior: "contain",
           padding: "14px 14px 6px",
-          // Clear the floating left rail strip (48px) when it is present.
-          paddingLeft: compactRailFloating ? 60 : 14,
           display: "flex",
           flexDirection: "column",
           gap: 9,
@@ -139,7 +139,9 @@ export function GuestConversationBody({
           locale={brand.locale ?? "en"}
           surfaceMode={surfaceMode}
         />
-      ) : (
+      ) : rows.length === 0 ? (
+        // P1-15: the static greeting is a pre-send, empty-thread affordance. Once
+        // any row exists it must NOT double up above the conversation.
         <div
           style={{
             alignSelf: "flex-start",
@@ -168,7 +170,7 @@ export function GuestConversationBody({
                   name: talentFirst,
                 })}
         </div>
-      )}
+      ) : null}
 
       {rows.map((m) => (
         <MiniChatMessageBubble
@@ -213,7 +215,7 @@ export function GuestConversationBody({
         />
       )}
 
-      {inquiryId && (
+      {inquiryId && !sendBarActive && (
         <GuestAccountToolkit
           inquiryId={inquiryId}
           guestEmail={guestContactEmail}

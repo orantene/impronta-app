@@ -13,8 +13,10 @@
  */
 
 import type { GuestChatOffering } from "@/lib/inquiry/guest-chat-contract";
+import type { Translator } from "@/i18n/interpolate";
 import { formatOfferingPrice } from "@/lib/talent/offerings-types";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { FONT, paletteFor, type SurfaceMode } from "./mini-chat-styles";
 
 export type ChatOffering = GuestChatOffering;
 
@@ -60,30 +62,55 @@ export function offeringDraftPrefix(o: ChatOffering, locale: string): string {
 export function OfferingQuickPicker({
   offerings,
   locale,
+  t,
+  surfaceMode = "light",
   onPick,
 }: {
   offerings: ChatOffering[];
   locale: string;
+  /** Guest-locale translator; supplies the section label (en/es/fr parity). */
+  t: Translator;
+  /** Jon 360 Phase 7 dark surface variant for noir tenants. Default "light". */
+  surfaceMode?: SurfaceMode;
   onPick: (o: ChatOffering) => void;
 }) {
   if (offerings.length === 0) return null;
-  const label = pickLocale(locale, { en: "Ask about a service", es: "Pregunta por un servicio" });
+  // W1-G: the services strip lives INSIDE the panel column above the composer and
+  // paints from the C palette (no hardcoded #fff/#0B0B0D that ignored the surface).
+  const C = paletteFor(surfaceMode);
+  const label = t("public.guestChat.servicesQuickLabel");
 
   return (
-    <div style={{ padding: "8px 12px 10px", borderTop: "1px solid rgba(11,11,13,0.07)" }}>
+    <div
+      style={{
+        padding: "8px 12px 10px",
+        borderTop: `1px solid ${C.borderSoft}`,
+        background: C.surfaceFaint,
+        fontFamily: FONT,
+        flexShrink: 0,
+      }}
+    >
       <div
         style={{
           fontSize: 10,
           fontWeight: 700,
           letterSpacing: 0.8,
           textTransform: "uppercase",
-          color: "rgba(11,11,13,0.45)",
+          color: C.inkMuted,
           marginBottom: 6,
         }}
       >
         {label}
       </div>
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          overflowX: "auto",
+          paddingBottom: 2,
+          overscrollBehavior: "contain",
+        }}
+      >
         {offerings.map((o) => {
           const priceLabel = offeringChipPriceLabel(o, locale);
           return (
@@ -99,18 +126,19 @@ export function OfferingQuickPicker({
                 flexShrink: 0,
                 padding: "6px 11px",
                 borderRadius: 999,
-                border: "1px solid rgba(11,11,13,0.14)",
-                background: "#fff",
+                border: `1px solid ${C.border}`,
+                background: C.surface,
+                fontFamily: FONT,
                 fontSize: 12,
                 fontWeight: 600,
-                color: "#0B0B0D",
+                color: C.ink,
                 cursor: "pointer",
                 whiteSpace: "nowrap",
               }}
             >
               {o.title}
               {priceLabel && (
-                <span style={{ fontWeight: 500, color: "rgba(11,11,13,0.5)" }}>{priceLabel}</span>
+                <span style={{ fontWeight: 500, color: C.inkMuted }}>{priceLabel}</span>
               )}
             </button>
           );

@@ -15,6 +15,8 @@
  * accent only, no em dashes, dark-variant-aware via the injected palette.
  */
 
+import { Lock } from "lucide-react";
+
 import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
 import type {
@@ -22,6 +24,7 @@ import type {
   InquiryReceiptData,
   MiniChatBrand,
 } from "@/lib/inquiry/guest-chat-contract";
+import type { UnifiedSyncState } from "./use-unified-inquiry";
 import { ReceiptCoordinatorHeader } from "./ReceiptCoordinatorHeader";
 import {
   FONT,
@@ -43,6 +46,16 @@ export type GuestPanelHeaderProps = {
   threadStatus: GuestThreadStatus;
   typicalReply: string | null;
   receipt?: InquiryReceiptData | null;
+  /**
+   * Wave 1 (W1-B): the inquiry is a private, un-sent draft. The old full-band
+   * DraftPrivacyBanner is subsumed into a single-line lock chip in the header, so
+   * the compact panel keeps to header / thread / composer bands. Pre-send only.
+   */
+  isPrivateDraft?: boolean;
+  /** Panel-level sync state, folded into the draft lock chip's sub-text. */
+  syncState?: UnifiedSyncState;
+  /** Re-run the last failed patch (the draft lock chip's error retry). */
+  onRetrySync?: () => void;
   t: Translator;
   onClose: () => void;
 };
@@ -58,6 +71,9 @@ export function GuestPanelHeader({
   threadStatus,
   typicalReply,
   receipt = null,
+  isPrivateDraft = false,
+  syncState = "idle",
+  onRetrySync,
   t,
   onClose,
 }: GuestPanelHeaderProps) {
@@ -123,6 +139,13 @@ export function GuestPanelHeader({
             t={t}
             surfaceMode={surfaceMode}
           />
+        ) : isPrivateDraft ? (
+          <DraftLockLine
+            syncState={syncState}
+            onRetry={onRetrySync}
+            C={C}
+            t={t}
+          />
         ) : (
           <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 1 }}>
             {inquiryId
@@ -153,6 +176,77 @@ export function GuestPanelHeader({
       >
         ×
       </button>
+    </div>
+  );
+}
+
+/**
+ * DraftLockLine — the one-line "private draft" indicator that replaced the old
+ * full-height DraftPrivacyBanner band (Wave 1). Lock glyph + "Private draft" +
+ * a save-state tail (Saving.../Saved/retry) folded onto the header subtitle, so
+ * the compact panel never stacks a whole band for it.
+ */
+function DraftLockLine({
+  syncState,
+  onRetry,
+  C,
+  t,
+}: {
+  syncState: UnifiedSyncState;
+  onRetry?: () => void;
+  C: Palette;
+  t: Translator;
+}) {
+  const tail =
+    syncState === "saving"
+      ? t("public.guestChat.draftSaving")
+      : syncState === "saved"
+        ? t("public.guestChat.draftSaved")
+        : null;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+        marginTop: 2,
+        fontSize: 11,
+        color: C.inkMuted,
+        fontFamily: FONT,
+        minWidth: 0,
+      }}
+    >
+      <Lock size={11} strokeWidth={2.2} aria-hidden style={{ flexShrink: 0 }} />
+      <span style={{ fontWeight: 600, color: C.ink }}>
+        {t("public.guestChat.draftLockLabel")}
+      </span>
+      {syncState === "error" ? (
+        <button
+          type="button"
+          onClick={onRetry}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            margin: 0,
+            fontFamily: FONT,
+            fontSize: 11,
+            fontWeight: 600,
+            color: C.danger,
+            cursor: onRetry ? "pointer" : "default",
+            textDecorationLine: "underline",
+            textUnderlineOffset: 2,
+          }}
+        >
+          {t("public.guestChat.draftSaveError")}
+        </button>
+      ) : tail ? (
+        <span aria-live="polite" style={{ color: C.inkDim, whiteSpace: "nowrap" }}>
+          {"· "}
+          {tail}
+        </span>
+      ) : null}
     </div>
   );
 }
