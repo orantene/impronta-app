@@ -40,6 +40,30 @@ const CHROME_ROOT = resolve(HERE); // src/components/edit-chrome
  */
 const RUST_GOLD_RE = /#b45309\b|180\s*,\s*83\s*,\s*9\b/i;
 
+/**
+ * The stale accent-navy family that used to stand in for the editor accent
+ * before the "one violet kit" consolidation (W2-C1): `#3d4f7c` (the base),
+ * `#25304f` (deep active), `#4a5e94` (hover). Chrome-accent surfaces must now
+ * use the single violet accent (`CHROME.accent` #7c3aed / tailwind `violet-*`),
+ * never this navy. A hue as an rgb triple (`61, 79, 124`) is the same base.
+ */
+const STALE_NAVY_RE = /#3d4f7c\b|#25304f\b|#4a5e94\b|61\s*,\s*79\s*,\s*124\b/i;
+
+/**
+ * Files under edit-chrome that legitimately keep `#3d4f7c` as tenant CONTENT /
+ * brand color (NOT chrome accent): the rich-editor color picker swatch + its
+ * defaults, its test fixture, a tenant brand primaryColor default, and the
+ * multi-user presence cursor palette. These are user content, not chrome, so
+ * the navy guard must skip them. Paths are relative to CHROME_ROOT.
+ */
+const NAVY_CONTENT_ALLOWLIST = new Set([
+  "brand-quick-panel.tsx",
+  "presence-provider.tsx",
+  "rich-editor/nodes/ColorNode.ts",
+  "rich-editor/plugins/ToolbarPlugin.tsx",
+  "rich-editor/transformers/fixtures.ts",
+]);
+
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
@@ -66,6 +90,16 @@ test("self-check: the rust-gold matcher actually catches the banned family", () 
   assert.equal(RUST_GOLD_RE.test('"#2c5fdb"'), false);
 });
 
+test("self-check: the stale-navy matcher catches the old accent family", () => {
+  assert.equal(STALE_NAVY_RE.test('bg-[#3d4f7c]'), true);
+  assert.equal(STALE_NAVY_RE.test('color: "#25304f"'), true);
+  assert.equal(STALE_NAVY_RE.test("hover:bg-[#4a5e94]"), true);
+  assert.equal(STALE_NAVY_RE.test("rgba(61, 79, 124, 0.45)"), true);
+  // The one violet accent must NOT trip the matcher.
+  assert.equal(STALE_NAVY_RE.test('"#7c3aed"'), false);
+  assert.equal(STALE_NAVY_RE.test("bg-violet-600"), false);
+});
+
 test("no rust-gold / amber accents anywhere in edit-chrome source", () => {
   const offenders: string[] = [];
   for (const file of walk(CHROME_ROOT)) {
@@ -81,6 +115,30 @@ test("no rust-gold / amber accents anywhere in edit-chrome source", () => {
     0,
     `Gold/rust (amber) is banned in admin chrome. Use the cool "attention" ` +
       `role (CHROME.amber = #2c5fdb) or rose for errors. Offenders:\n` +
+      offenders.join("\n"),
+  );
+});
+
+test("no stale accent-navy in chrome-accent source (tenant-content files exempt)", () => {
+  const offenders: string[] = [];
+  for (const file of walk(CHROME_ROOT)) {
+    const rel = file.slice(CHROME_ROOT.length + 1);
+    // Normalize to forward slashes so the allowlist matches on any OS.
+    if (NAVY_CONTENT_ALLOWLIST.has(rel.split("\\").join("/"))) continue;
+    const text = readFileSync(file, "utf8");
+    text.split("\n").forEach((line, i) => {
+      if (STALE_NAVY_RE.test(line)) {
+        offenders.push(`${rel}:${i + 1}  ${line.trim()}`);
+      }
+    });
+  }
+  assert.equal(
+    offenders.length,
+    0,
+    `Stale accent-navy (#3d4f7c / #25304f / #4a5e94) is banned on chrome-accent ` +
+      `surfaces after the one-violet-kit consolidation. Use CHROME.accent ` +
+      `(#7c3aed) or tailwind violet-*. If this is a tenant CONTENT/brand color ` +
+      `(not chrome accent), add the file to NAVY_CONTENT_ALLOWLIST. Offenders:\n` +
       offenders.join("\n"),
   );
 });

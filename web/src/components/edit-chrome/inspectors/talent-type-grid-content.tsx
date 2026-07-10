@@ -640,7 +640,7 @@ export function TalentTypeGridContentInspector({
               max={18}
               value={maxItems}
               onChange={(event) => update({ maxItems: Number(event.target.value) })}
-              className="w-full accent-[#3d4f7c]"
+              className="w-full accent-violet-600"
             />
           </label>
           <label className={KIT.field}>
@@ -696,7 +696,7 @@ function ToggleRow({
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="size-4 accent-[#3d4f7c]"
+        className="size-4 accent-violet-600"
       />
     </label>
   );

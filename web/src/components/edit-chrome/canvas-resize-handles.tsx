@@ -283,7 +283,7 @@ export function CanvasResizeHandles({
     ...extra,
   });
 
-  const activeShadow = "0 0 0 3px rgba(61,79,124,0.25), 0 2px 6px rgba(0,0,0,0.35)";
+  const activeShadow = "0 0 0 3px rgba(124,58,237,0.25), 0 2px 6px rgba(0,0,0,0.35)";
 
   return (
     <>

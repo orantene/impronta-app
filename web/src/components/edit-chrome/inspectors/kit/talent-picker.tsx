@@ -212,7 +212,7 @@ export function TalentPicker({
             <button
               type="button"
               onClick={confirm}
-              className="rounded-md bg-[#3d4f7c] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#4a5e94]"
+              className="rounded-md bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500"
             >
               Done
             </button>

@@ -502,7 +502,7 @@ export function CommentsDrawer() {
                 type="checkbox"
                 checked={includeResolved}
                 onChange={(e) => setIncludeResolved(e.target.checked)}
-                style={{ accentColor: "#3d4f7c", width: 13, height: 13, cursor: "pointer" }}
+                style={{ accentColor: CHROME.accent, width: 13, height: 13, cursor: "pointer" }}
               />
               Show resolved
             </label>
