@@ -7,7 +7,11 @@ import type {
 } from "@/lib/ai/provider";
 import { logServerError } from "@/lib/server/safe-error";
 
-const DEFAULT_MODEL = "claude-sonnet-4-20250514";
+// Sonnet 4 (claude-sonnet-4-20250514) was RETIRED by Anthropic — the API now
+// 404s on it, which silently killed every default-model chat path (guest
+// message extraction, inquiry drafts) because they all fail open. Pin the
+// current Sonnet family default instead; ANTHROPIC_CHAT_MODEL still overrides.
+const DEFAULT_MODEL = "claude-sonnet-5";
 
 /** Per-call override wins, then the env default, then the module default. */
 function modelId(override?: string): string {

@@ -537,6 +537,10 @@ export function MiniChatPanel({
     onSent: () => {
       // Phase 0c CRO — send_clicked + contact_promoted (the PRIMARY conversion).
       jon360.trackSend();
+      // A successful send implies a REAL contact — the fresh-create path never
+      // touches promoteContact, so mark it here or the header's "Private
+      // draft" chip survives the send.
+      unified.markContactPromoted();
       setSentNote(true);
       triggerSentAirlock();
       // Force one full re-load so the receipt card + sent status mount: the send
