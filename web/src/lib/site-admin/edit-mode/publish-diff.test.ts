@@ -115,3 +115,20 @@ test("diffBuilderTreesForPublish: draft vs EMPTY published tree marks everything
   const result = diffBuilderTreesForPublish([node("a"), node("b")], []);
   assert.deepEqual(result.summary, { added: 2, removed: 0, moved: 0, total: 2 });
 });
+
+// ── W1-L2 — publish drawer "N sections ready" counter ───────────────────────
+
+import { effectiveSectionsReadyCount } from "./publish-diff";
+
+test("effectiveSectionsReadyCount: curated pages count their slot rows", () => {
+  assert.equal(effectiveSectionsReadyCount(4, 9), 4);
+});
+
+test("effectiveSectionsReadyCount: freeform pages (0 slot rows) count top-level tree layers — the '0 sections ready' audit defect", () => {
+  // The audit's 2-section freeform page: slots 0, tree layers 2 → must say 2.
+  assert.equal(effectiveSectionsReadyCount(0, 2), 2);
+});
+
+test("effectiveSectionsReadyCount: a genuinely empty page is honestly 0", () => {
+  assert.equal(effectiveSectionsReadyCount(0, 0), 0);
+});

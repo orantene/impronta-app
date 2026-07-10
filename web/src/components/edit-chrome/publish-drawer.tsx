@@ -55,6 +55,7 @@ import { RevisionsDiffPanel } from "./revisions-diff-panel";
 import {
   diffBuilderTreesForPublish,
   diffPublishedRows,
+  effectiveSectionsReadyCount,
   type PublishDiffRow,
   type PublishDiffSummary,
   type SectionChangeKind,
@@ -770,11 +771,13 @@ export function PublishDrawer() {
 
   // W1-L2 — "N sections ready" used to count only curated SLOT rows, so a
   // freeform page (all content as top-level builder-tree layers) showed
-  // "0 sections ready" while the canvas rendered a full page. When the slot
-  // count is 0, count the top-level tree layers instead (the same unit the
-  // Page structure panel shows as level-1 layers).
-  const effectiveSectionsReady =
-    summary.totalSections > 0 ? summary.totalSections : builderTree.length;
+  // "0 sections ready" while the canvas rendered a full page. Pure helper
+  // (unit-tested in publish-diff.test.ts): slot count when curated, top-level
+  // tree layer count when freeform.
+  const effectiveSectionsReady = effectiveSectionsReadyCount(
+    summary.totalSections,
+    builderTree.length,
+  );
 
   // Header meta line — schema for `lastPublishedAt` lands later; for now
   // surface the just-published timestamp from the in-flight success state

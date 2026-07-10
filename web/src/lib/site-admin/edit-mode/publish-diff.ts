@@ -158,3 +158,19 @@ export function diffBuilderTreesForPublish(
     changed,
   };
 }
+
+/**
+ * W1-L2 — the publish drawer's "N sections ready" count.
+ *
+ * Curated pages count their slot rows. FREEFORM pages keep all content as
+ * top-level builder-tree layers and have ZERO slot rows, so the old
+ * slots-only count showed "0 sections ready" on a fully-built page (audit
+ * defect 3). When the slot count is 0, fall back to the top-level tree layer
+ * count (the same unit the Page structure panel lists at level 1).
+ */
+export function effectiveSectionsReadyCount(
+  slotSectionCount: number,
+  treeTopLevelCount: number,
+): number {
+  return slotSectionCount > 0 ? slotSectionCount : treeTopLevelCount;
+}
