@@ -2155,6 +2155,34 @@ export function composeInlineNodeStyle(
 /** Module-level cache: style object identity → computed CSSProperties. */
 const sharedNodeStyleCache = new WeakMap<object, CSSProperties>();
 
+/**
+ * Mobile-safety clamp for a FREE fixed-length `width` / `minWidth` escape.
+ *
+ * A node that hard-codes a desktop-scale pixel width (the classic offender: a
+ * content container baked at `width:1120px` in an older published tree) will
+ * blow past a ~390px phone viewport and force the whole page to scroll
+ * horizontally. Wrapping the value in `min(<value>, 100%)` makes it
+ * self-clamping: on a wide desktop parent `min(1120px,100%)` still computes to
+ * `1120px` (byte-identical desktop render), while on a narrow phone the `100%`
+ * arm wins and the node shrinks to fit its container instead of overflowing.
+ *
+ * Only pure fixed lengths at or above a mobile-unsafe threshold are wrapped, so
+ * small decorative widths (a 30px rule, a 46px disc) and intrinsic/relative
+ * keywords (`100%`, `max-content`, `auto`, `calc(...)`, `min(...)`, `clamp(...)`,
+ * viewport units) are emitted unchanged — the marquee tracks that rely on
+ * `width:max-content` + parent `overflow:hidden` keep working.
+ */
+const MOBILE_UNSAFE_WIDTH_PX = 360;
+function clampFreeWidthForMobile(value: string): string {
+  const match = /^\s*(\d+(?:\.\d+)?)(px|rem|em)\s*$/.exec(value);
+  if (!match) return value; // %, vw, calc(), min(), max-content, auto → leave as-is
+  const n = Number(match[1]);
+  const unit = match[2];
+  const px = unit === "px" ? n : n * 16; // rem/em ≈ 16px root
+  if (px < MOBILE_UNSAFE_WIDTH_PX) return value; // small decorative sizes untouched
+  return `min(${value.trim()}, 100%)`;
+}
+
 export function inlineNodeStyle(
   style: BuilderNodeStyle | undefined,
   ...base: Array<CSSProperties | undefined>
@@ -2245,10 +2273,10 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   // Free dimension escapes — exact width/height + min/max clamps. width coexists
   // with the maxWidth token above; maxWidthFree is applied after it so an exact
   // clamp wins over the preset.
-  if (style.width) out.width = style.width;
+  if (style.width) out.width = clampFreeWidthForMobile(style.width);
   if (style.height) out.height = style.height;
   if (style.minHeight) out.minHeight = style.minHeight;
-  if (style.minWidth) out.minWidth = style.minWidth;
+  if (style.minWidth) out.minWidth = clampFreeWidthForMobile(style.minWidth);
   if (style.maxWidthFree) out.maxWidth = style.maxWidthFree;
   if (style.maxHeight) out.maxHeight = style.maxHeight;
   // Free per-side padding — applied after the paddingX/paddingY token so an

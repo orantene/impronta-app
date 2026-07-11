@@ -5760,6 +5760,33 @@ html[data-theme="dark"] [data-tone="light"] {
   .site-header__nav { display: none; }
   .site-header[data-variant="split"] .site-header__inner { grid-template-columns: 1fr auto; }
 }
+/* Phone reflow for the CLASSIC header variants (desktop-golden-safe: only
+ * <=560px, which desktop-width fidelity captures never hit). Prevents the
+ * seeded starter header's brand wordmark and the right-side account/saved/CTA
+ * cluster from overlapping at ~390px: the brand column is allowed to shrink
+ * (min-width:0 so a long wordmark truncates instead of shoving the icons off
+ * the row) and the split grid drops to a single flex row that wraps. The
+ * freeform variant collapses to a hamburger via its own rules above and is
+ * untouched here. */
+@media (max-width: 560px) {
+  .site-header[data-variant="standard"] .site-header__inner,
+  .site-header[data-variant="split"] .site-header__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px clamp(10px, 3vw, 16px);
+    grid-template-columns: none;
+  }
+  .site-header[data-variant="standard"] .site-header__inner > *,
+  .site-header[data-variant="split"] .site-header__inner > * { min-width: 0; }
+  .site-header[data-variant="standard"] .site-header__brand,
+  .site-header[data-variant="split"] .site-header__brand { min-width: 0; overflow: hidden; }
+  .site-header[data-variant="standard"] .site-header__brand-label,
+  .site-header[data-variant="split"] .site-header__brand-label {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+}
 
 /* -------------------------------------------------------------------------
  * variant="editorial" — premium centered editorial shell. Reusable +
