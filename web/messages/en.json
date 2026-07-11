@@ -695,7 +695,7 @@
       "leaveMessage": "Tell us about your event and we'll line up the right talent",
       "bookNow": "Book Now",
       "ctaMessage": "Message {agency}",
-      "ctaLineup": "Your lineup ({count})",
+      "ctaLineup": "Your lineup · {count}",
       "ctaSent": "Inquiry sent",
       "ctaReplied": "{agency} replied",
       "ctaClosed": "Inquiry closed",
