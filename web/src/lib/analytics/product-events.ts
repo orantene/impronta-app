@@ -39,6 +39,9 @@ export const PRODUCT_ANALYTICS_EVENTS = {
   /** Fires when the get-started page mounts (visitor reached the form). Payload: { tier?, audience_initial } */
   marketing_funnel_viewed: "marketing_funnel_viewed",
 
+  /** Fires when the visitor first types the business/project name — top-of-funnel intent. Payload: { audience } */
+  marketing_business_name_typed: "marketing_business_name_typed",
+
   /** Fires when the visitor first focuses the email field — proxy for "intent to submit". Payload: { audience } */
   marketing_email_focused: "marketing_email_focused",
 

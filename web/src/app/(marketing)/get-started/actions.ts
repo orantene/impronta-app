@@ -30,6 +30,17 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 const SignupSchema = z.object({
   audience: z.enum(["operator", "agency", "organization"]),
+  businessName: z
+    .string()
+    .trim()
+    .min(2, "Business name is too short.")
+    .max(120, "Business name is too long."),
+  businessDescription: z
+    .string()
+    .trim()
+    .max(500, "Description is too long.")
+    .optional()
+    .or(z.literal("")),
   name: z.string().trim().min(2, "Name is too short.").max(120, "Name is too long."),
   email: z.string().trim().toLowerCase().email("Enter a valid email."),
   subdomain: z
@@ -51,7 +62,10 @@ const SignupSchema = z.object({
 });
 
 export type GetStartedFieldErrors = Partial<
-  Record<"name" | "email" | "subdomain" | "audience" | "rosterSize" | "form", string>
+  Record<
+    "businessName" | "name" | "email" | "subdomain" | "audience" | "rosterSize" | "form",
+    string
+  >
 >;
 
 export type GetStartedActionResult =
@@ -175,6 +189,8 @@ export async function submitGetStartedSignup(
 
   const raw = {
     audience: String(formData.get("audience") ?? ""),
+    businessName: String(formData.get("businessName") ?? ""),
+    businessDescription: String(formData.get("businessDescription") ?? ""),
     name: String(formData.get("name") ?? ""),
     email: String(formData.get("email") ?? ""),
     subdomain: String(formData.get("subdomain") ?? ""),
@@ -193,7 +209,12 @@ export async function submitGetStartedSignup(
     const errors: GetStartedFieldErrors = {};
     for (const issue of parsed.error.issues) {
       const field = issue.path[0];
-      if (field === "name" || field === "email" || field === "subdomain") {
+      if (
+        field === "businessName" ||
+        field === "name" ||
+        field === "email" ||
+        field === "subdomain"
+      ) {
         errors[field] = issue.message;
       } else {
         errors.form = issue.message;
@@ -278,6 +299,11 @@ export async function submitGetStartedSignup(
     .insert({
       email: input.email,
       name: input.name.trim(),
+      business_name: input.businessName.trim(),
+      business_description:
+        input.businessDescription && input.businessDescription.trim().length > 0
+          ? input.businessDescription.trim()
+          : null,
       audience: input.audience,
       roster_size: input.rosterSize,
       tier_interest: input.tierInterest ?? null,
@@ -336,6 +362,8 @@ export async function submitGetStartedSignup(
     try {
       await sendFounderDigest({
         leadId,
+        businessName: input.businessName.trim(),
+        businessDescription: input.businessDescription?.trim() || null,
         name: input.name.trim(),
         email: input.email,
         audience: input.audience,
@@ -374,6 +402,8 @@ export async function submitGetStartedSignup(
       }),
       sendFounderDigest({
         leadId,
+        businessName: input.businessName.trim(),
+        businessDescription: input.businessDescription?.trim() || null,
         name: input.name.trim(),
         email: input.email,
         audience: input.audience,
@@ -401,6 +431,8 @@ export async function submitGetStartedSignup(
 
 async function sendFounderDigest(params: {
   leadId: string;
+  businessName: string;
+  businessDescription: string | null;
   name: string;
   email: string;
   audience: "operator" | "agency" | "organization";
@@ -414,7 +446,7 @@ async function sendFounderDigest(params: {
   if (!to) return;
   await sendEmail({
     to,
-    subject: `[${PLATFORM_BRAND.name}] Signup: ${params.name} · ${params.audience}${
+    subject: `[${PLATFORM_BRAND.name}] Signup: ${params.businessName} · ${params.audience}${
       params.subdomain ? ` · ${params.subdomain}.${PLATFORM_BRAND.domain}` : ""
     }`,
     html: renderFounderDigestEmail(params),
@@ -471,6 +503,8 @@ function renderLeadConfirmationEmail(args: {
 
 function renderFounderDigestEmail(params: {
   leadId: string;
+  businessName: string;
+  businessDescription: string | null;
   name: string;
   email: string;
   audience: string;
@@ -489,10 +523,12 @@ function renderFounderDigestEmail(params: {
   return `<!doctype html>
 <html><body style="margin:0;padding:24px;background:#fffdf7;font-family:'Geist',Inter,system-ui,sans-serif;color:#0f1714;">
   <h2 style="font-family:'Geist',Inter,system-ui,sans-serif;margin:0 0 16px;font-weight:500;letter-spacing:-0.02em;">New signup · ${escapeHtml(
-    params.audience,
+    params.businessName,
   )}</h2>
   <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-    ${row("Name", params.name)}
+    ${row("Business", params.businessName)}
+    ${row("Description", params.businessDescription)}
+    ${row("Contact", params.name)}
     ${row("Email", params.email)}
     ${row("Audience", params.audience)}
     ${row("Roster size", params.rosterSize)}

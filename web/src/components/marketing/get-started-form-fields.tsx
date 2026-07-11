@@ -60,6 +60,73 @@ export function TextField({
   );
 }
 
+/**
+ * Demoted, optional self-identification radio group. Extracted from
+ * get-started-form.tsx to keep that file under the 800-line cap. Purely
+ * presentational: parent owns the selected value + change handler.
+ */
+export function AudiencePicker<K extends string>({
+  legend,
+  options,
+  value,
+  onSelect,
+}: {
+  legend: string;
+  options: { key: K; label: string; description: string }[];
+  value: K;
+  onSelect: (key: K) => void;
+}) {
+  return (
+    <fieldset className="mt-6">
+      <legend className="text-[0.8125rem] font-medium" style={{ color: "var(--plt-muted)" }}>
+        {legend}
+      </legend>
+      <div className="mt-3 grid gap-2">
+        {options.map((opt) => {
+          const active = value === opt.key;
+          return (
+            <label
+              key={opt.key}
+              className="relative flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-200"
+              style={{
+                background: active ? "rgba(46,107,82,0.08)" : "var(--plt-bg)",
+                borderColor: active ? "var(--plt-forest)" : "var(--plt-hairline)",
+              }}
+            >
+              <input
+                type="radio"
+                name="audience-ui"
+                value={opt.key}
+                checked={active}
+                onChange={() => onSelect(opt.key)}
+                className="sr-only"
+              />
+              <span
+                className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors"
+                style={{
+                  borderColor: active ? "var(--plt-forest)" : "var(--plt-hairline-strong)",
+                  background: active ? "var(--plt-forest)" : "transparent",
+                }}
+                aria-hidden
+              >
+                {active ? (
+                  <span
+                    className="inline-block h-1.5 w-1.5 rounded-full"
+                    style={{ background: "var(--plt-on-inverse)" }}
+                  />
+                ) : null}
+              </span>
+              <span className="text-[0.875rem] font-medium" style={{ color: "var(--plt-ink)" }}>
+                {opt.label}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
 export function SuccessTick() {
   return (
     <span

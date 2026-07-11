@@ -404,19 +404,21 @@ function HeroSection({
               tierNames={tierNames}
               appliedDiscountLabel={appliedDiscountLabel ?? undefined}
             />
-            <p
-              className="mt-4 text-center text-[0.8125rem]"
-              style={{ color: "var(--plt-muted)" }}
-            >
-              {c.alreadyAccount}{" "}
-              <a
-                href={appLoginUrl}
-                className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
-                style={{ color: "var(--plt-ink)" }}
+            {initialSignedIn ? null : (
+              <p
+                className="mt-4 text-center text-[0.8125rem]"
+                style={{ color: "var(--plt-muted)" }}
               >
-                {c.signIn}
-              </a>
-            </p>
+                {c.alreadyAccount}{" "}
+                <a
+                  href={appLoginUrl}
+                  className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+                  style={{ color: "var(--plt-ink)" }}
+                >
+                  {c.signIn}
+                </a>
+              </p>
+            )}
           </div>
         </div>
       </MarketingContainer>

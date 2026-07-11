@@ -33,12 +33,22 @@ export type GetStartedFormCopy = {
   heading: string;
   headingCompact: string;
   whichDescribes: string;
+  whichDescribesOptional: string;
+  businessName: string;
+  businessNamePlaceholder: string;
+  businessNameHint: string;
+  addDescription: string;
+  hideDescription: string;
+  businessDescription: string;
+  businessDescriptionPlaceholder: string;
   yourName: string;
   workEmail: string;
   pickLink: string;
   teamSize: string;
   createWorkspace: string;
   reserving: string;
+  ctaFinePrint: string;
+  savedSpot: string;
 };
 
 export function getFormCopy(locale: string): GetStartedFormCopy {
@@ -49,12 +59,22 @@ export function getFormCopy(locale: string): GetStartedFormCopy {
       heading: "Start in under ten minutes.",
       headingCompact: "Create your free site",
       whichDescribes: "Which describes you best?",
+      whichDescribesOptional: "Which describes you best? (optional)",
+      businessName: "Name your business",
+      businessNamePlaceholder: "e.g. Riviera Maya Work",
+      businessNameHint: "This names your workspace and your link. You can change both later.",
+      addDescription: "Add a short description (optional)",
+      hideDescription: "Hide description",
+      businessDescription: "Short description",
+      businessDescriptionPlaceholder: "What do you do? One line is plenty.",
       yourName: "Your name",
       workEmail: "Work email",
-      pickLink: "Pick your link name",
+      pickLink: "Your link name",
       teamSize: "How big is your team?",
       createWorkspace: "Create my free workspace",
       reserving: "Reserving your link…",
+      ctaFinePrint: "Takes you straight to your new workspace. No card, free forever.",
+      savedSpot: "We saved your spot:",
     },
     es: {
       eyebrow: "Empieza tu negocio",
@@ -62,12 +82,22 @@ export function getFormCopy(locale: string): GetStartedFormCopy {
       heading: "Empieza en menos de diez minutos.",
       headingCompact: "Crea tu sitio gratis",
       whichDescribes: "¿Qué te describe mejor?",
+      whichDescribesOptional: "¿Qué te describe mejor? (opcional)",
+      businessName: "Nombra tu negocio",
+      businessNamePlaceholder: "ej. Riviera Maya Work",
+      businessNameHint: "Esto nombra tu workspace y tu link. Puedes cambiar ambos después.",
+      addDescription: "Agrega una descripción corta (opcional)",
+      hideDescription: "Ocultar descripción",
+      businessDescription: "Descripción corta",
+      businessDescriptionPlaceholder: "¿A qué te dedicas? Con una línea basta.",
       yourName: "Tu nombre",
       workEmail: "Correo de trabajo",
-      pickLink: "Elige el nombre de tu link",
+      pickLink: "El nombre de tu link",
       teamSize: "¿De qué tamaño es tu equipo?",
       createWorkspace: "Crea tu workspace gratis",
       reserving: "Reservando tu link…",
+      ctaFinePrint: "Te lleva directo a tu nuevo workspace. Sin tarjeta, gratis para siempre.",
+      savedSpot: "Guardamos tu lugar:",
     },
   });
 }
