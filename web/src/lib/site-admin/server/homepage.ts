@@ -1726,12 +1726,27 @@ export async function restoreHomepageRevision(
     values: HomepageRestoreRevisionValues;
     actorProfileId: string | null;
     correlationId?: string;
+    /**
+     * Internal dependency-injection seam (default-bound to the real impls).
+     * Lets the unit test drive the op without the auth/`after()` request-scope
+     * coupling that `requirePhase5Capability` + `scheduleAuditEvent` carry —
+     * IDENTICAL in shape to `copyPublishedToDraft`'s seam (the sibling rollback
+     * op). Production call sites never pass this, so the capability check runs
+     * exactly as before and runtime behavior is unchanged.
+     */
+    __hooks?: {
+      requireCapability?: typeof requirePhase5Capability;
+      scheduleAudit?: typeof scheduleAuditEvent;
+    };
   },
 ): Promise<Phase5Result<{ id: string; version: number }>> {
   const { tenantId, values, actorProfileId } = params;
   const correlationId = params.correlationId ?? randomUUID();
+  const requireCapabilityFn =
+    params.__hooks?.requireCapability ?? requirePhase5Capability;
+  const scheduleAuditFn = params.__hooks?.scheduleAudit ?? scheduleAuditEvent;
 
-  await requirePhase5Capability("agency.site_admin.homepage.compose", tenantId);
+  await requireCapabilityFn("agency.site_admin.homepage.compose", tenantId);
 
   if (values.tenantId !== tenantId) {
     return fail("FORBIDDEN", "tenantId mismatch");
@@ -1889,7 +1904,7 @@ export async function restoreHomepageRevision(
 
   const diffSuffix =
     dropped.length > 0 ? ` (${dropped.length} dropped: ${dropped.join(", ")})` : "";
-  scheduleAuditEvent(supabase, {
+  scheduleAuditFn(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.homepage.compose",
