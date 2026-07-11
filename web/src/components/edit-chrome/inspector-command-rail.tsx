@@ -26,6 +26,7 @@ import {
 } from "./kit";
 import { useInspectorRailCoupling } from "./use-inspector-rail-coupling";
 import { useInspectorVisibleTabs } from "./use-inspector-visible-tabs";
+import { useEditorLocale } from "./use-editor-locale";
 
 const RAIL_RADIUS_PX = CHROME_RADII.xxl;
 const TAB_ICON_PX = 22;
@@ -90,6 +91,7 @@ function RailTabButton({
 export function InspectorCommandRail() {
   const { inspectorDockOpen, toggleInspectorTab, inspectorActiveTab } =
     useEditContext();
+  const { t } = useEditorLocale();
   const { tabItems } = useInspectorVisibleTabs();
   // The rail is FIXED (W2-C3 removed the drag handle + collapse + pin
   // meta-chrome). We still register the rail node + read its transform so the
@@ -113,7 +115,7 @@ export function InspectorCommandRail() {
       ref={setPanelNode}
       data-inspector-command-rail=""
       data-inspector-rail-docked={dockedToRail ? "true" : "false"}
-      aria-label="Section editor tabs"
+      aria-label={t("Section editor tabs")}
       className="fixed flex flex-col"
       style={{
         right: INSPECTOR_RAIL_RIGHT_PX,
@@ -140,8 +142,8 @@ export function InspectorCommandRail() {
           <RailTabButton
             key={item.key}
             tabKey={item.key}
-            label={item.label}
-            hint={item.hint}
+            label={t(item.label)}
+            hint={t(item.hint)}
             icon={item.icon}
             active={inspectorDockOpen && inspectorActiveTab === item.key}
             onSelect={(key) => toggleInspectorTab(key)}

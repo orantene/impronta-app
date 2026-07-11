@@ -91,6 +91,7 @@ import {
   Home,
 } from "lucide-react";
 import { cleanSectionName as _cleanSectionName } from "@/lib/site-admin/clean-section-name";
+import { useEditorLocale } from "./use-editor-locale";
 import {
   BUILDER_NODE_REGISTRY,
   builderNodeSupportsFieldBindings,
@@ -1483,6 +1484,7 @@ export function InspectorDock() {
 }
 
 function EmptyState() {
+  const { t } = useEditorLocale();
   return (
     <div className="flex min-h-[340px] flex-1 flex-col p-5">
       <div
@@ -1524,15 +1526,16 @@ function EmptyState() {
           className="text-[15px] font-semibold tracking-tight"
           style={{ color: CHROME.ink }}
         >
-          Nothing selected
+          {t("Nothing selected")}
         </p>
         <p
           id="inspector-empty-desc"
           className="mt-2.5 max-w-[260px] text-[13px] leading-[1.55]"
           style={{ color: CHROME.muted2 }}
         >
-          Click a section on the canvas or a row in the left Layers panel. Your
-          draft edits stay private until you publish.
+          {t(
+            "Click a section on the canvas or a row in the left Layers panel. Your draft edits stay private until you publish.",
+          )}
         </p>
       </div>
     </div>
@@ -1540,6 +1543,7 @@ function EmptyState() {
 }
 
 function ShellLockedState() {
+  const { t } = useEditorLocale();
   return (
     <div
       className="flex h-full flex-1 items-center justify-center px-6 text-center"
@@ -1547,10 +1551,12 @@ function ShellLockedState() {
     >
       <div className="max-w-[260px]">
         <p className="text-[13px] font-semibold" style={{ color: CHROME.ink }}>
-          Site shell editing is locked on Free
+          {t("Site shell editing is locked on Free")}
         </p>
         <p className="mt-2 text-[12px] leading-5">
-          Body sections stay editable. Upgrade to Studio to edit header and footer shell controls.
+          {t(
+            "Body sections stay editable. Upgrade to Studio to edit header and footer shell controls.",
+          )}
         </p>
       </div>
     </div>

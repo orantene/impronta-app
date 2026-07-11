@@ -25,6 +25,7 @@ import { BrandQuickPanelBody } from "./brand-quick-panel";
 import { DockFloatingPanel } from "./dock-floating-panel";
 import { useEditContext } from "./edit-context";
 import { CHROME, Segmented } from "./kit";
+import { useEditorLocale } from "./use-editor-locale";
 
 interface DesignPanelProps {
   open: boolean;
@@ -35,6 +36,7 @@ type DesignTab = "brand" | "theme";
 
 export function DesignPanel({ open, onClose }: DesignPanelProps) {
   const { canEditTheme, openTheme } = useEditContext();
+  const { t } = useEditorLocale();
   const [tab, setTab] = useState<DesignTab>("brand");
 
   // Reset to the Brand section each time the panel is re-opened so the entry
@@ -51,7 +53,7 @@ export function DesignPanel({ open, onClose }: DesignPanelProps) {
   return (
     <DockFloatingPanel
       panelId="brand"
-      title="Design"
+      title={t("Design")}
       open={open}
       onClose={onClose}
       width={340}
@@ -64,8 +66,8 @@ export function DesignPanel({ open, onClose }: DesignPanelProps) {
               onChange={setTab}
               fullWidth
               options={[
-                { value: "brand", label: "Brand" },
-                { value: "theme", label: "Theme" },
+                { value: "brand", label: t("Brand") },
+                { value: "theme", label: t("Theme") },
               ]}
             />
           </div>
@@ -80,9 +82,9 @@ export function DesignPanel({ open, onClose }: DesignPanelProps) {
             className="m-0 text-[12px] leading-relaxed"
             style={{ color: CHROME.muted }}
           >
-            Global theme and brand styles: colours, typography, spacing,
-            effects, and the code view for the whole site. This opens the
-            full-height theme editor.
+            {t(
+              "Global theme and brand styles: colours, typography, spacing, effects, and the code view for the whole site. This opens the full-height theme editor.",
+            )}
           </p>
           <button
             type="button"
@@ -111,7 +113,7 @@ export function DesignPanel({ open, onClose }: DesignPanelProps) {
               <circle cx="6.5" cy="12.5" r="1.5" fill="currentColor" stroke="none" />
               <path d="M12 2a10 10 0 1 0 0 20 2.5 2.5 0 0 0 2.5-2.5c0-.55-.22-1.05-.59-1.41a2 2 0 0 1 1.41-3.42H17a5 5 0 0 0 5-5A10 10 0 0 0 12 2z" />
             </svg>
-            Open theme editor
+            {t("Open theme editor")}
           </button>
         </div>
       )}

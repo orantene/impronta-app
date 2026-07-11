@@ -243,6 +243,12 @@ const ES_TEXT: Record<string, string> = {
     "Conecta este bloque a datos en vivo de la lista o del catálogo",
   "Entrance motion when visitors scroll to this block":
     "Animación de entrada cuando los visitantes llegan a este bloque al hacer scroll",
+  "Nothing selected": "Nada seleccionado",
+  "Click a section on the canvas or a row in the left Layers panel. Your draft edits stay private until you publish.":
+    "Haz clic en una sección del lienzo o en una fila del panel de capas de la izquierda. Tus cambios en el borrador son privados hasta que publiques.",
+  "Site shell editing is locked on Free": "La edición de la estructura del sitio está bloqueada en el plan Gratis",
+  "Body sections stay editable. Upgrade to Studio to edit header and footer shell controls.":
+    "Las secciones del cuerpo siguen siendo editables. Mejora a Studio para editar los controles de encabezado y pie de página.",
 
   // ── Add gallery ──────────────────────────────────────────────────────────
   "Add gallery tabs": "Pestañas de la galería para agregar",
@@ -273,6 +279,9 @@ const ES_TEXT: Record<string, string> = {
   "Last published": "Última publicación",
   "loading…": "cargando...",
   "couldn't load": "no se pudo cargar",
+  template: "plantilla",
+  homepage: "portada",
+  page: "página",
   "What publishing does": "Qué hace publicar",
   "Publishing to the live site. Please wait.":
     "Publicando en el sitio en vivo. Espera un momento.",
@@ -282,7 +291,7 @@ const ES_TEXT: Record<string, string> = {
   "changes since last publish (first publish)":
     "cambios desde la última publicación (primera publicación)",
   "Checking the last published snapshot…": "Revisando la última instantánea publicada...",
-  "Couldn't load the last published snapshot, so the change count is unavailable.":
+  "Couldn’t load the last published snapshot, so the change count is unavailable.":
     "No se pudo cargar la última instantánea publicada, así que el número de cambios no está disponible.",
   Retry: "Reintentar",
   "Diff shows no section changes vs last publish. The canvas or device preview can still lag your saved draft. Use Preview, review checks below, wait for autosave, or reload composition if the tree looks stale.":
@@ -291,6 +300,13 @@ const ES_TEXT: Record<string, string> = {
   "Reload composition": "Recargar composición",
   Added: "Agregado",
   Moved: "Movido",
+  "Builder changes": "Cambios del editor",
+  "Draft vs published": "Borrador frente a publicado",
+  "Couldn’t load the builder diff.": "No se pudo cargar la comparación del editor.",
+  "Loading diff…": "Cargando comparación...",
+  "Nothing published yet. This will be the first published version.":
+    "Aún no se ha publicado nada. Esta será la primera versión publicada.",
+  "Builder diff unavailable.": "Comparación del editor no disponible.",
   "Save a draft checkpoint without publishing":
     "Guarda un punto de control del borrador sin publicar",
   "Discard your draft edits and reset to the currently published version":
@@ -313,6 +329,7 @@ const ES_TEXT: Record<string, string> = {
 
   // ── Structure / navigator panel ──────────────────────────────────────────
   "Close Structure": "Cerrar Estructura",
+  "Resize navigator": "Redimensionar el panel de estructura",
   "Layers view mode": "Modo de vista de capas",
   Layers: "Capas",
   Outline: "Esquema",
@@ -331,6 +348,7 @@ const ES_TEXT: Record<string, string> = {
   "Add a section": "Agregar una sección",
   "Edit colours, type, and spacing": "Editar colores, tipografía y espaciado",
   "Cancel rename": "Cancelar cambio de nombre",
+  "Close add block menu": "Cerrar menú de agregar bloque",
 
   // ── All-pages panel ──────────────────────────────────────────────────────
   "Page title": "Título de la página",
@@ -347,6 +365,13 @@ const ES_TEXT: Record<string, string> = {
   Delete: "Eliminar",
   "Manage in admin": "Gestionar en admin",
   "More page actions": "Más acciones de página",
+  "Page history & revisions": "Historial y revisiones de la página",
+  "Duplicating…": "Duplicando...",
+  Duplicate: "Duplicar",
+  "Setting…": "Configurando...",
+  "Set as homepage": "Definir como página de inicio",
+  "Set as directory": "Definir como directorio",
+  "This can’t be undone.": "Esto no se puede deshacer.",
 
   // ── Page settings drawer ─────────────────────────────────────────────────
   Basics: "Básicos",
@@ -361,6 +386,7 @@ const ES_TEXT: Record<string, string> = {
   "Canonical URL": "URL canónica",
   "Search engines": "Motores de búsqueda",
   Redirects: "Redirecciones",
+  "301 / 302 path forwarding": "Redirección de rutas 301 / 302",
 
   // ── Common toasts (edit-shell.tsx) ──────────────────────────────────────
   "Live preview can lag a moment after inserts. The draft on the server is still what Publish will read.":
@@ -381,7 +407,6 @@ const ES_TEXT: Record<string, string> = {
   // ── Mutation error operations / suggestions (edit-shell.tsx) ─────────────
   Insert: "Insertar",
   Move: "Mover",
-  Duplicate: "Duplicar",
   Paste: "Pegar",
   Update: "Actualizar",
   "This block is stale or already removed. Refresh and try the action again.":

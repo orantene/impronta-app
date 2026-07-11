@@ -69,6 +69,7 @@ import {
   organizationJsonLdStub,
   parsePageJsonLd,
 } from "@/lib/site-admin/cms-seo";
+import { useEditorLocale } from "./use-editor-locale";
 
 // Phase 0 sweep (2026-04-26) — convergence-plan §1:
 // - "Code" tab said "Coming soon"; product debt removed until per-page custom
@@ -218,6 +219,7 @@ function overLimitStyle(active: boolean): React.CSSProperties | undefined {
 // ── PageSettingsDrawer ───────────────────────────────────────────────────────
 
 export function PageSettingsDrawer() {
+  const { t } = useEditorLocale();
   const {
     pageSettingsOpen,
     closePageSettings,
@@ -385,7 +387,7 @@ export function PageSettingsDrawer() {
     >
       <DrawerHead
         titleId="page-settings-drawer-title"
-        title="Page settings"
+        title={t("Page settings")}
         icon={<CogIcon />}
         saveChip={<SaveChip status={chipStatus} />}
         meta={<>{host || "—"} <span style={{ color: CHROME.muted2 }}>·</span> /</>}
@@ -393,13 +395,13 @@ export function PageSettingsDrawer() {
       />
 
       <DrawerTabs>
-        {TABS.map((t) => (
+        {TABS.map((tabDef) => (
           <DrawerTab
-            key={t.key}
-            active={tab === t.key}
-            onClick={() => setTab(t.key)}
+            key={tabDef.key}
+            active={tab === tabDef.key}
+            onClick={() => setTab(tabDef.key)}
           >
-            {t.label}
+            {t(tabDef.label)}
           </DrawerTab>
         ))}
       </DrawerTabs>
@@ -430,7 +432,7 @@ export function PageSettingsDrawer() {
 
         {draft && (tab === "basics" || tab === "seo") ? (
           <Card>
-            <CardHead icon={<FileIcon />} title="Basics" />
+            <CardHead icon={<FileIcon />} title={t("Basics")} />
             <CardBody>
               <Field>
                 <FieldLabel
@@ -526,7 +528,7 @@ export function PageSettingsDrawer() {
 
         {draft && tab === "seo" ? (
           <Card>
-            <CardHead icon={<GlobeIcon />} title="Search preview" />
+            <CardHead icon={<GlobeIcon />} title={t("Search preview")} />
             <CardBody>
               <SearchPreview
                 host={host}
@@ -542,7 +544,7 @@ export function PageSettingsDrawer() {
             <Card>
               <CardHead
                 icon={<ShareIcon />}
-                title="Social card preview"
+                title={t("Social card preview")}
                 sub="OpenGraph + Twitter"
               />
               <CardBody>
@@ -564,7 +566,7 @@ export function PageSettingsDrawer() {
             <Card>
               <CardHead
                 icon={<ShareIcon />}
-                title="OpenGraph overrides"
+                title={t("OpenGraph overrides")}
                 sub="Falls back to title / description when blank"
               />
               <CardBody>
@@ -909,6 +911,7 @@ interface UrlRobotsTabProps {
 }
 
 function UrlRobotsTab(props: UrlRobotsTabProps) {
+  const { t } = useEditorLocale();
   const {
     host,
     pageId,
@@ -1053,7 +1056,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
   return (
     <>
       <Card>
-        <CardHead icon={<LinkIcon />} title="URL slug" />
+        <CardHead icon={<LinkIcon />} title={t("URL slug")} />
         <CardBody>
           <div className="flex items-center gap-1.5">
             <span style={{ fontFamily: monoFont, fontSize: 12, color: CHROME.muted }}>
@@ -1112,7 +1115,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
       <Card>
         <CardHead
           icon={<GlobeIcon />}
-          title="Structured data"
+          title={t("Structured data")}
           sub="schema.org JSON-LD"
         />
         <CardBody>
@@ -1196,7 +1199,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
       </Card>
 
       <Card>
-        <CardHead icon={<LinkIcon />} title="Canonical URL" />
+        <CardHead icon={<LinkIcon />} title={t("Canonical URL")} />
         <CardBody>
           <Field flush>
             <FieldLabel htmlFor="ps-canonical" meta="Optional override">
@@ -1222,7 +1225,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
       </Card>
 
       <Card>
-        <CardHead icon={<GlobeIcon />} title="Search engines" />
+        <CardHead icon={<GlobeIcon />} title={t("Search engines")} />
         <CardBody padding="tight">
           <div style={{ padding: "8px 4px" }}>
             <Toggle
@@ -1252,6 +1255,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
 // ── RedirectsCard — list / add / enable / delete cms_redirects ───────────────
 
 function RedirectsCard({ open, host }: { open: boolean; host: string }) {
+  const { t } = useEditorLocale();
   const [loaded, setLoaded] = useState(false);
   const [rows, setRows] = useState<ReadonlyArray<CmsRedirectRow>>([]);
   const [fromPath, setFromPath] = useState("");
@@ -1346,8 +1350,8 @@ function RedirectsCard({ open, host }: { open: boolean; host: string }) {
     <Card>
       <CardHead
         icon={<LinkIcon />}
-        title="Redirects"
-        sub="301 / 302 path forwarding"
+        title={t("Redirects")}
+        sub={t("301 / 302 path forwarding")}
       />
       <CardBody>
         <div className="flex flex-col gap-1.5">
