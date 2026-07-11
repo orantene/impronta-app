@@ -592,7 +592,18 @@ export function MiniChatPanel({
   const handlePickOffering = (o: ChatOffering) => {
     setPendingOffering({ ...o, intent: "request" });
     if (sentNote) setSentNote(false);
-    setDraft(offeringDraftPrefix(o, brand.locale ?? "en"));
+    const prefix = offeringDraftPrefix(o, brand.locale ?? "en");
+    setDraft(prefix);
+    // W1-3 — after prefilling the "Requesting: …" prefix, put the caret at the
+    // END and focus so a follow-up tap can't land the caret mid-prefix and
+    // interleave the user's words into the service name (2026-07-11 audit).
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(prefix.length, prefix.length);
+      }
+    });
     // Live thread → also attach as structured provenance (best-effort).
     if (inquiryId && onAttachOffering) {
       void onAttachOffering({

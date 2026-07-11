@@ -26,6 +26,8 @@ import { ClaimEmailRecap } from "./ClaimEmailRecap";
 import { GuestAccountToolkit } from "./GuestAccountToolkit";
 import { InquiryReceiptCard } from "./InquiryReceiptCard";
 import { MiniChatMessageBubble } from "./MiniChatMessageBubble";
+import { SystemNoteCluster } from "./SystemNoteCluster";
+import { clusterSystemRows } from "./cluster-system-rows";
 import { NewMessagePulse } from "./NewMessagePulse";
 import { SentAirlock } from "./SentAirlock";
 import { TrustGateNudge } from "./TrustGateNudge";
@@ -177,15 +179,22 @@ export function GuestConversationBody({
         </div>
       ) : null}
 
-      {rows.map((m) => (
-        <MiniChatMessageBubble
-          key={m.id}
-          m={m}
-          accent={accent}
-          locale={brand.locale ?? "en"}
-          surfaceMode={surfaceMode}
-        />
-      ))}
+      {/* W1-1 — fold consecutive system notes into ONE quiet caption cluster
+          so lineup/AI-capture bursts read as a whisper, not spam. Human
+          messages render as bubbles, in place. */}
+      {clusterSystemRows(rows).map((node) =>
+        node.kind === "message" ? (
+          <MiniChatMessageBubble
+            key={node.row.id}
+            m={node.row}
+            accent={accent}
+            locale={brand.locale ?? "en"}
+            surfaceMode={surfaceMode}
+          />
+        ) : (
+          <SystemNoteCluster key={node.id} rows={node.rows} C={C} t={t} />
+        ),
+      )}
 
       {limitNudge && limitNudge.tier !== "account" && (
         <TrustGateNudge
