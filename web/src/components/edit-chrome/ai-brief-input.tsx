@@ -15,7 +15,7 @@
  * can compose the header + form inside its own container (no double border).
  */
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./kit";
 
@@ -35,6 +35,7 @@ export function AIBriefInput({
   pendingLabel = "Designing…",
   variant = "card",
   showHeader = true,
+  autoFocus = false,
 }: {
   onCompose: (brief: string) => Promise<AiBriefComposeOutcome>;
   pending: boolean;
@@ -48,9 +49,17 @@ export function AIBriefInput({
   variant?: "card" | "embedded";
   /** When false, the icon + title + description header is omitted (host renders its own). */
   showHeader?: boolean;
+  /** Focus the brief field on mount — used by the `?ai=1` deep-link so the hub
+   *  "Describe with AI" create entry lands ready to type. */
+  autoFocus?: boolean;
 }) {
   const [brief, setBrief] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (autoFocus) inputRef.current?.focus();
+  }, [autoFocus]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -114,6 +123,7 @@ export function AIBriefInput({
         className={`flex flex-col gap-2.5 sm:flex-row ${showHeader ? "mt-4" : ""}`}
       >
         <input
+          ref={inputRef}
           type="text"
           value={brief}
           onChange={(e) => {
