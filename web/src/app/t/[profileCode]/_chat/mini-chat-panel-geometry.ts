@@ -61,8 +61,14 @@ export function miniPanelContainerStyle(
     bottom: `calc(${GUEST_CHAT_PANEL_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
     zIndex: 90,
     width: "min(408px, calc(100vw - 32px))",
-    height: "min(720px, calc(100vh - 120px))",
-    maxHeight: "calc(100vh - 120px)",
+    // The panel is anchored GUEST_CHAT_PANEL_BOTTOM_PX (194) up from the bottom,
+    // so the vertical room it may occupy is (100vh - bottom anchor - a top
+    // margin). Reserving only 120px let a tall panel run its header off the top
+    // on any viewport shorter than ~914px (short laptops, split-screen, devtools
+    // heights). Reserve the real anchor + 24px top breathing room so the slim
+    // header is always in view; the min(720) cap still governs tall screens.
+    height: `min(720px, calc(100dvh - ${GUEST_CHAT_PANEL_BOTTOM_PX + 24}px))`,
+    maxHeight: `calc(100dvh - ${GUEST_CHAT_PANEL_BOTTOM_PX + 24}px)`,
     display: "flex",
     flexDirection: "column",
     background: palette.surface,
