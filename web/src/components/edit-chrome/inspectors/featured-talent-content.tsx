@@ -41,6 +41,7 @@ import {
 } from "@/lib/site-admin/edit-mode/talent-search";
 import { v11FeaturedTalentPreset } from "@/lib/site-admin/sections/featured_talent/presets";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { useEditorLocale } from "../use-editor-locale";
 
 type SourceMode =
   | "manual_pick"
@@ -62,37 +63,41 @@ interface Props {
   onChange: (next: Record<string, unknown>) => void;
 }
 
-const MODE_OPTIONS: ReadonlyArray<{
+function modeOptions(
+  t: ReturnType<typeof useEditorLocale>["t"],
+): ReadonlyArray<{
   value: SourceMode;
   label: string;
   info: string;
-}> = [
-  {
-    value: "manual_pick",
-    label: "Hand-picked",
-    info: "Choose specific talent by name. Ideal when you want editorial control over the lineup.",
-  },
-  {
-    value: "auto_featured_flag",
-    label: "Featured latest",
-    info: "Auto-fills with your most recently featured talent. Set-and-forget.",
-  },
-  {
-    value: "auto_by_service",
-    label: "By role",
-    info: "Filters roster by a service category (models, hair, photographers…).",
-  },
-  {
-    value: "auto_by_destination",
-    label: "By destination",
-    info: "Filters roster by location slug. Good for city or region pages.",
-  },
-  {
-    value: "auto_recent",
-    label: "Most recent",
-    info: "Auto-fills with the roster's most recently approved talent.",
-  },
-];
+}> {
+  return [
+    {
+      value: "manual_pick",
+      label: t("Hand-picked"),
+      info: t("Choose specific talent by name. Ideal when you want editorial control over the lineup."),
+    },
+    {
+      value: "auto_featured_flag",
+      label: t("Featured latest"),
+      info: t("Auto-fills with your most recently featured talent. Set-and-forget."),
+    },
+    {
+      value: "auto_by_service",
+      label: t("By role"),
+      info: t("Filters roster by a service category (models, hair, photographers…)."),
+    },
+    {
+      value: "auto_by_destination",
+      label: t("By destination"),
+      info: t("Filters roster by location slug. Good for city or region pages."),
+    },
+    {
+      value: "auto_recent",
+      label: t("Most recent"),
+      info: t("Auto-fills with the roster's most recently approved talent."),
+    },
+  ];
+}
 
 function cleanObject<T extends Record<string, unknown>>(o: T): T {
   const out = { ...o };
@@ -109,6 +114,7 @@ export function FeaturedTalentContentInspector({
   selectedBuilderNodeId,
   onChange,
 }: Props) {
+  const { t } = useEditorLocale();
   const eyebrow = (draftProps.eyebrow as string | undefined) ?? "";
   const headline = (draftProps.headline as string | undefined) ?? "";
   const copy = (draftProps.copy as string | undefined) ?? "";
@@ -167,12 +173,12 @@ export function FeaturedTalentContentInspector({
   }, [selectedBuilderNodeId]);
 
   const focusLabel = useMemo(() => {
-    if (focusRole === "subheadline") return "Eyebrow";
-    if (focusRole === "headline") return "Headline";
-    if (focusRole === "copy") return "Intro copy";
-    if (focusRole === "footerCta") return "Footer link";
+    if (focusRole === "subheadline") return t("Eyebrow");
+    if (focusRole === "headline") return t("Headline");
+    if (focusRole === "copy") return t("Intro copy");
+    if (focusRole === "footerCta") return t("Footer link");
     return null;
-  }, [focusRole]);
+  }, [focusRole, t]);
 
   useEffect(() => {
     if (!focusRole) return;
@@ -244,57 +250,57 @@ export function FeaturedTalentContentInspector({
             color: "#1d4ed8",
           }}
         >
-          Editing selected canvas node: {focusLabel}
+          {t("Editing selected canvas node:")} {focusLabel}
         </div>
       ) : null}
 
       <div className={KIT.field} data-featured-talent-node-role="subheadline">
-        <label className={KIT.label}>Eyebrow</label>
+        <label className={KIT.label}>{t("Eyebrow")}</label>
         <input
           type="text"
           className={KIT.input}
-          placeholder="Optional, e.g. Featured this month"
+          placeholder={t("Optional, e.g. Featured this month")}
           maxLength={60}
           value={eyebrow}
           onChange={(e) => update({ eyebrow: e.target.value || undefined })}
         />
       </div>
       <div className={KIT.field} data-featured-talent-node-role="headline">
-        <label className={KIT.label}>Headline</label>
+        <label className={KIT.label}>{t("Headline")}</label>
         <RichEditor
           value={headline}
           onChange={(next) => update({ headline: next || undefined })}
           variant="single"
           tenantId={tenantId}
-          placeholder="A section title that names the set"
-          ariaLabel="Headline"
+          placeholder={t("A section title that names the set")}
+          ariaLabel={t("Headline")}
         />
       </div>
       <div className={KIT.field} data-featured-talent-node-role="copy">
-        <label className={KIT.label}>Description</label>
+        <label className={KIT.label}>{t("Description")}</label>
         <RichEditor
           value={copy}
           onChange={(next) => update({ copy: next || undefined })}
           variant="multi"
           tenantId={tenantId}
-          placeholder="Optional, one paragraph of context"
-          ariaLabel="Description"
+          placeholder={t("Optional, one paragraph of context")}
+          ariaLabel={t("Description")}
         />
       </div>
 
-      <InspectorGroup title="Layout" storageKey="featured_talent:layout-main">
+      <InspectorGroup title={t("Layout")} storageKey="featured_talent:layout-main">
         <VisualChipGroup<Variant>
           value={variant}
           onChange={(v) => update({ variant: v })}
           options={[
             {
               value: "grid",
-              label: "Uniform card grid",
+              label: t("Uniform card grid"),
               preview: <GridPreview />,
             },
             {
               value: "carousel",
-              label: "Horizontal rail",
+              label: t("Horizontal rail"),
               preview: <CarouselPreview />,
             },
           ]}
@@ -303,25 +309,24 @@ export function FeaturedTalentContentInspector({
       </InspectorGroup>
 
       <InspectorGroup
-        title="Preset"
+        title={t("Preset")}
         collapsible
         storageKey="featured_talent:preset"
         defaultOpen={false}
       >
         <p className={KIT.hint}>
-          V11 showcase: centered header, four-card noir grid, cinematic images,
-          outline buttons, and Explore Talent footer link.
+          {t("V11 showcase: centered header, four-card noir grid, cinematic images, outline buttons, and Explore Talent footer link.")}
         </p>
         <button type="button" className={KIT.primaryButton} onClick={applyV11Preset}>
-          Apply full preset
+          {t("Apply full preset")}
         </button>
       </InspectorGroup>
 
-      <InspectorGroup title="Talent source" storageKey="featured_talent:source">
+      <InspectorGroup title={t("Talent source")} storageKey="featured_talent:source">
         <VisualChipGroup<SourceMode>
           value={sourceMode}
           onChange={switchMode}
-          options={MODE_OPTIONS.map((opt) => ({
+          options={modeOptions(t).map((opt) => ({
             ...opt,
             preview: <ModePreview value={opt.value} />,
           }))}
@@ -342,38 +347,38 @@ export function FeaturedTalentContentInspector({
           ) : null}
           {sourceMode === "auto_by_service" ? (
             <AutoFilterInput
-              label="Service slug"
-              placeholder="e.g. models, hair-and-makeup"
+              label={t("Service slug")}
+              placeholder={t("e.g. models, hair-and-makeup")}
               value={filterServiceSlug}
               onChange={(v) =>
                 update({ filterServiceSlug: v || undefined })
               }
-              hint="Exactly matches your service_category_slug. Check /admin/taxonomy for valid slugs."
+              hint={t("Exactly matches your service_category_slug. Check /admin/taxonomy for valid slugs.")}
             />
           ) : null}
           {sourceMode === "auto_by_destination" ? (
             <AutoFilterInput
-              label="Destination slug"
-              placeholder="e.g. tulum, los-cabos"
+              label={t("Destination slug")}
+              placeholder={t("e.g. tulum, los-cabos")}
               value={filterDestinationSlug}
               onChange={(v) =>
                 update({ filterDestinationSlug: v || undefined })
               }
-              hint="Matches destinations on talent profiles."
+              hint={t("Matches destinations on talent profiles.")}
             />
           ) : null}
           {sourceMode === "auto_featured_flag" ? (
-            <SteadyStateNote text="Featured-flagged talent appear here in your chosen order. Nothing to configure." />
+            <SteadyStateNote text={t("Featured-flagged talent appear here in your chosen order. Nothing to configure.")} />
           ) : null}
           {sourceMode === "auto_recent" ? (
-            <SteadyStateNote text="The most recently approved roster talent appear here. Updates as your roster grows." />
+            <SteadyStateNote text={t("The most recently approved roster talent appear here. Updates as your roster grows.")} />
           ) : null}
         </div>
       </InspectorGroup>
 
       <InspectorGroup
-        title="Visual style"
-        info="Controls the visual system around the live talent cards."
+        title={t("Visual style")}
+        info={t("Controls the visual system around the live talent cards.")}
         storageKey="featured_talent:prototype"
         collapsible
         defaultOpen={false}
@@ -384,14 +389,14 @@ export function FeaturedTalentContentInspector({
           options={[
             {
               value: "v11-showcase",
-              label: "V11 showcase",
-              info: "Centered title, four-card noir grid, footer arrow.",
+              label: t("V11 showcase"),
+              info: t("Centered title, four-card noir grid, footer arrow."),
               preview: <ShowcasePreview />,
             },
             {
               value: "standard",
-              label: "Standard",
-              info: "Uses the tenant directory-card family and normal header.",
+              label: t("Standard"),
+              info: t("Uses the tenant directory-card family and normal header."),
               preview: <GridPreview />,
             },
           ]}
@@ -399,50 +404,50 @@ export function FeaturedTalentContentInspector({
         />
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
           <div className={KIT.field}>
-            <label className={KIT.label}>Header alignment</label>
+            <label className={KIT.label}>{t("Header alignment")}</label>
             <VisualChipGroup<HeaderAlign>
               value={headerAlign}
               onChange={(v) => update({ headerAlign: v })}
               options={[
-                { value: "split", label: "Split", preview: null },
-                { value: "left", label: "Left", preview: null },
-                { value: "center", label: "Center", preview: null },
+                { value: "split", label: t("Split"), preview: null },
+                { value: "left", label: t("Left"), preview: null },
+                { value: "center", label: t("Center"), preview: null },
               ]}
               columns={3}
             />
           </div>
           <div className={KIT.field}>
-            <label className={KIT.label}>Card chrome</label>
+            <label className={KIT.label}>{t("Card chrome")}</label>
             <VisualChipGroup<CardChrome>
               value={cardChrome}
               onChange={(v) => update({ cardChrome: v })}
               options={[
-                { value: "v11-noir", label: "V11 noir", preview: null },
-                { value: "standard", label: "Theme", preview: null },
+                { value: "v11-noir", label: t("V11 noir"), preview: null },
+                { value: "standard", label: t("Theme"), preview: null },
               ]}
               columns={2}
             />
           </div>
           <div className={KIT.field}>
-            <label className={KIT.label}>Image treatment</label>
+            <label className={KIT.label}>{t("Image treatment")}</label>
             <VisualChipGroup<ImageTreatment>
               value={imageTreatment}
               onChange={(v) => update({ imageTreatment: v })}
               options={[
-                { value: "cinematic", label: "Cinematic", preview: null },
-                { value: "natural", label: "Natural", preview: null },
+                { value: "cinematic", label: t("Cinematic"), preview: null },
+                { value: "natural", label: t("Natural"), preview: null },
               ]}
               columns={2}
             />
           </div>
           <div className={KIT.field}>
-            <label className={KIT.label}>Action style</label>
+            <label className={KIT.label}>{t("Action style")}</label>
             <VisualChipGroup<ActionStyle>
               value={actionStyle}
               onChange={(v) => update({ actionStyle: v })}
               options={[
-                { value: "outline-duo", label: "Outline duo", preview: null },
-                { value: "primary-duo", label: "Primary", preview: null },
+                { value: "outline-duo", label: t("Outline duo"), preview: null },
+                { value: "primary-duo", label: t("Primary"), preview: null },
               ]}
               columns={2}
             />
@@ -450,12 +455,12 @@ export function FeaturedTalentContentInspector({
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           <ToggleRow
-            label="Bookmark glyph"
+            label={t("Bookmark glyph")}
             checked={showBookmarkIcon}
             onChange={(checked) => update({ showBookmarkIcon: checked })}
           />
           <ToggleRow
-            label="Featured badge"
+            label={t("Featured badge")}
             checked={fieldOn("showBadge")}
             onChange={(checked) => update({ showBadge: checked })}
           />
@@ -463,20 +468,20 @@ export function FeaturedTalentContentInspector({
       </InspectorGroup>
 
       <InspectorGroup
-        title="Card fields"
-        info="Choose which public profile fields are visible on each card."
+        title={t("Card fields")}
+        info={t("Choose which public profile fields are visible on each card.")}
         collapsible
         storageKey="featured_talent:card-content"
         defaultOpen={false}
       >
         <div className="grid grid-cols-2 gap-2 text-sm">
           {[
-            ["showName", "Name"],
-            ["showPrimaryType", "Primary role"],
-            ["showSecondaryType", "Secondary role"],
-            ["showCity", "City"],
-            ["showLanguages", "Languages"],
-            ["showAvailability", "Availability"],
+            ["showName", t("Name")],
+            ["showPrimaryType", t("Primary role")],
+            ["showSecondaryType", t("Secondary role")],
+            ["showCity", t("City")],
+            ["showLanguages", t("Languages")],
+            ["showAvailability", t("Availability")],
           ].map(([key, label]) => (
             <ToggleRow
               key={key}
@@ -487,14 +492,13 @@ export function FeaturedTalentContentInspector({
           ))}
         </div>
         <p className={KIT.hint}>
-          Availability only appears when a real public availability label
-          exists; this section does not invent availability claims.
+          {t("Availability only appears when a real public availability label exists; this section does not invent availability claims.")}
         </p>
       </InspectorGroup>
 
       <InspectorGroup
-        title="Card actions"
-        info="Optional per-card Request/Add to inquiry action."
+        title={t("Card actions")}
+        info={t("Optional per-card Request/Add to inquiry action.")}
         collapsible
         storageKey="featured_talent:card-actions"
         defaultOpen={false}
@@ -509,8 +513,8 @@ export function FeaturedTalentContentInspector({
       </InspectorGroup>
 
       <InspectorGroup
-        title="Footer link"
-        info='Optional "See the full roster" style link under the grid.'
+        title={t("Footer link")}
+        info={t('Optional "See the full roster" style link under the grid.')}
         collapsible
         storageKey="featured_talent:footer"
         defaultOpen={Boolean(footerCta)}
@@ -526,13 +530,13 @@ export function FeaturedTalentContentInspector({
       </InspectorGroup>
 
       <InspectorGroup
-        title="Advanced"
+        title={t("Advanced")}
         advanced
         collapsible
         storageKey="featured_talent:advanced"
       >
         <div className={KIT.field}>
-          <label className={KIT.label}>Maximum cards: {limit}</label>
+          <label className={KIT.label}>{t("Maximum cards:")} {limit}</label>
           <input
             type="range"
             min={1}
@@ -545,7 +549,7 @@ export function FeaturedTalentContentInspector({
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>
-            Desktop columns: {columnsDesktop}
+            {t("Desktop columns:")} {columnsDesktop}
           </label>
           <input
             type="range"
@@ -575,6 +579,7 @@ function ManualPickPanel({
   max: number;
   onChange: (next: string[]) => void;
 }) {
+  const { t } = useEditorLocale();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [resolved, setResolved] = useState<TalentSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -618,11 +623,13 @@ function ManualPickPanel({
       <div className="flex items-center justify-between">
         <span className="text-[11px] text-stone-600">
           {codes.length === 0
-            ? "No one picked yet."
-            : `${codes.length} of ${max} picked`}
+            ? t("No one picked yet.")
+            : t("{count} of {max} picked")
+                .replace("{count}", String(codes.length))
+                .replace("{max}", String(max))}
           {missingCount > 0 ? (
             <span className="ml-1.5 text-rose-600">
-              · {missingCount} off-roster
+              · {missingCount} {t("off-roster")}
             </span>
           ) : null}
         </span>
@@ -631,7 +638,7 @@ function ManualPickPanel({
           onClick={() => setPickerOpen(true)}
           className={KIT.primaryButton}
         >
-          {codes.length === 0 ? "Pick talent" : "Edit selection"}
+          {codes.length === 0 ? t("Pick talent") : t("Edit selection")}
         </button>
       </div>
 
@@ -696,7 +703,10 @@ function ManualPickPanel({
 
       {!canPickMore ? (
         <p className={KIT.hint}>
-          Maximum {max} picks. Remove someone to add another.
+          {t("Maximum {max} picks. Remove someone to add another.").replace(
+            "{max}",
+            String(max),
+          )}
         </p>
       ) : null}
 
