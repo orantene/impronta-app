@@ -12,6 +12,7 @@
  * In expanded mode, ExpandedChatLayout passes this as the `right` pane.
  */
 
+import { useState } from "react";
 import type { RefObject } from "react";
 
 import type {
@@ -39,6 +40,7 @@ import type { StreamRow } from "./MiniChatMessageBubble";
 
 import { ConversationStatusStrip } from "./ConversationStatusStrip";
 import { GuestConversationBody } from "./GuestConversationBody";
+import { countCoreDetails } from "./guest-detail-progress";
 import { GuestDockHomeView } from "./GuestDockHomeView";
 import { GuestDockLineupView } from "./GuestDockLineupView";
 import { GuestDockProjectsView } from "./GuestDockProjectsView";
@@ -47,6 +49,7 @@ import type { GuestDockView } from "./guest-dock-view";
 import { GuestDetailChips } from "./GuestDetailChips";
 import { GuestDetailsControl } from "./GuestDetailsControl";
 import { GuestPanelHeader } from "./GuestPanelHeader";
+import { GuestThreadSwitcherDrawer } from "./GuestThreadSwitcherDrawer";
 import { MiniChatComposer } from "./MiniChatComposer";
 import { MiniChatGateForm } from "./MiniChatGateForm";
 import { OfferingQuickPicker, type ChatOffering } from "./OfferingQuickPicker";
@@ -397,6 +400,16 @@ export function MiniChatPanelColumn({
     onDockViewChange?.("chat");
   };
 
+  // DOCK v2.1 — the details sheet is opened from the HEADER icon (the old
+  // composer-area pill gave up too much real estate); the in-chat thread
+  // switcher is a slide-over drawer, also header-triggered.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const detailsProgress =
+    detailsEnabled && inquiryIntent
+      ? countCoreDetails(inquiryIntent, capturedChipValues)
+      : null;
+
   return (
     <>
       {/* ── DOCK v2 slim header (avatar + name + draft chip + overflow + X) ── */}
@@ -412,8 +425,40 @@ export function MiniChatPanelColumn({
         onRetrySync={onRetrySync}
         onToggleExpand={onToggleExpand}
         expanded={expanded}
+        onOpenSwitcher={
+          dockEnabled && activeDockView === "chat" ? () => setSwitcherOpen(true) : null
+        }
+        onOpenDetails={
+          detailsEnabled && activeDockView === "chat" ? () => setDetailsOpen(true) : null
+        }
+        detailsFilled={detailsProgress?.filled ?? 0}
+        detailsTotal={detailsProgress?.total ?? 0}
         t={t}
         onClose={onClose}
+      />
+
+      {/* ── In-chat thread switcher: slide-over drawer OVER the chat (one tap
+          on the header title). Extracted to GuestThreadSwitcherDrawer. ───── */}
+      <GuestThreadSwitcherDrawer
+        open={switcherOpen}
+        onClose={() => setSwitcherOpen(false)}
+        inquiries={inquiries}
+        activeInquiryId={inquiryId}
+        seenAtByInquiry={seenAtByInquiry}
+        accent={accent}
+        accentInk={accentInk}
+        agencyName={brand.agencyName}
+        surfaceMode={surfaceMode}
+        t={t}
+        onSelect={(id) => {
+          setSwitcherOpen(false);
+          if (id !== inquiryId) onSwitchInquiry(id);
+          onDockViewChange?.("chat");
+        }}
+        onStartNew={() => {
+          setSwitcherOpen(false);
+          startInquiryInChat();
+        }}
       />
 
       {/* ── DOCK v2 Home hub (the landing view) ──────────────────────────── */}
@@ -630,6 +675,9 @@ export function MiniChatPanelColumn({
           path). Every field + the AI scan live in the sheet it opens. ────── */}
       {detailsEnabled && inquiryIntent && (
         <GuestDetailsControl
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+          hideTrigger
           intent={inquiryIntent}
           accent={accent}
           accentInk={accentInk}

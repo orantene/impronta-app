@@ -54,6 +54,14 @@ export type GuestDetailsControlProps = {
   /** Deep-link: open the sheet when the launcher points at a section. */
   openToSection?: "talent" | null;
   onConsumeOpenTo?: () => void;
+  /**
+   * DOCK v2.1 — controlled mode: the header's details icon owns the open
+   * state; the in-column trigger bar is hidden and this control renders ONLY
+   * the sheet. Uncontrolled (legacy) callers keep the slim pill trigger.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 };
 
 export function GuestDetailsControl({
@@ -74,9 +82,17 @@ export function GuestDetailsControl({
   inquiryId,
   openToSection = null,
   onConsumeOpenTo,
+  open: openProp,
+  onOpenChange,
+  hideTrigger = false,
 }: GuestDetailsControlProps) {
   const C = paletteFor(surfaceMode);
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = openProp ?? uncontrolledOpen;
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v);
+    else setUncontrolledOpen(v);
+  };
   const progress = countCoreDetails(intent, capturedValues);
   const hasProgress = progress.filled > 0;
 
@@ -96,13 +112,18 @@ export function GuestDetailsControl({
 
   return (
     <div
-      style={{
-        borderTop: `1px solid ${C.borderSoft}`,
-        background: C.surface,
-        padding: "8px 12px 0",
-        flexShrink: 0,
-      }}
+      style={
+        hideTrigger
+          ? { display: "contents" }
+          : {
+              borderTop: `1px solid ${C.borderSoft}`,
+              background: C.surface,
+              padding: "8px 12px 0",
+              flexShrink: 0,
+            }
+      }
     >
+      {!hideTrigger && (
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -145,6 +166,7 @@ export function GuestDetailsControl({
           </span>
         )}
       </button>
+      )}
 
       <GuestDetailsSheet
         open={open}

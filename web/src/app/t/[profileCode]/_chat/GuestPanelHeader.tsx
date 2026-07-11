@@ -18,7 +18,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Lock, MoreHorizontal, Maximize2, Minimize2, X } from "lucide-react";
+import { ChevronDown, Lock, MoreHorizontal, Maximize2, Minimize2, SlidersHorizontal, X } from "lucide-react";
 
 import type { Translator } from "@/i18n/interpolate";
 import type { MiniChatBrand } from "@/lib/inquiry/guest-chat-contract";
@@ -41,6 +41,12 @@ export type GuestPanelHeaderProps = {
   onRetrySync?: () => void;
   /** Toggle the 2-pane expanded layout (routed through the overflow menu). */
   onToggleExpand?: () => void;
+  /** DOCK v2.1 — tap the title to open the in-chat thread switcher drawer. */
+  onOpenSwitcher?: (() => void) | null;
+  /** DOCK v2.1 — the header details icon (replaces the composer-area pill). */
+  onOpenDetails?: (() => void) | null;
+  detailsFilled?: number;
+  detailsTotal?: number;
   /** Whether the panel is currently expanded (menu label + icon). */
   expanded?: boolean;
   t: Translator;
@@ -58,6 +64,10 @@ export function GuestPanelHeader({
   onRetrySync,
   onToggleExpand,
   expanded = false,
+  onOpenSwitcher = null,
+  onOpenDetails = null,
+  detailsFilled = 0,
+  detailsTotal = 6,
   t,
   onClose,
 }: GuestPanelHeaderProps) {
@@ -94,25 +104,108 @@ export function GuestPanelHeader({
         {!brand.logoUrl && (talentFirst[0]?.toUpperCase() ?? "•")}
       </div>
 
-      <div
-        style={{
-          minWidth: 0,
-          flex: 1,
-          fontFamily: FONT_DISPLAY,
-          fontSize: 15,
-          fontWeight: 600,
-          letterSpacing: 0.1,
-          color: C.ink,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {brand.agencyName}
-      </div>
+      {onOpenSwitcher ? (
+        // The title doubles as the thread-switcher trigger: one tap overlays
+        // the chat with the inquiry list (mobile-first switching).
+        <button
+          type="button"
+          onClick={onOpenSwitcher}
+          aria-haspopup="dialog"
+          aria-label={t("public.guestChat.switchInquiryAria")}
+          style={{
+            minWidth: 0,
+            flex: 1,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            cursor: "pointer",
+            fontFamily: FONT_DISPLAY,
+            fontSize: 15,
+            fontWeight: 600,
+            letterSpacing: 0.1,
+            color: C.ink,
+            textAlign: "left",
+          }}
+        >
+          <span
+            style={{
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {brand.agencyName}
+          </span>
+          <ChevronDown
+            size={14}
+            strokeWidth={2.4}
+            aria-hidden
+            style={{ flexShrink: 0, color: C.inkMuted }}
+          />
+        </button>
+      ) : (
+        <div
+          style={{
+            minWidth: 0,
+            flex: 1,
+            fontFamily: FONT_DISPLAY,
+            fontSize: 15,
+            fontWeight: 600,
+            letterSpacing: 0.1,
+            color: C.ink,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {brand.agencyName}
+        </div>
+      )}
 
       {isPrivateDraft && (
         <DraftLockChip syncState={syncState} onRetry={onRetrySync} C={C} t={t} />
+      )}
+
+      {onOpenDetails && (
+        // Event-details CTA: compact icon + live progress badge. The details
+        // sheet itself is owned by the column (controlled GuestDetailsControl).
+        <button
+          type="button"
+          onClick={onOpenDetails}
+          aria-haspopup="dialog"
+          aria-label={t("public.guestChat.detailsHeaderAria")}
+          style={{ ...iconBtnStyle(C), position: "relative", color: C.ink }}
+        >
+          <SlidersHorizontal size={16} strokeWidth={2.2} aria-hidden />
+          {detailsTotal > 0 && (
+            <span
+              aria-hidden
+              style={{
+                position: "absolute",
+                top: -2,
+                right: -4,
+                minWidth: 15,
+                height: 15,
+                padding: "0 3px",
+                borderRadius: 999,
+                background: accent,
+                color: accentInk,
+                fontSize: 8.5,
+                fontWeight: 800,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                lineHeight: 1,
+              }}
+            >
+              {detailsFilled}/{detailsTotal}
+            </span>
+          )}
+        </button>
       )}
 
       {onToggleExpand && (
