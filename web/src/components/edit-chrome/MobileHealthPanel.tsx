@@ -10,9 +10,13 @@
  * same mechanism used by the Wave-1 layers-tree bidirectional highlight
  * (freeform-layer-row.tsx, `locateCanvasNode`).
  *
- * Advisory only — never counts toward `preflightBlockingErrors`; publish
- * is never blocked. The panel collapses to a single summary line when all
- * checks pass.
+ * Mostly advisory. The one exception (W3-M1) is **definite** horizontal
+ * overflow (a block whose fixed width/min-width on mobile exceeds the narrowest
+ * viewport): those rows are marked `blocking` and are ALSO surfaced as blocking
+ * `mobile_overflow` errors by the publish preflight, which disables Publish now.
+ * This panel badges them "Blocks publish" so the two surfaces agree; the softer
+ * heuristics stay advisory. The panel collapses to a single summary line when
+ * all checks pass.
  */
 
 import { useId, useMemo, useState } from "react";
@@ -130,6 +134,10 @@ export function MobileHealthPanel({ builderTree }: Props) {
 
   const total = issues.length;
   const allClear = total === 0;
+  const blockingCount = useMemo(
+    () => issues.filter((issue) => issue.blocking).length,
+    [issues],
+  );
 
   return (
     <div
@@ -186,6 +194,18 @@ export function MobileHealthPanel({ builderTree }: Props) {
           >
             All clear
           </span>
+        ) : blockingCount > 0 ? (
+          <span
+            style={{
+              fontSize: 11,
+              color: "#b91c1c",
+              fontWeight: 600,
+              marginRight: 4,
+            }}
+          >
+            {blockingCount} block{blockingCount === 1 ? "s" : ""} publish
+            {total > blockingCount ? ` · ${total - blockingCount} advisory` : ""}
+          </span>
         ) : (
           <span
             style={{
@@ -233,8 +253,20 @@ export function MobileHealthPanel({ builderTree }: Props) {
                   color: CHROME.muted,
                 }}
               >
-                Advisory only, these do not block publish. Review them before going
-                live on mobile devices.
+                {blockingCount > 0 ? (
+                  <>
+                    <strong style={{ color: "#b91c1c" }}>
+                      Rows marked “Blocks publish” force horizontal scrolling on
+                      phones and must be fixed before you can publish.
+                    </strong>{" "}
+                    The rest are advisory, review them before going live.
+                  </>
+                ) : (
+                  <>
+                    Advisory only, these do not block publish. Review them before
+                    going live on mobile devices.
+                  </>
+                )}
               </p>
               {(["tiny_text", "tap_target", "overflow"] as const)
                 .filter((kind) => (grouped[kind]?.length ?? 0) > 0)
@@ -346,10 +378,13 @@ function IssueRow({ issue }: { issue: MobileHealthIssue }) {
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Node kind badge */}
+        {/* Node kind badge + blocking pill */}
         <div
           style={{
             marginBottom: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
             fontSize: 9.5,
             fontWeight: 700,
             letterSpacing: "0.06em",
@@ -357,7 +392,21 @@ function IssueRow({ issue }: { issue: MobileHealthIssue }) {
             color: CHROME.muted2,
           }}
         >
-          {issue.nodeKind.replace(/_/g, " ")}
+          <span>{issue.nodeKind.replace(/_/g, " ")}</span>
+          {issue.blocking ? (
+            <span
+              style={{
+                borderRadius: 4,
+                border: "1px solid rgba(185,28,28,0.4)",
+                background: "rgba(185,28,28,0.08)",
+                color: "#b91c1c",
+                padding: "1px 5px",
+                letterSpacing: "0.04em",
+              }}
+            >
+              Blocks publish
+            </span>
+          ) : null}
         </div>
         {/* Message */}
         <p

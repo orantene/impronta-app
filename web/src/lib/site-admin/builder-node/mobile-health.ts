@@ -19,8 +19,13 @@
  *      `width` wider than 360 px (the narrowest modern viewport). Either
  *      condition forces a horizontal scroll bar on small phones.
  *
- * The checker is *advisory only* — it never blocks publish. Results feed
- * `MobileHealthPanel` in the publish drawer.
+ * Most findings are *advisory* — they feed `MobileHealthPanel` in the publish
+ * drawer and never block. The one exception (W3-M1) is **definite** horizontal
+ * overflow: a node whose resolved fixed `width`/`minWidth` on mobile exceeds the
+ * narrowest viewport. Those are marked `blocking` and the publish preflight
+ * (`collectMobileOverflowOffenders`) promotes them to blocking `"error"` issues,
+ * so a mobile-broken page cannot ship. The softer "likely overflow" heuristics
+ * (multi-column grids, non-collapsing splits) stay advisory.
  *
  * Design principles:
  *   - Pure function, zero I/O: `runMobileHealthCheck(tree)` → issues[].
@@ -62,6 +67,44 @@ export interface MobileHealthIssue {
   ownerSectionId: string | null;
   /** Advisory only — never `"error"` (checker never blocks publish). */
   severity: "warn";
+  /**
+   * `true` only for **definite** horizontal overflow — a node whose resolved
+   * fixed width (or min-width) on mobile exceeds the narrowest viewport, so a
+   * horizontal scrollbar is guaranteed rather than merely likely. The publish
+   * preflight (W3-M1) promotes these to blocking `"error"` issues; the softer
+   * "likely overflow" heuristics (multi-column grids, non-collapsing splits)
+   * stay advisory. The advisory panel uses this to badge the blocking rows.
+   */
+  blocking?: boolean;
+}
+
+// ── Definite-overflow offender list (consumed by the publish preflight + M3) ──
+
+/**
+ * A block that **definitely** overflows the mobile viewport horizontally: its
+ * resolved fixed `width`/`minWidth` on the mobile breakpoint is wider than the
+ * narrowest phone. This is the hard signal the publish gate blocks on (a fixed
+ * `width: 1120px` container inside a ~390px frame), as opposed to the softer
+ * "likely overflow" heuristics that stay advisory.
+ *
+ * This typed shape is the stable contract the AI "fix it" lane (W3-M3) consumes
+ * to target each offending node.
+ */
+export interface MobileOverflowOffender {
+  /** The offending builder node id — drives locateCanvasNode / AI targeting. */
+  nodeId: string;
+  /** Kind of the offending node, for display labels + AI context. */
+  nodeKind: BuilderNodeKind;
+  /** Owning section id, if determinable, for fallback-focus in the preflight surface. */
+  ownerSectionId: string | null;
+  /** The resolved fixed dimension in px that exceeds the viewport. */
+  widthPx: number;
+  /** Which dimension forced the overflow. */
+  dimension: "width" | "minWidth";
+  /** The narrowest mobile viewport we target (px). */
+  viewportPx: number;
+  /** Human-readable, publish-drawer-ready description of the overflow. */
+  issue: string;
 }
 
 // ── Thresholds ─────────────────────────────────────────────────────────────
@@ -320,39 +363,81 @@ function checkSplitOverflow(
   return null;
 }
 
+/** The style shape we read for fixed-dimension overflow resolution. */
+type OverflowStyleShape = {
+  width?: string;
+  minWidth?: string;
+  responsive?: { mobile?: { width?: string; minWidth?: string } };
+};
+
+function readOverflowStyle(node: BuilderNode): OverflowStyleShape | null {
+  return "props" in node && "style" in node.props
+    ? (node.props as { style?: OverflowStyleShape }).style ?? null
+    : null;
+}
+
 /**
- * Flag any node with a fixed `width` wider than the narrowest mobile viewport
- * (390 px). Values specified as percentages / relative units are skipped
- * (they can't be resolved statically).
+ * Resolve whether a node has a **definite** horizontal overflow on mobile —
+ * a fixed `width` or `minWidth` (mobile-override wins over base) that resolves
+ * to more px than the narrowest viewport. Relative units (%, vw, calc, var)
+ * return no overflow because they can't be resolved statically. `minWidth`
+ * takes precedence in the report because it guarantees overflow even when a
+ * `max-width: 100%` might otherwise clamp a plain `width`.
+ *
+ * Returns the offending px + which dimension caused it, or `null` when the node
+ * fits (or can't be resolved statically).
+ */
+export function resolveMobileOverflow(
+  node: BuilderNode,
+): { widthPx: number; dimension: "width" | "minWidth" } | null {
+  const style = readOverflowStyle(node);
+  if (!style) return null;
+
+  const minWidthPx = parseLengthToPx(
+    style.responsive?.mobile?.minWidth ?? style.minWidth,
+  );
+  if (minWidthPx !== null && minWidthPx > MOBILE_VIEWPORT_MAX_PX) {
+    return { widthPx: minWidthPx, dimension: "minWidth" };
+  }
+
+  const widthPx = parseLengthToPx(style.responsive?.mobile?.width ?? style.width);
+  if (widthPx !== null && widthPx > MOBILE_VIEWPORT_MAX_PX) {
+    return { widthPx, dimension: "width" };
+  }
+
+  return null;
+}
+
+function overflowIssueMessage(
+  dimension: "width" | "minWidth",
+  px: number,
+): string {
+  const label = dimension === "minWidth" ? "minimum width" : "fixed width";
+  return `Node has ${label} ${px}px, which exceeds the narrowest mobile viewport (${MOBILE_VIEWPORT_MAX_PX}px). It forces a horizontal scrollbar on phones. Use a relative width (%, 100%) or a mobile width override.`;
+}
+
+/**
+ * Flag any node whose fixed `width`/`minWidth` is wider than the narrowest
+ * mobile viewport (390 px). This is the *definite* overflow case: unlike the
+ * multi-column / split heuristics, a fixed px dimension wider than the viewport
+ * will always force horizontal scroll, so the issue is marked `blocking`.
  */
 function checkFixedWidthOverflow(
   node: BuilderNode,
   ownerSectionId: string | null,
 ): MobileHealthIssue | null {
-  const style = "props" in node && "style" in node.props
-    ? (node.props as { style?: { width?: string; responsive?: { mobile?: { width?: string } } } }).style
-    : null;
-  if (!style) return null;
+  const overflow = resolveMobileOverflow(node);
+  if (!overflow) return null;
 
-  // Use mobile-override width when present, otherwise base.
-  const rawWidth = style.responsive?.mobile?.width ?? style.width;
-  if (!rawWidth) return null;
-
-  const px = parseLengthToPx(rawWidth);
-  if (px === null) return null; // relative — skip
-
-  if (px > MOBILE_VIEWPORT_MAX_PX) {
-    return {
-      kind: "overflow",
-      severity: "warn",
-      nodeId: node.id,
-      nodeKind: node.kind,
-      ownerSectionId,
-      message: `Node has fixed width ${px}px, which exceeds the narrowest mobile viewport (${MOBILE_VIEWPORT_MAX_PX}px). Use a relative width (%, 100%) or remove the fixed dimension.`,
-    };
-  }
-
-  return null;
+  return {
+    kind: "overflow",
+    severity: "warn",
+    blocking: true,
+    nodeId: node.id,
+    nodeKind: node.kind,
+    ownerSectionId,
+    message: overflowIssueMessage(overflow.dimension, overflow.widthPx),
+  };
 }
 
 // ── Tree walker ────────────────────────────────────────────────────────────
@@ -407,4 +492,50 @@ export function runMobileHealthCheck(tree: BuilderNodeTree): ReadonlyArray<Mobil
 
   walk(tree, null);
   return issues;
+}
+
+/**
+ * Collect the **definite** horizontal-overflow offenders in a BuilderNodeTree —
+ * the hard, publish-blocking subset of the mobile-health overflow check.
+ *
+ * Pure function, zero I/O. This is the typed contract the publish preflight
+ * (W3-M1) promotes to blocking `"error"` issues and the AI "fix it" lane (W3-M3)
+ * consumes to target each offending node.
+ */
+export function collectMobileOverflowOffenders(
+  tree: BuilderNodeTree,
+): ReadonlyArray<MobileOverflowOffender> {
+  const offenders: MobileOverflowOffender[] = [];
+
+  const walk = (
+    nodes: ReadonlyArray<BuilderNode>,
+    ownerSectionId: string | null,
+  ): void => {
+    for (const node of nodes) {
+      const nextOwnerSectionId =
+        node.kind === "section"
+          ? node.props.sectionId ?? ownerSectionId
+          : ownerSectionId;
+
+      const overflow = resolveMobileOverflow(node);
+      if (overflow) {
+        offenders.push({
+          nodeId: node.id,
+          nodeKind: node.kind,
+          ownerSectionId: nextOwnerSectionId,
+          widthPx: overflow.widthPx,
+          dimension: overflow.dimension,
+          viewportPx: MOBILE_VIEWPORT_MAX_PX,
+          issue: overflowIssueMessage(overflow.dimension, overflow.widthPx),
+        });
+      }
+
+      if ("children" in node && Array.isArray(node.children)) {
+        walk(node.children, nextOwnerSectionId);
+      }
+    }
+  };
+
+  walk(tree, null);
+  return offenders;
 }

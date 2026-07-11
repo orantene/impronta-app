@@ -16,6 +16,7 @@ import {
 } from "@/lib/site-admin/edit-mode/publish-preflight-action";
 import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import { useEditContext } from "./edit-context";
+import { locateCanvasNode } from "./freeform-layer-row";
 import { DrawerSkeleton } from "./kit";
 
 /** W1-L2 — hard ceiling for the preflight action. A hung server action used to
@@ -36,6 +37,7 @@ const CATEGORY_LABEL: Record<PreflightIssue["category"], string> = {
   link_integrity: "Link checks",
   seo: "SEO",
   layout: "Layout",
+  mobile_overflow: "Mobile overflow",
   performance: "Performance",
 };
 
@@ -50,6 +52,12 @@ interface Props {
   onStatusChange?: (status: {
     loading: boolean;
     blockingErrors: number;
+    /**
+     * W3-M1 — the subset of `blockingErrors` that are mobile horizontal
+     * overflow, so the drawer can give the exact "Fix N mobile overflow
+     * issue(s) to publish" disabled reason rather than a generic count.
+     */
+    mobileOverflowErrors: number;
   }) => void;
   onFocusSection?: (sectionId: string) => void;
 }
@@ -78,14 +86,14 @@ export function PublishPreflight({
     if (!enabled) {
       setLoading(false);
       setError(null);
-      onStatusChange?.({ loading: false, blockingErrors: 0 });
+      onStatusChange?.({ loading: false, blockingErrors: 0, mobileOverflowErrors: 0 });
       return () => {
         cancelled = true;
       };
     }
     setLoading(true);
     setError(null);
-    onStatusChange?.({ loading: true, blockingErrors: 0 });
+    onStatusChange?.({ loading: true, blockingErrors: 0, mobileOverflowErrors: 0 });
     void (async () => {
       // W1-L2 — safeAction adds the hard timeout; a hung/dead action resolves
       // to the fallback instead of leaving the skeleton (and the disabled
@@ -106,13 +114,17 @@ export function PublishPreflight({
         const blockingErrors = result.issues.filter(
           (issue) => issue.severity === "error",
         ).length;
-        onStatusChange?.({ loading: false, blockingErrors });
+        const mobileOverflowErrors = result.issues.filter(
+          (issue) =>
+            issue.severity === "error" && issue.category === "mobile_overflow",
+        ).length;
+        onStatusChange?.({ loading: false, blockingErrors, mobileOverflowErrors });
       } else {
         setError(result.error ?? "Publish checks could not load.");
         reportMutationError(
           result.error ?? "Publish checks could not load. Try again.",
         );
-        onStatusChange?.({ loading: false, blockingErrors: 0 });
+        onStatusChange?.({ loading: false, blockingErrors: 0, mobileOverflowErrors: 0 });
       }
     })();
     return () => {
@@ -230,7 +242,18 @@ export function PublishPreflight({
           )}
         </div>
         <p className="leading-snug">{issue.message}</p>
-        {issue.sectionId && onFocusSection ? (
+        {issue.nodeId ? (
+          // W3-M1 — node-level locate: mobile-overflow blockers point at the
+          // exact offending block (scroll + flash) via the W1-L4 plumbing,
+          // more precise than section-level focus.
+          <button
+            type="button"
+            onClick={() => locateCanvasNode(issue.nodeId!)}
+            className="mt-1 inline-flex cursor-pointer items-center rounded border border-border/80 bg-background px-1.5 py-0.5 text-[10px] font-semibold text-foreground hover:bg-muted"
+          >
+            Show on canvas
+          </button>
+        ) : issue.sectionId && onFocusSection ? (
           <button
             type="button"
             onClick={() => {
