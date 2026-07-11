@@ -29,6 +29,7 @@ import {
   quickRenamePageAction,
 } from "@/lib/server-actions/admin-site-pages-inline";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
+import { aiCreatePageHref } from "./empty-canvas-ai-front-door";
 import {
   convertLegacyHomepageToPageAction,
   readPageRolesAction,
@@ -246,6 +247,10 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   const [loading, setLoading] = useState(false);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // W3-AI1 — the "Describe with AI" create path shares the plan gate + draft
+  // mint with "Add page"; it just lands on the new page with the AI front door
+  // primed (`?ai=1`) instead of a blank canvas.
+  const [creatingAi, setCreatingAi] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [moreOpenId, setMoreOpenId] = useState<string | null>(null);
@@ -390,6 +395,35 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     }
   }
 
+  // W3-AI1 — "Describe with AI": mint a fresh draft page (same server action +
+  // plan gate as Add page) and navigate to it with the AI front door primed, so
+  // the operator describes the page and the shared generator builds it on the
+  // new page (generate → preview → Insert, all undoable there).
+  async function handleCreatePageWithAi() {
+    if (addPageDenialMessage) return;
+    setCreatingAi(true);
+    setFetchErr(null);
+    try {
+      const result = await createDraftPageAction();
+      if (result.ok) {
+        await flushThenNavigate({
+          dirty,
+          flush: flushBuilderTreeSave,
+          navigate: () => {
+            onClose();
+            router.push(aiCreatePageHref(result.slug));
+          },
+        });
+      } else {
+        setFetchErr(result.error);
+      }
+    } catch {
+      setFetchErr("Couldn't create the page. Try again.");
+    } finally {
+      setCreatingAi(false);
+    }
+  }
+
   async function handleDuplicate(sourceId: string) {
     if (addPageDenialMessage) {
       setFetchErr(addPageDenialMessage);
@@ -452,6 +486,26 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
           </span>
           <span className="text-[13px] font-semibold">
             {creating ? t("Creating…") : t("Add page")}
+          </span>
+        </button>
+
+        {/* W3-AI1 — first-class AI create path: describe the new page and the
+            shared generator builds it. Disabled when the plan gate denies extra
+            pages (the reason renders below), so it never dead-ends. */}
+        <button
+          type="button"
+          disabled={creatingAi || Boolean(addPageDenialMessage)}
+          onClick={() => void handleCreatePageWithAi()}
+          className="mb-[8px] flex w-full cursor-pointer items-center gap-[8px] rounded-[10px] border px-[10px] py-[9px] text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ borderColor: CHROME.accent, background: "rgba(124,58,237,0.06)", color: CHROME.ink }}
+        >
+          <span aria-hidden className="inline-flex" style={{ color: CHROME.accent }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3l1.9 4.8L19 9.7l-4.1 2.9L16 18l-4-2.8L8 18l1.1-5.4L5 9.7l5.1-1.9z" />
+            </svg>
+          </span>
+          <span className="text-[13px] font-semibold">
+            {creatingAi ? t("Creating…") : t("Describe with AI")}
           </span>
         </button>
 

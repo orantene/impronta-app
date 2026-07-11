@@ -5475,6 +5475,11 @@ export function SelectionLayer() {
                   setChipInspectorTab("style");
                   requestInspectorTab("style");
                 }}
+                onReviseWithAi={
+                  selectedSectionNodeId
+                    ? () => setAiReviseNodeId(selectedSectionNodeId)
+                    : null
+                }
                 onMoveUp={() => {
                   if (!selectedSectionId) return;
                   void moveSection(selectedSectionId, "up");
@@ -7131,6 +7136,7 @@ function ChipToolBar({
   activeInspectorTab = "content",
   onEditContent,
   onDesign,
+  onReviseWithAi,
   onMoveUp,
   onMoveDown,
   onToggleHide,
@@ -7151,6 +7157,12 @@ function ChipToolBar({
   activeInspectorTab?: "content" | "style";
   onEditContent: () => void;
   onDesign: () => void;
+  // W3-AI1 — opens the "revise this section with AI" modal for the selected
+  // section node (the SAME modal + undoable replace/insert as the block chip).
+  // Null when the section isn't a freeform builder node (legacy section with no
+  // `data-builder-node-id`), so the sparkle stays out entirely — never a dead
+  // button, consistent with the block/text entry points.
+  onReviseWithAi?: (() => void) | null;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onToggleHide: () => void;
@@ -7239,6 +7251,21 @@ function ChipToolBar({
         light={light}
         active={activeInspectorTab === "style"}
       />
+      {/* W3-AI1 — revise this whole section with AI. Same sparkle entry point as
+          the block chip + text toolbar, wired here so a section chip is not the
+          one selection level without it. */}
+      {onReviseWithAi ? (
+        <ChipBtn
+          style={{ ...btnStyle, color: CHROME.accent }}
+          disabled={disabled}
+          onClick={onReviseWithAi}
+          aria-label="Revise this section with AI"
+          data-selection-section-action="ai"
+          title="Revise with AI"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 4.9L18.7 9.7l-4.9 1.8L12 16.4l-1.8-4.9L5.3 9.7l4.9-1.8L12 3Z" /><path d="M19 14l.7 1.9 1.9.7-1.9.7L19 19.2l-.7-1.9-1.9-.7 1.9-.7L19 14Z" /></svg>
+        </ChipBtn>
+      ) : null}
       <ChipBtn
         style={btnStyle}
         disabled={disabled}

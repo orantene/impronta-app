@@ -29,7 +29,7 @@
  */
 
 import { useCallback, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { addEmptyCanvasHeroAction } from "@/lib/site-admin/edit-mode/starter-action";
 import { generateBuilderNodesAction } from "@/lib/site-admin/builder-core/ai/generate-nodes-action";
@@ -39,10 +39,16 @@ import { AIBriefInput } from "./ai-brief-input";
 import { Segmented } from "./kit/segmented";
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./kit";
 import { useMaybeEditContext } from "./edit-context";
+import { useEditorLocale } from "./use-editor-locale";
 import {
   starterSurfaceForKind,
   textToPageSurfaceForStarterSurface,
 } from "./empty-canvas-starter-surface";
+import {
+  deriveSectionLabels,
+  computeAiFrontDoorPhase,
+  shouldOpenAiFrontDoor,
+} from "./empty-canvas-ai-front-door";
 
 export function EmptyCanvasStarter({
   locale = "en",
@@ -50,7 +56,13 @@ export function EmptyCanvasStarter({
   locale?: string;
 } = {}) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { t } = useEditorLocale();
   const editCtx = useMaybeEditContext();
+  // W3-AI1 — the hub "Describe with AI" create entry deep-links a fresh page
+  // with `?ai=1`; on that surface the AI brief opens focused so the operator
+  // lands ready to type. A normal `?edit=1` load keeps "Start here" in focus.
+  const openAiFrontDoor = shouldOpenAiFrontDoor(searchParams);
   // The homepage seeds + repaints via its own server action + storefront body;
   // every other surface opens the shared Add gallery through its EditContext.
   const isHomepageSurface = !editCtx || editCtx.surfaceKind === "homepage";
@@ -79,6 +91,11 @@ export function EmptyCanvasStarter({
   } | null>(null);
   const [applyPending, setApplyPending] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  // W3-AI1 — the compose-level failure (no draft produced), tracked here purely
+  // so the front-door phase attribute reflects the "error" state. The message
+  // itself is still shown by AIBriefInput (we return it to the field), so this
+  // never double-renders — it only powers `data-ai-front-door-phase`.
+  const [composeError, setComposeError] = useState<string | null>(null);
 
   // After a homepage hero insert, wait for the storefront body to repaint in
   // place (or reload as a fallback) so the operator sees their first block
@@ -159,6 +176,7 @@ export function EmptyCanvasStarter({
       }
       setAiPending(true);
       setPreviewError(null);
+      setComposeError(null);
       try {
         const generated = await generateBuilderNodesAction({
           brief,
@@ -172,17 +190,11 @@ export function EmptyCanvasStarter({
             document.documentElement.getAttribute("data-token-background-mode") ?? undefined,
         });
         if (!generated.ok) {
-          return {
-            ok: false,
-            error: generated.error ?? "Could not design that. Try again.",
-          };
+          const message = generated.error ?? t("Could not design that. Try again.");
+          setComposeError(message);
+          return { ok: false, error: message };
         }
-        const sectionLabels = generated.builderTree.map((n) => {
-          const label = (n as { props?: { label?: unknown } }).props?.label;
-          return typeof label === "string" && label.trim()
-            ? label
-            : (n as { kind: string }).kind;
-        });
+        const sectionLabels = deriveSectionLabels(generated.builderTree);
         setPendingGen({
           tree: generated.builderTree,
           label: generated.label,
@@ -194,7 +206,7 @@ export function EmptyCanvasStarter({
         setAiPending(false);
       }
     },
-    [editCtx, aiMode, textToPageSurface, locale],
+    [editCtx, aiMode, textToPageSurface, locale, t],
   );
 
   // "Add to page" — commit the previewed tree through the shared undo chokepoint
@@ -229,197 +241,227 @@ export function EmptyCanvasStarter({
     void handleAiCompose(brief);
   }, [pendingGen, handleAiCompose]);
 
+  // W3-AI1 — the observable idle → generating → preview → error state of the AI
+  // front door, stamped on the module so every state (and therefore every
+  // button) is verifiable and never a silent dead end.
+  const aiPhase = computeAiFrontDoorPhase({
+    generating: aiPending,
+    hasPreview: Boolean(pendingGen),
+    error: previewError ?? composeError,
+  });
+
+  // The manual path. When the AI front door is present (an active EditContext)
+  // this is the lighter secondary option; on the legacy homepage mount (no
+  // EditContext, so no AI) it stays the full-size primary card.
+  const startHereSecondary = Boolean(editCtx);
+  const startHereButton = (
+    <button
+      type="button"
+      data-empty-canvas-quick-add="layout"
+      disabled={quickInsertPending}
+      onClick={handleStartHere}
+      className={`group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-300 bg-white/60 text-center transition-colors duration-200 hover:border-stone-400 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900/20 disabled:cursor-not-allowed disabled:opacity-60 ${
+        startHereSecondary ? "gap-2.5 px-6 py-9" : "gap-4 px-6 py-16"
+      }`}
+    >
+      <span
+        className={`inline-flex items-center justify-center rounded-full border border-stone-200 bg-white text-stone-400 shadow-sm transition-colors group-hover:border-stone-300 group-hover:text-stone-700 ${
+          startHereSecondary ? "h-10 w-10" : "h-12 w-12"
+        }`}
+      >
+        {quickInsertPending ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="animate-spin">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        )}
+      </span>
+      <span
+        className={`font-semibold leading-[1.1] tracking-tight text-stone-900 ${
+          startHereSecondary ? "text-[18px]" : "text-[26px]"
+        }`}
+      >
+        {t("Start from scratch")}
+      </span>
+      <span className="max-w-sm text-sm leading-relaxed text-stone-500">
+        {t(
+          "Click to choose a layout and add your first block. Nothing goes live until you publish.",
+        )}
+      </span>
+    </button>
+  );
+
+  // The AI front door — describe a full page or a single section and the shared
+  // generator builds it as real, editable freeform components. Requires an
+  // active EditContext (the legacy no-EditContext homepage mount has no client
+  // tree-replace path), so it renders only there and leads on those surfaces.
+  const aiFrontDoor = editCtx ? (
+    <div
+      data-ai-front-door=""
+      data-ai-front-door-phase={aiPhase}
+      className="p-6"
+      style={{
+        borderRadius: CHROME_RADII.xl,
+        border: `1px solid ${CHROME.line}`,
+        background: "linear-gradient(180deg, rgba(124,58,237,0.06), #ffffff 66%)",
+        boxShadow: CHROME_SHADOWS.card,
+      }}
+    >
+      {/* One cohesive AI module: accent chip + title + the mode switch, then
+          the brief field (embedded, header-less). */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center"
+            style={{ borderRadius: 11, background: "rgba(124, 58, 237, 0.10)", color: CHROME.accent }}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M12 3l1.9 4.8L19 9.7l-4.1 2.9L16 18l-4-2.8L8 18l1.1-5.4L5 9.7l5.1-1.9z" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <p className="text-[17px] font-semibold" style={{ color: CHROME.ink, letterSpacing: "-0.01em" }}>
+              {aiMode === "page" ? t("Describe your page") : t("Describe a section")}
+            </p>
+            <p className="mt-1 text-[13px] leading-relaxed" style={{ color: CHROME.muted }}>
+              {aiMode === "page"
+                ? t("Describe your page and AI builds it as editable blocks.")
+                : t("Describe one section and AI builds it as editable blocks.")}
+            </p>
+          </div>
+        </div>
+        <Segmented
+          value={aiMode}
+          onChange={setAiMode}
+          options={[
+            { value: "page", label: t("Full page") },
+            { value: "section", label: t("Section") },
+          ]}
+          compact
+        />
+      </div>
+      <div className="mt-4">
+        {pendingGen ? (
+          <div
+            style={{
+              borderRadius: 12,
+              border: `1px solid ${CHROME.line}`,
+              background: CHROME.controlFill,
+              padding: 14,
+            }}
+          >
+            <p className="text-[12.5px] font-semibold" style={{ color: CHROME.ink }}>
+              {pendingGen.sectionLabels.length === 1
+                ? t("AI drafted 1 section. Review, then add.")
+                : t("AI drafted {count} sections. Review, then add.").replace(
+                    "{count}",
+                    String(pendingGen.sectionLabels.length),
+                  )}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {pendingGen.sectionLabels.map((l, i) => (
+                <span
+                  key={`${l}-${i}`}
+                  className="px-2 py-1 text-[11px]"
+                  style={{ borderRadius: 999, background: "rgba(124,58,237,0.10)", color: CHROME.accent }}
+                >
+                  {l}
+                </span>
+              ))}
+            </div>
+            <div className="mt-3.5 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleApplyPreview}
+                disabled={applyPending || aiPending}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ borderRadius: 9, background: CHROME.accent }}
+              >
+                {applyPending ? t("Adding…") : t("Add to page")}
+              </button>
+              <button
+                type="button"
+                onClick={handleRegenerate}
+                disabled={applyPending || aiPending}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ borderRadius: 9, border: `1px solid ${CHROME.controlBorder}`, background: "#fff", color: CHROME.ink }}
+              >
+                {aiPending ? t("Regenerating…") : t("Regenerate")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingGen(null);
+                  setPreviewError(null);
+                  setComposeError(null);
+                }}
+                disabled={applyPending || aiPending}
+                className="px-2.5 py-2 text-[12.5px] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ color: CHROME.muted, background: "transparent", border: "none" }}
+              >
+                {t("Discard")}
+              </button>
+            </div>
+            {previewError ? (
+              <div
+                role="alert"
+                className="mt-3 px-3 py-2 text-xs"
+                style={{ borderRadius: 10, border: `1px solid ${CHROME.roseLine}`, background: CHROME.roseBg, color: CHROME.rose }}
+              >
+                {previewError}
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <AIBriefInput
+            variant="embedded"
+            showHeader={false}
+            autoFocus={openAiFrontDoor}
+            onCompose={handleAiCompose}
+            pending={aiPending}
+            disabled={quickInsertPending}
+            ctaLabel={aiMode === "page" ? t("Design page") : t("Build section")}
+            pendingLabel={aiMode === "page" ? t("Designing…") : t("Building…")}
+            placeholder={
+              aiMode === "page"
+                ? t("e.g. a homepage for a boutique modeling agency, editorial and minimal")
+                : t("e.g. a services section with three cards and a booking button")
+            }
+          />
+        )}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div
       data-builder-selector-surface
       className="mx-auto my-16 w-full max-w-3xl px-6"
     >
-      <button
-        type="button"
-        data-empty-canvas-quick-add="layout"
-        disabled={quickInsertPending}
-        onClick={handleStartHere}
-        className="group flex w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-stone-300 bg-white/60 px-6 py-16 text-center transition-colors duration-200 hover:border-stone-400 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900/20 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        <span className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-400 shadow-sm transition-colors group-hover:border-stone-300 group-hover:text-stone-700">
-          {quickInsertPending ? (
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-              className="animate-spin"
-            >
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
-          ) : (
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          )}
-        </span>
-        <span className="text-[26px] font-semibold leading-[1.1] tracking-tight text-stone-900">
-          Start here
-        </span>
-        <span className="max-w-sm text-sm leading-relaxed text-stone-500">
-          Click to choose a layout and add your first block. Nothing goes live
-          until you publish.
-        </span>
-      </button>
+      {aiFrontDoor ? (
+        <>
+          {aiFrontDoor}
+          {/* "or" divider between the AI front door and the manual path. */}
+          <div className="my-6 flex items-center gap-3" aria-hidden>
+            <span className="h-px flex-1" style={{ background: CHROME.line }} />
+            <span className="text-[11px] font-medium uppercase tracking-wide" style={{ color: CHROME.muted }}>
+              {t("or")}
+            </span>
+            <span className="h-px flex-1" style={{ background: CHROME.line }} />
+          </div>
+          {startHereButton}
+        </>
+      ) : (
+        startHereButton
+      )}
 
       {quickInsertError ? (
         <div className="mx-auto mt-4 max-w-md rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-700">
           {quickInsertError}
-        </div>
-      ) : null}
-
-      {/* "Design with AI" — describe a full page or a single section and the
-          generator builds it as real, editable freeform components. Requires an
-          active EditContext (the legacy no-EditContext homepage mount has no
-          client tree-replace path). */}
-      {editCtx ? (
-        <div
-          className="mt-10 p-5"
-          style={{
-            borderRadius: CHROME_RADII.xl,
-            border: `1px solid ${CHROME.line}`,
-            background: "linear-gradient(180deg, rgba(124,58,237,0.05), #ffffff 62%)",
-            boxShadow: CHROME_SHADOWS.card,
-          }}
-        >
-          {/* One cohesive AI module: accent chip + title + the mode switch, then
-              the brief field (embedded, header-less). */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <span
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center"
-                style={{ borderRadius: 10, background: "rgba(124, 58, 237, 0.10)", color: CHROME.accent }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M12 3l1.9 4.8L19 9.7l-4.1 2.9L16 18l-4-2.8L8 18l1.1-5.4L5 9.7l5.1-1.9z" />
-                </svg>
-              </span>
-              <div className="min-w-0">
-                <p className="text-[14px] font-semibold" style={{ color: CHROME.ink, letterSpacing: "-0.01em" }}>
-                  Design with AI
-                </p>
-                <p className="mt-1 text-[12.5px] leading-relaxed" style={{ color: CHROME.muted }}>
-                  {aiMode === "page"
-                    ? "Describe your page and AI builds it as editable blocks."
-                    : "Describe one section and AI builds it as editable blocks."}
-                </p>
-              </div>
-            </div>
-            <Segmented
-              value={aiMode}
-              onChange={setAiMode}
-              options={[
-                { value: "page", label: "Full page" },
-                { value: "section", label: "Section" },
-              ]}
-              compact
-            />
-          </div>
-          <div className="mt-4">
-            {pendingGen ? (
-              <div
-                style={{
-                  borderRadius: 12,
-                  border: `1px solid ${CHROME.line}`,
-                  background: CHROME.controlFill,
-                  padding: 14,
-                }}
-              >
-                <p className="text-[12.5px] font-semibold" style={{ color: CHROME.ink }}>
-                  AI drafted {pendingGen.sectionLabels.length}{" "}
-                  {pendingGen.sectionLabels.length === 1 ? "section" : "sections"}, review, then add
-                </p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {pendingGen.sectionLabels.map((l, i) => (
-                    <span
-                      key={`${l}-${i}`}
-                      className="px-2 py-1 text-[11px]"
-                      style={{ borderRadius: 999, background: "rgba(124,58,237,0.10)", color: CHROME.accent }}
-                    >
-                      {l}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-3.5 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleApplyPreview}
-                    disabled={applyPending || aiPending}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-                    style={{ borderRadius: 9, background: CHROME.accent }}
-                  >
-                    {applyPending ? "Adding…" : "Add to page"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRegenerate}
-                    disabled={applyPending || aiPending}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                    style={{ borderRadius: 9, border: `1px solid ${CHROME.controlBorder}`, background: "#fff", color: CHROME.ink }}
-                  >
-                    {aiPending ? "Regenerating…" : "Regenerate"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPendingGen(null);
-                      setPreviewError(null);
-                    }}
-                    disabled={applyPending || aiPending}
-                    className="px-2.5 py-2 text-[12.5px] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
-                    style={{ color: CHROME.muted, background: "transparent", border: "none" }}
-                  >
-                    Discard
-                  </button>
-                </div>
-                {previewError ? (
-                  <div
-                    role="alert"
-                    className="mt-3 px-3 py-2 text-xs"
-                    style={{ borderRadius: 10, border: `1px solid ${CHROME.roseLine}`, background: CHROME.roseBg, color: CHROME.rose }}
-                  >
-                    {previewError}
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <AIBriefInput
-                variant="embedded"
-                showHeader={false}
-                onCompose={handleAiCompose}
-                pending={aiPending}
-                disabled={quickInsertPending}
-                ctaLabel={aiMode === "page" ? "Design page" : "Build section"}
-                pendingLabel={aiMode === "page" ? "Designing…" : "Building…"}
-                placeholder={
-                  aiMode === "page"
-                    ? "e.g. a homepage for a boutique modeling agency, editorial and minimal"
-                    : "e.g. a services section with three cards and a booking button"
-                }
-              />
-            )}
-          </div>
         </div>
       ) : null}
     </div>
