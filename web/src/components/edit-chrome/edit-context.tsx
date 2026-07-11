@@ -2824,22 +2824,26 @@ export function EditProvider({
       setSaving(false);
       if (!save.ok) {
         if (save.code === "VERSION_CONFLICT") {
-          // W1-L2 — HONEST CONFLICT PROTOCOL. A genuine cross-session conflict
-          // (the server's same-session adoption lane already absorbed the
-          // editor's own reload/beacon case) used to auto-reload the foreign
-          // state, silently wiping the operator's undo history and reverting
-          // their tree before they understood anything happened. Now:
-          //   - the operator's LOCAL tree stays applied (no rollback),
-          //   - undo history is untouched,
-          //   - the tree is parked and the conflict toast offers the choice:
-          //     "Reload latest" (reloadLatestAfterConflict — reloads + resets
-          //     undo with an explanation) or "Keep editing this copy"
-          //     (keepMyVersionAfterConflict — re-saves this tree over the
-          //     foreign change, undo intact).
-          // Until resolved, further saves keep conflicting and re-raise the
-          // toast; the publish drawer blocks with the conflict as its reason.
+          // W3-T2 — CONFLICT RECOVERY. A genuine cross-session conflict (the
+          // server's same-session adoption lane already absorbs the editor's own
+          // reload/beacon case) rolls the local optimistic tree BACK to the
+          // authoritative server state and wipes undo/redo: a stack that branched
+          // off a tree the server never accepted is dangerous to replay, and the
+          // operator must see what actually landed. `refreshComposition` does all
+          // three — reloads the server composition (reverting the tree), advances
+          // the CAS version to the server's, and resets both history stacks with
+          // an honest "changed in another tab or session" toast.
+          //
+          // Before rolling back we PARK the rejected tree so the conflict is
+          // recoverable, not silently discarded: the toast offers "Keep editing
+          // this copy" (keepMyVersionAfterConflict re-applies the parked tree on
+          // the fresh base and re-issues the save at the reloaded version) or
+          // "Reload latest" (accept the server state, drop the park). The sticky
+          // VERSION_CONFLICT toast keeps the publish drawer blocked until the
+          // operator chooses.
           conflictRecoveryTreeRef.current = nextTree;
           setHasConflictRecovery(true);
+          await refreshComposition({ undoResetReason: "conflict" });
           const error = formatBuilderNodeMutationError({
             operation: "patch",
             code: "VERSION_CONFLICT",
@@ -2942,6 +2946,8 @@ export function EditProvider({
       surfaceAdapter,
       queueRouterRefresh,
       reportMutationError,
+      // W3-T2 — conflict branch reloads authoritative state + wipes undo.
+      refreshComposition,
       // WS1-D — stamps each save with the per-tab session token + next seq.
       nextEditSession,
       // W1-T5(a) — synchronous undo-stack re-stamp on save success.
@@ -2949,31 +2955,24 @@ export function EditProvider({
     ],
   );
 
-  // W3-T2(c/d) / W1-L2 — "Keep editing this copy": resolve a genuine conflict
-  // in the operator's favour WITHOUT the old auto-reload (which wiped undo).
-  // The local tree is still applied (the conflict branch no longer rolls back),
-  // so we refresh ONLY the CAS version from the server, then re-issue the save
-  // with the LATEST local tree. Undo history stays intact; the overwritten
-  // foreign change remains recoverable via Revisions. Clears the recovery on
-  // the success path inside `persistBuilderTree`; on a second conflict it
-  // re-parks the latest attempt.
+  // W3-T2(c/d) — "Keep editing this copy": resolve a genuine conflict
+  // in the operator's favour. The conflict branch already rolled the live tree
+  // back to the server state, wiped undo, and advanced the CAS version to the
+  // server's, so here we simply RE-APPLY the parked (rejected) tree on top of
+  // that fresh base and re-issue the save — persistBuilderTree publishes the
+  // parked tree to the canvas and CAS-saves it at the reloaded version. The
+  // overwritten foreign change remains recoverable via Revisions. The recovery
+  // is cleared on the success path inside `persistBuilderTree`; a second
+  // conflict re-parks the latest attempt.
   const keepMyVersionAfterConflict = useCallback(async () => {
-    if (conflictRecoveryTreeRef.current === null) return;
-    const mine = builderTreeRef.current;
+    const mine = conflictRecoveryTreeRef.current;
+    if (mine === null) return;
     clearMutationError();
-    // Version-only refresh: take the server's current CAS version but do NOT
-    // apply its content (that would clobber the copy the operator chose to
-    // keep) and do NOT touch undo history.
-    const res = await surfaceAdapter.load({ locale, pageSlug, pageId });
-    if (res.ok) {
-      pageVersionRef.current = res.data.pageVersion;
-      setPageVersion(res.data.pageVersion);
-    }
     const saved = await persistBuilderTree(mine);
     if (saved.ok && pendingTreeRef.current === null) {
       setDirty(false);
     }
-  }, [persistBuilderTree, clearMutationError, surfaceAdapter, locale, pageSlug, pageId]);
+  }, [persistBuilderTree, clearMutationError]);
 
   // W1-L2 — "Reload latest": resolve a genuine conflict by taking the other
   // session's state. Discards the local unsaved tree (cancelling any pending
@@ -3042,11 +3041,14 @@ export function EditProvider({
       if (result && !result.ok && result.code === "ABORTED") {
         return;
       }
-      // W1-L2 — a VERSION_CONFLICT no longer rolls anything back: the
-      // operator's tree and undo entries stay live while the conflict toast
-      // offers the resolution choice. Keep the burst's history (the edits are
-      // still applied) and keep `dirty` TRUE (the draft is NOT saved — the
-      // publish drawer and beforeunload guard must both know that).
+      // W3-T2 — a VERSION_CONFLICT is fully handled inside persistBuilderTree:
+      // it rolls the live tree back to the reloaded server state, wipes both
+      // history stacks, parks the rejected tree for recovery, and advances the
+      // CAS version. Nothing is left for the burst handler to undo — the generic
+      // failure rollback below (which pops burstHistoryCount off `past`) would
+      // double-touch the already-wiped stack, so bail early. `dirty` stays TRUE:
+      // the parked edit is unsaved until the operator resolves the conflict, and
+      // the publish drawer + beforeunload guard must both know that.
       if (result && !result.ok && result.code === "VERSION_CONFLICT") {
         return;
       }
