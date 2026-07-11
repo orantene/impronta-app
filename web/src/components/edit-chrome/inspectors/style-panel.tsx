@@ -106,6 +106,8 @@ import { breakpointLabelForDevice, naturalWidthForDevice } from "../breakpoint-r
 import { useBuilderBreakpoints } from "../use-builder-breakpoints";
 import { InlineNameInput } from "./kit/inline-name-input";
 import { CssEditorWithHints } from "./kit/css-editor-with-hints";
+import { parseCssLength, pxLength, pctLength } from "./style-panel/length-utils";
+import { DimensionsSection } from "./style-panel/DimensionsSection";
 
 const INHERIT_HINT = HINT;
 
@@ -240,30 +242,8 @@ import {
  * structured {value, unit} the NumberUnit control expects. Returns null for
  * unset / unparseable values so the control falls back to its placeholder.
  */
-function parseCssLength(input?: string): LengthValue | null {
-  if (!input) return null;
-  const match = /^(-?\d*\.?\d+)(px|rem|em|%|vw|vh)$/.exec(input.trim());
-  if (!match) return null;
-  const parsed = Number.parseFloat(match[1]);
-  if (Number.isNaN(parsed)) return null;
-  return { value: parsed, unit: match[2] as LengthUnit };
-}
-
-/**
- * Curated NodePresentation stores plain numbers (px / %), while the NumberUnit
- * control speaks LengthValue. These adapters bridge the two without leaking the
- * unit into storage (the unit is fixed per field).
- */
-function pxLength(value: number | undefined): LengthValue | null {
-  return typeof value === "number" && Number.isFinite(value)
-    ? { value, unit: "px" }
-    : null;
-}
-function pctLength(value: number | undefined): LengthValue | null {
-  return typeof value === "number" && Number.isFinite(value)
-    ? { value, unit: "%" }
-    : null;
-}
+// W5-C1 — parseCssLength / pxLength / pctLength moved to ./style-panel/length-utils
+// so the extracted domain sub-sections share the identical adapters. Imported below.
 
 const VISIBILITY_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "Default" },
@@ -5791,120 +5771,12 @@ export function StylePanel({
             {/* ── end Typography group ── */}
 
             {/* ── Dimensions group (Wave 1 / Job #11 progressive disclosure) ── */}
-            <InspectorGroup
-              title="Dimensions"
-              collapsible
-              storageKey={`style-panel:dimensions:${selectedStandaloneStyleNode.kind}`}
-              defaultOpen={false}
-            >
-            <SegmentedField
-              dataControl="maxWidth"
-              label="Max width (preset)"
-              value={selectedStandaloneViewportStyle?.maxWidth ?? ""}
-              onChange={(next) => setOrToggleStandaloneStyle("maxWidth", next)}
-              options={BUILDER_NODE_WIDTH_OPTIONS}
+            <DimensionsSection
+              selectedStandaloneStyleNode={selectedStandaloneStyleNode}
+              selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
+              setOrToggleStandaloneStyle={setOrToggleStandaloneStyle}
+              patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
             />
-
-            <details
-              open={Boolean(
-                selectedStandaloneViewportStyle?.width ||
-                  selectedStandaloneViewportStyle?.height ||
-                  selectedStandaloneViewportStyle?.minHeight ||
-                  selectedStandaloneViewportStyle?.minWidth ||
-                  selectedStandaloneViewportStyle?.maxWidthFree ||
-                  selectedStandaloneViewportStyle?.maxHeight,
-              )}
-              data-builder-node-style-control="dimensions"
-            >
-              <summary
-                className="flex items-center justify-between select-none"
-                style={{ cursor: "pointer", outline: "none", listStyle: "none" }}
-              >
-                <span className={FIELD_LABEL}>Exact size</span>
-                <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
-              </summary>
-              <div className="mt-2 flex flex-col gap-2">
-              <div className="grid grid-cols-2 gap-2">
-                <NumberField
-                  label="Exact width"
-                  units={["px", "%", "vw", "rem"]}
-                  defaultUnit="px"
-                  placeholder="Auto"
-                  value={parseCssLength(selectedStandaloneViewportStyle?.width)}
-                  onChange={(next) =>
-                    patchSelectedStandaloneStyle({
-                      width: next ? formatLength(next) : undefined,
-                    })
-                  }
-                />
-                <NumberField
-                  label="Height"
-                  units={["px", "vh", "%", "rem"]}
-                  defaultUnit="px"
-                  placeholder="Auto"
-                  value={parseCssLength(selectedStandaloneViewportStyle?.height)}
-                  onChange={(next) =>
-                    patchSelectedStandaloneStyle({
-                      height: next ? formatLength(next) : undefined,
-                    })
-                  }
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <NumberField
-                  label="Min height"
-                  units={["px", "vh", "%", "rem"]}
-                  defaultUnit="px"
-                  placeholder="Auto"
-                  value={parseCssLength(selectedStandaloneViewportStyle?.minHeight)}
-                  onChange={(next) =>
-                    patchSelectedStandaloneStyle({
-                      minHeight: next ? formatLength(next) : undefined,
-                    })
-                  }
-                />
-                <NumberField
-                  label="Min width"
-                  units={["px", "%", "vw", "rem"]}
-                  defaultUnit="px"
-                  placeholder="Auto"
-                  value={parseCssLength(selectedStandaloneViewportStyle?.minWidth)}
-                  onChange={(next) =>
-                    patchSelectedStandaloneStyle({
-                      minWidth: next ? formatLength(next) : undefined,
-                    })
-                  }
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <NumberField
-                  label="Max width"
-                  units={["px", "%", "vw", "rem"]}
-                  defaultUnit="px"
-                  placeholder="Auto"
-                  value={parseCssLength(selectedStandaloneViewportStyle?.maxWidthFree)}
-                  onChange={(next) =>
-                    patchSelectedStandaloneStyle({
-                      maxWidthFree: next ? formatLength(next) : undefined,
-                    })
-                  }
-                />
-                <NumberField
-                  label="Max height"
-                  units={["px", "vh", "%", "rem"]}
-                  defaultUnit="px"
-                  placeholder="Auto"
-                  value={parseCssLength(selectedStandaloneViewportStyle?.maxHeight)}
-                  onChange={(next) =>
-                    patchSelectedStandaloneStyle({
-                      maxHeight: next ? formatLength(next) : undefined,
-                    })
-                  }
-                />
-              </div>
-              </div>
-            </details>
-            </InspectorGroup>
             {/* ── end Dimensions group ── */}
 
             {/* ── Appearance group (Wave 1 / Job #11 progressive disclosure) ── */}
