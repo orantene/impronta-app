@@ -283,6 +283,10 @@ export function PublishDrawer() {
   const [host, setHost] = useState("");
   const [preflightLoading, setPreflightLoading] = useState(false);
   const [preflightBlockingErrors, setPreflightBlockingErrors] = useState(0);
+  // W3-M1 — the mobile-overflow subset of blocking errors, for the exact
+  // "Fix N mobile overflow issue(s) to publish" disabled reason.
+  const [preflightMobileOverflowErrors, setPreflightMobileOverflowErrors] =
+    useState(0);
   const [publishedRows, setPublishedRows] = useState<
     ReadonlyArray<PublishedSnapshotRow> | null
   >(null);
@@ -313,9 +317,14 @@ export function PublishDrawer() {
   const [miniTitle, setMiniTitle] = useState<string>("");
   const [miniDesc, setMiniDesc] = useState<string>("");
   const handlePreflightStatusChange = useCallback(
-    (status: { loading: boolean; blockingErrors: number }) => {
+    (status: {
+      loading: boolean;
+      blockingErrors: number;
+      mobileOverflowErrors: number;
+    }) => {
       setPreflightLoading(status.loading);
       setPreflightBlockingErrors(status.blockingErrors);
+      setPreflightMobileOverflowErrors(status.mobileOverflowErrors);
     },
     [],
   );
@@ -341,6 +350,7 @@ export function PublishDrawer() {
       // leave the publish button stuck "Running publish checks…".
       setPreflightLoading(surfaceKind === "homepage");
       setPreflightBlockingErrors(0);
+      setPreflightMobileOverflowErrors(0);
       setPublishedRows(null);
       setLastPublishedAt(null);
       setPublishedRowsLoading(false);
@@ -733,6 +743,15 @@ export function PublishDrawer() {
     if (dirty)
       return "Unsaved changes. Autosave is catching up; try again in a moment.";
     if (preflightLoading) return "Running publish checks…";
+    // W3-M1 — when the ONLY blockers are mobile overflow, name them exactly;
+    // a mobile-broken page cannot ship.
+    if (
+      preflightMobileOverflowErrors > 0 &&
+      preflightMobileOverflowErrors === preflightBlockingErrors
+    )
+      return `Fix ${preflightMobileOverflowErrors} mobile overflow issue${
+        preflightMobileOverflowErrors === 1 ? "" : "s"
+      } to publish.`;
     if (preflightBlockingErrors > 0)
       return `Fix ${preflightBlockingErrors} blocking publish check${
         preflightBlockingErrors === 1 ? "" : "s"
@@ -757,10 +776,19 @@ export function PublishDrawer() {
         "This page changed in another tab or session. Use the conflict banner to reload latest or keep editing this copy, then publish.",
       );
     }
-    if (preflightBlockingErrors > 0) {
+    if (preflightMobileOverflowErrors > 0) {
       reasons.push(
-        `${preflightBlockingErrors} publish check${
-          preflightBlockingErrors === 1 ? "" : "s"
+        `${preflightMobileOverflowErrors} block${
+          preflightMobileOverflowErrors === 1 ? "" : "s"
+        } overflow${preflightMobileOverflowErrors === 1 ? "s" : ""} the mobile viewport horizontally. A page that scrolls sideways on phones cannot be published. Use "Show on canvas" above to fix each one, then publish.`,
+      );
+    }
+    const nonOverflowBlockers =
+      preflightBlockingErrors - preflightMobileOverflowErrors;
+    if (nonOverflowBlockers > 0) {
+      reasons.push(
+        `${nonOverflowBlockers} publish check${
+          nonOverflowBlockers === 1 ? "" : "s"
         } marked Blocker above must be fixed. Warnings are advisory. They do not stop publish.`,
       );
     }
@@ -768,7 +796,12 @@ export function PublishDrawer() {
       reasons.push("Page version is unavailable. Reload and try again.");
     }
     return reasons;
-  }, [getCompositionCasVersion, preflightBlockingErrors, hasConflictRecovery]);
+  }, [
+    getCompositionCasVersion,
+    preflightBlockingErrors,
+    preflightMobileOverflowErrors,
+    hasConflictRecovery,
+  ]);
 
   const isSuccess = state.kind === "success";
 
