@@ -26,6 +26,7 @@ type MarketingLeadRow = {
   id: string;
   email: string;
   name: string;
+  business_name: string | null;
   audience: "operator" | "agency" | "organization";
   roster_size: string | null;
   subdomain_wanted: string | null;
@@ -266,7 +267,7 @@ async function loadLead(leadId: string): Promise<MarketingLeadRow | null> {
   const { data, error } = await admin
     .from("saas_marketing_signups")
     .select(
-      "id, email, name, audience, roster_size, subdomain_wanted, tier_interest, status, claimed_by_profile_id, provisioned_tenant_id, notes",
+      "id, email, name, business_name, audience, roster_size, subdomain_wanted, tier_interest, status, claimed_by_profile_id, provisioned_tenant_id, notes",
     )
     .eq("id", leadId)
     .maybeSingle();
@@ -671,11 +672,16 @@ export async function provisionWorkspaceFromLead(params: {
 
   const desiredSlug = preferredWorkspaceSlugFromLead({
     subdomainWanted: lead.subdomain_wanted,
-    name: lead.name,
+    // Prefer the business name for the slug fallback (when no explicit
+    // subdomain was reserved) over the person's name.
+    name: lead.business_name?.trim() || lead.name,
     email: lead.email,
   });
   const slug = await generateAvailableWorkspaceSlug(desiredSlug);
-  const displayName = lead.name.trim() || "New Workspace";
+  // The workspace is born named after the BUSINESS the user typed on
+  // /get-started (e.g. "Riviera Maya Work"), falling back to the person's
+  // name only for legacy leads that predate the business_name column.
+  const displayName = lead.business_name?.trim() || lead.name.trim() || "New Workspace";
   const now = new Date().toISOString();
 
   const { data: agency, error: agencyError } = await admin

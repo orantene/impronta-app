@@ -15,7 +15,7 @@ import {
   type GetStartedActionResult,
 } from "@/app/(marketing)/get-started/actions";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
-import { SuccessTick, TextField } from "./get-started-form-fields";
+import { AudiencePicker, SuccessTick, TextField } from "./get-started-form-fields";
 import { SubdomainHint, type SubdomainState } from "./get-started-form-subdomain-hint";
 
 type AudienceKey = "operator" | "agency" | "organization";
@@ -78,21 +78,24 @@ type Props = {
 // submitCtaLabel lives in get-started-form-tier-copy.ts (client-safe + keeps
 // this file under the 800-line lint cap).
 
-function rosterTierHint(
-  rosterSize: RosterBucket,
-  tier: TierKey | undefined,
-  prices: GetStartedTierPrices | undefined,
-): string | null {
-  if (tier && tier !== "free") return null;
-  const studioMonthly = prices?.studio ?? "$49";
-  const agencyMonthly = prices?.agency ?? "$149";
-  if (rosterSize === "21-50" || rosterSize === "50+") {
-    return `Most teams your size choose Agency — 200 seats, branded site, ${agencyMonthly}/mo.`;
-  }
-  if (rosterSize === "6-20") {
-    return `Studio fits growing rosters — 50 seats and WhatsApp notifications, ${studioMonthly}/mo.`;
-  }
-  return null;
+/**
+ * Client-side slugify for the live "business name → link" preview. Mirrors
+ * `normalizeWorkspaceSlugCandidate` (server) so the auto-filled slug matches
+ * what the server would derive: NFKD strip diacritics, lowercase, non-alnum →
+ * single hyphen, trim hyphens, cap at 32. Kept local so this client component
+ * doesn't import the server slug module.
+ */
+function slugifyBusinessName(input: string): string {
+  return input
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "")
+    .replace(/-{2,}/g, "-")
+    .slice(0, 32)
+    .replace(/-+$/, "");
 }
 
 export function GetStartedForm({
@@ -114,10 +117,16 @@ export function GetStartedForm({
   >(submitGetStartedSignup, null);
 
   const [audience, setAudience] = useState<AudienceKey>(initialAudience);
+  const [businessName, setBusinessName] = useState("");
+  const [businessDescription, setBusinessDescription] = useState("");
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [name, setName] = useState(initialSignedIn?.displayName ?? "");
   const [email, setEmail] = useState(initialSignedIn?.email ?? "");
   const [subdomain, setSubdomain] = useState("");
-  const [rosterSize, setRosterSize] = useState<RosterBucket>("1-5");
+  // Once the user hand-edits the link, stop auto-syncing it from the business
+  // name (Shopify/Linear pattern): the slug is theirs to own from then on.
+  const [slugDirty, setSlugDirty] = useState(false);
+  const [rosterSize] = useState<RosterBucket>("1-5");
   const [subdomainState, setSubdomainState] = useState<SubdomainState>({ status: "idle" });
   const [, startCheckTransition] = useTransition();
 
@@ -391,12 +400,17 @@ export function GetStartedForm({
               : "Your preferred link name is saved with this signup"}
           </li>
         </ul>
-        <p
-          className="plt-mono mt-6 text-[0.75rem]"
-          style={{ color: "var(--plt-muted)" }}
-        >
-          Reference: <code>{state.leadId.slice(0, 8)}</code>
-        </p>
+        {state.subdomain ? (
+          <p
+            className="mt-6 text-[0.75rem]"
+            style={{ color: "var(--plt-muted)" }}
+          >
+            {t.savedSpot}{" "}
+            <strong className="plt-mono" style={{ color: "var(--plt-ink-soft)" }}>
+              {preferredLinkPreview(state.subdomain, tier)}
+            </strong>
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -506,110 +520,34 @@ export function GetStartedForm({
         {variant === "compact" ? t.headingCompact : t.heading}
       </h3>
 
-      <fieldset className="mt-6">
-        <legend
-          className="text-[0.8125rem] font-medium"
-          style={{ color: "var(--plt-ink)" }}
-        >
-          {t.whichDescribes}
-        </legend>
-        <div className="mt-3 grid gap-2">
-          {audienceOptions.map((opt) => {
-            const active = audience === opt.key;
-            return (
-              <label
-                key={opt.key}
-                className="relative flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-all duration-200"
-                style={{
-                  background: active
-                    ? "rgba(46,107,82,0.08)"
-                    : "var(--plt-bg)",
-                  borderColor: active
-                    ? "var(--plt-forest)"
-                    : "var(--plt-hairline)",
-                  boxShadow: active
-                    ? "0 0 0 3px rgba(46,107,82,0.12)"
-                    : "none",
-                }}
-              >
-                <input
-                  type="radio"
-                  name="audience-ui"
-                  value={opt.key}
-                  checked={active}
-                  onChange={() => {
-                    setAudience(opt.key);
-                    trackProductEvent("marketing_audience_selected", {
-                      source_page: "get-started",
-                      audience: opt.key,
-                    });
-                  }}
-                  className="sr-only"
-                />
-                <span
-                  className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors"
-                  style={{
-                    borderColor: active
-                      ? "var(--plt-forest)"
-                      : "var(--plt-hairline-strong)",
-                    background: active ? "var(--plt-forest)" : "transparent",
-                  }}
-                  aria-hidden
-                >
-                  {active ? (
-                    <span
-                      className="inline-block h-1.5 w-1.5 rounded-full"
-                      style={{ background: "var(--plt-on-inverse)" }}
-                    />
-                  ) : null}
-                </span>
-                <div className="flex-1">
-                  <span
-                    className="block text-[0.9375rem] font-medium"
-                    style={{ color: "var(--plt-ink)" }}
-                  >
-                    {opt.label}
-                  </span>
-                  <span
-                    className="mt-0.5 block text-[0.8125rem]"
-                    style={{ color: "var(--plt-muted)" }}
-                  >
-                    {opt.description}
-                  </span>
-                </div>
-              </label>
-            );
-          })}
-        </div>
-      </fieldset>
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      {/* Business name — the one input that matters. It seeds the link below. */}
+      <div className="mt-6">
         <TextField
-          label={t.yourName}
-          id="name"
-          value={name}
-          onChange={setName}
-          placeholder="Sofía Morales"
-          required
-          error={errors.name}
-        />
-        <TextField
-          label={t.workEmail}
-          id="email"
-          type="email"
-          value={email}
+          label={t.businessName}
+          id="businessName"
+          value={businessName}
           onChange={(v) => {
-            // Step 2: visitor showed intent by typing in email (first keystroke only).
-            if (!email && v) trackOnce("marketing_email_focused", { audience });
-            setEmail(v);
+            if (!businessName && v) {
+              trackOnce("marketing_business_name_typed", { audience });
+            }
+            setBusinessName(v);
+            // Auto-fill the link from the business name until the user takes
+            // the slug over by hand-editing it (slugDirty).
+            if (!slugDirty) setSubdomain(slugifyBusinessName(v));
           }}
-          placeholder="you@business.com"
+          placeholder={t.businessNamePlaceholder}
           required
-          readOnly={Boolean(initialSignedIn)}
-          error={errors.email}
+          error={errors.businessName}
         />
+        <p
+          className="mt-1.5 text-[0.75rem] leading-[1.5]"
+          style={{ color: "var(--plt-muted)" }}
+        >
+          {t.businessNameHint}
+        </p>
       </div>
 
+      {/* Link — auto-filled from the business name, editable. */}
       <div className="mt-4">
         <label
           htmlFor="subdomain"
@@ -651,14 +589,16 @@ export function GetStartedForm({
             name="subdomain"
             type="text"
             value={subdomain}
-            onChange={(e) =>
+            onChange={(e) => {
+              // Hand-editing the link claims it — stop auto-syncing from name.
+              setSlugDirty(true);
               setSubdomain(
                 e.target.value
                   .toLowerCase()
                   .replace(/[^a-z0-9-]/g, "")
                   .slice(0, 32),
-              )
-            }
+              );
+            }}
             placeholder="your-business"
             className="h-12 flex-1 bg-transparent px-4 text-[0.9375rem] outline-none placeholder:text-[var(--plt-muted-soft)]"
             style={{ color: "var(--plt-ink)" }}
@@ -682,51 +622,107 @@ export function GetStartedForm({
           state={subdomainState}
           serverError={errors.subdomain}
           tier={tier}
-          onPickSuggestion={setSubdomain}
+          onPickSuggestion={(s) => {
+            setSlugDirty(true);
+            setSubdomain(s);
+          }}
         />
       </div>
 
-      <fieldset className="mt-6">
-        <legend
-          className="text-[0.8125rem] font-medium"
-          style={{ color: "var(--plt-ink)" }}
-        >
-          {t.teamSize}
-        </legend>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(["1-5", "6-20", "21-50", "50+"] as const).map((r) => {
-            const active = rosterSize === r;
-            return (
-              <button
-                key={r}
-                type="button"
-                onClick={() => {
-                  // Step 4: visitor picked a roster-size bucket.
-                  trackProductEvent("marketing_roster_size_selected", {
-                    bucket: r,
-                    audience,
-                  });
-                  setRosterSize(r);
-                }}
-                className="rounded-full border px-4 py-2 text-[0.8125rem] font-medium transition-all duration-200"
-                style={{
-                  background: active ? "var(--plt-forest)" : "var(--plt-bg)",
-                  color: active ? "var(--plt-on-inverse)" : "var(--plt-ink-soft)",
-                  borderColor: active ? "var(--plt-forest)" : "var(--plt-hairline-strong)",
-                  boxShadow: active ? "0 10px 24px -16px rgba(31,74,58,0.5)" : "none",
-                }}
-              >
-                {r}
-              </button>
-            );
-          })}
+      {/* Optional short description — collapsed by default so an empty box
+          never depresses completion. Value rides a hidden input so it
+          survives collapsing. */}
+      <input type="hidden" name="businessDescription" value={businessDescription} />
+      <div className="mt-4">
+        {descriptionOpen ? (
+          <div>
+            <label
+              htmlFor="businessDescription-ui"
+              className="text-[0.8125rem] font-medium"
+              style={{ color: "var(--plt-ink)" }}
+            >
+              {t.businessDescription}
+            </label>
+            <textarea
+              id="businessDescription-ui"
+              value={businessDescription}
+              onChange={(e) => setBusinessDescription(e.target.value.slice(0, 500))}
+              placeholder={t.businessDescriptionPlaceholder}
+              rows={2}
+              className="mt-2 block w-full rounded-xl border bg-[var(--plt-bg)] px-4 py-3 text-[0.9375rem] outline-none transition-all duration-200 placeholder:text-[var(--plt-muted-soft)] focus:border-[var(--plt-forest)] focus:bg-[var(--plt-bg-raised)] focus:shadow-[0_0_0_3px_rgba(46,107,82,0.1)]"
+              style={{ borderColor: "var(--plt-hairline-strong)", color: "var(--plt-ink)" }}
+            />
+            <button
+              type="button"
+              onClick={() => setDescriptionOpen(false)}
+              className="mt-1.5 text-[0.75rem] font-medium"
+              style={{ color: "var(--plt-muted)" }}
+            >
+              {t.hideDescription}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setDescriptionOpen(true)}
+            className="text-[0.8125rem] font-medium transition-colors hover:opacity-80"
+            style={{ color: "var(--plt-forest)" }}
+          >
+            + {t.addDescription}
+          </button>
+        )}
+      </div>
+
+      {/* Contact — signed-in users come from the session (hidden); guests type
+          their name + email. */}
+      {initialSignedIn ? (
+        <>
+          <input type="hidden" name="name" value={name.trim() || businessName.trim()} />
+          <input type="hidden" name="email" value={initialSignedIn.email} />
+        </>
+      ) : (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <TextField
+            label={t.yourName}
+            id="name"
+            value={name}
+            onChange={setName}
+            placeholder="Sofía Morales"
+            required
+            error={errors.name}
+          />
+          <TextField
+            label={t.workEmail}
+            id="email"
+            type="email"
+            value={email}
+            onChange={(v) => {
+              // Step 2: visitor showed intent by typing in email (first keystroke only).
+              if (!email && v) trackOnce("marketing_email_focused", { audience });
+              setEmail(v);
+            }}
+            placeholder="you@business.com"
+            required
+            error={errors.email}
+          />
         </div>
-        {rosterTierHint(rosterSize, tier, tierPrices) ? (
-          <p className="mt-3 text-[0.75rem] leading-[1.5]" style={{ color: "var(--plt-muted)" }}>
-            {rosterTierHint(rosterSize, tier, tierPrices)}
-          </p>
-        ) : null}
-      </fieldset>
+      )}
+
+      {/* Demoted, optional self-identification. Everyone lands on Free, so this
+          only routes onboarding flavor + segments leads; it sits last and
+          reads as optional. */}
+      <AudiencePicker
+        legend={t.whichDescribesOptional}
+        options={audienceOptions}
+        value={audience}
+        onSelect={(key) => {
+          setAudience(key);
+          trackProductEvent("marketing_audience_selected", {
+            source_page: "get-started",
+            audience: key,
+          });
+        }}
+      />
 
       {errors.form ? (
         <p
@@ -769,7 +765,7 @@ export function GetStartedForm({
       </button>
 
       <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>
-        {formFinePrint(tier, tierPrices, tierNames)}
+        {tier ? formFinePrint(tier, tierPrices, tierNames) : t.ctaFinePrint}
         {appliedDiscountLabel && <span style={{ color: "var(--plt-forest)", fontWeight: 500 }}> · {appliedDiscountLabel}</span>}
       </p>
     </form>
