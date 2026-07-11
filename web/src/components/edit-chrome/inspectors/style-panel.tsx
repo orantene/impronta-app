@@ -5034,133 +5034,101 @@ export function StylePanel({
                       }
                     />
                   </div>
-                  <div
-                    className="flex flex-col gap-1.5"
-                    data-node-presentation-control="lineHeightPct"
-                  >
-                    <span className={FIELD_LABEL}>Line height</span>
-                    <NumberUnit
-                      units={["%"]}
-                      defaultUnit="%"
-                      min={80}
-                      max={300}
-                      step={10}
-                      placeholder="Theme"
-                      value={pctLength(
-                        selectedNodeViewportPresentation?.lineHeightPct,
-                      )}
-                      onChange={(next) =>
-                        patchSelectedNodePresentation({
-                          lineHeightPct: next
-                            ? Math.round(next.value)
-                            : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div
-                  className="flex flex-col gap-1.5"
-                  data-node-presentation-control="letterSpacingPx"
-                >
-                  <span className={FIELD_LABEL}>Letter spacing</span>
-                  <NumberUnit
-                    units={["px"]}
-                    defaultUnit="px"
-                    step={0.5}
-                    min={-5}
-                    max={30}
+                  <NumberField
+                    dataPresentationControl="lineHeightPct"
+                    label="Line height"
+                    units={["%"]}
+                    defaultUnit="%"
+                    min={80}
+                    max={300}
+                    step={10}
                     placeholder="Theme"
-                    value={pxLength(
-                      selectedNodeViewportPresentation?.letterSpacingPx,
+                    value={pctLength(
+                      selectedNodeViewportPresentation?.lineHeightPct,
                     )}
                     onChange={(next) =>
                       patchSelectedNodePresentation({
-                        letterSpacingPx: next ? next.value : undefined,
+                        lineHeightPct: next
+                          ? Math.round(next.value)
+                          : undefined,
                       })
                     }
                   />
                 </div>
 
-                <div
-                  className="flex flex-col gap-1.5"
-                  data-node-presentation-control="fontWeight"
-                >
-                  <span className={FIELD_LABEL}>Weight</span>
-                  <Segmented
-                    fullWidth
-                    compact
-                    value={
-                      selectedNodeViewportPresentation?.fontWeight
-                        ? String(selectedNodeViewportPresentation.fontWeight)
-                        : ""
-                    }
-                    onChange={(next) =>
-                      patchSelectedNodePresentation({
-                        fontWeight: next ? Number(next) : undefined,
-                      })
-                    }
-                    options={BUILDER_NODE_FONT_WEIGHT_OPTIONS}
-                  />
-                </div>
+                <NumberField
+                  dataPresentationControl="letterSpacingPx"
+                  label="Letter spacing"
+                  units={["px"]}
+                  defaultUnit="px"
+                  step={0.5}
+                  min={-5}
+                  max={30}
+                  placeholder="Theme"
+                  value={pxLength(
+                    selectedNodeViewportPresentation?.letterSpacingPx,
+                  )}
+                  onChange={(next) =>
+                    patchSelectedNodePresentation({
+                      letterSpacingPx: next ? next.value : undefined,
+                    })
+                  }
+                />
 
-                <div
-                  className="flex flex-col gap-1.5"
-                  data-node-presentation-control="textTransform"
-                >
-                  <span className={FIELD_LABEL}>Transform</span>
-                  <Segmented
-                    fullWidth
-                    compact
-                    value={selectedNodeViewportPresentation?.textTransform ?? ""}
-                    onChange={(next) =>
-                      patchSelectedNodePresentation({
-                        textTransform:
-                          (next || undefined) as NodePresentationValue["textTransform"],
-                      })
-                    }
-                    options={BUILDER_NODE_TEXT_TRANSFORM_OPTIONS}
-                  />
-                </div>
+                <SegmentedField
+                  dataPresentationControl="fontWeight"
+                  label="Weight"
+                  value={
+                    selectedNodeViewportPresentation?.fontWeight
+                      ? String(selectedNodeViewportPresentation.fontWeight)
+                      : ""
+                  }
+                  onChange={(next) =>
+                    patchSelectedNodePresentation({
+                      fontWeight: next ? Number(next) : undefined,
+                    })
+                  }
+                  options={BUILDER_NODE_FONT_WEIGHT_OPTIONS}
+                />
 
-                <div
-                  className="flex flex-col gap-1.5"
-                  data-node-presentation-control="textWrap"
-                >
-                  <span className={FIELD_LABEL}>Text wrap</span>
-                  <Segmented
-                    fullWidth
-                    compact
-                    value={selectedNodeViewportPresentation?.textWrap ?? ""}
-                    onChange={(next) =>
-                      patchSelectedNodePresentation({
-                        textWrap:
-                          (next || undefined) as NodePresentationValue["textWrap"],
-                      })
-                    }
-                    options={BUILDER_NODE_TEXT_WRAP_OPTIONS}
-                  />
-                </div>
+                <SegmentedField
+                  dataPresentationControl="textTransform"
+                  label="Transform"
+                  value={selectedNodeViewportPresentation?.textTransform ?? ""}
+                  onChange={(next) =>
+                    patchSelectedNodePresentation({
+                      textTransform:
+                        (next || undefined) as NodePresentationValue["textTransform"],
+                    })
+                  }
+                  options={BUILDER_NODE_TEXT_TRANSFORM_OPTIONS}
+                />
 
-                <div
-                  className="flex flex-col gap-1.5"
-                  data-node-presentation-control="whiteSpace"
-                >
-                  <span className={FIELD_LABEL}>Whitespace</span>
-                  <Segmented
-                    fullWidth
-                    compact
-                    value={selectedNodeViewportPresentation?.whiteSpace ?? ""}
-                    onChange={(next) =>
-                      patchSelectedNodePresentation({
-                        whiteSpace:
-                          (next || undefined) as NodePresentationValue["whiteSpace"],
-                      })
-                    }
-                    options={BUILDER_NODE_WHITE_SPACE_OPTIONS}
-                  />
-                </div>
+                <SegmentedField
+                  dataPresentationControl="textWrap"
+                  label="Text wrap"
+                  value={selectedNodeViewportPresentation?.textWrap ?? ""}
+                  onChange={(next) =>
+                    patchSelectedNodePresentation({
+                      textWrap:
+                        (next || undefined) as NodePresentationValue["textWrap"],
+                    })
+                  }
+                  options={BUILDER_NODE_TEXT_WRAP_OPTIONS}
+                />
+
+                <SegmentedField
+                  dataPresentationControl="whiteSpace"
+                  label="Whitespace"
+                  value={selectedNodeViewportPresentation?.whiteSpace ?? ""}
+                  onChange={(next) =>
+                    patchSelectedNodePresentation({
+                      whiteSpace:
+                        (next || undefined) as NodePresentationValue["whiteSpace"],
+                    })
+                  }
+                  options={BUILDER_NODE_WHITE_SPACE_OPTIONS}
+                />
 
                 <div
                   className="flex flex-col gap-1.5"
@@ -6108,16 +6076,13 @@ export function StylePanel({
               storageKey={`style-panel:dimensions:${selectedStandaloneStyleNode.kind}`}
               defaultOpen={false}
             >
-            <div className="flex flex-col gap-1.5" data-builder-node-style-control="maxWidth">
-              <span className={FIELD_LABEL}>Max width (preset)</span>
-              <Segmented
-                fullWidth
-                compact
-                value={selectedStandaloneViewportStyle?.maxWidth ?? ""}
-                onChange={(next) => setOrToggleStandaloneStyle("maxWidth", next)}
-                options={BUILDER_NODE_WIDTH_OPTIONS}
-              />
-            </div>
+            <SegmentedField
+              dataControl="maxWidth"
+              label="Max width (preset)"
+              value={selectedStandaloneViewportStyle?.maxWidth ?? ""}
+              onChange={(next) => setOrToggleStandaloneStyle("maxWidth", next)}
+              options={BUILDER_NODE_WIDTH_OPTIONS}
+            />
 
             <details
               open={Boolean(
@@ -6243,16 +6208,13 @@ export function StylePanel({
             {["container", "split", "card", "cta_group"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
-              <div className="flex flex-col gap-1.5" data-builder-node-style-control="background">
-                <span className={FIELD_LABEL}>Background</span>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={selectedStandaloneViewportStyle?.background ?? ""}
-                  onChange={(next) => setOrToggleStandaloneStyle("background", next)}
-                  options={BUILDER_NODE_BACKGROUND_OPTIONS}
-                />
-              </div>
+              <SegmentedField
+                dataControl="background"
+                label="Background"
+                value={selectedStandaloneViewportStyle?.background ?? ""}
+                onChange={(next) => setOrToggleStandaloneStyle("background", next)}
+                options={BUILDER_NODE_BACKGROUND_OPTIONS}
+              />
             ) : null}
 
             {["container", "split", "card", "cta_group", "button", "image"].includes(
@@ -9032,16 +8994,13 @@ export function StylePanel({
 
             {selectedStandaloneStyleNode.kind === "image" ? (
               <>
-                <div className="flex flex-col gap-1.5" data-builder-node-style-control="objectFit">
-                  <span className={FIELD_LABEL}>Image fit</span>
-                  <Segmented
-                    fullWidth
-                    compact
-                    value={selectedStandaloneViewportStyle?.objectFit ?? ""}
-                    onChange={(next) => setOrToggleStandaloneStyle("objectFit", next)}
-                    options={BUILDER_NODE_FIT_OPTIONS}
-                  />
-                </div>
+                <SegmentedField
+                  dataControl="objectFit"
+                  label="Image fit"
+                  value={selectedStandaloneViewportStyle?.objectFit ?? ""}
+                  onChange={(next) => setOrToggleStandaloneStyle("objectFit", next)}
+                  options={BUILDER_NODE_FIT_OPTIONS}
+                />
                 <div className="flex flex-col gap-1.5" data-builder-node-style-control="objectPosition">
                   <span className={FIELD_LABEL}>Focal point</span>
                   <input
@@ -9065,16 +9024,13 @@ export function StylePanel({
                     }
                   />
                 </div>
-                <div className="flex flex-col gap-1.5" data-builder-node-style-control="aspectRatio">
-                  <span className={FIELD_LABEL}>Ratio</span>
-                  <Segmented
-                    fullWidth
-                    compact
-                    value={selectedStandaloneViewportStyle?.aspectRatio ?? ""}
-                    onChange={(next) => setOrToggleStandaloneStyle("aspectRatio", next)}
-                    options={BUILDER_NODE_RATIO_OPTIONS}
-                  />
-                </div>
+                <SegmentedField
+                  dataControl="aspectRatio"
+                  label="Ratio"
+                  value={selectedStandaloneViewportStyle?.aspectRatio ?? ""}
+                  onChange={(next) => setOrToggleStandaloneStyle("aspectRatio", next)}
+                  options={BUILDER_NODE_RATIO_OPTIONS}
+                />
                 <div className="flex flex-col gap-1.5" data-builder-node-style-control="aspectRatioFree">
                   <span className={FIELD_LABEL}>Custom ratio</span>
                   <input

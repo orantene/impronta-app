@@ -48,6 +48,8 @@ interface FieldShellProps {
   accessory?: ReactNode;
   /** `data-builder-node-style-control` value; omitted when undefined. */
   dataControl?: string;
+  /** `data-node-presentation-control` value; omitted when undefined. */
+  dataPresentationControl?: string;
   /** Override the outer wrapper class (defaults to the gap-1.5 column). */
   className?: string;
   children: ReactNode;
@@ -64,6 +66,7 @@ export function InspectorFieldShell({
   hint,
   accessory,
   dataControl,
+  dataPresentationControl,
   className,
   children,
 }: FieldShellProps) {
@@ -71,6 +74,7 @@ export function InspectorFieldShell({
     <div
       className={className ?? FIELD_COLUMN_CLASS}
       data-builder-node-style-control={dataControl}
+      data-node-presentation-control={dataPresentationControl}
     >
       {accessory !== undefined ? (
         <div className="flex items-center justify-between gap-2">
@@ -106,6 +110,7 @@ export function SegmentedField<T extends string>({
   hint,
   accessory,
   dataControl,
+  dataPresentationControl,
   className,
   value,
   onChange,
@@ -119,6 +124,7 @@ export function SegmentedField<T extends string>({
       hint={hint}
       accessory={accessory}
       dataControl={dataControl}
+      dataPresentationControl={dataPresentationControl}
       className={className}
     >
       <Segmented
@@ -140,6 +146,7 @@ export function NumberField({
   hint,
   accessory,
   dataControl,
+  dataPresentationControl,
   className,
   ...numberUnit
 }: NumberFieldProps) {
@@ -149,6 +156,7 @@ export function NumberField({
       hint={hint}
       accessory={accessory}
       dataControl={dataControl}
+      dataPresentationControl={dataPresentationControl}
       className={className}
     >
       <NumberUnit {...numberUnit} />
@@ -174,6 +182,7 @@ export function SelectField({
   hint,
   accessory,
   dataControl,
+  dataPresentationControl,
   className,
   value,
   onChange,
@@ -186,6 +195,7 @@ export function SelectField({
       hint={hint}
       accessory={accessory}
       dataControl={dataControl}
+      dataPresentationControl={dataPresentationControl}
       className={className}
     >
       <select
@@ -219,6 +229,7 @@ export function ColorField({
   hint,
   accessory,
   dataControl,
+  dataPresentationControl,
   className,
   children,
 }: ColorFieldProps) {
@@ -228,6 +239,7 @@ export function ColorField({
       hint={hint}
       accessory={accessory}
       dataControl={dataControl}
+      dataPresentationControl={dataPresentationControl}
       className={className}
     >
       {children}
