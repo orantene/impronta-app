@@ -2333,7 +2333,6 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
                its width. */
             .tulala-shell [data-tulala-brand],
             .tulala-shell [data-tulala-id-divider],
-            .tulala-shell [data-tulala-identity-name],
             .tulala-shell [data-tulala-id-slash] {
               display: none !important;
             }

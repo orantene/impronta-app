@@ -203,6 +203,8 @@ const ES_TEXT: Record<string, string> = {
   "Keyboard shortcuts": "Atajos de teclado",
   "Press ? anywhere": "Presiona ? en cualquier lugar",
   "Create your talent page": "Crear tu página de talento",
+  "Switch to talent": "Cambiar a talento",
+  "Go to your talent dashboard": "Ir a tu panel de talento",
   "Take bookings as a talent on this workspace": "Recibe reservas como talento en este espacio",
   "Switch between Talent and Workspace": "Cambiar entre Talento y Espacio",
   "Switch between your talent profile and your workspace": "Cambia entre tu perfil de talento y tu espacio",
