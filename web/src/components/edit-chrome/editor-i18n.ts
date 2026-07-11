@@ -462,6 +462,17 @@ const ES_TEXT: Record<string, string> = {
 
   // ── All-pages panel — AI create entry (W3-AI1) ───────────────────────────
   "Describe with AI": "Describir con IA",
+
+  // ── Mobile health — one-click Fix mobile issues (W3-M3) ──────────────────
+  "Fix mobile issues": "Corregir problemas de móvil",
+  "Fixing…": "Corrigiendo...",
+  "One click applies mobile-safe overrides.":
+    "Un clic aplica ajustes seguros para móvil.",
+  "Could not fix mobile issues. Please try again.":
+    "No se pudieron corregir los problemas de móvil. Inténtalo de nuevo.",
+  "Fixed {count} mobile issue": "Se corrigió {count} problema de móvil",
+  "Fixed {count} mobile issues": "Se corrigieron {count} problemas de móvil",
+  "No fixable mobile issues": "No hay problemas de móvil corregibles",
 };
 
 /** Substring-anchored template lookups (`{placeholder}` still needs a
