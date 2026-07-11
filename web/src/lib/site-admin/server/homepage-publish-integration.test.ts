@@ -44,16 +44,17 @@
  *            cleaned up in `after(...)`.
  *
  * ───────────────────────────────────────────────────────────────────────────
- * Testability finding (NOT a bug — reported to the lane, not fixed here):
- *   `restoreHomepageRevision` and `saveHomepageDraftComposition` call
- *   `requirePhase5Capability` on their FIRST line with no bypass and no
- *   `__hooks` DI seam (unlike `copyPublishedToDraft`), so they throw before any
- *   DB work and cannot be invoked in a node:test harness. `publishHomepage` is
- *   testable only because `bypassCapabilityCheck` exists. Restore's DB-level
- *   effect (a new appended revision under a version guard) is therefore covered
- *   through the Tier-2 revision-append + CAS invariants rather than a direct
- *   call. Adding a matching test seam to restore/save is a follow-up for the
- *   decomposition lanes.
+ * DI test seam (W5-A2 — was the F6 testability finding, now resolved):
+ *   `restoreHomepageRevision` now carries the SAME `__hooks` dependency-
+ *   injection seam `copyPublishedToDraft` has — an optional
+ *   `__hooks?: { requireCapability?; scheduleAudit? }` that defaults to the real
+ *   impls. Production call sites never pass it, so the capability check runs
+ *   exactly as before. DIRECT Tier-1 coverage of the real restore function over
+ *   a recording mock now lives in the sibling `homepage-restore-integration.
+ *   test.ts` (split out to keep both files under the 800-line max-lines cap);
+ *   the restore DB contract stays additionally covered by this file's Tier-2
+ *   revision-append + CAS invariants. `saveHomepageDraftComposition` is
+ *   untouched (this lane's direct coverage is restore-only).
  *
  * Run:
  *   TIER 1 only (no env):
