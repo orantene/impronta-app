@@ -92,7 +92,7 @@ const PLAYGROUND_TARGETS: ReadonlyArray<{
       slugSeed: "playground",
     },
     label: "Both",
-    blurb: "A design for both surfaces — preview against a talent or a workspace.",
+    blurb: "A design for both surfaces, preview against a talent or a workspace.",
   },
   // A7 follow-up — shell (header/footer) templates. Platform-authored; they
   // surface ONLY on the shell-surface gallery and apply to a tenant's
@@ -108,7 +108,7 @@ const PLAYGROUND_TARGETS: ReadonlyArray<{
       slugSeed: "shell-header",
     },
     label: "Shell header",
-    blurb: "A reusable site header — apply it to a tenant's shell.",
+    blurb: "A reusable site header, apply it to a tenant's shell.",
   },
   {
     spec: {
@@ -120,7 +120,7 @@ const PLAYGROUND_TARGETS: ReadonlyArray<{
       slugSeed: "shell-footer",
     },
     label: "Shell footer",
-    blurb: "A reusable site footer — apply it to a tenant's shell.",
+    blurb: "A reusable site footer, apply it to a tenant's shell.",
   },
 ];
 
@@ -293,7 +293,7 @@ export function PlaygroundView({
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <LabViewHeader
         title="Playground"
-        blurb="Your workbench — full-page drafts. Start one, author against real data, then publish it into the page-templates gallery."
+        blurb="Your workbench: full-page drafts. Start one, author against real data, then publish it into the page-templates gallery."
         actions={
           <div style={{ position: "relative" }}>
             <LabButton
@@ -328,7 +328,7 @@ export function PlaygroundView({
                   padding: 8,
                 }}
               >
-                <PlaygroundNewMenuGroup label="Page draft — pick a target">
+                <PlaygroundNewMenuGroup label="Page draft, pick a target">
                   {PLAYGROUND_TARGETS.filter((o) => !isShellKind(o.spec.kind)).map(
                     (opt) => (
                       <PlaygroundNewMenuItem
@@ -346,7 +346,7 @@ export function PlaygroundView({
                     distinction reads at a glance. */}
                 <PlaygroundNewMenuGroup
                   label="Shell"
-                  hint="Platform-scoped — applies to a tenant's header/footer."
+                  hint="Platform-scoped, applies to a tenant's header/footer."
                 >
                   {PLAYGROUND_TARGETS.filter((o) => isShellKind(o.spec.kind)).map(
                     (opt) => (
@@ -388,7 +388,7 @@ export function PlaygroundView({
       ) : visible.length === 0 ? (
         <EmptyCard>
           {statusFilter === "all"
-            ? "No drafts yet. Hit + New to start a full-page draft — it’s saved as you edit."
+            ? "No drafts yet. Hit + New to start a full-page draft. It’s saved as you edit."
             : `No ${statusFilter.replace("_", " ")} drafts.`}
         </EmptyCard>
       ) : (

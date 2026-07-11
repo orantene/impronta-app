@@ -132,7 +132,7 @@ export function PlaygroundDraftRow({
     async (version: number) => {
       if (
         !window.confirm(
-          `Restore v${version} onto this draft? The current draft content will be overwritten (not deleted — you can still roll back further).`,
+          `Restore v${version} onto this draft? The current draft content will be overwritten (not deleted, you can still roll back further).`,
         )
       )
         return;
@@ -330,7 +330,7 @@ export function PlaygroundDraftRow({
             padding: "7px 10px",
           }}
         >
-          Published as a starter (v{promote.version}) — now in the &ldquo;+&rdquo; → Page
+          Published as a starter (v{promote.version}), now in the &ldquo;+&rdquo; → Page
           Templates gallery.
         </div>
       ) : null}

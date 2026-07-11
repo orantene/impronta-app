@@ -451,7 +451,7 @@ export function CatalogGalleryView({
       )}
 
       <p style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5, margin: 0 }}>
-        Toggles control per-surface visibility (subtract-only — a component can&apos;t be forced onto a
+        Toggles control per-surface visibility (subtract-only: a component can&apos;t be forced onto a
         surface its <code>target_context</code> excludes; locked cells show that). Renames apply to both
         builders&apos; &quot;+&quot; gallery on next open. Built-in components can be hidden, renamed,
         re-iconed, or plan-gated here; changing their internal structure is a code change.

@@ -50,7 +50,7 @@ export function governanceChips(
     chips.push({
       kind: "locked",
       label: `🔒 ${lockedCount} locked`,
-      title: `${lockedCount} prop${lockedCount === 1 ? "" : "s"} locked — tenants can't edit these once inserted`,
+      title: `${lockedCount} prop${lockedCount === 1 ? "" : "s"} locked, tenants can't edit these once inserted`,
     });
   }
 

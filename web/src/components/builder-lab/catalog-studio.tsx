@@ -344,7 +344,7 @@ function TabNode({
               fontStyle: "italic",
             }}
           >
-            No categories yet — add one below to group this tab&apos;s components.
+            No categories yet. Add one below to group this tab&apos;s components.
           </div>
         ) : (
           cats.map((cat, catIdx) => (
@@ -617,7 +617,7 @@ function CategoryNode({
             fontStyle: "italic",
           }}
         >
-          {drop === "inside" ? "Drop to move here" : "Empty — drag a component here"}
+          {drop === "inside" ? "Drop to move here" : "Empty, drag a component here"}
         </div>
       )}
     </div>

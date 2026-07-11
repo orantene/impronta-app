@@ -180,7 +180,7 @@ export function ParityProbePanel() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220 }}>
             <label htmlFor="parity-tenant" style={labelStyle}>
-              Tenant id (optional — rollout bucketing)
+              Tenant id (optional, rollout bucketing)
             </label>
             <input
               id="parity-tenant"
@@ -243,7 +243,7 @@ function RolloutAdmissionSection() {
         blurb={
           <>
             Pick a template and enter a tenant id to see, per surface, whether a
-            staged rollout actually admits that tenant — and by which gate. Reuses
+            staged rollout actually admits that tenant, and by which gate. Reuses
             the same frozen rollout bucketing the live + gallery uses, so a 60%
             canary that reads &quot;published&quot; is shown for what it really is.
           </>
@@ -280,7 +280,7 @@ function RolloutAdmissionSection() {
             style={{ ...fieldStyle, minWidth: 260 }}
           >
             {!result || result.templates.length === 0 ? (
-              <option value="">— run to load templates —</option>
+              <option value="">(run to load templates)</option>
             ) : null}
             {result?.templates.map((t) => (
               <option key={t.id} value={t.id}>
@@ -316,7 +316,7 @@ function RolloutAdmissionResultBlock({ result }: { result: RolloutAdmissionResul
   if (!result.selectedId) {
     return (
       <EmptyCard>
-        {result.templates.length} template(s) loaded — pick one and re-evaluate.
+        {result.templates.length} template(s) loaded. Pick one and re-evaluate.
       </EmptyCard>
     );
   }
@@ -436,14 +436,14 @@ function ResultBlock({ result }: { result: ParityProbeResult }) {
         >
           Replay drift: {result.parityMismatch.length} probe-flagged row(s) still
           appear live ({result.parityMismatch.join(", ")}). The replayed predicates
-          disagree with the live engine — investigate before trusting the X4 migration.
+          disagree with the live engine, investigate before trusting the X4 migration.
         </div>
       ) : null}
 
       {/* Rows */}
       {result.hiddenRows.length === 0 ? (
         <EmptyCard>
-          Full parity — every Lab-visible row is also visible on this surface for
+          Full parity: every Lab-visible row is also visible on this surface for
           the chosen plan and tier.
         </EmptyCard>
       ) : (

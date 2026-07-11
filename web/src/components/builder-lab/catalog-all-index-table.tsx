@@ -186,7 +186,7 @@ export function CatalogAllIndexTable({
       style={{ display: "flex", flexDirection: "column", gap: 14 }}
     >
       <p style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5, margin: 0 }}>
-        Every governed object on one screen — built-in code components, published
+        Every governed object on one screen: built-in code components, published
         templates, and draft / in-review / archived templates that the gallery
         can&apos;t show. Use the facets to spot mis-gated or stuck-in-review items;
         click a row to open it in its tab.

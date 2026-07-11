@@ -164,7 +164,7 @@ export function BuilderLabStage({
       aria-modal="true"
       aria-label={
         subject
-          ? `Builder Lab — previewing ${subject.kind}: ${subject.label}`
+          ? `Builder Lab, previewing ${subject.kind}: ${subject.label}`
           : "Builder Lab editor"
       }
       tabIndex={-1}

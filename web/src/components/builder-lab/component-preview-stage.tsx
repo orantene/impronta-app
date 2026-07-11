@@ -120,7 +120,7 @@ export function buildCatalogItemPreview(row: {
           tree: [node],
           codeJson: JSON.stringify(node, null, 2),
           available: true,
-          note: "Dynamic Tulala component — it renders against live data in a real builder, so the canvas shows its placeholder here.",
+          note: "Dynamic Tulala component, it renders against live data in a real builder, so the canvas shows its placeholder here.",
         };
       }
       case "noop":
@@ -551,10 +551,10 @@ function PreviewHeaderActions({
           active={previewing}
           title={
             previewing
-              ? "Locked (read-only) — click to edit this preview"
-              : "Editable — click to lock (read-only)"
+              ? "Locked (read-only), click to edit this preview"
+              : "Editable, click to lock (read-only)"
           }
-          ariaLabel={previewing ? "Locked — read only" : "Unlocked — editable"}
+          ariaLabel={previewing ? "Locked, read only" : "Unlocked, editable"}
           onClick={() => setPreviewing(!previewing)}
         >
           <LockGlyph locked={previewing} />

@@ -400,7 +400,7 @@ export function SiteStarterKitView({
       if (imported) parts.push(`${imported} imported`);
       if (updated) parts.push(`${updated} refreshed`);
       flash(
-        `Built-in starters synced — ${parts.join(", ") || "no changes"}` +
+        `Built-in starters synced: ${parts.join(", ") || "no changes"}` +
           (errors.length ? ` · ${errors.length} error(s)` : ""),
       );
       if (errors.length) setError(errors.join(" · "));
