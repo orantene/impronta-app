@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { loadInquiryLineup, removeInquiryLineupParticipant, addInquiryLineupTalent, reorderInquiryLineup, saveOfferDraft, loadOfferDraft, createOfferAction, type InquiryParticipant, type OfferDraftSnapshot } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { canSendOffer } from "./offer-save-state";
+import { OfferSaveBanner } from "./offer-save-banner";
+import { useOfferSave } from "./use-offer-save";
 import { useAdminShell, FONTS, COLORS, RADIUS } from "../../state";
 import { Avatar } from "../../primitives";
 import { initialsOf } from "./inbox-identity-1";
@@ -55,7 +58,7 @@ export function LiveLineupPanel({
   };
   const [lineup, setLineup] = useState<InquiryParticipant[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pending, startTransition] = useTransition();
+  const [pending] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
   // Slice 1 (Messages consolidation): collapsed-by-default. The fat
@@ -415,8 +418,9 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
   const tRef = useRef(t);
   useEffect(() => { tRef.current = t; }, [t]);
   const [snapshot, setSnapshot] = useState<OfferDraftSnapshot | null>(null);
+  const snapshotRef = useRef<OfferDraftSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pending, startTransition] = useTransition();
+  const [pending] = useTransition();
   const [collapsed, setCollapsed] = useState(true);
   // Item #11 wiring: which talent_profile_ids on this inquiry are
   // ALSO coordinators? Drives the inline "+coord" badge in the offer
@@ -451,7 +455,16 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
     return () => { cancelled = true; };
   }, [inquiryId, effectiveTenant.slug]);
 
+  useEffect(() => { snapshotRef.current = snapshot; }, [snapshot]);
   useEffect(() => { reload(); }, [reload]);
+  // W0 — save orchestration (state machine + auth recovery + local snapshot)
+  // lives in useOfferSave so this file stays under the admin-shell line cap.
+  const { saveState, save, pending: savePending } = useOfferSave({
+    tenantSlug: effectiveTenant.slug,
+    offerId,
+    snapshotRef,
+    reload,
+  });
 
   if (!canEdit) return null;
   // C9 — loading skeleton (was a blank flash before).
@@ -517,34 +530,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
     setSnapshot((s) => s == null ? s : { ...s, lineItems: s.lineItems.filter((li) => li.id !== id) });
   };
 
-  const save = () => {
-    if (!snapshot) return;
-    startTransition(async () => {
-      const lineItems = snapshot.lineItems.map((li, idx) => ({
-        talent_profile_id: li.talentProfileId,
-        label: li.label,
-        pricing_unit: li.pricingUnit,
-        units: li.units,
-        unit_price: li.unitPrice,
-        total_price: li.totalPrice,
-        talent_cost: li.talentCost,
-        notes: li.notes,
-        sort_order: idx,
-        source_service_id: li.sourceServiceId,
-      }));
-      const r = await saveOfferDraft(effectiveTenant.slug, offerId, {
-        inquiryExpectedVersion: snapshot.inquiryVersion,
-        offerExpectedVersion: snapshot.offerVersion,
-        totalClientPrice: computedTotal,
-        coordinatorFee: snapshot.coordinatorFee,
-        currencyCode: snapshot.currencyCode,
-        notes: snapshot.notes,
-        lineItems,
-      });
-      if (!r.ok) toast(interpolate(t("dashboard.adminTabs.lineup.saveFailed"), { error: r.error }));
-      else { toast(t("dashboard.adminTabs.lineup.draftSaved")); reload(); }
-    });
-  };
+
 
   // Roster talent options for the per-line dropdown — only real UUIDs
   // (synthetic mock roster won't resolve at the DB).
@@ -581,6 +567,9 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
         <span style={{ flex: 1 }} />
         <button type="button" onClick={() => setCollapsed(true)} style={ghostBtn()}>{t("dashboard.adminTabs.lineup.collapse")}</button>
       </div>
+      {/* W0-1 — sticky save-state banner: quiet tick on success, persistent
+          danger banner (with human reason + Retry) while a save is failing. */}
+      <OfferSaveBanner state={saveState} onRetry={save} />
       <div className="flex flex-col gap-1.5">
         {snapshot.lineItems.map((li) => (
           <div key={li.id} style={{
@@ -700,8 +689,8 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
           onChange={(e) => setSnapshot((s) => s == null ? s : { ...s, coordinatorFee: parseFloat(e.target.value) || 0 })}
           style={{ width: 80, padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
         />
-        <button type="button" disabled={pending} onClick={save} style={primaryBtn(COLORS.accent)}>
-          {pending ? t("dashboard.adminTabs.lineup.saving") : t("dashboard.adminTabs.lineup.saveDraft")}
+        <button type="button" disabled={savePending} onClick={save} style={primaryBtn(COLORS.accent)}>
+          {savePending ? t("dashboard.adminTabs.lineup.saving") : t("dashboard.adminTabs.lineup.saveDraft")}
         </button>
       </div>
 
@@ -756,7 +745,7 @@ export function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
   const { toast, effectiveTenant } = useAdminShell();
   const t = useT();
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const [pending] = useTransition();
   return (
     <div className="mt-3">
       <button
