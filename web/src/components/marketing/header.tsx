@@ -9,6 +9,7 @@ import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
 import { MarketingCta } from "./cta-link";
 import { MarketingLanguageToggle } from "./marketing-language-toggle";
+import { DesktopSupport, SUPPORT_EMAIL } from "./marketing-support-menu";
 import {
   DesktopAccount,
   AccountAvatar,
@@ -192,6 +193,7 @@ export function MarketingHeader({
             pathnameWithoutLocale={pathnameWithoutLocale}
             className="mr-1"
           />
+          <DesktopSupport copy={copy.nav} />
           {account ? (
             <DesktopAccount
               account={account}
@@ -490,6 +492,27 @@ export function MarketingHeader({
                   </p>
                 </>
               )}
+
+              <div className="my-2 h-px" style={{ background: "var(--plt-hairline)" }} aria-hidden />
+              <p className="px-4 pb-1 text-[0.6875rem] font-medium uppercase tracking-wide" style={{ color: "var(--plt-muted)" }}>
+                {copy.nav.support}
+              </p>
+              <Link
+                href="/help"
+                className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                style={{ color: "var(--plt-ink)" }}
+              >
+                {copy.nav.helpCenter}
+                <ChevronGlyph />
+              </Link>
+              <a
+                href={`mailto:${SUPPORT_EMAIL}`}
+                className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                style={{ color: "var(--plt-ink)" }}
+              >
+                {copy.nav.contactSupport}
+                <ChevronGlyph />
+              </a>
             </div>
           </div>
         </div>

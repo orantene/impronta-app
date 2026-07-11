@@ -83,6 +83,9 @@ const en = {
     statusPending: "Pending",
     statusWindingDown: "Winding down",
     hiddenEverywhere: "Your profile is hidden everywhere",
+    support: "Support",
+    helpCenter: "Help center",
+    contactSupport: "Contact support",
   },
 
   hero: {
@@ -425,6 +428,9 @@ const es: MarketingCopy = {
     statusPending: "Pendiente",
     statusWindingDown: "Cerrando",
     hiddenEverywhere: "Tu perfil está oculto en todas partes",
+    support: "Soporte",
+    helpCenter: "Centro de ayuda",
+    contactSupport: "Contactar soporte",
   },
 
   hero: {
