@@ -83,6 +83,15 @@ function topLayers(page: Page) {
   return page.locator(TOP_LAYER);
 }
 
+/** The seeded page-level container's builder-node id, captured once in
+ *  beforeAll right after the self-heal pass confirms the tenant is back to
+ *  its clean baseline (see `initialTopCount`). Every later step anchors on
+ *  this id instead of a bare page-wide `.first()` query, so an inserted Hero
+ *  section (test 2) can never be confused for the seeded layer — regardless
+ *  of where it lands in the tree or what it's labelled. Empty until that
+ *  point in the boot sequence (see `headingLocator` / `strayTopLayers`). */
+let seededTopLayerId = "";
+
 /** Wait until the topbar reports the draft is safely saved (best-effort; a
  *  missing indicator falls through to a short settle so reloads still see the
  *  committed draft). */
@@ -100,13 +109,65 @@ function overlayEditable(page: Page) {
   return page.locator('[data-edit-overlay="canvas-edit"] [contenteditable]').first();
 }
 
-/** Open the inline text overlay on the seeded heading. Preferred path is a plain
- *  double-click (the user gesture W1-L3 is about); once other blocks are
- *  selected a bare dblclick can be swallowed by hover/selection chrome, so this
- *  retries and finally falls back to the block chip's Edit action. The COMMIT is
- *  always via blur below, whichever way the overlay opened. */
+/** Locates the SEEDED heading unambiguously. Once `seededTopLayerId` is known
+ *  (post self-heal, see beforeAll) this scopes the query to that container's
+ *  own subtree, so a Hero section inserted by test 2 — which carries its own
+ *  `<h1>` title node (sec-hero-centered renders its title at `level: 1`,
+ *  selection-layer's `render.tsx` maps that to an `h1` tag) — can never be
+ *  picked up by a page-wide query. Before the id is known (the very first
+ *  self-heal pass, recovering residue from a prior aborted run) this falls
+ *  back to a bare page-wide query, which stays safe because the ONLY section
+ *  template this spec ever inserts (Hero Centered) renders its title as an
+ *  `h1`, never colliding with the seeded `h2`. */
+function headingLocator(page: Page) {
+  const scope = seededTopLayerId
+    ? page.locator(`[data-builder-node-id="${seededTopLayerId}"]`)
+    : page;
+  return scope.locator('h2[data-builder-node-kind="heading"]').first();
+}
+
+/** Clears any current canvas selection. A stale selection from an earlier
+ *  step — e.g. the Hero section inserted in test 2 — floats its OWN chip
+ *  (including the W3-AI1 section revise-sparkle, `aria-label="Revise this
+ *  section with AI"`) at a fixed screen position; Escape drops it before we
+ *  try to land a click on the seeded heading, so nothing from a prior
+ *  selection can intercept or shift focus mid-gesture. */
+async function dismissCanvasSelection(page: Page) {
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForTimeout(200);
+}
+
+/** Open the inline text overlay on the seeded heading. Preferred path is a
+ *  plain double-click (the user gesture W1-L3 is about); once other blocks
+ *  have been selected (e.g. right after test 2 inserts + selects a Hero
+ *  section) a bare dblclick can be swallowed by hover/selection chrome or
+ *  lose the race to a chip that's still animating out, so this retries with
+ *  the selection explicitly cleared first, then falls back through two more
+ *  entry points before giving up with a clear failure message. The COMMIT is
+ *  always via blur below, whichever way the overlay opened.
+ *
+ *  Fallback tiers, in order:
+ *   1. Dismiss selection, plain double-click (x2).
+ *   2. Dismiss selection, select the block, click its premium chip's
+ *      BLOCK-scope Edit action — NEVER the section-scope revise-sparkle
+ *      (`data-selection-chip-scope="block"` excludes it by construction).
+ *      NOTE: a heading is a CanvasTextToolbar kind (isCanvasTextToolbarKind in
+ *      canvas-text-toolbar.tsx), so selection-layer.tsx's premium chip
+ *      (`!selectedNodeUsesCanvasTextToolbar` gate) never actually mounts for
+ *      it today — this tier is a no-op for headings specifically, but is
+ *      kept (and scoped correctly) as a harmless, correctly-targeted attempt
+ *      in case that gating ever changes or another node kind reuses this
+ *      helper.
+ *   3. Dismiss selection, right-click the heading to open the universal
+ *      selection context menu (`data-selection-context-menu`), then click its
+ *      "Edit content" item. This item is rendered unconditionally for any
+ *      unlocked node (selection-layer.tsx's `SelectionContextMenu`) and calls
+ *      `requestInlineEdit`, which dispatches the same dblclick
+ *      programmatically — so it is the one entry point guaranteed to exist
+ *      regardless of node kind, and (since selection was just cleared) it
+ *      can't be mistargeted at a leftover section's revise-sparkle either. */
 async function openHeadingOverlay(page: Page) {
-  const heading = page.locator('h2[data-builder-node-kind="heading"]').first();
+  const heading = headingLocator(page);
   await heading.scrollIntoViewIfNeeded();
   const isOpen = () =>
     overlayEditable(page)
@@ -115,17 +176,51 @@ async function openHeadingOverlay(page: Page) {
       .catch(() => false);
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    await dismissCanvasSelection(page);
     await heading.dblclick();
-    if (await isOpen()) return;
+    if (await isOpen()) break;
     await page.waitForTimeout(500);
   }
-  // Fallback: select the block, then its inline Edit action.
-  await heading.click({ position: { x: 6, y: 6 } });
-  const editAction = page
-    .locator('[data-selection-chip][data-selection-chip-scope="block"] [data-selection-block-action="edit"]')
-    .first();
-  if (await editAction.count()) await editAction.click();
-  await expect(overlayEditable(page)).toBeVisible({ timeout: 20_000 });
+
+  if (!(await isOpen())) {
+    // Tier 2: block-scope chip Edit action (correctly scoped — see doc above).
+    await dismissCanvasSelection(page);
+    await heading.click();
+    const editAction = page
+      .locator(
+        '[data-selection-chip][data-selection-chip-scope="block"] [data-selection-block-action="edit"]',
+      )
+      .first();
+    if (await editAction.count()) await editAction.click();
+  }
+
+  if (!(await isOpen())) {
+    // Tier 3: the universal right-click "Edit content" context-menu action.
+    await dismissCanvasSelection(page);
+    await heading.click({ button: "right" });
+    const menu = page.locator("[data-selection-context-menu]");
+    await expect(
+      menu,
+      "openHeadingOverlay fallback: right-click did not open the selection context menu on the seeded heading",
+    ).toBeVisible({ timeout: 10_000 });
+    const editContent = menu.getByRole("menuitem", { name: "Edit content" });
+    await expect(editContent).toBeVisible({ timeout: 5_000 });
+    await editContent.click();
+  }
+
+  const editable = overlayEditable(page);
+  await expect(
+    editable,
+    "seeded heading's inline-edit overlay never opened (dblclick + both chip fallbacks failed)",
+  ).toBeVisible({ timeout: 20_000 });
+  // Confirm it's really ready to receive typed input before any caller types
+  // into it — a visible-but-unfocused overlay would silently eat the
+  // ControlOrMeta+a / type() that follows.
+  await editable.click();
+  await expect(
+    editable,
+    "seeded heading's inline-edit overlay opened but never took focus",
+  ).toBeFocused({ timeout: 5_000 });
 }
 
 /** Replace the seeded heading's text and commit via blur (click-away). */
@@ -145,10 +240,7 @@ async function setHeadingText(page: Page, value: string) {
 }
 
 async function headingText(page: Page): Promise<string> {
-  return (
-    (await page.locator('h2[data-builder-node-kind="heading"]').first().textContent()) ??
-    ""
-  ).trim();
+  return ((await headingLocator(page).textContent()) ?? "").trim();
 }
 
 /** Delete a single layer row via its inline X. The row must be selected first so
@@ -162,14 +254,30 @@ async function deleteLayerRow(page: Page, row = topLayers(page).filter({ hasText
   await page.waitForTimeout(2_000);
 }
 
-/** Idempotently strip every inserted/orphaned top-level layer (hero + any
- *  unwrapped Stack/Row/Carousel/... children) so the QA tenant draft ends the
- *  run in its original single seeded-section state. Safe on a clean seed: the
- *  seeded container is labelled by its heading text and never matches. */
+/** Every top-level layer that is NOT the seeded one. Once `seededTopLayerId`
+ *  is known (post self-heal — see beforeAll) this compares ids directly, so
+ *  it strips ANY residual inserted section regardless of its label — not
+ *  just the Stack/Row/Carousel/... signature a broken delete would leave
+ *  (W1-L1) — making destructive-test cleanup tolerant of whatever a future
+ *  gallery recipe happens to call itself. Before the id is known (the very
+ *  first self-heal pass in beforeAll, recovering residue from a prior
+ *  aborted run) this falls back to the label heuristic, since at that point
+ *  there is no anchor yet to tell seeded from stray. */
+function strayTopLayers(page: Page) {
+  if (seededTopLayerId) {
+    return page.locator(
+      `${TOP_LAYER}:not([data-builder-node-id="${seededTopLayerId}"])`,
+    );
+  }
+  return topLayers(page).filter({ hasText: ORPHAN_LABEL });
+}
+
+/** Idempotently strip every inserted/orphaned top-level layer so the QA
+ *  tenant draft ends the run in its original single seeded-section state. */
 async function stripStrayLayers(page: Page) {
   await openStructurePanel(page);
   for (let i = 0; i < 12; i += 1) {
-    const stray = topLayers(page).filter({ hasText: ORPHAN_LABEL }).first();
+    const stray = strayTopLayers(page).first();
     if ((await stray.count()) === 0) break;
     await deleteLayerRow(page, stray);
   }
@@ -213,6 +321,15 @@ test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish
     await stripStrayLayers(page);
     await openStructurePanel(page);
     initialTopCount = await topLayers(page).count();
+    // Anchor every later step on the seeded layer's own id (see
+    // `headingLocator` / `strayTopLayers`) rather than DOM-order `.first()`,
+    // so an inserted Hero section can never be confused for it.
+    seededTopLayerId =
+      (await topLayers(page).first().getAttribute("data-builder-node-id")) ?? "";
+    expect(
+      seededTopLayerId,
+      "seeded top-level layer must expose a data-builder-node-id",
+    ).not.toBe("");
   });
 
   test.afterAll(async () => {
