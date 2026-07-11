@@ -295,11 +295,12 @@ export function MarketingHeader({
               </div>
               {account ? (
                 <>
-                  <div
+                  <a
+                    href={account.accountHref}
                     className="flex items-center gap-3 rounded-2xl px-4 py-3"
                     style={{ background: "var(--plt-bg-raised)" }}
                   >
-                    <AccountAvatar name={account.displayName} size="lg" />
+                    <AccountAvatar size="lg" />
                     <div className="min-w-0">
                       <p
                         className="truncate text-[0.9375rem] font-semibold"
@@ -314,26 +315,96 @@ export function MarketingHeader({
                         {account.email}
                       </p>
                     </div>
-                  </div>
+                  </a>
+
                   {account.workspaces.length > 0 ? (
-                    account.workspaces.map((w) => (
-                      <a
-                        key={`${w.slug}:${w.role}`}
-                        href={w.href}
-                        className="flex items-center justify-between gap-3 rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                        style={{ color: "var(--plt-ink)" }}
-                      >
-                        <span className="min-w-0 flex-1 truncate">{w.name}</span>
-                        <span
-                          className="shrink-0 text-[0.75rem] font-medium uppercase tracking-wide"
-                          style={{ color: "var(--plt-muted)" }}
+                    <>
+                      {account.isTalent ? (
+                        <p className="px-4 pt-3 pb-1 text-[0.6875rem] font-medium uppercase tracking-wide" style={{ color: "var(--plt-muted)" }}>
+                          {copy.nav.workspaces}
+                        </p>
+                      ) : null}
+                      {account.workspaces.map((w) => (
+                        <a
+                          key={`${w.slug}:${w.role}`}
+                          href={w.href}
+                          className="flex items-center justify-between gap-3 rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                          style={{ color: "var(--plt-ink)" }}
                         >
-                          {w.role}
-                        </span>
-                        <ChevronGlyph />
-                      </a>
-                    ))
-                  ) : (
+                          <span className="min-w-0 flex-1 truncate">{w.name}</span>
+                          <span className="shrink-0 text-[0.75rem] font-medium uppercase tracking-wide" style={{ color: "var(--plt-muted)" }}>
+                            {w.role}
+                          </span>
+                          <ChevronGlyph />
+                        </a>
+                      ))}
+                    </>
+                  ) : null}
+
+                  {account.isTalent ? (
+                    <>
+                      {account.workspaces.length > 0 ? (
+                        <p className="px-4 pt-3 pb-1 text-[0.6875rem] font-medium uppercase tracking-wide" style={{ color: "var(--plt-muted)" }}>
+                          {copy.nav.myPages}
+                        </p>
+                      ) : null}
+                      {account.globalHidden ? (
+                        <p className="px-4 py-2 text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
+                          {copy.nav.hiddenEverywhere}
+                        </p>
+                      ) : null}
+                      {account.talentPages.map((p) => (
+                        <a
+                          key={p.key}
+                          href={p.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between gap-3 rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                          style={{ color: "var(--plt-ink)" }}
+                        >
+                          <span className="min-w-0 flex-1 truncate">
+                            {p.kind === "self_page" ? copy.nav.yourTulalaPage : p.name}
+                          </span>
+                          {p.planBadge ? (
+                            <span className="shrink-0 text-[0.6875rem] font-semibold uppercase tracking-wide" style={{ color: "var(--plt-forest)" }}>
+                              {p.planBadge}
+                            </span>
+                          ) : null}
+                          <span className="shrink-0 text-[0.75rem] font-medium" style={{ color: p.status === "live" ? "#3f9b6b" : "var(--plt-muted)" }}>
+                            {p.status === "live"
+                              ? copy.nav.statusLive
+                              : p.status === "hidden"
+                                ? copy.nav.statusHidden
+                                : p.status === "pending"
+                                  ? copy.nav.statusPending
+                                  : copy.nav.statusWindingDown}
+                          </span>
+                        </a>
+                      ))}
+                      {account.talentLinks ? (
+                        <>
+                          {[
+                            { href: account.talentLinks.dashboard, label: copy.nav.talentDashboard },
+                            { href: account.talentLinks.editProfile, label: copy.nav.editProfile },
+                            { href: account.talentLinks.bookings, label: copy.nav.bookings },
+                            { href: account.talentLinks.messages, label: copy.nav.messages },
+                          ].map((l) => (
+                            <a
+                              key={l.href}
+                              href={l.href}
+                              className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                              style={{ color: "var(--plt-ink)" }}
+                            >
+                              {l.label}
+                              <ChevronGlyph />
+                            </a>
+                          ))}
+                        </>
+                      ) : null}
+                    </>
+                  ) : null}
+
+                  {account.workspaces.length === 0 && !account.isTalent ? (
                     <a
                       href={account.dashboardHref}
                       className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
@@ -342,13 +413,14 @@ export function MarketingHeader({
                       {copy.nav.dashboard}
                       <ChevronGlyph />
                     </a>
-                  )}
+                  ) : null}
+
                   <Link
                     href="/get-started"
                     className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
                     style={{ color: "var(--plt-ink-soft)" }}
                   >
-                    {copy.nav.newWorkspace}
+                    {account.isTalent && account.workspaces.length === 0 ? copy.nav.openWorkspace : copy.nav.newWorkspace}
                     <ChevronGlyph />
                   </Link>
                   {signOutAction ? (

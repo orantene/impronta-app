@@ -28,7 +28,7 @@ import { MarketingHeader } from "@/components/marketing/header";
 import { MarketingFooter } from "@/components/marketing/footer";
 import type { MarketingAccount } from "@/components/marketing/marketing-account-menu";
 import { resolveAccountHref, getAppUrl } from "@/lib/auth-flow";
-import { loadMarketingWorkspaceLinks } from "@/lib/identity/marketing-workspaces";
+import { loadAccountMenuModel } from "@/lib/identity/account-menu-model";
 import { signOut } from "@/app/auth/actions";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
@@ -2019,20 +2019,32 @@ export default async function PublicTalentProfilePage({
     if (actor.user) {
       const link = resolveAccountHref(true, actor.profile);
       const appUrl = getAppUrl();
-      const workspaces = actor.supabase
-        ? await loadMarketingWorkspaceLinks(actor.supabase, actor.user.id, appUrl)
-        : [];
-      marketingAccount = {
-        displayName:
-          actor.profile?.display_name?.trim() ||
-          actor.user.email?.split("@")[0] ||
-          "Account",
-        email: actor.user.email ?? "",
-        dashboardHref: link.href.startsWith("http")
-          ? link.href
-          : `${appUrl}${link.href}`,
-        workspaces,
-      };
+      const displayName =
+        actor.profile?.display_name?.trim() ||
+        actor.user.email?.split("@")[0] ||
+        "Account";
+      const email = actor.user.email ?? "";
+      const fallbackDashboardHref = link.href.startsWith("http")
+        ? link.href
+        : `${appUrl}${link.href}`;
+      marketingAccount = actor.supabase
+        ? await loadAccountMenuModel(actor.supabase, actor.user.id, {
+            appUrl,
+            displayName,
+            email,
+            fallbackDashboardHref,
+          })
+        : {
+            displayName,
+            email,
+            dashboardHref: fallbackDashboardHref,
+            accountHref: fallbackDashboardHref,
+            workspaces: [],
+            talentPages: [],
+            isTalent: false,
+            globalHidden: false,
+            talentLinks: null,
+          };
     }
   }
 
