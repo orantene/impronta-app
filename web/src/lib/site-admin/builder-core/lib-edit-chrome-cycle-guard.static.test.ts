@@ -116,7 +116,7 @@ const ALLOW_LIST: Record<string, string[]> = {
     "@/components/edit-chrome/inspectors/kit",
   ],
 
-  // ── section Editors: RICH EDITOR (relocated to builder-kit in W4-F4) ───────
+  // ── section Editors: RICH EDITOR (leaf-move backlog) ──────────────────────
   "sections/category_grid/Editor.tsx": ["@/components/edit-chrome/rich-editor"],
   "sections/cta_banner/Editor.tsx": ["@/components/edit-chrome/rich-editor"],
   "sections/featured_talent/Editor.tsx": ["@/components/edit-chrome/rich-editor"],
