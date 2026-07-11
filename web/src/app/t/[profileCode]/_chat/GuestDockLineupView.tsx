@@ -26,8 +26,11 @@
  */
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import { Heart } from "lucide-react";
+
+import { clientLocaleHref } from "@/i18n/client-directory-href";
 
 import type { DirectoryTalentMini } from "@/app/api/directory/talents-by-ids/route";
 import type { Translator } from "@/i18n/interpolate";
@@ -209,10 +212,22 @@ export function GuestDockLineupView({
   const favoritesKey = [...favoriteIds].join(",");
   const [savedTiles, setSavedTiles] = useState<SavedTile[]>([]);
   const [savedLoading, setSavedLoading] = useState(false);
+  // id → profileCode for BOTH shelves (names link to the talent's page).
+  const [codeById, setCodeById] = useState<Record<string, string>>({});
+  const pathname = usePathname();
+  const profileHref = (id: string): string | null => {
+    const code = codeById[id];
+    return code ? clientLocaleHref(pathname ?? "/", `/t/${encodeURIComponent(code)}`) : null;
+  };
 
+  const cartKey = cartTalents.map((c) => c.talentProfileId).join(",");
   useEffect(() => {
-    if (favoritesKey.length === 0) {
+    const ids = Array.from(
+      new Set([...favoritesKey.split(","), ...cartKey.split(",")].filter(Boolean)),
+    );
+    if (ids.length === 0) {
       setSavedTiles([]);
+      setCodeById({});
       return;
     }
     let cancelled = false;
@@ -221,19 +236,28 @@ export function GuestDockLineupView({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
-      body: JSON.stringify({ ids: favoritesKey.split(",") }),
+      body: JSON.stringify({ ids }),
     })
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((data: { talents: DirectoryTalentMini[] }) => {
         if (cancelled) return;
+        const minis = data.talents ?? [];
+        const codes: Record<string, string> = {};
+        for (const mini of minis) {
+          if (mini.profileCode) codes[mini.id] = mini.profileCode;
+        }
+        setCodeById(codes);
+        const favoriteSet = new Set(favoritesKey.split(",").filter(Boolean));
         setSavedTiles(
-          (data.talents ?? []).map((mini) => ({
-            id: mini.id,
-            name: mini.displayName,
-            profileCode: mini.profileCode,
-            photoUrl: mini.photoUrl,
-            meta: mini.primaryTypeLabel,
-          })),
+          minis
+            .filter((mini) => favoriteSet.has(mini.id))
+            .map((mini) => ({
+              id: mini.id,
+              name: mini.displayName,
+              profileCode: mini.profileCode,
+              photoUrl: mini.photoUrl,
+              meta: mini.primaryTypeLabel,
+            })),
         );
       })
       .catch(() => {
@@ -245,7 +269,7 @@ export function GuestDockLineupView({
     return () => {
       cancelled = true;
     };
-  }, [favoritesKey]);
+  }, [favoritesKey, cartKey]);
 
   // The favorites-modal bridge, per tile: ADD the saved talent to the inquiry
   // lineup (saved_talent) via the canonical cart facade. The favorite itself is
@@ -332,7 +356,16 @@ export function GuestDockLineupView({
           {cartTalents.map((talent) => (
             <li key={talent.talentProfileId} style={rowStyle}>
               <FaceTile photoUrl={talent.portraitUrl} name={talent.displayName} C={C} />
-              <span style={{ ...nameStyle, flex: 1, minWidth: 0 }}>{talent.displayName}</span>
+              {profileHref(talent.talentProfileId) ? (
+                <a
+                  href={profileHref(talent.talentProfileId) ?? "#"}
+                  style={{ ...nameStyle, flex: 1, minWidth: 0, textDecoration: "none" }}
+                >
+                  {talent.displayName}
+                </a>
+              ) : (
+                <span style={{ ...nameStyle, flex: 1, minWidth: 0 }}>{talent.displayName}</span>
+              )}
               {onRemoveCartTalent && (
                 <button
                   type="button"
@@ -431,7 +464,19 @@ export function GuestDockLineupView({
               >
                 <FaceTile photoUrl={tile.photoUrl} name={tile.name} C={C} />
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ ...nameStyle, display: "block" }}>{tile.name}</span>
+                  {tile.profileCode ? (
+                    <a
+                      href={clientLocaleHref(
+                        pathname ?? "/",
+                        `/t/${encodeURIComponent(tile.profileCode)}`,
+                      )}
+                      style={{ ...nameStyle, display: "block", textDecoration: "none" }}
+                    >
+                      {tile.name}
+                    </a>
+                  ) : (
+                    <span style={{ ...nameStyle, display: "block" }}>{tile.name}</span>
+                  )}
                   {tile.meta && (
                     <span
                       style={{
