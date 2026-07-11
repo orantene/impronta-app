@@ -133,7 +133,7 @@ Rules:
 - event_type: a short label for the occasion ("wedding", "corporate gala", "brand shoot"), else "".
 - headcount: integer count of TALENT/performers the client wants to book. Event attendance ("80 guests", "200 attendees") is NOT headcount — leave 0 unless a talent count is stated.
 - service_hints: short role/service phrases requested ("photographer", "DJ", "host"); [] if none.
-- budget_amount: numeric budget if stated; 0 if not. budget_currency: ISO 4217 (USD, EUR, MXN, GBP) if the currency or symbol is clear, else "".
+- budget_amount: numeric budget if stated; 0 if not. IMPORTANT: a line beginning "Requesting:" names a SERVICE and its listed price (machine-generated) — the price of a requested service is NEVER the client budget. Only capture budget when the client explicitly says what they want to spend ("budget is", "around $X total", "up to $X"). budget_currency: ISO 4217 (USD, EUR, MXN, GBP) if the currency or symbol is clear, else "".
 - When unsure, prefer the empty/zero value over a guess.`;
 
 function extractJsonPayload(content: string): string {

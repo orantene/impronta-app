@@ -130,6 +130,8 @@
     "guestChat": {
       "noMessagesYet": "Aucun message pour l'instant. Envoyez le premier ci-dessous et l'équipe répondra par e-mail.",
       "replyPlaceholder": "Écrire une réponse…",
+      "systemClusterMore": "{count} mises à jour de plus",
+      "systemClusterCollapse": "Masquer",
       "messageRemoved": "Message supprimé",
       "openFullToView": "Ouvrez la conversation complète pour voir cette mise à jour.",
       "notSent": "Non envoyé. Restauré dans la zone de saisie.",

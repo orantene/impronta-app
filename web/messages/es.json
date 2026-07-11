@@ -687,6 +687,8 @@
     "guestChat": {
       "noMessagesYet": "Aún no hay mensajes. Envía el primero abajo y el equipo te responderá por correo.",
       "replyPlaceholder": "Escribe una respuesta…",
+      "systemClusterMore": "{count} actualizaciones más",
+      "systemClusterCollapse": "Ocultar",
       "messageRemoved": "Mensaje eliminado",
       "openFullToView": "Abre la conversación completa para ver esta actualización.",
       "notSent": "No enviado. Se restauró al cuadro.",
