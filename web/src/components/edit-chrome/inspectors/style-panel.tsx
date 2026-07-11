@@ -85,6 +85,8 @@ import {
   LockBadge,
   LockedFieldsBanner,
   styleLockedPathsOf,
+  SegmentedField,
+  NumberField,
 } from "./kit";
 import {
   INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL,
@@ -4667,26 +4669,18 @@ export function StylePanel({
                   )}
                 </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <span className={FIELD_LABEL}>Visibility</span>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={(selectedNodeViewportPresentation?.visibility as string | undefined) ?? ""}
-                  onChange={(next) => setOrToggleNode("visibility", next)}
-                  options={VISIBILITY_OPTIONS}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <span className={FIELD_LABEL}>Align</span>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={(selectedNodeViewportPresentation?.align as string | undefined) ?? ""}
-                  onChange={(next) => setOrToggleNode("align", next)}
-                  options={ALIGN_OPTIONS}
-                />
-              </div>
+              <SegmentedField
+                label="Visibility"
+                value={(selectedNodeViewportPresentation?.visibility as string | undefined) ?? ""}
+                onChange={(next) => setOrToggleNode("visibility", next)}
+                options={VISIBILITY_OPTIONS}
+              />
+              <SegmentedField
+                label="Align"
+                value={(selectedNodeViewportPresentation?.align as string | undefined) ?? ""}
+                onChange={(next) => setOrToggleNode("align", next)}
+                options={ALIGN_OPTIONS}
+              />
               {!selectedNodeIsButton ? (
                 <div className="flex flex-col gap-1.5">
                   <span className={FIELD_LABEL}>Max width (px)</span>
@@ -4713,52 +4707,42 @@ export function StylePanel({
                 </div>
               ) : null}
               <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1.5">
-                  <span className={FIELD_LABEL}>Margin top (px)</span>
-                  <NumberUnit
-                    units={["px"]}
-                    defaultUnit="px"
-                    min={0}
-                    max={240}
-                    placeholder="Default"
-                    value={pxLength(selectedNodeViewportPresentation?.marginTopPx)}
-                    onChange={(next) =>
-                      patchSelectedNodePresentation({
-                        marginTopPx: next ? Math.round(next.value) : undefined,
-                      })
-                    }
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className={FIELD_LABEL}>Margin bottom (px)</span>
-                  <NumberUnit
-                    units={["px"]}
-                    defaultUnit="px"
-                    min={0}
-                    max={240}
-                    placeholder="Default"
-                    value={pxLength(selectedNodeViewportPresentation?.marginBottomPx)}
-                    onChange={(next) =>
-                      patchSelectedNodePresentation({
-                        marginBottomPx: next ? Math.round(next.value) : undefined,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <span className={FIELD_LABEL}>Quick spacing</span>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={selectedSpacingPreset ?? ""}
-                  onChange={(next) => applySpacingPreset(next as SpacingPreset)}
-                  options={SPACING_PRESET_OPTIONS}
+                <NumberField
+                  label="Margin top (px)"
+                  units={["px"]}
+                  defaultUnit="px"
+                  min={0}
+                  max={240}
+                  placeholder="Default"
+                  value={pxLength(selectedNodeViewportPresentation?.marginTopPx)}
+                  onChange={(next) =>
+                    patchSelectedNodePresentation({
+                      marginTopPx: next ? Math.round(next.value) : undefined,
+                    })
+                  }
                 />
-                <span className={INHERIT_HINT}>
-                  Fast-start spacing preset for this viewport.
-                </span>
+                <NumberField
+                  label="Margin bottom (px)"
+                  units={["px"]}
+                  defaultUnit="px"
+                  min={0}
+                  max={240}
+                  placeholder="Default"
+                  value={pxLength(selectedNodeViewportPresentation?.marginBottomPx)}
+                  onChange={(next) =>
+                    patchSelectedNodePresentation({
+                      marginBottomPx: next ? Math.round(next.value) : undefined,
+                    })
+                  }
+                />
               </div>
+              <SegmentedField
+                label="Quick spacing"
+                value={selectedSpacingPreset ?? ""}
+                onChange={(next) => applySpacingPreset(next as SpacingPreset)}
+                options={SPACING_PRESET_OPTIONS}
+                hint="Fast-start spacing preset for this viewport."
+              />
               <div className="flex flex-col gap-1.5">
                 <span className={FIELD_LABEL}>Margin horizontal</span>
                 <Segmented
@@ -4823,38 +4807,34 @@ export function StylePanel({
               </div>
               <div className="flex flex-col gap-2.5">
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1.5">
-                    <span className={FIELD_LABEL}>Pad top (px)</span>
-                    <NumberUnit
-                      units={["px"]}
-                      defaultUnit="px"
-                      min={0}
-                      max={160}
-                      placeholder="Default"
-                      value={pxLength(selectedNodeViewportPresentation?.paddingTopPx)}
-                      onChange={(next) =>
-                        patchSelectedNodePresentation({
-                          paddingTopPx: next ? Math.round(next.value) : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <span className={FIELD_LABEL}>Pad bottom (px)</span>
-                    <NumberUnit
-                      units={["px"]}
-                      defaultUnit="px"
-                      min={0}
-                      max={160}
-                      placeholder="Default"
-                      value={pxLength(selectedNodeViewportPresentation?.paddingBottomPx)}
-                      onChange={(next) =>
-                        patchSelectedNodePresentation({
-                          paddingBottomPx: next ? Math.round(next.value) : undefined,
-                        })
-                      }
-                    />
-                  </div>
+                  <NumberField
+                    label="Pad top (px)"
+                    units={["px"]}
+                    defaultUnit="px"
+                    min={0}
+                    max={160}
+                    placeholder="Default"
+                    value={pxLength(selectedNodeViewportPresentation?.paddingTopPx)}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        paddingTopPx: next ? Math.round(next.value) : undefined,
+                      })
+                    }
+                  />
+                  <NumberField
+                    label="Pad bottom (px)"
+                    units={["px"]}
+                    defaultUnit="px"
+                    min={0}
+                    max={160}
+                    placeholder="Default"
+                    value={pxLength(selectedNodeViewportPresentation?.paddingBottomPx)}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        paddingBottomPx: next ? Math.round(next.value) : undefined,
+                      })
+                    }
+                  />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <span className={FIELD_LABEL}>Padding horizontal</span>
@@ -4969,27 +4949,19 @@ export function StylePanel({
                   />
                 </div>
               </details>
-              <div className="flex flex-col gap-1.5">
-                <span className={FIELD_LABEL}>Size</span>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={(selectedNodeViewportPresentation?.size as string | undefined) ?? ""}
-                  onChange={(next) => setOrToggleNode("size", next)}
-                  options={SIZE_OPTIONS}
-                />
-              </div>
+              <SegmentedField
+                label="Size"
+                value={(selectedNodeViewportPresentation?.size as string | undefined) ?? ""}
+                onChange={(next) => setOrToggleNode("size", next)}
+                options={SIZE_OPTIONS}
+              />
               {!selectedNodeIsButton ? (
-                <div className="flex flex-col gap-1.5">
-                  <span className={FIELD_LABEL}>Tone</span>
-                  <Segmented
-                    fullWidth
-                    compact
-                    value={(selectedNodeViewportPresentation?.tone as string | undefined) ?? ""}
-                    onChange={(next) => setOrToggleNode("tone", next)}
-                    options={TONE_OPTIONS}
-                  />
-                </div>
+                <SegmentedField
+                  label="Tone"
+                  value={(selectedNodeViewportPresentation?.tone as string | undefined) ?? ""}
+                  onChange={(next) => setOrToggleNode("tone", next)}
+                  options={TONE_OPTIONS}
+                />
               ) : null}
 
               <div
@@ -5674,79 +5646,64 @@ export function StylePanel({
                 <StyleGroupOverrideDot label="Typography has tablet/mobile overrides" />
               </div>
             ) : null}
-            <div className="flex flex-col gap-1.5" data-builder-node-style-control="align">
-              <div className="flex items-center justify-between gap-2">
-                <span className={FIELD_LABEL}>Align</span>
-                {getStyleOverrideDevice(selectedStandaloneFullStyle, "align") ? (
-                  <InspectorOverrideBadge
-                    device={getStyleOverrideDevice(selectedStandaloneFullStyle, "align")!}
-                    onReset={
-                      selectedViewport !== "desktop"
-                        ? () => patchSelectedStandaloneStyle({ align: undefined })
-                        : undefined
-                    }
-                  />
-                ) : null}
-              </div>
-              <Segmented
-                fullWidth
-                compact
-                value={selectedStandaloneViewportStyle?.align ?? ""}
-                onChange={(next) => setOrToggleStandaloneStyle("align", next)}
-                options={ALIGN_OPTIONS}
-              />
-            </div>
+            <SegmentedField
+              dataControl="align"
+              label="Align"
+              accessory={getStyleOverrideDevice(selectedStandaloneFullStyle, "align") ? (
+                <InspectorOverrideBadge
+                  device={getStyleOverrideDevice(selectedStandaloneFullStyle, "align")!}
+                  onReset={
+                    selectedViewport !== "desktop"
+                      ? () => patchSelectedStandaloneStyle({ align: undefined })
+                      : undefined
+                  }
+                />
+              ) : null}
+              value={selectedStandaloneViewportStyle?.align ?? ""}
+              onChange={(next) => setOrToggleStandaloneStyle("align", next)}
+              options={ALIGN_OPTIONS}
+            />
 
             {["heading", "paragraph", "button"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
-              <div className="flex flex-col gap-1.5" data-builder-node-style-control="size">
-                <div className="flex items-center justify-between gap-2">
-                  <span className={FIELD_LABEL}>Size</span>
-                  {getStyleOverrideDevice(selectedStandaloneFullStyle, "size") ? (
-                    <InspectorOverrideBadge
-                      device={getStyleOverrideDevice(selectedStandaloneFullStyle, "size")!}
-                      onReset={
-                        selectedViewport !== "desktop"
-                          ? () => patchSelectedStandaloneStyle({ size: undefined })
-                          : undefined
-                      }
-                    />
-                  ) : null}
-                </div>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={selectedStandaloneViewportStyle?.size ?? ""}
-                  onChange={(next) => setOrToggleStandaloneStyle("size", next)}
-                  options={BUILDER_NODE_STYLE_SIZE_OPTIONS}
-                />
-              </div>
+              <SegmentedField
+                dataControl="size"
+                label="Size"
+                accessory={getStyleOverrideDevice(selectedStandaloneFullStyle, "size") ? (
+                  <InspectorOverrideBadge
+                    device={getStyleOverrideDevice(selectedStandaloneFullStyle, "size")!}
+                    onReset={
+                      selectedViewport !== "desktop"
+                        ? () => patchSelectedStandaloneStyle({ size: undefined })
+                        : undefined
+                    }
+                  />
+                ) : null}
+                value={selectedStandaloneViewportStyle?.size ?? ""}
+                onChange={(next) => setOrToggleStandaloneStyle("size", next)}
+                options={BUILDER_NODE_STYLE_SIZE_OPTIONS}
+              />
             ) : null}
 
             {["heading", "paragraph"].includes(selectedStandaloneStyleNode.kind) ? (
-              <div className="flex flex-col gap-1.5" data-builder-node-style-control="tone">
-                <div className="flex items-center justify-between gap-2">
-                  <span className={FIELD_LABEL}>Tone</span>
-                  {getStyleOverrideDevice(selectedStandaloneFullStyle, "tone") ? (
-                    <InspectorOverrideBadge
-                      device={getStyleOverrideDevice(selectedStandaloneFullStyle, "tone")!}
-                      onReset={
-                        selectedViewport !== "desktop"
-                          ? () => patchSelectedStandaloneStyle({ tone: undefined })
-                          : undefined
-                      }
-                    />
-                  ) : null}
-                </div>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={selectedStandaloneViewportStyle?.tone ?? ""}
-                  onChange={(next) => setOrToggleStandaloneStyle("tone", next)}
-                  options={BUILDER_NODE_TONE_OPTIONS}
-                />
-              </div>
+              <SegmentedField
+                dataControl="tone"
+                label="Tone"
+                accessory={getStyleOverrideDevice(selectedStandaloneFullStyle, "tone") ? (
+                  <InspectorOverrideBadge
+                    device={getStyleOverrideDevice(selectedStandaloneFullStyle, "tone")!}
+                    onReset={
+                      selectedViewport !== "desktop"
+                        ? () => patchSelectedStandaloneStyle({ tone: undefined })
+                        : undefined
+                    }
+                  />
+                ) : null}
+                value={selectedStandaloneViewportStyle?.tone ?? ""}
+                onChange={(next) => setOrToggleStandaloneStyle("tone", next)}
+                options={BUILDER_NODE_TONE_OPTIONS}
+              />
             ) : null}
 
             {["heading", "paragraph", "button"].includes(
