@@ -121,8 +121,18 @@ export async function projectCartChangeToInquiry(args: {
       logServerError("inquiry/projectCartChangeToInquiry/read", error);
       return;
     }
-    const target = (rows ?? []).find(
-      (r) => !TERMINAL_STATUSES.has(String(r.status)),
+    // FREEZE ON SEND (W0-C, extended in dock-v2 live QA): a GUEST's cart may
+    // only mirror into a private DRAFT. This projection used to target any
+    // non-terminal row, so a cart add AFTER the first send silently rewrote a
+    // submitted inquiry's lineup — exactly the class of invisible post-send
+    // edit the freeze exists to prevent. Post-send lineup changes must arrive
+    // as conversation (or a new draft), never as a silent data edit. Signed-in
+    // clients keep the historical live-mirror behavior (their dashboard flows
+    // edit inquiries through visible, audited surfaces).
+    const target = (rows ?? []).find((r) =>
+      actor.kind === "guest"
+        ? String(r.status) === "draft"
+        : !TERMINAL_STATUSES.has(String(r.status)),
     );
     // No live inquiry yet ⇒ nothing to project. saved_talent already holds the
     // cart; the projection becomes a no-op until an inquiry row exists.
