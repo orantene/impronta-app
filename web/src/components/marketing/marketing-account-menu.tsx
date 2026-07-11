@@ -4,12 +4,32 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { MarketingCopy } from "@/lib/marketing/copy";
 
+/** A tenant the signed-in user belongs to, with a direct link to its dashboard. */
+export type MarketingWorkspaceLink = {
+  slug: string;
+  name: string;
+  role: "owner" | "admin" | "coordinator" | "editor" | "viewer";
+  /** Absolute URL to this workspace's admin dashboard on the app host. */
+  href: string;
+};
+
 /** Signed-in identity, resolved server-side in the shell and passed down. */
 export type MarketingAccount = {
   displayName: string;
   email: string;
   /** Absolute URL to the user's dashboard on the app host. */
   dashboardHref: string;
+  /** Every tenant the user is a member of (owner → viewer). Empty for pure
+   *  talent/client accounts, where the single `dashboardHref` is shown instead. */
+  workspaces: MarketingWorkspaceLink[];
+};
+
+const ROLE_LABEL: Record<MarketingWorkspaceLink["role"], string> = {
+  owner: "Owner",
+  admin: "Admin",
+  coordinator: "Coordinator",
+  editor: "Editor",
+  viewer: "Viewer",
 };
 
 /** Initials avatar — the "profile icon" for a signed-in visitor. Falls back
@@ -123,15 +143,36 @@ export function DesktopAccount({
               </div>
             </div>
             <div className="my-1 h-px" style={{ background: "var(--plt-hairline)" }} aria-hidden />
-            <a
-              href={account.dashboardHref}
-              role="menuitem"
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[0.875rem] font-medium transition-colors hover:bg-[var(--plt-bg-raised)]"
-              style={{ color: "var(--plt-ink)" }}
-            >
-              <GridGlyph />
-              {copy.dashboard}
-            </a>
+            {account.workspaces.length > 0 ? (
+              account.workspaces.map((w) => (
+                <a
+                  key={`${w.slug}:${w.role}`}
+                  href={w.href}
+                  role="menuitem"
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[0.875rem] font-medium transition-colors hover:bg-[var(--plt-bg-raised)]"
+                  style={{ color: "var(--plt-ink)" }}
+                >
+                  <GridGlyph />
+                  <span className="min-w-0 flex-1 truncate">{w.name}</span>
+                  <span
+                    className="shrink-0 text-[0.6875rem] font-medium uppercase tracking-wide"
+                    style={{ color: "var(--plt-muted)" }}
+                  >
+                    {ROLE_LABEL[w.role]}
+                  </span>
+                </a>
+              ))
+            ) : (
+              <a
+                href={account.dashboardHref}
+                role="menuitem"
+                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[0.875rem] font-medium transition-colors hover:bg-[var(--plt-bg-raised)]"
+                style={{ color: "var(--plt-ink)" }}
+              >
+                <GridGlyph />
+                {copy.dashboard}
+              </a>
+            )}
             <Link
               href="/get-started"
               role="menuitem"

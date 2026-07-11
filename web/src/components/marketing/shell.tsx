@@ -4,6 +4,7 @@ import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { resolveAccountHref, getAppUrl } from "@/lib/auth-flow";
+import { loadMarketingWorkspaceLinks } from "@/lib/identity/marketing-workspaces";
 import { signOut } from "@/app/auth/actions";
 import { MarketingHeader } from "./header";
 import type { MarketingAccount } from "./marketing-account-menu";
@@ -36,6 +37,16 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
   let account: MarketingAccount | undefined;
   if (actor.user) {
     const link = resolveAccountHref(true, actor.profile);
+    const appUrl = getAppUrl();
+
+    // Every tenant the user has a workspace role in → a direct link to that
+    // workspace's dashboard, so a multi-tenant owner/admin can jump straight
+    // from any marketing page. Pure talent/client accounts have no
+    // memberships; the menu falls back to the single `dashboardHref` below.
+    const workspaces = actor.supabase
+      ? await loadMarketingWorkspaceLinks(actor.supabase, actor.user.id, appUrl)
+      : [];
+
     account = {
       displayName:
         actor.profile?.display_name?.trim() ||
@@ -44,7 +55,8 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
       email: actor.user.email ?? "",
       dashboardHref: link.href.startsWith("http")
         ? link.href
-        : `${getAppUrl()}${link.href}`,
+        : `${appUrl}${link.href}`,
+      workspaces,
     };
   }
 
