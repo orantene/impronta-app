@@ -9,16 +9,29 @@
 
 import { useEffect, useState } from "react";
 import { TalentRegisterModal, TALENT_MODAL_EVENT } from "./talent-register-modal";
+import { LoginModal, LOGIN_MODAL_EVENT } from "./login-modal";
 
-export function MarketingModalHost() {
-  const [open, setOpen] = useState(false);
+export function MarketingModalHost({ locale = "en" }: { locale?: string }) {
+  const [talentOpen, setTalentOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
 
   useEffect(() => {
-    const handler = () => setOpen(true);
-    window.addEventListener(TALENT_MODAL_EVENT, handler);
-    return () => window.removeEventListener(TALENT_MODAL_EVENT, handler);
+    const openTalent = () => setTalentOpen(true);
+    const openLogin = () => setLoginOpen(true);
+    window.addEventListener(TALENT_MODAL_EVENT, openTalent);
+    window.addEventListener(LOGIN_MODAL_EVENT, openLogin);
+    return () => {
+      window.removeEventListener(TALENT_MODAL_EVENT, openTalent);
+      window.removeEventListener(LOGIN_MODAL_EVENT, openLogin);
+    };
   }, []);
 
-  if (!open) return null;
-  return <TalentRegisterModal onClose={() => setOpen(false)} />;
+  return (
+    <>
+      {talentOpen ? <TalentRegisterModal onClose={() => setTalentOpen(false)} /> : null}
+      {loginOpen ? (
+        <LoginModal locale={locale} onClose={() => setLoginOpen(false)} />
+      ) : null}
+    </>
+  );
 }

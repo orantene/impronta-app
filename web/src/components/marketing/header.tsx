@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { getAppUrl } from "@/lib/auth-flow";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
 import { MarketingCta } from "./cta-link";
+import { LOGIN_MODAL_EVENT } from "./login-modal";
 import { MarketingLanguageToggle } from "./marketing-language-toggle";
 import {
   DesktopAccount,
@@ -54,7 +54,6 @@ function buildNav(copy: MarketingCopy): NavNode[] {
   ];
 }
 
-const APP_LOGIN_URL = `${getAppUrl()}/login`;
 
 export function MarketingHeader({
   locale,
@@ -200,13 +199,16 @@ export function MarketingHeader({
             />
           ) : (
             <>
-              <a
-                href={APP_LOGIN_URL}
+              <button
+                type="button"
+                onClick={() =>
+                  window.dispatchEvent(new CustomEvent(LOGIN_MODAL_EVENT))
+                }
                 className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
                 style={{ color: "var(--plt-muted)" }}
               >
                 {copy.nav.signIn}
-              </a>
+              </button>
               <span className="relative inline-flex">
                 <MarketingCta
                   href="/get-started"
@@ -450,14 +452,18 @@ export function MarketingHeader({
                 </>
               ) : (
                 <>
-                  <a
-                    href={APP_LOGIN_URL}
-                    className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      window.dispatchEvent(new CustomEvent(LOGIN_MODAL_EVENT));
+                    }}
+                    className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-[1rem] font-medium"
                     style={{ color: "var(--plt-ink-soft)" }}
                   >
                     {copy.nav.signIn}
                     <ChevronGlyph />
-                  </a>
+                  </button>
                   <span className="relative block w-full">
                     <MarketingCta
                       href="/get-started"
