@@ -70,6 +70,46 @@ import type { GuestDockView } from "./guest-dock-view";
 
 type Stage = "intro" | "gate" | "thread";
 
+const DOCK_VIEW_STORAGE_KEY = "impronta.dockView";
+const DOCK_VIEWS: readonly GuestDockView[] = ["home", "chat", "lineup", "projects"];
+
+function readStoredDockView(): GuestDockView | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = window.sessionStorage.getItem(DOCK_VIEW_STORAGE_KEY);
+    if (stored && (DOCK_VIEWS as readonly string[]).includes(stored)) {
+      return stored as GuestDockView;
+    }
+  } catch {
+    /* sessionStorage unavailable (private mode) */
+  }
+  return null;
+}
+
+/**
+ * The view the dock opens into. A remembered session view wins; otherwise an
+ * active conversation (a resumed inquiry or a seeded lineup) lands on Chat, and a
+ * truly fresh visitor lands on the Home hub.
+ */
+function resolveInitialDockView(
+  existingInquiryId: string | null,
+  cartTalentIds: readonly string[] | undefined,
+): GuestDockView {
+  const stored = readStoredDockView();
+  if (stored) return stored;
+  if (existingInquiryId || (cartTalentIds?.length ?? 0) > 0) return "chat";
+  return "home";
+}
+
+function persistDockView(view: GuestDockView): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(DOCK_VIEW_STORAGE_KEY, view);
+  } catch {
+    /* best-effort */
+  }
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // Component
 // ───────────────────────────────────────────────────────────────────────────
@@ -113,6 +153,8 @@ export function MiniChatPanel({
   onRemoveCartTalent,
   onRegisterRemoveTalent,
   onInquiryIdChange,
+  onScanConversation = null,
+  onStartFresh = null,
 }: MiniChatPanelLocalProps) {
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
@@ -176,10 +218,30 @@ export function MiniChatPanel({
   // hook below.
   const [serverIntent, setServerIntent] = useState<InquiryIntent | null>(null);
 
-  // F4: inquiries list for the expanded left pane. Extracted to
-  // W2-A: the active dock view (Chat / Lineup / Projects). Chat is the default;
-  // the column swaps its body on this and renders the segmented switcher.
-  const [dockView, setDockView] = useState<GuestDockView>("chat");
+  // DOCK v2: the active dock view (Home / Chat / Lineup / Projects). Home is the
+  // friendly landing for a fresh visitor; an active conversation (a resumed
+  // inquiry or a seeded lineup) lands on Chat. The last view is remembered per
+  // session so re-opening the dock returns where the guest left off.
+  const [dockView, setDockViewState] = useState<GuestDockView>(() =>
+    resolveInitialDockView(existingInquiryId, cartTalentIds),
+  );
+  const setDockView = (view: GuestDockView) => {
+    setDockViewState(view);
+    persistDockView(view);
+  };
+  // The panel mounts (closed) before any talent is added, so the lazy initializer
+  // above can only see the empty cart. Re-resolve the landing view on each fresh
+  // OPEN: a remembered session view wins, else an active conversation (resumed id
+  // or a seeded lineup) lands on Chat and a truly fresh visitor lands on Home.
+  const wasOpenRef = useRef(false);
+  const hasActiveContext = Boolean(existingInquiryId) || (cartTalentIds?.length ?? 0) > 0;
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      const stored = readStoredDockView();
+      setDockViewState(stored ?? (hasActiveContext ? "chat" : "home"));
+    }
+    wasOpenRef.current = open;
+  }, [open, hasActiveContext]);
 
   // useGuestInquiriesList (W1-A decomposition pre-pass). W2-A: also feeds the
   // Projects dock view (compact + expanded). The refreshKey flips only when the
@@ -476,6 +538,10 @@ export function MiniChatPanel({
     onSent: () => {
       // Phase 0c CRO — send_clicked + contact_promoted (the PRIMARY conversion).
       jon360.trackSend();
+      // A successful send implies a REAL contact — the fresh-create path never
+      // touches promoteContact, so mark it here or the header's "Private
+      // draft" chip survives the send.
+      unified.markContactPromoted();
       setSentNote(true);
       triggerSentAirlock();
       // Force one full re-load so the receipt card + sent status mount: the send
@@ -652,6 +718,11 @@ export function MiniChatPanel({
     inquiries,
     sourcePage,
     onRemoveCartTalent,
+    // DOCK v2: the AI scan (Add-details sheet) + the signed-in client dashboard
+    // link for the Home hub's Account card.
+    onScanConversation,
+    onStartFresh,
+    dashboardHref: `/${tenantSlug}/client/messages`,
   };
 
   // ── Expanded 2-pane mode (F4) ─────────────────────────────────────────────

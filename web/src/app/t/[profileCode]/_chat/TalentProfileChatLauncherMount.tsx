@@ -59,6 +59,7 @@ import {
   resolveGuestCartPortraits,
 } from "@/app/t/[profileCode]/_actions/guest-roster-actions";
 import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
+import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 
 type TalentProfileChatLauncherMountProps = {
   /** talent_profiles.id — the single talent the guest is messaging (MVP). */
@@ -208,6 +209,7 @@ export async function TalentProfileChatLauncherMount({
       onLoadDetails={getGuestInquiryDetails}
       onListRoster={listGuestTenantRoster}
       onResolveCartPortraits={resolveGuestCartPortraits}
+      onScanConversation={scanGuestConversationForDetails}
       soundOnReply
       openFullHref={openFullHref}
       surfaceMode={surfaceModeFromBackgroundMode(backgroundMode)}

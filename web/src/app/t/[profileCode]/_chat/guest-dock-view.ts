@@ -12,8 +12,13 @@
 
 import type { GuestThreadStatus } from "@/lib/inquiry/guest-chat-contract";
 
-/** The three dock views. "chat" is the default and renders today's panel. */
-export type GuestDockView = "chat" | "lineup" | "projects";
+/**
+ * The dock views. DOCK v2 adds "home" — the friendly landing hub (agency hero +
+ * a few big action cards) that the panel opens into for a fresh visitor. "chat"
+ * renders the conversation; "lineup" and "projects" are the two roster/inquiry
+ * surfaces.
+ */
+export type GuestDockView = "home" | "chat" | "lineup" | "projects";
 
 /**
  * A project's honest lifecycle phase for the status chip:
@@ -21,8 +26,9 @@ export type GuestDockView = "chat" | "lineup" | "projects";
  *   awaiting — sent, no agency response yet
  *   replied  — the agency has responded (a coordinator message landed, or the
  *              thread advanced to an agency-driven status)
+ *   booked   — the inquiry converted into a confirmed booking
  */
-export type GuestProjectPhase = "draft" | "awaiting" | "replied";
+export type GuestProjectPhase = "draft" | "awaiting" | "replied" | "booked";
 
 /**
  * Derive the phase from the SAME status spine listGuestInquiries returns
@@ -36,11 +42,11 @@ export function deriveProjectPhase(inq: {
   lastMessageAuthor?: "guest" | "agency" | null;
 }): GuestProjectPhase {
   if (inq.isDraft || inq.threadStatus === "draft") return "draft";
+  if (inq.threadStatus === "booked") return "booked";
   if (
     inq.lastMessageAuthor === "agency" ||
     inq.threadStatus === "offer_pending" ||
-    inq.threadStatus === "approved" ||
-    inq.threadStatus === "booked"
+    inq.threadStatus === "approved"
   ) {
     return "replied";
   }

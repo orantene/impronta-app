@@ -17,9 +17,12 @@
  */
 
 import { setPendingOffering } from "./pending-offering-store";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
+import type {
+  ScanGuestConversationCallback,
+  TalentChatLauncherProps,
+} from "@/lib/inquiry/guest-chat-contract";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
@@ -76,6 +79,8 @@ type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   draftInquiryId?: string | null;
   otherOpenInquiries?: OtherOpenInquiry[];
   ctaIdentity?: "guest" | "client";
+  /** DOCK v2 — forwarded to the panel: the AI conversation scan action. */
+  onScanConversation?: ScanGuestConversationCallback | null;
   /**
    * P0-5 / W0-F — this launcher is mounted on a HUB host (platform/network hub
    * or the marketing apex), not an agency. Threaded to the panel so the SEND
@@ -122,6 +127,7 @@ export function TalentProfileChatLauncher({
   onLoadDetails = null,
   onListRoster = null,
   onResolveCartPortraits = null,
+  onScanConversation = null,
   soundOnReply = true,
   identity = "guest",
   // `label` (legacy static override) is intentionally NOT destructured: the
@@ -211,6 +217,22 @@ export function TalentProfileChatLauncher({
   // without touching the ref. The ref stays the source of truth for the imperative
   // paths (early-row create / remove runner); this just shadows it for render reads.
   const [liveInquiryId, setLiveInquiryId] = useState<string | null>(existingInquiryId);
+
+  // DOCK v2 "start fresh": remount the panel WITHOUT the resumed (sent)
+  // inquiry so the next interaction ensures a brand-new private draft. The
+  // cart (lineup) survives — the new draft picks it up through the existing
+  // preload bridge. An in-progress DRAFT is never discarded here; callers only
+  // invoke this when the active thread is already sent (or absent).
+  const [freshEpoch, setFreshEpoch] = useState(0);
+  const startFreshDraft = useCallback(() => {
+    try {
+      window.sessionStorage.setItem("impronta.dockView", "chat");
+    } catch {
+      /* private mode */
+    }
+    setFreshEpoch((n) => n + 1);
+  }, []);
+  const resumeSuppressed = freshEpoch > 0;
 
   // B6: the panel registers its unified talent-patch runner here so the rail
   // X-remove writes the record through the SAME useUnifiedInquiry.patch path the
@@ -594,8 +616,10 @@ export function TalentProfileChatLauncher({
         brand={brand}
         isHub={isHub}
         surfaceMode={surfaceMode}
-        existingInquiryId={existingInquiryId}
-        existingContactPromoted={existingContactPromoted}
+        key={freshEpoch}
+        existingInquiryId={resumeSuppressed ? null : existingInquiryId}
+        existingContactPromoted={resumeSuppressed ? null : existingContactPromoted}
+        onStartFresh={startFreshDraft}
         prefill={prefill}
         onStartInquiry={onStartInquiry}
         onSendMessage={onSendMessage}
@@ -607,6 +631,7 @@ export function TalentProfileChatLauncher({
         onEnsureInquiry={onEnsureInquiry}
         onLoadDetails={onLoadDetails}
         onListRoster={onListRoster}
+        onScanConversation={onScanConversation}
         soundOnReply={soundOnReply}
         identity={identity}
         openFullHref={openFullHref}

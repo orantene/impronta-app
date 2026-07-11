@@ -43,10 +43,22 @@ test("an agency message flips the phase to replied", () => {
 });
 
 test("agency-driven statuses read as replied even without a message", () => {
-  for (const threadStatus of ["offer_pending", "approved", "booked"] as const) {
+  for (const threadStatus of ["offer_pending", "approved"] as const) {
     assert.equal(
       deriveProjectPhase({ isDraft: false, threadStatus, lastMessageAuthor: "guest" }),
       "replied",
     );
   }
+});
+
+test("a booked inquiry gets its own phase (strongest chip), never draft", () => {
+  assert.equal(
+    deriveProjectPhase({ isDraft: false, threadStatus: "booked", lastMessageAuthor: "guest" }),
+    "booked",
+  );
+  // Draft wins over everything — a draft can't read as booked.
+  assert.equal(
+    deriveProjectPhase({ isDraft: true, threadStatus: "booked", lastMessageAuthor: null }),
+    "draft",
+  );
 });

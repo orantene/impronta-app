@@ -49,6 +49,14 @@ export type GuestInquirySummary = {
   /** @deprecated Phase 5 — see `lineup`. First lineup member's portrait, or null. */
   talentPortraitUrl: string | null;
   agencyName: string;
+  /**
+   * DOCK v2 card meta — pre-localized icon-row labels so the Inquiries cards
+   * read as a quick summary (date, place, money) without the client needing
+   * locale/currency logic. Absent/null values simply don't render a chip.
+   */
+  eventDateLabel?: string | null;
+  locationLabel?: string | null;
+  budgetLabel?: string | null;
   lastMessagePreview: string | null;
   lastMessageAt: string | null;
   /**

@@ -231,6 +231,8 @@ async function stampSuggestedSource(
  */
 export async function scanGuestConversationForDetails(input: {
   inquiryId: string;
+  /** Unsent composer text — included in the scan (drafts have no stored guest messages). */
+  draftText?: string;
 }): Promise<ScanGuestConversationResult> {
   try {
     if (!input.inquiryId?.trim()) {
@@ -253,6 +255,11 @@ export async function scanGuestConversationForDetails(input: {
     }
 
     const messages = await loadRecentGuestMessages(admin, inquiry, guestSessionId);
+    // Pre-send there are usually NO stored guest messages (the first send is
+    // also the promotion) — the caller passes the unsent composer text so the
+    // scan has something real to read while writes are still allowed.
+    const draftText = input.draftText?.trim().slice(0, 2000) ?? "";
+    if (draftText) messages.push(draftText);
     if (messages.length === 0) {
       return { ok: true, scanned: false, filledKinds: [] };
     }

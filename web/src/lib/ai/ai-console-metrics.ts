@@ -172,7 +172,7 @@ export function readAiTuningEnvSnapshot(): AiTuningEnvSnapshot {
       process.env.IMPRONTA_REFINE_CACHE_TTL_MS?.trim() || "(default 30000)",
     openaiChatModel: process.env.OPENAI_CHAT_MODEL?.trim() || "gpt-4o-mini",
     anthropicChatModel:
-      process.env.ANTHROPIC_CHAT_MODEL?.trim() || "claude-sonnet-4-20250514",
+      process.env.ANTHROPIC_CHAT_MODEL?.trim() || "claude-sonnet-5",
     aiProviderEnvOverride: process.env.AI_PROVIDER?.trim() || "(none — use DB ai_provider)",
     openaiEmbeddingModel: OPENAI_EMBEDDING_MODEL_ID,
   };

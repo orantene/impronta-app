@@ -246,7 +246,18 @@ export default async function HomePage() {
     case "hub":
       // Phase 5/6 M1 — hub now carries its tenantId (the hub agency UUID)
       // so it consumes the same CMS reads as agency tenants.
-      return <HubLanding tenantId={ctx.tenantId} />;
+      //
+      // W3 — the hub landing is served from this route-group ROOT (app/page.tsx),
+      // OUTSIDE `(public)/layout.tsx`, so like the builder-authored agency home it
+      // gets neither the discovery/inquiry providers nor the guest-chat launcher.
+      // Wrap it in `PublicChatSurface` (same provider stack as the layout) + mount
+      // the launcher gated on the hub tenant's `show_on_home` flag (sourcePage
+      // "/"). On a hub host the launcher self-brands as "Tulala Concierge".
+      return (
+        <PublicChatSurface sourcePage="/">
+          <HubLanding tenantId={ctx.tenantId} />
+        </PublicChatSurface>
+      );
     case "marketing":
       return <MarketingLanding />;
     case "talent_site":

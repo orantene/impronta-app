@@ -16,7 +16,7 @@
  * (handleSwitchInquiry via onSelect) and hops the dock back to Chat.
  */
 
-import { Lock } from "lucide-react";
+import { CalendarDays, Check, Lock, MapPin, Tag } from "lucide-react";
 
 import type { GuestInquirySummary } from "@/lib/inquiry/guest-chat-contract";
 import type { Translator } from "@/i18n/interpolate";
@@ -72,6 +72,16 @@ function phaseChip(
       >
         <Lock size={9} strokeWidth={2.4} aria-hidden style={{ flexShrink: 0 }} />
         {t("public.guestChat.dockStatusDraft")}
+      </span>
+    );
+  }
+  if (phase === "booked") {
+    // Confirmed booking — the strongest chip on the card: solid accent fill.
+    const ink = readableOn(accent);
+    return (
+      <span style={{ ...base, background: accent, color: ink, border: `1px solid ${accent}` }}>
+        <Check size={9} strokeWidth={3} aria-hidden style={{ flexShrink: 0 }} />
+        {t("public.guestChat.dockStatusBooked")}
       </span>
     );
   }
@@ -230,6 +240,43 @@ export function GuestDockProjectsView({
                 }}
               >
                 {inq.lastMessagePreview}
+              </span>
+            )}
+
+            {/* Row 2.5: quick-summary meta — date · place · budget, icons only
+                where a value exists. Server pre-localizes the labels. */}
+            {(inq.eventDateLabel || inq.locationLabel || inq.budgetLabel) && (
+              <span
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "4px 10px",
+                  fontSize: 10.5,
+                  color: C.inkMuted,
+                  fontFamily: FONT,
+                }}
+              >
+                {inq.eventDateLabel && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <CalendarDays size={11} strokeWidth={2.2} aria-hidden style={{ flexShrink: 0, opacity: 0.75 }} />
+                    {inq.eventDateLabel}
+                  </span>
+                )}
+                {inq.locationLabel && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0 }}>
+                    <MapPin size={11} strokeWidth={2.2} aria-hidden style={{ flexShrink: 0, opacity: 0.75 }} />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {inq.locationLabel}
+                    </span>
+                  </span>
+                )}
+                {inq.budgetLabel && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <Tag size={11} strokeWidth={2.2} aria-hidden style={{ flexShrink: 0, opacity: 0.75 }} />
+                    {inq.budgetLabel}
+                  </span>
+                )}
               </span>
             )}
 

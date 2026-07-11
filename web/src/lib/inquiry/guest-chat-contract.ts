@@ -534,6 +534,12 @@ export type ScanGuestConversationResult =
 
 export type ScanGuestConversationCallback = (input: {
   inquiryId: string;
+  /**
+   * The guest's UNSENT composer text. Drafts persist no guest messages (the
+   * first send is also the promotion), so pre-send the composer draft is the
+   * only conversation there is — the scan reads it alongside any thread rows.
+   */
+  draftText?: string;
 }) => Promise<ScanGuestConversationResult>;
 
 // 4d/4e. Unified-inquiry-cart contract slice — split to guest-chat-unified-contract.ts; re-exported here.

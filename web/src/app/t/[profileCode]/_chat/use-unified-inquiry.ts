@@ -77,6 +77,14 @@ export type UseUnifiedInquiryResult = {
    * true after a successful contact patch. Drives the send-gate (finding #1).
    */
   contactPromoted: boolean;
+  /**
+   * Mark the contact real from OUTSIDE the hook's own flows. The fresh-create
+   * send path (startGuestChatInquiry via useMiniChatSend) creates + promotes
+   * server-side without ever calling promoteContact/ensure here, so the panel
+   * calls this on a successful send — otherwise the header keeps showing
+   * "Private draft" on an inquiry that was just sent.
+   */
+  markContactPromoted: () => void;
   /** The reconciled live draft (optimistic local edits merged with server data). */
   intent: InquiryIntent;
   /** Debounced ~350ms; ensures the early row exists first, then writes the field. */
@@ -589,5 +597,14 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
 
   const intent = useMemo(() => localIntent, [localIntent]);
 
-  return { inquiryId, contactPromoted, intent, patch, promoteContact, syncState, fieldState };
+  return {
+    inquiryId,
+    contactPromoted,
+    markContactPromoted: () => setContactPromoted(true),
+    intent,
+    patch,
+    promoteContact,
+    syncState,
+    fieldState,
+  };
 }

@@ -12,6 +12,7 @@
  * In expanded mode, ExpandedChatLayout passes this as the `right` pane.
  */
 
+import { useState } from "react";
 import type { RefObject } from "react";
 
 import type {
@@ -28,6 +29,7 @@ import type {
   ListGuestInquiriesCallback,
   ListGuestTenantRosterCallback,
   MiniChatBrand,
+  ScanGuestConversationCallback,
 } from "@/lib/inquiry/guest-chat-contract";
 import type { UnifiedSyncState } from "./use-unified-inquiry";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
@@ -38,18 +40,19 @@ import type { StreamRow } from "./MiniChatMessageBubble";
 
 import { ConversationStatusStrip } from "./ConversationStatusStrip";
 import { GuestConversationBody } from "./GuestConversationBody";
+import { countCoreDetails } from "./guest-detail-progress";
+import { GuestDockHomeView } from "./GuestDockHomeView";
 import { GuestDockLineupView } from "./GuestDockLineupView";
 import { GuestDockProjectsView } from "./GuestDockProjectsView";
-import { GuestDockViewSwitcher } from "./GuestDockViewSwitcher";
+import { GuestDockNav } from "./GuestDockNav";
 import type { GuestDockView } from "./guest-dock-view";
 import { GuestDetailChips } from "./GuestDetailChips";
-import { GuestDetailChipRow } from "./GuestDetailChipRow";
+import { GuestDetailsControl } from "./GuestDetailsControl";
 import { GuestPanelHeader } from "./GuestPanelHeader";
-import { GuestPanelHeaderExtras } from "./GuestPanelHeaderExtras";
+import { GuestThreadSwitcherDrawer } from "./GuestThreadSwitcherDrawer";
 import { MiniChatComposer } from "./MiniChatComposer";
 import { MiniChatGateForm } from "./MiniChatGateForm";
 import { OfferingQuickPicker, type ChatOffering } from "./OfferingQuickPicker";
-import { OpenFullConversationLink } from "./OpenFullConversationLink";
 import { SendToAgencyBar } from "./SendToAgencyBar";
 import { buildGateLineupRecap } from "./guest-gate-lineup-recap";
 import {
@@ -252,6 +255,12 @@ export type MiniChatPanelColumnProps = {
    * Lineup view's per-tile remove routes through THIS, same as the rail X.
    */
   onRemoveCartTalent?: (talentProfileId: string) => void;
+  /** DOCK v2 — the AI conversation scan for the Add-details sheet. */
+  onScanConversation?: ScanGuestConversationCallback | null;
+  /** DOCK v2: remount-with-fresh-draft (active thread already sent). */
+  onStartFresh?: (() => void) | null;
+  /** DOCK v2 — signed-in client dashboard link for the Home Account card. */
+  dashboardHref?: string | null;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -266,7 +275,6 @@ export function MiniChatPanelColumn({
   talentFirst,
   tenantSlug,
   talentProfileId,
-  open,
   expanded,
   inquiryId,
   rows,
@@ -329,8 +337,6 @@ export function MiniChatPanelColumn({
   onConsumeRailOpenTo,
   inquiryIntent = null,
   prefill,
-  openFullHref,
-  onListGuestInquiries,
   onToggleExpand,
   identity,
   isHub = false,
@@ -342,6 +348,9 @@ export function MiniChatPanelColumn({
   inquiries = [],
   sourcePage = "",
   onRemoveCartTalent,
+  onScanConversation = null,
+  onStartFresh = null,
+  dashboardHref = null,
 }: MiniChatPanelColumnProps) {
   // Guest UI locale rides along on `brand` (resolved server-side from the
   // tenant's default_locale, since guests have no LOCALE_COOKIE).
@@ -364,26 +373,46 @@ export function MiniChatPanelColumn({
     !showGate &&
     !showSentAirlock;
 
-  // Wave 1 (W1-B): the InquiryDetailsRail is retired. Details are now a horizontal
-  // chip row above the composer (GuestDetailChipRow, rendered in the composer band
-  // below) in BOTH the compact panel and the expanded right pane, so the
-  // conversation is the only vertical grower and nothing floats over the thread.
-  const showChipRow = !showGate && extrasEnabled && inquiryIntent !== null;
+  // DOCK v2: the "Add details" affordance replaces the always-visible chip row.
+  // It renders on the unified path once an intent exists.
+  const detailsEnabled = !showGate && extrasEnabled && inquiryIntent !== null;
   // The SendToAgencyBar is showing (an un-sent draft) whenever the parent supplies
   // onSendToAgency; the save-card must not co-render with it (P1-10).
   const sendBarActive = !showGate && extrasEnabled && Boolean(onSendToAgency);
 
-  // W2-A: the 3-view dock. The switcher renders only on the unified path
-  // (extrasEnabled) with a wired handler, and never at the gate (the gate is
-  // its own moment). While Lineup/Projects is active, the whole chat band
-  // stack below the header (thread rail, conversation, chips, composer, send
-  // bar) is replaced by that view; Chat renders today's stack unchanged.
+  // DOCK v2: the 4-view dock (Home · Chat · Lineup · Projects) driven by a bottom
+  // tab bar. Enabled on the unified path with a wired handler, never at the gate
+  // (its own focused moment). Home is the landing hub; Chat renders the
+  // conversation stack; Lineup/Projects render their roster/inquiry surfaces.
   const dockEnabled = extrasEnabled && !showGate && Boolean(onDockViewChange);
   const activeDockView: GuestDockView = dockEnabled ? dockView : "chat";
+  const draftExists = Boolean(inquiryRecordExists) && !contactPromoted;
+
+  // "Start an inquiry" (Home card + Lineup CTA): resume a live DRAFT in Chat;
+  // when the active thread is already SENT, spin up a FRESH draft instead so
+  // the guest never types into a frozen conversation. The lineup cart carries
+  // over through the remount.
+  const startInquiryInChat = () => {
+    if (!draftExists && inquiryRecordExists && contactPromoted && onStartFresh) {
+      onStartFresh();
+      return;
+    }
+    onDockViewChange?.("chat");
+  };
+
+  // DOCK v2.1 — the details sheet is opened from the HEADER icon (the old
+  // composer-area pill gave up too much real estate); the in-chat thread
+  // switcher is a slide-over drawer, also header-triggered.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const detailsProgress =
+    detailsEnabled && inquiryIntent
+      ? countCoreDetails(inquiryIntent, capturedChipValues)
+      : null;
 
   return (
     <>
-      {/* ── Header (extracted to GuestPanelHeader to hold the 800-line cap) ── */}
+      {/* ── DOCK v2 slim header (avatar + name + draft chip + overflow + X) ── */}
       <GuestPanelHeader
         brand={brand}
         accent={accent}
@@ -391,32 +420,75 @@ export function MiniChatPanelColumn({
         talentFirst={talentFirst}
         C={C}
         surfaceMode={surfaceMode}
-        inquiryId={inquiryId}
-        threadStatus={threadStatus}
-        typicalReply={typicalReply}
-        receipt={receipt}
         isPrivateDraft={isPrivateDraft}
         syncState={syncState}
         onRetrySync={onRetrySync}
+        onToggleExpand={onToggleExpand}
+        expanded={expanded}
+        onOpenSwitcher={
+          dockEnabled && activeDockView === "chat" ? () => setSwitcherOpen(true) : null
+        }
+        onOpenDetails={
+          detailsEnabled && activeDockView === "chat" ? () => setDetailsOpen(true) : null
+        }
+        detailsFilled={detailsProgress?.filled ?? 0}
+        detailsTotal={detailsProgress?.total ?? 0}
         t={t}
         onClose={onClose}
       />
 
-      {/* ── W2-A: dock view switcher (Chat · Lineup · Projects) ──────────── */}
-      {dockEnabled && (
-        <GuestDockViewSwitcher
-          active={activeDockView}
-          onChange={(view) => onDockViewChange?.(view)}
+      {/* ── In-chat thread switcher: slide-over drawer OVER the chat (one tap
+          on the header title). Extracted to GuestThreadSwitcherDrawer. ───── */}
+      <GuestThreadSwitcherDrawer
+        open={switcherOpen}
+        onClose={() => setSwitcherOpen(false)}
+        inquiries={inquiries}
+        activeInquiryId={inquiryId}
+        seenAtByInquiry={seenAtByInquiry}
+        accent={accent}
+        accentInk={accentInk}
+        agencyName={brand.agencyName}
+        surfaceMode={surfaceMode}
+        t={t}
+        onSelect={(id) => {
+          setSwitcherOpen(false);
+          if (id !== inquiryId) onSwitchInquiry(id);
+          onDockViewChange?.("chat");
+        }}
+        onStartNew={() => {
+          setSwitcherOpen(false);
+          startInquiryInChat();
+        }}
+      />
+
+      {/* ── DOCK v2 Home hub (the landing view) ──────────────────────────── */}
+      {activeDockView === "home" && (
+        <GuestDockHomeView
+          brand={brand}
           accent={accent}
+          accentInk={accentInk}
+          talentFirst={talentFirst}
           C={C}
+          surfaceMode={surfaceMode}
           t={t}
+          identity={identity}
+          draftExists={draftExists}
+          inquiriesCount={inquiries.length}
           lineupCount={cartTalentNames.length}
-          projectsCount={inquiries.length}
+          onStartInquiry={startInquiryInChat}
+          onOpenProjects={() => onDockViewChange?.("projects")}
+          onOpenLineup={() => onDockViewChange?.("lineup")}
+          dashboardHref={dashboardHref}
+          inquiryId={inquiryId}
+          guestEmail={guestContactEmail}
+          onAddClaimEmail={onAddClaimEmail}
+          onCheckClaimEmail={onCheckClaimEmail}
+          onGuestEmailUpdated={onGuestEmailUpdated}
         />
       )}
 
-      {/* ── W2-A: Lineup view — cart + saved favorites, two shelves, two
-          stores (saved_talent vs client_favorites), unified VISUALLY only. ── */}
+      {/* ── Lineup view — cart + saved favorites, two shelves, two stores
+          (saved_talent vs client_favorites), unified VISUALLY only. ─────── */}
       {activeDockView === "lineup" && (
         <GuestDockLineupView
           accent={accent}
@@ -425,12 +497,12 @@ export function MiniChatPanelColumn({
           t={t}
           sourcePage={sourcePage}
           onRemoveCartTalent={onRemoveCartTalent}
+          onStartInquiry={startInquiryInChat}
         />
       )}
 
-      {/* ── W2-A: Projects view — the guest's inquiries as project cards.
-          Selecting one reuses the existing thread-switch path + hops back to
-          Chat. ───────────────────────────────────────────────────────────── */}
+      {/* ── Projects view — the guest's inquiries as project cards. Selecting
+          one reuses the existing thread-switch path + hops back to Chat. ─── */}
       {activeDockView === "projects" && (
         <GuestDockProjectsView
           inquiries={inquiries}
@@ -449,25 +521,9 @@ export function MiniChatPanelColumn({
 
       {activeDockView === "chat" && (
         <>
-      {/* ── U2: thread switcher (mini mode only; expanded left pane replaces) ─ */}
-      {!expanded && onListGuestInquiries && (
-        <GuestPanelHeaderExtras
-          open={open}
-          tenantSlug={tenantSlug}
-          activeInquiryId={inquiryId}
-          accent={accent}
-          accentInk={accentInk}
-          seenAtByInquiry={seenAtByInquiry}
-          onListGuestInquiries={onListGuestInquiries}
-          onSelect={onSwitchInquiry}
-          surfaceMode={surfaceMode}
-          locale={brand.locale ?? "en"}
-        />
-      )}
-
-      {/* ── Conversation area (the ONLY vertical grower). The old floating
-          details rail is gone; details live in the chip row below the thread.
-          The draft-privacy state is now a one-line lock chip in the header. ── */}
+      {/* ── Conversation area (the ONLY vertical grower). Details now live
+          behind the slim "Add details" button; the draft-privacy state is a
+          tiny lock chip in the header. ─────────────────────────────────── */}
       <GuestConversationBody
         scrollRef={scrollRef}
         C={C}
@@ -615,11 +671,13 @@ export function MiniChatPanelColumn({
         surfaceMode={surfaceMode}
       />
 
-      {/* ── W1-B: detail chip row (unified path). The single detail surface,
-          above the composer in BOTH compact + expanded. Each chip opens its
-          editor in a bottom sheet (GuestDetailBottomSheet). ──────────────── */}
-      {showChipRow && inquiryIntent && (
-        <GuestDetailChipRow
+      {/* ── DOCK v2: details behind ONE slim "Add details" button (unified
+          path). Every field + the AI scan live in the sheet it opens. ────── */}
+      {detailsEnabled && inquiryIntent && (
+        <GuestDetailsControl
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+          hideTrigger
           intent={inquiryIntent}
           accent={accent}
           accentInk={accentInk}
@@ -627,8 +685,6 @@ export function MiniChatPanelColumn({
           surfaceMode={surfaceMode}
           tenantSlug={tenantSlug}
           capturedValues={capturedChipValues}
-          fieldState={chipFieldState}
-          remoteFlashKinds={chipRemoteFlashKinds}
           onListRoster={onListRoster}
           onPatchChip={(kind, value) => {
             if (onPatchChip) void onPatchChip(kind, value);
@@ -636,6 +692,9 @@ export function MiniChatPanelColumn({
           onTalentChange={onTalentChange}
           onBriefChange={onBriefChange}
           onContactChange={onContactChange}
+          onScanConversation={onScanConversation}
+          composerDraft={draft}
+          inquiryId={inquiryId}
           openToSection={railOpenToSection}
           onConsumeOpenTo={onConsumeRailOpenTo}
         />
@@ -693,19 +752,16 @@ export function MiniChatPanelColumn({
         </>
       )}
 
-      {/* ── Footer: expand/collapse (F4) or hard-nav fallback ────────────── */}
-      {(inquiryId || openFullHref) && (
-        <OpenFullConversationLink
-          href={openFullHref ?? (inquiryId ? `/c/${inquiryId}` : undefined)}
+      {/* ── DOCK v2: bottom tab bar (Home · Chat · Lineup · Projects) ─────── */}
+      {dockEnabled && onDockViewChange && (
+        <GuestDockNav
+          active={activeDockView}
+          onChange={onDockViewChange}
           accent={accent}
-          emphasize={
-            threadStatus === "offer_pending" ||
-            threadStatus === "approved" ||
-            threadStatus === "booked"
-          }
-          onExpand={onToggleExpand}
-          expanded={expanded}
-          surfaceMode={surfaceMode}
+          C={C}
+          t={t}
+          lineupCount={cartTalentNames.length}
+          projectsCount={inquiries.length}
         />
       )}
     </>
