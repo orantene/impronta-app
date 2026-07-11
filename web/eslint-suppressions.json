@@ -1332,9 +1332,6 @@
     "max-lines": {
       "count": 1
     },
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 5
-    },
     "react-hooks/refs": {
       "count": 1
     }

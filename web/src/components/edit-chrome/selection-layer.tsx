@@ -152,13 +152,15 @@ import {
   CANVAS_GESTURE_COACHMARK_SEQUENCE,
   nextUndismissedCoachmark,
 } from "./builder-coachmarks";
-
-interface Rect {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-}
+import {
+  DRAG_THRESHOLD,
+  autoscrollDeltaForY,
+  filterMarqueeHits,
+  marqueeRectFromPoints,
+  resolveSectionDropTarget,
+  type Rect,
+  type SectionDropItem,
+} from "./selection-layer-geometry";
 
 // #21 — the layout-container kinds whose gap is set through the `style.gap`
 // escape (→ `--bn-gap`). Mirrors the Style panel's Gap-field gate so the canvas
@@ -488,10 +490,6 @@ function collectCanvasDropCandidates(
   }
   return candidates;
 }
-
-const DRAG_THRESHOLD = 4; // px before an armed drag actually begins
-const AUTOSCROLL_BAND = 80; // px edge band that triggers auto-scroll
-const AUTOSCROLL_MAX = 14; // px per frame at the edge
 
 interface NodeInsertTarget {
   nodeId: string;
@@ -911,7 +909,7 @@ export function SelectionLayer() {
     };
   }, [drag.phase]);
 
-  const scheduleRectRecompute = () => {
+  const scheduleRectRecompute = useCallback(() => {
     // Always cancel any pending frame and queue a fresh one. If we only bail
     // out when a ref is set, a cancelled-but-not-cleared ref (from strict
     // mode's effect double-run, or a missed cleanup path) will deadlock the
@@ -976,26 +974,42 @@ export function SelectionLayer() {
         setNodeHoverRect(null);
       }
     });
-  };
-  // Latest-value ref so observers can call the freshest recompute without
-  // listing the unstable inline fn in their deps (which would re-subscribe
-  // every render) — and without a frozen hook-deps eslint-disable.
-  const scheduleRectRecomputeRef = useRef(scheduleRectRecompute);
-  scheduleRectRecomputeRef.current = scheduleRectRecompute;
-
-  useEffect(() => {
-    scheduleRectRecompute();
-    // selection/hover changes → recompute immediately
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- scheduleRectRecompute is a stable inline fn that reads live refs; adding it would require wrapping in useCallback with the full dep chain
   }, [
+    getSelectedBuilderNodeEl,
+    getSelectedSectionEl,
     selectedSectionId,
     selectedBuilderNodeId,
     hoveredSectionId,
     hoveredBuilderNodeId,
-    pageVersion,
-    getSelectedSectionEl,
-    getSelectedBuilderNodeEl,
   ]);
+  // Latest-value ref so observers (ResizeObserver / MutationObserver, the
+  // scroll/resize listeners) can call the freshest recompute without listing
+  // the callback in their deps and re-subscribing.
+  const scheduleRectRecomputeRef = useRef(scheduleRectRecompute);
+  scheduleRectRecomputeRef.current = scheduleRectRecompute;
+
+  // Latest-value ref for the live builder tree, so the document-level click
+  // listener can read the freshest lock state without re-subscribing on every
+  // tree edit (the old effect captured `builderTree` and only refreshed it when
+  // hover/context-menu deps changed — a latent stale-tree read). Mirrored in an
+  // effect (not during render) like `callbacksRef` below.
+  const builderTreeRef = useRef(builderTree);
+  useEffect(() => {
+    builderTreeRef.current = builderTree;
+  }, [builderTree]);
+
+  // Recompute immediately when the selection/hover target changes (folded into
+  // scheduleRectRecompute's identity) and when the device preset or page
+  // version bumps — both reflow the canvas, moving the tracked rects, so a fresh
+  // measurement is required even though the pure geometry doesn't read them.
+  useEffect(() => {
+    // Read device + pageVersion so they are honest, satisfiable deps (a change
+    // in either is a re-measure trigger, not an input to the math).
+    if (device || pageVersion) {
+      /* trigger-only: fall through to the recompute below */
+    }
+    scheduleRectRecompute();
+  }, [scheduleRectRecompute, device, pageVersion]);
 
   // W3-T3 — canvas selection focus + a11y. When the selection changes, move
   // keyboard focus to the selected block element (made programmatically
@@ -1238,10 +1252,7 @@ export function SelectionLayer() {
     getSelectedBuilderNodeEl,
   ]);
 
-  useEffect(() => {
-    scheduleRectRecompute();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- scheduleRectRecompute is a stable inline fn; device change re-triggers rect recompute, no other deps needed
-  }, [device]);
+  // (device-change re-measure is folded into the merged recompute effect above.)
 
   // QA 2026-05-13 — the document-level event listener effect at this
   // useEffect intentionally omits the EditContext callbacks
@@ -1351,7 +1362,7 @@ export function SelectionLayer() {
       // become the primary selection, so the inspector won't show stale controls
       // for a locked element. The click is still stopped so navigation links
       // inside the locked node don't fire.
-      if (builderNodeId && isBuilderNodeLocked(builderTree, builderNodeId)) {
+      if (builderNodeId && isBuilderNodeLocked(builderTreeRef.current, builderNodeId)) {
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -1430,7 +1441,7 @@ export function SelectionLayer() {
       // W2-T6(c) — scroll/resize moves the selected element's viewport rect →
       // wake the rAF overlay loop for the next frame(s).
       geometryDirtyRef.current = true;
-      scheduleRectRecompute();
+      scheduleRectRecomputeRef.current();
     }
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
@@ -1472,7 +1483,11 @@ export function SelectionLayer() {
         rafRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- EditContext callbacks are mirrored into callbacksRef above; re-registering on every selection change would thrash listeners
+    // EditContext callbacks are read through callbacksRef, the live tree through
+    // builderTreeRef, and the recompute through scheduleRectRecomputeRef — so
+    // none of them need to be deps and the listeners are NOT re-subscribed on
+    // every selection/tree change. The remaining deps are the only reactive
+    // values the handlers read directly.
 	  }, [contextMenu, hoveredSectionId, hoveredBuilderNodeId]);
 
   useEffect(() => {
@@ -1487,15 +1502,6 @@ export function SelectionLayer() {
         return true;
       }
       return Boolean(source.closest("[data-builder-node-id]"));
-    }
-
-    function rectsIntersect(a: Rect, b: Rect) {
-      return (
-        a.left < b.left + b.width &&
-        a.left + a.width > b.left &&
-        a.top < b.top + b.height &&
-        a.top + a.height > b.top
-      );
     }
 
     // P3-PERF: cached marquee candidate index, built once at marquee-start and
@@ -1523,19 +1529,13 @@ export function SelectionLayer() {
 
     function selectedNodeIdsForRect(rect: Rect) {
       // Reuse the gesture's cached index when warm; fall back to a fresh scan
-      // (byte-identical) if the cache was never seeded for this gesture.
+      // (byte-identical) if the cache was never seeded for this gesture. The
+      // hit-test + innermost-node containment filter is the pure
+      // `filterMarqueeHits`; DOM containment is injected here.
       const index = marqueeIndexRef.current ?? buildMarqueeIndex();
-      const candidates = index.filter((candidate) =>
-        rectsIntersect(rect, candidate.box),
-      );
-      return candidates
-        .filter(
-          (candidate) =>
-            !candidates.some(
-              (other) => other !== candidate && candidate.el.contains(other.el),
-            ),
-        )
-        .map((candidate) => candidate.id);
+      return filterMarqueeHits(rect, index, (ancestor, descendant) =>
+        ancestor.el.contains(descendant.el),
+      ).map((candidate) => candidate.id);
     }
 
     function flushMarqueePoint() {
@@ -1596,12 +1596,12 @@ export function SelectionLayer() {
         }
         const endX = point?.x ?? current.currentX;
         const endY = point?.y ?? current.currentY;
-        const rect = {
-          left: Math.min(current.startX, endX),
-          top: Math.min(current.startY, endY),
-          width: Math.abs(endX - current.startX),
-          height: Math.abs(endY - current.startY),
-        };
+        const rect = marqueeRectFromPoints(
+          current.startX,
+          current.startY,
+          endX,
+          endY,
+        );
         if (rect.width >= 8 && rect.height >= 8) {
           suppressNextClickRef.current = true;
           const ids = selectedNodeIdsForRect(rect);
@@ -2404,15 +2404,6 @@ export function SelectionLayer() {
   // decision is identical to scanning every frame. An empty cache (a drop event
   // before the seed) falls back to a fresh scan, so correctness never depends on
   // the cache being warm.
-  type SectionDropItem = {
-    id: string;
-    slotKey: string;
-    order: number;
-    top: number;
-    bottom: number;
-    left: number;
-    width: number;
-  };
   const sectionDropIndexRef = useRef<SectionDropItem[] | null>(null);
   const scanSectionDropItems = useCallback((): SectionDropItem[] => {
     const nodes = Array.from(
@@ -2437,55 +2428,35 @@ export function SelectionLayer() {
     sectionDropIndexRef.current = scanSectionDropItems();
   }, [scanSectionDropItems]);
 
-  // Drop target under the cursor given the current section layout.
-  const computeDrop = (
-    cursorX: number,
-    cursorY: number,
-    sourceSlot: string | null,
-    sourceTypeKey: string | null,
-  ): DropTarget | null => {
-    // W2-T5 — read the cache seeded at drag-start (refreshed on scroll/resize);
-    // fall back to a fresh scan if the cache isn't warm.
-    const items = sectionDropIndexRef.current ?? scanSectionDropItems();
-    if (items.length === 0) return null;
-    // Find the item whose vertical midpoint is closest to the cursor; cursor
-    // in top half → insert before it, bottom half → insert after it.
-    let best: (typeof items)[number] | null = null;
-    let bestDist = Infinity;
-    for (const it of items) {
-      const mid = (it.top + it.bottom) / 2;
-      const d = Math.abs(cursorY - mid);
-      if (d < bestDist) {
-        bestDist = d;
-        best = it;
-      }
-    }
-    if (!best) return null;
-    const mid = (best.top + best.bottom) / 2;
-    const insertBefore = cursorY < mid;
-    const targetSlot = best.slotKey;
-    const siblings = items.filter((it) => it.slotKey === targetSlot);
-    const bestSibIdx = siblings.findIndex((s) => s.id === best!.id);
-    const sortOrder = insertBefore ? bestSibIdx : bestSibIdx + 1;
-    // allowedSectionTypes gating. Same slot as source is always allowed.
-    const allowed =
-      sourceSlot === targetSlot
-        ? true
-        : checkSlotTypeCompatibility({
+  // Drop target under the cursor given the current section layout. Memoized so
+  // its identity is stable across renders (it only changes when `slotDefs` or
+  // the scan fn change) — that lets the drag pointer-listener + autoscroll rAF
+  // effects list it as a real dependency instead of suppressing exhaustive-deps.
+  // The midpoint / insert math is the pure `resolveSectionDropTarget`; this
+  // wrapper only supplies the live cache + the slot-compat predicate.
+  const computeDrop = useCallback(
+    (
+      cursorY: number,
+      sourceSlot: string | null,
+      sourceTypeKey: string | null,
+    ): DropTarget | null => {
+      // W2-T5 — read the cache seeded at drag-start (refreshed on scroll/resize);
+      // fall back to a fresh scan if the cache isn't warm.
+      const items = sectionDropIndexRef.current ?? scanSectionDropItems();
+      return resolveSectionDropTarget(
+        items,
+        cursorY,
+        sourceSlot,
+        (targetSlotKey) =>
+          checkSlotTypeCompatibility({
             slotDefs,
-            targetSlotKey: targetSlot,
+            targetSlotKey,
             sectionTypeKey: sourceTypeKey,
-          }).ok;
-    const indicatorY = insertBefore ? best.top : best.bottom;
-    return {
-      slotKey: targetSlot,
-      sortOrder,
-      allowed,
-      indicatorY,
-      indicatorLeft: best.left,
-      indicatorWidth: best.width,
-    };
-  };
+          }).ok,
+      );
+    },
+    [scanSectionDropItems, slotDefs],
+  );
 
   // W2-T5 — seed + maintain the section drop-index cache for the lifetime of a
   // section reorder gesture (armed OR dragging). Refresh only on scroll/resize
@@ -2523,12 +2494,7 @@ export function SelectionLayer() {
         const dx = e.clientX - drag.startX;
         const dy = e.clientY - drag.startY;
         if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
-        const drop = computeDrop(
-          e.clientX,
-          e.clientY,
-          drag.slot,
-          drag.typeKey,
-        );
+        const drop = computeDrop(e.clientY, drag.slot, drag.typeKey);
         setDrag({
           phase: "dragging",
           id: drag.id,
@@ -2545,12 +2511,7 @@ export function SelectionLayer() {
         return;
       }
       if (drag.phase === "dragging" && e.pointerId === drag.pointerId) {
-        const drop = computeDrop(
-          e.clientX,
-          e.clientY,
-          drag.slot,
-          drag.typeKey,
-        );
+        const drop = computeDrop(e.clientY, drag.slot, drag.typeKey);
         setDrag({
           ...drag,
           pointerX: e.clientX,
@@ -2604,11 +2565,10 @@ export function SelectionLayer() {
       document.removeEventListener("pointercancel", onUp);
       window.removeEventListener("keydown", onKey);
     };
-    // computeDrop is recreated every render but closes over the current
-    // slotDefs/DOM. Re-running this effect on drag/moveSectionTo/slotDefs
-    // is sufficient; dropping it in deps would churn listeners every paint.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- computeDrop reads live DOM + slotDefs at call time; re-registering every paint would tear/re-queue listeners unnecessarily
-  }, [drag, moveSectionTo, slotDefs]);
+    // `computeDrop` is now a useCallback whose identity only changes with
+    // `slotDefs` / the scan fn (not every render), so listing it no longer churns
+    // the listeners — the drop math still reads the live cache + DOM at call time.
+  }, [drag, moveSectionTo, computeDrop]);
 
   // Auto-scroll rAF loop: when actively dragging and cursor is in an edge
   // band, scroll the window so the operator can reach any destination
@@ -2619,26 +2579,13 @@ export function SelectionLayer() {
     let cancelled = false;
     function tick() {
       if (cancelled || drag.phase !== "dragging") return;
-      const y = drag.pointerY;
-      const vh = window.innerHeight;
-      let delta = 0;
-      if (y < AUTOSCROLL_BAND) {
-        delta = -((AUTOSCROLL_BAND - y) / AUTOSCROLL_BAND) * AUTOSCROLL_MAX;
-      } else if (y > vh - AUTOSCROLL_BAND) {
-        delta =
-          ((y - (vh - AUTOSCROLL_BAND)) / AUTOSCROLL_BAND) * AUTOSCROLL_MAX;
-      }
+      const delta = autoscrollDeltaForY(drag.pointerY, window.innerHeight);
       if (delta !== 0) {
         window.scrollBy(0, delta);
         // Recompute drop under the NEW scroll position even though the
         // cursor hasn't moved — otherwise the drop line freezes on the
         // section that was under the cursor before the page scrolled.
-        const fresh = computeDrop(
-          drag.pointerX,
-          drag.pointerY,
-          drag.slot,
-          drag.typeKey,
-        );
+        const fresh = computeDrop(drag.pointerY, drag.slot, drag.typeKey);
         if (
           fresh?.slotKey !== drag.drop?.slotKey ||
           fresh?.sortOrder !== drag.drop?.sortOrder ||
@@ -2657,12 +2604,11 @@ export function SelectionLayer() {
         autoscrollRafRef.current = null;
       }
     };
-    // computeDrop is recreated every render but only reads live DOM +
-    // slotDefs; re-running this rAF loop on every paint would tear down +
-    // re-queue the frame and risk auto-scroll jitter. Depending on `drag`
-    // is enough.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- computeDrop reads live DOM at call time; restarting the rAF loop on every render would cause autoscroll jitter
-  }, [drag]);
+    // `computeDrop` is a useCallback whose identity is stable during a drag
+    // (`slotDefs` doesn't change mid-gesture), so listing it no longer restarts
+    // the rAF loop each paint — the jitter the old suppression guarded against
+    // came from computeDrop being a fresh inline fn every render.
+  }, [drag, computeDrop]);
 
   /**
    * Sprint 3.1 — drag start now accepts an optional explicit section
