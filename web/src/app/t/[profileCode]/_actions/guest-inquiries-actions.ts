@@ -425,6 +425,40 @@ export async function listGuestInquiries(input: {
       ? (typicalLabelByTalent.get(talentProfileId) ?? null)
       : null;
 
+    // DOCK v2 card meta — pre-localized quick-summary labels (date, place,
+    // money) so the Inquiries cards read like a mini receipt. All optional;
+    // the card renders only what exists.
+    const iq = (row.interpreted_query as Record<string, unknown> | null) ?? {};
+    const iqLoc = (iq.location as Record<string, unknown> | undefined) ?? {};
+    const iqBudget = (iq.budget as Record<string, unknown> | undefined) ?? {};
+    const locationLabel =
+      iqLoc.is_online === true
+        ? t("public.guestChat.locationOnline")
+        : typeof iqLoc.city === "string" && iqLoc.city.trim()
+          ? iqLoc.city.trim()
+          : null;
+    const budgetAmount =
+      typeof iqBudget.amount === "number" && iqBudget.amount > 0 ? iqBudget.amount : null;
+    const budgetCurrency =
+      typeof iqBudget.currency === "string" && /^[A-Z]{3}$/.test(iqBudget.currency)
+        ? iqBudget.currency
+        : null;
+    let budgetLabel: string | null = null;
+    if (budgetAmount !== null) {
+      try {
+        budgetLabel = budgetCurrency
+          ? new Intl.NumberFormat(locale, {
+              style: "currency",
+              currency: budgetCurrency,
+              maximumFractionDigits: 0,
+            }).format(budgetAmount)
+          : budgetAmount.toLocaleString(locale);
+      } catch {
+        budgetLabel = `${budgetCurrency ?? ""} ${budgetAmount}`.trim();
+      }
+    }
+    const eventDateLabel = shortDateFragment(row.event_date, locale);
+
     return {
       inquiryId: row.id,
       projectLabel,
@@ -434,6 +468,9 @@ export async function listGuestInquiries(input: {
       talentName,
       talentPortraitUrl,
       agencyName,
+      eventDateLabel,
+      locationLabel,
+      budgetLabel,
       lastMessagePreview,
       lastMessageAt,
       lastMessageAuthor,

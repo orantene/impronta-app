@@ -355,6 +355,7 @@
       "switcherLineupMore": "{count} de plus",
       "projectLineupOne": "1 talent",
       "projectLineupOther": "Sélection de {count}",
+      "dockStatusBooked": "Réservé",
       "dockViewChat": "Chat",
       "dockViewLineup": "Liste",
       "dockViewProjects": "Projets",
