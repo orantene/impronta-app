@@ -4,7 +4,7 @@ import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { resolveAccountHref, getAppUrl } from "@/lib/auth-flow";
-import { loadMarketingWorkspaceLinks } from "@/lib/identity/marketing-workspaces";
+import { loadAccountMenuModel } from "@/lib/identity/account-menu-model";
 import { signOut } from "@/app/auth/actions";
 import { MarketingHeader } from "./header";
 import type { MarketingAccount } from "./marketing-account-menu";
@@ -38,26 +38,35 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
   if (actor.user) {
     const link = resolveAccountHref(true, actor.profile);
     const appUrl = getAppUrl();
+    const displayName =
+      actor.profile?.display_name?.trim() ||
+      actor.user.email?.split("@")[0] ||
+      "Account";
+    const email = actor.user.email ?? "";
+    const fallbackDashboardHref = link.href.startsWith("http")
+      ? link.href
+      : `${appUrl}${link.href}`;
 
-    // Every tenant the user has a workspace role in → a direct link to that
-    // workspace's dashboard, so a multi-tenant owner/admin can jump straight
-    // from any marketing page. Pure talent/client accounts have no
-    // memberships; the menu falls back to the single `dashboardHref` below.
-    const workspaces = actor.supabase
-      ? await loadMarketingWorkspaceLinks(actor.supabase, actor.user.id, appUrl)
-      : [];
-
-    account = {
-      displayName:
-        actor.profile?.display_name?.trim() ||
-        actor.user.email?.split("@")[0] ||
-        "Account",
-      email: actor.user.email ?? "",
-      dashboardHref: link.href.startsWith("http")
-        ? link.href
-        : `${appUrl}${link.href}`,
-      workspaces,
-    };
+    // Identity-aware menu: workspace memberships AND (for talents) their public
+    // pages with visibility + tier badge. Composed from existing loaders.
+    account = actor.supabase
+      ? await loadAccountMenuModel(actor.supabase, actor.user.id, {
+          appUrl,
+          displayName,
+          email,
+          fallbackDashboardHref,
+        })
+      : {
+          displayName,
+          email,
+          dashboardHref: fallbackDashboardHref,
+          accountHref: fallbackDashboardHref,
+          workspaces: [],
+          talentPages: [],
+          isTalent: false,
+          globalHidden: false,
+          talentLinks: null,
+        };
   }
 
   return (
