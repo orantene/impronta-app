@@ -122,6 +122,10 @@ import {
   type BuilderComponentVariant,
   type BuilderTextRoleId,
 } from "@/lib/site-admin/builder-node";
+import {
+  applyMobileFixes,
+  collectMobileFixes,
+} from "@/lib/site-admin/builder-node/mobile-fix";
 import { randomUuid } from "@/lib/site-admin/builder-node/make-id";
 import {
   builderPlanAllows,
@@ -595,6 +599,23 @@ export interface EditContextValue {
     nodeId: string,
     patch: { visibility?: "visible" | "hidden"; order?: number | null },
   ) => Promise<{ ok: boolean; error?: string }>;
+
+  /**
+   * W3-M3 — one-click "Fix mobile issues". Turns every FIXABLE mobile problem
+   * detected by the W3-M1 mobile-health pass (fixed-width overflow that blocks
+   * publish, plus the soft multi-column / non-collapsing-split advisories) into
+   * an APPLIED responsive override on the MOBILE breakpoint only — the desktop /
+   * base style is never touched. All fixes commit as ONE undoable transaction
+   * (a single Cmd+Z reverts the whole batch) through the same engine `patch` op
+   * + validation path as every other edit. Returns how many fixes actually
+   * changed the tree; `0` when nothing was fixable (a no-op that records no
+   * history entry).
+   */
+  fixAllMobileIssues: () => Promise<{
+    ok: boolean;
+    fixedCount: number;
+    error?: string;
+  }>;
 
   /**
    * Inspector autosave state. W2-T4 — the `dirty` VALUE now lives in the
@@ -6876,6 +6897,43 @@ export function EditProvider({
     [executeBuilderNodeOperation, runBuilderNodeOp],
   );
 
+  // W3-M3 — one-click "Fix mobile issues". Collect every fixable mobile issue
+  // (the fix resolver consumes the W3-M1 detection contract, it does NOT
+  // re-detect), fold ALL of them into a single next tree, then commit ONCE so
+  // the whole batch is one undoable transaction. `applyMobileFixes` runs each
+  // fix through the real `patch` op (tree validation + copy-on-write spine), so
+  // the committed tree is guaranteed valid; only `responsive.mobile` is written,
+  // the desktop/base style is untouched.
+  const fixAllMobileIssues = useCallback<
+    EditContextValue["fixAllMobileIssues"]
+  >(async () => {
+    const tree = builderTreeRef.current;
+    const fixes = collectMobileFixes(tree);
+    if (fixes.length === 0) {
+      return { ok: true, fixedCount: 0 };
+    }
+    let fixedCount = 0;
+    const applied = await executeBuilderNodeOperation({
+      operation: "patch",
+      run: (currentTree) => {
+        const result = applyMobileFixes(currentTree, fixes);
+        if (!result.ok) {
+          return {
+            ok: false,
+            code: "VALIDATION_FAILED",
+            error: result.error,
+          };
+        }
+        fixedCount = result.appliedCount;
+        return { ok: true, tree: result.tree };
+      },
+    });
+    if (!applied.ok) {
+      return { ok: false, fixedCount: 0, error: applied.error };
+    }
+    return { ok: true, fixedCount };
+  }, [executeBuilderNodeOperation]);
+
   const moveBuilderNodeWithinParent = useCallback<
     EditContextValue["moveBuilderNodeWithinParent"]
   >(
@@ -8035,6 +8093,7 @@ export function EditProvider({
       mobileEditMode,
       setMobileEditMode,
       setBuilderNodeMobileStructure,
+      fixAllMobileIssues,
       // W2-T4 — `dirty` VALUE removed from `value` (lives in dirty-bridge; the 4
       // readers use useDirty()). Setter kept so the public API is unchanged.
       setDirty,
@@ -8283,6 +8342,7 @@ export function EditProvider({
       mobileEditMode,
       setMobileEditMode,
       setBuilderNodeMobileStructure,
+      fixAllMobileIssues,
       // W2-T4 — `dirty` removed from the value-memo deps: a dirty flip no longer
       // rebuilds `value`, so non-dirty consumers don't re-render on it.
       saving,
