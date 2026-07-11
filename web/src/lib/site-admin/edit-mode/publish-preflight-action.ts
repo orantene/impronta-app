@@ -55,7 +55,7 @@ import {
 import {
   collectFreePlanPublishNestedViolations,
 } from "@/lib/site-admin/builder-node/free-plan-builder-tree-guard";
-import { collectMobileOverflowOffenders } from "@/lib/site-admin/builder-node/mobile-health";
+import { collectMobileOverflowPreflightIssues } from "./publish-preflight-mobile-overflow";
 import { isAdvancedElementLibraryEnabledForPlan } from "@/lib/site-admin/builder-node/element-library-policy";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
@@ -491,14 +491,10 @@ export async function runPublishPreflight(input?: {
         // (and the W3-M3 AI fixer can target it). The softer "likely overflow"
         // heuristics (multi-column grids, non-collapsing splits) stay advisory
         // in MobileHealthPanel and are intentionally NOT promoted here.
-        for (const offender of collectMobileOverflowOffenders(validation.tree)) {
-          issues.push({
-            severity: "error",
-            category: "mobile_overflow",
-            sectionId: offender.ownerSectionId ?? undefined,
-            nodeId: offender.nodeId,
-            message: `Mobile overflow: ${offender.nodeKind.replace(/_/g, " ")} is ${offender.widthPx}px wide, wider than the ${offender.viewportPx}px mobile viewport, so it forces horizontal scrolling on phones. Set a relative width (%, 100%) or a mobile width override before publishing.`,
-          });
+        for (const overflowIssue of collectMobileOverflowPreflightIssues(
+          validation.tree,
+        )) {
+          issues.push(overflowIssue);
         }
 
         if (
