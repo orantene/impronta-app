@@ -271,7 +271,7 @@ function mergeChipIntoQuery(
     };
     if (count !== null) {
       flatColumns.quantity = count;
-      appliedSummary = `${count} ${count === 1 ? "guest" : "guests"}`;
+      appliedSummary = `${count} talent`;
     } else {
       appliedSummary = "Headcount TBD";
     }
