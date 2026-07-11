@@ -246,7 +246,7 @@ export function SurfaceSubjectPicker({
                 lineHeight: 1.45,
               }}
             >
-              The Lab default previews against the active tenant — no subject to
+              The Lab default previews against the active tenant, no subject to
               pick.
             </div>
           )}

@@ -178,7 +178,7 @@ export function PreviewSubjectPicker({
         )}
         {more && !loading ? (
           <div style={{ fontSize: 11, color: T.inkDim, padding: "6px 4px", textAlign: "center" }}>
-            Showing the first 18 — refine your search to narrow.
+            Showing the first 18. Refine your search to narrow.
           </div>
         ) : null}
       </div>

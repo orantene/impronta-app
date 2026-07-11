@@ -43,7 +43,7 @@ export function BuilderLabHeader() {
       >
         Author and test page-builder templates against real talent + workspace
         data, then publish them into the consumer gallery. The canvas is
-        ephemeral — nothing here touches a live page.
+        ephemeral, nothing here touches a live page.
       </p>
     </div>
   );

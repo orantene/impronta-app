@@ -94,7 +94,7 @@ export const portableTemplateSchema = z
     kind: z.enum(BUILDER_TEMPLATE_KIND_VALUES, {
       error: (issue) => {
         if (issue.input !== undefined) {
-          return `Unknown kind "${String(issue.input)}" — must be one of: ${BUILDER_TEMPLATE_KIND_VALUES.join(", ")}`;
+          return `Unknown kind "${String(issue.input)}", must be one of: ${BUILDER_TEMPLATE_KIND_VALUES.join(", ")}`;
         }
         return "kind is required";
       },
@@ -112,7 +112,7 @@ export const portableTemplateSchema = z
     gallery_tab: z.enum(BUILDER_GALLERY_TAB_VALUES, {
       error: (issue) => {
         if (issue.input !== undefined) {
-          return `Unknown gallery_tab "${String(issue.input)}" — must be one of: ${BUILDER_GALLERY_TAB_VALUES.join(", ")}`;
+          return `Unknown gallery_tab "${String(issue.input)}", must be one of: ${BUILDER_GALLERY_TAB_VALUES.join(", ")}`;
         }
         return "gallery_tab is required";
       },
@@ -172,7 +172,7 @@ export function parsePortableTemplate(
     const path = first.path.join(".");
     reason = path ? `${path}: ${first.message}` : first.message;
   } else {
-    reason = "Invalid template file — could not parse.";
+    reason = "Invalid template file, could not parse.";
   }
 
   return { ok: false, error: reason };

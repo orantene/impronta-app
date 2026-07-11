@@ -59,7 +59,7 @@ export function CatalogHealthPanel({
         <span aria-hidden style={{ color: T.accent, fontWeight: 700 }}>
           ✓
         </span>
-        Catalog health — no orphans, unsatisfiable bindings, dead weight, or
+        Catalog health: no orphans, unsatisfiable bindings, dead weight, or
         asymmetric surfaces.
       </div>
     );

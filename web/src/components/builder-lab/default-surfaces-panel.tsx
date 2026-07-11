@@ -128,8 +128,8 @@ export function DefaultSurfacesPanel() {
         setStatus({
           ok: true,
           msg: nextId
-            ? "Saved — this template is now the default for this surface."
-            : "Reset — this surface now uses the built-in default.",
+            ? "Saved. This template is now the default for this surface."
+            : "Reset. This surface now uses the built-in default.",
         });
       } else {
         setStatus({ ok: false, msg: `Failed: ${r.error}` });
@@ -147,8 +147,8 @@ export function DefaultSurfacesPanel() {
         setStatus({
           ok: true,
           msg: next
-            ? "Freeform default ON — talents without a published Max site now render the freeform default."
-            : "Freeform default OFF — those talents render the classic profile layout.",
+            ? "Freeform default ON: talents without a published Max site now render the freeform default."
+            : "Freeform default OFF: those talents render the classic profile layout.",
         });
       } else {
         setStatus({ ok: false, msg: `Failed: ${r.error}` });
@@ -202,7 +202,7 @@ export function DefaultSurfacesPanel() {
                 <option value={BUILT_IN}>Use built-in default</option>
                 {isGhostPointer ? (
                   <option value={pointerId ?? ""} disabled>
-                    ⚠ Stale pointer — template no longer published
+                    ⚠ Stale pointer, template no longer published
                   </option>
                 ) : null}
                 {options.map((o) => (
@@ -236,7 +236,7 @@ export function DefaultSurfacesPanel() {
             </div>
             {options.length === 0 ? (
               <div style={{ fontSize: 11.5, color: T.inkDim }}>
-                No published page templates for this surface yet — publish one in the
+                No published page templates for this surface yet. Publish one in the
                 registry to point a default at it.
               </div>
             ) : null}
@@ -267,7 +267,7 @@ export function DefaultSurfacesPanel() {
                 </a>
                 <div style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5 }}>
                   Opens the live owner-gated render of the template this surface
-                  points at — the same tree the default surface serves, not the
+                  points at, the same tree the default surface serves, not the
                   built-in fallback.
                 </div>
               </>
@@ -291,7 +291,7 @@ export function DefaultSurfacesPanel() {
                 </span>
                 <div style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5 }}>
                   {isGhostPointer
-                    ? "The pointer references a template that is no longer published — re-point it to preview."
+                    ? "The pointer references a template that is no longer published. Re-point it to preview."
                     : "This surface uses the built-in default (no pointer set), which has no persisted template to hydrate. Point it at a published template to preview the live render."}
                 </div>
               </>

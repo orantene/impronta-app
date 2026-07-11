@@ -131,7 +131,7 @@ function CatalogDriftBanner({ onDismiss }: { onDismiss: () => void }) {
     >
       <span style={{ fontSize: 12.5, color: LAB.inkMuted, lineHeight: 1.4 }}>
         <span style={{ color: LAB.ink, fontWeight: 600 }}>Catalog changed elsewhere</span>
-        {" — another session updated the catalog. Reload to see the latest."}
+        {": another session updated the catalog. Reload to see the latest."}
       </span>
       <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
         <button

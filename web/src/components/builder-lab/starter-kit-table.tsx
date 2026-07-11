@@ -502,7 +502,7 @@ function EditAccordionRow({
             Metadata only. Target controls which kit (Agency / Talent / Both)
             lists the starter and which surface the builders&apos; &quot;+&quot;
             gallery offers it on. &quot;Platform&quot; is not a valid starter
-            target — use Both if the starter suits all surfaces. Editing a
+            target, use Both if the starter suits all surfaces. Editing a
             built-in&apos;s metadata here is overwritten the next time you sync
             built-in starters.
           </span>
