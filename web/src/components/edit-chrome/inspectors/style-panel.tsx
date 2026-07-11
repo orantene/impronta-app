@@ -190,329 +190,50 @@ type NodeViewport = "desktop" | "tablet" | "mobile";
 type StandaloneStyleScope = "viewport" | "container";
 type HorizontalSpacingMode = "linked" | "custom";
 
-const ALIGN_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "left", label: "Left" },
-  { value: "center", label: "Center" },
-  { value: "right", label: "Right" },
-];
-
-const SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "sm", label: "S" },
-  { value: "md", label: "M" },
-  { value: "lg", label: "L" },
-  { value: "xl", label: "XL" },
-  // STYLE-2 — display tier: storefront-grade headline scale above XL (clamp 3.5–6rem).
-  { value: "display", label: "Display" },
-];
-
-const BUILDER_NODE_STYLE_SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "sm", label: "S" },
-  { value: "md", label: "M" },
-  { value: "lg", label: "L" },
-  { value: "xl", label: "XL" },
-  // STYLE-2 — display tier: storefront-grade headline scale above XL (clamp 3.5–6rem).
-  { value: "display", label: "Display" },
-];
-
-const TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "muted", label: "Muted" },
-  { value: "strong", label: "Strong" },
-];
-
-const BUILDER_NODE_TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "muted", label: "Muted" },
-  { value: "strong", label: "Strong" },
-];
-
-const BUILDER_NODE_WIDTH_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Auto" },
-  { value: "narrow", label: "Narrow" },
-  { value: "reading", label: "Read" },
-  { value: "wide", label: "Wide" },
-  { value: "full", label: "Full" },
-];
-
-const BUILDER_NODE_SPACING_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "none", label: "0" },
-  { value: "s", label: "S" },
-  { value: "m", label: "M" },
-  { value: "l", label: "L" },
-];
-
-const BUILDER_NODE_BACKGROUND_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "none", label: "None" },
-  { value: "surface", label: "Surface" },
-  { value: "contrast", label: "Dark" },
-];
-
-const BUILDER_NODE_RADIUS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "none", label: "Sharp" },
-  { value: "sm", label: "S" },
-  { value: "md", label: "M" },
-  { value: "lg", label: "L" },
-  { value: "pill", label: "Pill" },
-];
-
-const BUILDER_NODE_FIT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "cover", label: "Cover" },
-  { value: "contain", label: "Contain" },
-];
-
-const BUILDER_NODE_RATIO_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Auto" },
-  { value: "1:1", label: "1:1" },
-  { value: "4:3", label: "4:3" },
-  { value: "3:4", label: "3:4" },
-  { value: "16:9", label: "16:9" },
-  { value: "21:9", label: "21:9" },
-];
-
-const BUILDER_BUTTON_TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "primary", label: "Primary" },
-  { value: "secondary", label: "Secondary" },
-];
-
-const BUILDER_NODE_FONT_WEIGHT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Auto" },
-  { value: "300", label: "Light" },
-  { value: "400", label: "Reg" },
-  { value: "500", label: "Med" },
-  { value: "600", label: "Semi" },
-  { value: "700", label: "Bold" },
-];
-
-const BUILDER_NODE_TEXT_TRANSFORM_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "none", label: "None" },
-  { value: "uppercase", label: "AA" },
-  { value: "lowercase", label: "aa" },
-  { value: "capitalize", label: "Aa" },
-];
-
-const BUILDER_NODE_FONT_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "normal", label: "Normal" },
-  { value: "italic", label: "Italic" },
-];
-
-const BUILDER_NODE_TEXT_DECORATION_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "none", label: "None" },
-  { value: "underline", label: "Under" },
-  { value: "line-through", label: "Strike" },
-];
-
-const BUILDER_NODE_TEXT_WRAP_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "balance", label: "Balance" },
-  { value: "pretty", label: "Pretty" },
-  { value: "nowrap", label: "No wrap" },
-];
-
-const BUILDER_NODE_WHITE_SPACE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "normal", label: "Normal" },
-  { value: "nowrap", label: "No wrap" },
-  { value: "pre-wrap", label: "Pre-wrap" },
-];
-
-const BUILDER_NODE_POSITION_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "relative", label: "Relative" },
-  { value: "absolute", label: "Absolute" },
-  { value: "sticky", label: "Sticky" },
-];
-
-// Wave 6B (#23) — sticky-pin self-anchor: which edge the node pins to as the
-// page scrolls. "" clears the convenience back to a plain (un-pinned) sticky.
-const BUILDER_NODE_STICKY_ANCHOR_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "None" },
-  { value: "top", label: "Pin top" },
-  { value: "bottom", label: "Pin bottom" },
-];
-
-const BUILDER_NODE_OVERFLOW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "visible", label: "Visible" },
-  { value: "hidden", label: "Hidden" },
-  { value: "auto", label: "Auto" },
-  { value: "scroll", label: "Scroll" },
-];
-
-const BUILDER_NODE_ALIGN_SELF_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Auto" },
-  { value: "start", label: "Start" },
-  { value: "center", label: "Center" },
-  { value: "end", label: "End" },
-  { value: "stretch", label: "Stretch" },
-];
-
-// Container layout (children) — how a flex/grid node distributes its OWN children
-// on the main axis (justify), cross axis (align), and whether rows wrap.
-const BUILDER_NODE_JUSTIFY_CONTENT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "flex-start", label: "Start" },
-  { value: "center", label: "Center" },
-  { value: "flex-end", label: "End" },
-  { value: "space-between", label: "Between" },
-  { value: "space-around", label: "Around" },
-  { value: "space-evenly", label: "Evenly" },
-];
-
-const BUILDER_NODE_ALIGN_ITEMS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "flex-start", label: "Start" },
-  { value: "center", label: "Center" },
-  { value: "flex-end", label: "End" },
-  { value: "stretch", label: "Stretch" },
-  { value: "baseline", label: "Baseline" },
-];
-
-const BUILDER_NODE_FLEX_WRAP_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "nowrap", label: "No wrap" },
-  { value: "wrap", label: "Wrap" },
-  { value: "wrap-reverse", label: "Reverse" },
-];
-
-const BUILDER_NODE_GRID_AUTO_FLOW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "row", label: "Row" },
-  { value: "column", label: "Column" },
-  { value: "row dense", label: "Row dense" },
-  { value: "column dense", label: "Col dense" },
-];
-
-const BUILDER_NODE_CURSOR_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "pointer", label: "Pointer" },
-  { value: "grab", label: "Grab" },
-  { value: "move", label: "Move" },
-  { value: "zoom-in", label: "Zoom" },
-  { value: "not-allowed", label: "Blocked" },
-  { value: "text", label: "Text" },
-  { value: "none", label: "Hide" },
-];
-
-const BUILDER_NODE_USER_SELECT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "auto", label: "Auto" },
-  { value: "text", label: "Text" },
-  { value: "all", label: "All" },
-  { value: "none", label: "None" },
-];
-
-const BUILDER_NODE_POINTER_EVENTS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "auto", label: "Auto" },
-  { value: "none", label: "Pass-through" },
-];
-
-const BUILDER_NODE_SCROLL_SNAP_ALIGN_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Default" },
-  { value: "start", label: "Start" },
-  { value: "center", label: "Center" },
-  { value: "end", label: "End" },
-  { value: "none", label: "None" },
-];
-
-const BUILDER_NODE_ANIMATION_PRESET_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "None" },
-  { value: "fade-in", label: "Fade" },
-  { value: "rise", label: "Rise" },
-  { value: "fall", label: "Fall" },
-  { value: "zoom-in", label: "Zoom" },
-  { value: "slide-left", label: "Slide ←" },
-  { value: "slide-right", label: "Slide →" },
-  { value: "blur-in", label: "Blur" },
-  { value: "flip-in", label: "Flip" },
-  { value: "bounce-in", label: "Bounce" },
-];
-
-const BUILDER_NODE_ANIMATION_TRIGGER_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "On load" },
-  { value: "scroll", label: "On scroll" },
-];
-
-const BUILDER_NODE_ANIMATION_EASING_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Ease" },
-  { value: "linear", label: "Linear" },
-  { value: "ease-in", label: "In" },
-  { value: "ease-out", label: "Out" },
-  { value: "ease-in-out", label: "In-out" },
-  { value: "back", label: "Back" },
-  { value: "smooth", label: "Smooth" },
-];
-
-// Wave 6B (#27) — scroll parallax intensity. "" / "none" = off.
-const BUILDER_NODE_PARALLAX_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Off" },
-  { value: "subtle", label: "Subtle" },
-  { value: "medium", label: "Medium" },
-  { value: "strong", label: "Strong" },
-];
-
-// Reveal-on-view (2026-06-04) — IntersectionObserver-driven entry trajectory.
-// "" = off. Direction variants travel `revealDistance`; fade/zoom don't.
-const BUILDER_NODE_REVEAL_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Off" },
-  { value: "fade", label: "Fade" },
-  { value: "fade-up", label: "Up" },
-  { value: "fade-down", label: "Down" },
-  { value: "fade-left", label: "Left" },
-  { value: "fade-right", label: "Right" },
-  { value: "zoom", label: "Zoom" },
-];
-
-const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "None" },
-  { value: "solid", label: "Solid" },
-  { value: "dashed", label: "Dash" },
-  { value: "dotted", label: "Dot" },
-];
-
-const BUILDER_NODE_VISIBILITY_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Shown" },
-  { value: "hidden", label: "Hidden" },
-];
-
-const BUILDER_NODE_SHADOW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "None" },
-  { value: "0 1px 2px rgba(18,18,18,0.06), 0 1px 3px rgba(18,18,18,0.10)", label: "S" },
-  { value: "0 4px 8px rgba(18,18,18,0.06), 0 6px 16px rgba(18,18,18,0.12)", label: "M" },
-  { value: "0 12px 24px rgba(18,18,18,0.10), 0 20px 48px rgba(18,18,18,0.16)", label: "L" },
-];
-
-const BUILDER_NODE_BG_REPEAT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "no-repeat", label: "None" },
-  { value: "repeat", label: "Tile" },
-  { value: "repeat-x", label: "X" },
-  { value: "repeat-y", label: "Y" },
-];
-
-const BUILDER_NODE_BLEND_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Normal" },
-  { value: "multiply", label: "Multiply" },
-  { value: "screen", label: "Screen" },
-  { value: "overlay", label: "Overlay" },
-  { value: "darken", label: "Darken" },
-  { value: "lighten", label: "Lighten" },
-];
-
-const BUILDER_NODE_BG_CLIP_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "", label: "Off" },
-  { value: "text", label: "Through text" },
-];
+// W4-F1 — style-domain enum option arrays extracted to ./style-panel/style-options.
+import {
+  ALIGN_OPTIONS,
+  SIZE_OPTIONS,
+  BUILDER_NODE_STYLE_SIZE_OPTIONS,
+  TONE_OPTIONS,
+  BUILDER_NODE_TONE_OPTIONS,
+  BUILDER_NODE_WIDTH_OPTIONS,
+  BUILDER_NODE_SPACING_OPTIONS,
+  BUILDER_NODE_BACKGROUND_OPTIONS,
+  BUILDER_NODE_RADIUS_OPTIONS,
+  BUILDER_NODE_FIT_OPTIONS,
+  BUILDER_NODE_RATIO_OPTIONS,
+  BUILDER_BUTTON_TONE_OPTIONS,
+  BUILDER_NODE_FONT_WEIGHT_OPTIONS,
+  BUILDER_NODE_TEXT_TRANSFORM_OPTIONS,
+  BUILDER_NODE_FONT_STYLE_OPTIONS,
+  BUILDER_NODE_TEXT_DECORATION_OPTIONS,
+  BUILDER_NODE_TEXT_WRAP_OPTIONS,
+  BUILDER_NODE_WHITE_SPACE_OPTIONS,
+  BUILDER_NODE_POSITION_OPTIONS,
+  BUILDER_NODE_STICKY_ANCHOR_OPTIONS,
+  BUILDER_NODE_OVERFLOW_OPTIONS,
+  BUILDER_NODE_ALIGN_SELF_OPTIONS,
+  BUILDER_NODE_JUSTIFY_CONTENT_OPTIONS,
+  BUILDER_NODE_ALIGN_ITEMS_OPTIONS,
+  BUILDER_NODE_FLEX_WRAP_OPTIONS,
+  BUILDER_NODE_GRID_AUTO_FLOW_OPTIONS,
+  BUILDER_NODE_CURSOR_OPTIONS,
+  BUILDER_NODE_USER_SELECT_OPTIONS,
+  BUILDER_NODE_POINTER_EVENTS_OPTIONS,
+  BUILDER_NODE_SCROLL_SNAP_ALIGN_OPTIONS,
+  BUILDER_NODE_ANIMATION_PRESET_OPTIONS,
+  BUILDER_NODE_ANIMATION_TRIGGER_OPTIONS,
+  BUILDER_NODE_ANIMATION_EASING_OPTIONS,
+  BUILDER_NODE_PARALLAX_OPTIONS,
+  BUILDER_NODE_REVEAL_OPTIONS,
+  BUILDER_NODE_BORDER_STYLE_OPTIONS,
+  BUILDER_NODE_VISIBILITY_OPTIONS,
+  BUILDER_NODE_SHADOW_OPTIONS,
+  BUILDER_NODE_BG_REPEAT_OPTIONS,
+  BUILDER_NODE_BLEND_OPTIONS,
+  BUILDER_NODE_BG_CLIP_OPTIONS,
+} from "./style-panel/style-options";
 
 /**
  * Parse a stored CSS length string ("48px", "1.5rem") back into the
