@@ -84,7 +84,7 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
       />
       <main className="flex-1 pt-[var(--plt-header-h,64px)] sm:pt-[72px]">{children}</main>
       <MarketingFooter />
-      <MarketingModalHost />
+      <MarketingModalHost locale={locale} />
     </div>
   );
 }
