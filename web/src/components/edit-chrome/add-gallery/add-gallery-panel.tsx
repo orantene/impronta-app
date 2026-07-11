@@ -51,6 +51,7 @@ import { AddGallerySectionPreview } from "./add-gallery-section-previews";
 import { resolveInsertAnchor } from "./gallery-insert-hint";
 import { getViewportSectionNodeId } from "./viewport-section-anchor";
 import { locateCanvasNode } from "../freeform-layer-row";
+import { useEditorLocale } from "../use-editor-locale";
 
 const PANEL_WIDTH = 592;
 const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
@@ -59,6 +60,12 @@ const PANEL_MAX_HEIGHT = "min(78vh, 640px)";
  *  listCatalogStructure() on open so admin renames/reorders are reflected. */
 const CODE_TAB_DEFS_SEED: ReadonlyArray<{ id: AddGalleryTab; label: string }> =
   resolveTabs();
+
+/** English source strings for the panel's DrawerHead title, keyed per tab. */
+const TAB_TITLE_BY_KEY: Partial<Record<AddGalleryTab, string>> = {
+  layout: "Add Layout", elements: "Add Elements", sections: "Add Sections",
+  connected: "Add Connected", shell: "Add Shell Templates", page_templates: "Add Page Templates",
+};
 
 interface AddGalleryPanelProps {
   open: boolean;
@@ -74,12 +81,13 @@ function TabBar({
   active: AddGalleryTab;
   onChange: (tab: AddGalleryTab) => void;
 }) {
+  const { t } = useEditorLocale();
   return (
     <div
       className="flex shrink-0 gap-0 border-b"
       style={{ borderColor: CHROME.line, padding: "0 16px" }}
       role="tablist"
-      aria-label="Add gallery tabs"
+      aria-label={t("Add gallery tabs")}
     >
       {tabs.map((tab) => {
         const isActive = tab.id === active;
@@ -109,7 +117,7 @@ function TabBar({
               e.currentTarget.style.color = CHROME.muted;
             }}
           >
-            {tab.label}
+            {t(tab.label)}
           </button>
         );
       })}
@@ -126,6 +134,7 @@ function CategoryRail({
   activeId: string | null;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useEditorLocale();
   return (
     <nav
       className="flex shrink-0 flex-col gap-[2px] overflow-y-auto py-[12px] pl-[12px] pr-[8px]"
@@ -133,7 +142,7 @@ function CategoryRail({
         width: 148,
         borderRight: `1px solid ${CHROME.line}`,
       }}
-      aria-label="Categories"
+      aria-label={t("Categories")}
     >
       {categories.map((cat) => {
         const active = cat.id === activeId;
@@ -459,6 +468,7 @@ function GalleryCard(props: {
 }
 
 export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
+  const { t, locale } = useEditorLocale();
   const {
     insertBuilderNode,
     insertBuilderSectionEmbed,
@@ -640,18 +650,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     ],
   );
 
-  const tabTitle =
-    tab === "layout"
-      ? "Add Layout"
-      : tab === "elements"
-        ? "Add Elements"
-        : tab === "sections"
-          ? "Add Sections"
-          : tab === "connected"
-            ? "Add Connected"
-            : tab === "shell"
-              ? "Add Shell Templates"
-              : "Add Page Templates";
+  const tabTitle = t(TAB_TITLE_BY_KEY[tab] ?? "Add Page Templates");
 
   const gridColumns =
     tab === "sections" || tab === "connected" || tab === "page_templates" || tab === "shell"
@@ -695,14 +694,14 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
             <path d="M5 9l4 4-4 4" />
             <path d="M9 5v14" />
           </svg>
-          Drag to a specific position, or click to insert after the selected block.
+          {t("Drag to a specific position, or click to insert after the selected block.")}
         </div>
       }
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="shrink-0 px-[16px] py-[10px]">
           <label className="sr-only" htmlFor="add-gallery-search">
-            Search gallery
+            {t("Search gallery")}
           </label>
           <div className="relative">
             <svg
@@ -723,7 +722,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search sections and blocks"
+              placeholder={t("Search sections and blocks")}
               className="w-full rounded-[10px] border py-[9px] pl-[34px] pr-[12px] text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/35"
               style={{
                 borderColor: CHROME.line,
@@ -740,8 +739,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
               aria-atomic="true"
             >
               {items.length === 0
-                ? "No results"
-                : `${items.length} result${items.length === 1 ? "" : "s"}`}
+                ? t("No results")
+                : `${items.length} ${locale === "es" ? "resultado" : "result"}${items.length === 1 ? "" : "s"}`}
             </p>
           ) : null}
         </div>
@@ -764,10 +763,10 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
                   className="text-[14px] font-semibold"
                   style={{ color: CHROME.ink2 }}
                 >
-                  No matches
+                  {t("No matches")}
                 </span>
                 <span className="text-[12px]" style={{ color: CHROME.muted }}>
-                  Try a different search or browse another category.
+                  {t("Try a different search or browse another category.")}
                 </span>
               </div>
             ) : (

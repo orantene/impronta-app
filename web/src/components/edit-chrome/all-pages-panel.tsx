@@ -43,6 +43,7 @@ import { useEditContext } from "./edit-context";
 import { DockFloatingPanel } from "./dock-floating-panel";
 import { flushThenNavigate } from "./page-switch-flush";
 import { CHROME } from "./kit";
+import { useEditorLocale } from "./use-editor-locale";
 
 interface AllPagesPanelProps {
   open: boolean;
@@ -73,6 +74,7 @@ interface InlineRenameProps {
 }
 
 function InlineRenameForm({ page, onDone, onError }: InlineRenameProps) {
+  const { t: tt } = useEditorLocale();
   const [title, setTitle] = useState(page.title);
   const [slugDraft, setSlugDraft] = useState(page.slug);
   const [slugEdited, setSlugEdited] = useState(false);
@@ -128,7 +130,7 @@ function InlineRenameForm({ page, onDone, onError }: InlineRenameProps) {
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={saving}
-        placeholder="Page title"
+        placeholder={tt("Page title")}
         className="mb-[6px] w-full rounded-[6px] border px-[8px] py-[6px] text-[13px] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/35"
         style={{ borderColor: CHROME.line, background: CHROME.surface, color: CHROME.ink }}
       />
@@ -145,7 +147,7 @@ function InlineRenameForm({ page, onDone, onError }: InlineRenameProps) {
               onChange={(e) => { setSlugDraft(e.target.value); setSlugEdited(true); }}
               onKeyDown={handleKeyDown}
               disabled={saving}
-              placeholder="page-slug"
+              placeholder={tt("page-slug")}
               className="min-w-0 flex-1 border-none bg-transparent text-[11px] focus:outline-none"
               style={{ color: CHROME.ink }}
             />
@@ -163,7 +165,7 @@ function InlineRenameForm({ page, onDone, onError }: InlineRenameProps) {
           className="rounded-[6px] px-[10px] py-[5px] text-[11px] font-semibold transition-colors disabled:opacity-50"
           style={{ background: CHROME.accent, color: "#fff" }}
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? tt("Saving…") : tt("Save")}
         </button>
         <button
           type="button"
@@ -172,7 +174,7 @@ function InlineRenameForm({ page, onDone, onError }: InlineRenameProps) {
           className="rounded-[6px] px-[8px] py-[5px] text-[11px] transition-colors"
           style={{ color: CHROME.muted }}
         >
-          Cancel
+          {tt("Cancel")}
         </button>
       </div>
     </div>
@@ -188,6 +190,7 @@ interface InlineDeleteProps {
 }
 
 function InlineDeleteConfirm({ page, onDone, onError }: InlineDeleteProps) {
+  const { t } = useEditorLocale();
   const [deleting, setDeleting] = useState(false);
 
   async function handleDelete() {
@@ -204,7 +207,7 @@ function InlineDeleteConfirm({ page, onDone, onError }: InlineDeleteProps) {
       style={{ borderColor: CHROME.rose, background: "rgba(190,18,60,0.04)" }}
     >
       <p className="mb-[8px] text-[12px]" style={{ color: CHROME.ink }}>
-        Delete <strong>{page.title}</strong>? This can&rsquo;t be undone.
+        {t("Delete")} <strong>{page.title}</strong>? {t("This can’t be undone.")}
       </p>
       <div className="flex items-center gap-[6px]">
         <button
@@ -214,7 +217,7 @@ function InlineDeleteConfirm({ page, onDone, onError }: InlineDeleteProps) {
           className="rounded-[6px] px-[10px] py-[5px] text-[11px] font-semibold transition-colors disabled:opacity-50"
           style={{ background: CHROME.rose, color: "#fff" }}
         >
-          {deleting ? "Deleting…" : "Delete page"}
+          {deleting ? t("Deleting…") : t("Delete page")}
         </button>
         <button
           type="button"
@@ -223,7 +226,7 @@ function InlineDeleteConfirm({ page, onDone, onError }: InlineDeleteProps) {
           className="rounded-[6px] px-[8px] py-[5px] text-[11px] transition-colors"
           style={{ color: CHROME.muted }}
         >
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </div>
@@ -233,6 +236,7 @@ function InlineDeleteConfirm({ page, onDone, onError }: InlineDeleteProps) {
 // ── Main panel ────────────────────────────────────────────────────────────────
 
 export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
+  const { t } = useEditorLocale();
   const router = useRouter();
   const dirty = useDirty();
   const { pageId, pageSlug, openRevisions, flushBuilderTreeSave } =
@@ -429,7 +433,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   return (
     <DockFloatingPanel
       panelId="all-pages"
-      title="All pages"
+      title={t("All pages")}
       open={open}
       onClose={onClose}
       width={320}
@@ -447,7 +451,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
             +
           </span>
           <span className="text-[13px] font-semibold">
-            {creating ? "Creating…" : "Add page"}
+            {creating ? t("Creating…") : t("Add page")}
           </span>
         </button>
 
@@ -468,7 +472,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
               className="text-[12px] font-semibold no-underline"
               style={{ color: CHROME.blue }}
             >
-              Upgrade plan
+              {t("Upgrade plan")}
             </Link>
           </div>
         ) : null}
@@ -490,12 +494,12 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
             e.currentTarget.style.color = CHROME.muted;
           }}
         >
-          Page history & revisions
+          {t("Page history & revisions")}
         </button>
 
         {loading ? (
           <p className="px-[6px] text-[12px]" style={{ color: CHROME.muted }}>
-            Loading…
+            {t("Loading…")}
           </p>
         ) : null}
         {fetchErr ? (
@@ -560,11 +564,11 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                   {page.title}
                   {isRoleHome ? (
                     <span className="ml-[6px] text-[10px] font-semibold uppercase tracking-wide" style={{ color: CHROME.muted }}>
-                      Home
+                      {t("Home")}
                     </span>
                   ) : isRoleDir ? (
                     <span className="ml-[6px] text-[10px] font-semibold uppercase tracking-wide" style={{ color: CHROME.muted }}>
-                      Directory
+                      {t("Directory")}
                     </span>
                   ) : null}
                   {/* Locale chip disambiguates per-locale rows (the homepage exists
@@ -581,15 +585,15 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                     className="shrink-0 rounded-[4px] px-[5px] py-[1px] text-[9px] font-semibold uppercase"
                     style={{ background: CHROME.amberBg, color: CHROME.amber }}
                   >
-                    Draft
+                    {t("Draft")}
                   </span>
                 ) : null}
               </button>
               <div className="relative shrink-0">
                 <button
                   type="button"
-                  title="More page actions"
-                  aria-label="More page actions"
+                  title={t("More page actions")}
+                  aria-label={t("More page actions")}
                   aria-expanded={moreOpenId === page.id}
                   onClick={() =>
                     setMoreOpenId((id) => (id === page.id ? null : page.id))
@@ -621,7 +625,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                       onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                     >
-                      Rename
+                      {t("Rename")}
                     </button>
                     <button
                       type="button"
@@ -632,7 +636,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                       onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                     >
-                      {duplicatingId === page.id ? "Duplicating…" : "Duplicate"}
+                      {duplicatingId === page.id ? t("Duplicating…") : t("Duplicate")}
                     </button>
                     {/* PAGE ROLES — assign this page as the site's home / directory.
                         Only real (non-system) pages can take a role. */}
@@ -646,7 +650,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                         onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       >
-                        {roleBusyId === page.slug + ":home" ? "Setting…" : "Set as homepage"}
+                        {roleBusyId === page.slug + ":home" ? t("Setting…") : t("Set as homepage")}
                       </button>
                     ) : null}
                     {assignable && !isRoleDir ? (
@@ -659,7 +663,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                         onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       >
-                        {roleBusyId === page.slug + ":directory" ? "Setting…" : "Set as directory"}
+                        {roleBusyId === page.slug + ":directory" ? t("Setting…") : t("Set as directory")}
                       </button>
                     ) : null}
                     {/* PAGE ROLES — the legacy system homepage (no home role yet)
@@ -674,7 +678,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                         onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       >
-                        {converting ? "Converting…" : "Convert to editable page"}
+                        {converting ? t("Converting…") : t("Convert to editable page")}
                       </button>
                     ) : null}
                     {/* ONB-4 — styled inline delete instead of window.confirm */}
@@ -690,7 +694,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                         onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(190,18,60,0.06)"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       >
-                        Delete
+                        {t("Delete")}
                       </button>
                     ) : null}
                     {!isHome ? (
@@ -701,7 +705,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                         style={{ color: CHROME.muted }}
                         onClick={() => setMoreOpenId(null)}
                       >
-                        Manage in admin
+                        {t("Manage in admin")}
                       </Link>
                     ) : null}
                   </div>
@@ -713,7 +717,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
 
         {pages && pages.length === 0 && !loading ? (
           <p className="px-[6px] text-[12px]" style={{ color: CHROME.muted }}>
-            No pages yet.
+            {t("No pages yet.")}
           </p>
         ) : null}
       </div>

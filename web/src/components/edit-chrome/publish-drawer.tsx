@@ -82,6 +82,7 @@ import { useDirty } from "./dirty-bridge";
 import { PublishPreflight } from "./PublishPreflight";
 import { MobileHealthPanel } from "./MobileHealthPanel";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
+import { useEditorLocale } from "./use-editor-locale";
 
 const TITLE_MAX = 60;
 const DESC_MAX = 160;
@@ -172,6 +173,7 @@ function ChevronDown({ flipped }: { flipped?: boolean }) {
 }
 
 function ChangeBadge({ kind }: { kind: SectionChangeKind }) {
+  const { t } = useEditorLocale();
   if (kind === "unchanged") return null;
   const palette =
     kind === "added"
@@ -179,13 +181,13 @@ function ChangeBadge({ kind }: { kind: SectionChangeKind }) {
           bg: "rgba(34,197,94,0.10)",
           border: "rgba(34,197,94,0.35)",
           text: "#166534",
-          label: "Added",
+          label: t("Added"),
         }
       : {
           bg: "rgba(59,130,246,0.10)",
           border: "rgba(59,130,246,0.35)",
           text: "#1d4ed8",
-          label: "Moved",
+          label: t("Moved"),
         };
   return (
     <span
@@ -236,6 +238,7 @@ function miniTextareaStyle(): React.CSSProperties {
 // ── PublishDrawer ────────────────────────────────────────────────────────────
 
 export function PublishDrawer() {
+  const { t, locale: editorLocale } = useEditorLocale();
   const {
     publishOpen,
     closePublish,
@@ -791,19 +794,19 @@ export function PublishDrawer() {
   // never-published em-dash.
   const headerMeta: React.ReactNode = isSuccess ? (
     <span>
-      Just published ·{" "}
+      {t("Just published")} ·{" "}
       <span style={{ color: CHROME.muted2 }}>{formatPublishedAt((state as Extract<PublishState, { kind: "success" }>).publishedAt)}</span>
     </span>
   ) : (
     <span>
-      Last published{" "}
+      {t("Last published")}{" "}
       <span style={{ color: CHROME.muted2 }}>
         {publishedRowsLoading && !lastPublishedAt
-          ? "loading…"
+          ? t("loading…")
           : publishedRowsFailed
             ? // W1-L2 — the loader failed/timed out; say so instead of the
               // never-published em-dash (retry lives in the stats card below).
-              "couldn't load"
+              t("couldn't load")
             : formatPublishedAt(lastPublishedAt)}
       </span>
     </span>
@@ -815,11 +818,11 @@ export function PublishDrawer() {
   // mislabels a template publish as a "homepage" publish.
   const surfaceNoun =
     surfaceKind === "platform_lab"
-      ? "template"
+      ? t("template")
       : surfaceKind === "homepage"
-        ? "homepage"
-        : "page";
-  const publishHeadTitle = isSuccess ? "Published" : `Publish ${surfaceNoun}`;
+        ? t("homepage")
+        : t("page");
+  const publishHeadTitle = isSuccess ? t("Published") : `${t("Publish")} ${surfaceNoun}`;
 
   return (
     <Drawer
@@ -854,7 +857,7 @@ export function PublishDrawer() {
           <>
             {state.kind === "publishing" ? (
               <p className="sr-only" role="status" aria-live="polite">
-                Publishing to the live site. Please wait.
+                {t("Publishing to the live site. Please wait.")}
               </p>
             ) : null}
             <div
@@ -869,7 +872,7 @@ export function PublishDrawer() {
                 color: CHROME.text2,
               }}
             >
-              <strong style={{ color: CHROME.text }}>What publishing does</strong>
+              <strong style={{ color: CHROME.text }}>{t("What publishing does")}</strong>
               {surfaceKind === "platform_lab" ? (
                 <p style={{ margin: "6px 0 0", fontSize: 11.5, color: CHROME.muted }}>
                   <strong style={{ color: CHROME.text }}>Autosave</strong> keeps your in-progress
@@ -893,8 +896,9 @@ export function PublishDrawer() {
                 </p>
               )}
               <p style={{ margin: "8px 0 0", fontSize: 11, color: CHROME.muted2, lineHeight: 1.45 }}>
-                Saving only stores your draft. It does not mean visitors see these changes. Scroll the
-                canvas, try Preview mode, and review the publish checks below before publishing.
+                {t(
+                  "Saving only stores your draft. It does not mean visitors see these changes. Scroll the canvas, try Preview mode, and review the publish checks below before publishing.",
+                )}
               </p>
             </div>
             {/* Phase 10 — preflight (heading + alt-text + contrast). */}
@@ -930,7 +934,11 @@ export function PublishDrawer() {
                     <StatLine
                       testId="publish-stat-sections-ready"
                       count={effectiveSectionsReady}
-                      label={`section${effectiveSectionsReady === 1 ? "" : "s"} ready`}
+                      label={
+                        editorLocale === "es"
+                          ? `sección${effectiveSectionsReady === 1 ? "" : "es"} lista${effectiveSectionsReady === 1 ? "" : "s"}`
+                          : `section${effectiveSectionsReady === 1 ? "" : "s"} ready`
+                      }
                       tone="ink"
                     />
                     {/* QA 2026-05-13 — while `publishDiff.loading` is true,
@@ -951,8 +959,8 @@ export function PublishDrawer() {
                       }
                       label={
                         publishDiff.firstPublish
-                          ? "changes since last publish (first publish)"
-                          : "changes since last publish"
+                          ? t("changes since last publish (first publish)")
+                          : t("changes since last publish")
                       }
                       tone={
                         publishDiff.loading || publishDiff.failed ? "ink" : "blue"
@@ -969,7 +977,7 @@ export function PublishDrawer() {
                         aria-live="polite"
                         style={{ marginTop: 6, fontSize: 11, color: CHROME.muted2 }}
                       >
-                        Checking the last published snapshot…
+                        {t("Checking the last published snapshot…")}
                       </div>
                     ) : null}
                     {publishDiff.failed ? (
@@ -978,8 +986,7 @@ export function PublishDrawer() {
                         aria-live="polite"
                         style={{ marginTop: 6, fontSize: 11, color: CHROME.amber }}
                       >
-                        Couldn&rsquo;t load the last published snapshot, so the
-                        change count is unavailable.{" "}
+                        {t("Couldn’t load the last published snapshot, so the change count is unavailable.")}{" "}
                         <button
                           type="button"
                           onClick={() => setPublishedRowsRetryNonce((n) => n + 1)}
@@ -994,7 +1001,7 @@ export function PublishDrawer() {
                             cursor: "pointer",
                           }}
                         >
-                          Retry
+                          {t("Retry")}
                         </button>
                       </div>
                     ) : null}
@@ -1489,8 +1496,8 @@ export function PublishDrawer() {
               <Card>
                 <CardHead
                   icon={<ChangesIcon />}
-                  title="Builder changes"
-                  sub="Draft vs published"
+                  title={t("Builder changes")}
+                  sub={t("Draft vs published")}
                 />
                 <CardBody>
                   {builderDiffFailed && !builderDiffIds ? (
@@ -1499,7 +1506,7 @@ export function PublishDrawer() {
                       aria-live="polite"
                       style={{ fontSize: 11.5, color: CHROME.amber, padding: "4px 0" }}
                     >
-                      Couldn&rsquo;t load the builder diff.{" "}
+                      {t("Couldn’t load the builder diff.")}{" "}
                       <button
                         type="button"
                         onClick={() => setBuilderDiffRetryNonce((n) => n + 1)}
@@ -1514,7 +1521,7 @@ export function PublishDrawer() {
                           cursor: "pointer",
                         }}
                       >
-                        Retry
+                        {t("Retry")}
                       </button>
                     </div>
                   ) : builderDiffLoading && !builderDiffIds ? (
@@ -1522,15 +1529,15 @@ export function PublishDrawer() {
                       style={{ fontSize: 11.5, color: CHROME.muted, padding: "6px 0" }}
                       aria-busy="true"
                     >
-                      Loading diff…
+                      {t("Loading diff…")}
                     </div>
                   ) : builderDiffIds?.publishedRevisionId == null ? (
                     <div
                       style={{ fontSize: 11.5, color: CHROME.muted, padding: "4px 0" }}
                     >
                       {builderDiffIds
-                        ? "Nothing published yet. This will be the first published version."
-                        : "Builder diff unavailable."}
+                        ? t("Nothing published yet. This will be the first published version.")
+                        : t("Builder diff unavailable.")}
                     </div>
                   ) : builderDiffIds ? (
                     <RevisionsDiffPanel
@@ -1703,7 +1710,7 @@ export function PublishDrawer() {
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
               <button
                 type="button"
-                title="Save a draft checkpoint without publishing"
+                title={t("Save a draft checkpoint without publishing")}
                 onClick={() => void saveDraft()}
                 disabled={saving || state.kind === "publishing"}
                 style={{
@@ -1725,14 +1732,14 @@ export function PublishDrawer() {
                   opacity: saving || state.kind === "publishing" ? 0.6 : 1,
                 }}
               >
-                {saving ? "Saving…" : "Save draft"}
+                {saving ? t("Saving…") : t("Save draft")}
               </button>
               {/* Copy from live — reset the draft to the published version.
                   Disabled while publishing / saving / dirty so it can't race a
                   draft write or clobber an unsettled autosave. */}
               <button
                 type="button"
-                title="Discard your draft edits and reset to the currently published version"
+                title={t("Discard your draft edits and reset to the currently published version")}
                 onClick={() => void handleCopyFromLive()}
                 disabled={
                   copyState.kind === "busy" ||
@@ -1771,7 +1778,7 @@ export function PublishDrawer() {
                       : 1,
                 }}
               >
-                {copyState.kind === "busy" ? "Resetting…" : "Copy from live"}
+                {copyState.kind === "busy" ? t("Resetting…") : t("Copy from live")}
               </button>
               {copyState.kind === "success" ? (
                 <span
@@ -1779,7 +1786,7 @@ export function PublishDrawer() {
                   aria-live="polite"
                   style={{ fontSize: 11.5, color: CHROME.green, fontWeight: 600 }}
                 >
-                  Draft reset to the published version
+                  {t("Draft reset to the published version")}
                 </span>
               ) : null}
             </div>
@@ -1804,7 +1811,7 @@ export function PublishDrawer() {
                   opacity: state.kind === "publishing" ? 0.5 : 1,
                 }}
               >
-                Cancel
+                {t("Cancel")}
               </button>
               <button
                 type="button"
@@ -1813,9 +1820,9 @@ export function PublishDrawer() {
                 aria-busy={state.kind === "publishing"}
                 aria-label={
                   state.kind === "publishing"
-                    ? "Publishing to the live site, please wait"
+                    ? t("Publishing to the live site, please wait")
                     : publishDisabledReason
-                      ? `Publish now (${publishDisabledReason})`
+                      ? `${t("Publish now")} (${publishDisabledReason})`
                       : undefined
                 }
                 title={publishDisabled ? publishDisabledReason ?? undefined : undefined}
@@ -1853,10 +1860,10 @@ export function PublishDrawer() {
                         animation: "pulse 1.4s ease-in-out infinite",
                       }}
                     />
-                    Publishing…
+                    {t("Publishing…")}
                   </>
                 ) : (
-                  "Publish now"
+                  t("Publish now")
                 )}
               </button>
             </>
@@ -2046,6 +2053,7 @@ function SuccessBody({
   surfaceKind: BuilderSurfaceKind;
   onClose: () => void;
 }) {
+  const { t, locale } = useEditorLocale();
   const when = new Date(publishedAt);
   const relative = formatRelative(when);
   return (
@@ -2077,7 +2085,7 @@ function SuccessBody({
               color: CHROME.ink,
             }}
           >
-            Published {relative}
+            {locale === "es" ? `Publicado ${relative}` : `Published ${relative}`}
           </p>
           <p
             style={{
@@ -2087,11 +2095,13 @@ function SuccessBody({
               lineHeight: 1.5,
             }}
           >
-            {surfaceKind === "platform_lab"
-              ? "This template is now in the page-builder gallery. Keep editing. Your next publish updates it when you click Publish again."
-              : surfaceKind === "homepage"
-                ? "Visitors see the new homepage now. Keep editing. Your next publish only replaces the live page when you click Publish again."
-                : "Visitors see the new page now. Keep editing. Your next publish only replaces the live page when you click Publish again."}
+            {t(
+              surfaceKind === "platform_lab"
+                ? "This template is now in the page-builder gallery. Keep editing. Your next publish updates it when you click Publish again."
+                : surfaceKind === "homepage"
+                  ? "Visitors see the new homepage now. Keep editing. Your next publish only replaces the live page when you click Publish again."
+                  : "Visitors see the new page now. Keep editing. Your next publish only replaces the live page when you click Publish again.",
+            )}
           </p>
         </div>
       </div>
@@ -2119,7 +2129,7 @@ function SuccessBody({
             cursor: "pointer",
           }}
         >
-          Close
+          {t("Close")}
         </button>
       </div>
     </div>

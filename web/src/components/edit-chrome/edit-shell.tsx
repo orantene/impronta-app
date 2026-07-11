@@ -98,6 +98,8 @@ import {
   resolveDeviceFrameHorizontalPadding,
   type WorkspaceCanvasMode,
 } from "./workspace-layout";
+import { useEditorLocale } from "./use-editor-locale";
+import { editorT, type EditorLocale } from "./editor-i18n";
 
 // ---------------------------------------------------------------------------
 // Heavy drawers — lazy-loaded via next/dynamic so their JS chunks are
@@ -1818,10 +1820,11 @@ function BodyPaddingController({
 }
 
 function DraftSavedToast() {
+  const { t } = useEditorLocale();
   const { lastDraftSavedAt, clearDraftSavedToast } = useEditContext();
   if (!lastDraftSavedAt) return null;
-  const t = new Date(lastDraftSavedAt);
-  const stamp = t.toLocaleTimeString(undefined, {
+  const savedAt = new Date(lastDraftSavedAt);
+  const stamp = savedAt.toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
   });
@@ -1832,10 +1835,11 @@ function DraftSavedToast() {
       onDismiss={clearDraftSavedToast}
     >
       <span className="flex max-w-[min(420px,calc(100vw-96px))] flex-col gap-0.5">
-        <span>Draft saved · {stamp}</span>
+        <span>{t("Draft saved")} · {stamp}</span>
         <span className="font-normal opacity-85">
-          Live preview can lag a moment after inserts. The draft on the server is still what
-          Publish will read.
+          {t(
+            "Live preview can lag a moment after inserts. The draft on the server is still what Publish will read.",
+          )}
         </span>
       </span>
     </EditToast>
@@ -1875,6 +1879,7 @@ function ClipboardActionToast() {
 // stack: `applyTemplateWithUndo` pushed the pre-apply tree to history before
 // the write, so Undo here restores it in one step through the surface adapter.
 function TemplateAppliedToast() {
+  const { t } = useEditorLocale();
   const { templateAppliedToast, clearTemplateAppliedToast, undo } =
     useEditContext();
   if (!templateAppliedToast) return null;
@@ -1908,19 +1913,20 @@ function TemplateAppliedToast() {
             </svg>
           }
         >
-          Undo
+          {t("Undo")}
         </Button>
       }
     >
       <span className="max-w-[min(360px,calc(100vw-160px))]">
         <span className="font-semibold">{templateAppliedToast.label}</span>{" "}
-        applied.
+        {t("applied")}.
       </span>
     </EditToast>
   );
 }
 
 function MutationErrorToast() {
+  const { t, locale } = useEditorLocale();
   const {
     mutationError,
     clearMutationError,
@@ -1947,10 +1953,10 @@ function MutationErrorToast() {
   if (!mutationError) return null;
   const detailLines = mutationError.details?.slice(0, 3) ?? [];
   const operationLabel = mutationError.operation
-    ? humanizeMutationOperation(mutationError.operation)
+    ? humanizeMutationOperation(mutationError.operation, locale)
     : null;
   const suggestion = mutationError.code
-    ? mutationCodeSuggestion(mutationError.code)
+    ? mutationCodeSuggestion(mutationError.code, locale)
     : null;
   // W3-T2(c) — a recoverable conflict gets a real choice instead of a 5s
   // disappearing act: take the just-reloaded latest, or re-apply the rejected
@@ -1964,6 +1970,13 @@ function MutationErrorToast() {
     if (!isBuilderPresenceEnabled() || !showConflictRecovery) return null;
     const { peopleNames, myOtherTabs } = summarizeOtherEditors(editors, others);
     if (peopleNames.length > 0) {
+      if (locale === "es") {
+        const names =
+          peopleNames.length === 1
+            ? peopleNames[0]!
+            : `${peopleNames[0]} y ${peopleNames.length - 1} más`;
+        return `${names} también ${peopleNames.length === 1 ? "está" : "están"} editando esta página.`;
+      }
       const names =
         peopleNames.length === 1
           ? peopleNames[0]!
@@ -1971,7 +1984,7 @@ function MutationErrorToast() {
       return `${names} ${peopleNames.length === 1 ? "is" : "are"} also editing this page.`;
     }
     if (myOtherTabs > 0) {
-      return "You have this page open in another tab. That edit landed first.";
+      return t("You have this page open in another tab. That edit landed first.");
     }
     return null;
   })();
@@ -1986,7 +1999,7 @@ function MutationErrorToast() {
       className="max-w-[min(92vw,680px)]"
     >
       <span className="block text-[10px] uppercase tracking-[0.06em] opacity-80">
-        Builder change blocked
+        {t("Builder change blocked")}
       </span>
       <span className="block" style={{ color: CHROME.text2 }}>
         {mutationError.message}
@@ -2003,7 +2016,7 @@ function MutationErrorToast() {
           className="mt-1 block text-[11px] font-normal"
           style={{ color: CHROME.text2 }}
         >
-          Next step: {suggestion}
+          {t("Next step:")} {suggestion}
         </span>
       ) : null}
       {conflictWho ? (
@@ -2025,9 +2038,9 @@ function MutationErrorToast() {
               // explanation toast from refreshComposition).
               void reloadLatestAfterConflict();
             }}
-            title="Load the changes from the other tab or session. Your unsaved local changes are discarded and undo history resets."
+            title={t("Load the changes from the other tab or session. Your unsaved local changes are discarded and undo history resets.")}
           >
-            Reload latest
+            {t("Reload latest")}
           </Button>
           <Button
             variant="danger"
@@ -2041,14 +2054,16 @@ function MutationErrorToast() {
               const who = conflictWho
                 ? ` (${conflictWho.replace(/\.$/, "")})`
                 : "";
-              const ok = window.confirm(
-                `Keep editing this copy?\n\nA newer change was just saved${who}. Keeping this copy overwrites that change. It stays recoverable in Revisions.`,
-              );
+              const confirmMsg =
+                locale === "es"
+                  ? `¿Seguir con esta copia?\n\nSe acaba de guardar un cambio más reciente${who}. Si sigues con esta copia, sobrescribirás ese cambio. Sigue siendo recuperable en Revisiones.`
+                  : `Keep editing this copy?\n\nA newer change was just saved${who}. Keeping this copy overwrites that change. It stays recoverable in Revisions.`;
+              const ok = window.confirm(confirmMsg);
               if (ok) void keepMyVersionAfterConflict();
             }}
-            title="Save your copy over the change from the other tab or session. Your undo history is kept."
+            title={t("Save your copy over the change from the other tab or session. Your undo history is kept.")}
           >
-            Keep editing this copy
+            {t("Keep editing this copy")}
           </Button>
         </span>
       ) : null}
@@ -2138,46 +2153,52 @@ function PresenceBannerInner() {
   );
 }
 
-function humanizeMutationOperation(operation: string): string {
+function humanizeMutationOperation(
+  operation: string,
+  locale: EditorLocale = "en",
+): string {
   switch (operation) {
     case "insert":
-      return "Insert";
+      return editorT("Insert", locale);
     case "move":
-      return "Move";
+      return editorT("Move", locale);
     case "remove":
-      return "Delete";
+      return editorT("Delete", locale);
     case "duplicate":
-      return "Duplicate";
+      return editorT("Duplicate", locale);
     case "paste":
-      return "Paste";
+      return editorT("Paste", locale);
     case "patch":
-      return "Update";
+      return editorT("Update", locale);
     default:
       return operation.charAt(0).toUpperCase() + operation.slice(1);
   }
 }
 
-function mutationCodeSuggestion(code: string): string | null {
+function mutationCodeSuggestion(
+  code: string,
+  locale: EditorLocale = "en",
+): string | null {
   switch (code) {
     case "NODE_NOT_FOUND":
-      return "This block is stale or already removed. Refresh and try the action again.";
+      return editorT("This block is stale or already removed. Refresh and try the action again.", locale);
     case "PARENT_NOT_FOUND":
-      return "Destination container no longer exists. Pick a different target or refresh.";
+      return editorT("Destination container no longer exists. Pick a different target or refresh.", locale);
     case "INVALID_MOVE_TARGET":
-      return "Choose another destination or move the parent group first.";
+      return editorT("Choose another destination or move the parent group first.", locale);
     case "CHILD_KIND_NOT_ALLOWED":
     case "PARENT_DOES_NOT_ALLOW_CHILDREN":
-      return "Pick a compatible container/section for this block type.";
+      return editorT("Pick a compatible container/section for this block type.", locale);
     case "ROOT_KIND_NOT_ALLOWED":
-      return "Insert this block inside a section or layout group.";
+      return editorT("Insert this block inside a section or layout group.", locale);
     case "VALIDATION_FAILED":
-      return "Adjust incompatible settings, then try again.";
+      return editorT("Adjust incompatible settings, then try again.", locale);
     case "GUARDED_NODE":
-      return "This area is protected by plan or shell rules.";
+      return editorT("This area is protected by plan or shell rules.", locale);
     case "VERSION_CONFLICT":
-      return "Pick one: Reload latest to take the other change, or Keep editing this copy to save yours over it.";
+      return editorT("Pick one: Reload latest to take the other change, or Keep editing this copy to save yours over it.", locale);
     case "SAVE_FAILED":
-      return "Try again. If it persists, reload the editor.";
+      return editorT("Try again. If it persists, reload the editor.", locale);
     default:
       return null;
   }

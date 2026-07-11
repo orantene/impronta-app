@@ -26,6 +26,7 @@ import {
   ensureButtonStyles,
 } from "./kit";
 import { useCommandDockCoupling } from "./use-command-dock-coupling";
+import { useEditorLocale } from "./use-editor-locale";
 
 const DOCK_LEFT = COMMAND_DOCK_LEFT_PX;
 const DOCK_TOP = COMMAND_DOCK_CHROME_TOP_PX;
@@ -183,6 +184,7 @@ const ICON_PROPS = {
 
 export function CommandDock() {
   const ctx = useEditContext();
+  const { t } = useEditorLocale();
   const {
     addMenuOpen,
     toggleAddMenu,
@@ -208,8 +210,8 @@ export function CommandDock() {
   const primaryItems: DockItem[] = [
     {
       id: "add",
-      label: "Add",
-      title: "Add gallery",
+      label: t("Add"),
+      title: t("Add gallery"),
       active: addMenuOpen,
       onClick: () => toggleAddMenu(),
       icon: (
@@ -221,8 +223,8 @@ export function CommandDock() {
     },
     {
       id: "pages",
-      label: "Pages",
-      title: "All pages",
+      label: t("Pages"),
+      title: t("All pages"),
       active: allPagesPanelOpen,
       onClick: () => toggleAllPagesPanel(),
       icon: (
@@ -234,8 +236,8 @@ export function CommandDock() {
     },
     {
       id: "structure",
-      label: "Structure",
-      title: "Structure (⌘\\)",
+      label: t("Structure"),
+      title: t("Structure (⌘\\)"),
       active: navigatorOpen,
       onClick: () => toggleNavigator(),
       icon: (
@@ -249,8 +251,8 @@ export function CommandDock() {
     },
     {
       id: "design",
-      label: "Design",
-      title: "Design (brand + theme)",
+      label: t("Design"),
+      title: t("Design (brand + theme)"),
       active: brandPanelOpen,
       onClick: () => toggleBrandPanel(),
       icon: (
@@ -265,8 +267,8 @@ export function CommandDock() {
     },
     {
       id: "assets",
-      label: "Assets",
-      title: "Asset library",
+      label: t("Assets"),
+      title: t("Asset library"),
       active: assetsOpen,
       onClick: () => (assetsOpen ? closeAssets() : openAssets()),
       icon: (
@@ -281,8 +283,8 @@ export function CommandDock() {
 
   const helpItem: DockItem = {
     id: "help",
-    label: "Help",
-    title: "Keyboard shortcuts (?)",
+    label: t("Help"),
+    title: t("Keyboard shortcuts (?)"),
     active: shortcutOverlayOpen,
     onClick: () =>
       shortcutOverlayOpen ? closeShortcutOverlay() : openShortcutOverlay(),
@@ -317,7 +319,7 @@ export function CommandDock() {
       ref={setPanelNode}
       data-command-dock
       data-command-dock-docked={dockedToPanel ? "true" : "false"}
-      aria-label="Builder tools"
+      aria-label={t("Builder tools")}
       className="fixed flex flex-col"
       style={{
         left: DOCK_LEFT,
