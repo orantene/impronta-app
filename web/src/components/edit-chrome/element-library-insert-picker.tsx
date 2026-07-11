@@ -26,10 +26,11 @@ import { CHROME } from "./kit";
  * P3-DRAG / CANVAS-6 — the palette-drag payload contract now lives in
  * `lib/site-admin/builder-node/palette-drag` (a pure module that only needs
  * `BuilderNodeKind`), so the lib add-gallery drag helper can import it WITHOUT
- * reaching into edit-chrome. Re-exported here for backward compatibility with
- * the edit-chrome consumers that already import these from this module.
+ * reaching into edit-chrome. Imported here for this picker's own use and
+ * re-exported for backward compatibility with the edit-chrome consumers that
+ * already import these from this module.
  */
-export {
+import {
   BUILDER_NODE_PALETTE_DRAG_MIME,
   encodeBuilderNodePaletteDrag,
   decodeBuilderNodePaletteDrag,
@@ -40,6 +41,18 @@ export {
   type BuilderNodePaletteDragPayload,
   type PalettePointerDragPhase,
 } from "@/lib/site-admin/builder-node/palette-drag";
+
+export {
+  BUILDER_NODE_PALETTE_DRAG_MIME,
+  encodeBuilderNodePaletteDrag,
+  decodeBuilderNodePaletteDrag,
+  setActiveBuilderNodePaletteDrag,
+  getActiveBuilderNodePaletteDrag,
+  subscribePalettePointerDrag,
+  emitPalettePointerDrag,
+  type BuilderNodePaletteDragPayload,
+  type PalettePointerDragPhase,
+};
 
 export function ElementLibraryInsertPicker({
   allowedKinds,
