@@ -4,6 +4,24 @@
  * Platform-owned catalog of section types. Tenants instantiate these via
  * cms_sections rows; homepage composer references instances via
  * cms_page_sections. New types ship as a new directory + PR entry here.
+ *
+ * ── FROZEN (2026-07-10, Page Builder minimal-build W4-F5) ──────────────────
+ * This registry is the LEGACY curated-sections render system — one of two
+ * parallel systems that render tenant pages (the other is `builder-node`,
+ * the freeform BuilderNode-tree renderer under
+ * `lib/site-admin/builder-node/`). Running two systems side by side is a
+ * standing maintenance tax; the plan is to shrink this one over time, not
+ * grow it.
+ *
+ * This file is now BUG-FIXES ONLY. Do not add a new entry to
+ * `SECTION_REGISTRY` (a new curated section kind) — new section/component
+ * work goes to `builder-node` (freeform primitives + section-embed), not
+ * here. `registry-freeze.static.test.ts` pins the current key set to an
+ * explicit allow-list and fails CI if a new kind is registered, with a
+ * message pointing at this comment.
+ *
+ * The ~55 kinds already registered here are in production and must not be
+ * deleted or altered by this freeze — only NEW additions are blocked.
  */
 
 import type { SectionRegistryEntry } from "./types";
