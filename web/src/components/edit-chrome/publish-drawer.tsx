@@ -908,24 +908,57 @@ export function PublishDrawer() {
               <strong style={{ color: CHROME.text }}>{t("What publishing does")}</strong>
               {surfaceKind === "platform_lab" ? (
                 <p style={{ margin: "6px 0 0", fontSize: 11.5, color: CHROME.muted }}>
-                  <strong style={{ color: CHROME.text }}>Autosave</strong> keeps your in-progress
-                  work as a <strong style={{ color: CHROME.text }}>draft</strong>.{" "}
-                  <strong style={{ color: CHROME.text }}>Publishing</strong> promotes this{" "}
-                  <strong style={{ color: CHROME.text }}>template</strong>{" "}into the
-                  page-builder gallery, so the live builders&rsquo;{" "}
-                  <strong style={{ color: CHROME.text }}>+ Add</strong> can use it. The canvas here
-                  is a sandbox; no live page changes.
+                  {editorLocale === "es" ? (
+                    <>
+                      El <strong style={{ color: CHROME.text }}>guardado automático</strong>{" "}
+                      conserva tu trabajo en curso como{" "}
+                      <strong style={{ color: CHROME.text }}>borrador</strong>.{" "}
+                      <strong style={{ color: CHROME.text }}>Publicar</strong> convierte esta{" "}
+                      <strong style={{ color: CHROME.text }}>plantilla</strong> en parte de la
+                      galería del editor de páginas, para que{" "}
+                      <strong style={{ color: CHROME.text }}>+ Agregar</strong> pueda usarla en
+                      los sitios en vivo. Este lienzo es un entorno de prueba; no hay cambios en
+                      páginas en vivo.
+                    </>
+                  ) : (
+                    <>
+                      <strong style={{ color: CHROME.text }}>Autosave</strong> keeps your in-progress
+                      work as a <strong style={{ color: CHROME.text }}>draft</strong>.{" "}
+                      <strong style={{ color: CHROME.text }}>Publishing</strong> promotes this{" "}
+                      <strong style={{ color: CHROME.text }}>template</strong>{" "}into the
+                      page-builder gallery, so the live builders&rsquo;{" "}
+                      <strong style={{ color: CHROME.text }}>+ Add</strong> can use it. The canvas here
+                      is a sandbox; no live page changes.
+                    </>
+                  )}
                 </p>
               ) : (
                 <p style={{ margin: "6px 0 0", fontSize: 11.5, color: CHROME.muted }}>
-                  <strong style={{ color: CHROME.text }}>Autosave</strong> keeps your in-progress
-                  work as a <strong style={{ color: CHROME.text }}>draft</strong>.{" "}
-                  <strong style={{ color: CHROME.text }}>Publishing</strong> replaces the current{" "}
-                  <strong style={{ color: CHROME.text }}>public</strong> version of{" "}
-                  {pageSlug ? "this page" : "your homepage"} with that draft, so visitors then
-                  see this page as you have it now. Other pages are unchanged. Use{" "}
-                  <strong style={{ color: CHROME.text }}>Revisions</strong> to roll back to a
-                  previous snapshot if needed.
+                  {editorLocale === "es" ? (
+                    <>
+                      El <strong style={{ color: CHROME.text }}>guardado automático</strong>{" "}
+                      conserva tu trabajo en curso como{" "}
+                      <strong style={{ color: CHROME.text }}>borrador</strong>.{" "}
+                      <strong style={{ color: CHROME.text }}>Publicar</strong> reemplaza la
+                      versión <strong style={{ color: CHROME.text }}>pública</strong> actual de{" "}
+                      {pageSlug ? "esta página" : "tu página de inicio"} con ese borrador, así
+                      los visitantes ven la página tal como está ahora. Las demás páginas no
+                      cambian. Usa{" "}
+                      <strong style={{ color: CHROME.text }}>Revisiones</strong> para volver a
+                      una instantánea anterior si lo necesitas.
+                    </>
+                  ) : (
+                    <>
+                      <strong style={{ color: CHROME.text }}>Autosave</strong> keeps your in-progress
+                      work as a <strong style={{ color: CHROME.text }}>draft</strong>.{" "}
+                      <strong style={{ color: CHROME.text }}>Publishing</strong> replaces the current{" "}
+                      <strong style={{ color: CHROME.text }}>public</strong> version of{" "}
+                      {pageSlug ? "this page" : "your homepage"} with that draft, so visitors then
+                      see this page as you have it now. Other pages are unchanged. Use{" "}
+                      <strong style={{ color: CHROME.text }}>Revisions</strong> to roll back to a
+                      previous snapshot if needed.
+                    </>
+                  )}
                 </p>
               )}
               <p style={{ margin: "8px 0 0", fontSize: 11, color: CHROME.muted2, lineHeight: 1.45 }}>

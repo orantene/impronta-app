@@ -28,6 +28,7 @@ import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
 
 import { MediaPicker } from "@/lib/site-admin/sections/shared/MediaPicker";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { useEditorLocale } from "../use-editor-locale";
 import {
   DraggableList,
   InspectorGroup,
@@ -81,6 +82,7 @@ function GalleryTileRow({
   onRemove: () => void;
   onUpdate: (patch: Partial<GalleryItem>) => void;
 }) {
+  const { t } = useEditorLocale();
   const [editingAlt, setEditingAlt] = useState(false);
   const aspect: AspectKey = item.aspect ?? "auto";
 
@@ -120,7 +122,7 @@ function GalleryTileRow({
             className="w-full rounded-lg border border-[#cfc7b6] bg-white px-2 py-1 text-[11px] text-stone-800 placeholder:text-stone-500 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]"
             value={item.alt ?? ""}
             maxLength={160}
-            placeholder="Describe this image…"
+            placeholder={t("Describe this image…")}
             onBlur={(e) => {
               onUpdate({ alt: e.target.value.trim() || undefined });
               setEditingAlt(false);
@@ -134,12 +136,12 @@ function GalleryTileRow({
             type="button"
             className="text-left text-[11px] truncate transition hover:text-stone-800"
             onClick={() => setEditingAlt(true)}
-            title="Click to add alt text"
+            title={t("Click to add alt text")}
           >
             {item.alt ? (
               <span className="text-stone-700">{item.alt}</span>
             ) : (
-              <span className="italic text-stone-500">Add alt text</span>
+              <span className="italic text-stone-500">{t("Add alt text")}</span>
             )}
           </button>
         )}
@@ -149,10 +151,10 @@ function GalleryTileRow({
           type="button"
           onClick={cycleAspect}
           className="w-fit rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium text-stone-600 transition hover:bg-stone-200"
-          title="Click to change aspect ratio"
-          aria-label={`Aspect: ${ASPECT_LABEL[aspect]}. Click to cycle.`}
+          title={t("Click to change aspect ratio")}
+          aria-label={`${t("Aspect:")} ${t(ASPECT_LABEL[aspect])}. ${t("Click to cycle.")}`}
         >
-          {ASPECT_LABEL[aspect]}
+          {t(ASPECT_LABEL[aspect])}
         </button>
       </div>
     </InspectorItemRow>
@@ -210,15 +212,20 @@ function GridUniformPreview() {
   );
 }
 
-const VARIANT_CHIPS: ReadonlyArray<ChipOption<VariantKey>> = [
-  { value: "mosaic",       label: "Mosaic",  preview: <MosaicPreview />,       info: "Varied sizes for editorial depth" },
-  { value: "scroll-rail",  label: "Scroll",  preview: <ScrollRailPreview />,   info: "Horizontal scroll strip" },
-  { value: "grid-uniform", label: "Grid",    preview: <GridUniformPreview />,  info: "Equal-size uniform grid" },
-];
+function variantChips(
+  t: ReturnType<typeof useEditorLocale>["t"],
+): ReadonlyArray<ChipOption<VariantKey>> {
+  return [
+    { value: "mosaic",       label: t("Mosaic"),  preview: <MosaicPreview />,       info: t("Varied sizes for editorial depth") },
+    { value: "scroll-rail",  label: t("Scroll"),  preview: <ScrollRailPreview />,   info: t("Horizontal scroll strip") },
+    { value: "grid-uniform", label: t("Grid"),    preview: <GridUniformPreview />,  info: t("Equal-size uniform grid") },
+  ];
+}
 
 // ── Empty state ───────────────────────────────────────────────────────────────
 
 function EmptyTray() {
+  const { t } = useEditorLocale();
   return (
     <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-[#e5e0d5] py-10 text-center">
       <svg
@@ -237,9 +244,9 @@ function EmptyTray() {
         <circle cx="9" cy="9" r="1.5" />
         <path d="M21 15l-5-5-11 11" />
       </svg>
-      <div className="text-[11px] font-medium text-stone-500">No photos yet</div>
+      <div className="text-[11px] font-medium text-stone-500">{t("No photos yet")}</div>
       <div className="text-[10px] text-stone-500">
-        Add at least 3 to publish this section.
+        {t("Add at least 3 to publish this section.")}
       </div>
     </div>
   );
@@ -253,6 +260,7 @@ export function GalleryStripContentInspector({
   selectedBuilderNodeId,
   onChange,
 }: Props) {
+  const { t } = useEditorLocale();
   const rawItems = (draftProps.items as GalleryItem[] | undefined) ?? [];
 
   function updateItems(nextItems: GalleryItem[]) {
@@ -317,53 +325,53 @@ export function GalleryStripContentInspector({
             color: "#1d4ed8",
           }}
         >
-          Editing selected canvas node:{" "}
+          {t("Editing selected canvas node:")}{" "}
           {focusRole === "subheadline"
-            ? "Eyebrow"
+            ? t("Eyebrow")
             : focusRole === "headline"
-              ? "Headline"
-              : "Caption"}
+              ? t("Headline")
+              : t("Caption")}
         </div>
       ) : null}
       {/* ── Headline ── */}
       <InspectorGroup
-        title="Headline"
+        title={t("Headline")}
         collapsible
         storageKey="gs-header"
         defaultOpen={Boolean(eyebrow || headline)}
       >
         <div className={KIT.field} data-gallery-node-role="subheadline">
-          <label className={KIT.label}>Eyebrow</label>
+          <label className={KIT.label}>{t("Eyebrow")}</label>
           <input
             type="text"
             className={KIT.input}
             value={eyebrow}
             maxLength={60}
-            placeholder="The work"
+            placeholder={t("The work")}
             onChange={(e) =>
               onChange({ ...draftProps, eyebrow: e.target.value || undefined })
             }
           />
         </div>
         <div className={KIT.field} data-gallery-node-role="headline">
-          <label className={KIT.label}>Headline</label>
+          <label className={KIT.label}>{t("Headline")}</label>
           <RichEditor
             value={headline}
             onChange={(next) => onChange({ ...draftProps, headline: next || undefined })}
             variant="single"
             tenantId={tenantId}
-            placeholder="A year in frames"
-            ariaLabel="Headline"
+            placeholder={t("A year in frames")}
+            ariaLabel={t("Headline")}
           />
         </div>
       </InspectorGroup>
 
       {/* ── Layout ── */}
-      <InspectorGroup title="Layout" collapsible storageKey="gs-layout" defaultOpen={false}>
+      <InspectorGroup title={t("Layout")} collapsible storageKey="gs-layout" defaultOpen={false}>
         <VisualChipGroup
           value={variant}
           onChange={(v) => onChange({ ...draftProps, variant: v })}
-          options={VARIANT_CHIPS}
+          options={variantChips(t)}
           columns={3}
         />
       </InspectorGroup>
@@ -373,7 +381,7 @@ export function GalleryStripContentInspector({
         {/* Tray header: count + "Add images" button */}
         <div className="flex items-center justify-between">
           <span className={KIT.sectionTitle}>
-            Photos
+            {t("Photos")}
             {rawItems.length > 0 && (
               <span className="ml-1.5 tabular-nums text-stone-500">
                 ({rawItems.length})
@@ -383,7 +391,7 @@ export function GalleryStripContentInspector({
           {/* Multi-select picker — keeps modal open until "Add N images" */}
           <MediaPicker
             tenantId={tenantId}
-            label="Add images"
+            label={t("Add images")}
             onPick={(url) => addImages([url])}
             multi
             onMultiPick={addImages}
@@ -393,9 +401,12 @@ export function GalleryStripContentInspector({
         {/* Below-threshold warning */}
         {tooFew && (
           <div className="rounded-md bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
-            Add {3 - rawItems.length} more{" "}
-            {3 - rawItems.length === 1 ? "photo" : "photos"}, minimum 3
-            required to publish.
+            {t("Add {count} more {noun}, minimum 3 required to publish.")
+              .replace("{count}", String(3 - rawItems.length))
+              .replace(
+                "{noun}",
+                3 - rawItems.length === 1 ? t("photo") : t("photos"),
+              )}
           </div>
         )}
 
@@ -421,13 +432,13 @@ export function GalleryStripContentInspector({
 
         {/* Drag hint — only show when there are 2+ items */}
         {rawItems.length >= 2 && (
-          <p className={KIT.hint}>Drag to reorder. First image sets the hero tile in mosaic view.</p>
+          <p className={KIT.hint}>{t("Drag to reorder. First image sets the hero tile in mosaic view.")}</p>
         )}
       </section>
 
       {/* ── Caption (collapsed) ── */}
       <InspectorGroup
-        title="Caption"
+        title={t("Caption")}
         collapsible
         storageKey="gs-caption"
         defaultOpen={Boolean(caption)}
@@ -438,14 +449,13 @@ export function GalleryStripContentInspector({
             value={caption}
             maxLength={240}
             rows={2}
-            placeholder="An editorial note beneath the gallery…"
+            placeholder={t("An editorial note beneath the gallery…")}
             onChange={(e) =>
               onChange({ ...draftProps, caption: e.target.value || undefined })
             }
           />
           <p className={KIT.hint}>
-            Renders in italic serif below the grid. Optional, leave blank to
-            omit.
+            {t("Renders in italic serif below the grid. Optional, leave blank to omit.")}
           </p>
         </div>
       </InspectorGroup>

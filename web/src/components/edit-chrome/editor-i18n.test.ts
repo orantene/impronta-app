@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { detectEditorLocale, editorT } from "./editor-i18n";
+import { detectEditorLocale, editorT, ES_TEXT, MESSAGES } from "./editor-i18n";
 
 // ── Legacy semantic-key table (navigator-panel.tsx consumer) ────────────────
 
@@ -74,4 +74,70 @@ test("detectEditorLocale returns 'en' outside a browser (no navigator)", () => {
   // node:test runs in a Node context with no `navigator.language` wired the
   // same way a browser would, so this documents/guards the server-safe path.
   assert.equal(detectEditorLocale(), "en");
+});
+
+// ── W5-A4 — deep per-block inspector content editors ────────────────────────
+// hero / cta_banner / gallery_strip / testimonials_trio / featured_talent /
+// category_grid / talent_type_grid / trust_strip curated Content tabs, plus
+// the generic-content fallback and content-dispatch viewport hint. These
+// spot-check a representative sample; the full-catalog test below covers
+// every key exhaustively.
+
+test("deep content-editor keys resolve to Spanish (spot check)", () => {
+  assert.equal(editorT("Eyebrow", "es"), "Antetítulo");
+  assert.equal(editorT("Headline", "es"), "Título");
+  assert.equal(editorT("Primary Button", "es"), "Botón principal");
+  assert.equal(editorT("Add hero image", "es"), "Agregar imagen del hero");
+  assert.equal(editorT("Photos", "es"), "Fotos");
+  assert.equal(editorT("Quote", "es"), "Cita");
+  assert.equal(editorT("Hand-picked", "es"), "Selección manual");
+  assert.equal(editorT("New category", "es"), "Nueva categoría");
+  assert.equal(editorT("Manual Cards", "es"), "Tarjetas manuales");
+  assert.equal(editorT("Icon row", "es"), "Fila de iconos");
+  assert.equal(
+    editorT("No editor registered for section type", "es"),
+    "No hay editor registrado para este tipo de sección",
+  );
+});
+
+test("deep content-editor keys pass through unchanged in en", () => {
+  assert.equal(editorT("Eyebrow", "en"), "Eyebrow");
+  assert.equal(editorT("Add hero image", "en"), "Add hero image");
+  assert.equal(editorT("Manual Cards", "en"), "Manual Cards");
+});
+
+// ── Full-catalog key-parity guard ───────────────────────────────────────────
+// Every ES_TEXT entry must have a non-empty Spanish translation and neither
+// the English key nor the Spanish value may contain an em dash, across the
+// WHOLE catalog (not just a hand-picked sample) — this is what makes the
+// guard catch a future entry added without its translation or with a
+// forbidden em dash, including everything added in W5-A4.
+
+test("every ES_TEXT entry has a non-empty Spanish translation, no em dashes either side", () => {
+  const keys = Object.keys(ES_TEXT);
+  assert.ok(keys.length > 300, "expected the deep-editor catalog to be present");
+  for (const key of keys) {
+    const es = ES_TEXT[key]!;
+    assert.ok(es.length > 0, `empty ES translation for "${key}"`);
+    assert.ok(!key.includes("—"), `em dash found in EN key "${key}"`);
+    assert.ok(!es.includes("—"), `em dash found in ES translation of "${key}"`);
+  }
+});
+
+test("every legacy semantic MessageKey has a non-empty EN and ES value, no em dashes", () => {
+  const enKeys = Object.keys(MESSAGES.en);
+  const esKeys = Object.keys(MESSAGES.es);
+  assert.deepEqual(
+    [...enKeys].sort(),
+    [...esKeys].sort(),
+    "legacy semantic-key table must define the same keys for en and es",
+  );
+  for (const key of enKeys) {
+    const en = MESSAGES.en[key as keyof typeof MESSAGES.en];
+    const es = MESSAGES.es[key as keyof typeof MESSAGES.es];
+    assert.ok(en.length > 0, `empty EN value for "${key}"`);
+    assert.ok(es.length > 0, `empty ES value for "${key}"`);
+    assert.ok(!en.includes("—"), `em dash found in EN value for "${key}"`);
+    assert.ok(!es.includes("—"), `em dash found in ES value for "${key}"`);
+  }
 });
