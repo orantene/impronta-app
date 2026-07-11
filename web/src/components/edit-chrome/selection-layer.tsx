@@ -141,7 +141,7 @@ import {
 } from "@/lib/site-admin/builder-node/replace-in-tree";
 import { CHROME, EDIT_TOPBAR_H, Z_INDEX } from "./kit/tokens";
 import { CANVAS_HUD_LEFT_INSET_PX } from "./workspace-layout";
-import { resolveLayerDisplayName } from "./freeform-layer-name";
+import { resolveLayerDisplayName } from "@/lib/site-admin/builder-node/freeform-layer-name";
 import { MultiSelectionMoveHandle } from "./multi-selection-move-handle";
 import { MultiSelectionToolbar } from "./multi-selection-toolbar";
 import { SectionTypeIcon } from "./kit/section-type-icon";

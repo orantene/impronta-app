@@ -43,7 +43,7 @@ import {
   kindLabel,
   resolveLayerDisplayName,
   resolveResponsiveOverrides,
-} from "./freeform-layer-name";
+} from "@/lib/site-admin/builder-node/freeform-layer-name";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { runMobileHealthCheck } from "@/lib/site-admin/builder-node/mobile-health";
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node";

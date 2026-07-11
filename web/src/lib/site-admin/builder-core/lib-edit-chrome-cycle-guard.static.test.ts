@@ -88,15 +88,8 @@ function stripComments(source: string): string {
  * be resolved by depending on the leaf package instead.
  */
 const ALLOW_LIST: Record<string, string[]> = {
-  // ── add-gallery ──────────────────────────────────────────────────────────
-  "add-gallery/drag.ts": ["@/components/edit-chrome/element-library-insert-picker"],
-  "add-gallery/section-templates.test.ts": ["@/components/edit-chrome/freeform-layer-name"],
-
   // ── builder-core / builder-node ──────────────────────────────────────────
   "builder-core/mount/BuilderEditorMount.tsx": ["@/components/edit-chrome/edit-shell"],
-  "builder-node/bridge-reference-identity.test.ts": [
-    "@/components/edit-chrome/client-builder-canvas-bridge",
-  ],
 
   // ── section Editors: inspector KIT (leaf-move backlog) ────────────────────
   "sections/contact_form/InquiryTargetTalentField.tsx": [

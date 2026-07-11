@@ -52,7 +52,7 @@ import {
   resolveLayerDisplayName,
   resolveResponsiveOverrides,
   type ResponsiveOverrideSummary,
-} from "./freeform-layer-name";
+} from "@/lib/site-admin/builder-node/freeform-layer-name";
 import { filterFreeformRowsWithAncestors } from "./navigator-layer-search";
 import {
   useNavigatorDisclosure,
