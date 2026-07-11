@@ -427,6 +427,41 @@ const ES_TEXT: Record<string, string> = {
     "Elige una opción: Cargar lo más reciente para tomar el otro cambio, o Seguir con esta copia para guardar la tuya sobre él.",
   "Try again. If it persists, reload the editor.":
     "Intenta de nuevo. Si continúa, recarga el editor.",
+
+  // ── AI front door — "Describe your page" (W3-AI1) ────────────────────────
+  "Describe your page": "Describe tu página",
+  "Describe a section": "Describe una sección",
+  "Describe your page and AI builds it as editable blocks.":
+    "Describe tu página y la IA la construye como bloques editables.",
+  "Describe one section and AI builds it as editable blocks.":
+    "Describe una sección y la IA la construye como bloques editables.",
+  "Full page": "Página completa",
+  Section: "Sección",
+  "AI drafted 1 section. Review, then add.":
+    "La IA redactó 1 sección. Revísala y agrégala.",
+  "AI drafted {count} sections. Review, then add.":
+    "La IA redactó {count} secciones. Revísalas y agrégalas.",
+  "Add to page": "Agregar a la página",
+  "Adding…": "Agregando...",
+  Regenerate: "Regenerar",
+  "Regenerating…": "Regenerando...",
+  Discard: "Descartar",
+  "Design page": "Diseñar página",
+  "Build section": "Construir sección",
+  "Designing…": "Diseñando...",
+  "Building…": "Construyendo...",
+  "e.g. a homepage for a boutique modeling agency, editorial and minimal":
+    "p. ej. una página de inicio para una agencia de modelos boutique, editorial y minimalista",
+  "e.g. a services section with three cards and a booking button":
+    "p. ej. una sección de servicios con tres tarjetas y un botón de reserva",
+  "Could not design that. Try again.": "No se pudo diseñar eso. Inténtalo de nuevo.",
+  "Start from scratch": "Empezar desde cero",
+  "Click to choose a layout and add your first block. Nothing goes live until you publish.":
+    "Haz clic para elegir un diseño y agregar tu primer bloque. Nada se publica hasta que publiques.",
+  or: "o",
+
+  // ── All-pages panel — AI create entry (W3-AI1) ───────────────────────────
+  "Describe with AI": "Describir con IA",
 };
 
 /** Substring-anchored template lookups (`{placeholder}` still needs a
