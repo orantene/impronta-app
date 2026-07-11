@@ -354,21 +354,33 @@ export function MarketingHeader({
                         </p>
                       ) : null}
                       {account.talentPages.map((p) => (
-                        <a
+                        <div
                           key={p.key}
-                          href={p.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
                           className="flex items-center justify-between gap-3 rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                          style={{ color: "var(--plt-ink)" }}
                         >
-                          <span className="min-w-0 flex-1 truncate">
-                            {p.kind === "self_page" ? copy.nav.yourTulalaPage : p.name}
-                          </span>
+                          <a
+                            href={p.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex min-w-0 flex-1 items-center gap-3"
+                            style={{ color: "var(--plt-ink)" }}
+                          >
+                            <span className="min-w-0 flex-1 truncate">
+                              {p.kind === "self_page" ? copy.nav.yourTulalaPage : p.name}
+                            </span>
+                          </a>
                           {p.planBadge ? (
-                            <span className="shrink-0 text-[0.6875rem] font-semibold uppercase tracking-wide" style={{ color: "var(--plt-forest)" }}>
+                            <span className="shrink-0 text-[0.75rem] font-semibold uppercase tracking-wide" style={{ color: "var(--plt-forest)" }}>
                               {p.planBadge}
                             </span>
+                          ) : p.kind === "self_page" && account.talentUpgradeHref ? (
+                            <a
+                              href={account.talentUpgradeHref}
+                              className="shrink-0 rounded-lg px-2.5 py-1 text-[0.8125rem] font-semibold"
+                              style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)" }}
+                            >
+                              Upgrade
+                            </a>
                           ) : null}
                           <span className="shrink-0 text-[0.75rem] font-medium" style={{ color: p.status === "live" ? "#3f9b6b" : "var(--plt-muted)" }}>
                             {p.status === "live"
@@ -379,7 +391,7 @@ export function MarketingHeader({
                                   ? copy.nav.statusPending
                                   : copy.nav.statusWindingDown}
                           </span>
-                        </a>
+                        </div>
                       ))}
                       {account.talentLinks ? (
                         <>

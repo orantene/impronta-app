@@ -47,6 +47,9 @@ export type MarketingAccount = {
     bookings: string;
     messages: string;
   } | null;
+  /** Upgrade CTA target for Free-tier talent (unlocks the Max custom page
+   *  builder); null for paid tiers or non-talent. */
+  talentUpgradeHref: string | null;
 };
 
 const ROLE_LABEL: Record<MarketingWorkspaceLink["role"], string> = {
@@ -271,24 +274,42 @@ export function TalentSection({
         </div>
       ) : null}
 
-      {account.talentPages.map((p) => (
-        <a
-          key={p.key}
-          href={p.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          role="menuitem"
-          className={ROW}
-          style={{ color: "var(--plt-ink)" }}
-        >
-          <GlobeGlyph />
-          <span className="min-w-0 flex-1 truncate">
-            {p.kind === "self_page" ? copy.yourTulalaPage : p.name}
-          </span>
-          {p.planBadge ? <PlanBadge label={p.planBadge} /> : null}
-          <PageStatus status={p.status} copy={copy} />
-        </a>
-      ))}
+      {account.talentPages.map((p) => {
+        const label = p.kind === "self_page" ? copy.yourTulalaPage : p.name;
+        // The own-page row can carry an Upgrade link, so it can't be a single
+        // anchor (no nested <a>). Render the page link + trailing action as
+        // siblings inside a hover container.
+        const trailing = p.planBadge ? (
+          <PlanBadge label={p.planBadge} />
+        ) : p.kind === "self_page" && account.talentUpgradeHref ? (
+          <a
+            href={account.talentUpgradeHref}
+            role="menuitem"
+            className="shrink-0 rounded-md px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide transition-colors"
+            style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)" }}
+          >
+            Upgrade
+          </a>
+        ) : null;
+
+        return (
+          <div key={p.key} className={`${ROW} justify-between`} role="none">
+            <a
+              href={p.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              role="menuitem"
+              className="flex min-w-0 flex-1 items-center gap-2.5"
+              style={{ color: "var(--plt-ink)" }}
+            >
+              <GlobeGlyph />
+              <span className="min-w-0 flex-1 truncate">{label}</span>
+            </a>
+            {trailing}
+            <PageStatus status={p.status} copy={copy} />
+          </div>
+        );
+      })}
 
       {account.talentLinks ? (
         <>

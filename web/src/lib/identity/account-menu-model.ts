@@ -74,6 +74,7 @@ export async function loadAccountMenuModel(
   let globalHidden = false;
   let isTalent = false;
   let talentLinks: MarketingAccount["talentLinks"] = null;
+  let talentUpgradeHref: string | null = null;
 
   if (identity?.talent) {
     isTalent = true;
@@ -94,6 +95,9 @@ export async function loadAccountMenuModel(
     const tier = talentPlanToTier(row?.talent_plan_key ?? null);
     const planBadge: MarketingTalentPage["planBadge"] =
       tier === "max" ? "MAX" : tier === "pro" ? "PRO" : null;
+    // Free talent → surface an upgrade CTA on their own page (unlocks the Max
+    // custom page builder at /talent/site). Paid talent get a badge instead.
+    talentUpgradeHref = tier === "free" ? `${appUrl}/talent/settings` : null;
 
     const rep = await loadRepresentation(identity.talent.profileId, profileCode);
     globalHidden = rep.globalHidden;
@@ -108,6 +112,17 @@ export async function loadAccountMenuModel(
         // Tier badge belongs on the talent's own page, not agency/hub rows.
         planBadge: e.kind === "self_page" ? planBadge : null,
       }));
+
+    // Dedupe: a roster row whose public URL collapses to the same canonical
+    // `/t/<code>` as the talent's own page (e.g. the "Tulala" platform tenant,
+    // or a roster_only membership with no agency-hosted URL) is the SAME page
+    // listed twice. Drop those, keeping the "Your Tulala page" row.
+    const selfHref = talentPages.find((p) => p.kind === "self_page")?.href;
+    if (selfHref) {
+      talentPages = talentPages.filter(
+        (p) => p.kind === "self_page" || p.href !== selfHref,
+      );
+    }
   }
 
   return {
@@ -122,5 +137,6 @@ export async function loadAccountMenuModel(
     isTalent,
     globalHidden,
     talentLinks,
+    talentUpgradeHref,
   };
 }
