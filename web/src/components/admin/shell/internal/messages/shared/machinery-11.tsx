@@ -58,7 +58,7 @@ export function LiveLineupPanel({
   };
   const [lineup, setLineup] = useState<InquiryParticipant[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pending] = useTransition();
+  const [pending, startTransition] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
   // Slice 1 (Messages consolidation): collapsed-by-default. The fat
@@ -422,6 +422,9 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
   const [loading, setLoading] = useState(true);
   const [pending] = useTransition();
   const [collapsed, setCollapsed] = useState(true);
+  // W2-2 — line ids with a hand-edited label, so a talent/service pick won't
+  // clobber a custom label (e.g. "Full-day + travel CDMX").
+  const [labelTouched, setLabelTouched] = useState<Set<string>>(new Set());
   // Item #11 wiring: which talent_profile_ids on this inquiry are
   // ALSO coordinators? Drives the inline "+coord" badge in the offer
   // line-item rows. Loaded once on mount; falls back to empty Set so
@@ -586,7 +589,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
                   const match = rosterOptions.find((p) => p.id === id);
                   // Changing the talent invalidates any prior service prefill
                   // (the service belonged to the previous talent) — clear the stamp.
-                  updateLine(li.id, { talentProfileId: id, talentDisplayName: match?.name ?? null, label: match?.name ?? li.label, sourceServiceId: null });
+                  updateLine(li.id, { talentProfileId: id, talentDisplayName: match?.name ?? null, label: labelTouched.has(li.id) ? li.label : (match?.name ?? li.label), sourceServiceId: null });
                 }}
                 style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4, flex: 1, minWidth: 0 }}
               >
@@ -653,15 +656,14 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
               background: "transparent", border: "none",
               color: COLORS.coralDeep, cursor: "pointer", fontSize: 14, lineHeight: 1,
             }}>×</button>
-            {/* S14/S15 — prefill this line from the talent's services menu.
-                col-span-full keeps it off the no-new-inline-style ratchet. */}
+            {/* S14/S15 — prefill this line from the talent's services (W2-1). */}
             {li.talentProfileId ? (
               <div className="col-span-full">
                 <LineServicePicker
                   talentProfileId={li.talentProfileId}
                   onPick={(svc) =>
                     updateLine(li.id, {
-                      label: svc.name,
+                      label: labelTouched.has(li.id) ? li.label : svc.name,
                       pricingUnit: svc.pricingType,
                       unitPrice: svc.amountCents != null ? svc.amountCents / 100 : li.unitPrice,
                       sourceServiceId: svc.id, // S18 — audit stamp
@@ -670,6 +672,27 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
                 />
               </div>
             ) : null}
+            {/* W2-2 — editable line label + "what's included" note: a
+                travel-inclusive rate reads honestly (baked in, no expense line). */}
+            <div className="col-span-full flex gap-1.5">
+              <input
+                type="text"
+                value={li.label ?? ""}
+                onChange={(e) => {
+                  setLabelTouched((prev) => new Set(prev).add(li.id));
+                  updateLine(li.id, { label: e.target.value });
+                }}
+                placeholder={t("dashboard.adminTabs.lineup.lineLabelPlaceholder")}
+                className="min-w-0 flex-[1.4] rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink"
+              />
+              <input
+                type="text"
+                value={li.notes ?? ""}
+                onChange={(e) => updateLine(li.id, { notes: e.target.value || null })}
+                placeholder={t("dashboard.adminTabs.lineup.lineNotePlaceholder")}
+                className="min-w-0 flex-1 rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink-muted"
+              />
+            </div>
           </div>
         ))}
       </div>
@@ -745,7 +768,7 @@ export function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
   const { toast, effectiveTenant } = useAdminShell();
   const t = useT();
   const router = useRouter();
-  const [pending] = useTransition();
+  const [pending, startTransition] = useTransition();
   return (
     <div className="mt-3">
       <button
