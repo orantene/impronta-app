@@ -54,6 +54,7 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
           appUrl,
           displayName,
           email,
+          appRole: actor.profile?.app_role,
           fallbackDashboardHref,
         })
       : {
@@ -67,6 +68,9 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
           globalHidden: false,
           talentLinks: null,
           talentUpgradeHref: null,
+          isClient: false,
+          clientTenants: [],
+          clientLinks: null,
         };
   }
 

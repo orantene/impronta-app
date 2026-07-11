@@ -86,6 +86,8 @@ const en = {
     support: "Support",
     helpCenter: "Help center",
     contactSupport: "Contact support",
+    savedTalent: "Saved talent",
+    accountSettings: "Account settings",
   },
 
   hero: {
@@ -431,6 +433,8 @@ const es: MarketingCopy = {
     support: "Soporte",
     helpCenter: "Centro de ayuda",
     contactSupport: "Contactar soporte",
+    savedTalent: "Talento guardado",
+    accountSettings: "Configuración de cuenta",
   },
 
   hero: {

@@ -2032,6 +2032,7 @@ export default async function PublicTalentProfilePage({
             appUrl,
             displayName,
             email,
+            appRole: actor.profile?.app_role,
             fallbackDashboardHref,
           })
         : {
@@ -2045,6 +2046,9 @@ export default async function PublicTalentProfilePage({
             globalHidden: false,
             talentLinks: null,
             talentUpgradeHref: null,
+            isClient: false,
+            clientTenants: [],
+            clientLinks: null,
           };
     }
   }
