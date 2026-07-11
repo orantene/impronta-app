@@ -49,7 +49,7 @@ export interface LengthValue {
   unit: LengthUnit;
 }
 
-interface NumberUnitProps {
+export interface NumberUnitProps {
   /** The current value, or null if unset (theme default). */
   value: LengthValue | null;
   /** Called with the new value, or null to clear back to theme default. */
