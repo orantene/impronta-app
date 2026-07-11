@@ -13,6 +13,8 @@
  * House rules: tenant accent only, dark-aware, no em dashes, inline styles.
  */
 
+import { useEffect } from "react";
+
 import type { GuestInquirySummary } from "@/lib/inquiry/guest-chat-contract";
 import type { Translator } from "@/i18n/interpolate";
 
@@ -51,6 +53,15 @@ export function GuestThreadSwitcherDrawer({
   onStartNew,
 }: GuestThreadSwitcherDrawerProps) {
   const C = paletteFor(surfaceMode);
+  // A11Y — Escape closes the slide-over (the scrim already closes on click).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [open, onClose]);
   if (!open) return null;
 
   return (

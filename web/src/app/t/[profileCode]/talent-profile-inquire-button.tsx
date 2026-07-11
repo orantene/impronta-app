@@ -86,14 +86,26 @@ export function TalentProfileInquireButton({
         setChooserOpen(false);
       }
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setChooserOpen(false);
+    };
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("keydown", onKey, true);
+    };
   }, [chooserOpen]);
 
   const othersInLineup = cart.cartIds.filter((id) => id !== talentId).length;
 
-  const addToCurrent = () => {
+  const addToCurrent = (path: "direct" | "add_to_current" = "direct") => {
     setChooserOpen(false);
+    trackProductEvent(PRODUCT_ANALYTICS_EVENTS.start_inquiry, {
+      talent_id: talentId,
+      source_page: sourcePage,
+      cta_path: path,
+    });
     // W2-E — one canonical inquiry surface for guests AND signed-in clients:
     // the chat launcher. Add this talent to the shared lineup (so the chat opens
     // preloaded + the rail avatar appears) and ask the launcher to open. NO
@@ -112,6 +124,11 @@ export function TalentProfileInquireButton({
 
   const startSeparate = () => {
     setChooserOpen(false);
+    trackProductEvent(PRODUCT_ANALYTICS_EVENTS.start_inquiry, {
+      talent_id: talentId,
+      source_page: sourcePage,
+      cta_path: "separate",
+    });
     inquiryModal?.requestSeparateInquiry({
       talentProfileId: talentId,
       profileCode: talentProfileCode,
@@ -121,15 +138,14 @@ export function TalentProfileInquireButton({
   };
 
   const handleClick = () => {
-    trackProductEvent(PRODUCT_ANALYTICS_EVENTS.start_inquiry, {
-      talent_id: talentId,
-      source_page: sourcePage,
-    });
+    // Fire the conversion event on the ACTUAL chosen path (below), not here:
+    // an empty/her-only lineup goes straight through addToCurrent("direct"); a
+    // lineup with others opens the chooser and the event fires on the choice.
     if (othersInLineup > 0 && inquiryModal) {
       setChooserOpen((v) => !v);
       return;
     }
-    addToCurrent();
+    addToCurrent("direct");
   };
 
   // Modern-sans CTA type (owner: the serif/tracked site button read badly in
@@ -176,7 +192,7 @@ export function TalentProfileInquireButton({
             boxShadow: "0 16px 40px -14px rgba(16,18,29,0.45)",
           }}
         >
-          <button type="button" role="menuitem" onClick={addToCurrent} style={optionStyle}>
+          <button type="button" role="menuitem" onClick={() => addToCurrent("add_to_current")} style={optionStyle}>
             <UserPlus size={15} strokeWidth={2.1} aria-hidden style={{ flexShrink: 0, opacity: 0.65 }} />
             <span style={{ minWidth: 0 }}>
               {interpolate(t("public.profileCta.addToCurrent"), {
