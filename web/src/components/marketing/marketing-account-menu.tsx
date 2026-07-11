@@ -25,6 +25,13 @@ export type MarketingTalentPage = {
   planBadge: "MAX" | "PRO" | null;
 };
 
+/** A tenant a client has engaged, linking to that tenant's client dashboard. */
+export type MarketingClientTenant = {
+  slug: string;
+  name: string;
+  href: string;
+};
+
 /** Signed-in identity, resolved server-side in the shell and passed down. */
 export type MarketingAccount = {
   displayName: string;
@@ -50,6 +57,12 @@ export type MarketingAccount = {
   /** Upgrade CTA target for Free-tier talent (unlocks the Max custom page
    *  builder); null for paid tiers or non-talent. */
   talentUpgradeHref: string | null;
+  /** Pure-client account (no workspace roles, not a talent). */
+  isClient: boolean;
+  /** Tenants the client has engaged, each → that tenant's client dashboard. */
+  clientTenants: MarketingClientTenant[];
+  /** Client quick links (single-tenant clients only); null otherwise. */
+  clientLinks: { messages: string; saved: string; account: string } | null;
 };
 
 const ROLE_LABEL: Record<MarketingWorkspaceLink["role"], string> = {
@@ -209,6 +222,8 @@ export function DesktopAccount({
               ))
             ) : showTalentList ? (
               <TalentSection account={account} copy={copy} />
+            ) : account.isClient ? (
+              <ClientSection account={account} copy={copy} />
             ) : (
               <a
                 href={account.dashboardHref}
@@ -329,6 +344,63 @@ export function TalentSection({
           <a href={account.talentLinks.messages} role="menuitem" className={ROW} style={{ color: "var(--plt-ink)" }}>
             <MailGlyph />
             {copy.messages}
+          </a>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+/** Client composition — the tenants they've engaged, plus quick links when
+ *  they work with a single tenant. */
+export function ClientSection({
+  account,
+  copy,
+}: {
+  account: MarketingAccount;
+  copy: MarketingCopy["nav"];
+}) {
+  return (
+    <>
+      {account.clientTenants.length > 0 ? (
+        account.clientTenants.map((t) => (
+          <a
+            key={t.slug}
+            href={t.href}
+            role="menuitem"
+            className={ROW}
+            style={{ color: "var(--plt-ink)" }}
+          >
+            <GridGlyph />
+            <span className="min-w-0 flex-1 truncate">{t.name}</span>
+          </a>
+        ))
+      ) : (
+        <a
+          href={account.dashboardHref}
+          role="menuitem"
+          className={ROW}
+          style={{ color: "var(--plt-ink)" }}
+        >
+          <GridGlyph />
+          {copy.dashboard}
+        </a>
+      )}
+
+      {account.clientLinks ? (
+        <>
+          <div className="my-1 h-px" style={{ background: "var(--plt-hairline)" }} aria-hidden />
+          <a href={account.clientLinks.messages} role="menuitem" className={ROW} style={{ color: "var(--plt-ink)" }}>
+            <MailGlyph />
+            {copy.messages}
+          </a>
+          <a href={account.clientLinks.saved} role="menuitem" className={ROW} style={{ color: "var(--plt-ink)" }}>
+            <HeartGlyph />
+            {copy.savedTalent}
+          </a>
+          <a href={account.clientLinks.account} role="menuitem" className={ROW} style={{ color: "var(--plt-ink)" }}>
+            <UserLineGlyph />
+            {copy.accountSettings}
           </a>
         </>
       ) : null}
@@ -475,6 +547,19 @@ function MailGlyph() {
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "var(--plt-forest)" }}>
       <rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
       <path d="M4 7l8 6 8-6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function HeartGlyph() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "var(--plt-forest)" }}>
+      <path
+        d="M12 20s-7-4.35-7-9.5A3.5 3.5 0 0 1 12 8a3.5 3.5 0 0 1 7 2.5C19 15.65 12 20 12 20z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

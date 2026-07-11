@@ -11,6 +11,13 @@ import { LOGIN_MODAL_EVENT } from "./login-modal";
 import { MarketingLanguageToggle } from "./marketing-language-toggle";
 import { DesktopSupport, SUPPORT_EMAIL } from "./marketing-support-menu";
 import {
+  ArrowTiny,
+  ChevronDownGlyph,
+  ChevronGlyph,
+  CloseGlyph,
+  MenuGlyph,
+} from "./marketing-header-glyphs";
+import {
   DesktopAccount,
   AccountAvatar,
   type MarketingAccount,
@@ -420,7 +427,41 @@ export function MarketingHeader({
                     </>
                   ) : null}
 
-                  {account.workspaces.length === 0 && !account.isTalent ? (
+                  {account.isClient ? (
+                    <>
+                      {(account.clientTenants.length > 0
+                        ? account.clientTenants.map((t) => ({ href: t.href, label: t.name }))
+                        : [{ href: account.dashboardHref, label: copy.nav.dashboard }]
+                      ).map((row) => (
+                        <a
+                          key={row.href}
+                          href={row.href}
+                          className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                          style={{ color: "var(--plt-ink)" }}
+                        >
+                          <span className="min-w-0 flex-1 truncate">{row.label}</span>
+                          <ChevronGlyph />
+                        </a>
+                      ))}
+                      {account.clientLinks
+                        ? [
+                            { href: account.clientLinks.messages, label: copy.nav.messages },
+                            { href: account.clientLinks.saved, label: copy.nav.savedTalent },
+                            { href: account.clientLinks.account, label: copy.nav.accountSettings },
+                          ].map((l) => (
+                            <a
+                              key={l.href}
+                              href={l.href}
+                              className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                              style={{ color: "var(--plt-ink)" }}
+                            >
+                              {l.label}
+                              <ChevronGlyph />
+                            </a>
+                          ))
+                        : null}
+                    </>
+                  ) : account.workspaces.length === 0 && !account.isTalent ? (
                     <a
                       href={account.dashboardHref}
                       className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
@@ -720,84 +761,5 @@ function TulalaWordmark() {
       <span style={{ color: "var(--plt-forest)", fontSize: "14px" }}>.</span>
       <span style={{ fontWeight: 500, fontSize: "20px", color: "var(--plt-ink-soft)" }}>digital</span>
     </span>
-  );
-}
-
-function MenuGlyph() {
-  return (
-    <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden>
-      <path d="M1 1H17M1 11H17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function CloseGlyph() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <path
-        d="M1 1L13 13M13 1L1 13"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function ChevronGlyph() {
-  return (
-    <svg width="8" height="12" viewBox="0 0 8 12" fill="none" aria-hidden>
-      <path
-        d="M1 1L7 6L1 11"
-        stroke="var(--plt-muted)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ChevronDownGlyph({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="10"
-      height="7"
-      viewBox="0 0 10 7"
-      fill="none"
-      aria-hidden
-      className="transition-transform duration-200"
-      style={{ transform: open ? "rotate(180deg)" : "none", opacity: 0.7 }}
-    >
-      <path
-        d="M1 1.5L5 5.5L9 1.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ArrowTiny() {
-  return (
-    <svg
-      aria-hidden
-      width="11"
-      height="8"
-      viewBox="0 0 14 10"
-      fill="none"
-      className="-translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100"
-      style={{ color: "var(--plt-forest)" }}
-    >
-      <path
-        d="M1 5H13M13 5L9 1M13 5L9 9"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
