@@ -5825,94 +5825,82 @@ export function StylePanel({
               </summary>
               <div className="mt-2 flex flex-col gap-2">
               <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1.5">
-                  <span className={FIELD_LABEL}>Exact width</span>
-                  <NumberUnit
-                    units={["px", "%", "vw", "rem"]}
-                    defaultUnit="px"
-                    placeholder="Auto"
-                    value={parseCssLength(selectedStandaloneViewportStyle?.width)}
-                    onChange={(next) =>
-                      patchSelectedStandaloneStyle({
-                        width: next ? formatLength(next) : undefined,
-                      })
-                    }
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className={FIELD_LABEL}>Height</span>
-                  <NumberUnit
-                    units={["px", "vh", "%", "rem"]}
-                    defaultUnit="px"
-                    placeholder="Auto"
-                    value={parseCssLength(selectedStandaloneViewportStyle?.height)}
-                    onChange={(next) =>
-                      patchSelectedStandaloneStyle({
-                        height: next ? formatLength(next) : undefined,
-                      })
-                    }
-                  />
-                </div>
+                <NumberField
+                  label="Exact width"
+                  units={["px", "%", "vw", "rem"]}
+                  defaultUnit="px"
+                  placeholder="Auto"
+                  value={parseCssLength(selectedStandaloneViewportStyle?.width)}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      width: next ? formatLength(next) : undefined,
+                    })
+                  }
+                />
+                <NumberField
+                  label="Height"
+                  units={["px", "vh", "%", "rem"]}
+                  defaultUnit="px"
+                  placeholder="Auto"
+                  value={parseCssLength(selectedStandaloneViewportStyle?.height)}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      height: next ? formatLength(next) : undefined,
+                    })
+                  }
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1.5">
-                  <span className={FIELD_LABEL}>Min height</span>
-                  <NumberUnit
-                    units={["px", "vh", "%", "rem"]}
-                    defaultUnit="px"
-                    placeholder="Auto"
-                    value={parseCssLength(selectedStandaloneViewportStyle?.minHeight)}
-                    onChange={(next) =>
-                      patchSelectedStandaloneStyle({
-                        minHeight: next ? formatLength(next) : undefined,
-                      })
-                    }
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className={FIELD_LABEL}>Min width</span>
-                  <NumberUnit
-                    units={["px", "%", "vw", "rem"]}
-                    defaultUnit="px"
-                    placeholder="Auto"
-                    value={parseCssLength(selectedStandaloneViewportStyle?.minWidth)}
-                    onChange={(next) =>
-                      patchSelectedStandaloneStyle({
-                        minWidth: next ? formatLength(next) : undefined,
-                      })
-                    }
-                  />
-                </div>
+                <NumberField
+                  label="Min height"
+                  units={["px", "vh", "%", "rem"]}
+                  defaultUnit="px"
+                  placeholder="Auto"
+                  value={parseCssLength(selectedStandaloneViewportStyle?.minHeight)}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      minHeight: next ? formatLength(next) : undefined,
+                    })
+                  }
+                />
+                <NumberField
+                  label="Min width"
+                  units={["px", "%", "vw", "rem"]}
+                  defaultUnit="px"
+                  placeholder="Auto"
+                  value={parseCssLength(selectedStandaloneViewportStyle?.minWidth)}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      minWidth: next ? formatLength(next) : undefined,
+                    })
+                  }
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1.5">
-                  <span className={FIELD_LABEL}>Max width</span>
-                  <NumberUnit
-                    units={["px", "%", "vw", "rem"]}
-                    defaultUnit="px"
-                    placeholder="Auto"
-                    value={parseCssLength(selectedStandaloneViewportStyle?.maxWidthFree)}
-                    onChange={(next) =>
-                      patchSelectedStandaloneStyle({
-                        maxWidthFree: next ? formatLength(next) : undefined,
-                      })
-                    }
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className={FIELD_LABEL}>Max height</span>
-                  <NumberUnit
-                    units={["px", "vh", "%", "rem"]}
-                    defaultUnit="px"
-                    placeholder="Auto"
-                    value={parseCssLength(selectedStandaloneViewportStyle?.maxHeight)}
-                    onChange={(next) =>
-                      patchSelectedStandaloneStyle({
-                        maxHeight: next ? formatLength(next) : undefined,
-                      })
-                    }
-                  />
-                </div>
+                <NumberField
+                  label="Max width"
+                  units={["px", "%", "vw", "rem"]}
+                  defaultUnit="px"
+                  placeholder="Auto"
+                  value={parseCssLength(selectedStandaloneViewportStyle?.maxWidthFree)}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      maxWidthFree: next ? formatLength(next) : undefined,
+                    })
+                  }
+                />
+                <NumberField
+                  label="Max height"
+                  units={["px", "vh", "%", "rem"]}
+                  defaultUnit="px"
+                  placeholder="Auto"
+                  value={parseCssLength(selectedStandaloneViewportStyle?.maxHeight)}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      maxHeight: next ? formatLength(next) : undefined,
+                    })
+                  }
+                />
               </div>
               </div>
             </details>
