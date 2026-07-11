@@ -59,6 +59,7 @@ function containerWithStyle(style: Record<string, unknown>): BuilderNode {
     id: "builder-container-test",
     kind: "container",
     props: { layout: "stack", style },
+    children: [],
   } as BuilderNode;
 }
 
