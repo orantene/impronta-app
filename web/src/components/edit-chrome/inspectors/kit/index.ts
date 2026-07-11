@@ -78,6 +78,15 @@ export {
   InspectorResetFooter,
 } from "./inspector-mockup-primitives";
 export { InlineNameInput, type InlineNameInputProps } from "./inline-name-input";
+// W4-F1 — inspector field primitives (label + control + hint scaffold).
+export {
+  InspectorFieldShell,
+  SegmentedField,
+  NumberField,
+  SelectField,
+  ColorField,
+  type SelectFieldOption,
+} from "./inspector-fields";
 export {
   InspectorSearchProvider,
   InspectorSearchField,
