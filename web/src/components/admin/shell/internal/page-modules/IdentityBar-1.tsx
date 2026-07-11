@@ -619,18 +619,38 @@ function AccountMenuTrigger({
             sub="Press ? anywhere"
             onClick={() => { setOpen(false); setShortcutsOpen(true); }}
           />
-          {/* Phase 4 — Pure Workspace state: CTA to create own talent page.
-              Rendered only when the signed-in user has no talent profile in
-              this workspace (bridgeTalentSelfProfile is null) AND is on the
-              workspace surface with admin-level access. */}
-          {bridgeTalentSelfProfile === null && state.surface === "workspace" && meetsRole(state.role, "admin") && tenantSlug && (
+          {/* Talent-mode entry — the reliable "get me to my talent
+              dashboard" path. The top-bar mode pill only appears once the
+              server-side isHybrid flag is detected, which lags right after
+              a fresh talent signup; this menu item keys off the talent
+              profile itself (bridgeTalentSelfProfile) and hard-navigates
+              to /<slug>/talent, so it's always there the moment the profile
+              exists. When there is NO profile yet, the same slot offers to
+              create one. Workspace surface + admin only. */}
+          {state.surface === "workspace" && meetsRole(state.role, "admin") && tenantSlug && (
             <>
               <div className="my-1 border-t border-admin-border-soft" />
-              <AccountMenuItem
-                label="Create your talent page"
-                sub="Take bookings as a talent on this workspace"
-                onClick={() => { setOpen(false); setCreateTalentDialogOpen(true); }}
-              />
+              {bridgeTalentSelfProfile !== null ? (
+                <AccountMenuItem
+                  label="Switch to talent"
+                  sub="Go to your talent dashboard"
+                  onClick={() => {
+                    setOpen(false);
+                    // Canonical, Tulala-unified platform talent surface —
+                    // agency-agnostic, no tenant slug. Deliberately NOT
+                    // /{slug}/talent: that legacy redirector checks
+                    // "is workspace admin?" FIRST and bounces a hybrid
+                    // admin+talent user straight back to /{slug}/admin/roster.
+                    window.location.assign("/talent/today");
+                  }}
+                />
+              ) : (
+                <AccountMenuItem
+                  label="Create your talent page"
+                  sub="Take bookings as a talent on this workspace"
+                  onClick={() => { setOpen(false); setCreateTalentDialogOpen(true); }}
+                />
+              )}
             </>
           )}
           <div className="mt-1 border-t border-admin-border-soft pt-1">
