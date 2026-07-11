@@ -89,11 +89,6 @@
       "count": 1
     }
   },
-  "src/app/t/[profileCode]/talent-profile-inquire-button.tsx": {
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 1
-    }
-  },
   "src/components/admin/shell/admin-shell-client.tsx": {
     "max-lines": {
       "count": 1
