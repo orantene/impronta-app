@@ -15,6 +15,7 @@
  */
 
 import { SECTION_EDITOR_REGISTRY } from "@/lib/site-admin/sections/registry-editors";
+import { useEditorLocale } from "../use-editor-locale";
 
 interface GenericContentProps {
   sectionTypeKey: string;
@@ -30,11 +31,12 @@ export function GenericContent({
   draftProps,
   onChange,
 }: GenericContentProps) {
+  const { t } = useEditorLocale();
   const entry = SECTION_EDITOR_REGISTRY[sectionTypeKey];
   if (!entry) {
     return (
       <p className="text-xs text-stone-500">
-        No editor registered for section type{" "}
+        {t("No editor registered for section type")}{" "}
         <code className="rounded bg-stone-100 px-1 py-0.5 text-[11px]">
           {sectionTypeKey}
         </code>
