@@ -315,14 +315,34 @@ export function MarketingHeader({
                       </p>
                     </div>
                   </div>
-                  <a
-                    href={account.dashboardHref}
-                    className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                    style={{ color: "var(--plt-ink)" }}
-                  >
-                    {copy.nav.dashboard}
-                    <ChevronGlyph />
-                  </a>
+                  {account.workspaces.length > 0 ? (
+                    account.workspaces.map((w) => (
+                      <a
+                        key={`${w.slug}:${w.role}`}
+                        href={w.href}
+                        className="flex items-center justify-between gap-3 rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                        style={{ color: "var(--plt-ink)" }}
+                      >
+                        <span className="min-w-0 flex-1 truncate">{w.name}</span>
+                        <span
+                          className="shrink-0 text-[0.75rem] font-medium uppercase tracking-wide"
+                          style={{ color: "var(--plt-muted)" }}
+                        >
+                          {w.role}
+                        </span>
+                        <ChevronGlyph />
+                      </a>
+                    ))
+                  ) : (
+                    <a
+                      href={account.dashboardHref}
+                      className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                      style={{ color: "var(--plt-ink)" }}
+                    >
+                      {copy.nav.dashboard}
+                      <ChevronGlyph />
+                    </a>
+                  )}
                   <Link
                     href="/get-started"
                     className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
