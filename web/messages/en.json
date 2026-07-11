@@ -913,6 +913,7 @@
       "switcherSentPill": "Sent · awaiting reply",
       "switcherLineupAria": "Lineup: {names}",
       "switcherLineupMore": "{count} more",
+      "projectUntitled": "New inquiry",
       "projectLineupOne": "1 talent",
       "projectLineupOther": "Lineup of {count}",
       "dockViewChat": "Chat",

@@ -324,9 +324,13 @@ export async function listGuestInquiries(input: {
     guest_session_id: string | null;
   };
 
-  // Reduce to newest message per inquiry.
+  // Reduce to newest HUMAN-readable message per inquiry. System/card rows used
+  // to win this slot and render as a raw "[system event]" placeholder in the
+  // dock's inquiry cards — skip them so the preview is always a real sentence
+  // (or absent, which the cards handle).
   const lastMsgByInquiry = new Map<string, MsgRow>();
   for (const m of ((msgRows ?? []) as MsgRow[])) {
+    if (m.message_kind !== "text") continue;
     if (!lastMsgByInquiry.has(m.inquiry_id)) {
       lastMsgByInquiry.set(m.inquiry_id, m);
     }
@@ -368,10 +372,25 @@ export async function listGuestInquiries(input: {
 
     // Derived project label: job_name when set, else "{lineup word} · {date}".
     const jobName = readJobName(row.interpreted_query);
+    // Prefer the HUMAN name of the project: the AI-captured event type
+    // ("Wedding · Aug 14") reads like something Mike would call it. Fall back
+    // to the lineup wording — and never render "Lineup of 0"; an empty-lineup,
+    // untyped inquiry is just a generic inquiry.
+    const eventTypeRaw = String(
+      ((row.interpreted_query as Record<string, unknown> | null)?.source_context as
+        | Record<string, unknown>
+        | undefined)?.ai_event_type ?? "",
+    ).trim();
+    const eventWord = eventTypeRaw
+      ? eventTypeRaw.charAt(0).toUpperCase() + eventTypeRaw.slice(1)
+      : null;
     const lineupWord =
-      lineupCount === 1
+      eventWord ??
+      (lineupCount === 1
         ? t("public.guestChat.projectLineupOne")
-        : interpolate(t("public.guestChat.projectLineupOther"), { count: lineupCount });
+        : lineupCount > 1
+          ? interpolate(t("public.guestChat.projectLineupOther"), { count: lineupCount })
+          : t("public.guestChat.projectUntitled"));
     const projectLabel = deriveProjectLabel(jobName, {
       lineupWord,
       shortDate: shortDateFragment(row.event_date, locale),
