@@ -36,6 +36,7 @@ import {
 } from "./kit";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
+import { useEditorLocale } from "../use-editor-locale";
 
 type IconKey = (typeof CATEGORY_ICON_KEYS)[number];
 type Variant = "portrait-masonry" | "horizontal-scroll" | "small-icon-list";
@@ -55,23 +56,25 @@ interface Props {
   onChange: (next: Record<string, unknown>) => void;
 }
 
-const VARIANT_OPTIONS = [
-  {
-    value: "portrait-masonry" as const,
-    label: "Portrait tiles",
-    info: "Editorial portrait tiles with optional image + icon overlay.",
-  },
-  {
-    value: "horizontal-scroll" as const,
-    label: "Scroll rail",
-    info: "Single-row scroll rail on mobile, grid on desktop.",
-  },
-  {
-    value: "small-icon-list" as const,
-    label: "Icon grid",
-    info: "Dense icon-only grid. No imagery.",
-  },
-];
+function variantOptions(t: ReturnType<typeof useEditorLocale>["t"]) {
+  return [
+    {
+      value: "portrait-masonry" as const,
+      label: t("Portrait tiles"),
+      info: t("Editorial portrait tiles with optional image + icon overlay."),
+    },
+    {
+      value: "horizontal-scroll" as const,
+      label: t("Scroll rail"),
+      info: t("Single-row scroll rail on mobile, grid on desktop."),
+    },
+    {
+      value: "small-icon-list" as const,
+      label: t("Icon grid"),
+      info: t("Dense icon-only grid. No imagery."),
+    },
+  ];
+}
 
 function cleanObject<T extends Record<string, unknown>>(o: T): T {
   const out = { ...o };
@@ -88,6 +91,7 @@ export function CategoryGridContentInspector({
   selectedBuilderNodeId,
   onChange,
 }: Props) {
+  const { t } = useEditorLocale();
   const eyebrow = (draftProps.eyebrow as string | undefined) ?? "";
   const headline = (draftProps.headline as string | undefined) ?? "";
   const copy = (draftProps.copy as string | undefined) ?? "";
@@ -133,7 +137,7 @@ export function CategoryGridContentInspector({
   }
 
   function addItem() {
-    const next: Item[] = [...items, { label: "New category" }];
+    const next: Item[] = [...items, { label: t("New category") }];
     update({ items: next });
   }
 
@@ -159,53 +163,53 @@ export function CategoryGridContentInspector({
             color: "#1d4ed8",
           }}
         >
-          Editing selected canvas node:{" "}
+          {t("Editing selected canvas node:")}{" "}
           {focusRole === "subheadline"
-            ? "Eyebrow"
+            ? t("Eyebrow")
             : focusRole === "headline"
-              ? "Headline"
+              ? t("Headline")
               : focusRole === "copy"
-                ? "Intro copy"
-                : "Footer CTA"}
+                ? t("Intro copy")
+                : t("Footer CTA")}
         </div>
       ) : null}
-      <InspectorGroup title="Header" storageKey="category_grid:header">
+      <InspectorGroup title={t("Header")} storageKey="category_grid:header">
         <div className={KIT.field} data-category-grid-node-role="subheadline">
-          <label className={KIT.label}>Eyebrow</label>
+          <label className={KIT.label}>{t("Eyebrow")}</label>
           <input
             type="text"
             className={KIT.input}
-            placeholder="Optional, e.g. Services"
+            placeholder={t("Optional, e.g. Services")}
             maxLength={60}
             value={eyebrow}
             onChange={(e) => update({ eyebrow: e.target.value || undefined })}
           />
         </div>
         <div className={KIT.field} data-category-grid-node-role="headline">
-          <label className={KIT.label}>Headline</label>
+          <label className={KIT.label}>{t("Headline")}</label>
           <RichEditor
             value={headline}
             onChange={(next) => update({ headline: next || undefined })}
             variant="single"
             tenantId={tenantId}
-            placeholder="A section title that orients the visitor"
-            ariaLabel="Headline"
+            placeholder={t("A section title that orients the visitor")}
+            ariaLabel={t("Headline")}
           />
         </div>
         <div className={KIT.field} data-category-grid-node-role="copy">
-          <label className={KIT.label}>Intro copy</label>
+          <label className={KIT.label}>{t("Intro copy")}</label>
           <RichEditor
             value={copy}
             onChange={(next) => update({ copy: next || undefined })}
             variant="multi"
             tenantId={tenantId}
-            placeholder="Optional, a short paragraph under the headline"
-            ariaLabel="Intro copy"
+            placeholder={t("Optional, a short paragraph under the headline")}
+            ariaLabel={t("Intro copy")}
           />
         </div>
       </InspectorGroup>
 
-      <InspectorGroup title={`Categories (${items.length})`}>
+      <InspectorGroup title={`${t("Categories")} (${items.length})`}>
         <DraggableList<Item>
           items={items}
           keyOf={(_, i) => String(i)}
@@ -228,16 +232,16 @@ export function CategoryGridContentInspector({
             onClick={addItem}
             className={`${KIT.ghostButton} w-full py-2 text-center`}
           >
-            + Add category
+            {t("+ Add category")}
           </button>
         ) : (
-          <p className={KIT.hint}>Maximum 12 categories.</p>
+          <p className={KIT.hint}>{t("Maximum 12 categories.")}</p>
         )}
       </InspectorGroup>
 
       <InspectorGroup
-        title="Footer link"
-        info='Optional "Browse all services" style link under the grid.'
+        title={t("Footer link")}
+        info={t('Optional "Browse all services" style link under the grid.')}
         collapsible
         storageKey="category_grid:footer"
         defaultOpen={Boolean(footerCta)}
@@ -254,24 +258,24 @@ export function CategoryGridContentInspector({
       </InspectorGroup>
 
       <InspectorGroup
-        title="Advanced"
+        title={t("Advanced")}
         advanced
         collapsible
         storageKey="category_grid:advanced"
       >
         <div className={KIT.field}>
-          <label className={KIT.label}>Layout</label>
+          <label className={KIT.label}>{t("Layout")}</label>
           <VisualChipGroup<Variant>
             value={variant}
             onChange={(v) => update({ variant: v })}
-            options={VARIANT_OPTIONS.map((opt) => ({
+            options={variantOptions(t).map((opt) => ({
               ...opt,
               preview: <VariantPreview value={opt.value} />,
             }))}
           />
         </div>
         <div className={KIT.field}>
-          <label className={KIT.label}>Desktop columns: {columnsDesktop}</label>
+          <label className={KIT.label}>{t("Desktop columns:")} {columnsDesktop}</label>
           <input
             type="range"
             min={2}
@@ -306,6 +310,7 @@ function CategoryRow({
   onDelete: () => void;
   deletable: boolean;
 }) {
+  const { t } = useEditorLocale();
   const [expanded, setExpanded] = useState(false);
 
   const thumbEl = item.imageUrl ? (
@@ -337,8 +342,8 @@ function CategoryRow({
               type="button"
               onClick={() => setExpanded((v) => !v)}
               className="inline-flex size-7 items-center justify-center rounded-md text-stone-500 transition hover:bg-stone-100 hover:text-stone-700"
-              aria-label={expanded ? "Hide details" : "Show details"}
-              title={expanded ? "Hide details" : "Show details"}
+              aria-label={expanded ? t("Hide details") : t("Show details")}
+              title={expanded ? t("Hide details") : t("Show details")}
             >
               <svg
                 width="13"
@@ -364,7 +369,7 @@ function CategoryRow({
             type="text"
             className="w-full rounded-sm bg-transparent px-0 py-0.5 text-[13px] font-medium text-stone-900 placeholder:text-stone-500 focus:outline-none"
             value={item.label}
-            placeholder="Category name"
+            placeholder={t("Category name")}
             maxLength={60}
             onChange={(e) => onChange({ label: e.target.value })}
           />
@@ -372,7 +377,7 @@ function CategoryRow({
             type="text"
             className="w-full rounded-sm bg-transparent px-0 py-0 text-[11px] text-stone-500 placeholder:text-stone-500 focus:outline-none"
             value={item.href ?? ""}
-            placeholder="/path or https://… (optional)"
+            placeholder={t("/path or https://… (optional)")}
             maxLength={500}
             onChange={(e) => onChange({ href: e.target.value || undefined })}
           />
@@ -382,11 +387,11 @@ function CategoryRow({
       {expanded ? (
         <div className="ml-9 flex flex-col gap-3 rounded-lg border border-[#e5e0d5] bg-[#faf9f6]/50 p-3">
           <div className={KIT.field}>
-            <label className={KIT.label}>Tagline</label>
+            <label className={KIT.label}>{t("Tagline")}</label>
             <input
               type="text"
               className={KIT.input}
-              placeholder="Optional, short support line"
+              placeholder={t("Optional, short support line")}
               maxLength={120}
               value={item.tagline ?? ""}
               onChange={(e) =>
@@ -395,19 +400,19 @@ function CategoryRow({
             />
           </div>
           <div className={KIT.field}>
-            <label className={KIT.label}>Icon</label>
+            <label className={KIT.label}>{t("Icon")}</label>
             <IconPicker
               value={item.iconKey ?? null}
               onChange={(next) => onChange({ iconKey: next ?? undefined })}
             />
           </div>
           <div className={KIT.field}>
-            <label className={KIT.label}>Image</label>
+            <label className={KIT.label}>{t("Image")}</label>
             <MediaPickerButton
               tenantId={tenantId}
               value={item.imageUrl}
               onChange={(url) => onChange({ imageUrl: url ?? undefined })}
-              emptyLabel="Add tile image"
+              emptyLabel={t("Add tile image")}
               aspect="4/5"
             />
           </div>
@@ -433,6 +438,7 @@ function IconPicker({
   value: string | null;
   onChange: (next: IconKey | null) => void;
 }) {
+  const { t } = useEditorLocale();
   return (
     <div className="grid grid-cols-8 gap-1">
       <button
@@ -443,7 +449,7 @@ function IconPicker({
             ? "border-indigo-200 bg-indigo-50 text-indigo-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
             : "border-[#e5e0d5] bg-[#faf9f6] text-stone-500 hover:border-stone-300"
         }`}
-        title="No icon"
+        title={t("No icon")}
       >
         —
       </button>
