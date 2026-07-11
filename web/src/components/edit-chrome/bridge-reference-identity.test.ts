@@ -21,12 +21,12 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 
-import type { BuilderNodeTree } from "./types";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import {
   getBuilderCanvasTreeSnapshot,
   publishBuilderCanvasTree,
   subscribeBuilderCanvasTree,
-} from "@/components/edit-chrome/client-builder-canvas-bridge";
+} from "./client-builder-canvas-bridge";
 
 /** A throwaway one-node tree with a fresh object identity each call. */
 function freshTree(label: string): BuilderNodeTree {

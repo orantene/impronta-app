@@ -4,7 +4,7 @@ import {
   BUILDER_NODE_PALETTE_DRAG_MIME,
   setActiveBuilderNodePaletteDrag,
   type BuilderNodePaletteDragPayload,
-} from "@/components/edit-chrome/element-library-insert-picker";
+} from "@/lib/site-admin/builder-node/palette-drag";
 
 import { galleryItemSupportsDrag, resolveAddGalleryInsertAction } from "./insert";
 import { getAddGalleryItemById } from "./registry";

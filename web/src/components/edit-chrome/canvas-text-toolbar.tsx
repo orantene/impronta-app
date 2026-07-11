@@ -58,7 +58,7 @@ import {
   INSPECTOR_RAIL_WIDTH_PX,
   Z_INDEX,
 } from "./kit/tokens";
-import { resolveLayerDisplayName } from "./freeform-layer-name";
+import { resolveLayerDisplayName } from "@/lib/site-admin/builder-node/freeform-layer-name";
 import type { BuilderNode } from "@/lib/site-admin/builder-node";
 import {
   BUILDER_TEXT_ROLE_OPTIONS,

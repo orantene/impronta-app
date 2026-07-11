@@ -35,7 +35,7 @@ import {
   layerIconKeyForKind,
   type LayerIconKey,
   type ResponsiveOverrideSummary,
-} from "./freeform-layer-name";
+} from "@/lib/site-admin/builder-node/freeform-layer-name";
 import { CHROME } from "./kit";
 import type { BuilderNode, BuilderNodeKind } from "@/lib/site-admin/builder-node";
 

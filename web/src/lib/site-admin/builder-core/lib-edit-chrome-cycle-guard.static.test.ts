@@ -86,17 +86,45 @@ function stripComments(source: string): string {
  *
  * DO NOT ADD ENTRIES. A new lib→edit-chrome import is a new cycle edge and must
  * be resolved by depending on the leaf package instead.
+ *
+ * ── BURN-DOWN HISTORY ──────────────────────────────────────────────────────
+ * W5-C2 removed 3 edges (23→20) via CORRECT-DIRECTION moves (not a leaf move):
+ *   • `freeform-layer-name.ts` was a pure builder-node util misplaced in
+ *     edit-chrome (its only dep is `lib/site-admin/builder-node`). Moved TO lib
+ *     → dropped the `add-gallery/section-templates.test.ts` edge.
+ *   • palette-drag payload core (MIME + encode/decode + in-flight singleton +
+ *     pointer pub/sub) extracted to `builder-node/palette-drag.ts`; the lib
+ *     `add-gallery/drag.ts` now imports lib → dropped its edge. The edit-chrome
+ *     `element-library-insert-picker.tsx` re-exports it for back-compat.
+ *   • `bridge-reference-identity.test.ts` moved TO edit-chrome (beside the
+ *     `client-builder-canvas-bridge` module it pins) → dropped its edge.
+ *
+ * ── DEEP-KNOT BACKLOG (the remaining 20 edges need a bigger untangle) ───────
+ * The rich-editor / inspectors-kit / MediaPicker edges are NOT simple leaf
+ * moves — W4-F4 and W5-C2 both confirmed the primitives aren't clean leaves:
+ *   • rich-editor (8 edges): cannot move to a leaf because it transitively
+ *     depends on lib via `plugins/LinkPickerPopover` → `sections/shared/
+ *     LinkPicker` (server-action-backed) AND on `kit/color-picker`, which is
+ *     styled with the edit-chrome CHROME design tokens (`kit/tokens.ts`, an
+ *     edit-chrome layout+palette foundation used by ~55 files). Lifting the
+ *     color primitive to a "generic" leaf would drag the edit-chrome palette
+ *     with it. Needs: (a) invert LinkPicker via a slot/registry so rich-editor
+ *     stops importing lib, then (b) split CHROME's shared visual palette out of
+ *     the edit-chrome layout tokens before the color cluster can be a true leaf.
+ *   • inspectors/kit (7 edges): a large barrel with 6 hard lib deps
+ *     (LinkKindPicker, link-ref, presentation, prop-lock, MediaPicker,
+ *     talent-search) — not leaf-movable without per-symbol extraction.
+ *   • sections/shared/MediaPicker.tsx (1 edge): a thin lib wrapper over the
+ *     edit-chrome `media-picker-drawer`. Its consumers are 4 edit-chrome + 2 lib
+ *     (LinkPicker, ZodSchemaForm). Relocating it just moves the edge (the 2 lib
+ *     consumers would import edit-chrome instead). Real fix = dependency
+ *     inversion: lib section editors receive the drawer via a slot/registry, or
+ *     the drawer's reusable core moves to a leaf (blocked today because the
+ *     drawer imports edit-chrome `kit` + `inspectors/kit/tokens` + scope).
  */
 const ALLOW_LIST: Record<string, string[]> = {
-  // ── add-gallery ──────────────────────────────────────────────────────────
-  "add-gallery/drag.ts": ["@/components/edit-chrome/element-library-insert-picker"],
-  "add-gallery/section-templates.test.ts": ["@/components/edit-chrome/freeform-layer-name"],
-
   // ── builder-core / builder-node ──────────────────────────────────────────
   "builder-core/mount/BuilderEditorMount.tsx": ["@/components/edit-chrome/edit-shell"],
-  "builder-node/bridge-reference-identity.test.ts": [
-    "@/components/edit-chrome/client-builder-canvas-bridge",
-  ],
 
   // ── section Editors: inspector KIT (leaf-move backlog) ────────────────────
   "sections/contact_form/InquiryTargetTalentField.tsx": [
