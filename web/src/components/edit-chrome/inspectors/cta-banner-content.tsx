@@ -25,6 +25,7 @@ import {
 import { useEffect, useMemo, useRef } from "react";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
+import { useEditorLocale } from "../use-editor-locale";
 
 type Variant = "centered-overlay" | "split-image" | "minimal-band";
 type BandTone = "ivory" | "champagne" | "espresso" | "blush";
@@ -37,30 +38,38 @@ interface Props {
   onChange: (next: Record<string, unknown>) => void;
 }
 
-const VARIANT_OPTIONS = [
-  {
-    value: "centered-overlay" as const,
-    label: "Overlay",
-    info: "Full-width image with text centered on top. Most dramatic.",
-  },
-  {
-    value: "split-image" as const,
-    label: "Split",
-    info: "Image on one side, copy and buttons on the other. Editorial feel.",
-  },
-  {
-    value: "minimal-band" as const,
-    label: "Band",
-    info: "Solid tone, no image. Calm, type-forward.",
-  },
-];
+function variantOptions(t: ReturnType<typeof useEditorLocale>["t"]) {
+  return [
+    {
+      value: "centered-overlay" as const,
+      label: t("Overlay"),
+      info: t("Full-width image with text centered on top. Most dramatic."),
+    },
+    {
+      value: "split-image" as const,
+      label: t("Split"),
+      info: t("Image on one side, copy and buttons on the other. Editorial feel."),
+    },
+    {
+      value: "minimal-band" as const,
+      label: t("Band"),
+      info: t("Solid tone, no image. Calm, type-forward."),
+    },
+  ];
+}
 
-const BAND_TONES: ReadonlyArray<{ value: BandTone; hex: string; label: string }> = [
-  { value: "ivory", hex: "#F4EFE6", label: "Ivory" },
-  { value: "champagne", hex: "#E4C896", label: "Champagne" },
-  { value: "espresso", hex: "#2E201A", label: "Espresso" },
-  { value: "blush", hex: "#EAB7B0", label: "Blush" },
-];
+function bandTones(t: ReturnType<typeof useEditorLocale>["t"]): ReadonlyArray<{
+  value: BandTone;
+  hex: string;
+  label: string;
+}> {
+  return [
+    { value: "ivory", hex: "#F4EFE6", label: t("Ivory") },
+    { value: "champagne", hex: "#E4C896", label: t("Champagne") },
+    { value: "espresso", hex: "#2E201A", label: t("Espresso") },
+    { value: "blush", hex: "#EAB7B0", label: t("Blush") },
+  ];
+}
 
 function cleanObject<T extends Record<string, unknown>>(o: T): T {
   const out = { ...o };
@@ -77,6 +86,7 @@ export function CtaBannerContentInspector({
   selectedBuilderNodeId,
   onChange,
 }: Props) {
+  const { t } = useEditorLocale();
   const eyebrow = (draftProps.eyebrow as string | undefined) ?? "";
   const headline = (draftProps.headline as string | undefined) ?? "";
   const copy = (draftProps.copy as string | undefined) ?? "";
@@ -109,13 +119,13 @@ export function CtaBannerContentInspector({
   }, [selectedBuilderNodeId]);
 
   const focusLabel = useMemo(() => {
-    if (focusRole === "subheadline") return "Eyebrow";
-    if (focusRole === "headline") return "Headline";
-    if (focusRole === "copy") return "Supporting copy";
-    if (focusRole === "primaryCta") return "Primary CTA";
-    if (focusRole === "secondaryCta") return "Secondary CTA";
+    if (focusRole === "subheadline") return t("Eyebrow");
+    if (focusRole === "headline") return t("Headline");
+    if (focusRole === "copy") return t("Supporting copy");
+    if (focusRole === "primaryCta") return t("Primary CTA");
+    if (focusRole === "secondaryCta") return t("Secondary CTA");
     return null;
-  }, [focusRole]);
+  }, [focusRole, t]);
 
   useEffect(() => {
     if (!focusRole) return;
@@ -149,55 +159,55 @@ export function CtaBannerContentInspector({
             color: "#1d4ed8",
           }}
         >
-          Editing selected canvas node: {focusLabel}
+          {t("Editing selected canvas node:")} {focusLabel}
         </div>
       ) : null}
       <div className={KIT.field} data-cta-banner-node-role="subheadline">
-        <label className={KIT.label}>Eyebrow</label>
+        <label className={KIT.label}>{t("Eyebrow")}</label>
         <input
           type="text"
           className={KIT.input}
-          placeholder="Optional, e.g. Ready when you are"
+          placeholder={t("Optional, e.g. Ready when you are")}
           maxLength={60}
           value={eyebrow}
           onChange={(e) => update({ eyebrow: e.target.value || undefined })}
         />
       </div>
       <div className={KIT.field} data-cta-banner-node-role="headline">
-        <label className={KIT.label}>Headline</label>
+        <label className={KIT.label}>{t("Headline")}</label>
         <RichEditor
           value={headline}
           onChange={(next) => update({ headline: next })}
           variant="single"
           tenantId={tenantId}
-          placeholder="The decisive line. Keep it short."
-          ariaLabel="Headline"
+          placeholder={t("The decisive line. Keep it short.")}
+          ariaLabel={t("Headline")}
         />
       </div>
       <div className={KIT.field} data-cta-banner-node-role="copy">
-        <label className={KIT.label}>Description</label>
+        <label className={KIT.label}>{t("Description")}</label>
         <RichEditor
           value={copy}
           onChange={(next) => update({ copy: next || undefined })}
           variant="multi"
           tenantId={tenantId}
-          placeholder="Optional, one reassuring paragraph under the headline"
-          ariaLabel="Description"
+          placeholder={t("Optional, one reassuring paragraph under the headline")}
+          ariaLabel={t("Description")}
         />
       </div>
       <div className={KIT.field}>
-        <label className={KIT.label}>Reassurance line</label>
+        <label className={KIT.label}>{t("Reassurance line")}</label>
         <RichEditor
           value={reassurance}
           onChange={(next) => update({ reassurance: next || undefined })}
           variant="single"
           tenantId={tenantId}
-          placeholder="Optional, italic line below the buttons"
-          ariaLabel="Reassurance line"
+          placeholder={t("Optional, italic line below the buttons")}
+          ariaLabel={t("Reassurance line")}
         />
       </div>
 
-      <InspectorGroup title="Buttons">
+      <InspectorGroup title={t("Buttons")}>
         <CtaDuoEditor
           primary={primaryCta}
           secondary={secondaryCta}
@@ -210,11 +220,11 @@ export function CtaBannerContentInspector({
         />
       </InspectorGroup>
 
-      <InspectorGroup title="Layout style" storageKey="cta_banner:layout">
+      <InspectorGroup title={t("Layout style")} storageKey="cta_banner:layout">
         <VisualChipGroup<Variant>
           value={variant}
           onChange={(v) => update({ variant: v })}
-          options={VARIANT_OPTIONS.map((opt) => ({
+          options={variantOptions(t).map((opt) => ({
             ...opt,
             preview: <VariantPreview value={opt.value} />,
           }))}
@@ -222,20 +232,20 @@ export function CtaBannerContentInspector({
       </InspectorGroup>
 
       {usesImage ? (
-        <InspectorGroup title="Background image">
+        <InspectorGroup title={t("Background image")}>
           <MediaPickerButton
             tenantId={tenantId}
             value={backgroundImageUrl}
             onChange={(url) =>
               update({ backgroundImageUrl: url ?? undefined })
             }
-            emptyLabel="Add background image"
+            emptyLabel={t("Add background image")}
             aspect="21/9"
           />
           {variant === "centered-overlay" ? (
             <div className={KIT.field}>
               <label className={KIT.label}>
-                Overlay darkness: {overlayOpacity}%
+                {t("Overlay darkness:")} {overlayOpacity}%
               </label>
               <input
                 type="range"
@@ -252,15 +262,15 @@ export function CtaBannerContentInspector({
           ) : null}
         </InspectorGroup>
       ) : (
-        <InspectorGroup title="Tone">
+        <InspectorGroup title={t("Tone")}>
           <div className="grid grid-cols-4 gap-2">
-            {BAND_TONES.map((t) => {
-              const active = t.value === bandTone;
+            {bandTones(t).map((tone) => {
+              const active = tone.value === bandTone;
               return (
                 <button
-                  key={t.value}
+                  key={tone.value}
                   type="button"
-                  onClick={() => update({ bandTone: t.value })}
+                  onClick={() => update({ bandTone: tone.value })}
                   className={`flex flex-col items-stretch gap-1.5 rounded-lg border p-1.5 text-left transition ${
                     active
                       ? "border-indigo-400 shadow-[0_0_0_1px_rgba(124,58,237,0.4)]"
@@ -270,10 +280,10 @@ export function CtaBannerContentInspector({
                   <span
                     aria-hidden
                     className="block h-10 rounded-md"
-                    style={{ background: t.hex }}
+                    style={{ background: tone.hex }}
                   />
                   <span className="px-0.5 text-[11px] font-semibold text-stone-700">
-                    {t.label}
+                    {tone.label}
                   </span>
                 </button>
               );
@@ -283,7 +293,7 @@ export function CtaBannerContentInspector({
       )}
 
       <InspectorGroup
-        title="Advanced"
+        title={t("Advanced")}
         advanced
         collapsible
         storageKey="cta_banner:advanced"
@@ -295,23 +305,23 @@ export function CtaBannerContentInspector({
             onChange={(e) => update({ insetCard: e.target.checked })}
             className="size-3.5 accent-stone-900"
           />
-          Inset card, wraps the banner in a bordered card
+          {t("Inset card, wraps the banner in a bordered card")}
         </label>
         {variant === "split-image" ? (
           <div className={KIT.field}>
-            <label className={KIT.label}>Image side</label>
+            <label className={KIT.label}>{t("Image side")}</label>
             <VisualChipGroup<ImageSide>
               value={imageSide}
               onChange={(v) => update({ imageSide: v })}
               options={[
                 {
                   value: "left",
-                  label: "Image left",
+                  label: t("Image left"),
                   preview: <SplitSidePreview side="left" />,
                 },
                 {
                   value: "right",
-                  label: "Image right",
+                  label: t("Image right"),
                   preview: <SplitSidePreview side="right" />,
                 },
               ]}
