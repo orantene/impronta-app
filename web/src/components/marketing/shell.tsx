@@ -66,6 +66,7 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
           isTalent: false,
           globalHidden: false,
           talentLinks: null,
+          talentUpgradeHref: null,
         };
   }
 

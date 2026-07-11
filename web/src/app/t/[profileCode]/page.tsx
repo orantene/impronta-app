@@ -2044,6 +2044,7 @@ export default async function PublicTalentProfilePage({
             isTalent: false,
             globalHidden: false,
             talentLinks: null,
+            talentUpgradeHref: null,
           };
     }
   }
