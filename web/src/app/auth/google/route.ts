@@ -88,24 +88,18 @@ export async function GET(request: NextRequest) {
 
   // Redirect popup to the Google OAuth URL, carrying the PKCE verifier
   // cookie that Supabase set via setAll above (now parent-domain scoped).
+  //
+  // Do NOT also emit a raw host-only `Set-Cookie` deletion for the same name
+  // here: `NextResponse.cookies` is keyed by cookie NAME, and a second
+  // `set-cookie` header for the same name collapses with the value cookie and
+  // BLANKS THE VERIFIER (`…-code-verifier=;`) — which makes every
+  // exchangeCodeForSession fail with "Authentication failed". A stale host-only
+  // duplicate from a prior deploy is instead swept by middleware.ts's
+  // clearStaleAuthCookies on the next `/login` load (it expires both scopes),
+  // so writing the fresh verifier cleanly parent-domain scoped is sufficient.
   const redirect = NextResponse.redirect(data.url);
   cookieResponse.cookies.getAll().forEach((cookie) => {
     redirect.cookies.set(cookie);
-    // Sweep any LEGACY host-only cookie of the same name written before
-    // parent-domain scoping (or by a prior failed attempt). Without this, the
-    // browser holds two `-code-verifier` cookies at different scopes and sends
-    // both to /auth/callback; @supabase/ssr may read the stale host-only one
-    // and the PKCE exchange fails. The parent-domain deletion is impossible via
-    // the name-keyed cookies API (it would overwrite the value we just set), so
-    // append a raw host-only `Max-Age=0` — same technique as middleware.ts's
-    // clearStaleAuthCookies. Different scope from the value cookie above, so the
-    // browser drops the host-only duplicate and keeps the parent-domain one.
-    if (authCookieDomain && isSupabaseAuthCookie(cookie.name)) {
-      redirect.headers.append(
-        "set-cookie",
-        `${cookie.name}=; Path=/; Max-Age=0`,
-      );
-    }
   });
   return redirect;
 }
