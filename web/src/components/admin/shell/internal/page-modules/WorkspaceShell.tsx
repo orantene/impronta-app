@@ -9,6 +9,7 @@ import { Avatar, Icon, useRovingTabindex } from "../primitives";
 import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, PAGE_META, PLAN_META, useAdminShell } from "../state";
 import type { FabPaletteChangedDetail, WorkspacePage } from "../state";
 import { ShortcutHelpOverlay, useKeyboardLayer } from "../workspace";
+import { useCanonicalRouteChildren } from "../canonical-route-children";
 import { CalendarPage } from "./CalendarPage";
 import { ClientsPage } from "./ClientsPage";
 import { TulalaIdentityBar } from "./IdentityBar-1";
@@ -409,7 +410,18 @@ function WorkspaceSidebarShell() {
 }
 
 function PageRouter({ page }: { page: WorkspacePage }) {
+  // Canonical routes (financials, discover-performance, triage, work/[id], …)
+  // are real Next.js server pages. When AdminShellClient detects a canonical
+  // path it publishes the route content here so it renders INSIDE the shell's
+  // <main> — with the real sidebar + top bar — instead of as a naked page.
+  // Non-canonical routes get `null` and fall through to the SPA page switch.
+  // The route content flows through the SAME animated wrapper as SPA bodies
+  // (below) so it reuses the existing styling rather than adding a new one.
+  const canonicalChildren = useCanonicalRouteChildren();
   let body: React.ReactNode = null;
+  if (canonicalChildren != null) {
+    body = canonicalChildren;
+  } else
   switch (page) {
     case "overview":
       body = <OverviewPage />;

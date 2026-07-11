@@ -41,6 +41,7 @@
 import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useInquiryRealtime } from "@/hooks/use-inquiry-realtime";
+import { CanonicalRouteChildrenProvider } from "./internal/canonical-route-children";
 import {
   AdminShellProvider, useAdminShell, COLORS, FONTS, TRANSITION, Z, meetsRole,
   WORKSPACE_PAGES, PAGE_META,
@@ -304,6 +305,36 @@ function ConditionalAdminShellRoot() {
 }
 
 /**
+ * Workspace variant of the shell root + canonical-route bridge.
+ *
+ * Unlike ConditionalAdminShellRoot (used by the TALENT shell, where canonical
+ * routes render standalone with NO chrome), the WORKSPACE shell HOSTS canonical
+ * route content inside its own `<main>` — so /admin/financials & siblings get
+ * the real sidebar + top bar instead of a naked page.
+ *
+ * On a canonical path: publish `children` to the CanonicalRouteChildren context
+ * (WorkspaceShell's PageRouter renders them in `<main>`) and always mount the
+ * shell. On a normal path: render `children` inline as before (the route page
+ * is a null-visual PageRouteSyncer) and let the SPA render its own page body.
+ *
+ * During SSR (pathname == null) we render `children` inline and skip the shell,
+ * matching the prior no-flash behavior; the shell mounts on hydration.
+ */
+function WorkspaceShellWithCanonicalChildren({ children }: { children?: import("react").ReactNode }) {
+  const pathname = usePathname();
+  const canonical = pathname != null && pathIsCanonical(pathname);
+  return (
+    <CanonicalRouteChildrenProvider value={canonical ? children : null}>
+      {/* Non-canonical (and SSR): render the route page inline. Canonical:
+          the route content is hosted inside the shell's <main> via context. */}
+      {!canonical && children}
+      <RealtimeBridge />
+      {pathname != null && <AdminShellRoot />}
+    </CanonicalRouteChildrenProvider>
+  );
+}
+
+/**
  * RealtimeBridge — subscribes to Supabase realtime for the active
  * tenant and triggers `router.refresh()` on each pipeline-table change.
  * Renders nothing visually; lives inside AdminShellProvider so it can read
@@ -341,9 +372,9 @@ export function AdminShellClient({
           initialPage={initialPage}
           tenantSlug={tenantSlug}
         >
-          {children}
-          <RealtimeBridge />
-          <ConditionalAdminShellRoot />
+          <WorkspaceShellWithCanonicalChildren>
+            {children}
+          </WorkspaceShellWithCanonicalChildren>
         </AdminShellProvider>
       </Suspense>
     </ErrorBoundary>
