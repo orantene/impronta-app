@@ -423,7 +423,28 @@
       "detailsScanCta": "Remplir depuis la conversation",
       "detailsScanning": "Lecture de votre chat…",
       "detailsScanFound": "Ajouté depuis votre chat : {fields}",
-      "detailsScanNothing": "Rien de nouveau trouvé. Vous pouvez ajouter des détails à la main ci-dessous."
+      "detailsScanNothing": "Rien de nouveau trouvé. Vous pouvez ajouter des détails à la main ci-dessous.",
+      "gatePrompt": "Où {name} peut-il vous joindre ?",
+      "gateFirstName": "Prénom",
+      "gateLastName": "Nom",
+      "gateYourMessageLabel": "VOTRE MESSAGE",
+      "gateSend": "Envoyer le message",
+      "projectUntitled": "Nouvelle demande"
+    },
+    "profileCta": {
+      "addToCurrent": "Ajouter {name} à votre demande en cours ({count} talents)",
+      "separateInquiry": "Lancer une demande distincte pour {name}",
+      "inquireAbout": "Demander pour {name}",
+      "bookNowPrice": "Réserver · {price}",
+      "bookInstantly": "Réserver {name} immédiatement",
+      "closeAria": "Fermer",
+      "instantNeedsAccount": "La réservation immédiate nécessite un compte pour confirmer votre réservation et le paiement. Connectez-vous, puis appuyez à nouveau sur Réserver, ou utilisez l'option Demander pour envoyer un message d'abord.",
+      "signInToBook": "Connectez-vous pour réserver",
+      "total": "Total",
+      "instantConfirmNote": "Confirme la réservation avec {name} à son tarif fixe. Vous finaliserez le paiement à l'écran suivant.",
+      "eventDateOptional": "Date de l'événement (facultatif)",
+      "booking": "Réservation…",
+      "confirmAndBook": "Confirmer et réserver · {price}"
     }
   },
   "dashboard": {

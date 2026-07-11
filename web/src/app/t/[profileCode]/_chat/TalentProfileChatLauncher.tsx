@@ -52,6 +52,7 @@ import { useDirectoryFrontDoorSync } from "./use-directory-front-door-sync";
 import { useJon360LauncherTracking } from "./use-jon360-launcher-tracking";
 import {
   DEFAULT_ACCENT,
+  FONT,
   GUEST_CHAT_LAUNCHER_BOTTOM_PX,
   firstNameOf,
   readableOn,
@@ -603,8 +604,7 @@ export function TalentProfileChatLauncher({
             border: "none",
             background: accent,
             color: accentInk,
-            fontFamily:
-              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            fontFamily: FONT,
             fontSize: 14,
             fontWeight: 600,
             letterSpacing: 0.1,
