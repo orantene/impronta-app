@@ -581,18 +581,17 @@ export async function submitInquiry(
 
     await assertConsistencyAfterWrite(supabase, inquiryId);
 
-    // In-app bells: workspace admins ("new inquiry") + invited talent ("you're
-    // invited"), with audience-appropriate copy. Deliberately NO coordinator —
-    // when one is auto-assigned the COORDINATOR_ASSIGNED event bells them, so
-    // adding them here would double-notify. Talent get no ROSTER_TALENT_INVITED
-    // event on the submit path, so this is their only invite bell.
+    // In-app bells: admins + invited talent (COORDINATOR_ASSIGNED bells the coord).
     const submitBells = [
+      // W3 — a null coordinator (all fallbacks unset) = client in an empty room.
       ...(await buildInquiryBells({
         inquiryId,
         tenantId: homeTenantId,
         audiences: ["workspaceAdmins"],
-        title: "New inquiry received",
-        body: "A new inquiry just came in and needs coordination.",
+        title: coordinatorOfRecordId ? "New inquiry received" : "Inquiry needs a coordinator",
+        body: coordinatorOfRecordId
+          ? "A new inquiry just came in and needs coordination."
+          : "A new inquiry has NO coordinator assigned. Please assign one now so the client gets a reply.",
         excludeUserId: input.actorUserId ?? null,
       })),
       ...(await buildInquiryBells({
