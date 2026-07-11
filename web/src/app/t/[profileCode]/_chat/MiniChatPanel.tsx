@@ -254,6 +254,7 @@ export function MiniChatPanel({
     onListGuestInquiries,
     tenantSlug,
     refreshKey: dockView === "projects",
+    activeInquiryId: inquiryId,
   });
 
   // Finding #2: post-"Send to agency" success note (one-shot confirmation).

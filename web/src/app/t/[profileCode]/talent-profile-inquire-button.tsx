@@ -28,6 +28,7 @@ import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { registerCartTalent } from "@/app/t/[profileCode]/_chat/cart-talent-registry";
+import { useFocusTrap } from "@/app/t/[profileCode]/_chat/use-focus-trap";
 import { FONT } from "@/app/t/[profileCode]/_chat/mini-chat-styles";
 
 // ---------------------------------------------------------------------------
@@ -79,6 +80,7 @@ export function TalentProfileInquireButton({
   // {name}"). With an empty (or her-only) lineup there is nothing to decide.
   const [chooserOpen, setChooserOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const menuTrapRef = useFocusTrap<HTMLDivElement>(chooserOpen);
   useEffect(() => {
     if (!chooserOpen) return;
     const onDoc = (e: MouseEvent) => {
@@ -178,6 +180,7 @@ export function TalentProfileInquireButton({
       </Button>
       {chooserOpen && (
         <div
+          ref={menuTrapRef}
           role="menu"
           style={{
             position: "absolute",

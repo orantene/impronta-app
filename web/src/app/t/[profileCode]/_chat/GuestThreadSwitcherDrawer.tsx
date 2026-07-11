@@ -19,6 +19,7 @@ import type { GuestInquirySummary } from "@/lib/inquiry/guest-chat-contract";
 import type { Translator } from "@/i18n/interpolate";
 
 import { GuestDockProjectsView } from "./GuestDockProjectsView";
+import { useFocusTrap } from "./use-focus-trap";
 import { FONT, paletteFor, type SurfaceMode } from "./mini-chat-styles";
 
 export type GuestThreadSwitcherDrawerProps = {
@@ -53,6 +54,7 @@ export function GuestThreadSwitcherDrawer({
   onStartNew,
 }: GuestThreadSwitcherDrawerProps) {
   const C = paletteFor(surfaceMode);
+  const trapRef = useFocusTrap<HTMLDivElement>(open);
   // A11Y — Escape closes the slide-over (the scrim already closes on click).
   useEffect(() => {
     if (!open) return;
@@ -72,6 +74,7 @@ export function GuestThreadSwitcherDrawer({
         style={{ position: "absolute", inset: 0, background: "rgba(10,12,20,0.45)" }}
       />
       <div
+        ref={trapRef}
         role="dialog"
         aria-label={t("public.guestChat.switchInquiryAria")}
         style={{
