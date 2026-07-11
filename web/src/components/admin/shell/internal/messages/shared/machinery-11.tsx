@@ -58,7 +58,7 @@ export function LiveLineupPanel({
   };
   const [lineup, setLineup] = useState<InquiryParticipant[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pending] = useTransition();
+  const [pending, startTransition] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
   // Slice 1 (Messages consolidation): collapsed-by-default. The fat
@@ -768,7 +768,7 @@ export function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
   const { toast, effectiveTenant } = useAdminShell();
   const t = useT();
   const router = useRouter();
-  const [pending] = useTransition();
+  const [pending, startTransition] = useTransition();
   return (
     <div className="mt-3">
       <button
