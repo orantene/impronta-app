@@ -244,6 +244,8 @@
       }
     },
     "profileCta": {
+      "addToCurrent": "Add {name} to your current inquiry ({count} talent)",
+      "separateInquiry": "Start a separate inquiry about {name}",
       "inquireAbout": "Inquire about {name}",
       "bookNowPrice": "Book now · {price}",
       "bookInstantly": "Book {name} instantly",

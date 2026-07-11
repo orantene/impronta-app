@@ -43,7 +43,7 @@ import { LauncherAvatarStack } from "./LauncherAvatarStack";
 import { FlyingAvatar } from "./FlyingAvatar";
 import { useFlyToRail } from "./use-fly-to-rail";
 import { useCartTalents } from "./use-cart-talents";
-import { useCartTalentRegistry } from "./cart-talent-registry";
+import { registerCartTalent, useCartTalentRegistry } from "./cart-talent-registry";
 import { useResolveCartPortraits } from "./use-resolve-cart-portraits";
 import { useNarrowLauncherViewport } from "./use-compact-viewport";
 import { ChatGlyph, CloseGlyph } from "./chat-launcher-glyphs";
@@ -224,15 +224,79 @@ export function TalentProfileChatLauncher({
   // preload bridge. An in-progress DRAFT is never discarded here; callers only
   // invoke this when the active thread is already sent (or absent).
   const [freshEpoch, setFreshEpoch] = useState(0);
+  // When set, the remounted panel resumes THIS draft (the separate-inquiry
+  // flow mints it server-side first); null = plain resume-suppressed fresh.
+  const [freshOverrideId, setFreshOverrideId] = useState<string | null>(null);
   const startFreshDraft = useCallback(() => {
     try {
       window.sessionStorage.setItem("impronta.dockView", "chat");
     } catch {
       /* private mode */
     }
+    setFreshOverrideId(null);
     setFreshEpoch((n) => n + 1);
   }, []);
   const resumeSuppressed = freshEpoch > 0;
+
+  // DOCK v2.1 — "start a separate inquiry about {talent}" (profile CTA
+  // chooser). The in-progress draft is NEVER lost: it is already autosaved
+  // server-side on every change and stays reachable from the Inquiries tab.
+  // Order matters: (1) mint the NEW draft first (forceNew ensure), so the cart
+  // projection — which targets the NEWEST draft — can no longer touch the old
+  // one; (2) reset the cart to just this talent; (3) remount the panel resumed
+  // directly into the new draft.
+  const separateReq = inquiryModal?.separateInquiryRequest ?? null;
+  const separateSeqRef = useRef(0);
+  useEffect(() => {
+    if (!separateReq || separateReq.seq === separateSeqRef.current) return;
+    separateSeqRef.current = separateReq.seq;
+    const talent = separateReq.payload;
+    if (!onEnsureInquiry) return;
+    let cancelled = false;
+    void (async () => {
+      const res = await onEnsureInquiry({
+        tenantSlug,
+        talentProfileId: talent.talentProfileId,
+        talentProfileCode: talent.profileCode || null,
+        sourcePage,
+        forceNew: true,
+      });
+      if (cancelled || !res.ok) return;
+      registerCartTalent(talent.talentProfileId, {
+        displayName: talent.displayName,
+        portraitUrl: talent.portraitUrl,
+      });
+      for (const id of cart.cartIds) {
+        if (id !== talent.talentProfileId) {
+          cart.setInCart({ talentProfileId: id, profileCode: "" }, false, sourcePage);
+        }
+      }
+      if (!cart.isInCart(talent.talentProfileId)) {
+        cart.setInCart(
+          {
+            talentProfileId: talent.talentProfileId,
+            profileCode: talent.profileCode,
+            displayName: talent.displayName,
+          },
+          true,
+          sourcePage,
+        );
+      }
+      try {
+        window.sessionStorage.setItem("impronta.dockView", "chat");
+      } catch {
+        /* private mode */
+      }
+      setFreshOverrideId(res.inquiryId);
+      setFreshEpoch((n) => n + 1);
+      setOpen(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Re-runs on unrelated dep changes are no-ops: the seq guard above only
+    // lets each request through once.
+  }, [separateReq, onEnsureInquiry, tenantSlug, sourcePage, cart, setOpen]);
 
   // B6: the panel registers its unified talent-patch runner here so the rail
   // X-remove writes the record through the SAME useUnifiedInquiry.patch path the
@@ -617,8 +681,8 @@ export function TalentProfileChatLauncher({
         isHub={isHub}
         surfaceMode={surfaceMode}
         key={freshEpoch}
-        existingInquiryId={resumeSuppressed ? null : existingInquiryId}
-        existingContactPromoted={resumeSuppressed ? null : existingContactPromoted}
+        existingInquiryId={resumeSuppressed ? freshOverrideId : existingInquiryId}
+        existingContactPromoted={resumeSuppressed ? (freshOverrideId ? false : null) : existingContactPromoted}
         onStartFresh={startFreshDraft}
         prefill={prefill}
         onStartInquiry={onStartInquiry}

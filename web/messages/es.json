@@ -244,6 +244,8 @@
       }
     },
     "profileCta": {
+      "addToCurrent": "Añadir a {name} a tu solicitud actual ({count} talentos)",
+      "separateInquiry": "Iniciar una solicitud aparte sobre {name}",
       "inquireAbout": "Consultar sobre {name}",
       "bookNowPrice": "Reservar ahora · {price}",
       "bookInstantly": "Reservar a {name} al instante",
