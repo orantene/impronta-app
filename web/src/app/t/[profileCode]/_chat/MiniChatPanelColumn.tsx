@@ -254,6 +254,8 @@ export type MiniChatPanelColumnProps = {
   onRemoveCartTalent?: (talentProfileId: string) => void;
   /** DOCK v2 — the AI conversation scan for the Add-details sheet. */
   onScanConversation?: ScanGuestConversationCallback | null;
+  /** DOCK v2: remount-with-fresh-draft (active thread already sent). */
+  onStartFresh?: (() => void) | null;
   /** DOCK v2 — signed-in client dashboard link for the Home Account card. */
   dashboardHref?: string | null;
 };
@@ -344,6 +346,7 @@ export function MiniChatPanelColumn({
   sourcePage = "",
   onRemoveCartTalent,
   onScanConversation = null,
+  onStartFresh = null,
   dashboardHref = null,
 }: MiniChatPanelColumnProps) {
   // Guest UI locale rides along on `brand` (resolved server-side from the
@@ -382,6 +385,18 @@ export function MiniChatPanelColumn({
   const activeDockView: GuestDockView = dockEnabled ? dockView : "chat";
   const draftExists = Boolean(inquiryRecordExists) && !contactPromoted;
 
+  // "Start an inquiry" (Home card + Lineup CTA): resume a live DRAFT in Chat;
+  // when the active thread is already SENT, spin up a FRESH draft instead so
+  // the guest never types into a frozen conversation. The lineup cart carries
+  // over through the remount.
+  const startInquiryInChat = () => {
+    if (!draftExists && inquiryRecordExists && contactPromoted && onStartFresh) {
+      onStartFresh();
+      return;
+    }
+    onDockViewChange?.("chat");
+  };
+
   return (
     <>
       {/* ── DOCK v2 slim header (avatar + name + draft chip + overflow + X) ── */}
@@ -415,7 +430,7 @@ export function MiniChatPanelColumn({
           draftExists={draftExists}
           inquiriesCount={inquiries.length}
           lineupCount={cartTalentNames.length}
-          onStartInquiry={() => onDockViewChange?.("chat")}
+          onStartInquiry={startInquiryInChat}
           onOpenProjects={() => onDockViewChange?.("projects")}
           onOpenLineup={() => onDockViewChange?.("lineup")}
           dashboardHref={dashboardHref}
@@ -437,6 +452,7 @@ export function MiniChatPanelColumn({
           t={t}
           sourcePage={sourcePage}
           onRemoveCartTalent={onRemoveCartTalent}
+          onStartInquiry={startInquiryInChat}
         />
       )}
 

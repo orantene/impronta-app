@@ -154,6 +154,7 @@ export function MiniChatPanel({
   onRegisterRemoveTalent,
   onInquiryIdChange,
   onScanConversation = null,
+  onStartFresh = null,
 }: MiniChatPanelLocalProps) {
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
@@ -720,6 +721,7 @@ export function MiniChatPanel({
     // DOCK v2: the AI scan (Add-details sheet) + the signed-in client dashboard
     // link for the Home hub's Account card.
     onScanConversation,
+    onStartFresh,
     dashboardHref: `/${tenantSlug}/client/messages`,
   };
 

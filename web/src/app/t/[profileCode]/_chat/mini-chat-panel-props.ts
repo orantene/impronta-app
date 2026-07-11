@@ -64,4 +64,10 @@ export type MiniChatPanelLocalProps = MiniChatPanelProps & {
    * details sheet. Null hides the scan affordance.
    */
   onScanConversation?: ScanGuestConversationCallback | null;
+  /**
+   * DOCK v2: remount the panel with resume suppressed so the next interaction
+   * creates a fresh private draft (used by "Start an inquiry" when the active
+   * thread is already SENT). The lineup cart survives the remount.
+   */
+  onStartFresh?: (() => void) | null;
 };

@@ -17,7 +17,7 @@
  */
 
 import { setPendingOffering } from "./pending-offering-store";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import type {
   ScanGuestConversationCallback,
@@ -217,6 +217,22 @@ export function TalentProfileChatLauncher({
   // without touching the ref. The ref stays the source of truth for the imperative
   // paths (early-row create / remove runner); this just shadows it for render reads.
   const [liveInquiryId, setLiveInquiryId] = useState<string | null>(existingInquiryId);
+
+  // DOCK v2 "start fresh": remount the panel WITHOUT the resumed (sent)
+  // inquiry so the next interaction ensures a brand-new private draft. The
+  // cart (lineup) survives — the new draft picks it up through the existing
+  // preload bridge. An in-progress DRAFT is never discarded here; callers only
+  // invoke this when the active thread is already sent (or absent).
+  const [freshEpoch, setFreshEpoch] = useState(0);
+  const startFreshDraft = useCallback(() => {
+    try {
+      window.sessionStorage.setItem("impronta.dockView", "chat");
+    } catch {
+      /* private mode */
+    }
+    setFreshEpoch((n) => n + 1);
+  }, []);
+  const resumeSuppressed = freshEpoch > 0;
 
   // B6: the panel registers its unified talent-patch runner here so the rail
   // X-remove writes the record through the SAME useUnifiedInquiry.patch path the
@@ -600,8 +616,10 @@ export function TalentProfileChatLauncher({
         brand={brand}
         isHub={isHub}
         surfaceMode={surfaceMode}
-        existingInquiryId={existingInquiryId}
-        existingContactPromoted={existingContactPromoted}
+        key={freshEpoch}
+        existingInquiryId={resumeSuppressed ? null : existingInquiryId}
+        existingContactPromoted={resumeSuppressed ? null : existingContactPromoted}
+        onStartFresh={startFreshDraft}
         prefill={prefill}
         onStartInquiry={onStartInquiry}
         onSendMessage={onSendMessage}

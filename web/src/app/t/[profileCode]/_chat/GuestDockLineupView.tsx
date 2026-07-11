@@ -27,6 +27,8 @@
 
 import { useEffect, useState } from "react";
 
+import { Heart } from "lucide-react";
+
 import type { DirectoryTalentMini } from "@/app/api/directory/talents-by-ids/route";
 import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
@@ -51,6 +53,8 @@ export type GuestDockLineupViewProps = {
    * its own removal write.
    */
   onRemoveCartTalent?: (talentProfileId: string) => void;
+  /** Jump to Chat with the current lineup (the draft picks the cart up). */
+  onStartInquiry?: () => void;
 };
 
 type SavedTile = {
@@ -188,6 +192,7 @@ export function GuestDockLineupView({
   t,
   sourcePage,
   onRemoveCartTalent,
+  onStartInquiry,
 }: GuestDockLineupViewProps) {
   const C = paletteFor(surfaceMode);
   // Shelf A — the inquiry lineup (cart). Same projection the launcher rail uses:
@@ -257,6 +262,10 @@ export function GuestDockLineupView({
     );
   }
 
+  // Drag a SAVED tile onto the inquiry shelf — same bridge as the button.
+  const [dragTile, setDragTile] = useState<SavedTile | null>(null);
+  const [dropHot, setDropHot] = useState(false);
+
   const rowStyle = {
     display: "flex",
     alignItems: "center",
@@ -279,14 +288,45 @@ export function GuestDockLineupView({
       data-guest-dock-view="lineup"
       style={{ flex: 1, minHeight: 0, overflowY: "auto", background: C.surface, paddingBottom: 10 }}
     >
-      {/* ── Shelf A: the inquiry lineup (saved_talent) ─────────────────────── */}
+      {/* ── Shelf A: the inquiry lineup (saved_talent). Also the DROP ZONE for
+          saved tiles — dropping runs the same moveToInquiry bridge. ───────── */}
+      <div
+        data-drop-zone="inquiry"
+        onDragOver={(e) => {
+          if (!dragTile) return;
+          e.preventDefault();
+          setDropHot(true);
+        }}
+        onDragLeave={() => setDropHot(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDropHot(false);
+          if (dragTile) moveToInquiry(dragTile);
+          setDragTile(null);
+        }}
+        style={{
+          borderRadius: 12,
+          margin: dropHot ? "0 4px" : 0,
+          outline: dropHot ? `2px dashed ${accent}` : "none",
+          outlineOffset: -2,
+          background: dropHot ? `${accent}0d` : "transparent",
+          transition: "background 120ms",
+        }}
+      >
       <ShelfHeader
         label={t("public.guestChat.dockLineupShelfInquiry")}
         count={cartTalents.length}
         C={C}
       />
       {cartTalents.length === 0 ? (
-        <EmptyShelfNote text={t("public.guestChat.dockLineupEmptyInquiry")} C={C} />
+        <EmptyShelfNote
+          text={
+            dragTile
+              ? t("public.guestChat.dockLineupDropHint")
+              : t("public.guestChat.dockLineupEmptyInquiry")
+          }
+          C={C}
+        />
       ) : (
         <ul role="list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {cartTalents.map((talent) => (
@@ -322,6 +362,34 @@ export function GuestDockLineupView({
         </ul>
       )}
 
+      {/* Start an inquiry with the current lineup — jumps to Chat; the draft
+          picks the cart up through the existing preload/submit bridge. */}
+      {cartTalents.length > 0 && onStartInquiry && (
+        <div style={{ padding: "8px 14px 2px" }}>
+          <button
+            type="button"
+            onClick={onStartInquiry}
+            style={{
+              width: "100%",
+              border: "none",
+              borderRadius: 10,
+              padding: "10px 12px",
+              background: accent,
+              color: accentInk,
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: FONT,
+            }}
+          >
+            {interpolate(t("public.guestChat.dockLineupStartInquiry"), {
+              count: cartTalents.length,
+            })}
+          </button>
+        </div>
+      )}
+      </div>
+
       {/* ── Shelf B: saved favorites (client_favorites) ────────────────────── */}
       <ShelfHeader
         label={t("public.guestChat.dockLineupShelfSaved")}
@@ -343,7 +411,24 @@ export function GuestDockLineupView({
             const inLineup = cart.isInCart(tile.id);
             const pending = cart.isPending(tile.id);
             return (
-              <li key={tile.id} style={rowStyle}>
+              <li
+                key={tile.id}
+                draggable={!inLineup}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "copy";
+                  e.dataTransfer.setData("text/plain", tile.id);
+                  setDragTile(tile);
+                }}
+                onDragEnd={() => {
+                  setDragTile(null);
+                  setDropHot(false);
+                }}
+                style={{
+                  ...rowStyle,
+                  cursor: inLineup ? "default" : "grab",
+                  opacity: dragTile?.id === tile.id ? 0.5 : 1,
+                }}
+              >
                 <FaceTile photoUrl={tile.photoUrl} name={tile.name} C={C} />
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ ...nameStyle, display: "block" }}>{tile.name}</span>
@@ -363,6 +448,30 @@ export function GuestDockLineupView({
                     </span>
                   )}
                 </span>
+                {/* Un-save (the favorites-modal function, inline): filled heart
+                    toggles the favorite off; the row disappears from Saved. */}
+                <button
+                  type="button"
+                  aria-label={interpolate(t("public.guestChat.dockLineupUnsaveAria"), {
+                    name: tile.name,
+                  })}
+                  onClick={() => favorites.setFavorite(tile.id, false)}
+                  style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: 8,
+                    border: `1px solid ${C.borderSoft}`,
+                    background: "transparent",
+                    color: accent,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Heart size={13} fill="currentColor" strokeWidth={0} aria-hidden />
+                </button>
                 {inLineup ? (
                   <span
                     style={{
