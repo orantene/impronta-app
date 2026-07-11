@@ -1,6 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { normalizeNextPath } from "@/lib/auth-flow";
+import {
+  cookieDomainForHost,
+  isSupabaseAuthCookie,
+} from "@/lib/supabase/cookie-domain";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -31,6 +35,19 @@ export async function GET(request: NextRequest) {
 
   const cookieStore = await cookies();
 
+  // Scope Supabase auth cookies — critically the PKCE `-code-verifier` written
+  // by signInWithOAuth below — to the shared parent domain (".tulala.digital")
+  // exactly like server.ts / client.ts / middleware.ts do. Without this the
+  // verifier is written HOST-ONLY while every other client on the platform
+  // reads/writes/expires it PARENT-DOMAIN scoped, producing two same-name
+  // cookies at different scopes. The browser sends both to /auth/callback,
+  // @supabase/ssr reads whichever comes first (often the stale one), and
+  // exchangeCodeForSession fails PKCE verification → "Authentication failed".
+  // `undefined` (localhost / custom domains) keeps the prior host-only default.
+  const authCookieDomain = cookieDomainForHost(
+    request.headers.get("x-impronta-host-name") ?? request.headers.get("host"),
+  );
+
   // Placeholder response — cookies written by setAll are copied to the
   // final redirect response below.
   const cookieResponse = new NextResponse(null, { status: 200 });
@@ -42,8 +59,12 @@ export async function GET(request: NextRequest) {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
-          cookieResponse.cookies.set(name, value, options);
+          const scoped =
+            authCookieDomain && isSupabaseAuthCookie(name)
+              ? { ...options, domain: authCookieDomain }
+              : options;
+          cookieStore.set(name, value, scoped);
+          cookieResponse.cookies.set(name, value, scoped);
         });
       },
     },
@@ -66,10 +87,25 @@ export async function GET(request: NextRequest) {
   }
 
   // Redirect popup to the Google OAuth URL, carrying the PKCE verifier
-  // cookie that Supabase set via setAll above.
+  // cookie that Supabase set via setAll above (now parent-domain scoped).
   const redirect = NextResponse.redirect(data.url);
   cookieResponse.cookies.getAll().forEach((cookie) => {
     redirect.cookies.set(cookie);
+    // Sweep any LEGACY host-only cookie of the same name written before
+    // parent-domain scoping (or by a prior failed attempt). Without this, the
+    // browser holds two `-code-verifier` cookies at different scopes and sends
+    // both to /auth/callback; @supabase/ssr may read the stale host-only one
+    // and the PKCE exchange fails. The parent-domain deletion is impossible via
+    // the name-keyed cookies API (it would overwrite the value we just set), so
+    // append a raw host-only `Max-Age=0` — same technique as middleware.ts's
+    // clearStaleAuthCookies. Different scope from the value cookie above, so the
+    // browser drops the host-only duplicate and keeps the parent-domain one.
+    if (authCookieDomain && isSupabaseAuthCookie(cookie.name)) {
+      redirect.headers.append(
+        "set-cookie",
+        `${cookie.name}=; Path=/; Max-Age=0`,
+      );
+    }
   });
   return redirect;
 }
