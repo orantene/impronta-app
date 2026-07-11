@@ -14,7 +14,7 @@
  * Reads Supabase creds from the env (.env.local). Service-role only.
  */
 
-import { findPrunableSystemRowIds, type PrunableRow } from "../src/lib/inquiry/prune-duplicate-system-notes.ts";
+import { findPrunableSystemRowIds, type PrunableRow } from "../src/lib/inquiry/prune-duplicate-system-notes";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/"/g, "");
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.replace(/"/g, "");
