@@ -695,7 +695,7 @@
       "leaveMessage": "Cuéntanos sobre tu evento y te conseguimos el talento ideal",
       "bookNow": "Reservar ahora",
       "ctaMessage": "Enviar mensaje a {agency}",
-      "ctaLineup": "Tu lista ({count})",
+      "ctaLineup": "Tu lista · {count}",
       "ctaSent": "Solicitud enviada",
       "ctaReplied": "{agency} respondio",
       "ctaClosed": "Solicitud cerrada",

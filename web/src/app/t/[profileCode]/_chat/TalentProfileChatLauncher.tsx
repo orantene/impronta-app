@@ -149,6 +149,15 @@ export function TalentProfileChatLauncher({
 }: TalentProfileChatLauncherLocalProps) {
   const mounted = useClientMounted();
   const [open, setOpen] = useState(false);
+  // W2-B — "seen" marker for the unseen-reply signal. Opening the panel means the
+  // visitor has now seen the coordinator's reply, so we locally suppress the
+  // replied label + pulse from that point on (the server recomputes the durable
+  // "seen" state on the next load). Best-effort: a stuck "replied" that never
+  // clears is the failure we must avoid, so any open flips this true for good.
+  const [replySeen, setReplySeen] = useState(false);
+  useEffect(() => {
+    if (open) setReplySeen(true);
+  }, [open]);
   // Audit item 7 (Lane G) — below ~700px the free-floating avatar cluster (up to
   // 3 circles breaking the pill's top edge, or the "+N …more" chip) has been
   // observed drifting over profile content (review text / section headers) in
@@ -453,6 +462,11 @@ export function TalentProfileChatLauncher({
   // launcher passes its talentProfileId; the agency launcher passes "" -> null
   // focus, which maps to the lineup-review states.
   const focusTalentId = talentProfileId && talentProfileId.length > 0 ? talentProfileId : null;
+  // W2-B — the live "unseen agency reply" signal: the server-derived flag, minus
+  // any local open (which marks it seen). Drives BOTH the resolver's `replied`
+  // state ("{agency} replied") and the pulse ring, so opening the thread clears
+  // the label and the pulse together.
+  const unseenAgencyReply = unreadCoordinatorReply && !replySeen;
   const ctaState = resolveInquiryCta({
     talentProfileId: focusTalentId,
     isInLineup: focusTalentId ? cart.isInCart(focusTalentId) : false,
@@ -468,6 +482,7 @@ export function TalentProfileChatLauncher({
     lastActivityAt,
     coordinatorId,
     lastMessageRole,
+    hasUnseenAgencyReply: unseenAgencyReply,
   });
   // Brand voice for the empty / replied / closed states. The launcher reads as
   // "Message {agency}" when empty (locked decision 1 — the lifecycle-aware label
@@ -631,7 +646,7 @@ export function TalentProfileChatLauncher({
               inherits). Only meaningful on the closed launcher with an unread
               coordinator reply; the component self-fires one ring per false->true
               edge and is reduced-motion-safe (degrades to a static highlight). */}
-          {!open && unreadCoordinatorReply && (
+          {!open && unseenAgencyReply && (
             <NewMessagePulse active={repliedPulse} accent={accent} />
           )}
           {open ? (

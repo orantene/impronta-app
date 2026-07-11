@@ -9,10 +9,10 @@
  *
  * Locked label map (decision 1):
  *   empty lineup, no active inquiry          -> "Message {agency}"
- *   draft / lineup non-empty                 -> "Your lineup ({n})"
+ *   draft / lineup non-empty                 -> "Your lineup · {n}"
  *   stale resumable draft (prior session)    -> "Finish your inquiry ({n})"
- *   sent (submitted / coordination)          -> "Inquiry sent"
- *   replied (coordinator spoke last)         -> "{agency} replied"
+ *   sent / seen two-way (sent_awaiting|live) -> "Inquiry sent"
+ *   replied (UNSEEN agency reply, W2-B)      -> "{agency} replied" (+ pulse)
  *   terminal (declined/expired/booked/...)   -> closed-state copy (NO forward CTA)
  *
  * Phase 8 (returning-visitor nudges): the resume_draft kind now renders a
@@ -52,10 +52,17 @@ export function launcherLabelForCta(
   lineupCount = 0,
 ): string {
   switch (state.kind) {
-    case "live_conversation":
-      // Coordinator (or the viewer) has spoken — the thread is two-way.
+    case "replied":
+      // W2-B — the ONLY state that reads "{agency} replied". Fires solely when an
+      // UNSEEN agency reply is waiting; opening the thread clears the signal and
+      // the state collapses back to live_conversation / sent_awaiting below.
       return interpolate(t("public.guestChat.ctaReplied"), { agency: agencyName });
+    case "live_conversation":
     case "sent_awaiting":
+      // A SENT inquiry with no unseen reply reads honestly as "Inquiry sent" —
+      // whether it is still a one-way airlock (sent_awaiting) or a SEEN two-way
+      // thread (live_conversation). "{agency} replied" is reserved for `replied`
+      // so the pill never keeps claiming a reply the visitor has already read.
       return t("public.guestChat.ctaSent");
     case "terminal":
       // A closed inquiry must never present a forward-motion label. Render the
