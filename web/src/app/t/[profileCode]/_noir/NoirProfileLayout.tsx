@@ -738,9 +738,11 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
               >
                 <PublicCmsFooterNav locale={locale} />
               </div>
-              <span className="nf-foot__pw">
-                Powered by <em>Tulala</em>
-              </span>
+              {props.whitelabel ? null : (
+                <span className="nf-foot__pw">
+                  Powered by <em>Tulala</em>
+                </span>
+              )}
             </div>
           </div>
         </footer>

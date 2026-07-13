@@ -14,6 +14,7 @@ import { PublicFlashHost } from "@/components/directory/public-flash-host";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { PublicHeader } from "@/components/public-header";
 import { PoweredByTulala } from "@/components/powered-by-tulala";
+import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import type { Locale } from "@/i18n/config";
 import { createTranslator } from "@/i18n/messages";
@@ -111,6 +112,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     favoriteIds,
     actor,
     publicBranding,
+    whitelabel,
   ] = await Promise.all([
     cmsLocale
       ? loadHomepageForRender(tenantId, cmsLocale)
@@ -129,6 +131,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     getFavoriteTalentIds(),
     getCachedActorSession(),
     loadPublicBranding(tenantId),
+    loadTenantWhitelabel(tenantId),
   ]);
   const favoriteIcon = publicBranding?.favorite_icon ?? "bookmark";
   const tenantBrand = identity?.public_name?.trim() ?? null;
@@ -428,7 +431,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                     .replace("{year}", String(year))
                     .replace("{brand}", brandLabel)}
                 </p>
-                <PoweredByTulala className="mt-2" />
+                {whitelabel ? null : <PoweredByTulala className="mt-2" />}
               </div>
             </footer>
           )}

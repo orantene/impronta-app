@@ -8,7 +8,9 @@ import {
   brandedSubdomainEligible,
   customDomainLockedCopy,
   customDomainEligible,
+  planTierHasWhitelabel,
   resolveWorkspacePublicAddress,
+  whitelabelBrandingEligible,
   workspacePlanPublicModelCopy,
   workspacePathHost,
   workspacePathUrl,
@@ -17,6 +19,27 @@ import {
 test("workspace path helpers produce the canonical Tulala path URL", () => {
   assert.equal(workspacePathHost("impronta"), "tulala.digital/impronta");
   assert.equal(workspacePathUrl("impronta"), "https://tulala.digital/impronta");
+});
+
+test("whitelabel branding is gated to Agency / Network (and grandfathered legacy)", () => {
+  // Only the top paid tiers get whitelabel — matches customDomainEligible.
+  assert.equal(whitelabelBrandingEligible("agency"), true);
+  assert.equal(whitelabelBrandingEligible("network"), true);
+  assert.equal(whitelabelBrandingEligible("legacy"), true);
+  // Free and Studio stay Tulala-branded on their talents' + clients' surfaces.
+  assert.equal(whitelabelBrandingEligible("free"), false);
+  assert.equal(whitelabelBrandingEligible("studio"), false);
+});
+
+test("planTierHasWhitelabel fails closed for null / unknown / non-whitelabel tiers", () => {
+  assert.equal(planTierHasWhitelabel("agency"), true);
+  assert.equal(planTierHasWhitelabel("network"), true);
+  assert.equal(planTierHasWhitelabel("legacy"), true);
+  assert.equal(planTierHasWhitelabel("studio"), false);
+  assert.equal(planTierHasWhitelabel("free"), false);
+  assert.equal(planTierHasWhitelabel(null), false);
+  assert.equal(planTierHasWhitelabel(undefined), false);
+  assert.equal(planTierHasWhitelabel("enterprise-typo"), false);
 });
 
 test("free plan resolves to the Tulala path URL even when a subdomain row exists", () => {

@@ -774,9 +774,9 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
               <div style={{ color: "var(--pp-muted)", fontSize: 13 }}>
                 <PublicCmsFooterNav locale={locale} />
               </div>
-              <span className="lm-foot__pw">
-                Powered by <em>Tulala</em>
-              </span>
+              {props.whitelabel ? null : (
+                <span className="lm-foot__pw">Powered by <em>Tulala</em></span>
+              )}
             </div>
           </div>
         </footer>
