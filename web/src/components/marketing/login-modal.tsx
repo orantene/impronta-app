@@ -36,6 +36,9 @@ import {
   GoogleGlyph,
   Spinner,
 } from "./talent-register-modal-glyphs";
+import { loadWelcomeAccountModel } from "./welcome-actions";
+import { LoginWelcomePanel } from "./login-welcome-panel";
+import type { MarketingAccount } from "./marketing-account-menu";
 
 export const LOGIN_MODAL_EVENT = "tulala:open-login-modal" as const;
 
@@ -107,6 +110,8 @@ export function LoginModal({
   locale?: string;
 }) {
   const [mounted, setMounted] = useState(false);
+  const [welcome, setWelcome] = useState<MarketingAccount | null>(null);
+  const [loadingWelcome, setLoadingWelcome] = useState(false);
   const emailRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
   const t = getLoginCopy(locale);
@@ -135,9 +140,29 @@ export function LoginModal({
     };
   }, [onClose]);
 
-  // Signing in succeeds in place: refresh the current page so the header flips
-  // to the account menu, then close.
-  function completeInPlace() {
+  // On success, fetch the identity-aware model and show the welcome panel with
+  // quick links (staying on the page). If the model can't load, fall back to
+  // just refreshing so the header flips to the account menu.
+  async function handleAuthSuccess() {
+    setLoadingWelcome(true);
+    try {
+      const model = await loadWelcomeAccountModel();
+      if (model) {
+        setWelcome(model);
+        return;
+      }
+    } catch {
+      /* fall through to refresh */
+    } finally {
+      setLoadingWelcome(false);
+    }
+    router.refresh();
+    onClose();
+  }
+
+  // Dismissing the welcome panel refreshes the page so the header reflects the
+  // signed-in state, then closes.
+  function dismissWelcome() {
     router.refresh();
     onClose();
   }
@@ -183,63 +208,78 @@ export function LoginModal({
             </span>
           </button>
 
-          <div className="mb-7">
-            <p
-              className="plt-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em]"
-              style={{ color: "var(--plt-forest)" }}
-            >
-              {t.eyebrow}
-            </p>
-            <h2
-              id="login-modal-title"
-              className="plt-display mt-2 text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.02em]"
-              style={{ color: "var(--plt-ink)" }}
-            >
-              {t.title}{" "}
-              <span style={{ color: "var(--plt-forest)" }}>{t.titleAccent}</span>
-            </h2>
-            <p
-              className="mt-2 text-[0.875rem] leading-[1.5]"
-              style={{ color: "var(--plt-muted)" }}
-            >
-              {t.sub}
-            </p>
-          </div>
+          {welcome ? (
+            <LoginWelcomePanel
+              account={welcome}
+              locale={locale}
+              onDismiss={dismissWelcome}
+            />
+          ) : loadingWelcome ? (
+            <div className="flex items-center justify-center gap-2 py-16" style={{ color: "var(--plt-muted)" }}>
+              <Spinner />
+              <span className="text-[0.875rem]">{t.submitting}</span>
+            </div>
+          ) : (
+            <>
+              <div className="mb-7">
+                <p
+                  className="plt-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em]"
+                  style={{ color: "var(--plt-forest)" }}
+                >
+                  {t.eyebrow}
+                </p>
+                <h2
+                  id="login-modal-title"
+                  className="plt-display mt-2 text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.02em]"
+                  style={{ color: "var(--plt-ink)" }}
+                >
+                  {t.title}{" "}
+                  <span style={{ color: "var(--plt-forest)" }}>{t.titleAccent}</span>
+                </h2>
+                <p
+                  className="mt-2 text-[0.875rem] leading-[1.5]"
+                  style={{ color: "var(--plt-muted)" }}
+                >
+                  {t.sub}
+                </p>
+              </div>
 
-          <LoginModalGoogleButton copy={t} onSuccess={completeInPlace} />
+              <LoginModalGoogleButton copy={t} onSuccess={handleAuthSuccess} />
 
-          <div className="my-4 flex items-center gap-3">
-            <div className="h-px flex-1" style={{ background: "var(--plt-hairline)" }} />
-            <span
-              className="plt-mono text-[0.625rem] font-medium uppercase tracking-[0.22em]"
-              style={{ color: "var(--plt-muted)" }}
-            >
-              {t.orEmail}
-            </span>
-            <div className="h-px flex-1" style={{ background: "var(--plt-hairline)" }} />
-          </div>
+              <div className="my-4 flex items-center gap-3">
+                <div className="h-px flex-1" style={{ background: "var(--plt-hairline)" }} />
+                <span
+                  className="plt-mono text-[0.625rem] font-medium uppercase tracking-[0.22em]"
+                  style={{ color: "var(--plt-muted)" }}
+                >
+                  {t.orEmail}
+                </span>
+                <div className="h-px flex-1" style={{ background: "var(--plt-hairline)" }} />
+              </div>
 
-          <LoginModalEmailForm
-            copy={t}
-            locale={locale}
-            emailRef={emailRef}
-            onSuccess={completeInPlace}
-          />
+              <LoginModalEmailForm
+                copy={t}
+                locale={locale}
+                emailRef={emailRef}
+                onSuccess={handleAuthSuccess}
+              />
 
-          <p
-            className="mt-5 text-center text-[0.8125rem]"
-            style={{ color: "var(--plt-muted)" }}
-          >
-            {t.noAccount}{" "}
-            <Link
-              href="/get-started"
-              onClick={onClose}
-              className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
-              style={{ color: "var(--plt-ink-soft)" }}
-            >
-              {t.createOne}
-            </Link>
-          </p>
+              <p
+                className="mt-5 text-center text-[0.8125rem]"
+                style={{ color: "var(--plt-muted)" }}
+              >
+                {t.noAccount}{" "}
+                <Link
+                  href="/get-started"
+                  onClick={onClose}
+                  className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+                  style={{ color: "var(--plt-ink-soft)" }}
+                >
+                  {t.createOne}
+                </Link>
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>,
