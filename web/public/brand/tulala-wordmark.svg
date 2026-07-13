@@ -1,7 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 56" role="img" aria-label="tulala.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 116 36" role="img" aria-label="tulala.">
   <title>tulala.</title>
-  <style>
-    .tl-wm { font-family: "Fraunces", "Times New Roman", Georgia, serif; font-weight: 360; font-size: 48px; font-style: normal; font-variation-settings: "opsz" 144, "SOFT" 40; letter-spacing: -0.01em; fill: currentColor; }
-  </style>
-  <text x="0" y="42" class="tl-wm">tulala<tspan dx="1" fill="currentColor">.</tspan></text>
+  <g fill="none" stroke="#161a16" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 7.5 V25 Q8 30 13 30"/>
+    <path d="M3.5 14 H13.5"/>
+    <path d="M21 14 V22 A8 8 0 0 0 37 22 V14"/>
+    <path d="M45 6 V30"/>
+    <circle cx="61" cy="22.1" r="8.25"/>
+    <path d="M69 14 V30"/>
+    <path d="M77 6 V30"/>
+    <circle cx="93" cy="22.1" r="8.25"/>
+    <path d="M101 14 V30"/>
+  </g>
+  <circle cx="110.5" cy="28.6" r="3.6" fill="#ff8332"/>
 </svg>

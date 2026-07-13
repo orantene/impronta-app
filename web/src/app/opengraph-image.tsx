@@ -162,7 +162,15 @@ export default async function Image() {
           }}
         >
           <span>Powered by Tulala</span>
-          <span>tulala.digital</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            {/* Brand mark — the three rising notes from the Tulala tile. */}
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 99, background: "#1e3a2d", opacity: 0.55, marginBottom: 0 }} />
+              <div style={{ width: 10, height: 10, borderRadius: 99, background: "#1e3a2d", marginBottom: 7 }} />
+              <div style={{ width: 12, height: 12, borderRadius: 99, background: "#ff8332", marginBottom: 15 }} />
+            </div>
+            <span>tulala.digital</span>
+          </div>
         </div>
       </div>
     ),

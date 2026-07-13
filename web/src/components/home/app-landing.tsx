@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSiteUrl } from "@/lib/auth-flow";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { TulalaLogo } from "@/components/brand/tulala-logo";
 
 /**
  * Root page for `kind === "app"` — the workspace host (app.tulala.digital) as
@@ -44,12 +45,8 @@ export function AppLanding() {
             aria-label={`${PLATFORM_BRAND.name} — home`}
             className="-mx-1 flex items-center rounded-md px-1 py-1"
           >
-            <span
-              aria-hidden
-              className="plt-display inline-flex items-baseline leading-none"
-              style={{ fontWeight: 700, letterSpacing: "-0.045em", fontSize: "1.5rem", color: "var(--plt-accent)" }}
-            >
-              tulala<span style={{ color: "var(--plt-forest)", fontSize: "14px" }}>.</span>
+            <span style={{ color: "var(--plt-ink-strong)" }}>
+              <TulalaLogo markSize={28} wordmarkHeight={25} />
             </span>
           </a>
 
