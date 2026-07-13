@@ -43,18 +43,15 @@ import { pageUrl, inquiryPathForRole } from "./catalog-render";
  *
  * Most entries here are EMAIL-ONLY. In-app bell notifications for those events
  * are already emitted by the engine's `notifyUsers` path (listener[1]); routing
- * in_app here too would double-notify.
+ * in_app here too would double-notify. This is why `inquiry.submitted.talent`
+ * stays email-only: the engine already bells roster talent on submit
+ * (`inquiry-engine-submit.ts` buildInquiryBells(["talent"])), so the catalog owns
+ * only the email.
  *
- * Two talent entries carry in_app (Group A of the talent-notifications plan):
- *   - `offer.sent.talent` — the `offer.sent` engine event emits NO `notifications`
- *     bell (only a system message + chat cards), so this entry is the ONLY in-app
- *     signal a priced talent gets. No double-notify.
- *   - `inquiry.submitted.talent` — the engine ALSO bells roster talent on submit
- *     (`inquiry-engine-submit.ts` buildInquiryBells(["talent"]), the generic
- *     "You've been invited to an inquiry"). This entry's richer bell (job details +
- *     talent-surface routing) is intended to REPLACE that generic one; until the
- *     engine bell is removed, a submit will write BOTH rows. That removal is a
- *     one-line engine change tracked as a follow-up (out of this module's scope).
+ * The one exception is `offer.sent.talent` (Group A of the talent-notifications
+ * plan): the `offer.sent` engine event emits NO `notifications` bell (only a
+ * system message + chat cards), so this entry is the ONLY in-app signal a priced
+ * talent gets. No double-notify.
  *
  * `message.new` is the same shape with two twists (spec §6.2 / §7): its in-app
  * bell is fanned out directly by `sendMessage` (not `notifyUsers`), so it stays
@@ -124,29 +121,11 @@ const INQUIRY_SUBMITTED_COORDINATOR: CatalogEntry = {
 const INQUIRY_SUBMITTED_TALENT: CatalogEntry = {
   id: "inquiry.submitted.talent",
   category: "roster_activity",
-  defaultChannels: ["email", "in_app"],
+  defaultChannels: ["email"],
   required: false,
   triggers: ["inquiry.submitted"],
   hydrate: loadInquiryView,
   resolveAudience: allRosterTalent,
-  // A1 — talents live in the app, so surface the "you're on a job" moment in the
-  // bell too, with the job context the generic engine submit-bell lacks
-  // (contact, date, location) and talent-surface routing. See the module header:
-  // the engine also bells roster talent on submit, so until that engine bell is
-  // removed a submit writes both rows.
-  in_app: {
-    kind: "system",
-    surface: "talent",
-    title: () => "You've been added to a job",
-    body: (event) => {
-      const bits = [
-        str(event.payload.contactName),
-        str(event.payload.eventDate),
-        str(event.payload.eventLocation),
-      ].filter(Boolean);
-      return bits.length ? bits.join(", ") : "A client requested you for a new job.";
-    },
-  },
   email: {
     templateId: "talent.inquiry_invited",
     subject: () => "You've been added to an inquiry",

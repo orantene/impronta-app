@@ -754,35 +754,3 @@ test("catalog: offer.sent.talent renders gracefully with no net mapped for the r
   assert.ok(entry.email!.render({ event, recipient: r, brand }), "render falsy on empty payload");
   assert.ok((entry.in_app!.body?.(event, r) ?? "").length > 0, "in_app body empty on empty payload");
 });
-
-test("catalog: inquiry.submitted.talent now also routes in_app on the talent surface", () => {
-  const entry = findCatalogEntryById("inquiry.submitted.talent");
-  assert.ok(entry, "missing inquiry.submitted.talent");
-  assert.equal(entry!.category, "roster_activity");
-  assert.deepEqual(entry!.defaultChannels, ["email", "in_app"]);
-  assert.ok(entry!.in_app, "should have an in_app config");
-  assert.equal(entry!.in_app!.surface, "talent");
-  const r = recipientWithRole("talent");
-  const event: NotificationEvent = {
-    type: "inquiry.submitted",
-    tenantId: "tenant-1",
-    inquiryId: "inq-1",
-    eventId: "evt-submit",
-    payload: {
-      contactName: "Sofia's Wedding",
-      eventDate: "14 Jun 2026",
-      eventLocation: "Lake Como, Italy",
-    },
-  };
-  assert.ok(entry!.in_app!.title(event, r).length > 0);
-  assert.match(entry!.in_app!.body?.(event, r) ?? "", /Sofia's Wedding/);
-  // Empty payload still yields a sane fallback bell.
-  const empty: NotificationEvent = {
-    type: "inquiry.submitted",
-    tenantId: "tenant-1",
-    inquiryId: "inq-1",
-    eventId: "evt-submit-empty",
-    payload: {},
-  };
-  assert.ok((entry!.in_app!.body?.(empty, r) ?? "").length > 0);
-});
