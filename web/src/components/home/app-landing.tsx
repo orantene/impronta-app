@@ -46,7 +46,7 @@ export function AppLanding() {
             className="-mx-1 flex items-center rounded-md px-1 py-1"
           >
             <span style={{ color: "var(--plt-ink-strong)" }}>
-              <TulalaLogo markSize={28} wordmarkHeight={25} />
+              <TulalaLogo markSize={28} wordmarkHeight={25} withDigital />
             </span>
           </a>
 
