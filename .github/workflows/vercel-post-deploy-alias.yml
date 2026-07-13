@@ -12,6 +12,25 @@ name: Vercel post-deploy alias
 on:
   deployment_status:
 
+# ── Race fix (2026-07-11) ────────────────────────────────────────────────────
+# When several PRs merge to `main` close together (common with multiple agents),
+# each production deploy fires its own `deployment_status` event and its own run
+# of this workflow. With no coordination those runs execute in PARALLEL and
+# clobber each other: whichever run *finishes last* wins, which is NOT
+# necessarily the newest deploy — so the domains drift onto a stale build and
+# need a manual `vercel alias set`. This bit us repeatedly on 2026-07-11.
+#
+# Two defenses:
+#  1. `concurrency` serializes runs (no parallel clobber). cancel-in-progress is
+#     false so no run is dropped, each one re-asserts the alias in turn.
+#  2. The step aliases to the QUERIED newest READY production deployment, not the
+#     triggering event's target_url. This makes it order-independent and
+#     self-healing: even a late/out-of-order run re-points the domains at the
+#     true latest. target_url is only a fallback if the query returns empty.
+concurrency:
+  group: vercel-alias-production
+  cancel-in-progress: false
+
 jobs:
   alias:
     name: Re-alias ghost-locked domains
@@ -27,12 +46,34 @@ jobs:
       - name: Re-alias tulala.digital + app.tulala.digital
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          DEPLOY_URL: ${{ github.event.deployment_status.target_url }}
+          EVENT_URL: ${{ github.event.deployment_status.target_url }}
         run: |
           set -euo pipefail
-          if [[ -z "${DEPLOY_URL:-}" ]]; then
-            echo "::error::no deployment_status.target_url"; exit 1
+
+          # Prefer the newest READY production deployment over the triggering
+          # event's URL, so concurrent / out-of-order merges can't strand the
+          # domains on a stale build. Fall back to the event URL if the query
+          # yields nothing (e.g. a transient CLI hiccup).
+          LATEST="$(
+            vercel ls tulala \
+              --scope oran-tenes-projects \
+              --token "$VERCEL_TOKEN" \
+              --prod 2>/dev/null \
+            | grep -i 'ready' \
+            | grep -oE 'https://tulala-[a-z0-9]+-oran-tenes-projects\.vercel\.app' \
+            | head -1 || true
+          )"
+
+          DEPLOY_URL="${LATEST:-${EVENT_URL:-}}"
+          if [[ -z "$DEPLOY_URL" ]]; then
+            echo "::error::could not resolve a production deployment URL (no newest-ready, no event target_url)"
+            exit 1
           fi
+
+          if [[ -n "${LATEST:-}" && "$LATEST" != "${EVENT_URL:-}" ]]; then
+            echo "::notice::event fired for ${EVENT_URL:-<none>} but newest-ready is $LATEST; aliasing to newest-ready"
+          fi
+
           echo "Aliasing $DEPLOY_URL -> tulala.digital + app.tulala.digital"
           for D in tulala.digital app.tulala.digital; do
             vercel alias set "$DEPLOY_URL" "$D" \
