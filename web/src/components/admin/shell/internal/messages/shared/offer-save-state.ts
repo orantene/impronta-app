@@ -89,6 +89,13 @@ export type OfferSaveState =
   | { status: "error"; cls: SaveErrorClass; rawError: string };
 
 /**
+ * Result of the send gate. When blocked, `reasonKey` is an i18n key under
+ * `dashboard.adminTabs.lineup.saveErr.*` naming the human reason so the Send
+ * button can surface it in a tooltip (W0-3 cross-component wiring).
+ */
+export type SendGateResult = { ok: true } | { ok: false; reasonKey: string };
+
+/**
  * Whether the "Send to client" action must be blocked. Sending an offer whose
  * lines are unsaved or failed would transmit a $0 / stale offer — the worst
  * surprise for both the client and the agency (W0-3). Send is allowed ONLY from
@@ -101,7 +108,7 @@ export function canSendOffer(args: {
   editorTotal: number;
   lastSavedLineCount: number | null;
   lastSavedTotal: number | null;
-}): { ok: true } | { ok: false; reasonKey: string } {
+}): SendGateResult {
   if (args.state.status === "saving") {
     return { ok: false, reasonKey: K + "sendBlockedSaving" };
   }

@@ -7,7 +7,7 @@
  * recomputes authorship from raw ids (the server resolves that per contract).
  */
 
-import type { GuestThreadMessage } from "@/lib/inquiry/guest-chat-contract";
+import { readGuestOfferCard, type GuestThreadMessage } from "@/lib/inquiry/guest-chat-contract";
 import { createTranslator } from "@/i18n/messages";
 
 import {
@@ -66,6 +66,10 @@ export function MiniChatMessageBubble({
   // Non-text kinds (offer/payment cards) get a generic labelled fallback for
   // the MVP popup — full ChatCard rendering is a fast-follow per the contract.
   const isCard = m.kind !== "text";
+  // W2-3 — offer cards graduate from the bare fallback: the guest-thread reader
+  // enriches the payload with a client-safe per-line breakdown (label + note +
+  // client price), which we render below the card body.
+  const offerLines = m.kind === "offer_event" ? readGuestOfferCard(m.cardPayload)?.lines ?? [] : [];
 
   return (
     <div
@@ -113,7 +117,7 @@ export function MiniChatMessageBubble({
         }}
       >
         {isCard ? (
-          <span>
+          <span style={{ display: "block" }}>
             <span
               style={{
                 display: "inline-block",
@@ -131,6 +135,49 @@ export function MiniChatMessageBubble({
             </span>
             <br />
             {m.body || t("public.guestChat.openFullToView")}
+            {offerLines.length > 0 && (
+              <span
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                  marginTop: 8,
+                  paddingTop: 8,
+                  borderTop: `1px solid ${C.borderSoft}`,
+                }}
+              >
+                {offerLines.map((ln, i) => (
+                  <span key={i} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    <span
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "baseline",
+                        gap: 10,
+                      }}
+                    >
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>{ln.label}</span>
+                      {ln.feeLabel && (
+                        <span
+                          style={{
+                            fontSize: 12.5,
+                            fontWeight: 700,
+                            color: C.ink,
+                            whiteSpace: "nowrap",
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {ln.feeLabel}
+                        </span>
+                      )}
+                    </span>
+                    {ln.note && (
+                      <span style={{ fontSize: 11, lineHeight: 1.4, color: C.inkMuted }}>{ln.note}</span>
+                    )}
+                  </span>
+                ))}
+              </span>
+            )}
           </span>
         ) : m.isDeleted ? (
           <em style={{ color: C.inkDim }}>{t("public.guestChat.messageRemoved")}</em>
