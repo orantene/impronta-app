@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { TulalaLogo } from "@/components/brand/tulala-logo";
 import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
 import { MarketingCta } from "./cta-link";
 import { LOGIN_MODAL_EVENT } from "./login-modal";
@@ -167,7 +168,7 @@ export function MarketingHeader({
           aria-label={`${PLATFORM_BRAND.name} — home`}
           style={{ color: "var(--plt-ink)" }}
         >
-          <TulalaWordmark />
+          <TulalaHeaderLogo />
         </Link>
 
         <nav className="hidden items-center gap-0.5 lg:flex">
@@ -741,25 +742,14 @@ function MobileSection({
 }
 
 /**
- * Tulala wordmark — all-lowercase bold sans (Geist), with a full-stop as the
- * punctuation mark that carries the brand. The period is intentionally in
- * `--tl-forest` so the brand accent lives on the mark itself.
+ * Header lockup — the canonical mark + monoline wordmark from
+ * `@/components/brand/tulala-logo`. Letter strokes ride `currentColor`
+ * (ink-strong here); the full-stop carries the brand orange.
  */
-function TulalaWordmark() {
+function TulalaHeaderLogo() {
   return (
-    <span
-      aria-hidden
-      className="plt-display inline-flex items-baseline leading-none"
-      style={{
-        fontWeight: 700,
-        letterSpacing: "-0.045em",
-        fontSize: "1.5rem",
-        color: "var(--plt-accent)",
-      }}
-    >
-      tulala
-      <span style={{ color: "var(--plt-forest)", fontSize: "14px" }}>.</span>
-      <span style={{ fontWeight: 500, fontSize: "20px", color: "var(--plt-ink-soft)" }}>digital</span>
+    <span style={{ color: "var(--plt-ink-strong)" }}>
+      <TulalaLogo markSize={28} wordmarkHeight={25} />
     </span>
   );
 }

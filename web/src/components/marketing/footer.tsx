@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { TulalaLogo } from "@/components/brand/tulala-logo";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
@@ -49,11 +50,8 @@ export async function MarketingFooter() {
       <div className="mx-auto w-full max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
         <div className="grid gap-12 md:grid-cols-[1.25fr_repeat(4,_1fr)] md:gap-10">
           <div className="max-w-xs">
-            <div className="flex items-center gap-2.5">
-              <FooterMark />
-              <span className="plt-display text-[1.25rem] font-semibold leading-none tracking-[-0.03em]">
-                {PLATFORM_BRAND.name}
-              </span>
+            <div className="flex items-center" style={{ color: "var(--plt-ink-strong)" }}>
+              <TulalaLogo markSize={28} wordmarkHeight={24} />
             </div>
             <p
               className="mt-5 text-[0.9375rem] leading-[1.6]"
@@ -159,34 +157,6 @@ export async function MarketingFooter() {
         </div>
       </div>
     </footer>
-  );
-}
-
-function FooterMark() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
-      <rect
-        x="1.5"
-        y="1.5"
-        width="25"
-        height="25"
-        rx="7.5"
-        fill="var(--plt-forest)"
-      />
-      <path
-        d="M9 19V10.5C9 9.67 9.67 9 10.5 9H14.5C16.43 9 18 10.57 18 12.5V12.5C18 14.43 16.43 16 14.5 16H11.5"
-        stroke="var(--plt-forest-on)"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M13.5 15.5L19 19.5"
-        stroke="var(--plt-forest-on)"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }
 
