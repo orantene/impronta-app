@@ -89,6 +89,11 @@ export type GuestThreadMessage = {
    * (e.g. {offer_id, status, total_cents}). null for text. The MVP popup
    * renders text + a generic fallback for non-text kinds; full ChatCard
    * rendering is a fast-follow. Typed as unknown — the UI must narrow.
+   *
+   * For `offer_event` cards the guest-thread reader ENRICHES this with a
+   * client-safe per-line breakdown (see GuestOfferCardPayload) so the guest
+   * sees "Day rate (incl. travel)" + note, not a bare total. Narrow it with
+   * `readGuestOfferCard()`.
    */
   cardPayload: unknown | null;
   /** inquiry_messages.created_at (ISO 8601 string). */
@@ -100,6 +105,55 @@ export type GuestThreadMessage = {
   /** inquiry_messages.reply_to_message_id, or null. */
   replyToMessageId: string | null;
 };
+
+/**
+ * One client-safe line on an offer_event card. The guest IS the client, so they
+ * may see the label, the "what's included" note (W2 — e.g. travel baked in), and
+ * the client-facing line price. NEVER the talent cost / margin.
+ */
+export type GuestOfferCardLine = {
+  label: string;
+  note: string | null;
+  /** Preformatted client-facing line price (e.g. "1200.00 USD"), or null. */
+  feeLabel: string | null;
+};
+
+/**
+ * Narrowed shape of an offer_event card_payload once the guest-thread reader has
+ * enriched it with per-line detail. `cardPayload` is `unknown` on the wire — use
+ * `readGuestOfferCard()` to narrow it safely.
+ */
+export type GuestOfferCardPayload = {
+  status: string | null;
+  totalLabel: string | null;
+  offerId: string | null;
+  lines: GuestOfferCardLine[];
+};
+
+/**
+ * Safely narrow an offer_event card_payload (an `unknown` on the wire) into a
+ * GuestOfferCardPayload. Tolerates the pre-enrichment MVP shape (no `lines`),
+ * returning an empty `lines` array. Returns null for anything not object-shaped.
+ */
+export function readGuestOfferCard(payload: unknown): GuestOfferCardPayload | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  const rawLines = Array.isArray(p.lines) ? p.lines : [];
+  const lines: GuestOfferCardLine[] = rawLines
+    .filter((l): l is Record<string, unknown> => !!l && typeof l === "object")
+    .map((l) => ({
+      label: typeof l.label === "string" ? l.label : "",
+      note: typeof l.note === "string" && l.note.trim() ? l.note : null,
+      feeLabel: typeof l.feeLabel === "string" && l.feeLabel.trim() ? l.feeLabel : null,
+    }))
+    .filter((l) => l.label || l.note || l.feeLabel);
+  return {
+    status: typeof p.status === "string" ? p.status : null,
+    totalLabel: typeof p.total_label === "string" ? p.total_label : null,
+    offerId: typeof p.offer_id === "string" ? p.offer_id : null,
+    lines,
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Shared result envelope. All three guest actions return a discriminated

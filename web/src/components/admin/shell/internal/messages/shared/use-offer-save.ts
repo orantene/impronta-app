@@ -11,12 +11,12 @@
  * can never eat a coordinator's offer (2026-07-11 prod audit).
  */
 
-import { useCallback, useRef, useState, useTransition, type MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition, type MutableRefObject } from "react";
 
 import { saveOfferDraft, type OfferDraftSnapshot } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-import { classifySaveError, type OfferSaveState } from "./offer-save-state";
+import { canSendOffer, classifySaveError, type OfferSaveState, type SendGateResult } from "./offer-save-state";
 import { writeOfferSnapshot, clearOfferSnapshot } from "./offer-local-snapshot";
 
 export function useOfferSave(args: {
@@ -24,13 +24,32 @@ export function useOfferSave(args: {
   offerId: string;
   snapshotRef: MutableRefObject<OfferDraftSnapshot | null>;
   reload: () => void;
+  /** Live line count of the editor (drives the send gate). */
+  editorLineCount: number;
+  /** Live sum of the editor's line totals (drives the send gate). */
+  editorTotal: number;
+  /** True once the server draft has loaded — seeds the send-gate baseline. */
+  loaded: boolean;
+  /** Reported the resolved send gate up to the parent (which renders Send). */
+  onSendGateChange?: (gate: SendGateResult) => void;
 }) {
-  const { tenantSlug, offerId, snapshotRef, reload } = args;
+  const { tenantSlug, offerId, snapshotRef, reload, editorLineCount, editorTotal, loaded, onSendGateChange } = args;
   const [saveState, setSaveState] = useState<OfferSaveState>({ status: "idle" });
   const [pending, startTransition] = useTransition();
   // Line count + total of the LAST SUCCESSFUL server save — the send gate
-  // compares these against the live editor to block sending unsaved edits.
-  const lastSavedRef = useRef<{ lineCount: number; total: number } | null>(null);
+  // compares these against the live editor to block sending unsaved edits. Held
+  // as STATE (not a ref) so the gate can read it during render without the
+  // react-hooks/refs violation.
+  const [lastSaved, setLastSaved] = useState<{ lineCount: number; total: number } | null>(null);
+
+  // Seed the baseline from the first server-loaded draft so an unchanged,
+  // already-persisted offer counts as "saved" (otherwise lastSaved only tracks
+  // saves made in THIS editor session, so a freshly-loaded draft reads as
+  // unsaved and wrongly blocks Send). This is the React-sanctioned "adjust state
+  // during render" pattern — guarded so it runs exactly once and never loops.
+  if (loaded && lastSaved == null) {
+    setLastSaved({ lineCount: editorLineCount, total: editorTotal });
+  }
 
   const runSave = useCallback(async () => {
     const snap = snapshotRef.current;
@@ -81,7 +100,7 @@ export function useOfferSave(args: {
       setSaveState({ status: "error", cls: classifySaveError(r.error), rawError: r.error ?? "" });
       return;
     }
-    lastSavedRef.current = { lineCount, total };
+    setLastSaved({ lineCount, total });
     clearOfferSnapshot(offerId);
     setSaveState({ status: "saved", at: Date.now() });
     reload();
@@ -93,5 +112,28 @@ export function useOfferSave(args: {
     });
   }, [runSave]);
 
-  return { saveState, setSaveState, save, pending, lastSavedRef, runSave };
+  // W0-3 — resolve the send gate from the live editor vs. the last-saved
+  // baseline. All inputs are reactive state/props, so the memo recomputes
+  // exactly when the gate can change (a save flips saveState + lastSaved; an
+  // edit moves editorLineCount/editorTotal).
+  const sendGate = useMemo<SendGateResult>(
+    () =>
+      canSendOffer({
+        state: saveState,
+        editorLineCount,
+        editorTotal,
+        lastSavedLineCount: lastSaved?.lineCount ?? null,
+        lastSavedTotal: lastSaved?.total ?? null,
+      }),
+    [saveState, editorLineCount, editorTotal, lastSaved],
+  );
+
+  // Report the gate up to the component that renders the Send button. Gated on
+  // `loaded` so a still-loading editor doesn't flash a misleading "empty"
+  // reason before its line items arrive (parent defaults to enabled until then).
+  useEffect(() => {
+    if (loaded) onSendGateChange?.(sendGate);
+  }, [sendGate, loaded, onSendGateChange]);
+
+  return { saveState, setSaveState, save, pending, runSave, sendGate };
 }

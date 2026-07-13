@@ -71,3 +71,52 @@ export function OfferSaveBanner({
 
   return null;
 }
+
+/**
+ * OfferStatusChip — W0-4 compact, always-in-header save-state pill, companion to
+ * OfferSaveBanner. Reads the same OfferSaveState so the two never disagree: the
+ * chip is the glanceable status next to the editor title, the banner is the
+ * fuller (and, on error, sticky) surface below. Renders nothing while idle
+ * (before the first save) so the header stays quiet until there's state to show.
+ */
+export function OfferStatusChip({ state }: { state: OfferSaveState }) {
+  const t = useT();
+
+  if (state.status === "saving") {
+    return (
+      <span
+        className="bg-admin-surface-alt text-admin-ink-muted rounded-admin-md inline-flex items-center gap-1 px-1.5 py-0.5 text-admin-11"
+        aria-live="polite"
+      >
+        <span aria-hidden className="animate-pulse">●</span>
+        {t("dashboard.adminTabs.lineup.chipSaving")}
+      </span>
+    );
+  }
+
+  if (state.status === "saved") {
+    return (
+      <span
+        className="bg-admin-success-soft text-admin-success-deep rounded-admin-md inline-flex items-center gap-1 px-1.5 py-0.5 text-admin-11"
+        aria-live="polite"
+      >
+        <span aria-hidden>✓</span>
+        {t("dashboard.adminTabs.lineup.chipSaved")}
+      </span>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <span
+        role="status"
+        className="bg-admin-coral-soft text-admin-coral-deep rounded-admin-md inline-flex items-center gap-1 px-1.5 py-0.5 text-admin-11 font-semibold"
+      >
+        <span aria-hidden>!</span>
+        {t("dashboard.adminTabs.lineup.chipError")}
+      </span>
+    );
+  }
+
+  return null;
+}
