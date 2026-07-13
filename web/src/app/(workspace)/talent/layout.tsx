@@ -207,7 +207,14 @@ export default async function PlatformTalentLayout({
         pitches: null,
         teamMembers: null,
         totalUnread: 0,
-        tenantIdentity: tenantIdentity ?? PLATFORM_TENANT_IDENTITY,
+        // Stamp the talent's exclusivity to the active agency onto the identity
+        // payload. Whitelabel branding on the talent dashboard shows the agency
+        // logo only when the talent is EXCLUSIVE to it (is_primary) AND the
+        // agency is on a whitelabel plan tier; otherwise the surface stays
+        // Tulala-canonical.
+        tenantIdentity: tenantIdentity
+          ? { ...tenantIdentity, talentExclusive: activeAgency?.isPrimary ?? false }
+          : PLATFORM_TENANT_IDENTITY,
         sessionIdentity,
         talentSelfProfile,
         talentPayoutSnapshot,

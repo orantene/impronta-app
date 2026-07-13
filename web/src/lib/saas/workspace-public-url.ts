@@ -36,6 +36,32 @@ export function customDomainEligible(plan: WorkspaceUrlPlan): boolean {
   return plan === "agency" || plan === "network" || plan === "legacy";
 }
 
+/**
+ * Whitelabel branding is a capability of the top workspace tiers. When on, the
+ * agency's brand (logo + name) replaces Tulala on the OPERATIONAL surfaces its
+ * talents and clients see — the talent/client dashboards, the auth chrome, agency
+ * emails — and the "Powered by Tulala" footer mark is hidden. Public storefront
+ * theming is unaffected (it is already tenant-branded regardless of tier).
+ *
+ * Auto-by-tier: eligibility is derived purely from the plan tier, no separate
+ * entitlement toggle. Mirrors {@link customDomainEligible} — Agency and Network
+ * (and grandfathered legacy) qualify; Free and Studio do not.
+ */
+export function whitelabelBrandingEligible(plan: WorkspaceUrlPlan): boolean {
+  return plan === "agency" || plan === "network" || plan === "legacy";
+}
+
+/**
+ * String-tolerant variant of {@link whitelabelBrandingEligible} for raw
+ * `agencies.plan_tier` values read from the DB (which are plain strings, and may
+ * be null for a missing/independent tenant). Anything that is not a recognized
+ * whitelabel tier — including null, "free", "studio", or an unknown value —
+ * returns false, so the safe default is always Tulala branding.
+ */
+export function planTierHasWhitelabel(planTier: string | null | undefined): boolean {
+  return planTier === "agency" || planTier === "network" || planTier === "legacy";
+}
+
 export function customDomainLockedCopy(plan: WorkspaceUrlPlan): string {
   if (plan === "free") {
     return "Branded subdomains unlock on Studio. Custom domains unlock on Agency and Network.";
