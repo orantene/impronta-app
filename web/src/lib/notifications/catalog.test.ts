@@ -671,3 +671,118 @@ test("catalog: talent.profile_approved resolves event.userId + passes the profil
   };
   assert.deepEqual(await entry.resolveAudience(noUser, {} as never), []);
 });
+
+// ─── Group A — talent job-info delivery (talent-notifications plan) ────────────
+//
+// A1 adds an in-app channel to inquiry.submitted.talent; A2 adds a dedicated
+// offer.sent.talent (email + in_app) that shows each talent their OWN net rate,
+// never the client total. offer.sent emits no engine bell, so offer.sent.talent
+// owns the in-app channel with no double-notify. (The audience resolvers read
+// the DB — line items → talent_profiles.user_id — so they aren't unit-tested
+// here, matching the inquiry-resolver convention; the render + payload reads
+// below prove no client-total leak.)
+
+test("catalog: offer.sent.talent is offers, email + in_app on the talent surface", () => {
+  const entry = findCatalogEntryById("offer.sent.talent");
+  assert.ok(entry, "missing offer.sent.talent");
+  assert.equal(entry!.category, "offers");
+  assert.equal(entry!.required, false);
+  assert.deepEqual(entry!.defaultChannels, ["email", "in_app"]);
+  assert.ok(entry!.email, "should have an email config");
+  assert.ok(entry!.in_app, "should have an in_app config");
+  assert.equal(entry!.in_app!.surface, "talent");
+  assert.equal(entry!.in_app!.kind, "offer");
+});
+
+test("catalog: offer.sent routes to both the client and the talent entries", () => {
+  const ids = findCatalogEntries("offer.sent").map((e) => e.id).sort();
+  assert.deepEqual(ids, ["offer.sent.client", "offer.sent.talent"]);
+});
+
+test("catalog: offer.sent.talent shows the recipient's OWN net rate, never the client total", () => {
+  const entry = findCatalogEntryById("offer.sent.talent")!;
+  const r: ResolvedRecipient = {
+    userId: "talent-1",
+    email: "tina@acme.test",
+    displayName: "Tina Rossi",
+    locale: "en",
+    isPlatformAdmin: false,
+    role: "talent",
+    dedupeId: "talent-1",
+  };
+  const event: NotificationEvent = {
+    type: "offer.sent",
+    tenantId: "tenant-1",
+    inquiryId: "inq-9",
+    eventId: "evt-offer-sent",
+    payload: {
+      contactName: "Sofia's Wedding",
+      eventDate: "14 Jun 2026",
+      eventLocation: "Lake Como, Italy",
+      // The client total + another talent's rate — NEITHER may reach talent-1.
+      offerTotal: "USD 9,999.00",
+      offerId: "offer-1",
+      talentNetByUserId: { "talent-1": "USD 1,200.00", "talent-2": "USD 800.00" },
+    },
+  };
+
+  const body = entry.in_app!.body?.(event, r) ?? "";
+  assert.match(body, /USD 1,200\.00/, "in-app body shows the recipient's own net");
+  assert.doesNotMatch(body, /9,999/, "in-app body must not leak the client total");
+  assert.doesNotMatch(body, /800\.00/, "in-app body must not leak another talent's rate");
+
+  const el = entry.email!.render({ event, recipient: r, brand }) as ReactElement<{
+    netAmount: string;
+    inquiryUrl: string;
+  }>;
+  assert.equal(el.props.netAmount, "USD 1,200.00");
+  assert.match(el.props.inquiryUrl, /\/talent\/inbox\/inq-9$/);
+  assert.ok(entry.email!.subject(event, r).length > 0);
+});
+
+test("catalog: offer.sent.talent renders gracefully with no net mapped for the recipient", () => {
+  const entry = findCatalogEntryById("offer.sent.talent")!;
+  const r = recipientWithRole("talent");
+  const event: NotificationEvent = {
+    type: "offer.sent",
+    tenantId: "tenant-1",
+    inquiryId: "inq-9",
+    eventId: "evt-offer-empty",
+    payload: {},
+  };
+  assert.ok(entry.email!.subject(event, r).length > 0);
+  assert.ok(entry.email!.render({ event, recipient: r, brand }), "render falsy on empty payload");
+  assert.ok((entry.in_app!.body?.(event, r) ?? "").length > 0, "in_app body empty on empty payload");
+});
+
+test("catalog: inquiry.submitted.talent now also routes in_app on the talent surface", () => {
+  const entry = findCatalogEntryById("inquiry.submitted.talent");
+  assert.ok(entry, "missing inquiry.submitted.talent");
+  assert.equal(entry!.category, "roster_activity");
+  assert.deepEqual(entry!.defaultChannels, ["email", "in_app"]);
+  assert.ok(entry!.in_app, "should have an in_app config");
+  assert.equal(entry!.in_app!.surface, "talent");
+  const r = recipientWithRole("talent");
+  const event: NotificationEvent = {
+    type: "inquiry.submitted",
+    tenantId: "tenant-1",
+    inquiryId: "inq-1",
+    eventId: "evt-submit",
+    payload: {
+      contactName: "Sofia's Wedding",
+      eventDate: "14 Jun 2026",
+      eventLocation: "Lake Como, Italy",
+    },
+  };
+  assert.ok(entry!.in_app!.title(event, r).length > 0);
+  assert.match(entry!.in_app!.body?.(event, r) ?? "", /Sofia's Wedding/);
+  // Empty payload still yields a sane fallback bell.
+  const empty: NotificationEvent = {
+    type: "inquiry.submitted",
+    tenantId: "tenant-1",
+    inquiryId: "inq-1",
+    eventId: "evt-submit-empty",
+    payload: {},
+  };
+  assert.ok((entry!.in_app!.body?.(empty, r) ?? "").length > 0);
+});

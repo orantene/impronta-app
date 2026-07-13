@@ -6,6 +6,7 @@ import ClientReplyReady from "../../../emails/client/ReplyReady";
 import ClientOfferReady from "../../../emails/client/OfferReady";
 import ClientBookingConfirmed from "../../../emails/client/BookingConfirmed";
 import TalentInquiryInvited from "../../../emails/talent/InquiryInvited";
+import TalentOfferReady from "../../../emails/talent/OfferReady";
 import TalentBookingConfirmed from "../../../emails/talent/BookingConfirmed";
 import WorkspaceCoordinatorAssigned from "../../../emails/workspace/CoordinatorAssigned";
 import WorkspaceOfferAccepted from "../../../emails/workspace/OfferAccepted";
@@ -24,7 +25,9 @@ import {
   invitedTalent,
   loadInquiryView,
   loadMessagePreview,
+  loadOfferTalentView,
   messageThreadAudience,
+  offerPricedTalent,
   str,
   workspaceAdmins,
 } from "./catalog-audiences";
@@ -38,9 +41,20 @@ import { pageUrl, inquiryPathForRole } from "./catalog-render";
  * catalog stays decoupled from the engine and there's no import cycle
  * (inquiry-events imports the catalog).
  *
- * Every entry here is EMAIL-ONLY. In-app bell notifications for these events
+ * Most entries here are EMAIL-ONLY. In-app bell notifications for those events
  * are already emitted by the engine's `notifyUsers` path (listener[1]); routing
  * in_app here too would double-notify.
+ *
+ * Two talent entries carry in_app (Group A of the talent-notifications plan):
+ *   - `offer.sent.talent` — the `offer.sent` engine event emits NO `notifications`
+ *     bell (only a system message + chat cards), so this entry is the ONLY in-app
+ *     signal a priced talent gets. No double-notify.
+ *   - `inquiry.submitted.talent` — the engine ALSO bells roster talent on submit
+ *     (`inquiry-engine-submit.ts` buildInquiryBells(["talent"]), the generic
+ *     "You've been invited to an inquiry"). This entry's richer bell (job details +
+ *     talent-surface routing) is intended to REPLACE that generic one; until the
+ *     engine bell is removed, a submit will write BOTH rows. That removal is a
+ *     one-line engine change tracked as a follow-up (out of this module's scope).
  *
  * `message.new` is the same shape with two twists (spec §6.2 / §7): its in-app
  * bell is fanned out directly by `sendMessage` (not `notifyUsers`), so it stays
@@ -110,11 +124,29 @@ const INQUIRY_SUBMITTED_COORDINATOR: CatalogEntry = {
 const INQUIRY_SUBMITTED_TALENT: CatalogEntry = {
   id: "inquiry.submitted.talent",
   category: "roster_activity",
-  defaultChannels: ["email"],
+  defaultChannels: ["email", "in_app"],
   required: false,
   triggers: ["inquiry.submitted"],
   hydrate: loadInquiryView,
   resolveAudience: allRosterTalent,
+  // A1 — talents live in the app, so surface the "you're on a job" moment in the
+  // bell too, with the job context the generic engine submit-bell lacks
+  // (contact, date, location) and talent-surface routing. See the module header:
+  // the engine also bells roster talent on submit, so until that engine bell is
+  // removed a submit writes both rows.
+  in_app: {
+    kind: "system",
+    surface: "talent",
+    title: () => "You've been added to a job",
+    body: (event) => {
+      const bits = [
+        str(event.payload.contactName),
+        str(event.payload.eventDate),
+        str(event.payload.eventLocation),
+      ].filter(Boolean);
+      return bits.length ? bits.join(", ") : "A client requested you for a new job.";
+    },
+  },
   email: {
     templateId: "talent.inquiry_invited",
     subject: () => "You've been added to an inquiry",
@@ -154,6 +186,54 @@ const OFFER_SENT_CLIENT: CatalogEntry = {
         unsubscribeUrl,
         categoryLabel: "offer",
       }),
+  },
+};
+
+/**
+ * offer.sent → the talents priced on THIS offer (A2). The talent is a required
+ * approver, so they get a dedicated push the moment their offer is sent, showing
+ * THEIR OWN net rate (never the client total) + the event. `offer.sent` emits no
+ * engine bell, so this entry owns the in-app channel with no double-notify.
+ */
+const OFFER_SENT_TALENT: CatalogEntry = {
+  id: "offer.sent.talent",
+  category: "offers",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["offer.sent"],
+  hydrate: loadOfferTalentView,
+  resolveAudience: offerPricedTalent,
+  in_app: {
+    kind: "offer",
+    surface: "talent",
+    title: () => "You have an offer to review",
+    body: (event, recipient) => {
+      const netMap = (event.payload.talentNetByUserId ?? {}) as Record<string, string>;
+      const net = (recipient.userId && netMap[recipient.userId]) || "";
+      const contact = str(event.payload.contactName);
+      if (net && contact) return `${net} for ${contact}. Open the Offer tab to review and approve.`;
+      if (net) return `${net}. Open the Offer tab to review and approve.`;
+      return "An offer with your rate is ready. Open the Offer tab to review and approve.";
+    },
+  },
+  email: {
+    templateId: "talent.offer_ready",
+    subject: () => "You have an offer to review",
+    render: ({ event, recipient, brand, unsubscribeUrl }) => {
+      const netMap = (event.payload.talentNetByUserId ?? {}) as Record<string, string>;
+      const netAmount = (recipient.userId && netMap[recipient.userId]) || "";
+      return React.createElement(TalentOfferReady, {
+        talentName: recipient.displayName,
+        contactName: str(event.payload.contactName),
+        netAmount,
+        eventDate: str(event.payload.eventDate),
+        eventLocation: str(event.payload.eventLocation),
+        inquiryUrl: pageUrl(brand, `/talent/inbox/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "offer",
+      });
+    },
   },
 };
 
@@ -485,12 +565,13 @@ const MESSAGE_NEW: CatalogEntry = {
   },
 };
 
-/** The 14 inquiry-engine entries, in catalog order. */
+/** The 15 inquiry-engine entries, in catalog order. */
 export const INQUIRY_CATALOG_ENTRIES: CatalogEntry[] = [
   INQUIRY_SUBMITTED_CLIENT,
   INQUIRY_SUBMITTED_COORDINATOR,
   INQUIRY_SUBMITTED_TALENT,
   OFFER_SENT_CLIENT,
+  OFFER_SENT_TALENT,
   BOOKING_CONFIRMED_CLIENT,
   BOOKING_CONFIRMED_TALENT,
   ROSTER_TALENT_INVITED,
