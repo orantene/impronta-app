@@ -19,6 +19,7 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 import { submitReviewViaTokenAction } from "@/lib/reviews/review-token-actions";
+import { ReviewPhotoUploader } from "@/app/(workspace)/[tenantSlug]/client/_components/ReviewPhotoUploader";
 
 const FONT = '"Inter", system-ui, sans-serif';
 
@@ -74,12 +75,24 @@ export function ReviewTokenForm({
    * a "sign in for a verified review" option.
    */
   guestMode = false,
+  /**
+   * The invite's booking + talent profile ids, echoed back from the server so
+   * the just-published review (account path only) can offer the same optional
+   * photo-attach step as the in-workspace LeaveReviewCard. Both are required
+   * for ReviewPhotoUploader to resolve the review by natural key
+   * (bookingId, talentProfileId, auth.uid()) — the guest path never gets one,
+   * since it has no authenticated session to resolve against.
+   */
+  bookingId,
+  talentProfileId,
 }: {
   token: string;
   talentName: string;
   talentProfileCode: string | null;
   verifiable: boolean;
   guestMode?: boolean;
+  bookingId: string | null;
+  talentProfileId: string;
 }) {
   const [guestName, setGuestName] = useState<string>("");
   const [rating, setRating] = useState<number>(0);
@@ -213,6 +226,11 @@ export function ReviewTokenForm({
         <div style={{ fontSize: 13, color: "rgba(26,115,72,0.8)", marginTop: 6, lineHeight: 1.5 }}>
           Your {rating}-star review is now published on their page.
         </div>
+        {!guestMode && bookingId && (
+          <div style={{ textAlign: "left", marginTop: 14 }}>
+            <ReviewPhotoUploader bookingId={bookingId} talentProfileId={talentProfileId} />
+          </div>
+        )}
         {talentProfileCode && (
           <Link
             href={`/t/${talentProfileCode}`}
