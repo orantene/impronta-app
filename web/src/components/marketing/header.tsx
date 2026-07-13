@@ -17,6 +17,7 @@ import {
   ChevronGlyph,
   CloseGlyph,
   MenuGlyph,
+  SignInGlyph,
 } from "./marketing-header-glyphs";
 import {
   DesktopAccount,
@@ -214,9 +215,14 @@ export function MarketingHeader({
                 onClick={() =>
                   window.dispatchEvent(new CustomEvent(LOGIN_MODAL_EVENT))
                 }
-                className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
-                style={{ color: "var(--plt-muted)" }}
+                className="inline-flex h-9 items-center gap-1.5 rounded-[10px] px-3.5 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)]"
+                style={{
+                  border: "1px solid var(--plt-hairline-strong)",
+                  background: "var(--plt-bg-raised)",
+                  color: "var(--plt-ink-soft)",
+                }}
               >
+                <SignInGlyph />
                 {copy.nav.signIn}
               </button>
               <span className="relative inline-flex">

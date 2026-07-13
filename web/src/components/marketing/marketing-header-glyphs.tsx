@@ -1,6 +1,27 @@
 /** Small presentational SVG glyphs for the marketing header. Extracted from
  *  header.tsx to keep that file under the module line budget. */
 
+/** "Log in" glyph — arrow entering a door. Sits inside the framed Sign in button. */
+export function SignInGlyph() {
+  return (
+    <svg
+      aria-hidden
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+      <path d="M10 17l5-5-5-5" />
+      <path d="M15 12H3" />
+    </svg>
+  );
+}
+
 export function MenuGlyph() {
   return (
     <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden>
