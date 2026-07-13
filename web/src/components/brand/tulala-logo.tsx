@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 /**
  * Tulala brand lockup — the canonical logo system.
  *
@@ -10,7 +12,9 @@
  * - `TulalaMark` — the compact app tile: forest squircle with three rising
  *   notes ("tu·la·la"), the lead note in brand orange. Favicon, footer,
  *   avatars, anywhere the full wordmark doesn't fit.
- * - `TulalaLogo` — mark + wordmark lockup for headers.
+ * - `TulalaLogo` — mark + wordmark lockup for headers. Pass `withDigital`
+ *   to append ".digital" in muted ink — the product's full name is
+ *   "tulala.digital", the wordmark alone is a shorthand, not a rename.
  *
  * Colors are literal brand constants on purpose: the logo must not re-theme
  * with surface tokens (only the letter strokes adapt via currentColor).
@@ -79,6 +83,7 @@ export function TulalaMark({
   size?: number;
   className?: string;
 }) {
+  const gradientId = `tl-mark-grad-${useId()}`;
   return (
     <svg
       width={size}
@@ -89,12 +94,12 @@ export function TulalaMark({
       className={className}
     >
       <defs>
-        <linearGradient id="tl-mark-grad" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor={BRAND_FOREST_BRIGHT} />
           <stop offset="1" stopColor={BRAND_FOREST_DEEP} />
         </linearGradient>
       </defs>
-      <rect x="1" y="1" width="30" height="30" rx="9" fill="url(#tl-mark-grad)" />
+      <rect x="1" y="1" width="30" height="30" rx="9" fill={`url(#${gradientId})`} />
       <circle cx="9.5" cy="21.5" r="2.3" fill={BRAND_BONE} opacity="0.75" />
       <circle cx="15.8" cy="17.2" r="2.9" fill={BRAND_BONE} />
       <circle cx="22.8" cy="11.8" r="3.6" fill={BRAND_ORANGE} />
@@ -106,11 +111,14 @@ export function TulalaLogo({
   markSize = 28,
   wordmarkHeight = 26,
   withMark = true,
+  withDigital = false,
   className,
 }: {
   markSize?: number;
   wordmarkHeight?: number;
   withMark?: boolean;
+  /** Append ".digital" after the wordmark — the product is "tulala.digital", not just "tulala". */
+  withDigital?: boolean;
   className?: string;
 }) {
   return (
@@ -119,7 +127,25 @@ export function TulalaLogo({
       className={`inline-flex items-center gap-2.5 leading-none ${className ?? ""}`}
     >
       {withMark ? <TulalaMark size={markSize} /> : null}
-      <TulalaWordmark height={wordmarkHeight} />
+      <span className="inline-flex items-end leading-none">
+        <TulalaWordmark height={wordmarkHeight} />
+        {withDigital ? (
+          <span
+            style={{
+              fontFamily:
+                "var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif",
+              fontWeight: 500,
+              fontSize: Math.round(wordmarkHeight * 0.62),
+              lineHeight: 1,
+              color: "var(--plt-ink-soft)",
+              marginLeft: Math.round(wordmarkHeight * 0.1),
+              transform: `translateY(${-Math.round(wordmarkHeight * 0.08)}px)`,
+            }}
+          >
+            digital
+          </span>
+        ) : null}
+      </span>
     </span>
   );
 }
