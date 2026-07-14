@@ -117,6 +117,7 @@ const TI = {
   scale:    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5v11M3 5l-2 4h4l-2-4zM11 5l-2 4h4l-2-4zM2 12.5h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   guard:    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5" cy="5" r="2" stroke="currentColor" strokeWidth="1.4"/><circle cx="9.5" cy="6" r="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M2 11.5c0-2 1-3 3-3s3 1 3 3M9.5 11.5c0-1.5 1-2 2-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
   approve:  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M4.5 7L6 8.5l3.5-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  image:    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="2.5" width="11" height="9" rx="1.2" stroke="currentColor" strokeWidth="1.4"/><circle cx="5" cy="5.5" r="1" stroke="currentColor" strokeWidth="1.3"/><path d="M2 10l3-2.5 2.5 2 2-1.5L12 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
 };
 
 export function OperationsPage() {
@@ -125,6 +126,11 @@ export function OperationsPage() {
   const goFinancials = () => {
     if (typeof window !== "undefined" && tenantSlug) {
       window.location.href = `/${tenantSlug}/admin/financials`;
+    }
+  };
+  const goReviewPhotos = () => {
+    if (typeof window !== "undefined" && tenantSlug) {
+      window.location.href = `/${tenantSlug}/admin/reviews/media`;
     }
   };
 
@@ -142,6 +148,7 @@ export function OperationsPage() {
           <ToolRow tone={COLORS.indigo} icon={TI.star}     title={t("dashboard.adminOperations.topPerformers")}    desc={t("dashboard.adminOperations.topPerformersDesc")}                 onClick={() => openDrawer("top-performers")} />
           <ToolRow tone={COLORS.indigo} icon={TI.team}     title={t("dashboard.adminOperations.teamWorkload")}     desc={t("dashboard.adminOperations.teamWorkloadDesc")}            onClick={() => openDrawer("coordinator-workload")} />
           <ToolRow tone={COLORS.indigo} icon={TI.star}     title={t("dashboard.adminOperations.reportedReviews")}  desc={t("dashboard.adminOperations.reportedReviewsDesc")}         onClick={() => openDrawer("reviews-moderation")} />
+          <ToolRow tone={COLORS.indigo} icon={TI.image}    title={t("dashboard.adminOperations.reviewPhotos")}     desc={t("dashboard.adminOperations.reviewPhotosDesc")}            onClick={goReviewPhotos} />
         </PageSection>
 
         <PageSection tone={COLORS.accent} title={t("dashboard.adminOperations.workflowTitle")} desc={t("dashboard.adminOperations.workflowDesc")}>

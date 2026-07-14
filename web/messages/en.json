@@ -4164,6 +4164,8 @@
       "teamWorkloadDesc": "Per-coordinator queue depth and SLA risk.",
       "reportedReviews": "Reported reviews",
       "reportedReviewsDesc": "Flagged reviews and rating integrity.",
+      "reviewPhotos": "Review photos",
+      "reviewPhotosDesc": "Approve or hide individual photos clients attach to reviews.",
       "workflowTitle": "Workflow",
       "workflowDesc": "Coordinator queue, response timers, and automation rules.",
       "myQueue": "My queue",
