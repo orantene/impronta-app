@@ -4164,6 +4164,8 @@
       "teamWorkloadDesc": "Profundidad de cola por coordinador y riesgo de SLA.",
       "reportedReviews": "Reseñas reportadas",
       "reportedReviewsDesc": "Reseñas marcadas e integridad de calificación.",
+      "reviewPhotos": "Fotos de reseñas",
+      "reviewPhotosDesc": "Aprueba u oculta fotos individuales que los clientes adjuntan a las reseñas.",
       "workflowTitle": "Flujo de trabajo",
       "workflowDesc": "Cola de coordinadores, temporizadores de respuesta y reglas de automatización.",
       "myQueue": "Mi cola",
