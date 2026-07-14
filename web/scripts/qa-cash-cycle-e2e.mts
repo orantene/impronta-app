@@ -47,7 +47,6 @@ import {
   createBookingTransaction,
   requestPayment,
   markPaid,
-  setTransactionPayoutReceiver,
 } from "../src/lib/bookings/transactions";
 import { isOffPlatformPaymentMethod } from "../src/lib/billing/commission";
 
@@ -56,7 +55,6 @@ const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const TENANT = "00000000-0000-0000-0000-000000000001"; // impronta
 const MORENA_TALENT = "eb97dc64-af2b-4996-a48c-913a143cfa59"; // QA Talent Dashboard Audit (no payout account)
-const TEMP_RECEIVER_NAME = "QA cash-cycle temp receiver (auto-cleaned)";
 
 const admin = createClient(URL, SERVICE, { auth: { persistSession: false } });
 
@@ -118,7 +116,7 @@ async function runOfferToBooking(
     source_context: { qa_cash_cycle: true },
   });
   if (!ok(`${tag} submitInquiry`, submit.success, submit.success ? "" : JSON.stringify(submit))) return null;
-  const inquiryId = submit.data!.inquiryId;
+  const inquiryId = (submit as { data: { inquiryId: string } }).data.inquiryId;
   info(`inquiryId = ${inquiryId} (channel=${sourceChannel})`);
 
   // Reassign coordination to the staff coordinator. On impronta the auto-resolved
@@ -146,7 +144,7 @@ async function runOfferToBooking(
     expectedVersion: await inqVersion(inquiryId), currencyCode: "USD",
   });
   if (!ok(`${tag} createOffer`, co.success, co.success ? "" : JSON.stringify(co))) return { inquiryId, offerId: "", bookingId: "" };
-  const offerId = co.data!.offerId;
+  const offerId = (co as { data: { offerId: string } }).data.offerId;
 
   const upd = await updateOfferDraft(admin as never, {
     inquiryId, tenantId: TENANT, offerId, actorUserId: ctx.coordinatorUserId,
@@ -190,9 +188,10 @@ async function runOfferToBooking(
     inquiryId, tenantId: TENANT, actorUserId: ctx.coordinatorUserId,
     expectedVersion: await inqVersion(inquiryId),
   });
-  if (!ok(`${tag} convertToBooking`, conv.success, conv.success ? `booking ${conv.data!.bookingId}` : JSON.stringify(conv))) return { inquiryId, offerId, bookingId: "" };
-  info(`bookingId = ${conv.data!.bookingId}`);
-  return { inquiryId, offerId, bookingId: conv.data!.bookingId };
+  const convBookingId = (conv as { data?: { bookingId?: string } }).data?.bookingId ?? "";
+  if (!ok(`${tag} convertToBooking`, conv.success, conv.success ? `booking ${convBookingId}` : JSON.stringify(conv))) return { inquiryId, offerId, bookingId: "" };
+  info(`bookingId = ${convBookingId}`);
+  return { inquiryId, offerId, bookingId: convBookingId };
 }
 
 /** Reclassify the convert-default (card) snapshot to CASH — the off-platform
@@ -216,7 +215,7 @@ async function reclassifyCash(bookingId: string, tag: string): Promise<Array<{
 }
 
 async function cleanupBookingAndInquiry(bookingId: string, inquiryId: string, reverseBalanceCents = 0) {
-  const del = async (label: string, p: Promise<{ error: unknown }>) => {
+  const del = async (label: string, p: PromiseLike<{ error: unknown }>) => {
     const { error } = await p;
     if (error) console.log(`   ⚠️  ${label}: ${(error as { message?: string }).message}`);
   };
@@ -269,7 +268,6 @@ async function main() {
   // ══════════════════════════════════════════════════════════════════════════
   console.log("\n── LANE A: pinned talent MORENA — offer → booking → CASH → paid ──");
   let a: { inquiryId: string; offerId: string; bookingId: string } | null = null;
-  let aTempPayoutAccountId = "";
   try {
     a = await runOfferToBooking(ctx, "A.", "public_talent_profile");
     if (a?.bookingId) {
@@ -317,26 +315,14 @@ async function main() {
            txn.data.provider === "manual" && txn.data.providerReference === null,
            `provider=${txn.data.provider} provider_reference=${txn.data.providerReference}`);
 
-        // F2 finding: payment_requested is gated on payout_receiver_id even for cash.
-        const pre = await requestPayment(transactionId);
-        ok("A. F2 FINDING: cash txn blocked at payment_requested with NO payout receiver", pre.ok === false, pre.ok ? "unexpectedly succeeded" : pre.error);
-
-        // payout_accounts has a unique agency-account-per-tenant slot; clear any
-        // leftover temp receiver from a prior crashed run before inserting.
-        await admin.from("payout_accounts").delete().eq("tenant_id", TENANT).eq("owner_type", "agency").eq("display_name", TEMP_RECEIVER_NAME);
-        const { data: pa, error: paErr } = await admin.from("payout_accounts").insert({
-          tenant_id: TENANT, owner_type: "agency", owner_id: TENANT,
-          display_name: TEMP_RECEIVER_NAME, provider: "manual_bank", status: "connected",
-        }).select("id").single();
-        aTempPayoutAccountId = (pa?.id as string) ?? "";
-        ok("A. provisioned temp manual receiver (no Stripe account)", !!aTempPayoutAccountId && !paErr, paErr?.message ?? "");
-        const setR = await setTransactionPayoutReceiver({ transactionId, payoutAccountId: aTempPayoutAccountId, sourceTenantId: TENANT });
-        ok("A. receiver set on transaction", setR.ok, setR.ok ? "" : setR.error);
-
+        // RAIL-AWARE (off_platform_settlement migration): an off-platform
+        // (provider='manual') transaction settles with NO payout receiver, because
+        // the platform routes nothing. Previously the receiver-requirement trigger
+        // blocked this for every rail (the E2 bug). Now it applies to Stripe only.
         const req = await requestPayment(transactionId);
-        ok("A. requestPayment → payment_requested", req.ok, req.ok ? `status=${req.data.status}` : req.error);
+        ok("A. off-platform txn advances to payment_requested WITH NO receiver (rail-aware)", req.ok, req.ok ? `status=${(req as { data: { status: string } }).data.status}` : req.error);
         const paid = await markPaid(transactionId);
-        ok("A. markPaid (cash received) → paid", paid.ok, paid.ok ? `status=${paid.data.status}` : paid.error);
+        ok("A. markPaid (cash received) → paid", paid.ok, paid.ok ? `status=${(paid as { data: { status: string } }).data.status}` : paid.error);
 
         const { data: st } = await admin.from("booking_transactions").select("status, provider, provider_reference").eq("id", transactionId).maybeSingle();
         const stRow = st as { status?: string; provider?: string; provider_reference?: string | null } | null;
@@ -359,9 +345,6 @@ async function main() {
   } finally {
     console.log("   ── lane A cleanup ──");
     if (a) await cleanupBookingAndInquiry(a.bookingId, a.inquiryId, 0);
-    // Delete the temp receiver AFTER the booking transaction is gone (FK SET NULL),
-    // by name so a leftover from any prior run is always swept.
-    await admin.from("payout_accounts").delete().eq("tenant_id", TENANT).eq("owner_type", "agency").eq("display_name", TEMP_RECEIVER_NAME);
     if (a?.inquiryId) {
       const { data: gone } = await admin.from("inquiries").select("id").eq("id", a.inquiryId).maybeSingle();
       const { data: bkGone } = a.bookingId ? await admin.from("agency_bookings").select("id").eq("id", a.bookingId).maybeSingle() : { data: null };

@@ -2827,12 +2827,43 @@ export async function markBookingPaymentMethodAction(
     if (existing[0].payment_method === method) {
       return { ok: true, data: { snapshots: existing } };
     }
-    // Reclassification path — blocked in v1. Returns the immutability
-    // message; UI surfaces support hand-off.
-    return {
-      ok: false,
-      error: "Payment method already recorded for this booking. Reclassification needs a refund-style reversal which lands in a follow-up — contact platform support to change.",
-    };
+    // Reclassification path. Re-stamping the rail (e.g. card -> cash) is SAFE as
+    // long as NO payment has settled yet — nothing has moved, so re-persisting the
+    // snapshot with the new method just corrects how the still-uncollected charge
+    // will be recorded (and, for off-platform, how the balance will accrue). Only
+    // a booking whose money has ALREADY moved needs a refund-style reversal.
+    //
+    // This is the offer-path counterpart to instant-book stamping the rail up
+    // front: convertToBooking defaults the snapshot to 'card', so a coordinator
+    // running a cash / efectivo booking must be able to reclassify it before
+    // collecting. "Settled" = booking marked paid, OR an active transaction that
+    // has reached a money-moved state.
+    const { data: bkPay } = await supabase
+      .from("agency_bookings")
+      .select("payment_status")
+      .eq("id", bookingId)
+      .maybeSingle();
+    const activeTxn = await loadActiveBookingTransaction(bookingId, supabase);
+    const settled =
+      bkPay?.payment_status === "paid" ||
+      bkPay?.payment_status === "partial" ||
+      (activeTxn != null &&
+        ["paid", "payout_pending", "payout_sent", "refunded", "disputed"].includes(activeTxn.status));
+    if (settled) {
+      return {
+        ok: false,
+        error: "Payment already settled for this booking. Changing the method now needs a refund-style reversal — contact platform support to change.",
+      };
+    }
+    const reclassified = await persistBookingCommissionSnapshot(
+      supabase, bookingId, method, reason ?? null,
+    );
+    if (!reclassified.ok) {
+      return { ok: false, error: `Could not reclassify commission: ${reclassified.detail ?? reclassified.reason}` };
+    }
+    revalidatePath(`/${tenantSlug}`, "layout");
+    const persisted = await loadBookingCommissionSnapshots(supabase, bookingId);
+    return { ok: true, data: { snapshots: persisted } };
   } catch (err) {
     logServerError("admin._pipeline-actions.markBookingPaymentMethodAction", err);
     return { ok: false, error: "Unexpected error." };
