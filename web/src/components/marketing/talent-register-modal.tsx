@@ -59,7 +59,18 @@ export type TenantRegisterContext = {
   ctaLabel?: string;
   isAuthedTalent: boolean;
   ssoSignInUrl?: string;
+  /** True when the workspace is on a whitelabel plan tier (Agency / Network).
+   *  When set, the modal's platform-account copy swaps "Tulala" for the
+   *  workspace's own name so the join flow reads as fully the agency's. */
+  whitelabel?: boolean;
 };
+
+/** The platform-account word shown in a tenant-branded register modal: the
+ *  workspace's own name on a whitelabel tier, otherwise "Tulala" (everyone
+ *  registers on the Tulala platform by default). */
+function brandWord(tenant: TenantRegisterContext): string {
+  return tenant.whitelabel ? tenant.displayName : "Tulala";
+}
 
 const DEFAULT_NEXT_PATH = "/onboarding/talent-location";
 
@@ -258,7 +269,7 @@ export function TalentRegisterModal({ onClose, tenant }: TalentRegisterModalProp
                 style={{ color: "var(--plt-muted)" }}
               >
                 {tenant
-                  ? "Already have a Tulala account? "
+                  ? `Already have a ${brandWord(tenant)} account? `
                   : "Already have an account? "}
                 {tenant ? (
                   <a
@@ -306,14 +317,14 @@ function headerCopy(
         eyebrow: "Join the roster",
         title: "Apply to",
         titleAccent: `${tenant.displayName}.`,
-        sub: "You're signed in to Tulala — send your request in one tap.",
+        sub: `You're signed in to ${brandWord(tenant)} — send your request in one tap.`,
       };
     }
     return {
       eyebrow: "Join the roster",
       title: "Join",
       titleAccent: `${tenant.displayName}.`,
-      sub: "Create your free Tulala talent profile and request to join the roster.",
+      sub: `Create your free ${brandWord(tenant)} talent profile and request to join the roster.`,
     };
   }
   return {
@@ -399,7 +410,7 @@ function TenantApplyPanel({
             style={{ color: "var(--plt-muted)" }}
           >
             {done === "active"
-              ? "You're on the roster — manage your work from your Tulala dashboard."
+              ? `You're on the roster — manage your work from your ${brandWord(tenant)} dashboard.`
               : `${tenant.displayName} will review your application and be in touch.`}
           </p>
         </div>
@@ -453,7 +464,7 @@ function TenantApplyPanel({
         className="text-center text-[0.75rem]"
         style={{ color: "var(--plt-muted)" }}
       >
-        Applying as your signed-in Tulala account.
+        Applying as your signed-in {brandWord(tenant)} account.
       </p>
     </div>
   );

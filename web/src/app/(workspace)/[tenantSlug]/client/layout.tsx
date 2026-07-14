@@ -36,6 +36,8 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { loadMyNotifications } from "@/lib/server-actions/notifications-self";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
+import { TULALA_BRAND } from "@/lib/brand/tulala";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
 
@@ -187,13 +189,20 @@ export default async function ClientLayout({
     initialNotifications,
     tenantLocaleSettings,
     reviewsEnabled,
+    whitelabel,
   ] = await Promise.all([
     getFavoriteTalentIds(),
     getSavedTalentIds(),
     loadMyNotifications(50),
     loadTenantLocaleSettings(scope.tenantId),
     tenantReviewsEnabled(scope.tenantId),
+    loadTenantWhitelabel(scope.tenantId),
   ]);
+
+  // Whitelabel branding: the client portal carries the agency's name only when
+  // the agency is on a whitelabel tier; otherwise it reads as the Tulala
+  // platform (everyone is a Tulala client by default).
+  const clientBrandLabel = whitelabel ? clientProfile.agencyName : TULALA_BRAND.name;
 
   const userInitials = initials(clientProfile.displayName);
 
@@ -299,7 +308,7 @@ export default async function ClientLayout({
                 userSelect: "none",
               }}
             >
-              {clientProfile.agencyName}
+              {clientBrandLabel}
             </div>
 
             <div className="client-hd-divider" style={{ width: 1, height: 22, background: C.borderSoft, margin: "0 4px", flexShrink: 0 }} />
