@@ -35,3 +35,22 @@ echo "Aliasing $DEPLOY_URL -> ${GHOST_DOMAINS[*]}"
 for DOM in "${GHOST_DOMAINS[@]}"; do
   vercel alias set "$DEPLOY_URL" "$DOM" --scope "$TEAM_SLUG"
 done
+
+# Tenant subdomains (agency_domains, kind=subdomain, e.g. <slug>.tulala.digital)
+# were created via one-off `vercel alias set` calls at provisioning time, so
+# they never got Vercel's autoAssignCustomDomains treatment either — they're
+# pinned to whatever deployment they last pointed at and go stale (Vercel
+# DEPLOYMENT_NOT_FOUND) once that deployment is pruned. Re-alias all of them
+# here too so the workspace switcher never hits a dead deployment again.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TENANT_DOMAINS=$(node "$SCRIPT_DIR/list-tenant-alias-domains.mjs" || true)
+if [[ -n "$TENANT_DOMAINS" ]]; then
+  echo "Re-aliasing tenant subdomains -> $DEPLOY_URL"
+  while IFS= read -r DOM; do
+    [[ -z "$DOM" ]] && continue
+    echo "  $DOM"
+    vercel alias set "$DEPLOY_URL" "$DOM" --scope "$TEAM_SLUG" || echo "  WARN: failed to alias $DOM (continuing)"
+  done <<< "$TENANT_DOMAINS"
+else
+  echo "No tenant subdomains found to re-alias (or Supabase creds unavailable)."
+fi

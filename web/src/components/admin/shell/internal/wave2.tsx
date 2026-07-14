@@ -1039,10 +1039,19 @@ export function TenantSwitcherDrawer() {
               // (which is never provisioned and 404s). The apex doesn't serve
               // /admin, so its workspace admin lives on the app host.
               const isPlatformHub = w.kind === "hub" && w.tier === "network";
+              // A tenant with no agency_domains row has no provisioned
+              // subdomain — `${slug}.tulala.digital` would be a URL nobody
+              // ever registered (Vercel returns DEPLOYMENT_NOT_FOUND, or the
+              // app's own host-gate 404s it even if aliased). Route those
+              // through the app host's path-based tenant admin instead,
+              // same fallback already used for the platform hub above.
+              const hasRegisteredDomain = Boolean(w.domain);
               const domain = isPlatformHub
                 ? "tulala.digital"
-                : (w.domain ?? `${w.slug}.tulala.digital`);
-              const adminUrl = isPlatformHub
+                : hasRegisteredDomain
+                ? (w.domain as string)
+                : `app.tulala.digital/${w.slug}`;
+              const adminUrl = isPlatformHub || !hasRegisteredDomain
                 ? `https://app.tulala.digital/${w.slug}/admin`
                 : `https://${domain}/admin`;
               return {

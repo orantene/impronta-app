@@ -1,10 +1,18 @@
 name: Vercel post-deploy alias
 
 # Re-aliases the two ghost-locked domains (tulala.digital, app.tulala.digital)
-# onto the latest successful production deployment. These domains can't be
-# attached at the Vercel project level (a deleted predecessor project still
-# "owns" them), so autoAssignCustomDomains skips them. See
-# .claude/.../memory/project_vercel_deployment.md "Ghost project alias workaround".
+# PLUS every registered tenant subdomain (agency_domains, kind=subdomain, e.g.
+# <slug>.tulala.digital) onto the latest successful production deployment.
+#
+# Neither category gets Vercel's autoAssignCustomDomains treatment: the ghost
+# domains can't be attached at the project level (a deleted predecessor
+# project still "owns" them — see .claude/.../memory/project_vercel_deployment.md
+# "Ghost project alias workaround"), and tenant subdomains were created via
+# one-off `vercel alias set` calls at provisioning time, so they're pinned to
+# whatever deployment they last pointed at and silently go stale (Vercel
+# DEPLOYMENT_NOT_FOUND) once that deployment is pruned. That staleness is what
+# broke the workspace switcher for QA tenant subdomains in 2026-07 — this
+# workflow now re-aliases all of them on every prod deploy so it can't recur.
 #
 # Fires on `deployment_status` — Vercel's GitHub App creates GitHub Deployments
 # for every push, so this runs right after each prod deploy finishes.
@@ -33,19 +41,29 @@ concurrency:
 
 jobs:
   alias:
-    name: Re-alias ghost-locked domains
+    name: Re-alias ghost-locked + tenant domains
     if: >-
       github.event.deployment_status.state == 'success' &&
       github.event.deployment_status.environment == 'Production'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Re-alias tulala.digital + app.tulala.digital
+      - name: Re-alias all registered domains
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           EVENT_URL: ${{ github.event.deployment_status.target_url }}
         run: |
           set -euo pipefail
@@ -74,9 +92,9 @@ jobs:
             echo "::notice::event fired for ${EVENT_URL:-<none>} but newest-ready is $LATEST; aliasing to newest-ready"
           fi
 
-          echo "Aliasing $DEPLOY_URL -> tulala.digital + app.tulala.digital"
-          for D in tulala.digital app.tulala.digital; do
-            vercel alias set "$DEPLOY_URL" "$D" \
-              --scope oran-tenes-projects \
-              --token "$VERCEL_TOKEN"
-          done
+          echo "Aliasing $DEPLOY_URL -> tulala.digital + app.tulala.digital + tenant subdomains"
+          # vercel-post-deploy-alias.sh shells out to `vercel` with --scope but
+          # no --token; the CLI picks up VERCEL_TOKEN from env. It also queries
+          # Supabase (SUPABASE_ACCESS_TOKEN/SUPABASE_URL) for every registered
+          # tenant subdomain and re-aliases those too — see the script's header.
+          ./scripts/vercel-post-deploy-alias.sh "$DEPLOY_URL"
