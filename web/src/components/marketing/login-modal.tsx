@@ -36,9 +36,8 @@ import {
   GoogleGlyph,
   Spinner,
 } from "./talent-register-modal-glyphs";
-import { loadWelcomeAccountModel } from "./welcome-actions";
+import { loadWelcomeModel, type WelcomeModel } from "./welcome-actions";
 import { LoginWelcomePanel } from "./login-welcome-panel";
-import type { MarketingAccount } from "./marketing-account-menu";
 
 export const LOGIN_MODAL_EVENT = "tulala:open-login-modal" as const;
 
@@ -110,7 +109,7 @@ export function LoginModal({
   locale?: string;
 }) {
   const [mounted, setMounted] = useState(false);
-  const [welcome, setWelcome] = useState<MarketingAccount | null>(null);
+  const [welcome, setWelcome] = useState<WelcomeModel | null>(null);
   const [loadingWelcome, setLoadingWelcome] = useState(false);
   const emailRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
@@ -146,7 +145,7 @@ export function LoginModal({
   async function handleAuthSuccess() {
     setLoadingWelcome(true);
     try {
-      const model = await loadWelcomeAccountModel();
+      const model = await loadWelcomeModel();
       if (model) {
         setWelcome(model);
         return;
@@ -210,7 +209,7 @@ export function LoginModal({
 
           {welcome ? (
             <LoginWelcomePanel
-              account={welcome}
+              model={welcome}
               locale={locale}
               onDismiss={dismissWelcome}
             />
