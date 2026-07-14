@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * Post-login welcome shown inside the marketing LoginModal. Compact "Welcome
- * back" + the user's workspaces, then horizontal quick-link decks (arrow
- * sliders) for work shortcuts and profile management. Data comes from
- * `loadWelcomeModel` (same identity model the header account menu uses) so every
- * link is valid + identity-aware.
+ * Post-login welcome shown inside the marketing LoginModal. Minimal "Welcome
+ * back" + workspaces, then horizontal quick-link decks (arrow sliders) for work
+ * shortcuts and profile management. Deliberately flat: plain icons, no icon
+ * chips / tinted fills / pills — the busy version was rejected. Data comes from
+ * `loadWelcomeModel` (same identity model the header account menu uses).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -110,18 +110,13 @@ export function LoginWelcomePanel({
     : account.workspaces.slice(0, WORKSPACES_COLLAPSED);
 
   return (
-    <div className="-mx-1">
+    <div>
       {/* Identity */}
-      <div className="flex items-center gap-3 px-1">
-        <span
-          className="inline-flex rounded-full p-0.5"
-          style={{ boxShadow: "0 0 0 1px var(--plt-hairline-strong)" }}
-        >
-          <AccountAvatar size="lg" />
-        </span>
+      <div className="flex items-center gap-3">
+        <AccountAvatar size="lg" />
         <div className="min-w-0">
           <p
-            className="plt-mono text-[0.5625rem] font-semibold uppercase tracking-[0.24em]"
+            className="plt-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em]"
             style={{ color: "var(--plt-forest)" }}
           >
             {t.welcome}
@@ -148,18 +143,21 @@ export function LoginWelcomePanel({
                 key={w.slug}
                 href={w.href}
                 onClick={onDismiss}
-                className="group flex items-center gap-3 rounded-xl px-1.5 py-2 transition-colors hover:bg-[var(--plt-bg-raised)]"
+                className="group flex items-center gap-3 rounded-lg px-1 py-2.5 transition-colors hover:bg-[var(--plt-bg-raised)]"
               >
-                <IconChip>
-                  <GridGlyph />
-                </IconChip>
+                <GridGlyph />
                 <span
                   className="flex-1 truncate text-[0.875rem] font-medium"
                   style={{ color: "var(--plt-ink)" }}
                 >
                   {w.name}
                 </span>
-                <RolePill role={w.role} />
+                <span
+                  className="plt-mono text-[0.625rem] uppercase tracking-[0.12em]"
+                  style={{ color: "var(--plt-muted)" }}
+                >
+                  {w.role}
+                </span>
                 <ChevronRight />
               </Link>
             ))}
@@ -168,7 +166,7 @@ export function LoginWelcomePanel({
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="mt-1 px-1.5 text-[0.75rem] font-medium underline underline-offset-2 transition-colors hover:text-[var(--plt-forest)]"
+              className="mt-1.5 text-[0.75rem] font-medium underline underline-offset-2 transition-colors hover:text-[var(--plt-forest)]"
               style={{ color: "var(--plt-muted)" }}
             >
               {expanded ? t.showLess : t.showAll(account.workspaces.length)}
@@ -177,7 +175,7 @@ export function LoginWelcomePanel({
         </section>
       ) : null}
 
-      {/* Quick links (moved under workspaces, now an arrow slider) */}
+      {/* Quick links (under workspaces, arrow slider) */}
       {quickLinks.length > 0 ? (
         <section className="mt-6">
           <LinkDeck title={t.quickLinks} links={quickLinks} t={t} onNavigate={onDismiss} />
@@ -196,28 +194,28 @@ export function LoginWelcomePanel({
                   href={p.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="group flex items-center gap-3 rounded-xl px-1.5 py-2 transition-colors hover:bg-[var(--plt-bg-raised)]"
+                  className="group flex items-center gap-3 rounded-lg px-1 py-2.5 transition-colors hover:bg-[var(--plt-bg-raised)]"
                 >
-                  <IconChip>
-                    <GlobeGlyph />
-                  </IconChip>
+                  <GlobeGlyph />
                   <span
                     className="flex-1 truncate text-[0.875rem] font-medium"
                     style={{ color: "var(--plt-ink)" }}
                   >
                     {p.name}
                   </span>
-                  <StatusPill
-                    live={p.status === "live"}
-                    label={p.status === "live" ? t.live : t.hidden}
-                  />
+                  <span
+                    className="text-[0.6875rem] font-medium"
+                    style={{ color: p.status === "live" ? "var(--plt-forest)" : "var(--plt-muted)" }}
+                  >
+                    {p.status === "live" ? t.live : t.hidden}
+                  </span>
                 </a>
               ))}
             </div>
           ) : null}
           {profileLinks.length > 0 ? (
-            <div className="mt-3">
-              <LinkDeck title={t.manage} links={profileLinks} t={t} subtle onNavigate={onDismiss} />
+            <div className="mt-4">
+              <LinkDeck title={t.manage} links={profileLinks} t={t} onNavigate={onDismiss} />
             </div>
           ) : null}
         </section>
@@ -241,13 +239,11 @@ function LinkDeck({
   title,
   links,
   t,
-  subtle = false,
   onNavigate,
 }: {
   title: string;
   links: WelcomeQuickLink[];
   t: WelcomeCopy;
-  subtle?: boolean;
   onNavigate: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -277,8 +273,8 @@ function LinkDeck({
 
   return (
     <div>
-      <div className="flex items-center justify-between px-1.5">
-        <SectionLabel subtle={subtle}>{title}</SectionLabel>
+      <div className="flex items-center justify-between">
+        <SectionLabel>{title}</SectionLabel>
         {showArrows ? (
           <div className="flex items-center gap-1">
             <DeckArrow dir="left" disabled={!canLeft} onClick={() => scroll(-1)} />
@@ -296,23 +292,17 @@ function LinkDeck({
             key={l.key}
             href={l.href}
             onClick={onNavigate}
-            className="group flex min-w-[88px] shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border px-2 py-3.5 text-center transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-[var(--plt-forest)] hover:shadow-[0_10px_24px_-16px_rgba(31,74,58,0.5)]"
+            className="group flex min-w-[86px] shrink-0 snap-start flex-col items-center gap-2.5 rounded-2xl border px-2 py-4 text-center transition-colors hover:border-[var(--plt-forest)]"
             style={{
               borderColor: "var(--plt-hairline-strong)",
               background: "var(--plt-bg)",
             }}
           >
-            <span
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl"
-              style={{
-                background: "color-mix(in srgb, var(--plt-forest) 10%, transparent)",
-                color: "var(--plt-forest)",
-              }}
-            >
+            <span style={{ color: "var(--plt-forest)" }}>
               <QuickIcon kind={l.key} />
             </span>
             <span
-              className="text-[0.75rem] font-medium leading-none"
+              className="text-[0.8125rem] font-medium leading-none"
               style={{ color: "var(--plt-ink)" }}
             >
               {t.label[l.key]}
@@ -339,12 +329,12 @@ function DeckArrow({
       aria-label={dir === "left" ? "Scroll left" : "Scroll right"}
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-6 w-6 items-center justify-center rounded-full border transition-colors disabled:opacity-30 enabled:hover:bg-[var(--plt-bg-raised)]"
-      style={{ borderColor: "var(--plt-hairline-strong)", color: "var(--plt-ink-soft)" }}
+      className="inline-flex h-6 w-6 items-center justify-center rounded-full transition-colors disabled:opacity-25 enabled:hover:bg-[var(--plt-bg-raised)]"
+      style={{ color: "var(--plt-ink-soft)" }}
     >
       <svg
-        width="12"
-        height="12"
+        width="13"
+        height="13"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -362,73 +352,20 @@ function DeckArrow({
 
 /* ───────────────────────── Bits ───────────────────────── */
 
-function SectionLabel({
-  children,
-  subtle = false,
-}: {
-  children: React.ReactNode;
-  subtle?: boolean;
-}) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p
-      className="plt-mono text-[0.5625rem] font-semibold uppercase tracking-[0.24em]"
-      style={{ color: subtle ? "var(--plt-muted)" : "var(--plt-ink-soft)" }}
-    >
+    <p className="text-[0.75rem] font-medium" style={{ color: "var(--plt-ink-soft)" }}>
       {children}
     </p>
   );
 }
 
-function IconChip({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-      style={{
-        background: "var(--plt-bg-deep)",
-        border: "1px solid var(--plt-hairline)",
-        color: "var(--plt-muted)",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function RolePill({ role }: { role: string }) {
-  return (
-    <span
-      className="plt-mono rounded-full px-2 py-0.5 text-[0.5625rem] font-semibold uppercase tracking-[0.1em]"
-      style={{
-        background: "color-mix(in srgb, var(--plt-forest) 8%, transparent)",
-        color: "var(--plt-forest)",
-      }}
-    >
-      {role}
-    </span>
-  );
-}
-
-function StatusPill({ live, label }: { live: boolean; label: string }) {
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 text-[0.6875rem] font-medium"
-      style={{ color: live ? "var(--plt-forest)" : "var(--plt-muted)" }}
-    >
-      <span
-        className="inline-block h-1.5 w-1.5 rounded-full"
-        style={{ background: live ? "var(--plt-forest)" : "var(--plt-hairline-strong)" }}
-      />
-      {label}
-    </span>
-  );
-}
-
-/* ───────────────────────── Icons ───────────────────────── */
+/* ───────────────────────── Icons (plain, stroke = inherited color) ───────────────────────── */
 
 function QuickIcon({ kind }: { kind: WelcomeQuickLinkKey }) {
   const p = {
-    width: 18,
-    height: 18,
+    width: 20,
+    height: 20,
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
@@ -527,7 +464,7 @@ function QuickIcon({ kind }: { kind: WelcomeQuickLinkKey }) {
 
 function GridGlyph() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--plt-muted)" strokeWidth="1.6" aria-hidden>
       <rect x="3" y="3" width="7" height="7" rx="1" />
       <rect x="14" y="3" width="7" height="7" rx="1" />
       <rect x="14" y="14" width="7" height="7" rx="1" />
@@ -538,7 +475,7 @@ function GridGlyph() {
 
 function GlobeGlyph() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--plt-muted)" strokeWidth="1.6" aria-hidden>
       <circle cx="12" cy="12" r="9" />
       <path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z" />
     </svg>
