@@ -394,8 +394,8 @@ test("INVARIANT callerHasRelationshipToTenant: signed-in path checks all three r
   }
   assert.match(
     helper,
-    /\.from\("agency_memberships"\)[\s\S]*?\.eq\("tenant_id", tenantId\)[\s\S]*?\.eq\("user_id", userId\)/,
-    "agency_memberships scoped by tenant_id AND user_id",
+    /\.from\("agency_memberships"\)[\s\S]*?\.eq\("tenant_id", tenantId\)[\s\S]*?\.eq\("profile_id", userId\)/,
+    "agency_memberships scoped by tenant_id AND profile_id",
   );
   assert.match(
     helper,
