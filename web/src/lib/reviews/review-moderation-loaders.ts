@@ -108,6 +108,46 @@ type ModerationEventRow = {
   created_at: string;
 };
 
+/**
+ * One review PHOTO awaiting staff moderation (STANDING v3 item 5). Photos
+ * default to approval_state='approved' (auto-live), so this surface exists to
+ * let staff REJECT (hide) a bad photo and RESTORE (re-approve) it later.
+ */
+export type ReviewMediaModerationItem = {
+  mediaId: string;
+  reviewId: string;
+  tenantId: string;
+  talentProfileId: string | null;
+  talentName: string | null;
+  /** Public-safe first name / initial of the reviewer, or null. */
+  reviewerName: string | null;
+  /** Star rating of the parent review, for at-a-glance context. */
+  rating: number | null;
+  /** 'pending' | 'approved' | 'rejected' */
+  approvalState: string;
+  /** Public URL of the photo (media-public bucket). */
+  url: string | null;
+  createdAt: string;
+};
+
+type ReviewMediaRow = {
+  id: string;
+  review_id: string;
+  tenant_id: string;
+  bucket_id: string | null;
+  storage_path: string | null;
+  approval_state: string;
+  created_at: string;
+};
+
+type ReviewContextRow = {
+  id: string;
+  talent_profile_id: string | null;
+  client_user_id: string | null;
+  rating: number | null;
+  anon: boolean | null;
+};
+
 type ProfileNameRow = { id: string; display_name: string | null };
 
 type ProfileRatingRow = {
@@ -138,6 +178,114 @@ async function resolveTalentNames(
     out.set(row.id, (row.display_name ?? "").trim() || null);
   }
   return out;
+}
+
+/** First token of a stored name, public-safe. "María González" → "María". */
+function publicFirstName(raw: string | null | undefined): string | null {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return null;
+  const first = trimmed.split(/\s+/)[0] ?? trimmed;
+  return first || null;
+}
+
+/**
+ * Review PHOTOS for a tenant awaiting/under staff moderation (STANDING v3 item
+ * 5), newest first. Each row carries the parent review's talent + reviewer
+ * context and a public thumbnail URL. Staff-scoped to `tenantId` via
+ * requireStaff + an explicit tenant_id filter on the service-role client;
+ * returns [] for a non-staff caller, an unknown tenant, or when there are no
+ * photos. Includes soft-deleted? NO — soft-deleted (uploader-removed) rows are
+ * excluded; only live rows are moderatable.
+ *
+ * @param states When provided, restrict to these approval_states. Omit for all.
+ */
+export async function loadReviewMediaForTenant(
+  tenantId: string,
+  states?: readonly string[],
+  limit = 100,
+): Promise<ReviewMediaModerationItem[]> {
+  const auth = await requireStaff();
+  if (!auth.ok) return [];
+
+  const tid = (tenantId ?? "").trim();
+  if (!tid) return [];
+
+  const svc = createServiceRoleClient();
+  if (!svc) return [];
+
+  let query = svc
+    .from("talent_review_media")
+    .select("id, review_id, tenant_id, bucket_id, storage_path, approval_state, created_at")
+    .eq("tenant_id", tid)
+    .is("deleted_at", null);
+  if (states && states.length > 0) query = query.in("approval_state", states);
+
+  const { data: media, error } = await query
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .returns<ReviewMediaRow[]>();
+
+  if (error || !media || media.length === 0) return [];
+
+  // Resolve the parent reviews for talent + reviewer context.
+  const reviewIds = Array.from(new Set(media.map((m) => m.review_id).filter(Boolean)));
+  const { data: reviews } = await svc
+    .from("talent_reviews")
+    .select("id, talent_profile_id, client_user_id, rating, anon")
+    .in("id", reviewIds)
+    .returns<ReviewContextRow[]>();
+  const reviewById = new Map<string, ReviewContextRow>();
+  for (const r of reviews ?? []) reviewById.set(r.id, r);
+
+  const [talentNames, reviewerNames] = await Promise.all([
+    resolveTalentNames(
+      svc,
+      (reviews ?? []).map((r) => r.talent_profile_id ?? "").filter(Boolean),
+    ),
+    (async () => {
+      const out = new Map<string, string | null>();
+      const ids = Array.from(
+        new Set(
+          (reviews ?? [])
+            .filter((r) => !r.anon)
+            .map((r) => r.client_user_id ?? "")
+            .filter(Boolean),
+        ),
+      );
+      if (ids.length === 0) return out;
+      const { data } = await svc
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", ids)
+        .returns<{ id: string; display_name: string | null }[]>();
+      for (const row of data ?? []) out.set(row.id, publicFirstName(row.display_name));
+      return out;
+    })(),
+  ]);
+
+  return media.map((m) => {
+    const review = reviewById.get(m.review_id) ?? null;
+    let url: string | null = null;
+    if (m.storage_path) {
+      const bucket = m.bucket_id || "media-public";
+      const { data: pub } = svc.storage.from(bucket).getPublicUrl(m.storage_path);
+      url = pub?.publicUrl ?? null;
+    }
+    const talentProfileId = review?.talent_profile_id ?? null;
+    const reviewerId = review?.anon ? null : review?.client_user_id ?? null;
+    return {
+      mediaId: m.id,
+      reviewId: m.review_id,
+      tenantId: m.tenant_id,
+      talentProfileId,
+      talentName: talentProfileId ? talentNames.get(talentProfileId) ?? null : null,
+      reviewerName: reviewerId ? reviewerNames.get(reviewerId) ?? null : null,
+      rating: review?.rating ?? null,
+      approvalState: m.approval_state,
+      url,
+      createdAt: m.created_at,
+    };
+  });
 }
 
 /**

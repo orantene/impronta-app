@@ -52,6 +52,15 @@ export type TenantIdentityPayload = {
    * banner in OverviewFree until setup is complete or dismissed.
    */
   networkRequestedAt: string | null;
+  /**
+   * TALENT SURFACE ONLY — true when the signed-in talent is EXCLUSIVELY
+   * represented by this agency (their primary roster row). Set by the
+   * platform talent layout; left undefined on the workspace admin surface
+   * (where the agency's own staff always see their own brand regardless).
+   * Whitelabel branding on the talent dashboard requires this AND the
+   * agency being on a whitelabel plan tier.
+   */
+  talentExclusive?: boolean;
 };
 
 export async function loadTenantIdentity(

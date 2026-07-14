@@ -18,6 +18,7 @@ import { loadClientSelfProfile } from "../../_data-bridge";
 import { loadDiscoverTalents, loadDiscoverFacets, loadDiscoverHubs } from "../../_data-bridge/discover";
 import { loadClientCardDesign } from "../_data-bridge/load-card-design";
 import { loadClientSubscription, canUsePro } from "@/lib/discover/client-subscription";
+import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 import { DiscoverShell } from "./DiscoverShell";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { EmptyState } from "../_components/EmptyState";
@@ -54,7 +55,7 @@ export default async function ClientDiscoverPage({
 
   // Parallel SSR loads: paginated talents + filter facets + hubs + tier +
   // the shell-tenant card palette (painted on every Discover card).
-  const [{ items, total }, facets, hubs, subscription, cardDesign] = await Promise.all([
+  const [{ items, total }, facets, hubs, subscription, cardDesign, reviewsEnabled] = await Promise.all([
     loadDiscoverTalents({
       country: sp.country,
       category: sp.category,
@@ -67,6 +68,10 @@ export default async function ClientDiscoverPage({
     loadDiscoverHubs(),
     loadClientSubscription(session.user.id),
     loadClientCardDesign(scope.tenantId),
+    // Discover is cross-tenant, so the STANDING chip is gated on the
+    // DASHBOARD tenant's own reviews entitlement (the tenant hosting this
+    // client's Discover surface), not the individual talent's home tenant.
+    tenantReviewsEnabled(scope.tenantId),
   ]);
   const hasPro = canUsePro(subscription);
 
@@ -105,6 +110,7 @@ export default async function ClientDiscoverPage({
           tenantSlug={tenantSlug}
           cardDesign={cardDesign}
           locale={locale}
+          reviewsEnabled={reviewsEnabled}
           activeFilters={{
             country: sp.country ?? null,
             category: sp.category ?? null,

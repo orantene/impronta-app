@@ -405,6 +405,13 @@ type Ctx = {
      * OverviewFree reads this to show the "Network setup pending" banner.
      */
     networkRequestedAt?: string | null;
+    /**
+     * TALENT SURFACE ONLY — true when the signed-in talent is exclusively
+     * represented by this (active) agency. Set by the platform talent layout;
+     * undefined on the workspace surface. Gates whitelabel branding on the
+     * talent dashboard together with the agency's plan tier.
+     */
+    talentExclusive?: boolean;
   } | null;
   /**
    * Real signed-in user identity. null = standalone demo mode; chrome falls

@@ -15,6 +15,7 @@ import { NotificationsBell } from "../notifications-hub";
 import { Avatar, Icon, ShortcutsModal } from "../primitives";
 import { COLORS, FAB_PALETTE_OPEN_EVENT, MY_TALENT_PROFILE, PLAN_META, meetsRole, useAdminShell } from "../state";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
+import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { AccountMenuItem, IdentityBarIconButton, ModeTogglePill } from "./IdentityBar-2";
 import { TALENT_UNREAD } from "./WorkspaceTopbar";
@@ -238,32 +239,56 @@ export function TulalaIdentityBar() {
       <div
         className="flex h-full w-full items-center gap-[14px]"
       >
-        {/* Brand mark — talent surface is Tulala-canonical (L41): always the
-            platform wordmark, never the active agency logo. Workspace/client
-            surfaces show the tenant logo when uploaded. */}
-        {inTalent ? (
-          <img
-            src="/brand/tulala-wordmark.svg"
-            alt={TULALA_BRAND.name}
-            data-tulala-brand
-            className="tulala-talent-brand-mark"
-          />
-        ) : bridgeTenantIdentity?.logoUrl ? (
-          <img
-            src={bridgeTenantIdentity.logoUrl}
-            alt={bridgeTenantIdentity.displayName || "Workspace logo"}
-            data-tulala-brand
-            className="block h-[36px] w-auto max-w-[220px] object-contain object-left pr-[4px]"
-          />
-        ) : (
-          <div
-            aria-label={TULALA_BRAND.name}
-            data-tulala-brand
-            className="font-admin-display text-[16px] font-medium uppercase tracking-[0.4px] text-admin-ink pr-[4px]"
-          >
-            {TULALA_BRAND.name}
-          </div>
-        )}
+        {/* Brand mark — whitelabel branding (Agency/Network tier) decides whose
+            brand the talent + client see:
+            • Workspace surface: the agency's OWN staff always see their tenant
+              logo (their workspace, regardless of tier).
+            • Talent surface: the active agency's logo ONLY when the talent is
+              EXCLUSIVE to it and it is on a whitelabel tier; otherwise the
+              Tulala platform wordmark.
+            • Client surface: the home agency's logo ONLY when it is on a
+              whitelabel tier; otherwise the Tulala wordmark.
+            When no eligible agency logo applies, the surface stays Tulala. */}
+        {(() => {
+          const whitelabel = planTierHasWhitelabel(bridgeTenantIdentity?.planTier);
+          const agencyLogoUrl = bridgeTenantIdentity?.logoUrl ?? null;
+          const showAgencyLogo =
+            agencyLogoUrl != null &&
+            (inWorkspace ||
+              (inClient && whitelabel) ||
+              (inTalent && whitelabel && bridgeTenantIdentity?.talentExclusive === true));
+          if (showAgencyLogo && agencyLogoUrl) {
+            return (
+              <img
+                src={agencyLogoUrl}
+                alt={bridgeTenantIdentity?.displayName || "Workspace logo"}
+                data-tulala-brand
+                className="block h-[36px] w-auto max-w-[220px] object-contain object-left pr-[4px]"
+              />
+            );
+          }
+          // Talent surface keeps its dedicated wordmark sizing; workspace/client
+          // fall back to the Tulala text wordmark.
+          if (inTalent) {
+            return (
+              <img
+                src="/brand/tulala-wordmark.svg"
+                alt={TULALA_BRAND.name}
+                data-tulala-brand
+                className="tulala-talent-brand-mark"
+              />
+            );
+          }
+          return (
+            <div
+              aria-label={TULALA_BRAND.name}
+              data-tulala-brand
+              className="font-admin-display text-[16px] font-medium uppercase tracking-[0.4px] text-admin-ink pr-[4px]"
+            >
+              {TULALA_BRAND.name}
+            </div>
+          );
+        })()}
 
         <div data-tulala-id-divider className="mx-[4px] h-[22px] w-px bg-admin-border-soft" />
 

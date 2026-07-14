@@ -18,6 +18,7 @@ import { applyRowOverrides, setRowOverride, useRowOverrideSubscription } from ".
 import { STAGE_LABEL, STAGE_LABEL_KEYS, fmtMoney, getOffer, nextActionFor, rowSubtotal } from "./machinery-10";
 import type { OfferPov } from "./machinery-10";
 import { CreateOfferButton, OfferDraftEditor } from "./machinery-11";
+import type { SendGateResult } from "./offer-save-state";
 import { OfferTermsSummary } from "./offer-terms-ui";
 import { type OfferCommercialTerms } from "@/lib/billing/commercial-terms-types";
 import { DealSummaryCard, LineupRowCard, ParticipantRow, TimelineRow, dashedBtn, disabledBtn, ghostBtn, primaryBtn } from "./machinery-13";
@@ -76,6 +77,12 @@ export function LiveOfferPanel({
   const real = effectiveMessagesInquiries.find((r) => r.id === inquiryId);
   const offer = injectedOffer ?? real?.offer ?? null;
   const offerId = offer?.id;
+  // W0-3 — the OfferDraftEditor owns the live save state; it reports the
+  // resolved send gate up here so the Send button (rendered in THIS component)
+  // can block + explain sending an unsaved/empty/failed offer. Null until the
+  // editor has loaded, in which state Send stays enabled (nothing to gate yet).
+  const [sendGate, setSendGate] = useState<SendGateResult | null>(null);
+  const sendBlocked = sendGate != null && !sendGate.ok;
   // WS4 — coordinator UI parity: admin OR the appointed inquiry coordinator.
   const isAdmin = pov.kind === "admin";
   const canManage = isAdmin || (pov.kind === "talent" && pov.isCoordinator);
@@ -327,9 +334,10 @@ export function LiveOfferPanel({
       {(canManage && (status === "draft" || status === "sent" || status === "rejected")) && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {status === "draft" && (
-            <button type="button" disabled={pending}
+            <button type="button" disabled={pending || sendBlocked}
+              title={sendBlocked && sendGate && !sendGate.ok ? t(sendGate.reasonKey) : undefined}
               onClick={() => run(t("dashboard.adminTabs.offer.sendOffer"), () => sendOfferAction(effectiveTenant.slug, inquiryId, offerId))}
-              style={primaryBtn(COLORS.accent)}
+              style={pending || sendBlocked ? disabledBtn(primaryBtn(COLORS.accent)) : primaryBtn(COLORS.accent)}
             >{t("dashboard.adminTabs.offer.sendToClient")}</button>
           )}
           {/* A2 — Amend & re-send: when the offer is SENT but the admin needs
@@ -371,10 +379,12 @@ export function LiveOfferPanel({
         </div>
       )}
 
-      {/* Inline draft editor — only when the offer is editable. */}
+      {/* Inline draft editor — only when the offer is editable. It reports the
+          send gate up (onSendGateChange) so the Send button above can block +
+          explain sending an unsaved/empty/failed offer. */}
       {status === "draft" && (
         <div style={{ marginTop: 4 }}>
-          <OfferDraftEditor inquiryId={inquiryId} offerId={offerId} canEdit={canManage} />
+          <OfferDraftEditor inquiryId={inquiryId} offerId={offerId} canEdit={canManage} onSendGateChange={setSendGate} />
         </div>
       )}
     </div>

@@ -80,6 +80,7 @@ import type {
   GuestIdentityTier,
   GuestMessageAuthorRole,
   GuestMessageKind,
+  GuestOfferCardLine,
   GuestThreadMessage,
   GuestThreadStatus,
   InquiryReceiptData,
@@ -512,6 +513,89 @@ async function loadAgencyName(admin: SupabaseClient, tenantId: string): Promise<
 // GROUP thread is the talent-coordination channel and must NOT reach the guest.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Read the offer_id off an offer_event card's (opaque) payload. Returns null for
+ * any non-offer / malformed row.
+ */
+function offerIdOfCard(m: GuestThreadMessage): string | null {
+  if (m.kind !== "offer_event") return null;
+  const p = m.cardPayload;
+  const offerId = p && typeof p === "object" ? (p as { offer_id?: unknown }).offer_id : null;
+  return typeof offerId === "string" && offerId ? offerId : null;
+}
+
+/**
+ * Enrich `offer_event` cards with a client-safe per-line breakdown (label + note
+ * + client-facing line price) so the guest offer card shows the honest, "travel
+ * baked in" detail W2 made editable — not just a bare total. The guest IS the
+ * client, so label / note / client line price are theirs to see; talent cost /
+ * margin is NEVER read here. Two batched queries per thread read, and a no-op
+ * (zero queries) when the thread carries no offer cards. Best-effort: any query
+ * failure falls back to the bare card rather than dropping the message.
+ */
+async function enrichOfferCardsWithLines(
+  admin: SupabaseClient,
+  tenantId: string,
+  messages: GuestThreadMessage[],
+): Promise<GuestThreadMessage[]> {
+  const offerIds = new Set<string>();
+  for (const m of messages) {
+    const id = offerIdOfCard(m);
+    if (id) offerIds.add(id);
+  }
+  if (offerIds.size === 0) return messages;
+
+  const ids = Array.from(offerIds);
+  const [lineRes, offerRes] = await Promise.all([
+    admin
+      .from("inquiry_offer_line_items")
+      .select("offer_id, label, notes, total_price, sort_order")
+      .in("offer_id", ids)
+      .order("sort_order", { ascending: true }),
+    admin
+      .from("inquiry_offers")
+      .select("id, currency_code")
+      .eq("tenant_id", tenantId)
+      .in("id", ids),
+  ]);
+  if (lineRes.error) {
+    logServerError("guest-chat-actions.enrichOfferCards", lineRes.error);
+    return messages;
+  }
+
+  const currencyByOffer = new Map<string, string>();
+  for (const o of (offerRes.data ?? []) as Array<{ id: string; currency_code: string | null }>) {
+    currencyByOffer.set(o.id, o.currency_code ?? "");
+  }
+
+  const linesByOffer = new Map<string, GuestOfferCardLine[]>();
+  for (const row of (lineRes.data ?? []) as Array<{
+    offer_id: string;
+    label: string | null;
+    notes: string | null;
+    total_price: number | null;
+  }>) {
+    const currency = currencyByOffer.get(row.offer_id) ?? "";
+    const price = typeof row.total_price === "number" ? row.total_price : null;
+    const line: GuestOfferCardLine = {
+      label: (row.label ?? "").trim(),
+      note: row.notes && row.notes.trim() ? row.notes.trim() : null,
+      feeLabel: price != null ? `${price.toFixed(2)}${currency ? ` ${currency}` : ""}` : null,
+    };
+    const bucket = linesByOffer.get(row.offer_id);
+    if (bucket) bucket.push(line);
+    else linesByOffer.set(row.offer_id, [line]);
+  }
+
+  return messages.map((m) => {
+    const id = offerIdOfCard(m);
+    if (!id) return m;
+    const lines = linesByOffer.get(id);
+    if (!lines || lines.length === 0) return m;
+    return { ...m, cardPayload: { ...(m.cardPayload as Record<string, unknown>), lines } };
+  });
+}
+
 async function readGuestVisibleMessages(
   admin: SupabaseClient,
   inquiry: OwnedInquiry,
@@ -552,7 +636,7 @@ async function readGuestVisibleMessages(
   // load-bearing signal; we never string-match the body copy.
   const suppressAutoAck = isReceiptVisibleStatus(inquiry.status);
 
-  return (data ?? [])
+  const mapped = (data ?? [])
     .filter((raw) => {
       if (!suppressAutoAck) return true;
       const meta = (raw as { metadata?: unknown }).metadata;
@@ -567,6 +651,10 @@ async function readGuestVisibleMessages(
       const role = deriveAuthorRole(row, guestSessionId, identityByUserId);
       return toGuestThreadMessage(row, role, identityByUserId);
     });
+
+  // W2-3 — graduate the offer card from its MVP fallback: attach the client-safe
+  // per-line label + note + price so the guest sees the honest breakdown.
+  return enrichOfferCardsWithLines(admin, inquiry.tenantId, mapped);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

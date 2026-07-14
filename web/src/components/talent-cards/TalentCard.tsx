@@ -92,9 +92,11 @@ function OwnershipBadge({ data }: { data: CanonicalTalentCardData }) {
 function StandingChip({
   data,
   onScrim,
+  showStanding = "auto",
 }: {
   data: CanonicalTalentCardData;
   onScrim: boolean;
+  showStanding?: "auto" | "always";
 }) {
   if (data.ratingAvg == null || !meetsCredibilityFloor(data.ratingCount)) {
     return null;
@@ -107,9 +109,19 @@ function StandingChip({
   });
   const textClass = onScrim ? "text-white/80" : "";
   const textStyle = onScrim ? undefined : { color: TALENT_CARD_VARS.muted };
+  // `gated` (default) keeps the `data-card-standing` hook the CSS token gate
+  // matches against; `showStanding="always"` swaps to a different attribute
+  // so `html:not([data-token-card-standing]) [data-card-standing]{display:none}`
+  // in token-presets.css doesn't hide it on surfaces (like Discover) that
+  // resolve the reviews entitlement themselves and have no tenant token on
+  // `<html>` to opt into.
+  const gated = showStanding !== "always";
+  const wrapperAttrs = gated
+    ? { "data-card-standing": true }
+    : { "data-card-standing-shown": true };
   return (
     <div
-      data-card-standing
+      {...wrapperAttrs}
       className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1"
     >
       <span
@@ -273,6 +285,7 @@ export function TalentCard({
   availabilitySlot,
   secondaryActionSlot,
   badgeSlot,
+  showStanding = "auto",
 }: TalentCardProps) {
   const displayName = resolveName(data.name, show.showName, nameFallback);
   const href = data.profileHref || "#";
@@ -372,7 +385,7 @@ export function TalentCard({
               {data.location}
             </p>
           ) : null}
-          <StandingChip data={data} onScrim={false} />
+          <StandingChip data={data} onScrim={false} showStanding={showStanding} />
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
             {show.showBadges ? <OwnershipBadge data={data} /> : <span />}
             {/* availabilitySlot overrides the built-in line so a richer surface
@@ -467,7 +480,7 @@ export function TalentCard({
             {show.showLocation ? data.location : null}
           </p>
         ) : null}
-        <StandingChip data={data} onScrim />
+        <StandingChip data={data} onScrim showStanding={showStanding} />
         {/* availabilitySlot overrides the built-in line (e.g. the Discover
             14-day strip). Falls back to the default white-over-scrim line. */}
         {availabilitySlot ??

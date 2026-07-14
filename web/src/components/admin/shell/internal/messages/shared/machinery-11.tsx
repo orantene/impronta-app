@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { loadInquiryLineup, removeInquiryLineupParticipant, addInquiryLineupTalent, reorderInquiryLineup, saveOfferDraft, loadOfferDraft, createOfferAction, type InquiryParticipant, type OfferDraftSnapshot } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
-import { canSendOffer } from "./offer-save-state";
-import { OfferSaveBanner } from "./offer-save-banner";
+import type { SendGateResult } from "./offer-save-state";
+import { OfferSaveBanner, OfferStatusChip } from "./offer-save-banner";
 import { useOfferSave } from "./use-offer-save";
 import { useAdminShell, FONTS, COLORS, RADIUS } from "../../state";
 import { Avatar } from "../../primitives";
@@ -411,7 +411,7 @@ export function LiveLineupPanel({
  * `updateOfferDraft`. Each save replaces the line items wholesale —
  * matches the engine contract.
  */
-export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: string; offerId: string; canEdit: boolean }) {
+export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange }: { inquiryId: string; offerId: string; canEdit: boolean; onSendGateChange?: (gate: SendGateResult) => void }) {
   const { toast, effectiveRoster, effectiveTenant } = useAdminShell();
   const t = useT();
   // Latest-`t` ref for async callbacks (see LiveLineupPanel note).
@@ -467,6 +467,10 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
     offerId,
     snapshotRef,
     reload,
+    editorLineCount: snapshot?.lineItems.length ?? 0,
+    editorTotal: snapshot?.lineItems.reduce((sum, li) => sum + (Number(li.totalPrice) || 0), 0) ?? 0,
+    loaded: !loading && !!snapshot,
+    onSendGateChange,
   });
 
   if (!canEdit) return null;
@@ -566,6 +570,8 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
     }}>
       <div className="flex items-center gap-2">
         <span style={{ fontWeight: 700 }} className="text-admin-ink">{t("dashboard.adminTabs.lineup.draftEditor")}</span>
+        {/* W0-4 — live save-state chip, companion to OfferSaveBanner. */}
+        <OfferStatusChip state={saveState} />
         <span className="text-admin-ink-muted text-admin-11">inquiry_offer_line_items</span>
         <span style={{ flex: 1 }} />
         <button type="button" onClick={() => setCollapsed(true)} style={ghostBtn()}>{t("dashboard.adminTabs.lineup.collapse")}</button>

@@ -116,6 +116,19 @@ export type TalentCardProps = {
   availabilitySlot?: ReactNode;
   secondaryActionSlot?: ReactNode;
   badgeSlot?: ReactNode;
+  /**
+   * Standing-chip visibility escape hatch. `"auto"` (default) keeps the
+   * existing behavior: the chip renders with the `data-card-standing` hook
+   * and stays gated by the `html[data-token-card-standing]` CSS rule in
+   * token-presets.css (so it's silent on any surface that hasn't opted the
+   * `<html>` root into a standing token). `"always"` is for surfaces that
+   * resolve the reviews entitlement themselves server-side (e.g. the
+   * cross-tenant Discover grid, which has no single tenant token to read) —
+   * it swaps the wrapper to `data-card-standing-shown` so the CSS gate
+   * doesn't apply, while still requiring the same credibility-floor data
+   * check inside the chip.
+   */
+  showStanding?: "auto" | "always";
 };
 
 /**

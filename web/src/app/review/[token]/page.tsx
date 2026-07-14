@@ -296,6 +296,8 @@ export default async function ReviewInvitePage({
         talentProfileCode={invite.talentProfileCode}
         verifiable={verifiable && !guestEligible}
         guestMode={guestEligible}
+        bookingId={invite.bookingId}
+        talentProfileId={invite.talentProfileId}
       />
     </Shell>
   );

@@ -95,6 +95,114 @@ export async function loadInquiryView(
   };
 }
 
+/**
+ * Resolve the offer id an offer-scoped event refers to: the event payload's
+ * `offerId` (the `offer.sent` engine event carries `{ offerId }` in its `data`),
+ * else the inquiry's `current_offer_id`. Returns null when neither is available.
+ */
+async function resolveEventOfferId(
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<string | null> {
+  const fromPayload = str(event.payload.offerId);
+  if (fromPayload) return fromPayload;
+  if (!event.inquiryId) return null;
+  const { data } = await ctx.admin
+    .from("inquiries")
+    .select("current_offer_id")
+    .eq("id", event.inquiryId)
+    .maybeSingle();
+  return (data as { current_offer_id?: string | null } | null)?.current_offer_id ?? null;
+}
+
+/**
+ * The talents priced on a specific offer, one row per talent: join the offer's
+ * line items (`inquiry_offer_line_items.talent_profile_id`) to the talent's auth
+ * user (`talent_profiles.user_id`) and sum their `talent_cost` (a talent can
+ * hold several lines, e.g. a day rate ×2). A row with no linked user is kept
+ * with `userId: null` so the audience resolver can skip it while the hydrate
+ * still ignores it. Net is the talent's OWN cost — never the client total.
+ */
+async function fetchOfferPricedTalent(
+  ctx: AudienceContext,
+  offerId: string,
+): Promise<Array<{ talentProfileId: string; userId: string | null; netTotal: number }>> {
+  const { data: liRows } = await ctx.admin
+    .from("inquiry_offer_line_items")
+    .select("talent_profile_id, talent_cost")
+    .eq("offer_id", offerId);
+  const rows = (liRows ?? []) as Array<{
+    talent_profile_id: string | null;
+    talent_cost: number | string | null;
+  }>;
+  const netByProfile = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.talent_profile_id) continue;
+    const cost = Number(r.talent_cost ?? 0);
+    const prev = netByProfile.get(r.talent_profile_id) ?? 0;
+    netByProfile.set(r.talent_profile_id, prev + (Number.isFinite(cost) ? cost : 0));
+  }
+  const profileIds = Array.from(netByProfile.keys());
+  if (profileIds.length === 0) return [];
+  const { data: tpRows } = await ctx.admin
+    .from("talent_profiles")
+    .select("id, user_id")
+    .in("id", profileIds);
+  const userByProfile = new Map<string, string | null>();
+  for (const tp of (tpRows ?? []) as Array<{ id: string; user_id: string | null }>) {
+    userByProfile.set(tp.id, tp.user_id ?? null);
+  }
+  return profileIds.map((pid) => ({
+    talentProfileId: pid,
+    userId: userByProfile.get(pid) ?? null,
+    netTotal: netByProfile.get(pid) ?? 0,
+  }));
+}
+
+/** Format a decimal money amount + ISO-4217 code as "USD 1,200.00"; "" when
+ *  non-finite or non-positive so a template row drops out cleanly. */
+function formatOfferMoney(amount: number, currency: string | null): string {
+  if (!Number.isFinite(amount) || amount <= 0) return "";
+  const code = (currency ?? "").trim().toUpperCase();
+  const value = amount.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return code ? `${code} ${value}` : value;
+}
+
+/**
+ * Hydrate inquiry context PLUS the per-talent net rate for an offer-scoped
+ * event (`offer.sent.talent`). Extends `loadInquiryView` with:
+ *  - `offerId`      — the resolved offer id (echoed so the resolver + render agree).
+ *  - `offerCurrency`— the offer's `currency_code`.
+ *  - `talentNetByUserId` — { [talentUserId]: "USD 1,200.00" }, each talent's OWN
+ *    summed `talent_cost` in the offer currency. The render looks up the
+ *    recipient's own user id so one talent NEVER sees another's rate or the
+ *    client total. Degrades to the bare inquiry view if the offer can't resolve.
+ */
+export async function loadOfferTalentView(
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<Record<string, unknown>> {
+  const base = await loadInquiryView(event, ctx);
+  const offerId = await resolveEventOfferId(event, ctx);
+  if (!offerId) return base;
+  const { data: offerRow } = await ctx.admin
+    .from("inquiry_offers")
+    .select("currency_code")
+    .eq("id", offerId)
+    .maybeSingle();
+  const currency = (offerRow as { currency_code?: string | null } | null)?.currency_code ?? null;
+  const rows = await fetchOfferPricedTalent(ctx, offerId);
+  const talentNetByUserId: Record<string, string> = {};
+  for (const r of rows) {
+    if (!r.userId) continue;
+    talentNetByUserId[r.userId] = formatOfferMoney(r.netTotal, currency);
+  }
+  return { ...base, offerId, offerCurrency: currency, talentNetByUserId };
+}
+
 // ─── Audience resolvers ──────────────────────────────────────────────────────
 // Read from the hydrated payload (loadInquiryView) + the shared recipient
 // resolver. Each returns lightweight AudienceMembers; the dispatcher hydrates
@@ -121,6 +229,30 @@ export const allRosterTalent = async (
   if (!event.inquiryId || !event.tenantId) return [];
   const r = await resolveInquiryRecipients(ctx.admin, event.inquiryId, event.tenantId);
   return r.talentUserIds.map((userId) => ({ kind: "user", userId, role: "talent" as const }));
+};
+
+/**
+ * The talents priced on THIS offer (`offer.sent.talent`) — only those with a
+ * line item on the event's offer, not the whole roster. Resolves the offer id
+ * from the payload (`offerId`) or the inquiry's `current_offer_id`, then returns
+ * one talent member per linked auth user (deduped). A priced talent with no
+ * account is skipped (they can't receive an in-app / email notification).
+ */
+export const offerPricedTalent = async (
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<AudienceMember[]> => {
+  const offerId = await resolveEventOfferId(event, ctx);
+  if (!offerId) return [];
+  const rows = await fetchOfferPricedTalent(ctx, offerId);
+  const seen = new Set<string>();
+  const members: AudienceMember[] = [];
+  for (const r of rows) {
+    if (!r.userId || seen.has(r.userId)) continue;
+    seen.add(r.userId);
+    members.push({ kind: "user", userId: r.userId, role: "talent" });
+  }
+  return members;
 };
 
 /** The assigned coordinator, when the inquiry has one. */

@@ -85,6 +85,7 @@ import {
   loadPublicIdentity,
   loadPublicBranding,
 } from "@/lib/site-admin/server/reads";
+import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { designTokensToCssVars } from "@/lib/site-admin/tokens/resolve";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
 import { buildTalentProfileJsonLd, jsonLdToString } from "@/lib/seo/talent-json-ld";
@@ -2127,6 +2128,13 @@ export default async function PublicTalentProfilePage({
     ? "dark"
     : "light";
 
+  // Whitelabel (Agency/Network tier) hides the "Powered by Tulala" footer mark
+  // so the profile page reads as fully the hosting agency's own. Only meaningful
+  // on an agency-hosted profile; the platform directory keeps the mark.
+  const profileWhitelabel = currentTenantId
+    ? await loadTenantWhitelabel(currentTenantId)
+    : false;
+
   const profileBody = (
     <>
       <DiscoveryStateBridge savedIds={initialSavedIds} favoriteIds={initialFavoriteIds} />
@@ -2147,6 +2155,7 @@ export default async function PublicTalentProfilePage({
         languages={languages}
         locale={locale}
         talentPlanKey={profile.talent_plan_key ?? "talent_basic"}
+        whitelabel={profileWhitelabel}
         maxSiteUrl={maxSiteUrl}
         galleryItems={galleryItems}
         watermarkPreset={watermarkPreset}

@@ -544,7 +544,19 @@ export async function createInstantBooking(
     // delete the orphan booking (cascades its children), and fail the call —
     // the client can retry or use the inquiry path; the inquiry itself stays
     // for coordinator follow-up.
-    const snap = await persistBookingCommissionSnapshot(admin, bookingId);
+    // A pay-in-person booking settles OFF-PLATFORM (cash/efectivo): stamp the
+    // snapshot payment_method='cash' at creation. Defaulting to 'card' (the prior
+    // behavior) mis-ledgered every efectivo booking as an on-platform card charge
+    // — the settlement logic then waited on a Stripe charge that never comes
+    // (transaction stuck draft, payment_status unpaid), and the Messages-shell
+    // "mark as cash" couldn't reclassify an existing card snapshot. Stamping cash
+    // up front makes the off-platform balance accrue correctly.
+    const snap = await persistBookingCommissionSnapshot(
+      admin,
+      bookingId,
+      payInPerson ? "cash" : "card",
+      payInPerson ? "pay_in_person" : null,
+    );
     if (!snap.ok) {
       logServerError("instantBook.commission_snapshot", new Error(`booking ${bookingId}: ${snap.reason ?? "persist_failed"}`));
       await releaseStock();

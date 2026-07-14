@@ -10,6 +10,14 @@ export type ActiveTalentAgencyContext = {
   tenantId: string;
   slug: string;
   displayName: string;
+  /**
+   * True when this is the talent's EXCLUSIVE (primary) agency —
+   * `agency_talent_roster.is_primary`. The runtime source of truth for
+   * exclusivity: declining exclusivity flips this back to false. Consumers
+   * that gate whitelabel branding on "exclusive to a whitelabel agency" read
+   * this together with the agency's plan tier.
+   */
+  isPrimary: boolean;
 };
 
 type RosterAgencyRow = {
@@ -29,6 +37,7 @@ function mapAgency(
     tenantId: row.tenant_id,
     slug: agency.slug,
     displayName: agency.display_name?.trim() || agency.slug,
+    isPrimary: row.is_primary === true,
   };
 }
 

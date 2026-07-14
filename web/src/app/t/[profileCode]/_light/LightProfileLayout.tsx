@@ -105,6 +105,13 @@ export type LightProfileLayoutProps = {
   talentPlanKey: string;
 
   /**
+   * True when the hosting agency is on a whitelabel plan tier (Agency /
+   * Network). When set, the "Powered by Tulala" footer mark is hidden so the
+   * page reads as fully the agency's own. Undefined/false → the mark shows.
+   */
+  whitelabel?: boolean;
+
+  /**
    * Max site URL. Non-null ONLY when the talent is on the Max plan AND has a
    * published site. Passed through to ProfileHeader for the VIP badge + CTA.
    */
