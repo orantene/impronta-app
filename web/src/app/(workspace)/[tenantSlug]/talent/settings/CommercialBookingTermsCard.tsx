@@ -1,5 +1,7 @@
 "use client";
 
+import { SettingsCardLoading } from "./SettingsCardLoading";
+
 /**
  * CommercialBookingTermsCard — the talent's commercial booking *preferences*.
  *
@@ -118,12 +120,7 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
   }
 
   if (loading) {
-    return (
-      <div
-        aria-hidden
-        style={{ width: "100%", minHeight: 148, marginBottom: 16, borderRadius: 12, background: "#fff", border: `1px solid ${C.borderSoft}`, fontFamily: FONT }}
-      />
-    );
+    return <SettingsCardLoading label="Loading booking terms…" />;
   }
 
   const fieldStyle = (field: "rate" | "deposit" | "refund" | "instantBook") =>

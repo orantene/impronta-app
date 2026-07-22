@@ -1,5 +1,7 @@
 "use client";
 
+import { SettingsCardLoading } from "./SettingsCardLoading";
+
 /**
  * PreferredLanguageCard — the talent's preferred dashboard / public-page language.
  *
@@ -90,7 +92,7 @@ export function PreferredLanguageCard() {
     });
   }
 
-  if (loading) return null;
+  if (loading) return <SettingsCardLoading label="Loading language preference…" />;
 
   const labelFor = (o: TalentLanguageOption) =>
     o.labelNative === o.labelEn ? o.labelNative : `${o.labelNative} (${o.labelEn})`;

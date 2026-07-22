@@ -1,5 +1,7 @@
 "use client";
 
+import { SettingsCardLoading } from "./SettingsCardLoading";
+
 /**
  * DefaultCurrencyCard — talent's preferred display currency on Money.
  *
@@ -84,7 +86,7 @@ export function DefaultCurrencyCard() {
     });
   }
 
-  if (loading) return null;
+  if (loading) return <SettingsCardLoading label="Loading currency preference…" />;
 
   return (
     <div
