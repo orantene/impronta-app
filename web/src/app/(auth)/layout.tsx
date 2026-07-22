@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { getSiteUrl } from "@/lib/auth-flow";
 
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { TulalaLogo } from "@/components/brand/tulala-logo";
 import { getPublicHostContext } from "@/lib/saas";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
@@ -127,27 +128,9 @@ function AuthTopBar({
               {brandLabel}
             </span>
           ) : (
-            <>
-              <span
-                className="plt-display"
-                style={{
-                  fontWeight: 700,
-                  letterSpacing: "-0.045em",
-                  fontSize: "1.375rem",
-                }}
-              >
-                tulala
-              </span>
-              <span
-                style={{
-                  color: "var(--plt-forest)",
-                  fontSize: "1.375rem",
-                  fontWeight: 700,
-                }}
-              >
-                .
-              </span>
-            </>
+            <span style={{ color: "var(--plt-ink-strong)" }}>
+              <TulalaLogo wordmarkHeight={23} />
+            </span>
           )}
         </Link>
       </div>
