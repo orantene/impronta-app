@@ -24,11 +24,7 @@ import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
 import type { TalentPage } from "@/components/admin/shell/internal/state";
 import { loadTenantIdentity, loadProfileDisplayName, type TenantIdentityPayload } from "../[tenantSlug]/_layout-identity";
-import {
-  getActiveTalentAgencyContext,
-  listTalentAgencyContexts,
-} from "@/lib/talent/active-agency-context";
-import { TalentAgencyContextSwitcher } from "@/components/talent/site/TalentAgencyContextSwitcher";
+import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
 import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
@@ -41,6 +37,7 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   today: "today",
   inbox: "messages",
   messages: "messages",
+  services: "services",
   profile: "profile",
   reviews: "reviews",
   calendar: "calendar",
@@ -116,7 +113,6 @@ export default async function PlatformTalentLayout({
   }
 
   const activeAgency = await getActiveTalentAgencyContext(baseProfile.id);
-  const agencyOptions = await listTalentAgencyContexts(baseProfile.id);
   const tenantId = activeAgency?.tenantId ?? null;
 
   const talentSelfProfile =
@@ -236,20 +232,10 @@ export default async function PlatformTalentLayout({
         },
       }}
     >
-      {isHybrid && agencyOptions.length > 1 ? (
-        <div
-          style={{
-            padding: "8px 16px 0",
-            maxWidth: 1200,
-            margin: "0 auto",
-          }}
-        >
-          <TalentAgencyContextSwitcher
-            agencies={agencyOptions}
-            activeTenantId={activeAgency?.tenantId ?? null}
-          />
-        </div>
-      ) : null}
+      {/* Agency-context switching lives in the identity bar's "Acting as"
+          chip → Switch-agency drawer (in-place cookie switch + refresh). The
+          old raw <select> strip that rendered here duplicated that control
+          and sat as an unstyled band above the shell chrome. */}
       {children}
     </TalentShellClient>
     </TalentSiteDashboardProvider>

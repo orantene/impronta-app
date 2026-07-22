@@ -24,7 +24,9 @@
  * the main _state.tsx until any of these graduate to "real."
  */
 
-import React, { useMemo, useState, useEffect, useCallback, type ReactNode } from "react";
+import React, { useMemo, useState, useEffect, useCallback, useTransition, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-action";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 import { setNotificationPrefs, getNotificationPrefs } from "@/lib/server-actions/user-prefs";
@@ -1350,8 +1352,13 @@ export function TenantSwitcherDrawer() {
 export function TalentAgencySwitcherDrawer() {
   const { state, closeDrawer, openDrawer, tenantSlug, bridgeTalentAgencies } = useAdminShell();
   const open = state.drawer.drawerId === "talent-agency-switcher";
+  const router = useRouter();
+  const [switchPending, startSwitch] = useTransition();
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
 
-  if (!state.alsoTalent) return null;
+  // Renders for ANY talent-surface user with agency affiliations — this is
+  // the one switcher for the surface. (Was gated to hybrids only, which left
+  // pure talents with no way to change their active agency context.)
 
   const agencies = bridgeTalentAgencies ?? [];
   const primary = agencies.filter(a => a.isPrimary);
@@ -1360,13 +1367,21 @@ export function TalentAgencySwitcherDrawer() {
   if (primary.length)  groups.push({ heading: "Your primary agency", sub: "Bookings and inquiries default to this agency.", rows: primary });
   if (others.length)   groups.push({ heading: "Other agencies", sub: "Non-exclusive affiliations · you're on their roster.", rows: others });
 
-  function navigate(slug: string) {
-    closeDrawer();
-    if (typeof window === "undefined") return;
-    const isLocalhost =
-      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-    const url = isLocalhost ? `/${slug}/talent` : `https://${slug}.tulala.digital/talent`;
-    window.location.assign(url);
+  // Switch the ACTIVE agency context in place: persist the cookie via the
+  // server action, then refresh so the layout reloads the shell under the new
+  // agency (identity, inbox scope, money figures). The old behavior hard-
+  // navigated to /{slug}/talent — a legacy redirector that bounces straight
+  // back to /talent/today WITHOUT touching the active-agency cookie, so the
+  // drawer silently did nothing for a platform talent.
+  function switchTo(tenantId: string) {
+    if (switchPending) return;
+    setSwitchingId(tenantId);
+    startSwitch(async () => {
+      await setActiveTalentAgencyAction(tenantId);
+      closeDrawer();
+      setSwitchingId(null);
+      router.refresh();
+    });
   }
 
   return (
@@ -1424,9 +1439,11 @@ export function TalentAgencySwitcherDrawer() {
                   key={a.id}
                   type="button"
                   data-tulala-row
+                  disabled={switchPending}
+                  aria-busy={switchingId === a.id}
                   onClick={() => {
                     if (isCurrent) { closeDrawer(); return; }
-                    navigate(a.agencySlug);
+                    switchTo(a.id);
                   }}
                   style={{
                     display: "flex", alignItems: "center", gap: 12,
@@ -1434,7 +1451,9 @@ export function TalentAgencySwitcherDrawer() {
                     background: isCurrent ? COLORS.accentSoft : "#fff",
                     border: `1px solid ${isCurrent ? "rgba(15,79,62,0.22)" : COLORS.borderSoft}`,
                     borderRadius: 10,
-                    cursor: "pointer", fontFamily: FONTS.body, textAlign: "left",
+                    cursor: switchPending ? "wait" : "pointer",
+                    opacity: switchPending && switchingId !== a.id ? 0.55 : 1,
+                    fontFamily: FONTS.body, textAlign: "left",
                   }}
                 >
                   <Avatar initials={initials} size={36} tone="ink" />

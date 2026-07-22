@@ -28,7 +28,6 @@ export function TulalaIdentityBar() {
     openDrawer,
     flipMode,
     setClientPage,
-    setTalentPage,
     totalUnread: bridgeTotalUnread,
     bridgeTenantIdentity,
     bridgeSessionIdentity,
@@ -65,7 +64,6 @@ export function TulalaIdentityBar() {
   const inClient    = surface === "client";
   const inTalent    = !inWorkspace && !inClient;
   const agencyCount = bridgeTalentAgencies?.length ?? 0;
-  const isPureTalent = inTalent && !state.alsoTalent;
   // Resolve client profile from the URL/state-driven id. Two profiles
   // for QA: Martina Beach Club (business) and The Gringo (personal).
   // Inline-defined to dodge HMR cache issues with the fresh export.
@@ -205,16 +203,18 @@ export function TulalaIdentityBar() {
     return "—";
   })();
   // Pure talent with zero agencies → invite them to start a workspace of
-  // their own (one-click discovery of the hybrid path). Otherwise fall back
-  // to the existing money / switcher destinations.
+  // their own (one-click discovery of the hybrid path). With agencies, the
+  // chip opens the Switch-agency drawer — the ONE switcher for the talent
+  // surface (the drawer now switches the active-agency cookie in place; the
+  // old raw select strip above the shell is gone). The old routing sent
+  // multi-agency talents to the Money page, which lists agencies but cannot
+  // switch context.
   const onActingClick = () =>
     inWorkspace ? openDrawer("tenant-switcher")
     : inClient ? openDrawer("client-brand-switcher")
     : inTalent && agencyCount === 0
       ? window.dispatchEvent(new CustomEvent(START_WORKSPACE_EVENT))
-      : isPureTalent || agencyCount !== 1
-        ? setTalentPage("money")
-        : openDrawer("talent-agency-switcher");
+      : openDrawer("talent-agency-switcher");
 
   // The notifications + help drawers differ per surface.
   const notificationsDrawerId = inWorkspace ? "notifications"
