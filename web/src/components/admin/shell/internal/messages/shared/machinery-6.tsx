@@ -4,7 +4,7 @@ import React, { useState, useTransition, useEffect, type CSSProperties } from "r
 import { useT } from "@/i18n/use-t";
 import { interpolate, type Translator } from "@/i18n/interpolate";
 import { CallSheetEditorSheet } from "@/components/admin/call-sheet-editor/CallSheetEditorSheet";
-import { setInquiryPayoutReceiver, loadInquiryPayoutReceiverCandidates, loadInquiryPaymentState, requestInquiryPayment, markInquiryPaymentPending, markInquiryPaymentReceived, initiateInquiryPayout, markInquiryPaymentDisputed, markInquiryPayoutSent, markInquiryPaymentFailed, cancelInquiryTransaction, createInquiryTransactionDraft, type PayoutReceiverOption, type InquiryPaymentState } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { setInquiryPayoutReceiver, loadInquiryPayoutReceiverCandidates, loadInquiryPaymentState, requestInquiryPayment, markInquiryPaymentPending, markInquiryPaymentReceived, initiateInquiryPayout, markInquiryPaymentDisputed, markInquiryPayoutSent, markInquiryPaymentFailed, cancelInquiryTransaction, createInquiryTransactionDraft, markInquiryPaidInCash, type PayoutReceiverOption, type InquiryPaymentState } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { useAdminShell, COLORS, FONTS, type InquiryRecord } from "../../state";
 import { type Conversation } from "../../talent";
 import { currentTalentId } from "../messages-shared";
@@ -411,6 +411,24 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
                 </div>
               </>
             )}
+          </div>
+        )}
+        {/* Off-platform: record the whole booking as paid in CASH / EFECTIVO in
+            one click. No Stripe, no payout receiver — the platform fee accrues to
+            the workspace off-platform balance. Shown until the booking settles. */}
+        {isAdmin && state?.bookingId && txStatus !== "paid" && txStatus !== "payout_pending" && txStatus !== "payout_sent" && (
+          <div className="mt-2 border-t border-admin-border pt-2.5">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run(t("dashboard.adminTabs.payment.markPaidCash"), () => markInquiryPaidInCash(effectiveTenant.slug, inquiry.id))}
+              style={ghostBtn()}
+            >
+              {pending ? t("dashboard.adminTabs.saving") : t("dashboard.adminTabs.payment.markPaidCash")}
+            </button>
+            <div className="text-[11px] mt-1 text-admin-ink-muted">
+              {t("dashboard.adminTabs.payment.markPaidCashHint")}
+            </div>
           </div>
         )}
       </DetailSection>
