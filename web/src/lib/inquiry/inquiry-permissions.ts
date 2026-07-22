@@ -51,18 +51,26 @@ function isStaffRole(role: string | null): boolean {
 }
 
 /** Participant row for permission checks (minimal). */
-async function loadParticipant(
+type ParticipantRow = { role: string; status: string; talent_profile_id: string | null };
+
+// Returns ALL participant rows for this user on the inquiry. A user can hold more
+// than one role on the same inquiry — e.g. a hybrid talent-manager who both
+// coordinates the booking AND is priced on it (hub self-coordination). The old
+// single-row `.maybeSingle()` returned NULL for such a user (multiple rows), which
+// made create_offer AND their own approval both 'forbidden' and stalled the offer
+// flow (E1). Resolving every row lets the permission gate authorize whichever of
+// the user's roles permits the action.
+async function loadParticipants(
   supabase: SupabaseClient,
   inquiryId: string,
   userId: string,
-): Promise<{ role: string; status: string; talent_profile_id: string | null } | null> {
+): Promise<ParticipantRow[]> {
   const { data } = await supabase
     .from("inquiry_participants")
     .select("role, status, talent_profile_id")
     .eq("inquiry_id", inquiryId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  return data ?? null;
+    .eq("user_id", userId);
+  return (data ?? []) as ParticipantRow[];
 }
 
 async function loadTalentProfileIdForUser(
@@ -132,7 +140,7 @@ export async function validateActorPermission(
   }
 
   const talentProfileId = await loadTalentProfileIdForUser(supabase, actorUserId);
-  const participant = await loadParticipant(supabase, inquiryId, actorUserId);
+  const participants = await loadParticipants(supabase, inquiryId, actorUserId);
 
   const clientActions: EngineAction[] = [
     "submit_inquiry",
@@ -180,21 +188,28 @@ export async function validateActorPermission(
     "convert_to_booking",
   ];
 
-  if (participant?.role === "coordinator" && participant.status === "active") {
-    if (coordinatorActions.includes(action) || action === "archive_inquiry") {
-      return { ok: true, isStaff: false, talentProfileId };
-    }
+  // Authorize on ANY of the user's roles (a hybrid holds several). Each branch
+  // mirrors the prior single-role logic; `.some()` is the only change.
+  if (
+    (coordinatorActions.includes(action) || action === "archive_inquiry") &&
+    participants.some((p) => p.role === "coordinator" && p.status === "active")
+  ) {
+    return { ok: true, isStaff: false, talentProfileId };
   }
 
-  if (participant?.role === "client" && participant.status === "active") {
-    if (clientActions.includes(action)) {
-      return { ok: true, isStaff: false, talentProfileId };
-    }
+  if (
+    clientActions.includes(action) &&
+    participants.some((p) => p.role === "client" && p.status === "active")
+  ) {
+    return { ok: true, isStaff: false, talentProfileId };
   }
 
-  if (participant?.role === "talent" && ["invited", "active"].includes(participant.status)) {
-    if (talentActions.includes(action)) {
-      return { ok: true, isStaff: false, talentProfileId: participant.talent_profile_id };
+  if (talentActions.includes(action)) {
+    const talentRow = participants.find(
+      (p) => p.role === "talent" && ["invited", "active"].includes(p.status),
+    );
+    if (talentRow) {
+      return { ok: true, isStaff: false, talentProfileId: talentRow.talent_profile_id };
     }
   }
 

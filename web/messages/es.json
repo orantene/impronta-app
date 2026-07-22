@@ -3376,7 +3376,9 @@
         "offerCreated": "Borrador de oferta creado",
         "statusRemoved": "Quitado",
         "unnamed": "Sin nombre",
-        "reorderFailed": "Error al reordenar: {error}"
+        "reorderFailed": "Error al reordenar: {error}",
+        "lineLabelPlaceholder": "Etiqueta de línea (p. ej. Día completo + viaje)",
+        "lineNotePlaceholder": "Qué incluye (opcional)"
       },
       "files": {
         "fileOver100": "El archivo supera el limite de 100 MB",

@@ -3376,7 +3376,9 @@
         "offerCreated": "Offer draft created",
         "statusRemoved": "Removed",
         "unnamed": "Unnamed",
-        "reorderFailed": "Reorder failed: {error}"
+        "reorderFailed": "Reorder failed: {error}",
+        "lineLabelPlaceholder": "Line label (e.g. Full-day + travel)",
+        "lineNotePlaceholder": "What's included (optional)"
       },
       "files": {
         "fileOver100": "File exceeds 100 MB cap",
