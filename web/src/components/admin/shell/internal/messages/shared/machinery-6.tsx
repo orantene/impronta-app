@@ -4,7 +4,7 @@ import React, { useState, useTransition, useEffect, type CSSProperties } from "r
 import { useT } from "@/i18n/use-t";
 import { interpolate, type Translator } from "@/i18n/interpolate";
 import { CallSheetEditorSheet } from "@/components/admin/call-sheet-editor/CallSheetEditorSheet";
-import { setInquiryPayoutReceiver, loadInquiryPayoutReceiverCandidates, loadInquiryPaymentState, requestInquiryPayment, markInquiryPaymentPending, markInquiryPaymentReceived, initiateInquiryPayout, markInquiryPaymentDisputed, markInquiryPayoutSent, markInquiryPaymentFailed, cancelInquiryTransaction, createInquiryTransactionDraft, markInquiryPaidInCash, type PayoutReceiverOption, type InquiryPaymentState } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { setInquiryPayoutReceiver, loadInquiryPayoutReceiverCandidates, loadInquiryPaymentState, requestInquiryPayment, markInquiryPaymentPending, markInquiryPaymentReceived, initiateInquiryPayout, markInquiryPaymentDisputed, markInquiryPayoutSent, markInquiryPaymentFailed, cancelInquiryTransaction, createInquiryTransactionDraft, type PayoutReceiverOption, type InquiryPaymentState } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { useAdminShell, COLORS, FONTS, type InquiryRecord } from "../../state";
 import { type Conversation } from "../../talent";
 import { currentTalentId } from "../messages-shared";
@@ -12,6 +12,7 @@ import { MOCK_OFFER_FOR_CONV, nextActionFor } from "./machinery-10";
 import type { OfferPov } from "./machinery-10";
 import { disabledBtn, ghostBtn, primaryBtn } from "./machinery-13";
 import { DetailField, DetailSection, DetailsPanel } from "./machinery-7";
+import { CashSettleControls } from "./payment-cash-settle";
 import type { Offer } from "./machinery-9";
 // Friendly labels for booking_transactions.status — source of truth is
 // status-labels.ts; the export alias keeps existing callers stable.
@@ -413,24 +414,14 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
             )}
           </div>
         )}
-        {/* Off-platform: record the whole booking as paid in CASH / EFECTIVO in
-            one click. No Stripe, no payout receiver — the platform fee accrues to
-            the workspace off-platform balance. Shown until the booking settles. */}
-        {isAdmin && state?.bookingId && txStatus !== "paid" && txStatus !== "payout_pending" && txStatus !== "payout_sent" && (
-          <div className="mt-2 border-t border-admin-border pt-2.5">
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => run(t("dashboard.adminTabs.payment.markPaidCash"), () => markInquiryPaidInCash(effectiveTenant.slug, inquiry.id))}
-              style={ghostBtn()}
-            >
-              {pending ? t("dashboard.adminTabs.saving") : t("dashboard.adminTabs.payment.markPaidCash")}
-            </button>
-            <div className="text-[11px] mt-1 text-admin-ink-muted">
-              {t("dashboard.adminTabs.payment.markPaidCashHint")}
-            </div>
-          </div>
-        )}
+        <CashSettleControls
+          show={Boolean(isAdmin && state?.bookingId) && txStatus !== "paid" && txStatus !== "payout_pending" && txStatus !== "payout_sent"}
+          tenantSlug={effectiveTenant.slug}
+          inquiryId={inquiry.id}
+          state={state ?? { bookingId: null, totalRevenueCents: null, currency: null, transaction: null, depositAmountCents: 0, depositPaid: false }}
+          pending={pending}
+          run={run}
+        />
       </DetailSection>
       {!isClient && (
         <DetailSection title={t("dashboard.adminTabs.payment.payouts")}>

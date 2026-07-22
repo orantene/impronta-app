@@ -2904,7 +2904,14 @@
         "actionOk": "{label} done",
         "unknownError": "Unknown error",
         "markPaidCash": "Mark as paid in cash",
-        "markPaidCashHint": "Records the full booking as paid in cash / efectivo (off-platform). No Stripe, no payout account needed; settles immediately."
+        "markPaidCashHint": "Records the full booking as paid in cash / efectivo (off-platform). No Stripe, no payout account needed; settles immediately.",
+        "cashMethodLabel": "Received via",
+        "cashMethodCash": "Cash / efectivo",
+        "cashMethodWire": "Bank transfer",
+        "cashMethodVenue": "Venue paid",
+        "markPaidCashDeposit": "Mark deposit paid in cash ({amount} {currency})",
+        "markPaidCashBalance": "Mark balance paid in cash",
+        "markPaidCashFull": "Mark full amount paid in cash"
       },
       "nextAction": {
         "showAria": "Show next action: {label}",

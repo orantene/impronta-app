@@ -2898,24 +2898,46 @@ export async function markInquiryPaidInCash(
   inquiryId: string,
   method: PaymentMethod = "cash",
   reason: string = "efectivo",
+  // 6.3 deposits: cash deals in the cash-first market are deposit-first. The
+  // coordinator can record just the deposit ('partial' booking, balance-due
+  // card emits), then later the balance. 'full' = whole amount (default,
+  // unchanged behaviour for existing callers).
+  checkoutType: "deposit" | "balance" | "full" = "full",
 ): Promise<PipelineActionResult> {
   if (!VALID_PAYMENT_METHODS.includes(method) || !isOffPlatformPaymentMethod(method)) {
     return { ok: false, error: "Cash settlement requires an off-platform method (cash, wire, venue, crypto, other)." };
   }
   const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
     // 1. Rail switch: stamp the snapshot off-platform (reclassify is a no-op if
-    //    already this method; it refuses only a settled booking).
+    //    already this method; it refuses only a settled booking). NB: after a
+    //    CASH deposit the booking is 'partial' but the snapshot is already this
+    //    method, so the balance step passes via the same-method early return. A
+    //    card-deposit -> cash-balance mix is refused by design (one method per
+    //    booking, ADR 2026-05-22).
     const reclass = await markBookingPaymentMethodAction(tenantSlug, bookingId, method, reason);
     if (!reclass.ok) throw new Error(reclass.error);
-    // 2. Ensure a transaction exists (createBookingTransaction drafts provider='manual').
+    // 2. Ensure a transaction of the RIGHT checkout type exists
+    //    (createBookingTransaction drafts provider='manual'). A stale DRAFT of a
+    //    different type (e.g. a 'full' draft when recording a deposit) is
+    //    cancelled and replaced; a mismatched txn that already left draft needs
+    //    the coordinator to resolve it explicitly.
     let txn = await loadActiveBookingTransaction(bookingId, supabase);
+    if (txn && txn.status === "paid") return; // already recorded
+    if (txn && txn.checkoutType !== checkoutType) {
+      if (txn.status === "draft" || txn.status === "payment_requested") {
+        const cancelled = await cancelTransaction(txn.id);
+        if (!cancelled.ok) throw new Error(cancelled.error);
+        txn = null;
+      } else {
+        throw new Error(`An active ${txn.checkoutType} transaction is in progress (${txn.status}). Resolve it before recording a ${checkoutType} cash payment.`);
+      }
+    }
     if (!txn) {
-      const draft = await createInquiryTransactionDraft(tenantSlug, inquiryId, "full");
+      const draft = await createInquiryTransactionDraft(tenantSlug, inquiryId, checkoutType);
       if (!draft.ok) throw new Error(draft.error);
       txn = await loadActiveBookingTransaction(bookingId, supabase);
     }
     if (!txn) throw new Error("Could not create a transaction to settle.");
-    if (txn.status === "paid") return; // already recorded
     // 3. Advance to paid (rail-aware: manual needs no payout receiver).
     if (txn.status === "draft") {
       const req = await requestPayment(txn.id);
