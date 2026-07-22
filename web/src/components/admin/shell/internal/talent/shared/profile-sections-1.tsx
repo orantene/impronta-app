@@ -249,46 +249,69 @@ export function ProfileHero() {
         overflow: "hidden",
       }}
     >
-      {/* Cover photo */}
+      {/* Cover photo. Empty state is a SHORT band with one actionable CTA —
+          the old 200px band shouting "No cover photo" in 48px dead text ate
+          the whole fold on a fresh profile. */}
       <div
         style={{
           position: "relative",
-          height: 200,
+          height: coverSrc ? 200 : 120,
           background: coverSrc
             ? `url(${coverSrc}) center/cover, ${COLORS.surfaceAlt}`
             : `linear-gradient(180deg, ${COLORS.surfaceAlt} 0%, rgba(15,79,62,0.18) 100%)`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 72,
-          letterSpacing: 8,
         }}
       >
-        {!coverSrc && <span style={{ filter: "saturate(0.8)", fontSize: 48, fontFamily: FONTS.body }} className="text-admin-ink-muted">No cover photo</span>}
-        <button
-          onClick={() => openSection("media")}
-          style={{
-            position: "absolute",
-            top: 12,
-            right: 12,
-            background: "rgba(11,11,13,0.55)",
-            color: "#fff",
-            border: "none",
-            padding: "5px 10px",
-            borderRadius: 999,
-            fontFamily: FONTS.body,
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: "pointer",
-            backdropFilter: "blur(6px)",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            letterSpacing: 0.3,
-          }}
-        >
-          <Icon name="palette" size={11} stroke={2} color="#fff" /> Replace cover
-        </button>
+        {!coverSrc && (
+          <button
+            onClick={() => openSection("media")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 14px",
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.85)",
+              border: `1px solid ${COLORS.borderSoft}`,
+              color: COLORS.ink,
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            <Icon name="palette" size={12} stroke={2} color={COLORS.accentDeep} /> Add a cover photo
+          </button>
+        )}
+        {coverSrc && (
+          <button
+            onClick={() => openSection("media")}
+            style={{
+              position: "absolute",
+              top: 12,
+              right: 12,
+              background: "rgba(11,11,13,0.55)",
+              color: "#fff",
+              border: "none",
+              padding: "5px 10px",
+              borderRadius: 999,
+              fontFamily: FONTS.body,
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              backdropFilter: "blur(6px)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              letterSpacing: 0.3,
+            }}
+          >
+            <Icon name="palette" size={11} stroke={2} color="#fff" /> Replace cover
+          </button>
+        )}
       </div>
 
       {/* Identity strip */}

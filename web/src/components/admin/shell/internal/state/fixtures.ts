@@ -4585,6 +4585,10 @@ export function buildFreshTalentProfile(bridge: {
   primaryTypeLabel: string | null;
   homeCity: string | null;
   headshotUrl: string | null;
+  /** The talent's REAL subscription tier from the bridge. Without it the
+   *  built profile stamped tier "free", so the profile hero's TierPill
+   *  contradicted the nav's plan badge (which reads the bridge tier). */
+  talentTier?: MyTalentProfile["subscription"]["tier"];
 }): MyTalentProfile {
   const initials =
     bridge.displayName
@@ -4686,7 +4690,7 @@ export function buildFreshTalentProfile(bridge: {
     portfolioVideos: [],
     showreelUrl: undefined,
     subscription: {
-      tier: "free",
+      tier: bridge.talentTier ?? "free",
       template: "roster",
       personalPageEnabled: false,
       customDomain: undefined,
