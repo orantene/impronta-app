@@ -29,6 +29,7 @@ import type {
   PaymentMethod,
   PersistedBookingCommissionSnapshot,
 } from "@/lib/billing/commission";
+import { isOffPlatformPaymentMethod } from "@/lib/billing/commission";
 import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 import { formatRateLimitedCopy } from "@/lib/i18n/error-copy";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
@@ -2855,8 +2856,17 @@ export async function markBookingPaymentMethodAction(
         error: "Payment already settled for this booking. Changing the method now needs a refund-style reversal — contact platform support to change.",
       };
     }
+    // persistBookingCommissionSnapshot upserts by natural key and does NOT rewrite
+    // an existing row's payment_method, so clear the current snapshot first, then
+    // re-persist with the new rail. Safe here: nothing has settled, so no
+    // transaction / movement rows depend on it. Service-role for the delete.
+    const svc = createServiceRoleClient() ?? supabase;
+    const { error: clearErr } = await svc.from("booking_commission_snapshot").delete().eq("booking_id", bookingId);
+    if (clearErr) {
+      return { ok: false, error: `Could not clear prior snapshot: ${clearErr.message}` };
+    }
     const reclassified = await persistBookingCommissionSnapshot(
-      supabase, bookingId, method, reason ?? null,
+      svc, bookingId, method, reason ?? null,
     );
     if (!reclassified.ok) {
       return { ok: false, error: `Could not reclassify commission: ${reclassified.detail ?? reclassified.reason}` };
@@ -2868,6 +2878,53 @@ export async function markBookingPaymentMethodAction(
     logServerError("admin._pipeline-actions.markBookingPaymentMethodAction", err);
     return { ok: false, error: "Unexpected error." };
   }
+}
+
+/**
+ * Record a booking as PAID IN CASH / EFECTIVO (off-platform) in one coordinator
+ * action. Composes the whole rail switch + settlement so the coordinator never
+ * has to click through the Stripe-shaped draft/request/receive steps:
+ *   1. reclassify the commission snapshot to the off-platform method (safe
+ *      pre-settlement; markBookingPaymentMethodAction blocks a settled booking);
+ *   2. ensure a transaction exists (manual by construction);
+ *   3. advance it draft -> payment_requested -> paid.
+ * No Stripe and no payout receiver required: the rail-aware trigger lets a
+ * manual transaction settle receiver-free, and the platform fee accrues to the
+ * workspace off-platform balance. See
+ * web/docs/off-platform-settlement-architecture-2026-07-14.md.
+ */
+export async function markInquiryPaidInCash(
+  tenantSlug: string,
+  inquiryId: string,
+  method: PaymentMethod = "cash",
+  reason: string = "efectivo",
+): Promise<PipelineActionResult> {
+  if (!VALID_PAYMENT_METHODS.includes(method) || !isOffPlatformPaymentMethod(method)) {
+    return { ok: false, error: "Cash settlement requires an off-platform method (cash, wire, venue, crypto, other)." };
+  }
+  const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
+    // 1. Rail switch: stamp the snapshot off-platform (reclassify is a no-op if
+    //    already this method; it refuses only a settled booking).
+    const reclass = await markBookingPaymentMethodAction(tenantSlug, bookingId, method, reason);
+    if (!reclass.ok) throw new Error(reclass.error);
+    // 2. Ensure a transaction exists (createBookingTransaction drafts provider='manual').
+    let txn = await loadActiveBookingTransaction(bookingId, supabase);
+    if (!txn) {
+      const draft = await createInquiryTransactionDraft(tenantSlug, inquiryId, "full");
+      if (!draft.ok) throw new Error(draft.error);
+      txn = await loadActiveBookingTransaction(bookingId, supabase);
+    }
+    if (!txn) throw new Error("Could not create a transaction to settle.");
+    if (txn.status === "paid") return; // already recorded
+    // 3. Advance to paid (rail-aware: manual needs no payout receiver).
+    if (txn.status === "draft") {
+      const req = await requestPayment(txn.id);
+      if (!req.ok) throw new Error(req.error);
+    }
+    const paid = await markPaid(txn.id);
+    if (!paid.ok) throw new Error(paid.error);
+  });
+  return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
 /**
