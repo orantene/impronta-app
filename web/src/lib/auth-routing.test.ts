@@ -105,6 +105,38 @@ test("talent users resolve to /talent and are redirected away from /admin", () =
   );
 });
 
+test("hybrid staff (super_admin / agency_staff) are NOT bounced off /talent", () => {
+  // A workspace owner / super-admin can also be a talent on a roster. The
+  // /talent guard must let staff through (the talent layout gates on the
+  // actual talent profile) so the Talent toggle + welcome-panel links work.
+  for (const staff of [activeAdmin, activeAgencyStaff]) {
+    for (const path of ["/talent", "/talent/inbox", "/talent/calendar", "/talent/profile"]) {
+      assert.equal(
+        resolveAuthRoutingDecision({
+          pathname: path,
+          userId: "hybrid-1",
+          sessionProfile: staff,
+          routingProfile: staff,
+          isImpersonating: false,
+        }).redirectTo,
+        null,
+        `${staff.app_role} should reach ${path}, not be redirected`,
+      );
+    }
+  }
+  // Clients (non-staff, non-talent) are still bounced off /talent.
+  assert.equal(
+    resolveAuthRoutingDecision({
+      pathname: "/talent/inbox",
+      userId: "client-1",
+      sessionProfile: activeClient,
+      routingProfile: activeClient,
+      isImpersonating: false,
+    }).redirectTo,
+    "/client",
+  );
+});
+
 test("client users resolve to /client and are redirected away from /admin", () => {
   assert.equal(resolveAuthenticatedDestination(activeClient), "/client");
   assert.deepEqual(resolveAccountHref(true, activeClient), {
