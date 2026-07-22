@@ -71,7 +71,21 @@ The cash button records the FULL amount in one shot. Real cash deals in Mexico a
 
 ---
 
-## PHASE 2 — Stripe card-rail live proof  *(M; mostly verification; has OWNER steps)*
+## PHASE 2 — Stripe card rail live proof — **PROVEN IN TEST MODE 2026-07-22 (this PR)**
+
+**The human-KYC blocker dissolved:** Stripe TEST mode allows a CUSTOM connected account to be fully enabled via API (prefilled test identity + tos_acceptance + test bank 110000000/000123456789) — no owner onboarding needed. `scripts/qa-stripe-card-e2e.mts` proves, on the prod DB + real Stripe test objects:
+- test account `payouts_enabled` via API, platform balance funded by a real (test) card charge;
+- a card-rail booking's talent leg records **HELD** with no account at pay time;
+- stamping the account + `releaseHeldPayouts` → **real transfer lands** (`tr_…`, destination = the talent's account, amount = exact `talent_net` 48500);
+- a **payout** (`po_…`, status pending) is created from the connected account to the test bank — money-lands, test-mode equivalent;
+- both prod webhook routes (`/api/webhooks/stripe`, `/api/stripe/webhook`) are mounted and reject unsigned (400);
+- full cleanup: test account deleted, talent columns restored, all rows removed.
+
+**What remains for LIVE mode is launch ops, not code:** swap `sk_live`, set `STRIPE_ALLOW_LIVE_PAYOUTS=true`, one real talent completes Express KYC, re-run this harness pointed at live (small amount). The code path is proven.
+
+Original plan (reference):
+
+### (original) PHASE 2 — Stripe card-rail live proof  *(M; mostly verification; has OWNER steps)*
 
 The card rail is code-complete but never proven with money movement past the charge. Pre-launch, prove the chain: charge → split → transfer → payout lands.
 
