@@ -51,7 +51,7 @@ export async function MarketingFooter() {
         <div className="grid gap-12 md:grid-cols-[1.25fr_repeat(4,_1fr)] md:gap-10">
           <div className="max-w-xs">
             <div className="flex items-center" style={{ color: "var(--plt-ink-strong)" }}>
-              <TulalaLogo markSize={28} wordmarkHeight={24} withDigital />
+              <TulalaLogo wordmarkHeight={24} />
             </div>
             <p
               className="mt-5 text-[0.9375rem] leading-[1.6]"

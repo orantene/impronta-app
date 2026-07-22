@@ -755,7 +755,7 @@ function MobileSection({
 function TulalaHeaderLogo() {
   return (
     <span style={{ color: "var(--plt-ink-strong)" }}>
-      <TulalaLogo markSize={28} wordmarkHeight={25} withDigital />
+      <TulalaLogo wordmarkHeight={25} />
     </span>
   );
 }

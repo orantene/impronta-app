@@ -1,20 +1,19 @@
-import { useId } from "react";
-
 /**
  * Tulala brand lockup — the canonical logo system.
  *
  * Three pieces, composable per surface:
  *
- * - `TulalaWordmark` — a custom-drawn monoline "tulala." (SVG paths, not a
- *   font). Rounded geometric strokes inherit `currentColor` so the mark sits
- *   on light or inverse surfaces; only the full-stop carries the brand
- *   accent. This is THE wordmark — never re-set "tulala" in Geist/Fraunces.
- * - `TulalaMark` — the compact app tile: forest squircle with three rising
- *   notes ("tu·la·la"), the lead note in brand orange. Favicon, footer,
- *   avatars, anywhere the full wordmark doesn't fit.
- * - `TulalaLogo` — mark + wordmark lockup for headers. Pass `withDigital`
- *   to append ".digital" in muted ink — the product's full name is
- *   "tulala.digital", the wordmark alone is a shorthand, not a rename.
+ * - `TulalaWordmark` — a custom-drawn monoline "tulala" (SVG paths, not a
+ *   font) whose full-stop rises into a three-dot trail: a solid dot on the
+ *   baseline, then two smaller dots drifting up and to the right, fading as
+ *   they go ("tu·la·la" trailing off). Letter strokes inherit `currentColor`;
+ *   only the trail carries the accent. This is THE wordmark — never re-set
+ *   "tulala" in Geist/Fraunces.
+ * - `TulalaMark` — the compact mark: the same rising trail, standalone on a
+ *   transparent background. Favicon, avatars, anywhere the full wordmark
+ *   doesn't fit. It is a crop of the wordmark's own trail, so mark and
+ *   wordmark read as one system.
+ * - `TulalaLogo` — thin wrapper for header/footer call sites.
  *
  * Colors are literal brand constants on purpose: the logo must not re-theme
  * with surface tokens (only the letter strokes adapt via currentColor).
@@ -27,7 +26,7 @@ const BRAND_FOREST_DEEP = "#132419";
 const BRAND_BONE = "#f4efe6";
 
 /** Aspect ratio of the wordmark viewBox (width / height). */
-const WORDMARK_RATIO = 116 / 36;
+const WORDMARK_RATIO = 120 / 36;
 
 export function TulalaWordmark({
   height = 24,
@@ -36,7 +35,7 @@ export function TulalaWordmark({
 }: {
   /** Rendered height in px; width follows the viewBox ratio. */
   height?: number;
-  /** Full-stop accent. Defaults to brand orange; pass forest on tenant surfaces. */
+  /** Trail accent. Defaults to brand orange; pass forest on tenant surfaces. */
   dotColor?: string;
   className?: string;
 }) {
@@ -44,7 +43,7 @@ export function TulalaWordmark({
     <svg
       width={Math.round(height * WORDMARK_RATIO)}
       height={height}
-      viewBox="0 0 116 36"
+      viewBox="0 0 120 36"
       fill="none"
       aria-hidden
       className={className}
@@ -71,7 +70,10 @@ export function TulalaWordmark({
         <circle cx="93" cy="22.1" r="8.25" />
         <path d="M101 14 V30" />
       </g>
+      {/* the rising trail — full-stop drifting up-right, fading */}
       <circle cx="110.5" cy="28.6" r="3.6" fill={dotColor} />
+      <circle cx="113.6" cy="20.6" r="2.5" fill={dotColor} opacity="0.7" />
+      <circle cx="116.2" cy="14.4" r="1.7" fill={dotColor} opacity="0.45" />
     </svg>
   );
 }
@@ -83,7 +85,6 @@ export function TulalaMark({
   size?: number;
   className?: string;
 }) {
-  const gradientId = `tl-mark-grad-${useId()}`;
   return (
     <svg
       width={size}
@@ -93,59 +94,26 @@ export function TulalaMark({
       aria-hidden
       className={className}
     >
-      <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor={BRAND_FOREST_BRIGHT} />
-          <stop offset="1" stopColor={BRAND_FOREST_DEEP} />
-        </linearGradient>
-      </defs>
-      <rect x="1" y="1" width="30" height="30" rx="9" fill={`url(#${gradientId})`} />
-      <circle cx="9.5" cy="21.5" r="2.3" fill={BRAND_BONE} opacity="0.75" />
-      <circle cx="15.8" cy="17.2" r="2.9" fill={BRAND_BONE} />
-      <circle cx="22.8" cy="11.8" r="3.6" fill={BRAND_ORANGE} />
+      <circle cx="11" cy="23.8" r="6.2" fill={BRAND_ORANGE} />
+      <circle cx="17.8" cy="14.8" r="4.4" fill={BRAND_ORANGE} opacity="0.7" />
+      <circle cx="23.4" cy="7.6" r="3" fill={BRAND_ORANGE} opacity="0.45" />
     </svg>
   );
 }
 
 export function TulalaLogo({
-  markSize = 28,
   wordmarkHeight = 26,
-  withMark = true,
-  withDigital = false,
   className,
 }: {
-  markSize?: number;
   wordmarkHeight?: number;
-  withMark?: boolean;
-  /** Append ".digital" after the wordmark — the product is "tulala.digital", not just "tulala". */
-  withDigital?: boolean;
   className?: string;
 }) {
   return (
     <span
       aria-hidden
-      className={`inline-flex items-center gap-2.5 leading-none ${className ?? ""}`}
+      className={`inline-flex items-center leading-none ${className ?? ""}`}
     >
-      {withMark ? <TulalaMark size={markSize} /> : null}
-      <span className="inline-flex items-end leading-none">
-        <TulalaWordmark height={wordmarkHeight} />
-        {withDigital ? (
-          <span
-            style={{
-              fontFamily:
-                "var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif",
-              fontWeight: 500,
-              fontSize: Math.round(wordmarkHeight * 0.62),
-              lineHeight: 1,
-              color: "var(--plt-ink-soft)",
-              marginLeft: Math.round(wordmarkHeight * 0.1),
-              transform: `translateY(${-Math.round(wordmarkHeight * 0.08)}px)`,
-            }}
-          >
-            digital
-          </span>
-        ) : null}
-      </span>
+      <TulalaWordmark height={wordmarkHeight} />
     </span>
   );
 }

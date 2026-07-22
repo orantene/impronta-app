@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 116 36" role="img" aria-label="tulala.">
-  <title>tulala.</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 36" role="img" aria-label="tulala">
+  <title>tulala</title>
   <g fill="none" stroke="#161a16" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
     <path d="M8 7.5 V25 Q8 30 13 30"/>
     <path d="M3.5 14 H13.5"/>
@@ -12,4 +12,6 @@
     <path d="M101 14 V30"/>
   </g>
   <circle cx="110.5" cy="28.6" r="3.6" fill="#ff8332"/>
+  <circle cx="113.6" cy="20.6" r="2.5" fill="#ff8332" opacity="0.7"/>
+  <circle cx="116.2" cy="14.4" r="1.7" fill="#ff8332" opacity="0.45"/>
 </svg>
