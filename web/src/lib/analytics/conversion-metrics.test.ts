@@ -9,13 +9,21 @@ import {
   type RevenueRawRow,
 } from "@/lib/analytics/website-analytics";
 
-const START_30 = "2026-05-18T00:00:00.000Z";
-const START_7 = "2026-06-10T00:00:00.000Z";
+// Offsets from "now" rather than fixed calendar dates: `loadWebsiteConversionMetrics`
+// derives its 7d/30d windows from the real wall clock (see `windowStartIso` in
+// website-analytics.ts), so hardcoded absolute dates eventually age out of that
+// window and the loader tests below start failing on their own (no code change needed
+// to "fix" them — the fixture just goes stale as calendar time passes).
+const NOW = Date.now();
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const START_30 = new Date(NOW - 30 * DAY_MS).toISOString();
+const START_7 = new Date(NOW - 7 * DAY_MS).toISOString();
 
 // in window 30d but OUTSIDE 7d
-const OLD = "2026-05-20T12:00:00.000Z";
+const OLD = new Date(NOW - 20 * DAY_MS).toISOString();
 // inside 7d
-const RECENT = "2026-06-15T12:00:00.000Z";
+const RECENT = new Date(NOW - 2 * DAY_MS).toISOString();
 
 // ── groupConversionMetrics — pure shape + window derivation ──────────────────
 
