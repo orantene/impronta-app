@@ -21,7 +21,18 @@ Shipped and prod-proven in the preceding sessions (all smoke-green):
 
 ---
 
-## PHASE 0 — Supabase migration-history reconciliation  *(do first; S–M; blocks everything with a migration)*
+## PHASE 0 — Supabase migration-history reconciliation — **DONE 2026-07-22 (this PR)**
+
+**Executed + proven:** `db push` runs clean; second push = "Remote database is up to date"; `migration list --linked` = 547 rows, **0 remote-only / 0 local-only**; `db:check` 547/547.
+
+**Corrected diagnosis (the plan below was written before the fix):**
+- The 2 "crypto migrations mis-detected as pending" were actually a **timestamp collision**: main carried TWO files per version (`20261018000000_recipient_safety_blocks_reports.sql` + `20261018000000_talent_crypto_payouts_enabled.sql`; same for `20261019000000`). One history row per version exists, so the CLI forever re-tried the twin and died on the duplicate insert. Fix: renamed the crypto pair to fresh timestamps `20260722210335/6` (their SQL is `add column if not exists` — idempotent; push re-applied as no-op skips and recorded history).
+- The 7 remote-only versions (`20260531003041…20260613063759`, MCP-applied historically) were materialized as documented no-op placeholder files (`*_applied_via_mcp_placeholder.sql`) — their schema is live; the files exist so the CLI history comparison passes.
+- `20261110100000` was a false alarm: it is the deliberately parked `_pending_stripe/*.sql.pending` file (excluded from push by design).
+
+Original plan (for reference):
+
+### (original) PHASE 0 — Supabase migration-history reconciliation *(superseded by the executed fix above)*
 
 **Why first:** `npm run db:push` currently REFUSES to run. During #833 the migration had to be applied through a direct pooler connection. Every future migration (Phase 1 probably, Phase 3 certainly) hits this wall, and the failure mode is the known catastrophic one: code auto-deploys, schema doesn't → silent 500s.
 
