@@ -314,8 +314,10 @@ export function TalentTodayPage() {
       )}
 
       {/* WS-9.2 — modern first-run banner for returning-but-incomplete users
-          (after Day-1 so it doesn't clash with FirstSessionChecklist). */}
-      {!isDay1 && profile.completeness < 40 && (
+          (after Day-1 so it doesn't clash with FirstSessionChecklist).
+          Also hidden while the fresh-talent setup band above is showing —
+          ONE card owns onboarding at a time; they used to stack. */}
+      {!isDay1 && profile.completeness < 40 && !onboardingCompleteness && (
         <TalentFirstRunBanner />
       )}
 
@@ -323,7 +325,7 @@ export function TalentTodayPage() {
           threshold. Indigo soft (info, not urgent) with a clear CTA.
           Auto-disappears at >= 80% so it never becomes wallpaper. Hidden
           on Day-1 since the FirstSessionChecklist owns that moment. */}
-      {!isDay1 && profile.completeness >= 40 && profile.completeness < 80 && (
+      {!isDay1 && profile.completeness >= 40 && profile.completeness < 80 && !onboardingCompleteness && (
         <ProfileCompletenessBanner
           percent={profile.completeness}
           missing={profile.missing}
