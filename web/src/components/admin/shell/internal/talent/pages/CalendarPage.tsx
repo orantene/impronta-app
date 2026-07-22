@@ -616,7 +616,7 @@ export function CalendarPage() {
       {/* Week view — 7-row stack with day labels. Same row format as
           the list below but explicitly grouped by day. */}
       {viewMode === "week" && (
-        <CalendarWeekView events={effectiveEvents} onOpen={(d) => openDrawer(d.id, d.payload)} />
+        <CalendarWeekView events={effectiveEvents} onOpen={(d) => openDrawer(d.id, d.payload)} year={calYear} month={calMonth} />
       )}
 
       {/* Day view — single-day timeline with morning/afternoon/evening

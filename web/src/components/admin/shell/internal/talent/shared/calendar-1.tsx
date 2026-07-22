@@ -354,13 +354,37 @@ function CalendarColorLegend() {
 export function CalendarWeekView({
   events,
   onOpen,
+  year,
+  month,
 }: {
   events: { id: string; kind: string; client: string; brief: string; dateLabel: string; status: string; startDay: number | null; drawer: { id: import("../../state").DrawerId; payload: Record<string, unknown> } }[];
   onOpen: (d: { id: import("../../state").DrawerId; payload: Record<string, unknown> }) => void;
+  /** The page's selected calendar year/month (1-based month) — the same pair
+   *  the events' `startDay` values were parsed against. */
+  year: number;
+  month: number;
 }) {
-  // Anchor on May 12–18 (week containing the prototype's mock conflict).
-  const weekStart = 12;
-  const days = Array.from({ length: 7 }, (_, i) => weekStart + i);
+  // Anchor on a REAL week (Mon–Sun): the week containing today when the
+  // selected month is the current one, else the week containing the 1st of
+  // the selected month. Was hardcoded to "May 12–18, 2026" (a prototype-era
+  // mock anchor), which contradicted the page's month header.
+  const now = new Date();
+  const inCurrentMonth = now.getFullYear() === year && now.getMonth() + 1 === month;
+  const anchor = inCurrentMonth ? now : new Date(year, month - 1, 1);
+  const mondayOffset = (anchor.getDay() + 6) % 7; // 0 = Monday
+  const weekDates = Array.from({ length: 7 }, (_, i) =>
+    new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - mondayOffset + i),
+  );
+  // `startDay` is a day-of-month within (year, month) — only match a week
+  // slot when that slot actually falls inside the selected month.
+  const dayNumberFor = (d: Date): number | null =>
+    d.getFullYear() === year && d.getMonth() === month - 1 ? d.getDate() : null;
+  const fmtShort = (d: Date) => d.toLocaleString("en-US", { month: "short", day: "numeric" });
+  const weekLabel = `Week of ${fmtShort(weekDates[0]!)} — ${fmtShort(weekDates[6]!)}, ${weekDates[6]!.getFullYear()}`;
+  const visibleCount = events.filter((e) => {
+    if (e.startDay === null) return false;
+    return weekDates.some((d) => dayNumberFor(d) === e.startDay);
+  }).length;
   return (
     <section
       style={{
@@ -381,32 +405,33 @@ export function CalendarWeekView({
         }}
       >
         <div className="flex items-center gap-3.5">
-          <CapsLabel>Week of May 12 — May 18, 2026</CapsLabel>
+          <CapsLabel>{weekLabel}</CapsLabel>
           {/* Audit #34 — color legend so the left-border tones are scannable */}
           <CalendarColorLegend />
         </div>
         <span className="text-admin-ink-muted text-admin-11h">
-          {events.filter((e) => e.startDay !== null && days.includes(e.startDay!)).length} events
+          {visibleCount} events
         </span>
       </div>
-      {days.map((d) => {
-        const dayEvents = events.filter((e) => e.startDay === d);
-        const dayName = ["Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Mon"][d - weekStart] ?? "";
+      {weekDates.map((date, i) => {
+        const dayNumber = dayNumberFor(date);
+        const dayEvents = dayNumber === null ? [] : events.filter((e) => e.startDay === dayNumber);
+        const dayName = date.toLocaleString("en-US", { weekday: "short" });
         return (
           <div
-            key={d}
+            key={date.toISOString()}
             style={{
               display: "flex",
               gap: 12,
               padding: "10px 14px",
-              borderTop: d === weekStart ? "none" : `1px solid ${COLORS.borderSoft}`,
+              borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
               background: dayEvents.length > 0 ? "#fff" : "rgba(11,11,13,0.015)",
               fontFamily: FONTS.body,
             }}
           >
             <div style={{ width: 60, flexShrink: 0 }}>
               <div style={{ fontSize: 18, fontWeight: 500, fontFamily: FONTS.display, letterSpacing: -0.2 }} className="text-admin-ink">
-                {d}
+                {date.getDate()}
               </div>
               <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: 0.7 }} className="text-admin-ink-muted">
                 {dayName}
