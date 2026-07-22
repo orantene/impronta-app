@@ -109,11 +109,14 @@ The card rail is code-complete but never proven with money movement past the cha
 
 **Probed facts (2026-07-22, test key):** the v2 API is reachable and authorized with the current key, but `/v2/money_management/financial_accounts` is **empty** → `isGlobalPayoutsActive()` = false, and the master switch is `connect`. The rail is dormant purely because Stripe has not provisioned the money-management/Global-Payouts capability on this account.
 
-### Owner activation runbook (the one real step is asking Stripe)
-1. **Stripe dashboard:** request/enable **Global Payouts** (money management) and — for the Express-wallet flavor — **crypto payouts** for Connect, if offered for your account. When Stripe provisions it, a financial account appears and `isGlobalPayoutsActive()` flips true automatically (the code polls that endpoint).
-2. Flip the master switch on `/platform/admin/settings` → `global_payouts`.
-3. Pilot one talent: crypto opt-in (`crypto_payouts_enabled`) → GP onboarding (recipient created, `gp_recipient_account_id` stamped) → small disburse; verify the leg in `booking_payouts` with `payout_rail='global_payouts'`.
-4. Going live-money: `sk_live` + `STRIPE_ALLOW_LIVE_PAYOUTS=true` (the guard only bites on live keys).
+### Owner activation runbook — CONNECT-FIRST (owner decision 2026-07-22: "I need Connect, not Global Payouts")
+The platform stays on the **Connect** rail (master switch already `connect` — nothing to flip). USDC arrives via **Stripe crypto payouts for Connect**; the app's transfer path (proven in Phase 2) is byte-identical.
+1. **Stripe dashboard (the one real step):** enable **Crypto payouts** for Connect. Check recipient-country eligibility for your talents when applying.
+2. **Talent:** normal Express KYC → Express dashboard (the app's login-link helper drops them there) → add a **crypto wallet** payout method → choose **USDC**.
+3. **App:** no change. Transfers keep paying `talent_net` to the connected account; Stripe converts + delivers USDC.
+4. Going live-money: `sk_live` + `STRIPE_ALLOW_LIVE_PAYOUTS=true` (guard only bites on live keys) + re-run `qa-stripe-card-e2e.mts` with a small amount.
+
+*(The v2 Global Payouts rail stays DORMANT behind the master switch — code-complete + tested optionality if ever wanted; ignore otherwise. Its old runbook: request Global Payouts in the dashboard → financial account appears → `isGlobalPayoutsActive()` flips → switch to `global_payouts` → per-talent opt-in + GP onboarding.)*
 
 Original plan (reference):
 
