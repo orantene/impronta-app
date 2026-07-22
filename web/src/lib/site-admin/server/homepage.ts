@@ -57,7 +57,7 @@
 
 import { improntaLog } from "@/lib/server/structured-log";
 import { randomUUID } from "node:crypto";
-import { revalidateTag } from "next/cache";
+import { safeRevalidateTag } from "./render-safe-cache";
 import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
 
 import {
@@ -243,9 +243,11 @@ function bustHomepageTags(tenantId: string, pageId: string, locale: Locale): voi
   // actions, page-composer-action, site-shell-backfill-action all use
   // it); switching to "max" would change semantics and split the
   // convention.
-  revalidateTag(tagFor(tenantId, "homepage", { locale }), "default");
-  revalidateTag(tagFor(tenantId, "pages", { id: pageId }), "default");
-  revalidateTag(tagFor(tenantId, "pages-all"), "default");
+  // safeRevalidateTag: publishHomepage runs during render in the provisioning
+  // trampoline (onboardStarterContent). See render-safe-cache.ts.
+  safeRevalidateTag(tagFor(tenantId, "homepage", { locale }), "default");
+  safeRevalidateTag(tagFor(tenantId, "pages", { id: pageId }), "default");
+  safeRevalidateTag(tagFor(tenantId, "pages-all"), "default");
 }
 
 async function insertHomepageRevision(
