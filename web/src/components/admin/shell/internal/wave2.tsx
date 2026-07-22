@@ -4463,24 +4463,27 @@ export function TalentFirstRunBanner() {
   if (dismissed) return null;
 
   return (
-    <div style={{ background: "linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)", padding: "20px 20px 16px", fontFamily: FONTS.body, marginBottom: 20, color: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }} className="rounded-admin-xl">
-      {/* Progress dots */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+    // Light on-system card — mirrors ClientFirstRunBanner. Was a dark navy
+    // gradient panel that clashed with the light admin chrome (the only dark
+    // block on the whole talent surface).
+    <div style={{ border: `1px solid ${COLORS.border}`, padding: "18px 18px 14px", fontFamily: FONTS.body, marginBottom: 20 }} className="bg-admin-surface-alt rounded-admin-xl">
+      {/* Step pills */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {TALENT_FIRST_RUN_STEPS.map((s) => (
           <div key={s.step} style={{
-            width: s.step <= currentStep ? 20 : 6,
-            height: 6, borderRadius: 999,
-            background: s.step <= currentStep ? COLORS.accent : "rgba(255,255,255,0.2)",
-            transition: "all .25s ease",
+            height: 5, borderRadius: 999,
+            flex: s.step === currentStep ? 3 : 1,
+            background: s.step < currentStep ? COLORS.accent : s.step === currentStep ? COLORS.accent + "88" : COLORS.border,
+            transition: "all .25s",
           }} />
         ))}
       </div>
 
-      <div style={{ fontSize: 28, marginBottom: 8 }}>{step.emoji}</div>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+      <div style={{ fontSize: 24, marginBottom: 6 }}>{step.emoji}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }} className="text-admin-ink">
         {interpolate(t("dashboard.adminWave.firstRunStepTitle"), { step: step.step, title: t(step.titleKey) })}
       </div>
-      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 16, lineHeight: 1.55 }}>
+      <div style={{ fontSize: 13, marginBottom: 14, lineHeight: 1.55 }} className="text-admin-ink-muted">
         {t(step.bodyKey)}
       </div>
 
@@ -4504,8 +4507,8 @@ export function TalentFirstRunBanner() {
             onClick={() => setCurrentStep((n) => n + 1)}
             style={{
               padding: "8px 14px", borderRadius: 999,
-              background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.75)",
-              border: "none", cursor: "pointer",
+              background: "transparent", color: COLORS.inkMuted,
+              border: `1px solid ${COLORS.borderSoft}`, cursor: "pointer",
               fontFamily: FONTS.body, fontSize: 13,
             }}
           >
@@ -4517,7 +4520,7 @@ export function TalentFirstRunBanner() {
             onClick={() => setDismissed(true)}
             style={{
               padding: "8px 14px", borderRadius: 999,
-              background: "transparent", color: "rgba(255,255,255,0.5)",
+              background: "transparent", color: COLORS.inkDim,
               border: "none", cursor: "pointer",
               fontFamily: FONTS.body, fontSize: 12,
             }}
