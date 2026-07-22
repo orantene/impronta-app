@@ -100,7 +100,24 @@ The card rail is code-complete but never proven with money movement past the cha
 
 ---
 
-## PHASE 3 — USDC / stablecoin payout rail  *(L; the strategic program; OWNER decisions gate the start)*
+## PHASE 3 — USDC / stablecoin rail — **AUDITED 2026-07-22: CODE-COMPLETE + TESTED; blocked only on Stripe-side enablement**
+
+**Correction to this plan's framing:** the "4 owner decisions (provider/chain/conversion/keys)" were already decided and BUILT — the provider is **Stripe**, inside the Connect ecosystem. There is no separate chain/conversion decision: Stripe handles delivery (talent links a wallet, USDC arrives). Two complementary flavors, both on main:
+
+1. **Connect crypto payouts** (owner's stated model): the classic Connect transfer — **proven end-to-end in Phase 2** — with the talent linking a crypto wallet in their Express dashboard and setting **USDC as their payout currency**. Zero app change needed; the login-link helper that drops talents into the Express dashboard already exists (`stripe-connect-talent.ts`).
+2. **v2 Global Payouts rail** (for wallet/local-bank recipients outside Connect): `disburse.ts` OutboundPayments from the platform financial account → v2 recipient (`gp_recipient_account_id`), per-talent opt-in `crypto_payouts_enabled`, country eligibility, and the super-admin master switch `platform_settings.active_payout_system` on `/platform/admin/settings`. Onboarding (`global-payouts-onboarding.ts`) creates the v2 core-account recipient + Stripe-hosted collection link. **35/35 rail tests green**; `disburse` + `payout-rail-policy` run in the standing `test:money` suite.
+
+**Probed facts (2026-07-22, test key):** the v2 API is reachable and authorized with the current key, but `/v2/money_management/financial_accounts` is **empty** → `isGlobalPayoutsActive()` = false, and the master switch is `connect`. The rail is dormant purely because Stripe has not provisioned the money-management/Global-Payouts capability on this account.
+
+### Owner activation runbook (the one real step is asking Stripe)
+1. **Stripe dashboard:** request/enable **Global Payouts** (money management) and — for the Express-wallet flavor — **crypto payouts** for Connect, if offered for your account. When Stripe provisions it, a financial account appears and `isGlobalPayoutsActive()` flips true automatically (the code polls that endpoint).
+2. Flip the master switch on `/platform/admin/settings` → `global_payouts`.
+3. Pilot one talent: crypto opt-in (`crypto_payouts_enabled`) → GP onboarding (recipient created, `gp_recipient_account_id` stamped) → small disburse; verify the leg in `booking_payouts` with `payout_rail='global_payouts'`.
+4. Going live-money: `sk_live` + `STRIPE_ALLOW_LIVE_PAYOUTS=true` (the guard only bites on live keys).
+
+Original plan (reference):
+
+### (original) PHASE 3 — USDC / stablecoin payout rail  *(L; the strategic program; OWNER decisions gate the start)*
 
 **Grounding (verified 2026-07-22):**
 - Branch `feat/usdc-stablecoin-payouts` (`1e2538162`, worktree `~/Desktop/impronta-usdc`) holds a ~384-line spike: **Stripe Connect crypto payouts (preview)** incl. `stripe/webhook-routing.ts` — but it's based on a ~June base and predates the off-platform architecture.
