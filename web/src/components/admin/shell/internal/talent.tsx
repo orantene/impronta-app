@@ -45,7 +45,10 @@ export function TalentSurface() {
         tabIndex={-1}
         data-tulala-surface-main
         style={{
-          padding: "28px 28px 60px",
+          // 96px bottom clearance so the last row of content (right-aligned
+          // buttons especially) scrolls clear of the floating quick-actions
+          // FAB instead of parking underneath it.
+          padding: "28px 28px 96px",
           maxWidth: 1240,
           margin: "0 auto",
           outline: "none",
