@@ -2904,7 +2904,14 @@
         "actionOk": "{label} listo",
         "unknownError": "Error desconocido",
         "markPaidCash": "Marcar como pagado en efectivo",
-        "markPaidCashHint": "Registra la reserva completa como pagada en efectivo (fuera de la plataforma). Sin Stripe ni cuenta de pago; se liquida al instante."
+        "markPaidCashHint": "Registra la reserva completa como pagada en efectivo (fuera de la plataforma). Sin Stripe ni cuenta de pago; se liquida al instante.",
+        "cashMethodLabel": "Recibido por",
+        "cashMethodCash": "Efectivo",
+        "cashMethodWire": "Transferencia bancaria",
+        "cashMethodVenue": "Pagado por el venue",
+        "markPaidCashDeposit": "Marcar depósito pagado en efectivo ({amount} {currency})",
+        "markPaidCashBalance": "Marcar saldo pagado en efectivo",
+        "markPaidCashFull": "Marcar monto completo pagado en efectivo"
       },
       "nextAction": {
         "showAria": "Mostrar siguiente accion: {label}",
