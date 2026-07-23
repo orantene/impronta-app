@@ -75,7 +75,7 @@ export function ProfileCompletenessBanner({
         </div>
         <div style={{ fontSize: 11.5, opacity: 0.75, marginTop: 1 }} className="text-admin-indigo-deep">
           {missing.length > 0
-            ? `${missing.slice(0, 3).join(" · ")}`
+            ? `${missing.slice(0, 3).map((m) => copy.t(m)).join(" · ")}`
             : copy.t("A few more fields and agencies favour your profile in pitches.")}
         </div>
       </div>

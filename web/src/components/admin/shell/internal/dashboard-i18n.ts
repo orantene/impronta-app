@@ -2802,6 +2802,11 @@ const ES_TEXT: Record<string, string> = {
   "Later": "Más tarde",
   "Read-only preview. Edit your page content from My pages.": "Vista de solo lectura. Edita el contenido de tu página desde Mis páginas.",
 
+  // ── W9: profile field-catalog chip labels (Today setup band) ──
+  "Contact email": "Correo de contacto",
+  "Contact phone": "Teléfono de contacto",
+  "Home base city": "Ciudad base",
+
 };
 
 export function translateDashboardText(

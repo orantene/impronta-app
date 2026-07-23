@@ -288,7 +288,7 @@ export function TalentTodayPage() {
                     cursor: "pointer",
                   }}
                 >
-                  + {m.label}
+                  + {copy.t(m.label)}
                 </button>
               ))}
             </div>
