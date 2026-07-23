@@ -146,6 +146,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       // 100–1K/mo, LOW-competition term). The flatMap emits /agencia-de-talento
       // and /es/agencia-de-talento; the page serves both locales.
       "/agencia-de-talento",
+      // "contratar modelos" hire landing — the one client-facing category page
+      // the directory actually has supply for (models are the large majority of
+      // the discoverable set). One page, both locales: the flatMap emits
+      // /contratar-modelos and /es/contratar-modelos.
+      "/contratar-modelos",
       // Supporting marketing pages. (/status and /waitlist are deliberately
       // excluded — operational pages, not content we want ranked.)
       "/integrations",
