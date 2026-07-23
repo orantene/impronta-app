@@ -14,7 +14,7 @@
 // Extracted from primitives.tsx — Phase 1f decomposition.
 
 import type { CSSProperties, ReactNode } from "react";
-import { COLORS, RADIUS, TRANSITION } from "../state";
+import { COLORS, accentAlpha, RADIUS, TRANSITION } from "../state";
 
 export type CardKind = "primary" | "info" | "quiet";
 
@@ -29,7 +29,7 @@ const CARD_STYLES: Record<CardKind, CSSProperties> = {
   },
   info: {
     background: COLORS.brandSoft,
-    border: `1px solid ${COLORS.brand}1a`,
+    border: `1px solid ${accentAlpha("1a")}`,
     borderRadius: RADIUS.lg,
     padding: 16,
   },

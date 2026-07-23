@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useC
 import { useRouter } from "next/navigation";
 import {
   COLORS,
+  accentAlpha,
   CapsLabel,
   DrawerShell,
   FONTS,
@@ -52,7 +53,7 @@ export function CalendarSyncDrawer() {
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "12px 14px", background: COLORS.surfaceAlt,
-                  borderRadius: RADIUS.md, border: `1px solid ${intg.connected ? COLORS.accent + "44" : COLORS.borderSoft}`,
+                  borderRadius: RADIUS.md, border: `1px solid ${intg.connected ? accentAlpha("44") : COLORS.borderSoft}`,
                 }}
               >
                 <div className="flex items-center gap-2.5">
@@ -375,7 +376,7 @@ export function BetaProgramDrawer() {
             key={flag.id}
             style={{
               padding: "14px 16px", background: COLORS.surfaceAlt,
-              borderRadius: RADIUS.lg, border: `1px solid ${flag.enrolled ? COLORS.accent + "44" : COLORS.borderSoft}`,
+              borderRadius: RADIUS.lg, border: `1px solid ${flag.enrolled ? accentAlpha("44") : COLORS.borderSoft}`,
               display: "flex", gap: 12, alignItems: "flex-start",
             }}
           >
@@ -678,7 +679,7 @@ export function MigrationAssistantDrawer() {
                     style={{
                       display: "flex", alignItems: "center", gap: 12,
                       padding: "12px 14px", background: source === key ? COLORS.accentSoft : COLORS.surfaceAlt,
-                      border: `1px solid ${source === key ? COLORS.accent + "44" : COLORS.borderSoft}`,
+                      border: `1px solid ${source === key ? accentAlpha("44") : COLORS.borderSoft}`,
                       borderRadius: RADIUS.md, cursor: "pointer", fontFamily: FONTS.body, textAlign: "left",
                       transition: TRANSITION.sm,
                     }}

@@ -286,6 +286,10 @@ export type BridgeData = {
     /** Optional brand logo URL — replaces the TULALA wordmark in the
      *  identity bar when set. */
     logoUrl?: string | null;
+    /** Whitelabel accent hex — injected as `--tulala-accent` on the shell
+     *  root so the admin chrome adopts the agency's brand color. Only set
+     *  for whitelabel-tier tenants; null/undefined = Tulala's forest green. */
+    accentColor?: string | null;
     /**
      * Task 0.5 — The tenant's verified custom domain hostname, if any.
      * Populated from `agency_domains` where kind='custom' and

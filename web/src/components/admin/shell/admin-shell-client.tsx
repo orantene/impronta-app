@@ -1337,6 +1337,20 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
 }
 
 function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
+  const { bridgeTenantIdentity } = useAdminShell();
+  // Whitelabel accent — only set for whitelabel-tier tenants (the loader
+  // already gates + hex-validates it). When present, `--tulala-accent` and
+  // `--tulala-accent-deep` re-tint every accent token in the shell; when
+  // absent the COLORS fallbacks (forest green) win, so default chrome is
+  // untouched. accent-deep is derived from the same hue at reduced lightness
+  // via color-mix so a single stored hex drives both.
+  const accent = bridgeTenantIdentity?.accentColor ?? null;
+  const accentVars = accent
+    ? ({
+        ["--tulala-accent" as never]: accent,
+        ["--tulala-accent-deep" as never]: `color-mix(in srgb, ${accent} 78%, #000)`,
+      } as React.CSSProperties)
+    : undefined;
   return (
     <>
         {/* Global keyboard-focus styling for the admin shell. Scoped via
@@ -2486,6 +2500,9 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             // mode-shell topbars/sidebars) so they offset correctly
             // whether the dev control bar is shown or hidden.
             ["--proto-cbar" as never]: showDevBar ? "50px" : "0px",
+            // Whitelabel accent (whitelabel-tier tenants only) — re-tints the
+            // shell's accent tokens from the agency's brand color.
+            ...accentVars,
             background: COLORS.surface,
             minHeight: "100vh",
             fontFamily: FONTS.body,

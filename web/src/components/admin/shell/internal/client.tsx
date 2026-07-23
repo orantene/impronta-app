@@ -33,6 +33,7 @@ import {
   CLIENT_PAGE_META,
   CLIENT_PLAN_META,
   COLORS,
+  accentAlpha,
   DISCOVER_TALENT,
   TAXONOMY,
   RADIUS,
@@ -2781,7 +2782,7 @@ export function ClientCounterOfferDrawer() {
             </div>
 
             {/* Your counter */}
-            <div style={{ ...SIDE, borderColor: COLORS.accent + "66", background: COLORS.accent + "08" }}>
+            <div style={{ ...SIDE, borderColor: accentAlpha("66"), background: accentAlpha("08") }}>
               <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 8 }} className="text-admin-accent">
                 Your counter
               </div>
@@ -3094,7 +3095,7 @@ export function ClientSavedSearchDrawer() {
               style={{
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "9px 14px", borderTop: `1px solid ${COLORS.borderSoft}`,
-                background: s.alert ? COLORS.accent + "06" : "transparent",
+                background: s.alert ? accentAlpha("06") : "transparent",
               }}
             >
               <span
@@ -3517,7 +3518,7 @@ export function ClientBudgetDrawer() {
                 style={{
                   flex: 1, padding: "7px 0", borderRadius: RADIUS.md,
                   border: `1px solid ${alertAt === pct ? COLORS.accent : COLORS.border}`,
-                  background: alertAt === pct ? COLORS.accent + "10" : "#fff",
+                  background: alertAt === pct ? accentAlpha("10") : "#fff",
                   fontFamily: FONTS.body, fontSize: 13,
                   fontWeight: alertAt === pct ? 700 : 400,
                   color: alertAt === pct ? COLORS.accent : COLORS.ink,
