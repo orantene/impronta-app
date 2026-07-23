@@ -2814,6 +2814,10 @@ const ES_TEXT: Record<string, string> = {
   "Agencies can't pitch you for these dates.": "Las agencias no pueden proponerte trabajos en estas fechas.",
   "Manage in Calendar": "Gestionar en Calendario",
 
+  // ── W11: talent sidebar group labels ──
+  "Work": "Trabajo",
+  "Presence": "Presencia",
+
 };
 
 export function translateDashboardText(
