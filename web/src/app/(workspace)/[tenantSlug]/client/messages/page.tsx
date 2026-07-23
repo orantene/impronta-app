@@ -5,6 +5,7 @@
 import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   loadClientSelfProfile,
   loadClientInquiries,
@@ -73,16 +74,38 @@ export default async function ClientMessagesPage({
     ? pinnedMatch
     : inquiries[0]?.id ?? null;
 
+  // The initial thread/details loaders are tenant-scoped (they filter
+  // inquiries.tenant_id). Under XTENANT_REHOME the active row may be one this
+  // client OWNS but that was re-homed onto a managing agency, so its real
+  // tenant_id differs from this hub's scope; preloading against the hub scope
+  // would render a blank first paint for a re-homed inquiry. Resolve the row's
+  // ACTUAL tenant (RLS gates this read to the client's own inquiry via
+  // client_user_id = auth.uid()) and preload against it. Gated on the flag so
+  // it is a strict no-op — zero extra round-trips — while re-home is off.
+  let activeTenantId = scope.tenantId;
+  if (initialActiveId && process.env.XTENANT_REHOME === "1") {
+    const supabase = await createSupabaseServerClient();
+    const { data: activeRow } = supabase
+      ? await supabase
+          .from("inquiries")
+          .select("tenant_id")
+          .eq("id", initialActiveId)
+          .eq("client_user_id", session.user.id)
+          .maybeSingle()
+      : { data: null };
+    if (activeRow?.tenant_id) activeTenantId = activeRow.tenant_id as string;
+  }
+
   // Phase C — load Details payload + private-thread messages in parallel for
   // the initial active inquiry. The shell mounts Details tab content from
   // server data so the first paint is rich (no spinner-and-fetch).
   // Private thread = agency + client; group thread is the talent fan-out.
   const [initialMessages, initialDetails] = await Promise.all([
     initialActiveId
-      ? loadInquiryMessages(scope.tenantId, initialActiveId, "private")
+      ? loadInquiryMessages(activeTenantId, initialActiveId, "private")
       : Promise.resolve([]),
     initialActiveId
-      ? loadClientInquiryDetails(scope.tenantId, initialActiveId)
+      ? loadClientInquiryDetails(activeTenantId, initialActiveId)
       : Promise.resolve(null),
   ]);
 

@@ -289,8 +289,30 @@ export type ClientInquiryRow = {
 };
 
 /**
- * Load all inquiries submitted by this client to this tenant.
+ * Load all inquiries submitted by this client that belong to THIS hub portal.
  * Ordered by most recent first. Cap at 200.
+ *
+ * XTENANT_REHOME (flag-gated, default off): when a client submits through a
+ * platform hub about an exclusive talent, the inquiry is re-homed onto the
+ * managing agency (`tenant_id` becomes the agency) while `source_workspace_id`
+ * stays frozen at the hub it entered through. The strict `tenant_id = tenantId`
+ * filter alone would then drop the row from the very portal the client
+ * submitted it from, leaving access only via the /c deep link. The `.or`
+ * below returns the row under either identity:
+ *   (a) `tenant_id = tenantId`            — unchanged, today's behaviour, and
+ *   (b) a re-homed row the client OWNS that ORIGINATED here:
+ *       `client_user_id = userId AND source_workspace_id = tenantId`.
+ *
+ * Security: `client_user_id = userId` is kept as an AND inside branch (b) so
+ * it can NEVER surface another client's inquiry — branch (b) only ever relaxes
+ * the tenant filter for THIS client's own rows. (RLS `inquiries_merged_select_public`,
+ * USING client_user_id = auth.uid(), is the backstop, but the loader is scoped
+ * on its own.) Branch (a) is likewise implicitly client-scoped by the outer
+ * `.eq('client_user_id', userId)` that AND-wraps the whole `.or`.
+ *
+ * No-op when the flag is off: with re-home disabled every hub inquiry has
+ * `source_workspace_id = tenant_id`, so branch (b) is a strict subset of
+ * branch (a) and the result set is byte-identical to the pre-change query.
  */
 export async function loadClientInquiries(
   userId: string,
@@ -303,8 +325,10 @@ export async function loadClientInquiries(
     const { data, error } = await supabase
       .from("inquiries")
       .select("id, status, event_date, event_location, company, quantity, created_at, next_action_by, source_pitch_id, source_channel")
-      .eq("tenant_id", tenantId)
+      // Outer AND: every row must belong to this client. The re-home branch
+      // only relaxes the TENANT filter, never the client-ownership filter.
       .eq("client_user_id", userId)
+      .or(`tenant_id.eq.${tenantId},source_workspace_id.eq.${tenantId}`)
       .order("created_at", { ascending: false })
       .limit(200);
 
@@ -317,18 +341,22 @@ export async function loadClientInquiries(
     if (rows.length === 0) return [];
 
     const inquiryIds = rows.map((row) => row.id);
+    // Enrichment is keyed on inquiry_id (the `inquiryIds` set is already
+    // derived from THIS client's own rows above), not on the hub `tenantId`.
+    // A re-homed inquiry's messages/reads live under the managing agency's
+    // tenant_id (= its home tenant), so a `.eq('tenant_id', tenantId)` filter
+    // here would miss them and the re-homed row would show a stale 0 unread /
+    // no preview. RLS keeps these reads scoped to threads the client can see.
     const [readsRes, messagesRes] = await Promise.all([
       supabase
         .from("inquiry_message_reads")
         .select("inquiry_id, last_read_at")
-        .eq("tenant_id", tenantId)
         .eq("user_id", userId)
         .eq("thread_type", "private")
         .in("inquiry_id", inquiryIds),
       supabase
         .from("inquiry_messages")
         .select("inquiry_id, sender_user_id, body, created_at")
-        .eq("tenant_id", tenantId)
         .eq("thread_type", "private")
         .is("deleted_at", null)
         .in("inquiry_id", inquiryIds),

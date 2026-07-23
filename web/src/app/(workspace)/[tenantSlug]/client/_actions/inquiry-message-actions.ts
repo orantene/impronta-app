@@ -40,20 +40,28 @@ export async function sendClientMessageAction(
 
     const scope = await getTenantPortalScopeBySlug(tenantSlug);
     if (!scope) return { ok: false, error: "Tenant not found." };
-    const tenantId = scope.tenantId;
 
-    // Confirm the inquiry is owned by this client (single-tenant scope).
+    // Ownership — NOT tenant scope — is the authorization gate. Load the
+    // inquiry RLS-scoped by the acting client's ownership (client_user_id =
+    // auth.uid(); enforced by both this predicate and RLS
+    // inquiries_merged_select_public). Under XTENANT_REHOME the row this client
+    // OWNS may have been re-homed onto a managing agency, so inquiries.tenant_id
+    // no longer equals this hub's scope; the engine gates every write on the
+    // inquiry's tenant_id, so we must resolve and use the inquiry's OWN tenant.
+    // Flag-off, source_workspace_id == tenant_id, so the resolved tenant equals
+    // scope.tenantId and this is a strict no-op.
     const { data: inq, error: lookupErr } = await session.supabase
       .from("inquiries")
       .select("id, client_user_id, tenant_id")
       .eq("id", inquiryId)
-      .eq("tenant_id", tenantId)
+      .eq("client_user_id", session.user.id)
       .maybeSingle();
 
     if (lookupErr || !inq) return { ok: false, error: "Inquiry not found." };
     if (inq.client_user_id !== session.user.id) {
       return { ok: false, error: "Not authorised to message this inquiry." };
     }
+    const tenantId = inq.tenant_id as string;
 
     // Self-elevate INSERT — RLS on inquiry_messages blocks even legitimate
     // clients on the agency-client thread (see engine-internal comment + RLS walk).
@@ -98,20 +106,25 @@ export async function markClientThreadReadAction(
     const scope = await getTenantPortalScopeBySlug(tenantSlug);
     if (!scope) return { ok: false };
 
-    // Confirm ownership before touching the read-marker table.
+    // Ownership is the gate. Load the inquiry RLS-scoped by the acting client's
+    // ownership and read its OWN tenant_id (re-homed inquiries carry the agency
+    // tenant, not this hub scope; the engine writes the read marker with that
+    // tenant_id and gates the inquiry lookup on it). Flag-off it equals
+    // scope.tenantId, so this is a strict no-op.
     const { data: inq } = await session.supabase
       .from("inquiries")
-      .select("id, client_user_id")
+      .select("id, client_user_id, tenant_id")
       .eq("id", inquiryId)
-      .eq("tenant_id", scope.tenantId)
+      .eq("client_user_id", session.user.id)
       .maybeSingle();
     if (!inq || inq.client_user_id !== session.user.id) return { ok: false };
+    const tenantId = inq.tenant_id as string;
 
     const admin = createServiceRoleClient();
     const write = admin ?? session.supabase;
     const res = await engineMarkThreadRead(write, {
       inquiryId,
-      tenantId: scope.tenantId,
+      tenantId,
       actorUserId: session.user.id,
       threadType: "private",
       lastMessageId,
@@ -152,21 +165,37 @@ export async function editClientMessageAction(
     const scope = await getTenantPortalScopeBySlug(tenantSlug);
     if (!scope) return { ok: false, error: "Tenant not found." };
 
-    // Verify the message belongs to this client's inquiry on this tenant.
+    // Verify the message is this client's own, on an inquiry they own. Ownership
+    // is the gate, not tenant scope. Look up the message (no tenant filter, so a
+    // re-homed message on the agency tenant is still found), confirm the client
+    // is the sender, then load the parent inquiry RLS-scoped by client ownership
+    // to (a) prove the acting user owns the inquiry and (b) resolve its OWN
+    // tenant_id for the engine (which gates the message lookup/update on it).
+    // Flag-off, the inquiry tenant equals scope.tenantId, so this is a no-op.
     const admin = createServiceRoleClient();
     const read = admin ?? session.supabase;
     const { data: msg } = await read
       .from("inquiry_messages")
       .select("id, inquiry_id, sender_user_id, tenant_id")
       .eq("id", messageId)
-      .eq("tenant_id", scope.tenantId)
       .maybeSingle();
     if (!msg) return { ok: false, error: "Message not found." };
     if (msg.sender_user_id !== session.user.id) return { ok: false, error: "You can only edit your own messages." };
 
+    const { data: inq } = await session.supabase
+      .from("inquiries")
+      .select("id, client_user_id, tenant_id")
+      .eq("id", msg.inquiry_id as string)
+      .eq("client_user_id", session.user.id)
+      .maybeSingle();
+    if (!inq || inq.client_user_id !== session.user.id) {
+      return { ok: false, error: "You can only edit your own messages." };
+    }
+    const tenantId = inq.tenant_id as string;
+
     const result = await engineEditMessage(read, {
       messageId,
-      tenantId: scope.tenantId,
+      tenantId,
       actorUserId: session.user.id,
       body: trimmed,
     });
@@ -200,20 +229,36 @@ export async function deleteClientMessageAction(
     const scope = await getTenantPortalScopeBySlug(tenantSlug);
     if (!scope) return { ok: false, error: "Tenant not found." };
 
+    // Ownership is the gate, not tenant scope. Look up the message (no tenant
+    // filter, so a re-homed message on the agency tenant is still found),
+    // confirm the client is the sender, then load the parent inquiry RLS-scoped
+    // by client ownership to prove the acting user owns the inquiry and resolve
+    // its OWN tenant_id for the engine (which gates the message lookup/update on
+    // it). Flag-off, the inquiry tenant equals scope.tenantId — a strict no-op.
     const admin = createServiceRoleClient();
     const read = admin ?? session.supabase;
     const { data: msg } = await read
       .from("inquiry_messages")
       .select("id, inquiry_id, sender_user_id, tenant_id")
       .eq("id", messageId)
-      .eq("tenant_id", scope.tenantId)
       .maybeSingle();
     if (!msg) return { ok: false, error: "Message not found." };
     if (msg.sender_user_id !== session.user.id) return { ok: false, error: "You can only delete your own messages." };
 
+    const { data: inq } = await session.supabase
+      .from("inquiries")
+      .select("id, client_user_id, tenant_id")
+      .eq("id", msg.inquiry_id as string)
+      .eq("client_user_id", session.user.id)
+      .maybeSingle();
+    if (!inq || inq.client_user_id !== session.user.id) {
+      return { ok: false, error: "You can only delete your own messages." };
+    }
+    const tenantId = inq.tenant_id as string;
+
     const result = await engineDeleteMessage(read, {
       messageId,
-      tenantId: scope.tenantId,
+      tenantId,
       actorUserId: session.user.id,
     });
     if (!result.success) {
