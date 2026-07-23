@@ -452,6 +452,10 @@ const MARKETING_PAGE_PREFIXES = [
   // `/help` is a four-role docs hub (operators / agencies / talents / clients).
   "/status",
   "/help",
+  // Talent-category landing pages (`/for/models`, `/for/musicians`, ...).
+  // Two segments on purpose: a single-segment `/models` would collide with
+  // the tenant-slug namespace, `/for/*` never can.
+  "/for",
   // Global Talent Directory — public, platform-wide cross-tenant browse of
   // the discoverable set (talent_discover_index matview). Reads no per-tenant
   // private data, requires no auth. `/directory` is already reserved in

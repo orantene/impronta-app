@@ -108,6 +108,15 @@ export async function FinalCtaSection() {
                 </li>
               ))}
             </ul>
+
+            {/* Brand vision signature. The one place this message appears: the
+                hero carries the value message, the logo lockup the category. */}
+            <p
+              className="plt-display mx-auto mt-14 max-w-lg text-[1.0625rem] font-medium leading-[1.5] tracking-[-0.01em] sm:text-[1.1875rem]"
+              style={{ color: "rgba(241,237,227,0.56)" }}
+            >
+              {copy.vision}
+            </p>
           </div>
         </div>
       </MarketingContainer>

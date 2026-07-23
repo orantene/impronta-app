@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TalentCategoryLinks } from "@/components/marketing/category-landing";
 import { ContrastSection } from "@/components/marketing/contrast-section";
 import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { HowItWorksSection } from "@/components/marketing/how-it-works-section";
@@ -335,6 +336,7 @@ export default async function OperatorsPage() {
       <ContrastSection />
       <HowItWorksSection />
       <NetworkSection />
+      <TalentCategoryLinks locale={locale} />
       <FinalCtaSection />
     </>
   );

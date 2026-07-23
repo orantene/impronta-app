@@ -330,6 +330,9 @@ const en = {
       "Full export any time",
       "Upgrade to your own domain",
     ],
+    // Brand vision line. Closes the homepage; deliberately the only place this
+    // message appears (the hero carries the value message, the logo the category).
+    vision: "Your Talent. Your Business. Your Digital World.",
   },
 
   footer: {
@@ -681,6 +684,7 @@ const es: MarketingCopy = {
       "Exporta cuando quieras",
       "Conecta tu propio dominio",
     ],
+    vision: "Tu Talento. Tu Negocio. Tu Mundo Digital.",
   },
 
   footer: {
