@@ -341,6 +341,7 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     // Global Talent Directory — public cross-tenant browse on the marketing host.
     "/directory",
     "/agencia-de-talento",
+    "/about",
     // Auth surfaces are reachable on the marketing apex (tulala.digital): OAuth
     // callbacks use window.location.origin as the redirectTo base, and the
     // branded sign-in / registration entry points live on the apex too. The
