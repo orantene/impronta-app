@@ -14205,6 +14205,28 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: number
       }
+      builder_template_usage_totals: {
+        Args: never
+        Returns: {
+          applied_count: number
+          template_id: string
+          tenant_count: number
+        }[]
+      }
+      count_builder_component_section_embed_keys: {
+        Args: never
+        Returns: {
+          embed_key: string
+          n: number
+        }[]
+      }
+      count_builder_component_usage: {
+        Args: never
+        Returns: {
+          kind: string
+          n: number
+        }[]
+      }
       cms_page_revisions_trim: {
         Args: { p_keep?: number; p_page_id: string; p_tenant_id: string }
         Returns: number
