@@ -18,7 +18,7 @@ function getSteps(locale: string): Step[] {
         index: "01",
         title: "Claim your roster site.",
         body:
-          "Sign up, add the people you represent — one, ten, or forty — and upload their work. Get a branded roster site on our domain, or bring your own when you upgrade.",
+          "Sign up, add the people you represent (one, ten, or forty) and upload their work. Get a branded roster site on our domain, or bring your own when you upgrade.",
         highlight: `${PLATFORM_BRAND.domain}/your-roster`,
       },
       {
@@ -32,7 +32,7 @@ function getSteps(locale: string): Step[] {
         index: "03",
         title: "Inquiries come to you.",
         body:
-          "Structured inquiries land in your inbox — not another chat thread. Review, respond, and turn them into real bookings.",
+          "Structured inquiries land in your inbox, not another chat thread. Review, respond, and turn them into real bookings.",
         highlight: "Inquiry → Offer → Booking",
       },
     ],
@@ -41,7 +41,7 @@ function getSteps(locale: string): Step[] {
         index: "01",
         title: "Crea el sitio de tu roster.",
         body:
-          "Regístrate, agrega a las personas que representas —una, diez o cuarenta— y sube su trabajo. Obtén un sitio de roster con tu marca en nuestro dominio, o usa el tuyo propio cuando mejores de plan.",
+          "Regístrate, agrega a las personas que representas (una, diez o cuarenta) y sube su trabajo. Obtén un sitio de roster con tu marca en nuestro dominio, o usa el tuyo propio cuando mejores de plan.",
         highlight: `${PLATFORM_BRAND.domain}/tu-roster`,
       },
       {
@@ -55,7 +55,7 @@ function getSteps(locale: string): Step[] {
         index: "03",
         title: "Las solicitudes llegan solas.",
         body:
-          "Las solicitudes ordenadas llegan a tu bandeja —no a otro hilo de chat más—. Revísalas, responde y conviértelas en reservas reales.",
+          "Las solicitudes ordenadas llegan a tu bandeja, no a otro hilo de chat más. Revísalas, responde y conviértelas en reservas reales.",
         highlight: "Solicitud → Oferta → Reserva",
       },
     ],
@@ -73,7 +73,7 @@ export async function HowItWorksSection() {
       intro: "Most coordinators are running a business with tools built for personal chat.",
       introBrandTail: " gives you the structure without the overhead.",
       ctaWalkthrough: "The full walkthrough",
-      ctaGetStarted: "Or skip ahead — start free",
+      ctaGetStarted: "Or skip ahead and start free",
     },
     es: {
       eyebrow: "Cómo funciona",
@@ -82,7 +82,7 @@ export async function HowItWorksSection() {
       intro: "La mayoría de los coordinadores manejan un negocio con herramientas hechas para chatear con amigos.",
       introBrandTail: " te da la estructura sin la complicación.",
       ctaWalkthrough: "El recorrido completo",
-      ctaGetStarted: "O ve directo al grano — empieza gratis",
+      ctaGetStarted: "O ve directo al grano y empieza gratis",
     },
   });
   return (

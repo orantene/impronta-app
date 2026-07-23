@@ -31,7 +31,7 @@ export function DirectoryTalentRow({ talent }: { talent: DirectoryCardRow }) {
           <TrustBadge tier={talent.trustTier} />
         </div>
         <p className="truncate text-[0.8125rem] leading-snug" style={{ color: "var(--plt-muted)" }}>
-          {[talent.primaryTypeLabel, loc].filter(Boolean).join(" · ") || "—"}
+          {[talent.primaryTypeLabel, loc].filter(Boolean).join(" · ") || "·"}
         </p>
       </div>
 

@@ -27,12 +27,12 @@ const ROLE_LABELS: Record<Role, RoleContent> = {
   operators: {
     title: "Help for independent operators",
     intro:
-      "Independent operators run a roster on their own — no agency, no staff, just you and the people you represent. Tulala gives you a polished public URL, an inquiry pipeline that doesn't live in your DMs, and a free plan that stays free until you outgrow it.",
+      "Independent operators run a roster on their own: no agency, no staff, just you and the people you represent. Tulala gives you a polished public URL, an inquiry pipeline that doesn't live in your DMs, and a free plan that stays free until you outgrow it.",
     guides: [
       {
         heading: "Claim your free Tulala URL",
         body:
-          "Visit /get-started, pick \"Independent operator,\" enter your name + email, choose your link name (e.g. tulala.digital/your-name), and click \"Create my free workspace.\" Your public roster goes live immediately — no credit card, no review queue.",
+          "Visit /get-started, pick \"Independent operator,\" enter your name + email, choose your link name (e.g. tulala.digital/your-name), and click \"Create my free workspace.\" Your public roster goes live immediately. No credit card, no review queue.",
       },
       {
         heading: "Add your first 5 people",
@@ -47,7 +47,7 @@ const ROLE_LABELS: Record<Role, RoleContent> = {
       {
         heading: "Move clients off WhatsApp",
         body:
-          "Every inquiry has a shareable link. Send it instead of forwarding photos and PDFs through chat. Clients can browse the proposed talent, approve, request changes — and you have a real timeline + audit log instead of scrollback.",
+          "Every inquiry has a shareable link. Send it instead of forwarding photos and PDFs through chat. Clients can browse the proposed talent, approve, or request changes. You get a real timeline + audit log instead of scrollback.",
       },
       {
         heading: "When to upgrade to Studio ($49/mo)",
@@ -65,7 +65,7 @@ const ROLE_LABELS: Record<Role, RoleContent> = {
       {
         heading: "Set up your custom domain",
         body:
-          "Settings → Workspace → Domain. Add the domain you own (e.g. agency-name.com). Tulala issues an SSL cert automatically. DNS instructions are shown in the panel — typically a CNAME or A record. SSL is usually live within 5 minutes of correct DNS.",
+          "Settings → Workspace → Domain. Add the domain you own (e.g. agency-name.com). Tulala issues an SSL cert automatically. DNS instructions are shown in the panel, typically a CNAME or A record. SSL is usually live within 5 minutes of correct DNS.",
       },
       {
         heading: "Curate your talent types",
@@ -75,7 +75,7 @@ const ROLE_LABELS: Record<Role, RoleContent> = {
       {
         heading: "Add coordinators + role-scope access",
         body:
-          "Settings → Team & legal → invite by email. Each seat gets one of: Viewer (read-only), Editor (can update profiles), Manager (can send inquiries), Admin (full ops), Owner (one per workspace, can change billing). Inquiry coordination is scoped per-inquiry — a coordinator on one job isn't automatically on the next.",
+          "Settings → Team & legal → invite by email. Each seat gets one of: Viewer (read-only), Editor (can update profiles), Manager (can send inquiries), Admin (full ops), Owner (one per workspace, can change billing). Inquiry coordination is scoped per-inquiry: a coordinator on one job isn't automatically on the next.",
       },
       {
         heading: "Wire Stripe for booking payments + commission splits",
@@ -85,12 +85,12 @@ const ROLE_LABELS: Record<Role, RoleContent> = {
       {
         heading: "Branded inquiry inbox + CMS pages",
         body:
-          "Your branded site at your custom domain has full CMS-driven page editing under Website. Inquiry inbox lives at Messages — combined view across all open inquiries with status pills, lineup, offer, event details, files. Status messages and offers are versioned with audit history.",
+          "Your branded site at your custom domain has full CMS-driven page editing under Website. Inquiry inbox lives at Messages, a combined view across all open inquiries with status pills, lineup, offer, event details, files. Status messages and offers are versioned with audit history.",
       },
       {
         heading: "Multi-currency + LATAM-friendly",
         body:
-          "Set Settings → Workspace → Default currency. Inquiry pricing, offers, and Stripe transactions all use that currency. Multi-currency talent roster supported — each talent has their own default_currency that flows through to their payout.",
+          "Set Settings → Workspace → Default currency. Inquiry pricing, offers, and Stripe transactions all use that currency. Multi-currency talent roster is supported: each talent has their own default_currency that flows through to their payout.",
       },
     ],
     ctaPrimary: { label: "Start a 14-day Agency trial", href: "/get-started?audience=agency" },
@@ -98,7 +98,7 @@ const ROLE_LABELS: Record<Role, RoleContent> = {
   talents: {
     title: "Help for talents on a roster",
     intro:
-      "If you're on an agency's roster (or you have your own Tulala link as an independent talent), this is where you manage everything a client sees about you — your profile, your availability, your bookings, and your earnings.",
+      "If you're on an agency's roster (or you have your own Tulala link as an independent talent), this is where you manage everything a client sees about you: your profile, your availability, your bookings, and your earnings.",
     guides: [
       {
         heading: "Edit your profile",
@@ -118,7 +118,7 @@ const ROLE_LABELS: Record<Role, RoleContent> = {
       {
         heading: "Manage your bookings + earnings",
         body:
-          "Talent → Money. Shows confirmed bookings, pending payouts, and lifetime earnings by currency. PDF income summary for taxes available year-by-year. Pay attention to the commission split — agency rate is shown per booking before you accept.",
+          "Talent → Money. Shows confirmed bookings, pending payouts, and lifetime earnings by currency. PDF income summary for taxes available year-by-year. Pay attention to the commission split; the agency rate is shown per booking before you accept.",
       },
       {
         heading: "Connect your payout method",
@@ -170,10 +170,10 @@ const ROLE_LABELS: Record<Role, RoleContent> = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { role } = await params;
-  if (!isRole(role)) return { title: "Help — Tulala" };
+  if (!isRole(role)) return { title: "Help · Tulala" };
   const c = ROLE_LABELS[role];
   return {
-    title: `${c.title} — Tulala`,
+    title: `${c.title} · Tulala`,
     description: c.intro.slice(0, 160),
   };
 }
@@ -270,7 +270,7 @@ export default async function HelpRolePage({ params }: Props) {
           >
             help@tulala.digital
           </a>
-          {" "}— we read every message and respond inside 24 hours.
+          {". We read every message and respond inside 24 hours."}
         </p>
         <Link
           href={c.ctaPrimary.href}

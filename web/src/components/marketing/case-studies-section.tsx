@@ -385,7 +385,7 @@ function CaseStudyModal({
                   &ldquo;{study.quote}&rdquo;
                 </p>
                 <footer className="mt-2 text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
-                  — {study.persona}, {study.role}
+                  {study.persona}, {study.role}
                 </footer>
               </blockquote>
 

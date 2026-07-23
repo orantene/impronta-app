@@ -35,13 +35,13 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Mexico City",
     cardTitle: "A booking page that sounds like her record",
     cardSummary:
-      "Daniela turned a free profile into a personal site with her music built in — and venues book her without a single DM.",
+      "Daniela turned a free profile into a personal site with her music built in, and venues book her without a single DM.",
     challenge:
-      "Daniela booked gigs through Instagram DMs and a link-in-bio. Promoters couldn't hear her, see her rider, or check a date without three back-and-forth messages — and half never replied.",
+      "Daniela booked gigs through Instagram DMs and a link-in-bio. Promoters couldn't hear her, see her rider, or check a date without three back-and-forth messages, and half never replied.",
     approach: [
       "Built a personal site in one click, then embedded her Spotify and a live reel with the page builder",
       "Published a rate card and availability so venues self-qualify before reaching out",
-      "Takes requests through the booking messenger — quote, deposit, and contract in one thread",
+      "Takes requests through the booking messenger: quote, deposit, and contract in one thread",
       "Upgraded to Talent · Max for a custom domain and unlimited media",
     ],
     outcome: [
@@ -62,7 +62,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Playa del Carmen",
     cardTitle: "Fully booked from one calm link",
     cardSummary:
-      "A solo therapist replaced phone-tag with an online reservation page — clients book and pay a deposit while she's mid-session.",
+      "A solo therapist replaced phone-tag with an online reservation page. Clients book and pay a deposit while she's mid-session.",
     challenge:
       "Renata lost bookings every time she was on the table and couldn't pick up the phone. Chasing no-shows ate her evenings.",
     approach: [
@@ -89,13 +89,13 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Riviera Maya",
     cardTitle: "Inquiry to signed contract without leaving the chat",
     cardSummary:
-      "Mateo books destination weddings end to end — gallery, quote, deposit, and contract — all inside the booking messenger.",
+      "Mateo books destination weddings end to end: gallery, quote, deposit, and contract, all inside the booking messenger.",
     challenge:
       "Destination couples wanted to see work, get a custom quote, and sign quickly across time zones. Email threads and PDFs slowed every booking to a crawl.",
     approach: [
       "Published a portfolio site with packages and FAQs using the page builder",
       "Couples send an inquiry; Mateo replies with a versioned offer in the booking messenger",
-      "Collects the deposit and e-signature in the same thread — no separate invoice tool",
+      "Collects the deposit and e-signature in the same thread, no separate invoice tool",
       "Keeps every wedding's files, dates, and payments in one place",
     ],
     outcome: [
@@ -116,14 +116,14 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Tulum",
     cardTitle: "A waitlist that screens itself",
     cardSummary:
-      "Iván swapped a chaotic DM waitlist for a reservation flow with deposits — only serious clients get a slot.",
+      "Iván swapped a chaotic DM waitlist for a reservation flow with deposits, so only serious clients get a slot.",
     challenge:
       "Iván's DMs were full of 'how much?' with no-shows burning prime chair time. Flash drops turned into 200 unanswered messages.",
     approach: [
       "Built a gallery-first site for flash and custom work with the page builder",
       "Clients request a slot and pay a booking deposit to hold it",
       "Custom-piece consults and final designs run through the booking messenger",
-      "Flash drops post as bookable inventory — first deposit wins",
+      "Flash drops post as bookable inventory, and the first deposit wins",
     ],
     outcome: [
       { stat: "100%", label: "deposit-backed bookings" },
@@ -143,7 +143,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Cancún & Riviera Maya",
     cardTitle: "Seven musicians, one workspace, split payouts",
     cardSummary:
-      "A band runs gigs like a business — shared calendar, one booking site, and automatic per-member payout splits.",
+      "A band runs gigs like a business: shared calendar, one booking site, and automatic per-member payout splits.",
     challenge:
       "Coordinating seven musicians' availability, one bank account, and who-gets-paid-what after every gig was a spreadsheet nightmare.",
     approach: [
@@ -170,11 +170,11 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Tulum",
     cardTitle: "Every chair booked, every stylist on one site",
     cardSummary:
-      "A salon put its whole team online — clients pick a stylist, see the price, and book a chair with a deposit.",
+      "A salon put its whole team online. Clients pick a stylist, see the price, and book a chair with a deposit.",
     challenge:
       "Five stylists, one phone, and a paper book. Double-bookings and walk-in gaps cost real money every week.",
     approach: [
-      "Built a branded salon site with the page builder — services, team, and prices",
+      "Built a branded salon site with the page builder: services, team, and prices",
       "Each stylist has a bookable calendar; clients choose who and when",
       "Deposits hold the chair; reminders cut the no-shows",
       "The front desk runs the whole day from one workspace inbox",
@@ -197,12 +197,12 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Riviera Maya",
     cardTitle: "An agency roster that books itself",
     cardSummary:
-      "Impronta runs a custom-domain roster site and a full inquiry-to-booking pipeline — every request traced to the talent who earned it.",
+      "Impronta runs a custom-domain roster site and a full inquiry-to-booking pipeline, with every request traced to the talent who earned it.",
     challenge:
       "Sending model packages over WhatsApp made a real agency look like a contact. Nothing was structured, nothing was traceable, and rates leaked.",
     approach: [
       "Launched a branded roster site on its own domain with the page builder",
-      "Each model has a proper profile — specs, portfolio, availability",
+      "Each model has a proper profile: specs, portfolio, availability",
       "Clients inquire; the agency sends versioned offers and converts to bookings in the messenger",
       "Commission and exclusivity tracked automatically per booking",
     ],
@@ -211,7 +211,7 @@ export const CASE_STUDIES: CaseStudy[] = [
       { stat: "100%", label: "inquiries traced to source" },
       { stat: "+45%", label: "booking conversion" },
     ],
-    quote: "We look like the agency we always were — and nothing slips through the cracks.",
+    quote: "We look like the agency we always were, and nothing slips through the cracks.",
     link: "impronta.tulala.digital",
     tags: ["Custom domain", "Inquiry pipeline", "Commission"],
   },
@@ -251,9 +251,9 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Playa del Carmen → Tulum",
     cardTitle: "The local jobs network for an entire coast",
     cardSummary:
-      "A hub aggregates vetted cleaners, hosts, drivers, and handypeople — workers apply, clients browse and book in one place.",
+      "A hub aggregates vetted cleaners, hosts, drivers, and handypeople. Workers apply, clients browse and book in one place.",
     challenge:
-      "Great local workers — housekeepers, hosts, drivers — had no shared, trustworthy place to be found. Villa managers re-hired blind every season.",
+      "Great local workers (housekeepers, hosts, drivers) had no shared, trustworthy place to be found. Villa managers re-hired blind every season.",
     approach: [
       "Launched a Hub workspace with a browse-and-filter directory of local pros",
       "Workers apply to join; the hub vets and approves them",
@@ -278,7 +278,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Tulum",
     cardTitle: "A curated chef collective guests actually find",
     cardSummary:
-      "A culinary hub lists private chefs by cuisine and party size — guests browse menus and book a dinner in minutes.",
+      "A culinary hub lists private chefs by cuisine and party size. Guests browse menus and book a dinner in minutes.",
     challenge:
       "Independent private chefs competed on scattered listings and DMs. Guests couldn't compare menus or trust who'd show up.",
     approach: [
@@ -292,7 +292,7 @@ export const CASE_STUDIES: CaseStudy[] = [
       { stat: "+70%", label: "bookings vs. solo listings" },
       { stat: "menus", label: "compared before they book" },
     ],
-    quote: "Guests pick a chef and a menu like ordering a table — except it comes to the villa.",
+    quote: "Guests pick a chef and a menu like ordering a table, except it comes to the villa.",
     link: "tulumchefs.tulala.digital",
     tags: ["Menus & profiles", "Booking messenger", "Deposits"],
   },
@@ -305,9 +305,9 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Riviera Maya",
     cardTitle: "Concierge, housekeeping, and chefs under one roof",
     cardSummary:
-      "A hospitality co-op gives villa managers one place to staff every stay — concierge, cleaning, chefs, and drivers on demand.",
+      "A hospitality co-op gives villa managers one place to staff every stay: concierge, cleaning, chefs, and drivers on demand.",
     challenge:
-      "Luxury-rental managers juggled a dozen vendors per property. One bad link in the chain ruined a guest's stay — and the review.",
+      "Luxury-rental managers juggled a dozen vendors per property. One bad link in the chain ruined a guest's stay, and the review with it.",
     approach: [
       "Created a Hub workspace bundling every service a villa needs",
       "Each vendor is a vetted member with availability and rates",
@@ -332,9 +332,9 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Guadalajara",
     cardTitle: "She started as the talent. Now she runs the studio.",
     cardSummary:
-      "Sofía kept her personal talent page and added a workspace for her growing team — one account, two sides of the business.",
+      "Sofía kept her personal talent page and added a workspace for her growing team: one account, two sides of the business.",
     challenge:
-      "Sofía outgrew solo bookings. She wanted to bring on two artists and take bigger jobs — without losing her personal brand or starting over.",
+      "Sofía outgrew solo bookings. She wanted to bring on two artists and take bigger jobs without losing her personal brand or starting over.",
     approach: [
       "Kept her Talent page for personal clients and bookings",
       "Opened a Studio workspace, Glow Studio, for the team and bigger events",
@@ -379,13 +379,13 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     location: "Ciudad de México",
     cardTitle: "Una página de reservas que suena a su disco",
     cardSummary:
-      "Daniela convirtió un perfil gratis en su sitio personal con su música integrada — y los venues la contratan sin un solo DM.",
+      "Daniela convirtió un perfil gratis en su sitio personal con su música integrada, y los venues la contratan sin un solo DM.",
     challenge:
-      "Daniela conseguía fechas por DMs de Instagram y un link en la bio. Los promotores no podían escucharla, ver su rider ni revisar una fecha sin tres mensajes de ida y vuelta — y la mitad nunca respondía.",
+      "Daniela conseguía fechas por DMs de Instagram y un link en la bio. Los promotores no podían escucharla, ver su rider ni revisar una fecha sin tres mensajes de ida y vuelta, y la mitad nunca respondía.",
     approach: [
       "Creó su sitio personal en un clic y le integró su Spotify y un reel en vivo con el editor de páginas",
       "Publicó sus tarifas y disponibilidad para que los venues se filtren solos antes de escribir",
-      "Recibe solicitudes por el mensajero de reservas — cotización, depósito y contrato en un mismo hilo",
+      "Recibe solicitudes por el mensajero de reservas: cotización, depósito y contrato en un mismo hilo",
       "Pasó a Talento · Max por el dominio propio y media ilimitada",
     ],
     outcome: [
@@ -402,7 +402,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     location: "Playa del Carmen",
     cardTitle: "Agenda llena desde un solo link tranquilo",
     cardSummary:
-      "Una terapeuta independiente cambió el teléfono que nunca para por una página de reservas — sus clientes reservan y dejan depósito mientras ella está en sesión.",
+      "Una terapeuta independiente cambió el teléfono que nunca para por una página de reservas. Sus clientes reservan y dejan depósito mientras ella está en sesión.",
     challenge:
       "Renata perdía reservas cada vez que estaba en la camilla y no podía contestar el teléfono. Perseguir a los que no llegaban le comía las noches.",
     approach: [
@@ -425,13 +425,13 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     location: "Riviera Maya",
     cardTitle: "De la consulta al contrato firmado sin salir del chat",
     cardSummary:
-      "Mateo cierra bodas de destino de principio a fin — galería, cotización, depósito y contrato — todo dentro del mensajero de reservas.",
+      "Mateo cierra bodas de destino de principio a fin: galería, cotización, depósito y contrato, todo dentro del mensajero de reservas.",
     challenge:
       "Las parejas de destino querían ver su trabajo, recibir una cotización a la medida y firmar rápido entre husos horarios. Los correos y PDFs volvían lenta cada reserva.",
     approach: [
       "Publicó un sitio de portafolio con paquetes y preguntas frecuentes usando el editor",
       "Las parejas mandan una consulta; Mateo responde con una oferta versionada en el mensajero",
-      "Cobra el depósito y la firma electrónica en el mismo hilo — sin herramienta de facturas aparte",
+      "Cobra el depósito y la firma electrónica en el mismo hilo, sin herramienta de facturas aparte",
       "Guarda los archivos, fechas y pagos de cada boda en un solo lugar",
     ],
     outcome: [
@@ -448,14 +448,14 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     location: "Tulum",
     cardTitle: "Una lista de espera que se filtra sola",
     cardSummary:
-      "Iván cambió una lista de espera caótica en DMs por un flujo de reservas con depósito — solo los clientes en serio consiguen lugar.",
+      "Iván cambió una lista de espera caótica en DMs por un flujo de reservas con depósito, así que solo los clientes en serio consiguen lugar.",
     challenge:
       "Los DMs de Iván estaban llenos de '¿cuánto?' y las ausencias quemaban sus mejores horas. Cada drop de flash se volvía 200 mensajes sin responder.",
     approach: [
       "Creó un sitio con la galería al frente para flash y trabajo a la medida con el editor",
       "El cliente pide lugar y paga un depósito para apartarlo",
       "Las consultas de piezas a la medida y los diseños finales corren por el mensajero de reservas",
-      "Los drops de flash salen como inventario reservable — el primer depósito gana",
+      "Los drops de flash salen como inventario reservable: el primer depósito gana",
     ],
     outcome: [
       { stat: "100%", label: "reservas con depósito" },
@@ -471,7 +471,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     location: "Cancún y Riviera Maya",
     cardTitle: "Siete músicos, un workspace, pagos divididos",
     cardSummary:
-      "Una banda opera sus shows como negocio — calendario compartido, un solo sitio de reservas y reparto automático de pagos por integrante.",
+      "Una banda opera sus shows como negocio: calendario compartido, un solo sitio de reservas y reparto automático de pagos por integrante.",
     challenge:
       "Coordinar la disponibilidad de siete músicos, una sola cuenta de banco y quién-cobra-cuánto después de cada show era una pesadilla de hojas de cálculo.",
     approach: [
@@ -494,11 +494,11 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     location: "Tulum",
     cardTitle: "Cada silla ocupada, cada estilista en un solo sitio",
     cardSummary:
-      "Un salón puso a todo su equipo en línea — el cliente elige estilista, ve el precio y aparta su silla con depósito.",
+      "Un salón puso a todo su equipo en línea. El cliente elige estilista, ve el precio y aparta su silla con depósito.",
     challenge:
       "Cinco estilistas, un teléfono y una libreta de papel. Los empalmes y los huecos entre clientes costaban dinero real cada semana.",
     approach: [
-      "Crearon un sitio de salón con su marca usando el editor — servicios, equipo y precios",
+      "Crearon un sitio de salón con su marca usando el editor: servicios, equipo y precios",
       "Cada estilista tiene su calendario reservable; el cliente elige con quién y cuándo",
       "El depósito aparta la silla; los recordatorios bajan las ausencias",
       "La recepción lleva todo el día desde un solo buzón del workspace",
@@ -517,12 +517,12 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     location: "Riviera Maya",
     cardTitle: "Un roster de agencia que se reserva solo",
     cardSummary:
-      "Impronta lleva un sitio de roster con dominio propio y un pipeline completo de consulta a reserva — cada solicitud rastreada al talento que la ganó.",
+      "Impronta lleva un sitio de roster con dominio propio y un pipeline completo de consulta a reserva, con cada solicitud rastreada al talento que la ganó.",
     challenge:
       "Mandar los paquetes de modelos por WhatsApp hacía que una agencia de verdad pareciera un contacto. Nada estaba estructurado, nada era rastreable y las tarifas se filtraban.",
     approach: [
       "Lanzaron un sitio de roster con su marca en dominio propio usando el editor",
-      "Cada modelo tiene un perfil en forma — medidas, portafolio, disponibilidad",
+      "Cada modelo tiene un perfil en forma: medidas, portafolio, disponibilidad",
       "Los clientes consultan; la agencia manda ofertas versionadas y las convierte en reservas en el mensajero",
       "Comisión y exclusividad se rastrean solas por reserva",
     ],
@@ -531,7 +531,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
       { stat: "100%", label: "consultas rastreadas a su origen" },
       { stat: "+45%", label: "conversión de reservas" },
     ],
-    quote: "Nos vemos como la agencia que siempre fuimos — y nada se escapa.",
+    quote: "Nos vemos como la agencia que siempre fuimos, y nada se escapa.",
     tags: ["Dominio propio", "Pipeline de consultas", "Comisión"],
   },
   fitness: {
@@ -563,9 +563,9 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     location: "Playa del Carmen → Tulum",
     cardTitle: "La red de trabajo local para toda una costa",
     cardSummary:
-      "Un hub reúne a personal de limpieza, anfitriones, choferes y gente de mantenimiento ya verificada — los trabajadores aplican, los clientes buscan y reservan en un solo lugar.",
+      "Un hub reúne a personal de limpieza, anfitriones, choferes y gente de mantenimiento ya verificada. Los trabajadores aplican, los clientes buscan y reservan en un solo lugar.",
     challenge:
-      "Grandes trabajadores locales — amas de llaves, anfitriones, choferes — no tenían un lugar común y confiable donde ser encontrados. Los administradores de villas recontrataban a ciegas cada temporada.",
+      "Grandes trabajadores locales (amas de llaves, anfitriones, choferes) no tenían un lugar común y confiable donde ser encontrados. Los administradores de villas recontrataban a ciegas cada temporada.",
     approach: [
       "Lanzaron un workspace Hub con un directorio de profesionales locales para buscar y filtrar",
       "Los trabajadores aplican para unirse; el hub los verifica y aprueba",
@@ -586,7 +586,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     location: "Tulum",
     cardTitle: "Un colectivo de chefs curado que los invitados sí encuentran",
     cardSummary:
-      "Un hub culinario lista chefs privados por cocina y tamaño de grupo — los invitados ven menús y reservan una cena en minutos.",
+      "Un hub culinario lista chefs privados por cocina y tamaño de grupo. Los invitados ven menús y reservan una cena en minutos.",
     challenge:
       "Los chefs privados independientes competían en listados dispersos y DMs. Los invitados no podían comparar menús ni confiar en quién llegaría.",
     approach: [
@@ -600,7 +600,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
       { stat: "+70%", label: "reservas vs. listados sueltos" },
       { stat: "menús", label: "comparados antes de reservar" },
     ],
-    quote: "Los invitados eligen chef y menú como quien pide mesa — solo que llega a la villa.",
+    quote: "Los invitados eligen chef y menú como quien pide mesa, solo que llega a la villa.",
     tags: ["Menús y perfiles", "Mensajero de reservas", "Depósitos"],
   },
   villa: {
@@ -609,9 +609,9 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     location: "Riviera Maya",
     cardTitle: "Concierge, limpieza y chefs bajo un mismo techo",
     cardSummary:
-      "Una cooperativa de hospitalidad le da a los administradores de villas un solo lugar para armar el personal de cada estancia — concierge, limpieza, chefs y choferes a demanda.",
+      "Una cooperativa de hospitalidad le da a los administradores de villas un solo lugar para armar el personal de cada estancia: concierge, limpieza, chefs y choferes a demanda.",
     challenge:
-      "Los administradores de rentas de lujo hacían malabares con una docena de proveedores por propiedad. Un solo eslabón flojo arruinaba la estancia de un huésped — y la reseña.",
+      "Los administradores de rentas de lujo hacían malabares con una docena de proveedores por propiedad. Un solo eslabón flojo arruinaba la estancia de un huésped, y de paso la reseña.",
     approach: [
       "Crearon un workspace Hub que reúne cada servicio que una villa necesita",
       "Cada proveedor es un miembro verificado con disponibilidad y tarifas",
@@ -632,9 +632,9 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     location: "Guadalajara",
     cardTitle: "Empezó como el talento. Ahora dirige el estudio.",
     cardSummary:
-      "Sofía conservó su página personal de talento y le sumó un workspace para su equipo en crecimiento — una cuenta, dos lados del negocio.",
+      "Sofía conservó su página personal de talento y le sumó un workspace para su equipo en crecimiento: una cuenta, dos lados del negocio.",
     challenge:
-      "Sofía superó las reservas en solitario. Quería sumar a dos artistas y tomar trabajos más grandes — sin perder su marca personal ni empezar de cero.",
+      "Sofía superó las reservas en solitario. Quería sumar a dos artistas y tomar trabajos más grandes sin perder su marca personal ni empezar de cero.",
     approach: [
       "Conservó su página de Talento para sus clientes y reservas personales",
       "Abrió un workspace Studio, Glow Studio, para el equipo y los eventos más grandes",

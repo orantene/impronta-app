@@ -103,7 +103,7 @@ function AuthTopBar({
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-5 sm:h-[72px] sm:px-8">
         <Link
           href="/"
-          aria-label={`${brandLabel} — home`}
+          aria-label={`${brandLabel} home`}
           className="inline-flex items-baseline leading-none"
           style={{ color: "var(--plt-ink)" }}
         >

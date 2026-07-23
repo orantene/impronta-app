@@ -14,7 +14,7 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 export const metadata: Metadata = {
   title: "The shared network",
   description:
-    "Every roster site plugs into a shared discovery hub — so clients can browse across the whole network, not just your inbox.",
+    "Every roster site plugs into a shared discovery hub, so clients can browse across the whole network, not just your inbox.",
 };
 
 type Fact = {

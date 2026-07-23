@@ -87,10 +87,10 @@ function rosterTierHint(
   const studioMonthly = prices?.studio ?? "$49";
   const agencyMonthly = prices?.agency ?? "$149";
   if (rosterSize === "21-50" || rosterSize === "50+") {
-    return `Most teams your size choose Agency — 200 seats, branded site, ${agencyMonthly}/mo.`;
+    return `Most teams your size choose Agency: 200 seats, branded site, ${agencyMonthly}/mo.`;
   }
   if (rosterSize === "6-20") {
-    return `Studio fits growing rosters — 50 seats and WhatsApp notifications, ${studioMonthly}/mo.`;
+    return `Studio fits growing rosters: 50 seats and WhatsApp notifications, ${studioMonthly}/mo.`;
   }
   return null;
 }
@@ -258,7 +258,7 @@ export function GetStartedForm({
           <strong style={{ color: "var(--plt-ink)" }}>
             {preferredLinkPreview(state.subdomain ?? "your-business", tier)}
           </strong>
-          {paidTier ? " — payment is the last step." : "."}
+          {paidTier ? ". Payment is the last step." : "."}
         </p>
         {state.signInUrl ? (
           <a
@@ -317,7 +317,7 @@ export function GetStartedForm({
               <>
                 Finish account setup with{" "}
                 <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong>{" "}
-                and we&apos;ll take you to {planLabel} checkout — payment is the last step
+                and we&apos;ll take you to {planLabel} checkout. Payment is the last step
                 before your workspace is ready.
               </>
             ) : (
@@ -361,8 +361,8 @@ export function GetStartedForm({
             style={{ borderColor: "rgba(46,107,82,0.25)", background: "rgba(46,107,82,0.06)", color: "var(--plt-ink-soft)" }}
           >
             {tierPrices?.network
-              ? `Your free workspace is ready to explore now. Upgrade to Network (${tierPrices.network}/mo) when you’re ready — SSO, custom domain, and dedicated onboarding unlock at checkout.`
-              : <>Your free workspace is ready to explore now. We&apos;ll email <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong> separately to set up the Network plan — pricing, SSO, and a custom domain.</>}
+              ? `Your free workspace is ready to explore now. Upgrade to Network (${tierPrices.network}/mo) when you’re ready. SSO, custom domain, and dedicated onboarding unlock at checkout.`
+              : <>Your free workspace is ready to explore now. We&apos;ll email <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong> separately to set up the Network plan: pricing, SSO, and a custom domain.</>}
           </p>
         )}
         <ul
@@ -378,15 +378,15 @@ export function GetStartedForm({
             <SuccessTick />{" "}
             {state.workspaceSignupUrl
               ? paidTier
-                ? `${planLabel} plan — full feature set unlocks after checkout`
-                : "Free plan — no credit card on file"
+                ? `${planLabel} plan: full feature set unlocks after checkout`
+                : "Free plan, no credit card on file"
               : "We'll confirm the right plan and launch path with you by email"}
           </li>
           <li className="flex items-start gap-2.5">
             <SuccessTick />{" "}
             {state.workspaceSignupUrl
               ? paidTier
-                ? "Cancel any time — managed from your workspace billing settings"
+                ? "Cancel any time from your workspace billing settings"
                 : "Upgrade later to branded subdomains or custom domains"
               : "Your preferred link name is saved with this signup"}
           </li>

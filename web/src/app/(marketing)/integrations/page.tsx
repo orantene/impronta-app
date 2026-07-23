@@ -16,7 +16,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 
 export const metadata: Metadata = {
-  title: "Integrations — one roster, rendered anywhere",
+  title: "Integrations: one roster, rendered anywhere",
   description: `${PLATFORM_BRAND.name} is the source of truth for your roster. Render it on a platform-hosted site, as embeddable widgets on WordPress / Webflow / Shopify, or through a public read API for bespoke frontends.`,
 };
 
@@ -40,7 +40,7 @@ function getDeliveryModes(locale: string): DeliveryMode[] {
         index: "01",
         title: "Full platform sites",
         headline: "Your branded roster site, end to end.",
-        body: `A polished directory experience on your own domain — roster, profiles, posts, contact — rendered by ${PLATFORM_BRAND.name} and managed in the CMS. Best when the public site is part of the product.`,
+        body: `A polished directory experience on your own domain (roster, profiles, posts, contact), rendered by ${PLATFORM_BRAND.name} and managed in the CMS. Best when the public site is part of the product.`,
         bullets: [
           "Custom domain + design tokens",
           "Editorial pages, posts, navigation",
@@ -74,7 +74,7 @@ function getDeliveryModes(locale: string): DeliveryMode[] {
         bullets: [
           "Org-scoped read access, keyed per surface",
           "Respects per-field visibility automatically",
-          "JSON payloads — bring your own framework",
+          "JSON payloads, bring your own framework",
           "Every call audited + rate-limited",
         ],
         footnote: "Build anything on top",
@@ -87,7 +87,7 @@ function getDeliveryModes(locale: string): DeliveryMode[] {
         index: "01",
         title: "Sitios de plataforma completos",
         headline: "El sitio de tu roster con tu marca, de principio a fin.",
-        body: `Una experiencia de directorio pulida en tu propio dominio — roster, perfiles, posts, contacto — renderizada por ${PLATFORM_BRAND.name} y administrada desde el CMS. Ideal cuando el sitio p\u00fablico es parte del producto.`,
+        body: `Una experiencia de directorio pulida en tu propio dominio (roster, perfiles, posts, contacto), renderizada por ${PLATFORM_BRAND.name} y administrada desde el CMS. Ideal cuando el sitio p\u00fablico es parte del producto.`,
         bullets: [
           "Dominio propio + tokens de dise\u00f1o",
           "P\u00e1ginas editoriales, posts y navegaci\u00f3n",
@@ -121,7 +121,7 @@ function getDeliveryModes(locale: string): DeliveryMode[] {
         bullets: [
           "Acceso de lectura por organizaci\u00f3n, con llave por superficie",
           "Respeta la visibilidad campo por campo, autom\u00e1tico",
-          "Respuestas en JSON — usa el framework que quieras",
+          "Respuestas en JSON, usa el framework que quieras",
           "Cada llamada auditada y con l\u00edmite de tasa",
         ],
         footnote: "Construye lo que sea encima",
@@ -143,7 +143,7 @@ function getConsumers(locale: string): Consumer[] {
       {
         name: "WordPress",
         surface: "Plugin / embed",
-        line: "Drop a block into any page or post — your roster renders in the theme, styled by your brand tokens.",
+        line: "Drop a block into any page or post. Your roster renders in the theme, styled by your brand tokens.",
         art: "wordpress",
       },
       {
@@ -155,7 +155,7 @@ function getConsumers(locale: string): Consumer[] {
       {
         name: "Shopify",
         surface: "Theme embed",
-        line: "Surface represented talent alongside product pages — useful for talent-branded merch and creator stores.",
+        line: "Surface represented talent alongside product pages. Useful for talent-branded merch and creator stores.",
         art: "shopify",
       },
       {
@@ -169,7 +169,7 @@ function getConsumers(locale: string): Consumer[] {
       {
         name: "WordPress",
         surface: "Plugin / embed",
-        line: "Mete un bloque en cualquier p\u00e1gina o post — tu roster se renderiza dentro del tema, con el estilo de tus tokens de marca.",
+        line: "Mete un bloque en cualquier p\u00e1gina o post. Tu roster se renderiza dentro del tema, con el estilo de tus tokens de marca.",
         art: "wordpress",
       },
       {
@@ -181,7 +181,7 @@ function getConsumers(locale: string): Consumer[] {
       {
         name: "Shopify",
         surface: "Embed en el tema",
-        line: "Muestra a tu talento representado junto a las p\u00e1ginas de producto — perfecto para merch con marca propia y tiendas de creadores.",
+        line: "Muestra a tu talento representado junto a las p\u00e1ginas de producto. Perfecto para merch con marca propia y tiendas de creadores.",
         art: "shopify",
       },
       {
@@ -199,7 +199,7 @@ function getGovernanceRules(locale: string) {
     en: [
       {
         title: "Org-scoped by default",
-        body: "Every surface — hosted site, widget, API key — is bound to one org. Cross-org data never leaks through the same surface.",
+        body: "Every surface (hosted site, widget, API key) is bound to one org. Cross-org data never leaks through the same surface.",
       },
       {
         title: "One visibility truth",
@@ -217,7 +217,7 @@ function getGovernanceRules(locale: string) {
     es: [
       {
         title: "Por organizaci\u00f3n, de origen",
-        body: "Cada superficie — sitio hospedado, widget, llave de API — est\u00e1 atada a una sola organizaci\u00f3n. Los datos de otra organizaci\u00f3n jam\u00e1s se filtran por la misma superficie.",
+        body: "Cada superficie (sitio hospedado, widget, llave de API) est\u00e1 atada a una sola organizaci\u00f3n. Los datos de otra organizaci\u00f3n jam\u00e1s se filtran por la misma superficie.",
       },
       {
         title: "Una sola verdad de visibilidad",
@@ -241,12 +241,12 @@ function getAccessPillars(locale: string) {
       {
         pill: "Keys",
         title: "Org-scoped, scope-limited, rotatable.",
-        body: "Every surface — widget, server, partner — gets its own key with its own scope. Revoke instantly when a consumer changes.",
+        body: "Every surface (widget, server, partner) gets its own key with its own scope. Revoke instantly when a consumer changes.",
       },
       {
         pill: "Audit",
         title: "Every call, every surface, logged.",
-        body: "The same audit trail your admin dashboard already writes to — no parallel logging system, no blind spots.",
+        body: "The same audit trail your admin dashboard already writes to. No parallel logging system, no blind spots.",
       },
       {
         pill: "Rate & quota",
@@ -258,12 +258,12 @@ function getAccessPillars(locale: string) {
       {
         pill: "Llaves",
         title: "Por organizaci\u00f3n, con alcance limitado y rotables.",
-        body: "Cada superficie — widget, servidor, socio — recibe su propia llave con su propio alcance. Rev\u00f3cala al instante cuando cambie un consumidor.",
+        body: "Cada superficie (widget, servidor, socio) recibe su propia llave con su propio alcance. Rev\u00f3cala al instante cuando cambie un consumidor.",
       },
       {
         pill: "Auditor\u00eda",
         title: "Cada llamada, cada superficie, registrada.",
-        body: "El mismo registro de auditor\u00eda que tu panel de admin ya genera — sin un sistema de logs aparte, sin puntos ciegos.",
+        body: "El mismo registro de auditor\u00eda que tu panel de admin ya genera. Sin un sistema de logs aparte, sin puntos ciegos.",
       },
       {
         pill: "Tasa y cuota",
@@ -281,7 +281,7 @@ export default async function IntegrationsPage() {
       eyebrow: `${PLATFORM_BRAND.name} as infrastructure`,
       titleA: "One roster.",
       titleB: "Rendered anywhere.",
-      subtitle: `${PLATFORM_BRAND.name} is the source of truth for your people, profiles, and representation data — then it renders that truth wherever your business actually lives. A polished platform site. An embed inside the site you already have. A public read API for the frontends you haven\u2019t built yet.`,
+      subtitle: `${PLATFORM_BRAND.name} is the source of truth for your people, profiles, and representation data. Then it renders that truth wherever your business actually lives. A polished platform site. An embed inside the site you already have. A public read API for the frontends you haven\u2019t built yet.`,
       primaryLabel: "Start free",
       secondaryLabel: "See pricing",
     },
@@ -289,7 +289,7 @@ export default async function IntegrationsPage() {
       eyebrow: `${PLATFORM_BRAND.name} como infraestructura`,
       titleA: "Un roster.",
       titleB: "Renderizado donde sea.",
-      subtitle: `${PLATFORM_BRAND.name} es la fuente de verdad de tu gente, sus perfiles y los datos de representaci\u00f3n — y luego renderiza esa verdad donde tu negocio de verdad vive. Un sitio de plataforma pulido. Un embed dentro del sitio que ya tienes. Una API p\u00fablica de lectura para los frontends que a\u00fan no construyes.`,
+      subtitle: `${PLATFORM_BRAND.name} es la fuente de verdad de tu gente, sus perfiles y los datos de representaci\u00f3n. Luego renderiza esa verdad donde tu negocio de verdad vive. Un sitio de plataforma pulido. Un embed dentro del sitio que ya tienes. Una API p\u00fablica de lectura para los frontends que a\u00fan no construyes.`,
       primaryLabel: "Empieza gratis",
       secondaryLabel: "Ver precios",
     },
@@ -360,14 +360,14 @@ function FoundationSection({ locale }: { locale: string }) {
       eyebrow: "The people layer",
       titleA: "One canonical roster.",
       titleB: "Every surface it touches.",
-      bodyA: `Your people, their specs, availability, portfolio, and representation status live once — in ${PLATFORM_BRAND.name}. Every public surface reads from that same source. Change a rate card, retire a placement, mark someone unavailable — it flows everywhere your roster is rendered, without you chasing it through five different systems.`,
+      bodyA: `Your people, their specs, availability, portfolio, and representation status live once, in ${PLATFORM_BRAND.name}. Every public surface reads from that same source. Change a rate card, retire a placement, mark someone unavailable, and it flows everywhere your roster is rendered, without you chasing it through five different systems.`,
       bodyB: "The platform is the directory. Everything downstream is a projection of it.",
     },
     es: {
       eyebrow: "La capa de gente",
       titleA: "Un roster can\u00f3nico.",
       titleB: "Cada superficie que toca.",
-      bodyA: `Tu gente, sus medidas, su disponibilidad, su portafolio y su estatus de representaci\u00f3n viven una sola vez — en ${PLATFORM_BRAND.name}. Cada superficie p\u00fablica lee de esa misma fuente. Cambia una tarifa, cierra una colocaci\u00f3n, marca a alguien como no disponible — fluye a todos lados donde se renderiza tu roster, sin que andes persigu\u00e9ndolo por cinco sistemas distintos.`,
+      bodyA: `Tu gente, sus medidas, su disponibilidad, su portafolio y su estatus de representaci\u00f3n viven una sola vez, en ${PLATFORM_BRAND.name}. Cada superficie p\u00fablica lee de esa misma fuente. Cambia una tarifa, cierra una colocaci\u00f3n, marca a alguien como no disponible, y fluye a todos lados donde se renderiza tu roster, sin que andes persigu\u00e9ndolo por cinco sistemas distintos.`,
       bodyB: "La plataforma es el directorio. Todo lo dem\u00e1s es una proyecci\u00f3n de eso.",
     },
   });
@@ -579,14 +579,14 @@ function DeliveryModesSection({ locale }: { locale: string }) {
       titleA: `Built once in ${PLATFORM_BRAND.name}.`,
       titleB: "Rendered where your business lives.",
       subhead:
-        "Pick one. Pick all three. Same roster, same visibility rules — different surfaces for different audiences, without a single duplicate system to maintain.",
+        "Pick one. Pick all three. Same roster, same visibility rules. Different surfaces for different audiences, without a single duplicate system to maintain.",
     },
     es: {
       eyebrow: "Tres formas de entregarlo",
       titleA: `Construido una vez en ${PLATFORM_BRAND.name}.`,
       titleB: "Renderizado donde vive tu negocio.",
       subhead:
-        "Elige una. Elige las tres. El mismo roster, las mismas reglas de visibilidad — distintas superficies para distintas audiencias, sin un solo sistema duplicado que mantener.",
+        "Elige una. Elige las tres. El mismo roster, las mismas reglas de visibilidad. Distintas superficies para distintas audiencias, sin un solo sistema duplicado que mantener.",
     },
   });
   return (
@@ -1085,7 +1085,7 @@ function RoadmapSection({ locale }: { locale: string }) {
       eyebrow: "Where we are today",
       titleA: "Shipping in slices,",
       titleB: "not a big-bang launch.",
-      subhead: `${PLATFORM_BRAND.name} is in private beta. We build one delivery mode at a time so each one actually works — and we\u2019re honest about what that looks like today.`,
+      subhead: `${PLATFORM_BRAND.name} is in private beta. We build one delivery mode at a time so each one actually works, and we\u2019re honest about what that looks like today.`,
       footPrefix:
         "Commercial embed + API access roll out alongside billing and custom domains. Want early access when the first slice ships?",
       footLink: "Tell us when you sign up",
@@ -1094,7 +1094,7 @@ function RoadmapSection({ locale }: { locale: string }) {
       eyebrow: "D\u00f3nde estamos hoy",
       titleA: "Lanzamos por partes,",
       titleB: "no en un gran golpe.",
-      subhead: `${PLATFORM_BRAND.name} est\u00e1 en beta privada. Construimos una forma de entrega a la vez para que cada una de verdad funcione — y somos honestos sobre c\u00f3mo se ve eso hoy.`,
+      subhead: `${PLATFORM_BRAND.name} est\u00e1 en beta privada. Construimos una forma de entrega a la vez para que cada una de verdad funcione, y somos honestos sobre c\u00f3mo se ve eso hoy.`,
       footPrefix:
         "El acceso comercial a embeds y API llega junto con la facturaci\u00f3n y los dominios propios. \u00bfQuieres acceso anticipado cuando salga el primer pedazo?",
       footLink: "D\u00ednos cuando te registres",
@@ -1250,14 +1250,14 @@ function GovernanceSection({ locale }: { locale: string }) {
       titleA: "Your data.",
       titleB: "Your rules.",
       subhead:
-        "Representation is a consent business. The same visibility model that powers your hosted site carries through every embed and every API call — with per-surface, per-field controls when you need them.",
+        "Representation is a consent business. The same visibility model that powers your hosted site carries through every embed and every API call, with per-surface, per-field controls when you need them.",
     },
     es: {
       eyebrow: "Gobierno de datos",
       titleA: "Tus datos.",
       titleB: "Tus reglas.",
       subhead:
-        "La representaci\u00f3n es un negocio de consentimiento. El mismo modelo de visibilidad que mueve tu sitio hospedado se respeta en cada embed y cada llamada a la API — con controles por superficie y por campo cuando los necesites.",
+        "La representaci\u00f3n es un negocio de consentimiento. El mismo modelo de visibilidad que mueve tu sitio hospedado se respeta en cada embed y cada llamada a la API, con controles por superficie y por campo cuando los necesites.",
     },
   });
   return (
@@ -1332,7 +1332,7 @@ function ConsumerExamplesSection({ locale }: { locale: string }) {
       eyebrow: "Stacks we work with",
       heading: "Plug into the site you already have.",
       subhead:
-        "You don\u2019t have to migrate your website to benefit from a structured roster. Keep the site your team knows — we render inside it.",
+        "You don\u2019t have to migrate your website to benefit from a structured roster. Keep the site your team knows. We render inside it.",
       footPrefix:
         "Running on something else? Anywhere you can drop a script tag or make an HTTP request, you can render your",
       footSuffix: "roster. We\u2019ll help you figure out the shape.",
@@ -1342,7 +1342,7 @@ function ConsumerExamplesSection({ locale }: { locale: string }) {
       eyebrow: "Stacks con los que trabajamos",
       heading: "Con\u00e9ctalo al sitio que ya tienes.",
       subhead:
-        "No tienes que migrar tu sitio web para aprovechar un roster estructurado. Qu\u00e9date con el sitio que tu equipo ya conoce — nosotros renderizamos dentro de \u00e9l.",
+        "No tienes que migrar tu sitio web para aprovechar un roster estructurado. Qu\u00e9date con el sitio que tu equipo ya conoce. Nosotros renderizamos dentro de \u00e9l.",
       footPrefix:
         "\u00bfCorres en algo m\u00e1s? Donde puedas meter una etiqueta de script o hacer una petici\u00f3n HTTP, puedes renderizar tu roster de",
       footSuffix: ". Te ayudamos a darle forma.",
@@ -1539,9 +1539,9 @@ function AccessSection({ locale }: { locale: string }) {
       titleA: "Built for representation businesses,",
       titleB: "not developer teams.",
       subhead:
-        "You shouldn\u2019t need a platform engineer to turn an embed on or off. Access lives where the rest of your workspace does — editable by the same admins who run the roster.",
+        "You shouldn\u2019t need a platform engineer to turn an embed on or off. Access lives where the rest of your workspace does, editable by the same admins who run the roster.",
       footPrefix:
-        "is in private beta. Widget + public API surfaces roll out alongside custom domains and billing — see",
+        "is in private beta. Widget + public API surfaces roll out alongside custom domains and billing. See",
       footLink: "how it works",
       footSuffix: "for the end-to-end.",
     },
@@ -1550,9 +1550,9 @@ function AccessSection({ locale }: { locale: string }) {
       titleA: "Hecho para negocios de representaci\u00f3n,",
       titleB: "no para equipos de desarrollo.",
       subhead:
-        "No deber\u00edas necesitar a un ingeniero de plataforma para prender o apagar un embed. El acceso vive donde vive el resto de tu workspace — editable por los mismos admins que llevan el roster.",
+        "No deber\u00edas necesitar a un ingeniero de plataforma para prender o apagar un embed. El acceso vive donde vive el resto de tu workspace, editable por los mismos admins que llevan el roster.",
       footPrefix:
-        "est\u00e1 en beta privada. Las superficies de widgets y API p\u00fablica salen junto con los dominios propios y la facturaci\u00f3n — mira",
+        "est\u00e1 en beta privada. Las superficies de widgets y API p\u00fablica salen junto con los dominios propios y la facturaci\u00f3n. Mira",
       footLink: "c\u00f3mo funciona",
       footSuffix: "para verlo de principio a fin.",
     },

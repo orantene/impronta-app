@@ -8,14 +8,14 @@ function getWhatsappPains(locale: string) {
     en: [
       "Profiles shared one at a time, nothing structured",
       "Rates and availability re-typed, every inquiry",
-      "No way to browse — only what you copy-paste",
+      "No way to browse, only what you copy-paste",
       "Vanishes into the chat archive by next week",
       "Your brand looks like a contact, not a business",
     ],
     es: [
       "Mandas perfiles de uno en uno, sin ningún orden",
       "Vuelves a teclear tarifas y disponibilidad en cada solicitud",
-      "Nadie puede explorar — solo ven lo que copias y pegas",
+      "Nadie puede explorar, solo ven lo que copias y pegas",
       "Para la otra semana ya se perdió en el archivo del chat",
       "Tu marca se ve como un contacto más, no como un negocio",
     ],
@@ -48,7 +48,7 @@ export async function ContrastSection() {
       eyebrow: "The shift",
       heading: "The WhatsApp shuffle is not a workflow.",
       paragraph:
-        "The work is the same. The presentation is not. Same roster, same clients — one feels like sending a screenshot, the other feels like sending a business.",
+        "The work is the same. The presentation is not. Same roster, same clients. One feels like sending a screenshot, the other feels like sending a business.",
       oldWayTitle: "The old way",
       oldWaySubtitle: "WhatsApp + screenshots",
       newWayTitle: "The new way",
@@ -59,7 +59,7 @@ export async function ContrastSection() {
       eyebrow: "El cambio",
       heading: "El relajo del WhatsApp no es un flujo de trabajo.",
       paragraph:
-        "El trabajo es el mismo. La presentación no. Mismo roster, mismos clientes — una se siente como mandar una captura de pantalla; la otra, como mandar un negocio.",
+        "El trabajo es el mismo. La presentación no. Mismo roster, mismos clientes. Una se siente como mandar una captura de pantalla; la otra, como mandar un negocio.",
       oldWayTitle: "La forma de antes",
       oldWaySubtitle: "WhatsApp + capturas de pantalla",
       newWayTitle: "La nueva forma",

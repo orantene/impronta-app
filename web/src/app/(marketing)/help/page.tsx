@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Help & docs — Tulala",
+  title: "Help & docs · Tulala",
   description:
     "Guides for operators, agencies, talents, and clients using Tulala. Find your role and start there.",
 };
@@ -105,8 +105,8 @@ export default function HelpIndexPage() {
         <strong>Can&apos;t find what you need?</strong> Email{" "}
         <a href="mailto:help@tulala.digital" style={{ color: "#1f4a3a", textDecoration: "underline" }}>
           help@tulala.digital
-        </a>{" "}
-        — we read every message.
+        </a>
+        {". We read every message."}
       </div>
     </main>
   );

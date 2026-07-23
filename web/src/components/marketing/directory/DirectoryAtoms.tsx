@@ -39,7 +39,7 @@ export function TalentAvatar({
       }}
     >
       <span className="plt-display text-[1.25rem] font-semibold tracking-[-0.01em]">
-        {initialsOf(name) || "—"}
+        {initialsOf(name) || "·"}
       </span>
     </div>
   );

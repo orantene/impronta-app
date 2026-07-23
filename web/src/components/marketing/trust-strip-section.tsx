@@ -20,7 +20,7 @@ const PRINCIPLES: Principle[] = [
   {
     title: "Honest about the stage",
     detail:
-      "Free workspaces launch immediately. Agency and Network setups get white-glove onboarding — not a fake launch metric in sight.",
+      "Free workspaces launch immediately. Agency and Network setups get white-glove onboarding. Not a fake launch metric in sight.",
   },
 ];
 
@@ -68,7 +68,7 @@ export function TrustStripSection() {
               className="mt-5 max-w-md text-[0.9375rem] leading-[1.6]"
               style={{ color: "rgba(241,237,227,0.76)" }}
             >
-              {PLATFORM_BRAND.name} is live for free workspaces — claim your link, add your
+              {PLATFORM_BRAND.name} is live for free workspaces: claim your link, add your
               roster, and start in minutes. Agency and Network plans include guided setup so
               your roster is properly configured before the link is shared.
             </p>
@@ -76,7 +76,7 @@ export function TrustStripSection() {
               className="mt-5 max-w-md text-[0.8125rem] leading-[1.5]"
               style={{ color: "rgba(241,237,227,0.55)" }}
             >
-              — Oran, founder · {PLATFORM_BRAND.name}
+              Oran, founder · {PLATFORM_BRAND.name}
             </p>
           </div>
 

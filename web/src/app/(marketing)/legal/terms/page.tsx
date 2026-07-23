@@ -16,7 +16,7 @@ export default function TermsPage() {
       intro={
         <p>
           By using {PLATFORM_BRAND.name}{" "}you agree to these terms. We&rsquo;ve kept them short
-          and clear — no fine print tricks. If anything&rsquo;s ambiguous, the plain-language
+          and clear, with no fine print tricks. If anything&rsquo;s ambiguous, the plain-language
           reading wins.
         </p>
       }
@@ -38,7 +38,7 @@ export default function TermsPage() {
           body: (
             <>
               <p>
-                You keep full ownership of everything you upload — people profiles, media,
+                You keep full ownership of everything you upload: people profiles, media,
                 site copy, inquiries. You grant {PLATFORM_BRAND.name} a limited license to
                 host, render, and distribute that content as directed by you (public roster
                 site, shared network, etc.).

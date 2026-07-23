@@ -15,7 +15,7 @@ const en = {
   nav: {
     platform: {
       label: "Platform",
-      blurb: "One place to build a business around people — and get paid.",
+      blurb: "One place to build a business around people, and get paid.",
       items: [
         {
           label: "One-click page builder",
@@ -35,7 +35,7 @@ const en = {
     },
     solutions: {
       label: "Solutions",
-      blurb: "However you work — sell your own services, run a business, or both.",
+      blurb: "However you work: sell your own services, run a business, or both.",
       items: [
         {
           label: "For talent",
@@ -54,7 +54,7 @@ const en = {
     },
     discover: {
       label: "Discover",
-      blurb: "Browse the whole network — then start a conversation.",
+      blurb: "Browse the whole network, then start a conversation.",
       items: [
         { label: "Browse talent", description: "Every roster, one global directory." },
         { label: "Agencies & hubs", description: "Find where your talent can grow next." },
@@ -77,8 +77,8 @@ const en = {
     titleLine1: "Your talent and services",
     titleLine2: "worth money.",
     subhead:
-      "Open a free page and start taking requests in minutes. When you're ready, build your own site and business workspace in one click — and take bookings and payments right inside the chat.",
-    ctaTalent: "Sell your work — free",
+      "Open a free page and start taking requests in minutes. When you're ready, build your own site and business workspace in one click, then take bookings and payments right inside the chat.",
+    ctaTalent: "Sell your work, free",
     ctaBusiness: "Start a business",
     trust: ["Free forever", "No code", "Bookings & payments built in"],
   },
@@ -87,12 +87,12 @@ const en = {
     eyebrow: "Who it's for",
     title: "Built for how you work.",
     subtitle:
-      "Sell your own services, run a full business, or curate a hub — Tulala scales with you. And you don't have to pick just one.",
+      "Sell your own services, run a full business, or curate a hub. Tulala scales with you, and you don't have to pick just one.",
     talent: {
       eyebrow: "For talent",
       title: "Sell your work.",
       subtitle:
-        "Give your skill a page, a booking flow, and room to grow — without building anything first.",
+        "Give your skill a page, a booking flow, and room to grow, without building anything first.",
       points: [
         "Free profile and shareable link",
         "Reservations and payments built in",
@@ -130,11 +130,11 @@ const en = {
     eyebrow: "The platform",
     title: "Two things no one else has put in one place.",
     subtitle:
-      "A builder that ships your whole business in a click — and a messenger where the conversation becomes the booking, and the payment.",
+      "A builder that ships your whole business in a click, and a messenger where the conversation becomes the booking, and the payment.",
     builder: {
       eyebrow: "One-click page builder",
       title: "Your website and your workspace. One click.",
-      body: "Describe your business once. Tulala builds the services website your clients see and the workspace you run it from — wired together, on-brand, live in minutes. This is the 2027 builder: repeaters, a media library, motion, and real data binding, with zero code.",
+      body: "Describe your business once. Tulala builds the services website your clients see and the workspace you run it from: wired together, on-brand, live in minutes. This is the 2027 builder: repeaters, a media library, motion, and real data binding, with zero code.",
       bullets: [
         "One prompt → a public site and a private workspace, instantly",
         "Drag-and-drop refinement when you want it; AI when you don't",
@@ -145,8 +145,8 @@ const en = {
     },
     messenger: {
       eyebrow: "Booking messenger",
-      title: "Where the chat becomes the booking — and the payment.",
-      body: "Every inquiry lands in one thread. Send a versioned offer, get it approved, take a deposit or the full amount, and turn it into a confirmed booking — without leaving the conversation. Messages and money, finally in the same place.",
+      title: "Where the chat becomes the booking, and the payment.",
+      body: "Every inquiry lands in one thread. Send a versioned offer, get it approved, take a deposit or the full amount, and turn it into a confirmed booking without leaving the conversation. Messages and money, finally in the same place.",
       bullets: [
         "Inquiry → offer → approval → booking, one thread",
         "Collect deposits or full payment right inside the chat",
@@ -158,7 +158,7 @@ const en = {
     support: [
       { title: "Reservations & deposits", body: "Calendars, slots, and deposits that quietly kill no-shows." },
       { title: "The shared network", body: "Opt into cross-roster discovery and get found by new clients." },
-      { title: "Talent + workspace", body: "Be the talent and run the business — from one login." },
+      { title: "Talent + workspace", body: "Be the talent and run the business, all from one login." },
     ],
     builderMock: {
       prompt: "A booking site for my massage studio",
@@ -171,7 +171,7 @@ const en = {
     eyebrow: "Product tour",
     title: "Everything they see. Everything you run.",
     subtitle:
-      "A public page clients can book from, profiles that show your work properly, and an inbox where inquiries turn into paid bookings — all wired together.",
+      "A public page clients can book from, profiles that show your work properly, and an inbox where inquiries turn into paid bookings, all wired together.",
     tabs: [
       {
         label: "Your page",
@@ -183,7 +183,7 @@ const en = {
         label: "Profiles",
         eyebrow: "02 · Public profiles",
         title: "Every person, presented properly.",
-        body: "Portfolio, services, availability, and one clean booking button — on one shareable link. The way selling your work was always supposed to look online.",
+        body: "Portfolio, services, availability, and one clean booking button, all on one shareable link. The way selling your work was always supposed to look online.",
       },
       {
         label: "Bookings inbox",
@@ -210,7 +210,7 @@ const en = {
       },
       {
         title: "Businesses keep their own brand",
-        body: "Every workspace keeps its site, roster, and bookings — and still gets found through shared discovery.",
+        body: "Every workspace keeps its site, roster, and bookings, and still gets found through shared discovery.",
       },
       {
         title: "Your data stays yours",
@@ -228,38 +228,38 @@ const en = {
     eyebrow: "Pricing",
     title: "Start free. Grow when you're ready.",
     subtitle:
-      "Every plan takes you from inquiry to booked and paid — for free. Paid tiers add roster size, branding, and channels as your business grows.",
+      "Every plan takes you from inquiry to booked and paid, for free. Paid tiers add roster size, branding, and channels as your business grows.",
     footnote:
-      "Currency converts for LATAM & EU. Annual plans save 20%. No setup fees, and your data is always yours — export anytime.",
+      "Currency converts for LATAM & EU. Annual plans save 20%. No setup fees, and your data is always yours. Export anytime.",
     mostPopular: "Most popular",
   },
 
   faq: {
     eyebrow: "Frequently asked",
     title: "The short version.",
-    subtitle: "What people ask before signing up. Straight answers — no fluff.",
+    subtitle: "What people ask before signing up. Straight answers, no fluff.",
     stillQuestions: "Still have questions?",
     seeAll: "See all FAQs",
     items: [
       {
         q: "Who is Tulala for?",
-        a: "Anyone who sells their work or runs a business around people — singers, chefs, stylists, cleaners, photographers, coaches; salons, studios and agencies; and city hubs that connect local pros with clients. If you've ever booked work over WhatsApp, this is for you.",
+        a: "Anyone who sells their work or runs a business around people: singers, chefs, stylists, cleaners, photographers, coaches; salons, studios and agencies; and city hubs that connect local pros with clients. If you've ever booked work over WhatsApp, this is for you.",
       },
       {
         q: "Is there really a free plan?",
-        a: "Yes — a genuinely useful free plan, not a trial in disguise. You get a free page, a shareable link, reservations, and a real inquiry inbox. No credit card required.",
+        a: "Yes. A genuinely useful free plan, not a trial in disguise. You get a free page, a shareable link, reservations, and a real inquiry inbox. No credit card required.",
       },
       {
         q: "Can I use my own domain?",
-        a: "Yes, on the paid plans. Bring your own domain and get full control over your pages, design, and brand. Your site looks like a real business — because it is one.",
+        a: "Yes, on the paid plans. Bring your own domain and get full control over your pages, design, and brand. Your site looks like a real business, because it is one.",
       },
       {
         q: "How is this different from Squarespace or Notion?",
-        a: "Those are just for presentation — you'd still juggle bookings in WhatsApp, payments somewhere else, and your schedule in your head. Tulala is the whole thing: a site, a booking flow, payments, and a shared discovery network — built around how service businesses actually work.",
+        a: "Those are just for presentation. You'd still juggle bookings in WhatsApp, payments somewhere else, and your schedule in your head. Tulala is the whole thing: a site, a booking flow, payments, and a shared discovery network, built around how service businesses actually work.",
       },
       {
         q: "Do I have to be on the shared network?",
-        a: "No. The network is opt-in, per business and per profile. Run Tulala as a private branded site, appear in the network, or both — you control what's discoverable.",
+        a: "No. The network is opt-in, per business and per profile. Run Tulala as a private branded site, appear in the network, or both. You control what's discoverable.",
       },
       {
         q: "What happens to my data if I leave?",
@@ -267,7 +267,7 @@ const en = {
       },
       {
         q: "Can my team work in it together?",
-        a: "Yes — paid plans support multiple users with roles and permissions: owners, admins, coordinators, assistants. Everyone works in the same place with the right level of access.",
+        a: "Yes. Paid plans support multiple users with roles and permissions: owners, admins, coordinators, assistants. Everyone works in the same place with the right level of access.",
       },
       {
         q: "Does it work outside the US?",
@@ -280,7 +280,7 @@ const en = {
     eyebrow: "Stories",
     title: "One platform. Every kind of talent business.",
     subtitle:
-      "From a solo singer to a city-wide services hub — see how people use Tulala to sell their work, run their business, or both. Tap any story to read it.",
+      "From a solo singer to a city-wide services hub, see how people use Tulala to sell their work, run their business, or both. Tap any story to read it.",
     footnote:
       "Illustrative stories that show what's possible today. Real customer pages connect here as they launch.",
     filters: ["All stories", "Talent", "Business", "Hubs", "Hybrid"],
@@ -298,7 +298,7 @@ const en = {
     titleLine2: "Run a real business.",
     subhead:
       "Open a free page and start taking requests today. When you're ready, launch your own site, collect inquiries, and run the whole business.",
-    ctaTalent: "Sell your work — free",
+    ctaTalent: "Sell your work, free",
     ctaBusiness: "Start a business",
     trust: [
       "Free subdomain",
@@ -310,7 +310,7 @@ const en = {
 
   footer: {
     description:
-      "The talent business platform — sell your services, run your business, get paid.",
+      "The talent business platform: sell your services, run your business, get paid.",
     columns: {
       platform: {
         label: "Platform",
@@ -344,7 +344,7 @@ const es: MarketingCopy = {
   nav: {
     platform: {
       label: "Plataforma",
-      blurb: "Un solo lugar para construir un negocio alrededor de tu gente — y cobrar.",
+      blurb: "Un solo lugar para construir un negocio alrededor de tu gente, y cobrar.",
       items: [
         {
           label: "Constructor de páginas en un clic",
@@ -364,7 +364,7 @@ const es: MarketingCopy = {
     },
     solutions: {
       label: "Soluciones",
-      blurb: "Como sea que trabajes — vende tus servicios, lleva un negocio, o las dos cosas.",
+      blurb: "Como sea que trabajes: vende tus servicios, lleva un negocio, o las dos cosas.",
       items: [
         {
           label: "Para talento",
@@ -383,7 +383,7 @@ const es: MarketingCopy = {
     },
     discover: {
       label: "Explora",
-      blurb: "Explora toda la red — y empieza una conversación.",
+      blurb: "Explora toda la red y empieza una conversación.",
       items: [
         { label: "Explorar talento", description: "Todos los catálogos, un solo directorio." },
         { label: "Agencias y hubs", description: "Encuentra dónde crecer." },
@@ -406,8 +406,8 @@ const es: MarketingCopy = {
     titleLine1: "Tu talento y tus servicios",
     titleLine2: "valen dinero.",
     subhead:
-      "Abre una página gratis y empieza a recibir solicitudes en minutos. Cuando estés listo, crea tu propio sitio y tu panel de negocio en un clic — y cobra reservas y pagos desde el mismo chat.",
-    ctaTalent: "Vende tu trabajo — gratis",
+      "Abre una página gratis y empieza a recibir solicitudes en minutos. Cuando estés listo, crea tu propio sitio y tu panel de negocio en un clic, y cobra reservas y pagos desde el mismo chat.",
+    ctaTalent: "Vende tu trabajo, gratis",
     ctaBusiness: "Abre tu negocio",
     trust: ["Gratis para siempre", "Sin código", "Reservas y pagos incluidos"],
   },
@@ -416,12 +416,12 @@ const es: MarketingCopy = {
     eyebrow: "Para quién es",
     title: "Hecho para tu forma de trabajar.",
     subtitle:
-      "Vende tus servicios, lleva un negocio completo o crea un hub — Tulala crece contigo. Y no tienes que elegir solo uno.",
+      "Vende tus servicios, lleva un negocio completo o crea un hub. Tulala crece contigo, y no tienes que elegir solo uno.",
     talent: {
       eyebrow: "Para talento",
       title: "Vende tu trabajo.",
       subtitle:
-        "Dale a tu oficio una página, un flujo de reservas y espacio para crecer — sin construir nada primero.",
+        "Dale a tu oficio una página, un flujo de reservas y espacio para crecer, sin construir nada primero.",
       points: [
         "Perfil gratis y enlace para compartir",
         "Reservas y pagos incluidos",
@@ -459,11 +459,11 @@ const es: MarketingCopy = {
     eyebrow: "La plataforma",
     title: "Dos cosas que nadie más había juntado en un solo lugar.",
     subtitle:
-      "Un constructor que lanza todo tu negocio en un clic — y una mensajería donde la conversación se vuelve la reserva, y el pago.",
+      "Un constructor que lanza todo tu negocio en un clic, y una mensajería donde la conversación se vuelve la reserva, y el pago.",
     builder: {
       eyebrow: "Constructor de páginas en un clic",
       title: "Tu sitio y tu panel de negocio. Un clic.",
-      body: "Describe tu negocio una vez. Tulala crea el sitio de servicios que ven tus clientes y el panel desde donde lo manejas — conectados, con tu marca, en vivo en minutos. Este es el constructor 2027: repetidores, biblioteca de medios, animación y datos reales, sin una línea de código.",
+      body: "Describe tu negocio una vez. Tulala crea el sitio de servicios que ven tus clientes y el panel desde donde lo manejas: conectados, con tu marca, en vivo en minutos. Este es el constructor 2027: repetidores, biblioteca de medios, animación y datos reales, sin una línea de código.",
       bullets: [
         "Una instrucción → un sitio público y un panel privado, al instante",
         "Arrastra y suelta cuando quieras; IA cuando no",
@@ -474,8 +474,8 @@ const es: MarketingCopy = {
     },
     messenger: {
       eyebrow: "Mensajería de reservas",
-      title: "Donde el chat se vuelve la reserva — y el pago.",
-      body: "Cada solicitud llega a un solo hilo. Envía una oferta, consigue la aprobación, cobra un anticipo o el total, y conviértelo en una reserva confirmada — sin salir de la conversación. Los mensajes y el dinero, por fin en el mismo lugar.",
+      title: "Donde el chat se vuelve la reserva, y el pago.",
+      body: "Cada solicitud llega a un solo hilo. Envía una oferta, consigue la aprobación, cobra un anticipo o el total, y conviértelo en una reserva confirmada sin salir de la conversación. Los mensajes y el dinero, por fin en el mismo lugar.",
       bullets: [
         "Solicitud → oferta → aprobación → reserva, un solo hilo",
         "Cobra anticipos o el pago completo dentro del chat",
@@ -487,7 +487,7 @@ const es: MarketingCopy = {
     support: [
       { title: "Reservas y anticipos", body: "Calendarios, horarios y anticipos que acaban con las ausencias." },
       { title: "La red compartida", body: "Súmate al descubrimiento entre catálogos y que te encuentren nuevos clientes." },
-      { title: "Talento + negocio", body: "Sé el talento y lleva el negocio — desde un solo acceso." },
+      { title: "Talento + negocio", body: "Sé el talento y lleva el negocio, todo desde un solo acceso." },
     ],
     builderMock: {
       prompt: "Un sitio de reservas para mi estudio de masajes",
@@ -500,7 +500,7 @@ const es: MarketingCopy = {
     eyebrow: "Recorrido del producto",
     title: "Todo lo que ven. Todo lo que manejas.",
     subtitle:
-      "Una página pública desde donde te reservan, perfiles que muestran bien tu trabajo, y una bandeja donde las solicitudes se vuelven reservas pagadas — todo conectado.",
+      "Una página pública desde donde te reservan, perfiles que muestran bien tu trabajo, y una bandeja donde las solicitudes se vuelven reservas pagadas. Todo conectado.",
     tabs: [
       {
         label: "Tu página",
@@ -512,7 +512,7 @@ const es: MarketingCopy = {
         label: "Perfiles",
         eyebrow: "02 · Perfiles públicos",
         title: "Cada persona, presentada como se debe.",
-        body: "Portafolio, servicios, disponibilidad y un solo botón de reserva — en un enlace para compartir. Como siempre debió verse vender tu trabajo en línea.",
+        body: "Portafolio, servicios, disponibilidad y un solo botón de reserva, todo en un enlace para compartir. Como siempre debió verse vender tu trabajo en línea.",
       },
       {
         label: "Bandeja de reservas",
@@ -539,7 +539,7 @@ const es: MarketingCopy = {
       },
       {
         title: "Los negocios conservan su marca",
-        body: "Cada workspace mantiene su sitio, su catálogo y sus reservas — y aun así lo encuentran en el descubrimiento compartido.",
+        body: "Cada workspace mantiene su sitio, su catálogo y sus reservas, y aun así lo encuentran en el descubrimiento compartido.",
       },
       {
         title: "Tus datos son tuyos",
@@ -557,9 +557,9 @@ const es: MarketingCopy = {
     eyebrow: "Precios",
     title: "Empieza gratis. Crece cuando estés listo.",
     subtitle:
-      "Todos los planes te llevan de la solicitud a reservado y pagado — gratis. Los planes de pago suman tamaño de catálogo, marca y canales conforme creces.",
+      "Todos los planes te llevan de la solicitud a reservado y pagado, gratis. Los planes de pago suman tamaño de catálogo, marca y canales conforme creces.",
     footnote:
-      "La moneda se ajusta para LATAM y la UE. Los planes anuales ahorran 20%. Sin costos de instalación, y tus datos siempre son tuyos — expórtalos cuando quieras.",
+      "La moneda se ajusta para LATAM y la UE. Los planes anuales ahorran 20%. Sin costos de instalación, y tus datos siempre son tuyos. Expórtalos cuando quieras.",
     mostPopular: "Más popular",
   },
 
@@ -572,23 +572,23 @@ const es: MarketingCopy = {
     items: [
       {
         q: "¿Para quién es Tulala?",
-        a: "Para quien vende su trabajo o lleva un negocio alrededor de personas — cantantes, chefs, estilistas, personal de limpieza, fotógrafos, coaches; salones, estudios y agencias; y hubs locales que conectan profesionales con clientes. Si alguna vez agendaste trabajo por WhatsApp, esto es para ti.",
+        a: "Para quien vende su trabajo o lleva un negocio alrededor de personas: cantantes, chefs, estilistas, personal de limpieza, fotógrafos, coaches; salones, estudios y agencias; y hubs locales que conectan profesionales con clientes. Si alguna vez agendaste trabajo por WhatsApp, esto es para ti.",
       },
       {
         q: "¿De verdad hay un plan gratis?",
-        a: "Sí — un plan gratis de verdad útil, no una prueba disfrazada. Tienes una página gratis, un enlace para compartir, reservas y una bandeja de solicitudes real. Sin tarjeta.",
+        a: "Sí. Un plan gratis de verdad útil, no una prueba disfrazada. Tienes una página gratis, un enlace para compartir, reservas y una bandeja de solicitudes real. Sin tarjeta.",
       },
       {
         q: "¿Puedo usar mi propio dominio?",
-        a: "Sí, en los planes de pago. Trae tu dominio y controla por completo tus páginas, diseño y marca. Tu sitio se ve como un negocio de verdad — porque lo es.",
+        a: "Sí, en los planes de pago. Trae tu dominio y controla por completo tus páginas, diseño y marca. Tu sitio se ve como un negocio de verdad, porque lo es.",
       },
       {
         q: "¿En qué se diferencia de Squarespace o Notion?",
-        a: "Esos son solo para presentar — seguirías cuadrando reservas por WhatsApp, los pagos por otro lado y la agenda en tu cabeza. Tulala es todo junto: un sitio, un flujo de reservas, pagos y una red de descubrimiento — hecho para cómo funcionan de verdad los negocios de servicios.",
+        a: "Esos son solo para presentar. Seguirías cuadrando reservas por WhatsApp, los pagos por otro lado y la agenda en tu cabeza. Tulala es todo junto: un sitio, un flujo de reservas, pagos y una red de descubrimiento, hecho para cómo funcionan de verdad los negocios de servicios.",
       },
       {
         q: "¿Estoy obligado a aparecer en la red compartida?",
-        a: "No. La red es opcional, por negocio y por perfil. Usa Tulala como un sitio privado con tu marca, aparece en la red, o las dos cosas — tú decides qué se puede descubrir.",
+        a: "No. La red es opcional, por negocio y por perfil. Usa Tulala como un sitio privado con tu marca, aparece en la red, o las dos cosas. Tú decides qué se puede descubrir.",
       },
       {
         q: "¿Qué pasa con mis datos si me voy?",
@@ -596,7 +596,7 @@ const es: MarketingCopy = {
       },
       {
         q: "¿Mi equipo puede trabajar conmigo ahí?",
-        a: "Sí — los planes de pago permiten varios usuarios con roles y permisos: dueños, administradores, coordinadores, asistentes. Todos trabajan en el mismo lugar con el acceso que les toca.",
+        a: "Sí. Los planes de pago permiten varios usuarios con roles y permisos: dueños, administradores, coordinadores, asistentes. Todos trabajan en el mismo lugar con el acceso que les toca.",
       },
       {
         q: "¿Funciona fuera de EE. UU.?",
@@ -609,7 +609,7 @@ const es: MarketingCopy = {
     eyebrow: "Historias",
     title: "Una plataforma. Cada tipo de negocio de talento.",
     subtitle:
-      "De una cantante independiente a un hub de servicios para toda una ciudad — mira cómo la gente usa Tulala para vender su trabajo, llevar su negocio, o las dos cosas. Toca cualquier historia para leerla.",
+      "De una cantante independiente a un hub de servicios para toda una ciudad: mira cómo la gente usa Tulala para vender su trabajo, llevar su negocio, o las dos cosas. Toca cualquier historia para leerla.",
     footnote:
       "Historias ilustrativas de lo que ya es posible hoy. Las páginas de clientes reales se conectan aquí conforme se lanzan.",
     filters: ["Todas", "Talento", "Negocios", "Hubs", "Híbrido"],
@@ -627,7 +627,7 @@ const es: MarketingCopy = {
     titleLine2: "Lleva un negocio de verdad.",
     subhead:
       "Abre una página gratis y empieza a recibir solicitudes hoy. Cuando estés listo, lanza tu propio sitio, recibe tus solicitudes y lleva todo el negocio.",
-    ctaTalent: "Vende tu trabajo — gratis",
+    ctaTalent: "Vende tu trabajo, gratis",
     ctaBusiness: "Abre tu negocio",
     trust: [
       "Subdominio gratis",
@@ -639,7 +639,7 @@ const es: MarketingCopy = {
 
   footer: {
     description:
-      "La plataforma del negocio del talento — vende tus servicios, lleva tu negocio, cobra.",
+      "La plataforma del negocio del talento: vende tus servicios, lleva tu negocio, cobra.",
     columns: {
       platform: {
         label: "Plataforma",

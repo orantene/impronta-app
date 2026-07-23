@@ -13,15 +13,15 @@ function getFeatures(locale: string): Feature[] {
     {
       title: pickLocale(locale, { en: "Branded roster site", es: "Sitio con tu marca para tu roster" }),
       body: pickLocale(locale, {
-        en: "Your identity, typography, colors, and domain. A real website — not a generic template — managed in a modern CMS.",
-        es: "Tu identidad, tu tipografía, tus colores y tu dominio. Un sitio web de verdad —no una plantilla genérica— que administras desde un CMS moderno.",
+        en: "Your identity, typography, colors, and domain. A real website, not a generic template, managed in a modern CMS.",
+        es: "Tu identidad, tu tipografía, tus colores y tu dominio. Un sitio web de verdad, no una plantilla genérica, que administras desde un CMS moderno.",
       }),
       icon: <SiteIcon />,
     },
     {
       title: pickLocale(locale, { en: "People profiles, done right", es: "Perfiles de personas, como debe ser" }),
       body: pickLocale(locale, {
-        en: "Structured taxonomy, media pipeline, multi-locale support, and editorial presentation — the profile your roster deserves.",
+        en: "Structured taxonomy, media pipeline, multi-locale support, and editorial presentation: the profile your roster deserves.",
         es: "Taxonomía estructurada, flujo de medios, soporte multilingüe y una presentación editorial: el perfil que tu roster se merece.",
       }),
       icon: <ProfileIcon />,
@@ -45,7 +45,7 @@ function getFeatures(locale: string): Feature[] {
     {
       title: pickLocale(locale, { en: "Multi-user with roles", es: "Varios usuarios, con roles" }),
       body: pickLocale(locale, {
-        en: "Coordinators, admins, assistants, owners — scope access with permissions. Scale past the one-person bottleneck.",
+        en: "Coordinators, admins, assistants, owners: scope access with permissions. Scale past the one-person bottleneck.",
         es: "Coordinadores, administradores, asistentes, dueños: define el acceso de cada quien con permisos. Crece más allá del cuello de botella de una sola persona.",
       }),
       icon: <RolesIcon />,
@@ -53,8 +53,8 @@ function getFeatures(locale: string): Feature[] {
     {
       title: pickLocale(locale, { en: "Analytics + insights", es: "Analíticas e insights" }),
       body: pickLocale(locale, {
-        en: "See who&rsquo;s viewing profiles, where inquiries come from, what converts — and where to spend the next hour.",
-        es: "Mira quién ve los perfiles, de dónde llegan las consultas, qué convierte —y dónde te conviene invertir la próxima hora.",
+        en: "See who&rsquo;s viewing profiles, where inquiries come from, what converts, and where to spend the next hour.",
+        es: "Mira quién ve los perfiles, de dónde llegan las consultas, qué convierte y dónde te conviene invertir la próxima hora.",
       }),
       icon: <AnalyticsIcon />,
     },

@@ -306,7 +306,7 @@ function headerCopy(
         eyebrow: "Join the roster",
         title: "Apply to",
         titleAccent: `${tenant.displayName}.`,
-        sub: "You're signed in to Tulala — send your request in one tap.",
+        sub: "You're signed in to Tulala. Send your request in one tap.",
       };
     }
     return {
@@ -399,7 +399,7 @@ function TenantApplyPanel({
             style={{ color: "var(--plt-muted)" }}
           >
             {done === "active"
-              ? "You're on the roster — manage your work from your Tulala dashboard."
+              ? "You're on the roster. Manage your work from your Tulala dashboard."
               : `${tenant.displayName} will review your application and be in touch.`}
           </p>
         </div>

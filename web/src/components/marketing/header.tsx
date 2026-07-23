@@ -157,7 +157,7 @@ export function MarketingHeader({
         <Link
           href="/"
           className="group relative -mx-1 flex items-center rounded-md px-1 py-1"
-          aria-label={`${PLATFORM_BRAND.name} — home`}
+          aria-label={`${PLATFORM_BRAND.name} home`}
           style={{ color: "var(--plt-ink)" }}
         >
           <TulalaWordmark />

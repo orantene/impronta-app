@@ -216,7 +216,7 @@ export async function submitGetStartedSignup(
       };
     }
     if (isReservedWorkspaceSlug(subdomain)) {
-      return { ok: false, errors: { subdomain: "That one's reserved — try another." } };
+      return { ok: false, errors: { subdomain: "That one's reserved. Try another." } };
     }
   }
 
@@ -364,7 +364,7 @@ export async function submitGetStartedSignup(
     await Promise.all([
       sendEmail({
         to: input.email,
-        subject: `You're on the list — ${PLATFORM_BRAND.name}`,
+        subject: `You're on the list · ${PLATFORM_BRAND.name}`,
         html: renderLeadConfirmationEmail({
           name: input.name.trim(),
           subdomain,
@@ -455,13 +455,13 @@ function renderLeadConfirmationEmail(args: {
       }. ${
         args.workspaceSignupUrl
           ? "For Free-plan workspaces, you can finish signup right away."
-          : "We're reviewing signups in the order they arrive and sending setup links within a day — usually within an hour during working hours."
+          : "We're reviewing signups in the order they arrive and sending setup links within a day, usually within an hour during working hours."
       }</p>
       ${subdomainLine}
       ${selfServeBlock}
       <p style="margin:28px 0 0;color:#3a4541;font-size:15px;line-height:1.6;">${followupCopy}</p>
       <hr style="border:none;border-top:1px solid rgba(15,23,20,0.08);margin:32px 0;"/>
-      <p style="margin:0;color:#6b766f;font-size:13px;line-height:1.6;">— The ${
+      <p style="margin:0;color:#6b766f;font-size:13px;line-height:1.6;">The ${
         PLATFORM_BRAND.name
       } team<br/>${PLATFORM_BRAND.stage} · ${new Date().getFullYear()}</p>
     </td></tr>
@@ -496,10 +496,10 @@ function renderFounderDigestEmail(params: {
     ${row("Email", params.email)}
     ${row("Audience", params.audience)}
     ${row("Roster size", params.rosterSize)}
-    ${row("Subdomain", params.subdomain ? `${params.subdomain}.${PLATFORM_BRAND.domain}` : "—")}
-    ${row("Tier interest", params.tierInterest ?? "—")}
-    ${row("UTM source", params.utmSource ?? "—")}
-    ${row("Referrer", params.referrer ?? "—")}
+    ${row("Subdomain", params.subdomain ? `${params.subdomain}.${PLATFORM_BRAND.domain}` : "·")}
+    ${row("Tier interest", params.tierInterest ?? "·")}
+    ${row("UTM source", params.utmSource ?? "·")}
+    ${row("Referrer", params.referrer ?? "·")}
     ${row("Lead ID", params.leadId)}
   </table>
 </body></html>`;
