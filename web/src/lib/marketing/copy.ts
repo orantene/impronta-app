@@ -359,7 +359,7 @@ const en = {
       },
       company: {
         label: "Company",
-        items: ["Pricing", "Start free", "FAQ", "Privacy", "Terms"],
+        items: ["Pricing", "Start free", "FAQ", "Resources", "Privacy", "Terms"],
       },
     },
   },
@@ -711,7 +711,7 @@ const es: MarketingCopy = {
       },
       company: {
         label: "Empresa",
-        items: ["Precios", "Empieza gratis", "Preguntas frecuentes", "Privacidad", "Términos"],
+        items: ["Precios", "Empieza gratis", "Preguntas frecuentes", "Recursos", "Privacidad", "Términos"],
       },
     },
   },
