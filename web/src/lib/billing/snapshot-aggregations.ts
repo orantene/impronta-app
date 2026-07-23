@@ -112,10 +112,11 @@ function pickSnapshotForBooking(
 
 function isEurRow(currencyCode: string, bookingId: string): boolean {
   if (currencyCode === EUR) return true;
-  logServerError(
-    "snapshot-aggregations/non_eur_row",
-    new Error(`Excluded non-EUR snapshot for booking ${bookingId}: ${currencyCode}`),
-  );
+  // Non-EUR bookings are expected data (USD travels enter the DB too). Downgrade
+  // from logServerError (which fires Sentry) to a plain warn so the exclusion is
+  // still observable in logs without polluting the error dashboard.
+  // eslint-disable-next-line no-console
+  console.warn(`[snapshot-aggregations/non_eur_row] Excluded non-EUR snapshot for booking ${bookingId}: ${currencyCode}`);
   return false;
 }
 
@@ -536,10 +537,8 @@ export async function aggregateAgencyEarnings(opts: {
 
   return (data ?? []).reduce((sum, row) => {
     if (row.currency_code !== EUR) {
-      logServerError(
-        "snapshot-aggregations/agency_non_eur",
-        new Error(`Excluded non-EUR agency row: ${row.currency_code}`),
-      );
+      // eslint-disable-next-line no-console
+      console.warn(`[snapshot-aggregations/agency_non_eur] Excluded non-EUR agency row: ${row.currency_code}`);
       return sum;
     }
     return sum + (row.workspace_fee_cents as number);
