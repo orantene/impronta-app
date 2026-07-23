@@ -456,6 +456,8 @@ const MARKETING_PAGE_PREFIXES = [
   // Two segments on purpose: a single-segment `/models` would collide with
   // the tenant-slug namespace, `/for/*` never can.
   "/for",
+  // Educational resource articles + glossary (`/resources/*`).
+  "/resources",
   // Global Talent Directory — public, platform-wide cross-tenant browse of
   // the discoverable set (talent_discover_index matview). Reads no per-tenant
   // private data, requires no auth. `/directory` is already reserved in
