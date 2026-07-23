@@ -1054,7 +1054,7 @@
   },
   "src/components/admin/shell/internal/talent/pages/CalendarPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 32
+      "count": 31
     }
   },
   "src/components/admin/shell/internal/talent/pages/MyProfilePage.tsx": {

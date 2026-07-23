@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { useDashboardText } from "../dashboard-i18n";
 import { interpolate } from "@/i18n/interpolate";
 import { AVAILABILITY_BLOCKS, COLORS, FONTS, MY_TALENT_PROFILE, useAdminShell } from "../state";
 import {
@@ -106,14 +107,25 @@ export function TalentAvailabilityDrawer() {
  * for travel) than blocking specific date ranges.
  */
 export function TalentBlockDatesDrawer() {
-  const { state, closeDrawer } = useAdminShell();
+  const { state, closeDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentCalendarEntries } = useAdminShell();
   const t = useT();
+  const copy = useDashboardText();
   const open = state.drawer.drawerId === "talent-block-dates";
+  // Seed from the REAL talent when the bridge is live — this drawer used to
+  // read MY_TALENT_PROFILE unconditionally, so every real talent saw the demo
+  // talent's city and toggles.
   const p = MY_TALENT_PROFILE;
+  const isBridged = bridgeTalentSelfProfile != null;
+  const seedLocation = isBridged
+    ? (bridgeTalentSelfProfile.homeCity ?? "")
+    : p.currentLocation;
 
-  const [location, setLocation] = useState(p.currentLocation);
-  const [availableForWork, setAvailableForWork] = useState(p.availableForWork);
-  const [availableToTravel, setAvailableToTravel] = useState(p.availableToTravel);
+  const [location, setLocation] = useState(seedLocation);
+  const [availableForWork, setAvailableForWork] = useState(isBridged ? true : p.availableForWork);
+  const [availableToTravel, setAvailableToTravel] = useState(isBridged ? true : p.availableToTravel);
+  // Real blocks for the bridged talent (same rows the Calendar's block form
+  // writes). The mock AVAILABILITY_BLOCKS fixture is demo-only.
+  const realBlockCount = (bridgeTalentCalendarEntries ?? []).filter((e) => e.kind === "block").length;
 
   return (
     <DrawerShell
@@ -125,6 +137,33 @@ export function TalentBlockDatesDrawer() {
       footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+        {/* Sections 1+2 (location + work/travel toggles) are DEMO-ONLY: there is
+            no talent_profiles column behind them, so for a real bridged talent
+            they showed the demo talent's values and silently discarded edits.
+            Real talents get the working blocks view below instead. */}
+        {isBridged && (
+          <section>
+            <div className="rounded-[10px] border border-admin-border-soft bg-admin-surface-alt px-3.5 py-3">
+              <div className="text-admin-ink text-[13px] font-semibold">
+                {copy.t("Blocked dates")} · {realBlockCount}
+              </div>
+              <div className="mt-1 text-[12px] leading-[1.5] text-admin-ink-muted">
+                {realBlockCount > 0
+                  ? copy.t("Agencies can't pitch you for these dates.")
+                  : copy.t("Block unavailable dates so agencies don't pitch you for jobs you can't take.")}
+              </div>
+              <button
+                type="button"
+                onClick={() => { closeDrawer(); setTalentPage("calendar"); }}
+                className="mt-3 cursor-pointer rounded-[999px] border-none bg-admin-accent px-3.5 py-2 text-[12.5px] font-semibold text-white"
+              >
+                {copy.t("Manage in Calendar")}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {!isBridged && (<>
         {/* ─── 1. Where are you? — C7 location autocomplete suggestions ── */}
         <section>
           <SubsectionLabel>{t("dashboard.talentDrawers.availability.whereTitle")}</SubsectionLabel>
@@ -250,9 +289,10 @@ export function TalentBlockDatesDrawer() {
             </div>
           )}
         </section>
+        </>)}
 
         {/* ─── 3. Existing blocks (A5) ──────────────────────────── */}
-        {AVAILABILITY_BLOCKS.length > 0 && (
+        {!isBridged && AVAILABILITY_BLOCKS.length > 0 && (
           <section>
             <SubsectionLabel>{interpolate(t("dashboard.talentDrawers.availability.existingBlocks"), { count: AVAILABILITY_BLOCKS.length })}</SubsectionLabel>
             <div

@@ -467,7 +467,9 @@ export function TalentTodayPage() {
         currency={paidThisMonthCurrency}
         monthTotal={paidThisMonthTotal}
         earnings={bridgeTalentEarnings}
-        onSeeAll={() => openDrawer("talent-career-analytics")}
+        // "See all earnings" belongs on the Money page (real ledger + payouts),
+        // not the career-analytics drawer it used to open.
+        onSeeAll={() => setTalentPage("money")}
       />
 
       {/* W8 — two-sided reviews. The talent's received (client→talent) rating
