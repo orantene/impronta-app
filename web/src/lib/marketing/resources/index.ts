@@ -7,8 +7,11 @@
  * the allow-list (which permits the whole `/resources` prefix).
  */
 
+import { AGENCY_ARTICLES } from "./articles-agency";
 import { BASICS_ARTICLES } from "./articles-basics";
 import { MONEY_ARTICLES } from "./articles-money";
+import { OPERATIONS_ARTICLES } from "./articles-operations";
+import { PLATFORM_ARTICLES } from "./articles-platform";
 import type { ArticleContent, ResourceArticle } from "./types";
 
 export type {
@@ -21,6 +24,9 @@ export type {
 export const RESOURCE_ARTICLES: ResourceArticle[] = [
   ...BASICS_ARTICLES,
   ...MONEY_ARTICLES,
+  ...AGENCY_ARTICLES,
+  ...OPERATIONS_ARTICLES,
+  ...PLATFORM_ARTICLES,
 ];
 
 export function getResourceArticle(slug: string): ResourceArticle | undefined {
