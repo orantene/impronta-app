@@ -11,6 +11,7 @@ export default function Image() {
   return renderOgCard({
     kicker: "Directory",
     title: "Hire vetted talent, from every roster.",
-    subtitle: "Models, chefs, photographers, and more. Search by craft, location, and availability.",
+    subtitle:
+      "Independents and agency rosters. Search by craft, location, and availability.",
   });
 }
