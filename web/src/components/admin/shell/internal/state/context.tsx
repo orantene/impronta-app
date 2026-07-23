@@ -384,6 +384,9 @@ type Ctx = {
     kind: string;
     /** Brand logo URL — replaces the TULALA wordmark when present. */
     logoUrl?: string | null;
+    /** Whitelabel accent hex — injected as `--tulala-accent` on the shell
+     *  root (whitelabel-tier tenants only). */
+    accentColor?: string | null;
     /**
      * Task 0.5 — Verified custom domain from agency_domains. Null when
      * no custom domain is live yet. The Website settings TierCard reads

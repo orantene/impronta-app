@@ -34,6 +34,7 @@ import { actionLoadUserWorkspaces, type UserWorkspace } from "@/lib/server-actio
 import { updateWorkspaceAccount } from "@/lib/server-actions/admin-workspace-settings";
 import {
   COLORS,
+  accentAlpha,
   FONTS,
   RADIUS,
   RICH_INQUIRIES,
@@ -4476,7 +4477,7 @@ export function TalentFirstRunBanner() {
           <div key={s.step} style={{
             height: 5, borderRadius: 999,
             flex: s.step === currentStep ? 3 : 1,
-            background: s.step < currentStep ? COLORS.accent : s.step === currentStep ? COLORS.accent + "88" : COLORS.border,
+            background: s.step < currentStep ? COLORS.accent : s.step === currentStep ? accentAlpha("88") : COLORS.border,
             transition: "all .25s",
           }} />
         ))}
@@ -4595,7 +4596,7 @@ export function ClientFirstRunBanner() {
             style={{
               height: 5, borderRadius: 999,
               flex: s.step === currentStep ? 3 : 1,
-              background: s.step < currentStep ? COLORS.accent : s.step === currentStep ? COLORS.accent + "88" : COLORS.border,
+              background: s.step < currentStep ? COLORS.accent : s.step === currentStep ? accentAlpha("88") : COLORS.border,
               transition: "all .25s",
             }}
           />
@@ -4695,7 +4696,7 @@ export function DemoDataBanner({ isEstablishedTenant = false }: DemoDataBannerPr
   if (dismissed) return null;
 
   return (
-    <div style={{ display:        "flex", alignItems:     "center", gap:            12, padding:        "10px 14px", background:     enabled ? COLORS.accent + "0D" : COLORS.surfaceAlt, border:         `1px solid ${enabled ? COLORS.accent + "44" : COLORS.border}`, fontFamily:     FONTS.body, marginBottom:   16 }} className="rounded-admin-lg">
+    <div style={{ display:        "flex", alignItems:     "center", gap:            12, padding:        "10px 14px", background:     enabled ? accentAlpha("0D") : COLORS.surfaceAlt, border:         `1px solid ${enabled ? accentAlpha("44") : COLORS.border}`, fontFamily:     FONTS.body, marginBottom:   16 }} className="rounded-admin-lg">
       <span className="text-lg">🧪</span>
       <div className="flex-1">
         <div className="text-admin-ink text-admin-13 font-semibold">

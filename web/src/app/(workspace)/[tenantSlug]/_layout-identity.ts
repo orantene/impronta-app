@@ -2,6 +2,16 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
+
+/** Accepts #rgb / #rrggbb only — anything else (including a var() or a
+ *  malformed value) is rejected so we never inject an invalid custom
+ *  property onto the admin shell root. */
+function normalizeHexAccent(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const v = raw.trim();
+  return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v) ? v : null;
+}
 
 /**
  * Shared identity loaders used by BOTH the workspace admin layout and the
@@ -25,6 +35,15 @@ export type TenantIdentityPayload = {
    *  identity bar. Stored in agency_branding.theme_json.logo_url for
    *  parity with the public storefront's branded chrome. */
   logoUrl: string | null;
+  /**
+   * Whitelabel accent color (hex) for the admin/operational chrome. Only
+   * populated for tenants on a whitelabel plan tier (agency/network) that
+   * have set a brand accent; null otherwise. When set, the shell root
+   * injects it as `--tulala-accent`, re-tinting the shell's accent tokens
+   * (primary buttons, active nav, focus rings) from the default forest
+   * green to the agency's brand. Public storefront theming is unaffected.
+   */
+  accentColor: string | null;
   /**
    * The tenant's verified custom domain hostname, if any. Derived from
    * `agency_domains` where `kind='custom'` and `status IN ('verified',
@@ -78,7 +97,7 @@ export async function loadTenantIdentity(
       .maybeSingle(),
     admin
       .from("agency_branding")
-      .select("theme_json")
+      .select("theme_json, accent_color")
       .eq("tenant_id", tenantId)
       .maybeSingle(),
     // Task 0.5: Fetch the tenant's verified custom domain (if any).
@@ -117,13 +136,21 @@ export async function loadTenantIdentity(
       : null;
   const verifiedDomain =
     (domainRes.data as { hostname: string } | null)?.hostname ?? null;
+  // Whitelabel accent — only honored on whitelabel plan tiers, and only
+  // when it is a valid hex. Free/Studio tenants always see Tulala's chrome.
+  const planTier = data.plan_tier ?? "free";
+  const brandingRow = brandingRes.data as { accent_color?: string | null } | null;
+  const accentColor = planTierHasWhitelabel(planTier)
+    ? normalizeHexAccent(brandingRow?.accent_color)
+    : null;
   return {
     tenantId: data.id,
     slug: data.slug ?? "",
     displayName: data.display_name ?? "Workspace",
-    planTier: data.plan_tier ?? "free",
+    planTier,
     kind: data.kind ?? "agency",
     logoUrl,
+    accentColor,
     verifiedDomain,
     defaultCoordinatorUserId:
       (data as { default_coordinator_user_id?: string | null }).default_coordinator_user_id ?? null,

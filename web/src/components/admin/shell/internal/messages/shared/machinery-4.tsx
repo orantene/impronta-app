@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { loadWorkspaceCoordinatorCandidates, loadCoordinatorAssignCandidates, addSecondaryCoordinatorAction, reassignCoordinatorAction, removeSecondaryCoordinatorAction, loadSecondaryCoordinators, type WorkspaceCoordinatorCandidate, type CoordinatorAssignCandidate, type SecondaryCoordinatorRow } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
-import { useAdminShell, FONTS, COLORS, meetsRole, type InquiryRecord } from "../../state";
+import { useAdminShell, FONTS, COLORS, accentAlpha, meetsRole, type InquiryRecord } from "../../state";
 import { Avatar } from "../../primitives";
 import { MOCK_CONVERSATIONS, type Conversation } from "../../talent";
 import { initialsOf } from "./inbox-identity-1";
@@ -218,7 +218,7 @@ export function ReassignCoordinatorSheet({
                                 <span style={{
                                   flexShrink: 0, padding: "2px 7px", borderRadius: 999,
                                   fontSize: 10, fontWeight: 700,
-                                  background: `${COLORS.accent}1c`, color: COLORS.accent,
+                                  background: accentAlpha("1c"), color: COLORS.accent,
                                 }}>{t("dashboard.adminTabs.reassign.inLineup")}</span>
                               )}
                               {isPicked && (
