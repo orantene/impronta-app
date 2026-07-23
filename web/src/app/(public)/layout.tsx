@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
 import { DirectoryInquirySheet } from "@/components/directory/directory-inquiry-sheet";
@@ -16,6 +17,24 @@ import {
 } from "@/lib/public-discovery";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
+
+/**
+ * Per-tenant title template. The ROOT layout sets `%s · Tulala`; on a tenant
+ * storefront that suffix leaks the SaaS brand onto the agency's own pages
+ * (live example: "Contact · Tulala", "Contacto · Tulala" on improntamodels.com).
+ * Override the template here with the tenant's `public_name` so every
+ * storefront page reads "… · {Agency}". Non-tenant hosts (marketing/app) return
+ * `{}` and keep the platform default — byte-identical behavior off-tenant.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const ctx = await getPublicHostContext();
+  const tenantBrand =
+    ctx.kind === "agency" || ctx.kind === "hub"
+      ? (await loadPublicIdentity(ctx.tenantId))?.public_name?.trim() || null
+      : null;
+  if (!tenantBrand) return {};
+  return { title: { template: `%s · ${tenantBrand}`, default: tenantBrand } };
+}
 
 export default async function PublicLayout({
   children,
