@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { getMarketingCopy } from "@/lib/marketing/copy";
@@ -66,14 +67,19 @@ export function HeroSection({ locale }: { locale: string }) {
       <div aria-hidden className="absolute inset-0">
         {SLIDES.map((photo, idx) =>
           idx > 0 && !carouselReady ? null : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            // next/image, not a raw <img>: these are full-bleed local JPEGs
+            // (the LCP one is 303 KB at source). Through the optimizer the same
+            // frame is ~22 KB of AVIF at mobile width, which is the difference
+            // between a fast hero and a 12s LCP. Quality is left at the default
+            // 75, the only value `images.qualities` allows.
+            <Image
               key={photo.key}
               src={photo.url()}
               alt=""
-              loading={idx === 0 ? "eager" : "lazy"}
-              fetchPriority={idx === 0 ? "high" : "auto"}
-              className="absolute inset-0 h-full w-full object-cover transition-opacity ease-out"
+              fill
+              sizes="100vw"
+              priority={idx === 0}
+              className="object-cover transition-opacity ease-out"
               style={{
                 opacity: idx === active ? 1 : 0,
                 transitionDuration: "1200ms",
