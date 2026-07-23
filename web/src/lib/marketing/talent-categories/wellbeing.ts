@@ -217,7 +217,7 @@ export const WELLBEING_CATEGORIES: TalentCategory[] = [
       ],
     },
     es: {
-      eyebrow: "Para masajistas y bienestar",
+      eyebrow: "Para masajistas y terapeutas de bienestar",
       title: "Una página de reservas para masajistas y bienestar",
       subtitle:
         "Tus tratamientos, tus tarifas y citas que quedan reservadas y pagadas, no apuntadas a lápiz.",

@@ -75,7 +75,7 @@ export const AGENCY_ARTICLES: ResourceArticle[] = [
         {
           heading: "Lo que una agencia sí aporta",
           body: [
-            "El acceso es el producto real. Una buena agencia tiene relaciones con clientes a los que tú no llegas solo, y estar en su roster te mete a salas donde no entrarías de otra forma. Eso es difícil de replicar y vale la pena pagarlo.",
+            "El acceso es el producto real. Una buena agencia tiene relaciones con clientes a los que tú no llegas solo, y estar en su roster te lleva a lugares donde no entrarías de otra forma. Eso es difícil de replicar y vale la pena pagarlo.",
             "Lo demás es administración y credibilidad: perseguir pagos, negociar por ti y ser un nombre establecido que tranquiliza a un cliente nervioso. Son cosas valiosas, pero ya no son escasas.",
           ],
         },

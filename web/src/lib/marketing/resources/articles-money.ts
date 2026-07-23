@@ -208,7 +208,7 @@ export const MONEY_ARTICLES: ResourceArticle[] = [
           heading: "Cobra lo que no es el trabajo",
           body: [
             "Traslados, entregas urgentes, revisiones extra, usos poco comunes de las imágenes, llamados muy temprano. Son costos reales y son lo que más se regala.",
-            "No tienes que ser agresivo. Nombrarlos como conceptos, aunque sea con montos modestos, cambia el default de \"incluido\" a \"disponible\".",
+            "No tienes que ser agresivo. Nombrarlos como conceptos, aunque sea con montos modestos, cambia lo predeterminado de \"incluido\" a \"disponible\".",
           ],
         },
         {

@@ -225,8 +225,8 @@ export const OPERATIONS_ARTICLES: ResourceArticle[] = [
           a: "Más o menos lo que tardas en volver a llenar el lugar. Una cita corta quizá un día; una reserva de día completo, bastante más.",
         },
         {
-          q: "¿Debo perdonar la política alguna vez?",
-          a: "De vez en cuando, ante emergencias reales y con buenos clientes. Solo ten claro que perdonarla cada vez que alguien reclama le enseña a todos que reclamar funciona.",
+          q: "¿Debo hacer excepciones alguna vez?",
+          a: "De vez en cuando, ante emergencias reales y con buenos clientes. Solo ten claro que hacer una excepción cada vez que alguien reclama le enseña a todos que reclamar funciona.",
         },
         {
           q: "¿Y si el cliente disputa el cargo?",

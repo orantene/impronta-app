@@ -220,13 +220,13 @@ export const CRAFT_CATEGORIES: TalentCategory[] = [
       eyebrow: "Para tatuadores",
       title: "Una página de reservas para tatuadores",
       subtitle:
-        "Tu flash, tu trabajo curado y solicitudes que llegan con la zona, el tamaño y la referencia.",
+        "Tu flash, tu trabajo cicatrizado y solicitudes que llegan con la zona, el tamaño y la referencia.",
       intro:
         "Las solicitudes de tatuaje llegan a medias por naturaleza. Alguien manda una captura sin tamaño, sin zona y sin presupuesto, y te lleva un día llegar a una cotización. Una página pide esas tres cosas primero, así la conversación empieza donde antes terminaba.",
       steps: [
         {
-          title: "Muestra flash y trabajo curado",
-          body: "Tus diseños disponibles y cómo cura el trabajo, que es lo que mira un cliente serio.",
+          title: "Muestra flash y trabajo cicatrizado",
+          body: "Tus diseños disponibles y cómo cicatriza el trabajo, que es lo que mira un cliente serio.",
         },
         {
           title: "Recibe un brief que se pueda cotizar",
