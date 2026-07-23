@@ -66,52 +66,12 @@ export async function MarketingFooter() {
             >
               {copy.description}
             </p>
-            <div className="mt-8 flex items-center gap-2.5">
-              <SocialLink href="https://instagram.com" label="Instagram">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <rect
-                    x="3"
-                    y="3"
-                    width="18"
-                    height="18"
-                    rx="5"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                  />
-                  <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.6" />
-                  <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" />
-                </svg>
-              </SocialLink>
-              <SocialLink href="https://x.com" label="X">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path
-                    d="M4 4L20 20M20 4L4 20"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </SocialLink>
-              <SocialLink href="https://linkedin.com" label="LinkedIn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <rect
-                    x="3"
-                    y="3"
-                    width="18"
-                    height="18"
-                    rx="3"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                  />
-                  <path
-                    d="M7 10V17M7 7.5V7.5M11 17V13C11 11.3 12.3 10 14 10C15.7 10 17 11.3 17 13V17"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </SocialLink>
-            </div>
+            {/* Social icon row removed 2026-07-23 (Wave 1, item 1.5): the
+                links pointed at bare instagram.com / x.com / linkedin.com
+                homepages, not real Tulala profiles, which reads as a fake
+                CTA. Re-add this block (and its <SocialLink> helper, see
+                git history on this file) once real handles exist and are
+                wired into `sameAs` / `twitter:site`. */}
           </div>
 
           {COLUMNS.map((col) => (
@@ -164,31 +124,5 @@ export async function MarketingFooter() {
         </div>
       </div>
     </footer>
-  );
-}
-
-function SocialLink({
-  href,
-  label,
-  children,
-}: {
-  href: string;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer noopener"
-      aria-label={label}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full border transition-[transform,color,border-color] hover:-translate-y-[1px] hover:border-[var(--plt-forest)] hover:text-[var(--plt-forest)]"
-      style={{
-        borderColor: "var(--plt-hairline-strong)",
-        color: "var(--plt-ink-soft)",
-      }}
-    >
-      {children}
-    </a>
   );
 }

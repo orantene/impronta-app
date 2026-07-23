@@ -512,6 +512,9 @@ const MARKETING_PAGE_PREFIXES = [
   // private data, requires no auth. `/directory` is already reserved in
   // PATH_BASED_TENANT_RESERVED_PREFIXES so it never resolves as a tenant slug.
   "/directory",
+  // "Agencia de talento" landing page — Spanish-first demand keyword page
+  // (100-1K/mo, LOW competition in Mexico). Single page, no sub-routes.
+  "/agencia-de-talento",
 ] as const;
 
 function hasPrefix(pathname: string, prefix: string): boolean {

@@ -10,6 +10,7 @@ import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./contai
 import { EditorialFrame } from "./editorial-image";
 import { FinalCtaSection } from "./final-cta-section";
 import { SimplePageHero } from "./simple-page-hero";
+import { SubscribeModule } from "./subscribe-module";
 
 /**
  * Renderer for `/resources/{slug}` articles.
@@ -145,6 +146,8 @@ export function ResourceArticleBody({
           </MarketingContainer>
         </MarketingSection>
       ) : null}
+
+      <SubscribeModule locale={locale} source="resources-article" />
 
       <FinalCtaSection />
     </>

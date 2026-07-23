@@ -216,6 +216,10 @@ export default async function RootLayout({
           metaPixelId={tenantAnalytics?.metaPixelId}
           tiktokPixelId={tenantAnalytics?.tiktokPixelId}
           linkedInPartnerId={tenantAnalytics?.linkedInPartnerId}
+          // Tenant id → GA4 `tenant_id` custom dimension. Only present on
+          // storefront requests (publicScope non-null); platform/marketing
+          // surface sends no tenant_id.
+          tenantId={publicScope?.tenantId}
         />
         <WebVitalsReporter />
         <CspViolationReporter />

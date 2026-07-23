@@ -28,17 +28,36 @@ import {
   normalizeSort,
   normalizeView,
   resolveCardDesignsForRows,
+  locationLine,
   type DirectoryActiveFilters,
 } from "@/components/marketing/directory/shared";
 import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
+import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { buildBreadcrumbJsonLd, breadcrumbJsonLdToString } from "@/lib/seo/breadcrumb-json-ld";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Talent directory",
-  description:
-    "Browse talent from across the entire network, independents and agency rosters alike. Search by craft, location, and availability.",
-};
+// The public URL is /directory (proxy.ts rewrites it to this /global-directory
+// route), so canonical + hreflang MUST point at /directory, never the internal
+// path. Hire-intent title/description: ES leads on "agencia de talento" (the
+// 100–1K/mo, LOW-competition term our Keyword Planner data surfaced), because
+// demand-side Spanish is the primary query for this market.
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  return {
+    title: pickLocale(locale, {
+      en: "Hire vetted talent: models, chefs, photographers and more",
+      es: "Agencia de talento: contrata modelos, chefs y fotógrafos",
+    }),
+    description: pickLocale(locale, {
+      en: `Browse and hire talent from across the ${PLATFORM_BRAND.name} network, independents and agency rosters alike. Search by craft, location, and availability, then send a structured inquiry.`,
+      es: `Explora y contrata talento de toda la red de ${PLATFORM_BRAND.name}, independientes y rosters de agencia por igual. Busca por oficio, ubicación y disponibilidad, y envía una consulta estructurada.`,
+    }),
+    ...buildMarketingLocaleAlternates(locale, "/directory"),
+  };
+}
 
 type PageSearchParams = Promise<{
   q?: string;
@@ -57,6 +76,7 @@ export default async function MarketingDirectoryPage({
   searchParams: PageSearchParams;
 }) {
   const sp = await searchParams;
+  const locale = await getRequestLocale();
 
   const view = normalizeView(sp.view);
   const sort = normalizeSort(sp.sort);
@@ -115,30 +135,98 @@ export default async function MarketingDirectoryPage({
   );
   const gridItems = attachCardDesigns(gridData.items, designByTenant);
 
+  const origin = `https://${PLATFORM_BRAND.domain}`;
+
+  // BreadcrumbList: Home > Directory. Always emitted.
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: PLATFORM_BRAND.name, url: `${origin}/` },
+    {
+      name: pickLocale(locale, { en: "Directory", es: "Directorio" }),
+      url: `${origin}/directory`,
+    },
+  ]);
+
+  // ItemList JSON-LD built ONLY from the talent this page actually server-
+  // renders (the SSR grid page). Map view renders no grid items, and rows
+  // loaded later by the load-more action aren't in the initial markup, so we
+  // never assert a listing the crawler cannot see. Each entry links to the
+  // talent's own profile page.
+  const listItems = gridItems.filter((t) => Boolean(t.profileCode));
+  const itemListJsonLd =
+    listItems.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          itemListElement: listItems.map((t, i) => {
+            const location = locationLine(t.homeCity, t.homeCountry);
+            return {
+              "@type": "ListItem",
+              position: i + 1,
+              url: `${origin}/t/${encodeURIComponent(t.profileCode!)}`,
+              name: [t.displayName, t.primaryTypeLabel, location]
+                .filter(Boolean)
+                .join(", "),
+            };
+          }),
+        }
+      : null;
+
+  const c = pickLocale(locale, {
+    en: {
+      eyebrow: "The global directory",
+      titleA: "Hire from every roster,",
+      titleB: "in one directory.",
+      body: `Browse and hire talent from across the entire ${PLATFORM_BRAND.name} network, independents and agency rosters alike. Search by craft, location, and availability; every profile is here because the talent chose to be seen.`,
+    },
+    es: {
+      eyebrow: "El directorio global",
+      titleA: "Contrata de cada roster,",
+      titleB: "en un solo directorio.",
+      body: `Explora y contrata talento de toda la red de ${PLATFORM_BRAND.name}, independientes y rosters de agencia por igual. Busca por oficio, ubicación y disponibilidad; cada perfil está aquí porque el talento eligió mostrarse.`,
+    },
+  });
+
   return (
     <>
+      {breadcrumbJsonLd ? (
+        <script
+          type="application/ld+json"
+          // Pre-stringified: React must NOT escape JSON-LD content.
+          dangerouslySetInnerHTML={{
+            __html: breadcrumbJsonLdToString(breadcrumbJsonLd),
+          }}
+        />
+      ) : null}
+      {itemListJsonLd ? (
+        <script
+          type="application/ld+json"
+          // Escape "</" defensively so a talent display name can never break
+          // out of the <script> element.
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(itemListJsonLd).replace(/</g, "\\u003c"),
+          }}
+        />
+      ) : null}
       <section
         className="border-b"
         style={{ borderColor: "var(--plt-hairline)", background: "var(--plt-bg)" }}
       >
         <MarketingContainer size="wide" className="pb-10 pt-14 sm:pt-20">
           <div className="max-w-2xl">
-            <MarketingEyebrow>The global directory</MarketingEyebrow>
+            <MarketingEyebrow>{c.eyebrow}</MarketingEyebrow>
             <h1
               className="plt-display mt-5 text-[2.25rem] font-medium leading-[1.03] tracking-[-0.02em] sm:text-[3rem]"
               style={{ color: "var(--plt-ink)" }}
             >
-              Every roster,
+              {c.titleA}
               <br />
-              <span style={{ color: "var(--plt-forest)" }}>one directory.</span>
+              <span style={{ color: "var(--plt-forest)" }}>{c.titleB}</span>
             </h1>
             <p
               className="mt-5 max-w-xl text-[1.0625rem] leading-[1.6]"
               style={{ color: "var(--plt-muted)" }}
             >
-              Browse talent from across the entire {PLATFORM_BRAND.name} network, independents and
-              agency rosters alike. Search by craft, location, and availability; every profile is
-              here because the talent chose to be seen.
+              {c.body}
             </p>
           </div>
         </MarketingContainer>

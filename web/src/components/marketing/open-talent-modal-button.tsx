@@ -9,6 +9,7 @@
  */
 
 import { trackProductEvent } from "@/lib/analytics/track-client";
+import { trackEvent } from "@/lib/marketing/ga-events";
 import { TALENT_MODAL_EVENT } from "./talent-register-modal";
 
 export function OpenTalentModalButton({
@@ -38,6 +39,7 @@ export function OpenTalentModalButton({
             href: "modal:talent-register",
           });
         }
+        trackEvent("talent_modal_open", { source: eventSource });
         window.dispatchEvent(new CustomEvent(TALENT_MODAL_EVENT));
       }}
     >
