@@ -117,6 +117,12 @@ export function WebsiteNavItem({
                 iconName="palette"
                 onClick={() => go(`${base}/card-design`)}
               />
+              <WebsiteMenuItem
+                label="Profile Pages"
+                sub="Pick the talent profile template"
+                iconName="user"
+                onClick={() => go(`${base}/profile-pages`)}
+              />
             </div>,
             document.body,
           )
@@ -133,7 +139,7 @@ function WebsiteMenuItem({
 }: {
   label: string;
   sub: string;
-  iconName: "globe" | "palette";
+  iconName: "globe" | "palette" | "user";
   onClick: () => void;
 }) {
   return (

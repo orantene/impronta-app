@@ -9,6 +9,7 @@ import { EmptyState, Icon, PrimaryButton, SecondaryButton } from "../primitives"
 import { COLORS, FONTS, TRANSITION, meetsRole, useAdminShell } from "../state";
 import type { WebsitePageRow, WebsitePost } from "../state";
 import { CardDesignStudio } from "./CardDesignStudio";
+import { ProfilePagesStudio } from "../../../profile-pages/ProfilePagesStudio";
 import { PageStatusChip } from "./SitePage";
 import { ConfigStatusRow, HeroStat, PageVisualCard, WebsitePerformance } from "./WebsitePage-2";
 import { PageHeader } from "./pages-shared";
@@ -160,14 +161,15 @@ function WebsiteSubviewTabs({
   active,
   tenantSlug,
 }: {
-  active: "site" | "card-design";
+  active: "site" | "card-design" | "profile-pages";
   tenantSlug: string | undefined;
 }) {
   const router = useRouter();
   const base = tenantSlug ? `/${tenantSlug}/admin/website` : "/admin/website";
-  const tabs: { id: "site" | "card-design"; label: string; href: string }[] = [
+  const tabs: { id: "site" | "card-design" | "profile-pages"; label: string; href: string }[] = [
     { id: "site", label: "Site", href: base },
     { id: "card-design", label: "Card Design", href: `${base}/card-design` },
+    { id: "profile-pages", label: "Profile Pages", href: `${base}/profile-pages` },
   ];
   return (
     <div
@@ -236,6 +238,7 @@ export function WebsitePage() {
     bridgeTenantIdentity?.planTier === "network";
   const w = effectiveWebsiteState;
   const isCardDesign = pathname?.endsWith("/website/card-design") ?? false;
+  const isProfilePages = pathname?.endsWith("/website/profile-pages") ?? false;
 
   const [isCreatingPage, startCreatePageTransition] = useTransition();
 
@@ -384,6 +387,15 @@ export function WebsitePage() {
       <>
         <WebsiteSubviewTabs active="card-design" tenantSlug={tenantSlug} />
         <CardDesignStudio />
+      </>
+    );
+  }
+
+  if (isProfilePages) {
+    return (
+      <>
+        <WebsiteSubviewTabs active="profile-pages" tenantSlug={tenantSlug} />
+        <ProfilePagesStudio />
       </>
     );
   }
