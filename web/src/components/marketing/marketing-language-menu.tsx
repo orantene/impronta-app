@@ -26,6 +26,22 @@ const LOCALE_LABELS: Record<string, string> = {
   es: "Español",
 };
 
+/**
+ * Flags are decoration, never the label. Two reasons they stay paired with
+ * text: a flag names a country, not a language (Español is not only Mexico),
+ * and Windows ships no flag-emoji font, so Chrome/Edge there render the raw
+ * regional-indicator letters ("MX") instead of an image. With the written
+ * name alongside, that degradation reads as a small prefix rather than a
+ * broken glyph. Marked aria-hidden so screen readers announce only the name.
+ *
+ * MX rather than ES for Spanish: the platform's Spanish-speaking tenants and
+ * traffic are Mexico-first.
+ */
+const LOCALE_FLAGS: Record<string, string> = {
+  en: "🇺🇸",
+  es: "🇲🇽",
+};
+
 const ROW =
   "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-[0.875rem] font-medium transition-colors hover:bg-[var(--plt-bg-raised)]";
 
@@ -124,7 +140,14 @@ export function MarketingLanguageMenu({
                     background: active ? "var(--plt-bg-raised)" : undefined,
                   }}
                 >
-                  <span>{LOCALE_LABELS[code] ?? code.toUpperCase()}</span>
+                  <span className="flex items-center gap-2.5">
+                    {LOCALE_FLAGS[code] ? (
+                      <span aria-hidden className="text-[1.0625rem] leading-none">
+                        {LOCALE_FLAGS[code]}
+                      </span>
+                    ) : null}
+                    {LOCALE_LABELS[code] ?? code.toUpperCase()}
+                  </span>
                   {active ? <CheckGlyph /> : null}
                 </a>
               );

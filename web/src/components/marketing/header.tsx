@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { TulalaLogo } from "@/components/brand/tulala-logo";
-import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
+import { getMarketingCopy } from "@/lib/marketing/copy";
+import { buildNav, isActive, type NavNode } from "./marketing-header-nav";
 import { MarketingCta } from "./cta-link";
 import { LOGIN_MODAL_EVENT } from "./login-modal";
 import { MarketingLanguageMenu } from "./marketing-language-menu";
@@ -26,46 +28,6 @@ import {
   type MarketingAccount,
 } from "./marketing-account-menu";
 
-type NavLeaf = { label: string; href: string; description?: string };
-type NavNode =
-  | { kind: "link"; label: string; href: string }
-  | { kind: "menu"; label: string; blurb: string; items: NavLeaf[] };
-
-/**
- * Product-forward navigation. Three menus carry the whole story:
- *   Platform  → what Tulala is (flagship: one-click builder + booking messenger)
- *   Solutions → who it's for (talent / business / hubs / the hybrid)
- *   Discover  → the single browse surface (talent, agencies & hubs, network)
- * plus Pricing and Stories. Labels/descriptions come from the copy module
- * (per locale); hrefs live here and stay stable across languages.
- */
-const NAV_HREFS = {
-  platform: ["/#builder", "/#messenger", "/network", "/integrations", "/how-it-works"],
-  solutions: ["/operators", "/agencies", "/organizations", "/#stories"],
-  discover: ["/directory", "/discover-agencies", "/network"],
-};
-
-function buildNav(copy: MarketingCopy): NavNode[] {
-  const menu = (m: MarketingCopy["nav"]["platform"], hrefs: string[]): NavNode => ({
-    kind: "menu",
-    label: m.label,
-    blurb: m.blurb,
-    items: m.items.map((it, i) => ({
-      label: it.label,
-      description: it.description,
-      href: hrefs[i],
-    })),
-  });
-  return [
-    menu(copy.nav.platform, NAV_HREFS.platform),
-    menu(copy.nav.solutions, NAV_HREFS.solutions),
-    menu(copy.nav.discover, NAV_HREFS.discover),
-    { kind: "link", label: copy.nav.pricing, href: "/pricing" },
-    { kind: "link", label: copy.nav.stories, href: "/#stories" },
-  ];
-}
-
-
 export function MarketingHeader({
   locale,
   pathnameWithoutLocale,
@@ -80,7 +42,9 @@ export function MarketingHeader({
   signOutAction?: () => void | Promise<void>;
 }) {
   const copy = getMarketingCopy(locale);
-  const NAV = buildNav(copy);
+  /** Every internal href in this header goes through here — see `buildNav`. */
+  const L = (href: string) => withLocaleHref(href, locale);
+  const NAV = buildNav(copy, locale);
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -165,7 +129,7 @@ export function MarketingHeader({
     >
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-6 px-5 sm:h-[72px] sm:px-8">
         <Link
-          href="/"
+          href={L("/")}
           className="group relative -mx-1 flex items-center rounded-md px-1 py-1"
           aria-label={`${PLATFORM_BRAND.name} home`}
           style={{ color: "var(--plt-ink)" }}
@@ -225,7 +189,7 @@ export function MarketingHeader({
               </button>
               <span className="relative inline-flex">
                 <MarketingCta
-                  href="/get-started"
+                  href={L("/get-started")}
                   variant="primary"
                   size="md"
                   eventSource="header"
@@ -478,7 +442,7 @@ export function MarketingHeader({
                   ) : null}
 
                   <Link
-                    href="/get-started"
+                    href={L("/get-started")}
                     className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
                     style={{ color: "var(--plt-ink-soft)" }}
                   >
@@ -514,7 +478,7 @@ export function MarketingHeader({
                   </button>
                   <span className="relative block w-full">
                     <MarketingCta
-                      href="/get-started"
+                      href={L("/get-started")}
                       variant="primary"
                       size="lg"
                       eventSource="mobile-header"
@@ -550,7 +514,7 @@ export function MarketingHeader({
                 {copy.nav.support}
               </p>
               <Link
-                href="/help"
+                href={L("/help")}
                 className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
                 style={{ color: "var(--plt-ink)" }}
               >
@@ -571,21 +535,6 @@ export function MarketingHeader({
       ) : null}
     </header>
   );
-}
-
-function isActive(pathname: string, href: string) {
-  const [base, hash] = href.split("#");
-
-  // A hash link ("/#stories") targets a section, not a page. Stripping the
-  // hash and comparing what was left made `base` "/", so EVERY homepage visit
-  // marked Stories as the current page: the underline made `/` look like it
-  // had landed on Stories. A section link never owns the active state.
-  if (hash) return false;
-
-  if (!base || base === "/") return pathname === "/";
-
-  // Segment-aware: "/for" must not light up on "/format".
-  return pathname === base || pathname.startsWith(`${base}/`);
 }
 
 /* ───────────────────────── Desktop nav ───────────────────────── */

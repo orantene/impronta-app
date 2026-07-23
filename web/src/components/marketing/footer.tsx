@@ -4,7 +4,7 @@ import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { TulalaLogo } from "@/components/brand/tulala-logo";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getMarketingCopy } from "@/lib/marketing/copy";
-import { stripLocaleFromPathname } from "@/i18n/pathnames";
+import { stripLocaleFromPathname, withLocaleHref } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { CurrencyPicker } from "./currency-picker";
 import { MarketingLanguageToggle } from "./marketing-language-toggle";
@@ -40,11 +40,14 @@ export async function MarketingFooter() {
     h.get("x-impronta-original-pathname") ?? "/",
     FALLBACK_LANGUAGE_SETTINGS,
   );
+  // Same rule as the header: hrefs are authored unprefixed and localized at
+  // render, so a Spanish reader stays in the Spanish tree and crawlers see
+  // /es linking to /es rather than funnelling all authority to English.
   const COLUMNS = (["platform", "solutions", "discover", "company"] as const).map((key) => ({
     label: copy.columns[key].label,
     items: copy.columns[key].items.map((label, i) => ({
       label,
-      href: FOOTER_HREFS[key][i],
+      href: withLocaleHref(FOOTER_HREFS[key][i], locale),
     })),
   }));
   return (

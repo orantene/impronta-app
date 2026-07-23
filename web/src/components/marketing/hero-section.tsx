@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { MarketingContainer } from "./container";
 import { MarketingCta } from "./cta-link";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
@@ -153,7 +154,7 @@ export function HeroSection({ locale }: { locale: string }) {
               {copy.ctaTalent}
             </OpenTalentModalButton>
             <MarketingCta
-              href="/get-started"
+              href={withLocaleHref("/get-started", locale)}
               variant="secondary"
               size="lg"
               eventSource="home-hero"

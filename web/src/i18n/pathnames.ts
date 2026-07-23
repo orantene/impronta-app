@@ -57,6 +57,36 @@ export function withLocalePath(
 }
 
 /**
+ * Locale-aware href for an internal link, preserving query string and hash.
+ *
+ * `withLocalePath` takes a bare pathname. Nav hrefs are not bare: several are
+ * homepage anchors (`/#stories`), and passing one straight through would treat
+ * "#stories" as a path segment and yield `/es/#stories`. So split the hash and
+ * query off, prefix only the path, and re-attach.
+ *
+ * Anything that is not an internal absolute path (external URLs, `mailto:`,
+ * `tel:`, protocol-relative `//host`, bare `#anchor`) is returned untouched —
+ * there is no locale to apply to it.
+ */
+export function withLocaleHref(
+  href: string,
+  locale: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): string {
+  if (!href.startsWith("/") || href.startsWith("//")) return href;
+
+  const hashIdx = href.indexOf("#");
+  const beforeHash = hashIdx === -1 ? href : href.slice(0, hashIdx);
+  const hash = hashIdx === -1 ? "" : href.slice(hashIdx);
+
+  const qIdx = beforeHash.indexOf("?");
+  const pathname = qIdx === -1 ? beforeHash : beforeHash.slice(0, qIdx);
+  const query = qIdx === -1 ? "" : beforeHash.slice(qIdx);
+
+  return `${withLocalePath(pathname || "/", locale, settings)}${query}${hash}`;
+}
+
+/**
  * Rewrites a leading default-locale prefix (e.g. `/en/...` when default is `en`)
  * to the unprefixed form. Non-default locale prefixes are left intact — e.g.
  * `/es/impronta` stays `/es/impronta` so the page can render in Spanish.
