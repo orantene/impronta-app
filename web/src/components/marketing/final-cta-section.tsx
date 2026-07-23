@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingSection } from "./container";
@@ -7,7 +8,8 @@ import { MarketingCta } from "./cta-link";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
 
 export async function FinalCtaSection() {
-  const copy = getMarketingCopy(await getRequestLocale()).finalCta;
+  const locale = await getRequestLocale();
+  const copy = getMarketingCopy(locale).finalCta;
 
   return (
     <MarketingSection className="relative overflow-hidden" style={{ background: "var(--plt-bg)" }}>
@@ -86,7 +88,7 @@ export async function FinalCtaSection() {
                 {copy.ctaTalent}
               </OpenTalentModalButton>
               <MarketingCta
-                href="/get-started"
+                href={withLocaleHref("/get-started", locale)}
                 variant="secondary"
                 size="lg"
                 eventSource="home-final-cta"
