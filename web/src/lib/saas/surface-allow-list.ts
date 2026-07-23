@@ -51,7 +51,18 @@
 
 export type HostKind = "agency" | "app" | "hub" | "marketing";
 
-const STATIC_PATHS = ["/sitemap.xml", "/robots.txt"] as const;
+const STATIC_PATHS = [
+  "/sitemap.xml",
+  "/robots.txt",
+  // Root Next.js metadata file-routes (`app/opengraph-image.tsx`,
+  // `app/twitter-image.tsx`). They are host-aware (agency card vs. Tulala
+  // card) and are referenced by absolute URL in every page's og:image /
+  // twitter:image. Without an allow-list entry the marketing host treats the
+  // single segment as a storefront slug and 404s, which silently breaks every
+  // social-share preview. Allowed on all kinds; the route decides what to render.
+  "/opengraph-image",
+  "/twitter-image",
+] as const;
 
 /**
  * Self-contained brand/design prototypes under `/prototypes/*`. These are

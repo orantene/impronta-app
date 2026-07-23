@@ -275,6 +275,8 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/",
     "/sitemap.xml",
     "/robots.txt",
+    "/opengraph-image",
+    "/twitter-image",
     "/api/cron/inquiry-engine",
     "/api/analytics/events",
     "/t/jane-doe",
