@@ -17,15 +17,33 @@ const BUTTON =
 const BUTTON_PRIMARY =
   "rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90";
 
+// Each preset is the `icon` key passed to renderCardIcon in Component.tsx.
+// Short symbolic glyphs (max 8 chars per schema) double as a visual hint in
+// the picker and as the plain-text fallback if the rendered SVG path is ever
+// removed. The first block matches a hand-tuned SVG case in renderCardIcon;
+// the trailing extras render as raw characters via the default branch.
 const ICON_PRESETS = [
   "",
-  "◑",
-  "✦",
-  "♪",
-  "♫",
-  "✷",
-  "❀",
-  "◉",
+  // SVG-backed discipline glyphs
+  "◑", // Models / classic profile
+  "✦", // Hosts & promo / star
+  "♪", // Solo music
+  "♫", // Music & DJs
+  "✷", // Chefs / culinary asterisk
+  "❀", // Wellness & beauty / floral
+  "◉", // Photo, video & creative / aperture
+  "▣", // Camera (photographers)
+  "▤", // Film clapper (film / video)
+  "◐", // Palette (visual artist)
+  "❁", // Makeup brush
+  "✂", // Scissors (hair / stylist)
+  "◍", // Microphone (hosts / voice)
+  "◔", // Theater masks (performers)
+  "❂", // Dance / movement
+  "▲", // Chef's hat (culinary)
+  "▰", // Dumbbell (athletes / fitness)
+  "❋", // Leaf (wellness alt / lifestyle)
+  // Plain-character fallbacks (no custom SVG)
   "⌾",
   "◈",
   "⌂",

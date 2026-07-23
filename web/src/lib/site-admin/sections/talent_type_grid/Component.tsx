@@ -45,6 +45,7 @@ function safeDomId(value: string): string {
 
 function renderCardIcon(icon?: string) {
   switch (icon) {
+    // ───────── Existing curated set ─────────
     case "◑":
       return (
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -76,7 +77,7 @@ function renderCardIcon(icon?: string) {
             fill="none"
             stroke="currentColor"
             strokeLinecap="round"
-            strokeWidth="1.8"
+            strokeWidth="1.7"
           />
         </svg>
       );
@@ -108,7 +109,7 @@ function renderCardIcon(icon?: string) {
             r="3"
             fill="none"
             stroke="currentColor"
-            strokeWidth="1.5"
+            strokeWidth="1.6"
           />
           <circle
             cx="17.2"
@@ -116,7 +117,7 @@ function renderCardIcon(icon?: string) {
             r="3"
             fill="none"
             stroke="currentColor"
-            strokeWidth="1.5"
+            strokeWidth="1.6"
           />
           <circle
             cx="14.8"
@@ -124,7 +125,7 @@ function renderCardIcon(icon?: string) {
             r="3"
             fill="none"
             stroke="currentColor"
-            strokeWidth="1.5"
+            strokeWidth="1.6"
           />
           <circle
             cx="8.1"
@@ -132,7 +133,7 @@ function renderCardIcon(icon?: string) {
             r="3"
             fill="none"
             stroke="currentColor"
-            strokeWidth="1.5"
+            strokeWidth="1.6"
           />
           <circle
             cx="6.8"
@@ -140,7 +141,7 @@ function renderCardIcon(icon?: string) {
             r="3"
             fill="none"
             stroke="currentColor"
-            strokeWidth="1.5"
+            strokeWidth="1.6"
           />
         </svg>
       );
@@ -160,10 +161,249 @@ function renderCardIcon(icon?: string) {
             d="M12 4.5v3M12 16.5v3M4.5 12h3M16.5 12h3"
             stroke="currentColor"
             strokeLinecap="round"
-            strokeWidth="1.5"
+            strokeWidth="1.6"
           />
         </svg>
       );
+
+    // ───────── Visual / Camera / Film ─────────
+    // Camera (photographers)
+    case "▣":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M9 5.6l-.9 1.6H4.6a1.4 1.4 0 0 0-1.4 1.4v8.6a1.4 1.4 0 0 0 1.4 1.4h14.8a1.4 1.4 0 0 0 1.4-1.4V8.6a1.4 1.4 0 0 0-1.4-1.4h-3.5L14.8 5.6z"
+            fill="none"
+            stroke="currentColor"
+            strokeLinejoin="round"
+            strokeWidth="1.6"
+          />
+          <circle
+            cx="12"
+            cy="13"
+            r="3.4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          />
+          <circle cx="17.4" cy="9.6" r="0.7" fill="currentColor" />
+        </svg>
+      );
+    // Film clapper (film / video)
+    case "▤":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <rect
+            x="3.4"
+            y="9.4"
+            width="17.2"
+            height="10.2"
+            rx="1.2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M3.4 6.4l2.4-2.1 2.3 2.6-2.4 2.1zM7.6 6.7l2.4-2.1 2.3 2.6-2.4 2.1zM11.8 7.1l2.4-2.1 2.3 2.6-2.4 2.1zM16 7.4l2.4-2.1 2.3 2.6-2.4 2.1z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+
+    // ───────── Visual artist / Makeup ─────────
+    // Palette (paint / visual artist)
+    case "◐":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M12 3.4c-4.8 0-8.6 3.6-8.6 8 0 4.1 3.2 7.2 7.4 7.2 1.1 0 1.8-.6 1.8-1.5 0-.4-.2-.7-.5-1-.3-.3-.5-.6-.5-1 0-.9.8-1.6 1.8-1.6h2.4c2.6 0 4.6-1.9 4.6-4.4 0-3.1-3.6-5.7-8.4-5.7z"
+            fill="none"
+            stroke="currentColor"
+            strokeLinejoin="round"
+            strokeWidth="1.6"
+          />
+          <circle cx="7.5" cy="10" r="1" fill="currentColor" />
+          <circle cx="11" cy="7.4" r="1" fill="currentColor" />
+          <circle cx="15.2" cy="8.4" r="1" fill="currentColor" />
+          <circle cx="16.4" cy="12" r="1" fill="currentColor" />
+        </svg>
+      );
+    // Makeup brush
+    case "❁":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M14.6 4.2l5.2 5.2-7.6 7.6-2.6.7-2.6.7.7-2.6.7-2.6z"
+            fill="none"
+            stroke="currentColor"
+            strokeLinejoin="round"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M14.6 4.2l5.2 5.2"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M5.4 19.6c1.4-1 2.4-1 3.4 0"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="1.6"
+          />
+          <path d="M14.2 9.2l4.4 4.4-3.2 1-2.2-2.2z" fill="currentColor" />
+        </svg>
+      );
+    // Scissors (hair / styling)
+    case "✂":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle
+            cx="6.6"
+            cy="6.8"
+            r="2.4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          />
+          <circle
+            cx="6.6"
+            cy="17.2"
+            r="2.4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M8.5 8.4l11 7.2M8.5 15.6l11-7.2M11.5 12l8.5 0"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="1.6"
+          />
+        </svg>
+      );
+
+    // ───────── Performance / Voice / Movement ─────────
+    // Microphone (hosts / voice / promo)
+    case "◍":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <rect
+            x="9"
+            y="3.4"
+            width="6"
+            height="11"
+            rx="3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M6 11.4a6 6 0 0 0 12 0"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M12 17.4v3.2M9 20.6h6"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="1.6"
+          />
+        </svg>
+      );
+    // Theater masks (performers / actors)
+    case "◔":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M4.4 4.6c2.2-.4 5-.4 7.2.2.4 4-1.6 8.4-4.4 8.6-2.8.2-4.8-3.4-4.6-7.4 0-.6.4-1.2 1.8-1.4z"
+            fill="none"
+            stroke="currentColor"
+            strokeLinejoin="round"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M12 7.2c2.2-.6 5-.8 7.4-.6.6 3.8-1 8.4-3.8 8.8-2.8.4-5-3-5.2-7-.1-.4.2-1 1.6-1.2z"
+            fill="currentColor"
+            opacity="0.85"
+          />
+          <circle cx="5.4" cy="7.6" r="0.6" fill="currentColor" />
+          <circle cx="9" cy="7.4" r="0.6" fill="currentColor" />
+        </svg>
+      );
+    // Dance / movement (figure)
+    case "❂":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12.4" cy="4.6" r="1.8" fill="currentColor" />
+          <path
+            d="M12.4 6.6l-1.4 4.2-3.6 1M12.4 6.6l1.6 3.4 4.6.4M12.4 10.4l-2.8 4.2-1.8 5.4M12.4 10.4l1.6 5 3.4 4.4"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.6"
+          />
+        </svg>
+      );
+
+    // ───────── Culinary / Athletic / Lifestyle ─────────
+    // Chef's hat
+    case "▲":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M6 14.6c-2-.4-3-2-3-3.6 0-2.2 1.8-3.8 4-3.8.3-1.8 2-3 4-3 1.4 0 2.6.6 3.4 1.6.6-.4 1.4-.6 2.2-.6 2.2 0 4 1.6 4 3.8 0 1.8-1.2 3.2-3 3.6"
+            fill="none"
+            stroke="currentColor"
+            strokeLinejoin="round"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M5.6 13.8h12.8v4.6a1.4 1.4 0 0 1-1.4 1.4H7a1.4 1.4 0 0 1-1.4-1.4z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    // Dumbbell (athletes / fitness)
+    case "▰":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M8.5 9.5h7v5h-7z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M3.6 8.2v7.6M5.8 6.6v10.8M18.2 6.6v10.8M20.4 8.2v7.6"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="1.7"
+          />
+          <path d="M6.6 11h2v2h-2zM15.4 11h2v2h-2z" fill="currentColor" />
+        </svg>
+      );
+    // Leaf (wellness alt / lifestyle / nature)
+    case "❋":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M20.2 3.6c-7.4 0-13 4.2-13 10.4 0 1.8.6 3.4 1.6 4.6 1.2-7.4 6-10.4 9.4-11.6-3 1.6-6.8 4.8-8.4 12.4 1.4 1 3.2 1.6 5.2 1.6 5.8 0 9.4-5 9.4-11 0-2.4-.6-4.4-1.6-6-.6-.2-1.6-.4-2.6-.4z"
+            fill="currentColor"
+          />
+          <path
+            d="M9.2 20l-3 1"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="1.6"
+          />
+        </svg>
+      );
+
     default:
       return icon;
   }
