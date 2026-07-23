@@ -692,63 +692,87 @@ export function CalendarPage() {
 
       <div style={{ height: 16 }} />
 
-      {/* Blocked dates — secondary section, kept compact */}
-      <section className="mb-6">
-        <CapsLabel>{copy.t("Blocked dates")} · {AVAILABILITY_BLOCKS.length}</CapsLabel>
-        <div
-          style={{
-            marginTop: 10,
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 12,
-            padding: AVAILABILITY_BLOCKS.length === 0 ? 0 : "0 14px",
-          }}
-        >
-          {AVAILABILITY_BLOCKS.length === 0 ? (
-            <EmptyState
-              icon="calendar"
-              title={copy.t("No dates blocked")}
-              body={copy.t("Block unavailable dates so agencies don't pitch you for jobs you can't take.")}
-              compact
-            />
-          ) : null}
-          {AVAILABILITY_BLOCKS.map((a) => (
+      {/* Blocked dates — secondary section, kept compact.
+          BRIDGE MODE renders the talent's REAL blocks (the same rows the
+          block-dates form above writes). It used to render the mock
+          AVAILABILITY_BLOCKS fixture unconditionally, so a real talent saw
+          demo blocks while their own saved blocks never appeared here. */}
+      {(() => {
+        const realBlocks = (bridgeTalentCalendarEntries ?? [])
+          .filter((e) => e.kind === "block")
+          .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+        const fmtRange = (startsAt: string, endsAt: string): string => {
+          const loc = copy.isSpanish ? "es-MX" : "en-US";
+          const s = new Date(startsAt);
+          const e = new Date(endsAt);
+          if (isNaN(s.getTime())) return "";
+          const opts = { month: "short", day: "numeric" } as const;
+          const startLabel = s.toLocaleDateString(loc, opts);
+          if (isNaN(e.getTime())) return startLabel;
+          // Half-open [start, end): a midnight end belongs to the previous day.
+          const endInclusive = new Date(e);
+          if (e.getHours() === 0 && e.getMinutes() === 0 && endInclusive > s) {
+            endInclusive.setDate(endInclusive.getDate() - 1);
+          }
+          const endLabel = endInclusive.toLocaleDateString(loc, opts);
+          return endLabel === startLabel ? startLabel : `${startLabel} – ${endLabel}`;
+        };
+        const rows = isBridgeMode
+          ? realBlocks.map((e) => ({
+              key: e.id,
+              travel: /travel|flight|trip|tour|viaje/iu.test(`${e.title} ${e.subLabel ?? ""}`),
+              range: fmtRange(e.startsAt, e.endsAt),
+              reason: e.title || e.subLabel || copy.t("Unavailable"),
+            }))
+          : AVAILABILITY_BLOCKS.map((a) => ({
+              key: a.id,
+              travel: a.type === "travel",
+              range: `${a.startDate} – ${a.endDate}`,
+              reason: a.reason,
+            }));
+        return (
+          <section className="mb-6">
+            <CapsLabel>{copy.t("Blocked dates")} · {rows.length}</CapsLabel>
             <div
-              key={a.id}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 0",
-                borderTop: `1px solid ${COLORS.borderSoft}`,
-                fontFamily: FONTS.body,
+                marginTop: 10,
+                background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 12,
+                padding: rows.length === 0 ? 0 : "0 14px",
               }}
             >
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: a.type === "travel" ? COLORS.amber : COLORS.inkMuted, }}
-              />
-              <span style={{ flex: 1, fontSize: 13.5 }} className="text-admin-ink">
-                {a.startDate} – {a.endDate}
-              </span>
-              <span className="text-admin-ink-muted text-xs">{a.reason}</span>
-              <button
-                onClick={() => openDrawer("talent-availability", { id: a.id })}
-                style={{
-                  background: "transparent",
-                  border: `1px solid ${COLORS.borderSoft}`,
-                  borderRadius: 7,
-                  padding: "4px 9px",
-                  fontFamily: FONTS.body,
-                  fontSize: 11.5,
-                  color: COLORS.inkMuted,
-                  cursor: "pointer",
-                }}
-              >
-                {copy.t("Edit")}
-              </button>
+              {rows.length === 0 ? (
+                <EmptyState
+                  icon="calendar"
+                  title={copy.t("No dates blocked")}
+                  body={copy.t("Block unavailable dates so agencies don't pitch you for jobs you can't take.")}
+                  compact
+                />
+              ) : null}
+              {rows.map((r) => (
+                <div
+                  key={r.key}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "12px 0",
+                    borderTop: `1px solid ${COLORS.borderSoft}`,
+                    fontFamily: FONTS.body,
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: r.travel ? COLORS.amber : COLORS.inkMuted }} />
+                  <span style={{ flex: 1, fontSize: 13.5 }} className="text-admin-ink">
+                    {r.range}
+                  </span>
+                  <span className="text-admin-ink-muted text-xs">{r.reason}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </section>
+          </section>
+        );
+      })()}
 
       <ICalSubscribeCard
         talentName={bridgeTalentSelfProfile?.displayName ?? MY_TALENT_PROFILE.name}

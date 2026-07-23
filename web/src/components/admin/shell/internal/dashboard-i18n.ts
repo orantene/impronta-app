@@ -2807,6 +2807,13 @@ const ES_TEXT: Record<string, string> = {
   "Contact phone": "Teléfono de contacto",
   "Home base city": "Ciudad base",
 
+  // ── W10: honest empty states for demo-only analytics + availability ──
+  "Analytics are on the way": "Las estadísticas están en camino",
+  "Your career stats appear here once you have completed bookings. Your earnings and pipeline are live on the Money page today.": "Tus estadísticas aparecen aquí cuando tengas reservas completadas. Tus ingresos y tu pipeline ya están disponibles en la página Dinero.",
+  "Per-agency performance appears here as your bookings build up. Your earnings and commission per agency are live on the Money page today.": "El desempeño por agencia aparece aquí conforme sumes reservas. Tus ingresos y comisión por agencia ya están en la página Dinero.",
+  "Agencies can't pitch you for these dates.": "Las agencias no pueden proponerte trabajos en estas fechas.",
+  "Manage in Calendar": "Gestionar en Calendario",
+
 };
 
 export function translateDashboardText(
