@@ -2,6 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "SEO worktree (3033)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-seo/web && PORT=3033 npm run dev"],
+      "port": 3033,
+      "autoPort": false
+    },
+    {
       "name": "Checkpoint2 QA (3021)",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web && PORT=3021 npm run dev"],

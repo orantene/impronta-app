@@ -124,6 +124,27 @@ html[data-public-font-preset="editorial"] {
   --font-cinzel: var(--font-playfair-display);
 }
 
+@layer base {
+  /**
+   * Tailwind v4 Preflight sets `cursor: default` on buttons, reverting the
+   * long-standing browser/Tailwind-v3 behaviour of `cursor: pointer`. The
+   * effect is that every `<button>` in the app renders an arrow rather than a
+   * hand, so controls that ARE clickable read as inert text. Anchors keep the
+   * pointer, which makes the inconsistency worse: a link and a button sitting
+   * side by side in the same toolbar behave differently under the mouse.
+   *
+   * Restore it globally rather than sprinkling `cursor-pointer` per component,
+   * which is what Tailwind's own v4 upgrade guide recommends. `:disabled` and
+   * `aria-disabled` are excluded so inert controls still read as inert.
+   */
+  button:not(:disabled):not([aria-disabled="true"]),
+  [role="button"]:not(:disabled):not([aria-disabled="true"]),
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+}
+
 @layer utilities {
   .site-theme-dark {
     --impronta-black: #0a0a0a;

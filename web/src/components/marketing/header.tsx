@@ -9,6 +9,7 @@ import { TulalaLogo } from "@/components/brand/tulala-logo";
 import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
 import { MarketingCta } from "./cta-link";
 import { LOGIN_MODAL_EVENT } from "./login-modal";
+import { MarketingLanguageMenu } from "./marketing-language-menu";
 import { MarketingLanguageToggle } from "./marketing-language-toggle";
 import { DesktopSupport, SUPPORT_EMAIL } from "./marketing-support-menu";
 import {
@@ -196,10 +197,10 @@ export function MarketingHeader({
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <MarketingLanguageToggle
+          <MarketingLanguageMenu
             activeLocale={locale}
             pathnameWithoutLocale={pathnameWithoutLocale}
-            className="mr-1"
+            label={copy.nav.language}
           />
           <DesktopSupport copy={copy.nav} />
           {account ? (
@@ -215,12 +216,9 @@ export function MarketingHeader({
                 onClick={() =>
                   window.dispatchEvent(new CustomEvent(LOGIN_MODAL_EVENT))
                 }
-                className="inline-flex h-9 items-center gap-1.5 rounded-[10px] px-3.5 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)]"
-                style={{
-                  border: "1px solid var(--plt-hairline-strong)",
-                  background: "var(--plt-bg-raised)",
-                  color: "var(--plt-ink-soft)",
-                }}
+                /* Colours as classes, not inline `style` — inline wins over
+                   stylesheet rules and would nullify the `hover:` variants. */
+                className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-3.5 text-[0.875rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]"
               >
                 <SignInGlyph />
                 {copy.nav.signIn}
@@ -576,9 +574,18 @@ export function MarketingHeader({
 }
 
 function isActive(pathname: string, href: string) {
-  const base = href.split("#")[0];
+  const [base, hash] = href.split("#");
+
+  // A hash link ("/#stories") targets a section, not a page. Stripping the
+  // hash and comparing what was left made `base` "/", so EVERY homepage visit
+  // marked Stories as the current page: the underline made `/` look like it
+  // had landed on Stories. A section link never owns the active state.
+  if (hash) return false;
+
   if (!base || base === "/") return pathname === "/";
-  return pathname === base || pathname.startsWith(base);
+
+  // Segment-aware: "/for" must not light up on "/format".
+  return pathname === base || pathname.startsWith(`${base}/`);
 }
 
 /* ───────────────────────── Desktop nav ───────────────────────── */
@@ -588,7 +595,9 @@ function DesktopLink({ node, active }: { node: { label: string; href: string }; 
     <Link
       href={node.href}
       className={cn(
-        "relative rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors",
+        // A colour-only hover left these reading as static labels. The pill
+        // fill gives the pointer a visible hit-target the moment it lands.
+        "relative rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:bg-[var(--plt-bg-raised)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]",
         active ? "text-[var(--plt-ink)]" : "text-[var(--plt-muted)] hover:text-[var(--plt-ink)]",
       )}
     >
@@ -626,8 +635,8 @@ function DesktopMenu({
         onClick={onToggle}
         onFocus={onOpen}
         className={cn(
-          "inline-flex items-center gap-1 rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors",
-          open ? "text-[var(--plt-ink)]" : "text-[var(--plt-muted)] hover:text-[var(--plt-ink)]",
+          "inline-flex items-center gap-1 rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:bg-[var(--plt-bg-raised)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]",
+          open ? "bg-[var(--plt-bg-raised)] text-[var(--plt-ink)]" : "text-[var(--plt-muted)] hover:text-[var(--plt-ink)]",
         )}
       >
         {node.label}
@@ -761,17 +770,21 @@ function MobileSection({
  */
 function TulalaHeaderLogo({ descriptor }: { descriptor: string }) {
   return (
-    <span className="inline-flex items-center gap-3" style={{ color: "var(--plt-ink-strong)" }}>
+    <span
+      className="inline-flex flex-col items-start leading-none"
+      style={{ color: "var(--plt-ink-strong)" }}
+    >
       <TulalaLogo wordmarkHeight={25} />
+      {/* Stacked under the wordmark rather than beside it: the lockup reads as
+          one brand unit instead of two competing elements separated by a rule,
+          and it stops the descriptor from fighting the nav for horizontal room.
+          Letter-spacing is tuned so the line optically matches the wordmark's
+          width. Still desktop-only (xl+) and still ~60% opacity, so it never
+          becomes a second dark bold element in the bar. */}
       <span
         aria-hidden
-        className="hidden whitespace-nowrap pt-px text-[0.625rem] font-medium uppercase tracking-[0.13em] xl:inline-block"
-        style={{
-          color: "var(--plt-ink-strong)",
-          opacity: 0.6,
-          borderLeft: "1px solid var(--plt-hairline-strong)",
-          paddingLeft: "0.75rem",
-        }}
+        className="mt-1 hidden whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.2em] xl:block"
+        style={{ color: "var(--plt-ink-strong)", opacity: 0.55 }}
       >
         {descriptor}
       </span>

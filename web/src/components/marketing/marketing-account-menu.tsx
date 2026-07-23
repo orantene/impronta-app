@@ -136,11 +136,9 @@ export function DesktopAccount({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="group flex items-center gap-1.5 rounded-[10px] py-1 pl-1 pr-2 transition-colors hover:bg-[var(--plt-bg-deep)]"
-        style={{
-          border: "1px solid var(--plt-hairline-strong)",
-          background: "var(--plt-bg-raised)",
-        }}
+        /* Colours as classes, not inline `style` — inline outranks stylesheet
+           rules and would nullify the `hover:` variants. */
+        className="group flex items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] py-1 pl-1 pr-2 transition-[background-color,border-color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]"
       >
         <AccountAvatar />
         <span
