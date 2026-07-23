@@ -42,6 +42,7 @@ import {
 import {
   isPathAllowedForHostKind,
   resolveWorkspacePathTenantPublicPath,
+  WORKSPACE_PATH_SEGMENT,
 } from "@/lib/saas/surface-allow-list";
 import { workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
@@ -218,13 +219,10 @@ export async function proxy(request: NextRequest) {
   const hostContext = await resolveTenantContext(request, hostHeader);
 
   if (hostContext.kind === "not_found") {
-    // Fail-hard (Plan L37): an unregistered hostname does NOT fall back
-    // to tenant #1 or the hub. A 404 tells the operator the domain needs
-    // seeding in `agency_domains`.
-    //
-    // Rewrite to the branded 404 page instead of returning plain text.
-    // The rewrite target `/_host-unregistered` is whitelisted in the
-    // short-circuit block above so this does not recurse.
+    // Fail-hard (Plan L37): an unregistered hostname does NOT fall back to
+    // tenant #1 or the hub — a 404 tells the operator the domain needs seeding
+    // in `agency_domains`. Rewrite to the branded 404 page rather than plain
+    // text; `/_host-unregistered` is whitelisted above so this cannot recurse.
     return NextResponse.rewrite(
       new URL("/_host-unregistered", request.url),
       { status: 404 },
@@ -628,9 +626,8 @@ export async function proxy(request: NextRequest) {
     requestHeaders.delete(TENANT_HEADER_NAME);
   }
 
-  // Phase 4 — propagate tenant slug for agency hosts.
-  // Used by layouts for branded-shortcut redirect (/admin → /<slug>/admin)
-  // without an extra DB roundtrip. Only set for agency kind; cleared otherwise.
+  // Phase 4 — propagate tenant slug for agency hosts, for the branded-shortcut
+  // redirect (/admin → /<slug>/admin) without an extra DB roundtrip.
   if (effectiveHostContext.kind === "agency" && effectiveHostContext.tenantSlug) {
     requestHeaders.set(HOST_TENANT_SLUG_HEADER, effectiveHostContext.tenantSlug);
   } else {
@@ -638,7 +635,9 @@ export async function proxy(request: NextRequest) {
   }
 
   if (effectiveHostContext.kind === "agency" && effectiveHostContext.domainKind === "path") {
-    requestHeaders.set(PUBLIC_PATH_PREFIX_HEADER, `/${effectiveHostContext.tenantSlug}`);
+    // MUST be the canonical public prefix (/w/<slug>): downstream strips it to
+    // derive the page slug, and a stale `/<slug>` left "w" as the slug.
+    requestHeaders.set(PUBLIC_PATH_PREFIX_HEADER, `/${WORKSPACE_PATH_SEGMENT}/${effectiveHostContext.tenantSlug}`);
   } else {
     requestHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
   }
