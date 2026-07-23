@@ -166,10 +166,10 @@ export function MarketingHeader({
         <Link
           href="/"
           className="group relative -mx-1 flex items-center rounded-md px-1 py-1"
-          aria-label={`${PLATFORM_BRAND.name} — home`}
+          aria-label={`${PLATFORM_BRAND.name} home`}
           style={{ color: "var(--plt-ink)" }}
         >
-          <TulalaHeaderLogo />
+          <TulalaHeaderLogo descriptor={copy.brand.descriptor} />
         </Link>
 
         <nav className="hidden items-center gap-0.5 lg:flex">
@@ -748,14 +748,33 @@ function MobileSection({
 }
 
 /**
- * Header lockup — the canonical mark + monoline wordmark from
+ * Header lockup: the canonical mark + monoline wordmark from
  * `@/components/brand/tulala-logo`. Letter strokes ride `currentColor`
  * (ink-strong here); the full-stop carries the brand orange.
+ *
+ * `descriptor` renders the category-message lockup line to the right of
+ * the wordmark, desktop-only (xl+, one step past the `lg:` breakpoint the
+ * nav itself switches on at, so the label never competes with nav for
+ * space; QA at 1024-1280px and drop to a wider breakpoint if it still
+ * crowds). ~60% opacity, one weight lighter than the wordmark, letter-
+ * spaced small-caps-style, never a second dark bold element in the bar.
  */
-function TulalaHeaderLogo() {
+function TulalaHeaderLogo({ descriptor }: { descriptor: string }) {
   return (
-    <span style={{ color: "var(--plt-ink-strong)" }}>
+    <span className="inline-flex items-center gap-3" style={{ color: "var(--plt-ink-strong)" }}>
       <TulalaLogo wordmarkHeight={25} />
+      <span
+        aria-hidden
+        className="hidden whitespace-nowrap pt-px text-[0.625rem] font-medium uppercase tracking-[0.13em] xl:inline-block"
+        style={{
+          color: "var(--plt-ink-strong)",
+          opacity: 0.6,
+          borderLeft: "1px solid var(--plt-hairline-strong)",
+          paddingLeft: "0.75rem",
+        }}
+      >
+        {descriptor}
+      </span>
     </span>
   );
 }

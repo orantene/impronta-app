@@ -10,12 +10,24 @@ import { ProductTourSection } from "@/components/marketing/product-tour-section"
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
+import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
-export const metadata: Metadata = {
-  title: "For agencies & representation",
-  description:
-    "Run a branded roster site on your own domain, manage people in a modern CMS, and convert inquiries through a real pipeline, not a spreadsheet.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  return {
+    title: pickLocale(locale, {
+      en: "For agencies & representation",
+      es: "Para agencias y representación",
+    }),
+    description: pickLocale(locale, {
+      en: "Run a branded roster site on your own domain, manage people in a modern CMS, and convert inquiries through a real pipeline, not a spreadsheet.",
+      es: "Opera un sitio de roster con tu marca en tu propio dominio, gestiona a tu gente en un CMS moderno y convierte consultas con un pipeline real, no con una hoja de cálculo.",
+    }),
+    ...buildMarketingLocaleAlternates(locale, "/agencies"),
+  };
+}
 
 type Pillar = {
   id: string;
@@ -32,8 +44,8 @@ const PILLARS: Pillar[] = [
     id: "site",
     index: "01",
     eyebrow: "Branded site",
-    title: "Your identity, yours \u2014 not a template\u2019s.",
-    body: "A real editorial website on your own domain, managed in a modern CMS. Navigation, pages, posts, design tokens \u2014 you own the whole surface.",
+    title: "Your identity is yours, not a template\u2019s.",
+    body: "A real editorial website on your own domain, managed in a modern CMS. Navigation, pages, posts, design tokens: you own the whole surface.",
     bullets: [
       "Custom domain, SSL, DNS handled",
       "CMS-driven pages, posts, navigation",
@@ -47,7 +59,7 @@ const PILLARS: Pillar[] = [
     index: "02",
     eyebrow: "People profiles",
     title: "The profile your roster deserves.",
-    body: "Structured taxonomy, media pipeline, specs, availability, and portfolio \u2014 presented editorially. One URL per person, rendering everywhere.",
+    body: "Structured taxonomy, media pipeline, specs, availability, and portfolio, presented editorially. One URL per person, rendering everywhere.",
     bullets: [
       "Rich people profiles with locale support",
       "Editorial portfolio rendering (no builder vibes)",
@@ -65,7 +77,7 @@ const PILLARS: Pillar[] = [
     bullets: [
       "Structured inquiry inbox (not chat)",
       "Versioned offers with approval flow",
-      "Multi-party sign-off \u2014 client, talent, ops",
+      "Multi-party sign-off: client, talent, ops",
       "Bookings \u2192 calendar \u2192 invoicing-ready data",
     ],
     art: "pipeline",
@@ -84,7 +96,7 @@ export default function AgenciesPage() {
             <span style={{ color: "var(--plt-forest)" }}>rebuilt for 2026.</span>
           </>
         }
-        subtitle={`Representation businesses run on people, not software \u2014 until the software gets in the way. ${PLATFORM_BRAND.name} is the operating system: a branded site, structured profiles, a real inquiry pipeline, and permissions to scale past a single phone.`}
+        subtitle={`Representation businesses run on people, not software, until the software gets in the way. ${PLATFORM_BRAND.name} gives you the real infrastructure: a branded site, structured profiles, a real inquiry pipeline, and permissions to scale past a single phone.`}
         primary={{ label: "Start 14-day trial", href: "/get-started?tier=agency", intent: "trial" }}
         secondary={{ label: "See pricing", href: "/pricing", intent: "pricing" }}
         sourcePage="agencies-hero"

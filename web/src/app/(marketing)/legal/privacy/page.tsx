@@ -1,11 +1,21 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/marketing/legal-page";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
+import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
-export const metadata: Metadata = {
-  title: "Privacy",
-  description: `How ${PLATFORM_BRAND.name} collects, stores, and protects data, in plain language.`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  return {
+    title: pickLocale(locale, { en: "Privacy", es: "Privacidad" }),
+    description: pickLocale(locale, {
+      en: `How ${PLATFORM_BRAND.name} collects, stores, and protects data, in plain language.`,
+      es: `Cómo ${PLATFORM_BRAND.name} recopila, guarda y protege los datos, explicado en lenguaje claro.`,
+    }),
+    ...buildMarketingLocaleAlternates(locale, "/legal/privacy"),
+  };
+}
 
 export default function PrivacyPage() {
   return (

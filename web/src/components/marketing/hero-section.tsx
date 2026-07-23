@@ -8,7 +8,7 @@ import { MarketingContainer } from "./container";
 import { MarketingCta } from "./cta-link";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
 
-/** Full-bleed hero slider — rotates through the breadth of talent the platform serves. */
+/** Full-bleed hero slider: rotates through the breadth of talent the platform serves. */
 const SLIDES: MarketingPhoto[] = [
   MARKETING_PHOTOS.heroServices,
   MARKETING_PHOTOS.modelsRunway,
@@ -39,7 +39,7 @@ export function HeroSection({ locale }: { locale: string }) {
     const t = e.changedTouches[0];
     const dx = t.clientX - s.x;
     const dy = t.clientY - s.y;
-    // Horizontal swipe only — don't hijack vertical page scroll.
+    // Horizontal swipe only; don't hijack vertical page scroll.
     if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
       setActive((p) =>
         dx < 0 ? (p + 1) % SLIDES.length : (p - 1 + SLIDES.length) % SLIDES.length,
@@ -160,7 +160,7 @@ export function HeroSection({ locale }: { locale: string }) {
         </div>
       </MarketingContainer>
 
-      {/* Floating booking card — synced to the active slide */}
+      {/* Floating booking card, synced to the active slide */}
       <BookingAccent index={active} locale={locale} />
 
       {/* Slide indicators */}
@@ -198,7 +198,7 @@ type BookingCard = {
   when: string;
 };
 
-/** One booking per slide — the card mirrors the talent on screen (same order as SLIDES). */
+/** One booking per slide: the card mirrors the talent on screen (same order as SLIDES). */
 function getBookingCards(locale: string): BookingCard[] {
   return pickLocale(locale, {
     en: [

@@ -68,7 +68,7 @@ type Props = {
    * renames without a redeploy.
    */
   tierNames?: GetStartedTierNames;
-  /** Pre-formatted promo label (Phase 3 — appended to fine-print). */
+  /** Pre-formatted promo label (Phase 3, appended to fine-print). */
   appliedDiscountLabel?: string;
 };
 
@@ -139,7 +139,7 @@ export function GetStartedForm({
     referrer?: string;
   }>({});
 
-  // Funnel-step tracking — fire each event AT MOST ONCE per form session.
+  // Funnel-step tracking: fire each event AT MOST ONCE per form session.
   // We track these with refs (not state) so React doesn't re-render on
   // ref mutation and the events don't double-fire under StrictMode.
   const firedRef = useRef<Record<string, boolean>>({});
@@ -227,7 +227,7 @@ export function GetStartedForm({
         lead_id: state.leadId,
       });
     } else if (state && !state.ok) {
-      // Server-side rejection — fire the failure event so we can see which
+      // Server-side rejection: fire the failure event so we can see which
       // step the funnel actually breaks on (validation, rate-limit, etc.).
       const firstErrorKey = Object.keys(state.errors ?? {})[0] ?? "unknown";
       trackProductEvent("marketing_submit_failed", {
@@ -235,7 +235,7 @@ export function GetStartedForm({
         error_code: firstErrorKey,
       });
     }
-    // `audience`/`rosterSize`/`tier` are the submitted values — including
+    // `audience`/`rosterSize`/`tier` are the submitted values; including
     // them in the dep array is correct and stable since they only change
     // via user interaction (which is what triggers a new submission anyway).
   }, [state, audience, rosterSize, tier]);
@@ -267,7 +267,7 @@ export function GetStartedForm({
           <strong style={{ color: "var(--plt-ink)" }}>
             {preferredLinkPreview(state.subdomain ?? "your-business", tier)}
           </strong>
-          {paidTier ? " — payment is the last step." : "."}
+          {paidTier ? ". Payment is the last step." : "."}
         </p>
         {state.signInUrl ? (
           <a
@@ -326,7 +326,7 @@ export function GetStartedForm({
               <>
                 Finish account setup with{" "}
                 <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong>{" "}
-                and we&apos;ll take you to {planLabel} checkout — payment is the last step
+                and we&apos;ll take you to {planLabel} checkout. Payment is the last step
                 before your workspace is ready.
               </>
             ) : (
@@ -370,8 +370,8 @@ export function GetStartedForm({
             style={{ borderColor: "rgba(46,107,82,0.25)", background: "rgba(46,107,82,0.06)", color: "var(--plt-ink-soft)" }}
           >
             {tierPrices?.network
-              ? `Your free workspace is ready to explore now. Upgrade to Network (${tierPrices.network}/mo) when you’re ready — SSO, custom domain, and dedicated onboarding unlock at checkout.`
-              : <>Your free workspace is ready to explore now. We&apos;ll email <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong> separately to set up the Network plan — pricing, SSO, and a custom domain.</>}
+              ? `Your free workspace is ready to explore now. Upgrade to Network (${tierPrices.network}/mo) when you’re ready: SSO, custom domain, and dedicated onboarding unlock at checkout.`
+              : <>Your free workspace is ready to explore now. We&apos;ll email <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong> separately to set up the Network plan: pricing, SSO, and a custom domain.</>}
           </p>
         )}
         <ul
@@ -387,15 +387,15 @@ export function GetStartedForm({
             <SuccessTick />{" "}
             {state.workspaceSignupUrl
               ? paidTier
-                ? `${planLabel} plan — full feature set unlocks after checkout`
-                : "Free plan — no credit card on file"
+                ? `${planLabel} plan: full feature set unlocks after checkout`
+                : "Free plan: no credit card on file"
               : "We'll confirm the right plan and launch path with you by email"}
           </li>
           <li className="flex items-start gap-2.5">
             <SuccessTick />{" "}
             {state.workspaceSignupUrl
               ? paidTier
-                ? "Cancel any time — managed from your workspace billing settings"
+                ? "Cancel any time, managed from your workspace billing settings"
                 : "Upgrade later to branded subdomains or custom domains"
               : "Your preferred link name is saved with this signup"}
           </li>
@@ -415,7 +415,7 @@ export function GetStartedForm({
     );
   }
 
-  // Step 5: submit attempted — fires the moment the form action is invoked,
+  // Step 5: submit attempted. Fires the moment the form action is invoked,
   // BEFORE the server-side validation/persistence runs. Pairs with
   // marketing_waitlist_submitted (success) and marketing_submit_failed (server error).
   function handleFormAction(formData: FormData) {
@@ -438,7 +438,7 @@ export function GetStartedForm({
         boxShadow: "0 28px 60px -30px rgba(15,23,20,0.22)",
       }}
     >
-      {/* Honeypot — real humans skip this; labeled for screen readers but hidden visually. */}
+      {/* Honeypot: real humans skip this; labeled for screen readers but hidden visually. */}
       <div
         aria-hidden
         style={{
@@ -520,7 +520,7 @@ export function GetStartedForm({
         {variant === "compact" ? t.headingCompact : t.heading}
       </h3>
 
-      {/* Business name — the one input that matters. It seeds the link below. */}
+      {/* Business name: the one input that matters. It seeds the link below. */}
       <div className="mt-6">
         <TextField
           label={t.businessName}
@@ -547,7 +547,7 @@ export function GetStartedForm({
         </p>
       </div>
 
-      {/* Link — auto-filled from the business name, editable. */}
+      {/* Link: auto-filled from the business name, editable. */}
       <div className="mt-4">
         <label
           htmlFor="subdomain"
@@ -590,7 +590,7 @@ export function GetStartedForm({
             type="text"
             value={subdomain}
             onChange={(e) => {
-              // Hand-editing the link claims it — stop auto-syncing from name.
+              // Hand-editing the link claims it; stop auto-syncing from name.
               setSlugDirty(true);
               setSubdomain(
                 e.target.value
@@ -629,7 +629,7 @@ export function GetStartedForm({
         />
       </div>
 
-      {/* Optional short description — collapsed by default so an empty box
+      {/* Optional short description, collapsed by default so an empty box
           never depresses completion. Value rides a hidden input so it
           survives collapsing. */}
       <input type="hidden" name="businessDescription" value={businessDescription} />
@@ -673,7 +673,7 @@ export function GetStartedForm({
         )}
       </div>
 
-      {/* Contact — signed-in users come from the session (hidden); guests type
+      {/* Contact: signed-in users come from the session (hidden); guests type
           their name + email. */}
       {initialSignedIn ? (
         <>

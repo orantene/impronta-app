@@ -14,7 +14,10 @@ import {
   ORIGINAL_PATHNAME_HEADER,
 } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
-import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
+import {
+  buildPublicLocaleAlternates,
+  buildMarketingLocaleAlternates,
+} from "@/lib/seo/locale-alternates";
 import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
 import {
   loadPublicIdentity,
@@ -166,10 +169,12 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   if (ctx.kind === "marketing") {
-    const title = `${PLATFORM_BRAND.name} — ${PLATFORM_BRAND.tagline}`;
+    const title = `${PLATFORM_BRAND.name} · ${PLATFORM_BRAND.tagline}`;
+    const marketingAlt = buildMarketingLocaleAlternates(locale, "/");
     return {
       title,
       description: PLATFORM_BRAND.description,
+      ...marketingAlt,
       openGraph: {
         title,
         description: PLATFORM_BRAND.description,
