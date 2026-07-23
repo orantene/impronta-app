@@ -12,11 +12,22 @@ import { NetworkSection } from "@/components/marketing/network-section";
 import { ProductTourSection } from "@/components/marketing/product-tour-section";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
-export const metadata: Metadata = {
-  title: "How it works",
-  description: `Three surfaces, one platform: a branded roster site, structured people profiles, and a real inquiry \u2192 offer \u2192 booking pipeline. Here\u2019s the full walkthrough.`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  return {
+    title: pickLocale(locale, {
+      en: "How it works",
+      es: "C\u00f3mo funciona",
+    }),
+    description: pickLocale(locale, {
+      en: `Three surfaces, one platform: a branded roster site, structured people profiles, and a real inquiry \u2192 offer \u2192 booking pipeline. Here\u2019s the full walkthrough.`,
+      es: `Tres superficies, una plataforma: un sitio de roster con tu marca, perfiles estructurados de personas y un pipeline real de consulta \u2192 oferta \u2192 reserva. Aqu\u00ed est\u00e1 el recorrido completo.`,
+    }),
+    ...buildMarketingLocaleAlternates(locale, "/how-it-works"),
+  };
+}
 
 type Surface = {
   id: string;
@@ -36,10 +47,10 @@ function getSurfaces(locale: string): Surface[] {
         index: "01",
         eyebrow: "Surface 01",
         title: "The branded roster site.",
-        body: "A modern editorial website \u2014 nav, pages, posts, design system \u2014 that renders your roster front-and-centre. On your domain, with your identity, managed in a modern CMS. No template feel.",
+        body: "A modern editorial website (nav, pages, posts, design system) that renders your roster front-and-centre. On your domain, with your identity, managed in a modern CMS. No template feel.",
         highlights: [
           "Your domain, your identity, your tokens",
-          "Editorial layouts \u2014 not drag-and-drop kitsch",
+          "Editorial layouts, not drag-and-drop kitsch",
           "CMS for pages, posts, and navigation",
         ],
         art: "site",
@@ -62,10 +73,10 @@ function getSurfaces(locale: string): Surface[] {
         index: "03",
         eyebrow: "Surface 03",
         title: "The inquiry engine.",
-        body: "Inquiries arrive structured \u2014 not buried in a chat thread. You respond with a versioned offer, get multi-party sign-off, and watch it convert into a tracked booking with calendar-ready data.",
+        body: "Inquiries arrive structured, not buried in a chat thread. You respond with a versioned offer, get multi-party sign-off, and watch it convert into a tracked booking with calendar-ready data.",
         highlights: [
           "Structured intake with brief, dates, budget",
-          "Versioned offers \u2014 nothing lost to memory",
+          "Versioned offers, nothing lost to memory",
           "Bookings export to calendar + invoicing",
         ],
         art: "pipeline",
@@ -77,10 +88,10 @@ function getSurfaces(locale: string): Surface[] {
         index: "01",
         eyebrow: "Superficie 01",
         title: "El sitio de roster con tu marca.",
-        body: "Un sitio editorial moderno \u2014 navegaci\u00f3n, p\u00e1ginas, posts, sistema de dise\u00f1o \u2014 que pone tu roster al frente. En tu dominio, con tu identidad, administrado en un CMS de verdad. Nada de plantilla gen\u00e9rica.",
+        body: "Un sitio editorial moderno (navegaci\u00f3n, p\u00e1ginas, posts, sistema de dise\u00f1o) que pone tu roster al frente. En tu dominio, con tu identidad, administrado en un CMS de verdad. Nada de plantilla gen\u00e9rica.",
         highlights: [
           "Tu dominio, tu identidad, tus colores",
-          "Dise\u00f1os editoriales \u2014 sin el kitsch de arrastrar y soltar",
+          "Dise\u00f1os editoriales, sin el kitsch de arrastrar y soltar",
           "CMS para p\u00e1ginas, posts y navegaci\u00f3n",
         ],
         art: "site",
@@ -103,10 +114,10 @@ function getSurfaces(locale: string): Surface[] {
         index: "03",
         eyebrow: "Superficie 03",
         title: "El motor de consultas.",
-        body: "Las consultas llegan estructuradas \u2014 no enterradas en un chat. Respondes con una oferta versionada, juntas la aprobaci\u00f3n de todas las partes y la ves convertirse en una reserva con seguimiento y datos listos para el calendario.",
+        body: "Las consultas llegan estructuradas, no enterradas en un chat. Respondes con una oferta versionada, juntas la aprobaci\u00f3n de todas las partes y la ves convertirse en una reserva con seguimiento y datos listos para el calendario.",
         highlights: [
           "Recepci\u00f3n estructurada con brief, fechas y presupuesto",
-          "Ofertas versionadas \u2014 nada se pierde de memoria",
+          "Ofertas versionadas, nada se pierde de memoria",
           "Reservas que se exportan a calendario y facturaci\u00f3n",
         ],
         art: "pipeline",
@@ -122,14 +133,14 @@ export default async function HowItWorksPage() {
     en: {
       eyebrow: "The full walkthrough",
       subtitle:
-        "Most of what holds representation businesses back isn\u2019t effort \u2014 it\u2019s tooling. Here\u2019s what changes when your site, your profiles, and your inquiry flow actually talk to each other.",
+        "Most of what holds representation businesses back isn\u2019t effort. It\u2019s tooling. Here\u2019s what changes when your site, your profiles, and your inquiry flow actually talk to each other.",
       startFree: "Start free",
       seePricing: "See pricing",
     },
     es: {
       eyebrow: "El recorrido completo",
       subtitle:
-        "Lo que m\u00e1s frena a los negocios de representaci\u00f3n no es el esfuerzo \u2014 son las herramientas. Esto es lo que cambia cuando tu sitio, tus perfiles y tu flujo de consultas por fin se hablan entre s\u00ed.",
+        "Lo que m\u00e1s frena a los negocios de representaci\u00f3n no es el esfuerzo. Son las herramientas. Esto es lo que cambia cuando tu sitio, tus perfiles y tu flujo de consultas por fin se hablan entre s\u00ed.",
       startFree: "Empieza gratis",
       seePricing: "Ver precios",
     },

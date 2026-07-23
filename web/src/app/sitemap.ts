@@ -102,10 +102,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       "/legal/privacy",
       "/legal/terms",
     ];
-    const marketingEntries: MetadataRoute.Sitemap = marketingPaths.map((path) => ({
-      url: new URL(path, base).toString(),
-      lastModified: new Date(),
-    }));
+    const marketingEntries: MetadataRoute.Sitemap = marketingPaths.flatMap(
+      (path) => [
+        { url: new URL(path, base).toString(), lastModified: new Date() },
+        {
+          url: new URL(withLocalePath(path, "es"), base).toString(),
+          lastModified: new Date(),
+        },
+      ],
+    );
     return [...marketingEntries, ...platformTalentEntries];
   }
   if (isTalentProfilePlatformHost(hostContext.kind)) {

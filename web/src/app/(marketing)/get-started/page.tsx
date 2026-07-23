@@ -25,12 +25,22 @@ import {
 } from "@/lib/pricing/get-active-prices";
 import { validateDiscount } from "@/lib/server-actions/admin-product-discounts";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
-export const metadata: Metadata = {
-  title: "Start your business, free",
-  description:
-    "Build your own website in one click, get your link, and start taking bookings and payments. For agencies, networks, bands, studios, teams, or just you.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  return {
+    title: pickLocale(locale, {
+      en: "Start your business, free",
+      es: "Empieza tu negocio gratis",
+    }),
+    description: pickLocale(locale, {
+      en: "Build your own website in one click, get your link, and start taking bookings and payments. For agencies, networks, bands, studios, teams, or just you.",
+      es: "Crea tu propio sitio web en un clic, obtén tu enlace y empieza a recibir reservas y pagos. Para agencias, redes, bandas, estudios, equipos o solo para ti.",
+    }),
+    ...buildMarketingLocaleAlternates(locale, "/get-started"),
+  };
+}
 
 const FREE_LINK_EXAMPLE = workspacePathHost("your-roster");
 const STUDIO_LINK_EXAMPLE = reservedBrandedSubdomainHost("your-roster");
@@ -41,7 +51,7 @@ type AudienceKey = "operator" | "agency" | "organization";
  * Tier-specific marketing copy. The Studio eyebrow is templated with the
  * live monthly price (via Phase 2 catalog read) so the chip stays in sync
  * with whatever pricing is currently set in `/platform/admin/pricing`.
- * Other eyebrows have no embedded price — kept as static strings.
+ * Other eyebrows have no embedded price; kept as static strings.
  */
 type TierHeadline = { eyebrow: string; title: string; subtitle: string };
 
@@ -154,7 +164,7 @@ export default async function GetStartedPage({
   // L50 Phase 3: ?promo=CODE → validate against `product_discounts`.
   // Invalid / expired / out-of-window codes silently fall back to
   // no-discount rendering (we don't surface "Code expired" to the
-  // visitor — that would confuse anyone who landed on a stale link).
+  // visitor; that would confuse anyone who landed on a stale link).
   //
   // For Phase 3 we render the LABEL (e.g. "50% off · LATAM50") on the
   // form chip + fine-print. Phase 8 (Stripe Checkout) will re-validate
@@ -227,7 +237,7 @@ function mapAudience(raw: string | null): AudienceKey {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// 1. Hero — pitch + sticky form
+// 1. Hero: pitch + sticky form
 // ────────────────────────────────────────────────────────────────────────────
 
 function HeroSection({
@@ -252,7 +262,7 @@ function HeroSection({
   };
   tier?: TierKey;
   tierPrices?: Partial<Record<TierKey, string | undefined>>;
-  /** Live display names from product_tiers.name — same shape as tierPrices. */
+  /** Live display names from product_tiers.name, same shape as tierPrices. */
   tierNames?: Partial<Record<TierKey, string | undefined>>;
   /** Pre-formatted discount label (e.g. "50% off · LATAM50") or null
    *  when no ?promo=CODE is applied. Phase 3. */
@@ -427,7 +437,7 @@ function HeroSection({
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// 2. Who it's for — 4 audience cards
+// 2. Who it's for: 4 audience cards
 // ────────────────────────────────────────────────────────────────────────────
 
 type Audience = {
@@ -603,7 +613,7 @@ function AudienceCard({ audience, locale }: { audience: Audience; locale: string
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// 3. How it works — 4 steps
+// 3. How it works: 4 steps
 // ────────────────────────────────────────────────────────────────────────────
 
 function getSteps(locale: string) {
@@ -998,7 +1008,7 @@ function PlanCard({
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// 5. Product preview — what the branded directory looks like
+// 5. Product preview: what the branded directory looks like
 // ────────────────────────────────────────────────────────────────────────────
 
 const PREVIEW_PROFILES = [
@@ -1374,7 +1384,7 @@ function ContrastColumn({
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// 8. Final CTA — anchor back to the form
+// 8. Final CTA: anchor back to the form
 // ────────────────────────────────────────────────────────────────────────────
 
 function FinalCtaSection({ locale }: { locale: string }) {

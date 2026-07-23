@@ -10,7 +10,7 @@ import { CurrencyPicker } from "./currency-picker";
 import { MarketingLanguageToggle } from "./marketing-language-toggle";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
 
-/** Hrefs by column — labels come from the copy module (per locale), in order. */
+/** Hrefs by column. Labels come from the copy module (per locale), in order. */
 const FOOTER_HREFS = {
   platform: ["/#builder", "/#messenger", "/network", "/integrations", "/how-it-works"],
   solutions: ["/operators", "/agencies", "/organizations", "/#stories"],
@@ -26,6 +26,7 @@ export async function MarketingFooter() {
   const { currency, source } = await resolveCurrency(null);
   const locale = await getRequestLocale();
   const copy = getMarketingCopy(locale).footer;
+  const brand = getMarketingCopy(locale).brand;
   const h = await headers();
   const { pathnameWithoutLocale } = stripLocaleFromPathname(
     h.get("x-impronta-original-pathname") ?? "/",
@@ -53,6 +54,12 @@ export async function MarketingFooter() {
             <div className="flex items-center" style={{ color: "var(--plt-ink-strong)" }}>
               <TulalaLogo wordmarkHeight={24} />
             </div>
+            <p
+              className="mt-2 text-[0.625rem] font-medium uppercase tracking-[0.14em]"
+              style={{ color: "var(--plt-muted)" }}
+            >
+              {brand.descriptor}
+            </p>
             <p
               className="mt-5 text-[0.9375rem] leading-[1.6]"
               style={{ color: "var(--plt-muted)" }}

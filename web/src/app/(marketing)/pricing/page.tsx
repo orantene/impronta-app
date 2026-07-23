@@ -13,12 +13,19 @@ import { PlanFeatureCompareTable } from "@/components/marketing/plan-feature-com
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
-export const metadata: Metadata = {
-  title: "Pricing",
-  description:
-    "Start free, forever. Upgrade on your schedule. Transparent plans for operators, agencies, and large placement networks.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  return {
+    title: pickLocale(locale, { en: "Pricing", es: "Precios" }),
+    description: pickLocale(locale, {
+      en: "Start free, forever. Upgrade on your schedule. Transparent plans for operators, agencies, and large placement networks.",
+      es: "Empieza gratis, para siempre. Mejora tu plan a tu ritmo. Planes transparentes para operadores, agencias y grandes redes de colocación.",
+    }),
+    ...buildMarketingLocaleAlternates(locale, "/pricing"),
+  };
+}
 
 /**
  * L50 Phase 4: the per-tier compare table is read from `product_features`
@@ -28,7 +35,7 @@ export const metadata: Metadata = {
  * L50 post-launch fix (2026-05-28): page is async + accepts searchParams
  * so `?currency=MXN` shared links honor the override on first render.
  * Previously the teaser section called `resolveCurrency(null)` which
- * skipped URL params entirely — visitors landing on a shared link saw
+ * skipped URL params entirely, visitors landing on a shared link saw
  * whatever cookie/IP they had, not the link's intended currency.
  */
 export default async function PricingPage({
@@ -53,7 +60,7 @@ export default async function PricingPage({
       compareTitleB: "every plan.",
       fineA: "Annual plans save 20%.",
       fineB:
-        "Currency automatically localizes for LATAM and EU. No setup fees. No hostage data \u2014",
+        "Currency automatically localizes for LATAM and EU. No setup fees. No hostage data:",
       fineC: "full export on every paid plan.",
     },
     es: {
@@ -69,7 +76,7 @@ export default async function PricingPage({
       compareTitleB: "en cada plan.",
       fineA: "Los planes anuales ahorran 20%.",
       fineB:
-        "La moneda se ajusta sola para LATAM y la UE. Sin costos de instalaci\u00f3n. Sin secuestrar tus datos \u2014",
+        "La moneda se ajusta sola para LATAM y la UE. Sin costos de instalaci\u00f3n. Sin secuestrar tus datos:",
       fineC: "exportas todo en cualquier plan de pago.",
     },
   })
@@ -92,7 +99,7 @@ export default async function PricingPage({
 
       {/*
         Currency picker, prominent placement: right above the price cards.
-        Same component the marketing footer uses (no fork) — keeps a single
+        Same component the marketing footer uses (no fork), keeps a single
         source of truth for the dropdown UI. Visitors landing here from a
         shared `?currency=MXN` link see the chip pre-populated; visitors
         auto-detected via IP see "Auto-detected" subtitle and can override

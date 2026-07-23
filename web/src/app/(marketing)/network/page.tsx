@@ -10,12 +10,22 @@ import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
-export const metadata: Metadata = {
-  title: "The shared network",
-  description:
-    "Every roster site plugs into a shared discovery hub, so clients can browse across the whole network, not just your inbox.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  return {
+    title: pickLocale(locale, {
+      en: "The shared network",
+      es: "La red compartida",
+    }),
+    description: pickLocale(locale, {
+      en: "Every roster site plugs into a shared discovery hub, so clients can browse across the whole network, not just your inbox.",
+      es: "Cada sitio de roster se conecta a un hub compartido de descubrimiento, para que los clientes exploren toda la red, no solo tu bandeja de entrada.",
+    }),
+    ...buildMarketingLocaleAlternates(locale, "/network"),
+  };
+}
 
 type Fact = {
   index: string;
@@ -37,7 +47,7 @@ function getFacts(locale: string): Fact[] {
         index: "02",
         label: "Discovery",
         value: "Cross-roster search",
-        detail: "Clients search by category, location, availability, skill \u2014 across every opted-in roster on the platform.",
+        detail: "Clients search by category, location, availability, skill, across every opted-in roster on the platform.",
       },
       {
         index: "03",
@@ -63,7 +73,7 @@ function getFacts(locale: string): Fact[] {
         index: "02",
         label: "Descubrimiento",
         value: "B\u00fasqueda entre rosters",
-        detail: "Los clientes buscan por categor\u00eda, ubicaci\u00f3n, disponibilidad y habilidad \u2014 en cada roster que decidi\u00f3 aparecer en la plataforma.",
+        detail: "Los clientes buscan por categor\u00eda, ubicaci\u00f3n, disponibilidad y habilidad, en cada roster que decidi\u00f3 aparecer en la plataforma.",
       },
       {
         index: "03",
@@ -89,7 +99,7 @@ export default async function NetworkPage() {
       heroEyebrow: "The shared discovery hub",
       heroTitleA: "Bigger than",
       heroTitleB: "a single roster.",
-      heroSubtitle: `${PLATFORM_BRAND.name} isn\u2019t just a site-builder. Every branded roster plugs into a shared hub where clients actually browse \u2014 so your people get seen even when you\u2019re not pitching.`,
+      heroSubtitle: `${PLATFORM_BRAND.name} isn\u2019t just a site-builder. Every branded roster plugs into a shared hub where clients actually browse, so your people get seen even when you\u2019re not pitching.`,
       heroPrimary: "Start free",
       heroSecondary: "How it works",
       rulesEyebrow: "The ground rules",
@@ -102,7 +112,7 @@ export default async function NetworkPage() {
       heroEyebrow: "El hub de descubrimiento compartido",
       heroTitleA: "M\u00e1s grande que",
       heroTitleB: "un solo roster.",
-      heroSubtitle: `${PLATFORM_BRAND.name} no es solo un constructor de sitios. Cada roster con tu marca se conecta a un hub compartido donde los clientes de verdad buscan \u2014 as\u00ed tu gente se ve incluso cuando no est\u00e1s present\u00e1ndola.`,
+      heroSubtitle: `${PLATFORM_BRAND.name} no es solo un constructor de sitios. Cada roster con tu marca se conecta a un hub compartido donde los clientes de verdad buscan, as\u00ed tu gente se ve incluso cuando no est\u00e1s present\u00e1ndola.`,
       heroPrimary: "Empieza gratis",
       heroSecondary: "C\u00f3mo funciona",
       rulesEyebrow: "Las reglas del juego",

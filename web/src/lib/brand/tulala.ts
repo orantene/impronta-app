@@ -30,10 +30,10 @@ export const TULALA_BRAND = {
   /** Production marketing surface hostname. */
   domain: TULALA_APEX_HOST,
   /** Primary positioning line — one sentence, no period in buttons. */
-  tagline: "The Talent Business Platform",
+  tagline: "The Commerce Platform for Talent",
   /** Used in meta tags + social cards. */
   description:
-    "Tulala is the operating system for talent businesses — a branded storefront, a structured booking pipeline, and the shared discovery network that sends new work your way.",
+    "Tulala is the commerce platform for talent: a branded storefront, a structured booking pipeline, and the shared discovery network that sends new work your way.",
   /** Short line for trust strips and empty states. */
   positioning: "Software for talent businesses.",
   /** Launch stage surfaced in nav / hero badges. */

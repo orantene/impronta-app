@@ -84,15 +84,15 @@ export type GetStartedActionResult =
 /**
  * Why the verdict has three states instead of two:
  *
- * - `taken`    — a real conflict with an existing tenant (agencies.slug or
+ * - `taken`: a real conflict with an existing tenant (agencies.slug or
  *                agency_domains.hostname). Permanent until the tenant is
  *                deleted. UI shows "already taken" with suggestions.
- * - `pending`  — a still-active subdomain reservation held by another lead
+ * - `pending`: a still-active subdomain reservation held by another lead
  *                that hasn't finished provisioning yet (15-min TTL).
  *                Resolves itself if that lead abandons signup. UI explains
  *                this is a temporary hold so the user understands they can
  *                retry shortly.
- * - `available`— the slug is free to claim.
+ * - `available`: the slug is free to claim.
  *
  * The `excludeLeadId` parameter lets callers ignore reservations held by
  * the lead currently being processed (so re-submitting the form with the
@@ -149,7 +149,7 @@ async function suggestAlternativeSlugs(
     if (!WORKSPACE_SLUG_REGEX.test(candidate)) continue;
     if (isReservedWorkspaceSlug(candidate)) continue;
     const check = await isRequestedLinkTaken(supabase, candidate);
-    // Suggestions exclude both hard-taken and currently-held-pending slugs —
+    // Suggestions exclude both hard-taken and currently-held-pending slugs;
     // we don't want to recommend something the user will hit a conflict on.
     if (!check.error && !check.taken && !check.pending) {
       available.push(candidate);
@@ -237,7 +237,7 @@ export async function submitGetStartedSignup(
       };
     }
     if (isReservedWorkspaceSlug(subdomain)) {
-      return { ok: false, errors: { subdomain: "That one's reserved — try another." } };
+      return { ok: false, errors: { subdomain: "That one's already taken. Try another." } };
     }
   }
 
@@ -331,7 +331,7 @@ export async function submitGetStartedSignup(
 
   // Reserve the subdomain for this lead so a parallel signup can't race
   // them to the same slug. Best-effort: a failed reservation does NOT block
-  // signup — the lead still has subdomain_wanted set, and the provisioner
+  // signup; the lead still has subdomain_wanted set, and the provisioner
   // will surface a real conflict at workspace-creation time if it occurs.
   if (subdomain) {
     const { error: reservationError } = await supabase
@@ -392,7 +392,7 @@ export async function submitGetStartedSignup(
     await Promise.all([
       sendEmail({
         to: input.email,
-        subject: `You're on the list — ${PLATFORM_BRAND.name}`,
+        subject: `You're on the list at ${PLATFORM_BRAND.name}`,
         html: renderLeadConfirmationEmail({
           name: input.name.trim(),
           subdomain,
@@ -487,13 +487,13 @@ function renderLeadConfirmationEmail(args: {
       }. ${
         args.workspaceSignupUrl
           ? "For Free-plan workspaces, you can finish signup right away."
-          : "We're reviewing signups in the order they arrive and sending setup links within a day — usually within an hour during working hours."
+          : "We're reviewing signups in the order they arrive and sending setup links within a day, usually within an hour during working hours."
       }</p>
       ${subdomainLine}
       ${selfServeBlock}
       <p style="margin:28px 0 0;color:#3a4541;font-size:15px;line-height:1.6;">${followupCopy}</p>
       <hr style="border:none;border-top:1px solid rgba(15,23,20,0.08);margin:32px 0;"/>
-      <p style="margin:0;color:#6b766f;font-size:13px;line-height:1.6;">— The ${
+      <p style="margin:0;color:#6b766f;font-size:13px;line-height:1.6;">The ${
         PLATFORM_BRAND.name
       } team<br/>${PLATFORM_BRAND.stage} · ${new Date().getFullYear()}</p>
     </td></tr>
@@ -532,10 +532,10 @@ function renderFounderDigestEmail(params: {
     ${row("Email", params.email)}
     ${row("Audience", params.audience)}
     ${row("Roster size", params.rosterSize)}
-    ${row("Subdomain", params.subdomain ? `${params.subdomain}.${PLATFORM_BRAND.domain}` : "—")}
-    ${row("Tier interest", params.tierInterest ?? "—")}
-    ${row("UTM source", params.utmSource ?? "—")}
-    ${row("Referrer", params.referrer ?? "—")}
+    ${row("Subdomain", params.subdomain ? `${params.subdomain}.${PLATFORM_BRAND.domain}` : "N/A")}
+    ${row("Tier interest", params.tierInterest ?? "N/A")}
+    ${row("UTM source", params.utmSource ?? "N/A")}
+    ${row("Referrer", params.referrer ?? "N/A")}
     ${row("Lead ID", params.leadId)}
   </table>
 </body></html>`;
@@ -551,7 +551,7 @@ function escapeHtml(s: string): string {
 }
 
 /**
- * Lightweight availability check — called on subdomain input blur so the
+ * Lightweight availability check, called on subdomain input blur so the
  * user sees inline feedback before clicking submit. Returns a narrow,
  * JSON-safe verdict; final enforcement lives in `submitGetStartedSignup`.
  */
