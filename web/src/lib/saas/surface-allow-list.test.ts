@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   isPathAllowedForHostKind,
+  resolveAnyTenantPublicPath,
   resolvePathBasedTenantPublicPath,
+  resolveWorkspacePathTenantPublicPath,
 } from "./surface-allow-list";
 
 test("agency host: storefront + workspace + auth + root + static allowed", () => {
@@ -268,6 +270,44 @@ test("path-based tenant public routes do not swallow workspace or reserved route
   for (const path of blocked) {
     assert.equal(resolvePathBasedTenantPublicPath(path), null, `${path} must not strip`);
   }
+});
+
+test("canonical /w/<slug> resolves the same shapes as the legacy flat form", () => {
+  const cases = [
+    ["/w/impronta", "/"],
+    ["/w/impronta/directory", "/directory"],
+    ["/w/impronta/t/jane-doe", "/t/jane-doe"],
+    ["/w/impronta/p/about", "/p/about"],
+    ["/w/impronta/contact", "/contact"],
+    ["/w/impronta/join", "/join"],
+  ] as const;
+
+  for (const [path, stripped] of cases) {
+    assert.deepEqual(
+      resolveWorkspacePathTenantPublicPath(path),
+      { tenantSlug: "impronta", pathnameWithoutTenant: stripped },
+      `${path} should strip to ${stripped}`,
+    );
+  }
+});
+
+test("/w resolver only matches the canonical prefix, and never eats reserved routes", () => {
+  // Flat form is NOT canonical — middleware 301s it instead of serving it.
+  assert.equal(resolveWorkspacePathTenantPublicPath("/impronta"), null);
+  // Bare parent is not a tenant.
+  assert.equal(resolveWorkspacePathTenantPublicPath("/w"), null);
+  assert.equal(resolveWorkspacePathTenantPublicPath("/w/"), null);
+  // Workspace surfaces stay out of the public path-based shape.
+  assert.equal(resolveWorkspacePathTenantPublicPath("/w/impronta/admin"), null);
+  // "w" itself is reserved, so it can never resolve as a tenant slug.
+  assert.equal(resolvePathBasedTenantPublicPath("/w"), null);
+});
+
+test("resolveAnyTenantPublicPath accepts canonical and legacy during migration", () => {
+  const expected = { tenantSlug: "impronta", pathnameWithoutTenant: "/directory" };
+  assert.deepEqual(resolveAnyTenantPublicPath("/w/impronta/directory"), expected);
+  assert.deepEqual(resolveAnyTenantPublicPath("/impronta/directory"), expected);
+  assert.equal(resolveAnyTenantPublicPath("/pricing"), null);
 });
 
 test("marketing host: public marketing pages + root + static + bearer-gated shared api allowed", () => {

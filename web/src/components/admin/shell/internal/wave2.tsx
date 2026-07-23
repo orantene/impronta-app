@@ -1036,17 +1036,20 @@ export function TenantSwitcherDrawer() {
           const tenants = realWorkspaces
             .filter(w => w.role === roleGroup.toLowerCase())
             .map(w => {
-              // The platform network-hub's public face is the marketing apex
-              // (tulala.digital) — not a `<slug>.tulala.digital` subdomain
-              // (which is never provisioned and 404s). The apex doesn't serve
-              // /admin, so its workspace admin lives on the app host.
+              // Workspace admin ALWAYS lives on the app host
+              // (app.tulala.digital/<slug>/admin), never on the tenant's
+              // public/custom domain. Routing admin through w.domain broke the
+              // switcher whenever that domain was stale or unreachable — e.g. a
+              // tenant whose first-listed subdomain is a dead legacy host
+              // (impronta.studiobooking.io) sent the user to a NXDOMAIN
+              // "site can't be reached". The app host resolves the tenant from
+              // the path and is the same host the current workspace admin uses.
               const isPlatformHub = w.kind === "hub" && w.tier === "network";
+              // `domain` is display-only now: the tenant's public face.
               const domain = isPlatformHub
                 ? "tulala.digital"
                 : (w.domain ?? `${w.slug}.tulala.digital`);
-              const adminUrl = isPlatformHub
-                ? `https://app.tulala.digital/${w.slug}/admin`
-                : `https://${domain}/admin`;
+              const adminUrl = `https://app.tulala.digital/${w.slug}/admin`;
               return {
                 id: w.id,
                 slug: w.slug,

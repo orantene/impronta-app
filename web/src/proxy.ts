@@ -41,8 +41,9 @@ import {
 } from "@/lib/saas/scope";
 import {
   isPathAllowedForHostKind,
-  resolvePathBasedTenantPublicPath,
+  resolveWorkspacePathTenantPublicPath,
 } from "@/lib/saas/surface-allow-list";
+import { workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
 import {
   loadTenantLocaleSettings,
@@ -127,16 +128,12 @@ export async function proxy(request: NextRequest) {
   const sanitizedInboundHeaders = stripInboundHostContextHeaders(request);
 
   // ── Shared-API short-circuit (audit C2) ──────────────────────────────────
-  // The Stripe webhook + cron + analytics-events endpoints must reach their
-  // route handlers regardless of host. Stripe sends webhooks to the public
-  // endpoint we register; the originating Host header is whatever Stripe
-  // resolves and may not match any seeded `agency_domains` row, especially
-  // if we ever point Stripe at a `*.vercel.app` preview. Each of these
-  // endpoints has its own auth (signature, bearer token, allow-list) so
-  // tenant-host gating is unnecessary and actively harmful here.
-  //
-  // Also short-circuit the branded unregistered-host page itself so the
-  // internal rewrite below doesn't recurse back through host resolution.
+  // Stripe webhook + cron + analytics-events must reach their route handlers
+  // regardless of host: the inbound Host header may match no seeded
+  // `agency_domains` row. Each has its own auth (signature, bearer, allow-list)
+  // so tenant-host gating is unnecessary and actively harmful here. Also
+  // short-circuits the branded unregistered-host page so the rewrite below
+  // doesn't recurse through host resolution.
   if (
     pathname.startsWith("/api/stripe/") ||
     // Legacy webhook alias — /api/webhooks/stripe delegates to the same
@@ -411,9 +408,9 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // SaaS P2 — surface allow-list. Reject paths that do not belong on this
-  // host kind BEFORE rate limits, CMS redirects, or auth run. Checked
-  // against the locale-stripped path so `/es/admin` is treated as `/admin`.
+  // SaaS P2 — surface allow-list. Reject paths that do not belong on this host
+  // kind BEFORE rate limits, CMS redirects, or auth run. Checked against the
+  // locale-stripped path so `/es/admin` is treated as `/admin`.
   const canonicalPath = isNonDefaultLocalePrefixedPath(pathname, hostLangSettings)
     ? stripNonDefaultLocalePrefix(pathname, hostLangSettings)
     : pathname;
@@ -422,8 +419,15 @@ export async function proxy(request: NextRequest) {
     hostContext.kind === "hub" ||
     hostContext.kind === "marketing" ||
     (hostContext.kind === "app" && isLocalhostHost(hostHeader));
+
+  // `/w` parent + legacy-flat 301s — see workspace-path-redirects.ts.
+  const workspaceRedirect = canResolvePathBasedTenant
+    ? await workspacePathRedirect({ request, pathname, canonicalPath, hostHeader })
+    : null;
+  if (workspaceRedirect) return workspaceRedirect;
+
   const pathBasedTenant = canResolvePathBasedTenant
-    ? resolvePathBasedTenantPublicPath(canonicalPath)
+    ? resolveWorkspacePathTenantPublicPath(canonicalPath)
     : null;
   const pathBasedTenantContext = pathBasedTenant
     ? await resolveTenantContextFromPathSlug(
@@ -446,15 +450,11 @@ export async function proxy(request: NextRequest) {
       ? pathBasedTenant.pathnameWithoutTenant
       : canonicalPath;
 
-  // CMS clean-URL rewrite (agency storefronts only). Any single-segment
-  // path on an agency host that is NOT in the explicit allow-list gets
-  // rewritten internally to /p/{slug}. The CMS page catch-all at
-  // (public)/p/[[...slug]]/page.tsx renders it with the standard
-  // storefront shell (PublicHeader, footer). This gives CMS pages
-  // created in the editor clean root URLs (/contact, /about, /faq)
-  // without maintaining an explicit prefix entry for every slug. Paths
-  // that don't correspond to a published CMS page will 404 from the
-  // catch-all route, not from the middleware.
+  // CMS clean-URL rewrite (agency storefronts only): a single-segment path not
+  // in the allow-list is rewritten to /p/{slug}, rendered by the catch-all at
+  // (public)/p/[[...slug]]/page.tsx with the standard storefront shell. Gives
+  // editor-created CMS pages clean root URLs (/contact, /about) with no
+  // per-slug prefix entry. Unpublished slugs 404 from the catch-all, not here.
   let cmsSlugRewrite: string | null = null;
   if (
     effectiveHostContext.kind === "agency" &&

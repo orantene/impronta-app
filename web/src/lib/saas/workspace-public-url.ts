@@ -1,4 +1,5 @@
 import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
+import { WORKSPACE_PATH_SEGMENT } from "@/lib/saas/surface-allow-list";
 
 export type WorkspaceUrlPlan = "free" | "studio" | "agency" | "network" | "legacy";
 
@@ -20,8 +21,16 @@ export type WorkspacePublicAddress = {
   primaryUrl: string;
 };
 
+/**
+ * Canonical public address for a path-based (free-tier) workspace:
+ * `tulala.digital/w/<slug>`.
+ *
+ * The `/w` parent keeps every workspace out of the apex root namespace, so a
+ * tenant slug can never shadow a marketing route. Legacy flat `/<slug>` URLs
+ * still resolve — middleware 301s them here.
+ */
 export function workspacePathHost(slug: string): string {
-  return `${TULALA_APEX_HOST}/${slug}`;
+  return `${TULALA_APEX_HOST}/${WORKSPACE_PATH_SEGMENT}/${slug}`;
 }
 
 export function workspacePathUrl(slug: string): string {
@@ -71,7 +80,7 @@ export function customDomainLockedCopy(plan: WorkspaceUrlPlan): string {
 
 export function workspacePlanPublicModelCopy(plan: WorkspaceUrlPlan): string {
   if (plan === "free") {
-    return "Free · tulala.digital/<slug> + up to 5 public profiles";
+    return "Free · tulala.digital/w/<slug> + up to 5 public profiles";
   }
   if (plan === "studio") {
     return "Studio · branded subdomain (optional)";
