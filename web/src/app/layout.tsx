@@ -10,6 +10,7 @@ import {
 } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { ClientSpeedInsights } from "@/components/analytics/client-speed-insights";
+import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
 import { EditChromeMount } from "@/components/edit-chrome/edit-chrome-mount";

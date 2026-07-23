@@ -157,6 +157,11 @@ export async function proxy(request: NextRequest) {
     // Branded "page not found" page for known-host disallowed paths — same
     // recursion-avoidance rationale as /_host-unregistered above.
     pathname === "/_page-not-found" ||
+    // PWA offline fallback — precached by the service worker at install time.
+    // Must bypass host gating so it renders without a network connection,
+    // even when the host header is a raw *.vercel.app preview URL that is not
+    // seeded in agency_domains. No auth, no data fetching, static only.
+    pathname === "/offline" ||
     // Talent custom-domain host route — internal rewrite target for a
     // `kind: "talent_site"` host. Whitelisted so the rewrite below does not
     // recurse back through host resolution. The route reads the resolved

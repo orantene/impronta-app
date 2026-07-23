@@ -167,8 +167,8 @@ function contentSecurityPolicy(): string {
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
     `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
     `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame} ${talentMediaEmbedCsp.frame}`,
-    /** Maps workers use blob: URLs */
-    "worker-src blob:",
+    /** Maps workers (blob:) + PWA service worker ('self') */
+    "worker-src 'self' blob:",
     "frame-ancestors 'self'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -290,6 +290,24 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      {
+        // Service worker script must never be served stale — a cached sw.js
+        // would prevent new deploys from activating until the cache expires.
+        // `updateViaCache: "none"` in the registrar handles the browser-side
+        // cache bypass, but this header ensures CDN/Vercel Edge also revalidates
+        // on every request.
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, must-revalidate",
+          },
+          {
+            key: "Service-Worker-Allowed",
+            value: "/",
+          },
+        ],
       },
     ];
   },
