@@ -1,5 +1,6 @@
 "use client";
 
+import { useDashboardText } from "../../dashboard-i18n";
 import { Avatar, Icon } from "../../primitives";
 import { COLORS, EARNINGS_ROWS, FONTS, PAYMENT_METHOD_META, TRANSITION, useAdminShell, type TalentBooking } from "../../state";
 
@@ -42,6 +43,7 @@ export function ProfileCompletenessBanner({
   missing: string[];
   onFinish: () => void;
 }) {
+  const copy = useDashboardText();
   const remaining = 80 - percent;
   return (
     <button
@@ -68,17 +70,17 @@ export function ProfileCompletenessBanner({
       <div className="flex-1 min-w-0">
         <div className="text-admin-indigo-deep text-admin-12h font-semibold">
           {remaining > 0
-            ? `${remaining}% from Verified visibility · ${percent}% complete`
-            : `${percent}% complete · finish strong`}
+            ? `${remaining}% ${copy.t("from Verified visibility")} · ${percent}% ${copy.t("complete")}`
+            : `${percent}% ${copy.t("complete · finish strong")}`}
         </div>
         <div style={{ fontSize: 11.5, opacity: 0.75, marginTop: 1 }} className="text-admin-indigo-deep">
           {missing.length > 0
             ? `${missing.slice(0, 3).join(" · ")}`
-            : "A few more fields and agencies favour your profile in pitches."}
+            : copy.t("A few more fields and agencies favour your profile in pitches.")}
         </div>
       </div>
       <span style={{ fontSize: 11.5, fontWeight: 600, flexShrink: 0 }} className="text-admin-indigo-deep">
-        Finish profile →
+        {copy.t("Finish profile →")}
       </span>
     </button>
   );
@@ -101,6 +103,7 @@ function TodaysPlanBanner({
   bookings: TalentBooking[];
   onOpen: (id: string) => void;
 }) {
+  const copy = useDashboardText();
   if (bookings.length === 0) return null;
   return (
     <section
@@ -115,10 +118,10 @@ function TodaysPlanBanner({
     >
       <div className="flex items-center gap-2 mb-2">
         <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-green">
-          Today
+          {copy.t("Today")}
         </span>
         <span className="text-admin-ink-muted text-xs">
-          {bookings.length === 1 ? "1 confirmed shoot" : `${bookings.length} confirmed shoots`}
+          {bookings.length === 1 ? copy.t("1 confirmed shoot") : `${bookings.length} ${copy.t("confirmed shoots")}`}
         </span>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -198,28 +201,29 @@ export function FirstSessionChecklist({
   onPayouts: () => void;
   onDismiss: () => void;
 }) {
+  const copy = useDashboardText();
   const steps: { label: string; description: string; done: boolean; onClick: () => void }[] = [
     {
-      label: "Finish your profile basics",
-      description: completeness >= 80 ? "Done." : `${completeness}% complete · ${80 - completeness}% to unlock visibility`,
+      label: copy.t("Finish your profile basics"),
+      description: completeness >= 80 ? copy.t("Done.") : `${completeness}% ${copy.t("complete")} · ${80 - completeness}% ${copy.t("to unlock visibility")}`,
       done: completeness >= 80,
       onClick: onProfile,
     },
     {
-      label: "Add at least 6 polaroids",
-      description: polaroidCount >= 6 ? "Done — your gallery is ready." : `${polaroidCount} of 6 · clients filter on visual fit first`,
+      label: copy.t("Add at least 6 polaroids"),
+      description: polaroidCount >= 6 ? copy.t("Done — your gallery is ready.") : `${polaroidCount} ${copy.t("of 6 · clients filter on visual fit first")}`,
       done: polaroidCount >= 6,
       onClick: onPolaroids,
     },
     {
-      label: "Turn on a reach channel",
-      description: channelsLive > 0 ? `${channelsLive} live` : "No channel live · without one, no inquiries route to you",
+      label: copy.t("Turn on a reach channel"),
+      description: channelsLive > 0 ? `${channelsLive} ${copy.t("live")}` : copy.t("No channel live · without one, no inquiries route to you"),
       done: channelsLive > 0,
       onClick: onReach,
     },
     {
-      label: "Add a payout method",
-      description: payoutSet ? "Done — you'll get paid on time." : "Bank or card · so we can pay you out on the first booking",
+      label: copy.t("Add a payout method"),
+      description: payoutSet ? copy.t("Done — you'll get paid on time.") : copy.t("Bank or card · so we can pay you out on the first booking"),
       done: payoutSet,
       onClick: onPayouts,
     },
@@ -240,17 +244,17 @@ export function FirstSessionChecklist({
       <div className="flex items-baseline justify-between gap-3 mb-3">
         <div>
           <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 3 }} className="text-admin-accent">
-            First session
+            {copy.t("First session")}
           </div>
           <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 500, margin: 0, letterSpacing: -0.15 }} className="text-admin-ink">
             {doneCount === steps.length
-              ? "You're set up. Inquiries land here."
-              : `${doneCount} of ${steps.length} done — ${steps.length - doneCount} to go`}
+              ? copy.t("You're set up. Inquiries land here.")
+              : `${doneCount} ${copy.t("of")} ${steps.length} ${copy.t("done")}, ${steps.length - doneCount} ${copy.t("to go")}`}
           </h3>
         </div>
         <button
           onClick={onDismiss}
-          aria-label="Dismiss first-session checklist"
+          aria-label={copy.t("Dismiss first-session checklist")}
           style={{
             width: 22,
             height: 22,
@@ -337,6 +341,7 @@ export function FirstSessionChecklist({
  * "Inquiries you're in" rows.
  */
 export function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] }) {
+  const copy = useDashboardText();
   const { openDrawer } = useAdminShell();
   // Brief is shown inside TalentClosedBookingDrawer (_talent_drawers.tsx).
   // Row shows client + amount only — enough to scan the list.
@@ -381,11 +386,11 @@ export function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] 
           }}
         >
           <KindChip
-            label={earning.source.kind === "manual" ? "Off-platform" : "Paid"}
+            label={earning.source.kind === "manual" ? copy.t("Off-platform") : copy.t("Paid")}
             tone={earning.source.kind === "manual" ? "coral" : "success"}
           />
           <span className="text-admin-ink-muted">
-            {PAYMENT_METHOD_META[earning.paymentMethod].short} · paid {earning.payoutDate}
+            {PAYMENT_METHOD_META[earning.paymentMethod].short} · {copy.t("paid")} {earning.payoutDate}
             {earning.paymentNote && (
               <span className="text-admin-coral"> · {earning.paymentNote}</span>
             )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useDashboardText } from "../../../dashboard-i18n";
 import { Avatar, Toggle } from "../../../primitives";
 import { COLORS, FONTS, TRANSITION } from "../../../state";
 import { ActionMessage, ContentMessageBody, ReadReceiptRow } from "./Bubbles2";
@@ -11,6 +12,7 @@ import { type MsgStage } from "../../shared/conversations-1";
 
 
 export function MessageBubble({ msg, stage, isFirstOfGroup = true }: { msg: Msg; stage: MsgStage; isFirstOfGroup?: boolean }) {
+  const copy = useDashboardText();
   const fromYou = "sender" in msg && msg.sender === "you";
   const isSystem = msg.kind === "system";
   const isAction = msg.kind.startsWith("action-") || msg.kind === "calendar-invite" || msg.kind === "contract-sign" || msg.kind === "polaroid-request" || msg.kind === "payment-receipt";
@@ -45,11 +47,11 @@ export function MessageBubble({ msg, stage, isFirstOfGroup = true }: { msg: Msg;
   // for vertical alignment.
   const senderLabel = "sender" in msg
     ? msg.sender === "coordinator"
-      ? "Sara · Coordinator"
+      ? `Sara · ${copy.t("Coordinator")}`
       : msg.sender === "agency"
-        ? "Agency"
+        ? copy.t("Agency")
         : msg.sender === "client"
-          ? "Client"
+          ? copy.t("Client")
           : ""
     : "";
   return (
@@ -96,6 +98,7 @@ export function SendButtonWithSchedule({ disabled, onSend }: {
   disabled: boolean;
   onSend: () => void;
 }) {
+  const copy = useDashboardText();
   const [menuOpen, setMenuOpen] = useState(false);
   const longPressRef = useRef<number | null>(null);
   const close = () => setMenuOpen(false);
@@ -125,8 +128,8 @@ export function SendButtonWithSchedule({ disabled, onSend }: {
         onTouchCancel={() => {
           if (longPressRef.current) window.clearTimeout(longPressRef.current);
         }}
-        aria-label="Send"
-        title="Tap to send · scheduled send coming soon"
+        aria-label={copy.t("Send")}
+        title={copy.t("Tap to send · scheduled send coming soon")}
         disabled={disabled}
         style={{
           width: 34,
@@ -166,12 +169,12 @@ export function SendButtonWithSchedule({ disabled, onSend }: {
             animation: "tulala-bubble-action-in .14s ease",
           }}
         >
-          <div style={{ fontSize: 10, fontWeight: 700, padding: "6px 10px 4px" }} className="text-admin-ink-muted">Scheduled send coming soon</div>
+          <div style={{ fontSize: 10, fontWeight: 700, padding: "6px 10px 4px" }} className="text-admin-ink-muted">{copy.t("Scheduled send coming soon")}</div>
           <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">
-            Delayed send needs a queue before it can be enabled.
+            {copy.t("Delayed send needs a queue before it can be enabled.")}
           </div>
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
-          <BubbleMenuItem icon="x" label="Close menu" onClick={close} />
+          <BubbleMenuItem icon="x" label={copy.t("Close menu")} onClick={close} />
         </div>
       )}
     </div>
@@ -192,6 +195,7 @@ export function SendButtonWithSchedule({ disabled, onSend }: {
  * this component and seeded from MOCK_REACTIONS for demonstration.
  */
 function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: boolean; children: ReactNode }) {
+  const copy = useDashboardText();
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reactions, setReactions] = useState<string[]>(() => MOCK_REACTIONS[msg.id] ?? []);
@@ -237,7 +241,7 @@ function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: bool
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
-            aria-label="Message actions"
+            aria-label={copy.t("Message actions")}
             style={{
               position: "absolute",
               top: -10,
@@ -273,7 +277,7 @@ function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: bool
                 key={e}
                 type="button"
                 onClick={() => addReaction(e)}
-                title="Toggle reaction"
+                title={copy.t("Toggle reaction")}
                 style={{
                   background: "#fff",
                   border: `1px solid ${COLORS.borderSoft}`,
@@ -334,7 +338,7 @@ function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: bool
                 key={e}
                 type="button"
                 onClick={() => addReaction(e)}
-                aria-label={`React with ${e}`}
+                aria-label={`${copy.t("React with")} ${e}`}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -356,7 +360,7 @@ function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: bool
             ))}
           </div>
           {/* Action menu */}
-          <BubbleMenuItem icon="📋" label="Copy" onClick={() => {
+          <BubbleMenuItem icon="📋" label={copy.t("Copy")} onClick={() => {
             try {
               if ("body" in msg && typeof msg.body === "string") navigator.clipboard?.writeText(msg.body);
             } catch { /* noop */ }
@@ -364,11 +368,11 @@ function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: bool
           }} />
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
           <div style={{
-            fontSize: 10, fontWeight: 700, padding: "6px 10px 4px" }} className="text-admin-ink-muted">Message actions coming soon</div>
+            fontSize: 10, fontWeight: 700, padding: "6px 10px 4px" }} className="text-admin-ink-muted">{copy.t("Message actions coming soon")}</div>
           <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">
-            Reply threading, pin, translate, and forward need real message actions before they appear here.
+            {copy.t("Reply threading, pin, translate, and forward need real message actions before they appear here.")}
           </div>
-          <BubbleMenuItem icon="x" label="Close menu" onClick={close} />
+          <BubbleMenuItem icon="x" label={copy.t("Close menu")} onClick={close} />
         </div>
       )}
     </div>
@@ -423,6 +427,7 @@ export function VoiceNoteBubble({ msg, fromYou, bg, fg, border }: {
   fg: string;
   border: string;
 }) {
+  const copy = useDashboardText();
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0..1
   const [speed, setSpeed] = useState<1 | 1.5 | 2>(1);
@@ -484,7 +489,7 @@ export function VoiceNoteBubble({ msg, fromYou, bg, fg, border }: {
       <button
         type="button"
         onClick={() => setPlaying((p) => !p)}
-        aria-label={playing ? "Pause voice note" : "Play voice note"}
+        aria-label={playing ? copy.t("Pause voice note") : copy.t("Play voice note")}
         style={{
           width: 32,
           height: 32,
@@ -505,7 +510,7 @@ export function VoiceNoteBubble({ msg, fromYou, bg, fg, border }: {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
         <div
           role="slider"
-          aria-label="Voice note progress"
+          aria-label={copy.t("Voice note progress")}
           aria-valuenow={Math.round(progress * 100)}
           tabIndex={0}
           onClick={(e) => {
@@ -551,7 +556,7 @@ export function VoiceNoteBubble({ msg, fromYou, bg, fg, border }: {
         <button
           type="button"
           onClick={() => setSpeed((s) => (s === 1 ? 1.5 : s === 1.5 ? 2 : 1))}
-          aria-label={`Playback speed ${speed}x — tap to change`}
+          aria-label={`${copy.t("Playback speed")} ${speed}x`}
           style={{
             padding: "1px 6px",
             background: fromYou ? "rgba(255,255,255,0.15)" : "rgba(11,11,13,0.06)",

@@ -1,5 +1,6 @@
 "use client";
 
+import { useDashboardText } from "../../dashboard-i18n";
 import { StatDot } from "../../primitives";
 import { COLORS, FONTS, useAdminShell, type TalentContactPolicy } from "../../state";
 
@@ -22,6 +23,7 @@ export function TalentTrustCard({ onOpenDetail, primaryAgencyName }: { onOpenDet
   // In production this comes from the auth session.
   const TALENT_ID = "t1";
   const { getTrustSummary } = useAdminShell();
+  const copy = useDashboardText();
   const trust = getTrustSummary("talent_profile", TALENT_ID);
   const igActive = trust.badges.some(b => b.type === "instagram_verified" && b.status === "active");
   const tulalaActive = trust.badges.some(b => b.type === "tulala_verified" && b.status === "active");
@@ -30,41 +32,41 @@ export function TalentTrustCard({ onOpenDetail, primaryAgencyName }: { onOpenDet
 
   const rows: { label: string; status: string; tone: "good" | "pending" | "muted"; emoji: string }[] = [
     {
-      label: "Account email",
-      status: trust.account?.emailVerified ? "Verified" : "Not verified",
+      label: copy.t("Account email"),
+      status: copy.t(trust.account?.emailVerified ? "Verified" : "Not verified"),
       tone: trust.account?.emailVerified ? "good" : "muted",
       emoji: "✉",
     },
     {
-      label: "Profile ownership",
-      status: trust.claimStatus === "claimed" ? "Claimed by you"
-        : trust.claimStatus === "invite_sent" ? "Invite pending"
-        : trust.claimStatus === "unclaimed" ? "Unclaimed"
+      label: copy.t("Profile ownership"),
+      status: trust.claimStatus === "claimed" ? copy.t("Claimed by you")
+        : trust.claimStatus === "invite_sent" ? copy.t("Invite pending")
+        : trust.claimStatus === "unclaimed" ? copy.t("Unclaimed")
         : trust.claimStatus ?? "—",
       tone: trust.claimStatus === "claimed" ? "good" : trust.claimStatus === "invite_sent" ? "pending" : "muted",
       emoji: "👤",
     },
     {
-      label: "Connected accounts",
-      status: igActive ? "Verified social badge"
-        : igPending ? "Pending review"
-        : "Not connected",
+      label: copy.t("Connected accounts"),
+      status: igActive ? copy.t("Verified social badge")
+        : igPending ? copy.t("Pending review")
+        : copy.t("Not connected"),
       tone: igActive ? "good" : igPending ? "pending" : "muted",
       emoji: "↗",
     },
     {
-      label: "Tulala Review",
-      status: tulalaActive ? "Verified · public badge"
-        : tulalaPending ? "In review"
-        : "Not requested",
+      label: copy.t("Tulala Review"),
+      status: tulalaActive ? copy.t("Verified · public badge")
+        : tulalaPending ? copy.t("In review")
+        : copy.t("Not requested"),
       tone: tulalaActive ? "good" : tulalaPending ? "pending" : "muted",
       emoji: "✓",
     },
     {
-      label: "Agency",
+      label: copy.t("Agency"),
       status: trust.badges.some(b => b.type === "agency_confirmed" && b.status === "active")
-        ? `Confirmed by ${primaryAgencyName ?? "your agency"}`
-        : "Not confirmed",
+        ? `${copy.t("Confirmed by")} ${primaryAgencyName ?? copy.t("your agency")}`
+        : copy.t("Not confirmed"),
       tone: trust.badges.some(b => b.type === "agency_confirmed" && b.status === "active") ? "good" : "muted",
       emoji: "✦",
     },
@@ -95,11 +97,11 @@ export function TalentTrustCard({ onOpenDetail, primaryAgencyName }: { onOpenDet
     >
       <div className="flex items-center justify-between">
         <div>
-          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-muted">Trust & Verification</div>
+          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-muted">{copy.t("Trust & Verification")}</div>
           <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">
-            {igActive && tulalaActive ? "You're fully verified."
-              : igActive || tulalaActive ? "Almost there."
-              : "Get verified."}
+            {igActive && tulalaActive ? copy.t("You're fully verified.")
+              : igActive || tulalaActive ? copy.t("Almost there.")
+              : copy.t("Get verified.")}
           </div>
         </div>
         <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 18 }}>›</span>
@@ -131,13 +133,14 @@ export function TalentTrustCard({ onOpenDetail, primaryAgencyName }: { onOpenDet
 
 /** Compact "open to all" / "selective · 3 of 4" summary for the card meta. */
 export function ContactPolicySummary({ policy }: { policy: TalentContactPolicy }) {
+  const copy = useDashboardText();
   const allowed = (Object.values(policy) as boolean[]).filter(Boolean).length;
   const total = Object.values(policy).length;
   const allOn = allowed === total;
   return (
     <>
       <StatDot tone={allOn ? "green" : "amber"} />
-      {allOn ? "Open to all tiers" : `Selective · ${allowed} of ${total} tiers on`}
+      {allOn ? copy.t("Open to all tiers") : `${copy.t("Selective")} · ${allowed} ${copy.t("of")} ${total} ${copy.t("tiers on")}`}
     </>
   );
 }

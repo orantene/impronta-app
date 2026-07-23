@@ -1,5 +1,6 @@
 "use client";
 
+import { useDashboardText } from "../../dashboard-i18n";
 import { useTalentAgencyFilter } from "./use-talent-agency-filter";
 import { useAdminShell } from "../../state";
 
@@ -9,6 +10,7 @@ type Props = {
 };
 
 export function TalentAgencyFilterChips({ unreadBySlug }: Props) {
+  const copy = useDashboardText();
   const { filter, setFilter, agencies, showChips } = useTalentAgencyFilter();
   const { effectiveTalentInquiries } = useAdminShell();
 
@@ -34,10 +36,10 @@ export function TalentAgencyFilterChips({ unreadBySlug }: Props) {
       className="mb-4 flex flex-wrap gap-2"
       data-tulala-talent-agency-filter
       role="group"
-      aria-label="Filter by agency"
+      aria-label={copy.t("Filter by agency")}
     >
       <FilterChip
-        label="All"
+        label={copy.t("All")}
         active={filter === "all"}
         unread={allUnread}
         onClick={() => setFilter("all")}

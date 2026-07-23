@@ -1,5 +1,6 @@
 "use client";
 
+import { useDashboardText } from "../../dashboard-i18n";
 import { EmptyState, Icon, PrimaryButton, SecondaryCard } from "../../primitives";
 import { COLORS, EXPOSURE_PRESET_META, FONTS, TALENT_TIER_META, TRANSITION, type ChannelEntry, type ChannelKind, type ExposurePreset, type TalentSubscriptionTier } from "../../state";
 import { AvailableChannelRow, ChannelRow } from "./calendar-4";
@@ -18,6 +19,7 @@ export function ExposurePresetSlider({
   preset: ExposurePreset;
   onChange: (p: ExposurePreset) => void;
 }) {
+  const copy = useDashboardText();
   const presets: ExposurePreset[] = ["selective", "curated", "wide", "maximum"];
   const current = EXPOSURE_PRESET_META[preset];
 
@@ -42,11 +44,10 @@ export function ExposurePresetSlider({
       >
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.05 }} className="text-admin-ink">
-            Exposure level
+            {copy.t("Exposure level")}
           </div>
           <div style={{ fontSize: 12.5, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
-            One control, four levels. Sets sensible defaults across every channel.
-            Override individual channels below.
+            {copy.t("One control, four levels. Sets sensible defaults across every channel. Override individual channels below.")}
           </div>
         </div>
       </div>
@@ -99,7 +100,7 @@ export function ExposurePresetSlider({
                     color: COLORS.green,
                   }}
                 >
-                  Recommended
+                  {copy.t("Recommended")}
                 </span>
               )}
             </button>
@@ -138,6 +139,7 @@ export function ProTierValueCard({
   onCompare: () => void;
   onDismiss?: () => void;
 }) {
+  const copy = useDashboardText();
   // Skip if already on top tier (parent gates this, but defensive).
   if (currentTier === "max") return null;
   const isFree = currentTier === "free";
@@ -147,14 +149,14 @@ export function ProTierValueCard({
   // Anchor the pitch on what's missing today, in priority order.
   const unlocks = isFree
     ? [
-        { label: "Template picker", body: "Pick a personal-page template that matches your category — Roster, Magazine, Editorial, Reel." },
-        { label: "Press + Media Kit", body: "Linked press band and a downloadable PDF media kit. Casting directors love these." },
-        { label: "Video & social embeds", body: "Embed Instagram reels, TikTok, Vimeo right on your personal page." },
+        { label: copy.t("Template picker"), body: copy.t("Pick a personal-page template that matches your category — Roster, Magazine, Editorial, Reel.") },
+        { label: copy.t("Press + Media Kit"), body: copy.t("Linked press band and a downloadable PDF media kit. Casting directors love these.") },
+        { label: copy.t("Video & social embeds"), body: copy.t("Embed Instagram reels, TikTok, Vimeo right on your personal page.") },
       ]
     : [
-        { label: "Custom domain", body: "Use marta-reyes.com instead of tulala.digital/t/marta-reyes. Yours, kept on renewal." },
-        { label: "Multi-section page-builder", body: "Up to 12 stacked sections. Tell a story, not just show a grid." },
-        { label: "Priority discovery placement", body: "Higher position in Tulala Hub search + recommendations." },
+        { label: copy.t("Custom domain"), body: copy.t("Use marta-reyes.com instead of tulala.digital/t/marta-reyes. Yours, kept on renewal.") },
+        { label: copy.t("Multi-section page-builder"), body: copy.t("Up to 12 stacked sections. Tell a story, not just show a grid.") },
+        { label: copy.t("Priority discovery placement"), body: copy.t("Higher position in Tulala Hub search + recommendations.") },
       ];
 
   return (
@@ -171,7 +173,7 @@ export function ProTierValueCard({
       {onDismiss && (
         <button
           onClick={onDismiss}
-          aria-label="Dismiss — collapse to a compact strip"
+          aria-label={copy.t("Dismiss — collapse to a compact strip")}
           style={{
             position: "absolute",
             top: 8,
@@ -197,12 +199,12 @@ export function ProTierValueCard({
         <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", padding: "4px 9px", borderRadius: 999 }} className="text-admin-green bg-admin-success-soft">
           {targetMeta.label} · {targetMeta.monthlyPrice}
         </span>
-        <span className="text-admin-ink-muted text-xs">vs your current {TALENT_TIER_META[currentTier].label}</span>
+        <span className="text-admin-ink-muted text-xs">{copy.t("vs your current")} {TALENT_TIER_META[currentTier].label}</span>
       </div>
       <h3 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, margin: 0, letterSpacing: -0.2, lineHeight: 1.2, marginBottom: 12 }} className="text-admin-ink">
-        {isFree
+        {copy.t(isFree
           ? "Three things Pro unlocks that move inquiry rate"
-          : "What Max adds on top of Pro"}
+          : "What Max adds on top of Pro")}
       </h3>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
@@ -212,9 +214,9 @@ export function ProTierValueCard({
       </div>
 
       <div className="flex items-center gap-2.5">
-        <PrimaryButton onClick={onCompare}>See full comparison</PrimaryButton>
+        <PrimaryButton onClick={onCompare}>{copy.t("See full comparison")}</PrimaryButton>
         <span className="text-admin-ink-muted text-admin-11h">
-          Cancel anytime. Your URL stays the same.
+          {copy.t("Cancel anytime. Your URL stays the same.")}
         </span>
       </div>
     </section>
@@ -237,16 +239,17 @@ export function ReachHealthScore({
   totalChannels: number;
   inquiries7d: number;
 }) {
+  const copy = useDashboardText();
   const coverage = Math.round((liveChannels / Math.max(totalChannels, 1)) * 60); // 0–60
   const volume = Math.min(inquiries7d * 5, 40); // 0–40
   const score = Math.min(coverage + volume, 100);
   const tone = score >= 75 ? "green" : score >= 50 ? "amber" : "coral";
   const toneColor = tone === "green" ? COLORS.green : tone === "amber" ? COLORS.amber : COLORS.coral;
-  const label =
+  const label = copy.t(
     score >= 90 ? "Excellent — fully distributed" :
     score >= 75 ? "Healthy — most channels live" :
     score >= 50 ? "Mixed — a few channels need attention" :
-    "Low — turn on more channels";
+    "Low — turn on more channels");
   return (
     <div
       style={{
@@ -266,13 +269,13 @@ export function ReachHealthScore({
       </div>
       <div className="flex-1 min-w-0">
         <div className="text-admin-ink-muted text-admin-10h font-semibold">
-          Reach health
+          {copy.t("Reach health")}
         </div>
         <div style={{ fontSize: 14, fontWeight: 500, marginTop: 2 }} className="text-admin-ink">
           {label}
         </div>
         <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-          {liveChannels} of {totalChannels} channels live · {inquiries7d} inquiries in last 7d
+          {liveChannels} {copy.t("of")} {totalChannels} {copy.t("channels live")} · {inquiries7d} {copy.t("inquiries in last 7d")}
         </div>
       </div>
     </div>
@@ -292,6 +295,7 @@ export function ProTierCompactStrip({
   currentTier: TalentSubscriptionTier;
   onCompare: () => void;
 }) {
+  const copy = useDashboardText();
   const isFree = currentTier === "free";
   const targetTier = isFree ? "pro" : "max";
   const targetMeta = TALENT_TIER_META[targetTier];
@@ -317,11 +321,11 @@ export function ProTierCompactStrip({
     >
       <Icon name="sparkle" size={13} color={COLORS.green} stroke={1.7} />
       <span style={{ flex: 1, fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
-        On {TALENT_TIER_META[currentTier].label}.{" "}
-        <span style={{ fontWeight: 600 }} className="text-admin-green">{targetMeta.label}</span> unlocks 3 modules · {targetMeta.monthlyPrice}
+        {copy.isSpanish ? "En" : "On"} {TALENT_TIER_META[currentTier].label}.{" "}
+        <span style={{ fontWeight: 600 }} className="text-admin-green">{targetMeta.label}</span> {copy.t("unlocks 3 modules")} · {targetMeta.monthlyPrice}
       </span>
       <span className="text-admin-green text-admin-11h font-semibold">
-        Compare →
+        {copy.t("Compare →")}
       </span>
     </button>
   );
@@ -360,6 +364,7 @@ export function DistributionCard({
    *  static label with a clickable "Manage →" affordance. */
   onManage?: (c: ChannelEntry) => void;
 }) {
+  const copy = useDashboardText();
   // Lane-level icon + tone
   const laneMeta: Record<ChannelKind, { icon: string; toneFg: string; toneBg: string }> = {
     personal: { icon: "🌐", toneFg: COLORS.royal, toneBg: COLORS.royalSoft },
@@ -455,18 +460,18 @@ export function DistributionCard({
         {channels.length === 0 && !showAvailable ? (
           <EmptyState
             icon="info"
-            title={
+            title={copy.t(
               kind === "agency"
                 ? "No agency channels yet"
                 : kind === "external"
                   ? "No external hubs joined"
                   : "No channels in this lane"
-            }
+            )}
             body={
               kind === "agency"
-                ? "Agencies invite talent onto their roster — keep your profile complete so the right ones find you."
+                ? copy.t("Agencies invite talent onto their roster — keep your profile complete so the right ones find you.")
                 : kind === "external"
-                  ? "Browse verified hubs below to expand your reach."
+                  ? copy.t("Browse verified hubs below to expand your reach.")
                   : undefined
             }
             compact

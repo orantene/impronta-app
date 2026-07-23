@@ -11,18 +11,20 @@
 
 import { TalentOfferingsManager } from "@/components/talent/services/TalentOfferingsManager";
 import { TalentOrdersQueue } from "@/components/talent/services/TalentOrdersQueue";
+import { useDashboardText } from "../../dashboard-i18n";
 import { useAdminShell } from "../../state";
 import { PageHeader } from "../shared/page-chrome-1";
 
 export function ServicesPage() {
   const { bridgeTalentSelfProfile } = useAdminShell();
+  const copy = useDashboardText();
 
   return (
     <div>
       <PageHeader
-        eyebrow="Catalog"
-        title="Catalog & Pricing"
-        subtitle="What clients can book or buy from your page — you choose per service whether they inquire first or reserve instantly."
+        eyebrow={copy.t("Catalog")}
+        title={copy.t("Catalog & Pricing")}
+        subtitle={copy.t("What clients can book or buy from your page — you choose per service whether they inquire first or reserve instantly.")}
       />
       {bridgeTalentSelfProfile ? (
         <>
@@ -31,7 +33,7 @@ export function ServicesPage() {
         </>
       ) : (
         <div style={{ fontSize: 13, color: "rgba(11,11,13,0.55)", padding: "18px 4px" }}>
-          Your services will appear here once your talent profile is set up.
+          {copy.t("Your services will appear here once your talent profile is set up.")}
         </div>
       )}
     </div>

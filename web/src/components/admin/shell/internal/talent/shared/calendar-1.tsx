@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useDashboardText } from "../../dashboard-i18n";
 import { CapsLabel } from "../../primitives";
 import { COLORS, FONTS, useAdminShell } from "../../state";
 import type { TalentCalendarEntry } from "../../data-bridge";
@@ -39,6 +40,7 @@ export function CalendarMonthGrid({
   onOpen?: (entry: TalentCalendarEntry) => void;
 } = {}) {
   const { openDrawer } = useAdminShell();
+  const copy = useDashboardText();
   const live = entries != null;
 
   type DayMark =
@@ -55,7 +57,7 @@ export function CalendarMonthGrid({
   const viewMonth = today.getMonth();
   const firstWeekday = live ? (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7 : 4; // 0=Mon
   const daysInMonth = live ? new Date(viewYear, viewMonth + 1, 0).getDate() : 31;
-  const monthLabel = live ? today.toLocaleString("en-US", { month: "long", year: "numeric" }) : "May 2026";
+  const monthLabel = live ? today.toLocaleString(copy.isSpanish ? "es-MX" : "en-US", { month: "long", year: "numeric" }) : "May 2026";
 
   const marksByDay = useMemo<Record<number, DayMark[]>>(() => {
     const byDay: Record<number, DayMark[]> = {};
@@ -86,7 +88,7 @@ export function CalendarMonthGrid({
       const lastInclusive = new Date(end.getFullYear(), end.getMonth(), end.getDate());
       const endsAtMidnight = end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0;
       if (endsAtMidnight && lastInclusive.getTime() > cursor.getTime()) lastInclusive.setDate(lastInclusive.getDate() - 1);
-      const label = e.title || e.subLabel || (e.kind === "block" ? "Unavailable" : "Booking");
+      const label = e.title || e.subLabel || copy.t(e.kind === "block" ? "Unavailable" : "Booking");
       const travel = /travel|flight|trip|tour/iu.test(`${e.title} ${e.subLabel ?? ""}`);
       let guard = 0;
       while (cursor.getTime() <= lastInclusive.getTime() && guard < 400) {
@@ -101,7 +103,7 @@ export function CalendarMonthGrid({
       }
     }
     return byDay;
-  }, [live, entries, viewYear, viewMonth]);
+  }, [live, entries, viewYear, viewMonth, copy]);
 
   const totalCells = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
   const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -111,11 +113,11 @@ export function CalendarMonthGrid({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <CapsLabel>{monthLabel}</CapsLabel>
         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <CalendarLegendDot tone="green" label="Booked" />
-          <CalendarLegendDot tone="coral" label="Pending" />
-          <CalendarLegendDot tone="indigo" label="Inquiry" />
-          <CalendarLegendDot tone="amber" label="Travel" />
-          <CalendarLegendDot tone="dim" label="Personal" />
+          <CalendarLegendDot tone="green" label={copy.t("Booked")} />
+          <CalendarLegendDot tone="coral" label={copy.t("Pending")} />
+          <CalendarLegendDot tone="indigo" label={copy.t("Inquiry")} />
+          <CalendarLegendDot tone="amber" label={copy.t("Travel")} />
+          <CalendarLegendDot tone="dim" label={copy.t("Personal")} />
         </div>
       </div>
 
@@ -149,7 +151,7 @@ export function CalendarMonthGrid({
                 color: COLORS.inkMuted,
               }}
             >
-              {d}
+              {copy.t(d)}
             </div>
           ))}
         </div>
@@ -254,7 +256,7 @@ export function CalendarMonthGrid({
                         textOverflow: "ellipsis",
                         opacity: mark.kind === "inquiry" ? 0.85 : 1,
                       }}
-                      title={mark.kind === "pending" ? `${mark.label} (pending hold — not yet confirmed)` : mark.label}
+                      title={mark.kind === "pending" ? `${mark.label} ${copy.t("(pending hold — not yet confirmed)")}` : mark.label}
                     >
                       {mark.label}
                     </button>
@@ -313,16 +315,17 @@ function CalendarLegendDot({ tone, label }: { tone: "green" | "amber" | "dim" | 
  * so the user doesn't have to memorize the system.
  */
 function CalendarColorLegend() {
+  const copy = useDashboardText();
   const items: { tone: string; label: string }[] = [
-    { tone: COLORS.green, label: "Booked" },
-    { tone: COLORS.coral, label: "Pending / hold" },
-    { tone: COLORS.indigo, label: "Inquiry" },
-    { tone: COLORS.inkDim, label: "Past" },
+    { tone: COLORS.green, label: copy.t("Booked") },
+    { tone: COLORS.coral, label: copy.t("Pending / hold") },
+    { tone: COLORS.indigo, label: copy.t("Inquiry") },
+    { tone: COLORS.inkDim, label: copy.t("Past") },
   ];
   return (
     <div
       role="img"
-      aria-label="Event status legend"
+      aria-label={copy.t("Event status legend")}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -368,6 +371,7 @@ export function CalendarWeekView({
   // selected month is the current one, else the week containing the 1st of
   // the selected month. Was hardcoded to "May 12–18, 2026" (a prototype-era
   // mock anchor), which contradicted the page's month header.
+  const copy = useDashboardText();
   const now = new Date();
   const inCurrentMonth = now.getFullYear() === year && now.getMonth() + 1 === month;
   const anchor = inCurrentMonth ? now : new Date(year, month - 1, 1);
@@ -379,8 +383,8 @@ export function CalendarWeekView({
   // slot when that slot actually falls inside the selected month.
   const dayNumberFor = (d: Date): number | null =>
     d.getFullYear() === year && d.getMonth() === month - 1 ? d.getDate() : null;
-  const fmtShort = (d: Date) => d.toLocaleString("en-US", { month: "short", day: "numeric" });
-  const weekLabel = `Week of ${fmtShort(weekDates[0]!)} — ${fmtShort(weekDates[6]!)}, ${weekDates[6]!.getFullYear()}`;
+  const fmtShort = (d: Date) => d.toLocaleString(copy.isSpanish ? "es-MX" : "en-US", { month: "short", day: "numeric" });
+  const weekLabel = `${copy.t("Week of")} ${fmtShort(weekDates[0]!)} — ${fmtShort(weekDates[6]!)}, ${weekDates[6]!.getFullYear()}`;
   const visibleCount = events.filter((e) => {
     if (e.startDay === null) return false;
     return weekDates.some((d) => dayNumberFor(d) === e.startDay);
@@ -410,13 +414,13 @@ export function CalendarWeekView({
           <CalendarColorLegend />
         </div>
         <span className="text-admin-ink-muted text-admin-11h">
-          {visibleCount} events
+          {visibleCount} {copy.t("events")}
         </span>
       </div>
       {weekDates.map((date, i) => {
         const dayNumber = dayNumberFor(date);
         const dayEvents = dayNumber === null ? [] : events.filter((e) => e.startDay === dayNumber);
-        const dayName = date.toLocaleString("en-US", { weekday: "short" });
+        const dayName = date.toLocaleString(copy.isSpanish ? "es-MX" : "en-US", { weekday: "short" });
         return (
           <div
             key={date.toISOString()}
@@ -494,6 +498,7 @@ export function CalendarDayView({
   onOpen: (d: { id: import("../../state").DrawerId; payload: Record<string, unknown> }) => void;
 }) {
   // Anchor on May 14 — the prototype's hot day with the conflict.
+  const copy = useDashboardText();
   const targetDay = 14;
   const dayEvents = events.filter((e) => e.startDay === targetDay);
   // Bucket assignment is mock — production reads time-of-day from event records.
@@ -523,10 +528,10 @@ export function CalendarDayView({
       >
         <div>
           <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, letterSpacing: -0.3 }} className="text-admin-ink">
-            Thursday, May {targetDay}
+            {copy.isSpanish ? `Jueves, ${targetDay} de mayo` : `Thursday, May ${targetDay}`}
           </div>
           <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-            {dayEvents.length} events
+            {dayEvents.length} {copy.t("events")}
           </div>
         </div>
       </div>
@@ -541,14 +546,14 @@ export function CalendarDayView({
           }}
         >
           <div style={{ width: 90, flexShrink: 0 }}>
-            <CapsLabel>{bucket}</CapsLabel>
+            <CapsLabel>{copy.t(bucket)}</CapsLabel>
             <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-dim">
-              {bucket === "morning" ? "Before 12" : bucket === "afternoon" ? "12 — 6pm" : "After 6pm"}
+              {bucket === "morning" ? copy.t("Before 12") : bucket === "afternoon" ? copy.t("12 — 6pm") : copy.t("After 6pm")}
             </div>
           </div>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
             {bucketed[bucket].length === 0 ? (
-              <div style={{ fontSize: 11.5, paddingTop: 4 }} className="text-admin-ink-dim">Free</div>
+              <div style={{ fontSize: 11.5, paddingTop: 4 }} className="text-admin-ink-dim">{copy.isSpanish ? "Libre" : "Free"}</div>
             ) : (
               bucketed[bucket].map((e) => (
                 <button

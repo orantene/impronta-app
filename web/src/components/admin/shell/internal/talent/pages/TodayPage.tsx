@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useDashboardText } from "../../dashboard-i18n";
 import { computePaidThisMonth } from "@/lib/talent/paid-this-month";
 import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT } from "../../messages";
 import { EmptyState, Icon, PrimaryButton } from "../../primitives";
@@ -20,6 +21,7 @@ import { TalentServicesNudge } from "@/components/talent/services/TalentServices
 const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "MX$" };
 
 export function TalentTodayPage() {
+  const copy = useDashboardText();
   const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentEarnings, state } = useAdminShell();
   // "Start a workspace" tile is for talents who don't already own one.
   // `state.alsoTalent` flips to true once a workspace is provisioned for
@@ -241,10 +243,10 @@ export function TalentTodayPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }} className="text-admin-ink">
-                Finish setting up your profile
+                {copy.t("Finish setting up your profile")}
               </div>
               <div className="text-admin-ink-muted text-admin-12h">
-                {onboardingCompleteness.missing.length} field{onboardingCompleteness.missing.length === 1 ? "" : "s"} left before you can publish + take bookings.
+                {onboardingCompleteness.missing.length} {onboardingCompleteness.missing.length === 1 ? copy.t("field") : copy.t("fields")} {copy.t("left before you can publish + take bookings.")}
               </div>
             </div>
             <div className="flex flex-col items-end gap-1.5">
@@ -255,7 +257,7 @@ export function TalentTodayPage() {
                   openSection(first ? onboardingSectionForLabel(first.label) : "identity");
                 }}
               >
-                Continue setup →
+                {copy.t("Continue setup →")}
               </PrimaryButton>
               {/* Additive alternate path: the guided step-by-step wizard. The
                   drawer-based "Continue setup" above stays the default. */}
@@ -263,7 +265,7 @@ export function TalentTodayPage() {
                 href="/talent/onboarding"
                 className="text-admin-11h font-semibold text-admin-accent-deep underline underline-offset-2 hover:opacity-80"
               >
-                Guided setup
+                {copy.t("Guided setup")}
               </Link>
             </div>
           </div>
@@ -422,20 +424,20 @@ export function TalentTodayPage() {
         }}
       >
         <SectionHeader
-          title="Next on the calendar"
+          title={copy.t("Next on the calendar")}
           subtitle={
             upcoming.length === 0
               ? undefined
-              : `${upcoming.length} upcoming · next ${upcoming[0]?.date}`
+              : `${upcoming.length} ${copy.t("upcoming")} · ${copy.t("next")} ${upcoming[0]?.date}`
           }
-          actionLabel="See calendar →"
+          actionLabel={copy.t("See calendar →")}
           onAction={() => setTalentPage("calendar")}
         />
         {upcoming.length === 0 ? (
           <EmptyState
             icon="calendar"
-            title="Calendar's clear"
-            body="No confirmed bookings yet. The first one always lands faster than you think."
+            title={copy.t("Calendar's clear")}
+            body={copy.t("No confirmed bookings yet. The first one always lands faster than you think.")}
             compact
           />
         ) : (
@@ -481,7 +483,7 @@ export function TalentTodayPage() {
           style={{
             flex: 1, padding: "9px 0", border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }} className="bg-admin-surface-alt rounded-admin-md text-admin-ink-muted">
           <Icon name="sparkle" size={12} color={COLORS.inkMuted} />
-          Career analytics
+          {copy.t("Career analytics")}
         </button>
         <button
           type="button"
@@ -495,7 +497,7 @@ export function TalentTodayPage() {
           }}
         >
           <Icon name="team" size={12} color={COLORS.inkMuted} />
-          Agency analytics
+          {copy.t("Agency analytics")}
         </button>
       </div>
     </>
@@ -513,6 +515,7 @@ export function TalentTodayPage() {
  * shell — so it reads as opportunity, not a system notice.
  */
 function StartWorkspaceTile() {
+  const copy = useDashboardText();
   return (
     <div
       data-platform-surface="marketing"
@@ -563,7 +566,7 @@ function StartWorkspaceTile() {
             letterSpacing: "-0.005em",
           }}
         >
-          Run your own talent business?
+          {copy.t("Run your own talent business?")}
         </div>
         <div
           style={{
@@ -573,7 +576,7 @@ function StartWorkspaceTile() {
             color: "var(--plt-muted)",
           }}
         >
-          Start a free workspace — invite roster, send pitches, take bookings end-to-end. 1 minute, no card.
+          {copy.t("Start a free workspace — invite roster, send pitches, take bookings end-to-end. 1 minute, no card.")}
         </div>
       </div>
 
@@ -607,7 +610,7 @@ function StartWorkspaceTile() {
           e.currentTarget.style.background = "var(--plt-forest)";
         }}
       >
-        Start a workspace
+        {copy.t("Start a workspace")}
         <svg width="11" height="9" viewBox="0 0 14 10" fill="none" aria-hidden>
           <path
             d="M1 5H13M13 5L9 1M13 5L9 9"

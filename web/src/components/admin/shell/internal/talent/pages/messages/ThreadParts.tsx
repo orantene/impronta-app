@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useDashboardText } from "../../../dashboard-i18n";
 import { ActivityFeedItem, Icon, scrollBehavior } from "../../../primitives";
 import { COLORS, FONTS } from "../../../state";
 import { MessageBubble } from "./Bubbles";
@@ -95,6 +96,7 @@ export function ThreadActivityTimeline({ conv }: { conv: Conversation }) {
  * chat thread so the request is visible in the timeline.
  */
 export function RateChangeRequest({ currentValue }: { currentValue: string }) {
+  const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const [proposed, setProposed] = useState("");
   const [reason, setReason] = useState("");
@@ -118,7 +120,7 @@ export function RateChangeRequest({ currentValue }: { currentValue: string }) {
           color: COLORS.indigo,
         }}
       >
-        Request a change →
+        {copy.t("Request a change →")}
       </button>
     );
   }
@@ -135,12 +137,12 @@ export function RateChangeRequest({ currentValue }: { currentValue: string }) {
       }}
     >
       <div style={{ fontSize: 11.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink-muted">
-        Currently <strong className="text-admin-ink">{currentValue || "—"}</strong>.
-        Your reply goes private to the coordinator first.
+        {copy.t("Currently")} <strong className="text-admin-ink">{currentValue || "—"}</strong>.{" "}
+        {copy.t("Your reply goes private to the coordinator first.")}
       </div>
       <input
         type="text"
-        placeholder="Proposed (e.g. €4,000)"
+        placeholder={copy.t("Proposed (e.g. €4,000)")}
         value={proposed}
         onChange={(e) => setProposed(e.target.value)}
         style={{
@@ -157,7 +159,7 @@ export function RateChangeRequest({ currentValue }: { currentValue: string }) {
         }}
       />
       <textarea
-        placeholder="Reason (optional) — e.g. scope expanded, extra usage…"
+        placeholder={copy.t("Reason (optional) — e.g. scope expanded, extra usage…")}
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         rows={2}
@@ -190,12 +192,12 @@ export function RateChangeRequest({ currentValue }: { currentValue: string }) {
             color: COLORS.inkMuted,
           }}
         >
-          Cancel
+          {copy.t("Cancel")}
         </button>
         <button
           type="button"
           disabled
-          title="Rate change requests coming soon"
+          title={copy.t("Rate change requests coming soon")}
           style={{
             padding: "5px 10px",
             background: "rgba(11,11,13,0.12)",
@@ -208,7 +210,7 @@ export function RateChangeRequest({ currentValue }: { currentValue: string }) {
             color: COLORS.inkMuted,
           }}
         >
-          Send request
+          {copy.t("Send request")}
         </button>
       </div>
     </div>
@@ -227,6 +229,7 @@ export function InfoSection({
   locked?: boolean;
   children: ReactNode;
 }) {
+  const copy = useDashboardText();
   return (
     <div
       style={{
@@ -237,7 +240,7 @@ export function InfoSection({
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 9.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
         <Icon name={icon} size={11} color={COLORS.inkMuted} stroke={1.7} />
         {label}
-        {locked && <span aria-label="locked" style={{ marginLeft: 4 }}>🔒</span>}
+        {locked && <span aria-label={copy.t("locked")} style={{ marginLeft: 4 }}>🔒</span>}
       </div>
       {children}
     </div>
@@ -319,10 +322,11 @@ function renderMessagesWithSeparators(messages: Msg[], stage: MsgStage, typingNa
 
 
 export function NewMessagesDivider({ count }: { count: number }) {
+  const copy = useDashboardText();
   return (
     <div
       role="separator"
-      aria-label={`${count} new messages`}
+      aria-label={`${count} ${copy.t("new messages")}`}
       style={{
         display: "flex",
         alignItems: "center",
@@ -334,7 +338,7 @@ export function NewMessagesDivider({ count }: { count: number }) {
       <div style={{ flex: 1, height: 1, background: "rgba(194,106,69,0.30)" }} />
       <span style={{
         fontSize: 10.5, fontWeight: 700, background: "rgba(194,106,69,0.08)", padding: "3px 9px", borderRadius: 999 }} className="text-admin-coral">
-        New · {count}
+        {copy.t("New")} · {count}
       </span>
       <div style={{ flex: 1, height: 1, background: "rgba(194,106,69,0.30)" }} />
     </div>
@@ -352,6 +356,7 @@ export function NewMessagesDivider({ count }: { count: number }) {
  * thread; here we mock per-stage copy from the conversation metadata.
  */
 export function AIThreadSummary({ conv, open, onToggle }: { conv: Conversation; open: boolean; onToggle: () => void }) {
+  const copy = useDashboardText();
   // Mock per-stage summary that pulls in real conv fields so the copy
   // feels written, not templated. Date strings get a CET timezone
   // suffix so cross-timezone talent know how the dates resolve.
@@ -403,7 +408,7 @@ export function AIThreadSummary({ conv, open, onToggle }: { conv: Conversation; 
           fontWeight: 700,
           flexShrink: 0,
         }}>✨</span>
-        <span style={{ fontSize: 11, fontWeight: 700, flexShrink: 0 }} className="text-admin-accent">AI summary</span>
+        <span style={{ fontSize: 11, fontWeight: 700, flexShrink: 0 }} className="text-admin-accent">{copy.t("AI summary")}</span>
         <span style={{ flex: 1, fontSize: 12, whiteSpace: open ? "normal" : "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "left" }} className="text-admin-ink-muted">
           {!open && summary}
         </span>
@@ -436,6 +441,7 @@ function extractDay(ts: string): string {
 
 
 export function DaySeparator({ label }: { label: string }) {
+  const copy = useDashboardText();
   return (
     <div
       style={{
@@ -450,7 +456,7 @@ export function DaySeparator({ label }: { label: string }) {
       <span
         style={{
           fontSize: 9.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">
-        {label}
+        {copy.t(label)}
       </span>
       <span style={{ flex: 1, height: 1, background: "rgba(11,11,13,0.06)" }} />
     </div>
