@@ -1,14 +1,14 @@
 import { renderOgCard, OG_SIZE, OG_CONTENT_TYPE } from "@/lib/seo/og-card";
 
-export const alt = "Agencia de talento que trabaja como plataforma · Tulala";
+export const alt = "Contratar modelos · Tulala";
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
 export default function Image() {
   return renderOgCard({
-    kicker: "Agencia de talento",
-    title: "La agencia que trabaja como plataforma.",
-    subtitle: "Directorio global para contratar. Sitio propio para representar talento.",
+    kicker: "Contratar modelos",
+    title: "Contrata modelos para tu marca o evento.",
+    subtitle: "Solicitud estructurada, oferta con precio y pago dentro del chat.",
     strapline: "La Plataforma de Comercio para el Talento",
   });
 }

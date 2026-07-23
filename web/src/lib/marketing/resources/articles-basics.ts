@@ -125,7 +125,12 @@ export const BASICS_ARTICLES: ResourceArticle[] = [
     slug: "booking-from-dms",
     photo: MARKETING_PHOTOS.systems,
     datePublished: "2026-07-23",
-    related: ["how-talent-bookings-work", "booking-deposits", "pricing-your-services"],
+    related: [
+      "how-talent-bookings-work",
+      "booking-deposits",
+      "pricing-your-services",
+      "booking-page-vs-link-in-bio",
+    ],
     en: {
       eyebrow: "Working smarter",
       title: "Why booking only through DMs loses you money",

@@ -8,6 +8,7 @@ import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { ResourceArticleList } from "@/components/marketing/resource-article";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { SubscribeModule } from "@/components/marketing/subscribe-module";
+import { withLocalePath } from "@/i18n/pathnames";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -16,6 +17,7 @@ import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
+  const alternates = buildMarketingLocaleAlternates(locale, "/resources");
   return {
     title: pickLocale(locale, {
       en: "Resources for independent talent",
@@ -25,7 +27,25 @@ export async function generateMetadata(): Promise<Metadata> {
       en: "Plain-language guides on getting booked, taking deposits, pricing your work, and running the business side of independent talent.",
       es: "Guías claras sobre cómo te contratan, cobrar anticipos, poner precio a tu trabajo y llevar el lado de negocio del talento independiente.",
     }),
-    ...buildMarketingLocaleAlternates(locale, "/resources"),
+    ...alternates,
+    alternates: {
+      ...alternates.alternates,
+      // Feed autodiscovery. Without this <link rel="alternate"> a reader has no
+      // way to find /resources/feed.xml from the hub — the feed exists but is
+      // unreachable unless someone guesses the URL. Locale-matched so a Spanish
+      // visitor subscribes to the Spanish feed.
+      types: {
+        "application/rss+xml": [
+          {
+            url: withLocalePath("/resources/feed.xml", locale),
+            title: pickLocale(locale, {
+              en: "Resources for independent talent",
+              es: "Recursos para talento independiente",
+            }),
+          },
+        ],
+      },
+    },
   };
 }
 

@@ -24,10 +24,19 @@ export function renderOgCard({
   kicker,
   title,
   subtitle,
+  strapline = "The Commerce Platform for Talent",
 }: {
   kicker: string;
   title: string;
   subtitle: string;
+  /**
+   * Brand descriptor in the card's footer. There is one card file per route
+   * segment, not per locale, so a Spanish-first page (`/contratar-modelos`,
+   * `/agencia-de-talento`) serves a Spanish card and needs the descriptor in
+   * Spanish too — otherwise the card mixes both languages. Defaults to the
+   * English descriptor, so no existing caller changes.
+   */
+  strapline?: string;
 }) {
   return new ImageResponse(
     (
@@ -110,7 +119,7 @@ export function renderOgCard({
             fontWeight: 600,
           }}
         >
-          <span>The Commerce Platform for Talent</span>
+          <span>{strapline}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             {/* Brand mark — the rising trail from the Tulala wordmark. */}
             <div style={{ display: "flex", alignItems: "flex-end", gap: 4 }}>

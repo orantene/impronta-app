@@ -512,12 +512,26 @@ const MARKETING_PAGE_PREFIXES = [
   // private data, requires no auth. `/directory` is already reserved in
   // PATH_BASED_TENANT_RESERVED_PREFIXES so it never resolves as a tenant slug.
   "/directory",
+  // The directory's INTERNAL route path. `/directory` is a proxy.ts rewrite to
+  // the `(marketing)/global-directory` route, so Next generates that page's
+  // metadata file-routes under the internal path: the og:image resolves to
+  // `/global-directory/opengraph-image-<hash>`. Without this entry that asset
+  // 404s and the directory unfurls with no card at all (same failure mode as
+  // the root `/opengraph-image` before it was allow-listed).
+  // Serving the page itself at both paths is safe: it emits a canonical of
+  // `/directory`, so crawlers consolidate, and only `/directory` is in the
+  // sitemap.
+  "/global-directory",
   // "Agencia de talento" landing page — Spanish-first demand keyword page
   // (100-1K/mo, LOW competition in Mexico). Single page, no sub-routes.
   "/agencia-de-talento",
   // Brand entity + trust page — what Tulala is, what it believes, what it
   // builds, who it's for. Also the only contact surface (no /contact page).
   "/about",
+  // "Contratar modelos" landing page — Spanish-first demand-side hire page
+  // for models, the one category the directory has real supply for today.
+  // Single page, no sub-routes.
+  "/contratar-modelos",
 ] as const;
 
 function hasPrefix(pathname: string, prefix: string): boolean {

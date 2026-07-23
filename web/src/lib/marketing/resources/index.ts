@@ -9,6 +9,7 @@
 
 import { AGENCY_ARTICLES } from "./articles-agency";
 import { BASICS_ARTICLES } from "./articles-basics";
+import { COMPARE_ARTICLES } from "./articles-compare";
 import { MONEY_ARTICLES } from "./articles-money";
 import { OPERATIONS_ARTICLES } from "./articles-operations";
 import { PLATFORM_ARTICLES } from "./articles-platform";
@@ -27,6 +28,7 @@ export const RESOURCE_ARTICLES: ResourceArticle[] = [
   ...AGENCY_ARTICLES,
   ...OPERATIONS_ARTICLES,
   ...PLATFORM_ARTICLES,
+  ...COMPARE_ARTICLES,
 ];
 
 export function getResourceArticle(slug: string): ResourceArticle | undefined {

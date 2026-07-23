@@ -13,6 +13,8 @@ import {
   getRequestLocale,
   ORIGINAL_PATHNAME_HEADER,
 } from "@/i18n/request-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
+import { getMarketingCopy } from "@/lib/marketing/copy";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import {
   buildPublicLocaleAlternates,
@@ -169,22 +171,31 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   if (ctx.kind === "marketing") {
-    const title = `${PLATFORM_BRAND.name} · ${PLATFORM_BRAND.tagline}`;
+    // Brand first, then the positioning line in the reader's language. The
+    // English string stays byte-identical to what shipped; `/es` used to serve
+    // the English title, which is the one meta tag a Spanish searcher sees
+    // before deciding to click. The descriptor comes from the marketing copy
+    // module so the tagline has a single source per locale.
+    const title = `${PLATFORM_BRAND.name} · ${getMarketingCopy(locale).brand.descriptor}`;
+    const description = pickLocale(locale, {
+      en: PLATFORM_BRAND.description,
+      es: "Tulala es la plataforma de comercio para el talento: una tienda con tu marca, un pipeline de reservas estructurado y la red de descubrimiento compartida que te trae trabajo nuevo.",
+    });
     const marketingAlt = buildMarketingLocaleAlternates(locale, "/");
     return {
       title,
-      description: PLATFORM_BRAND.description,
+      description,
       ...marketingAlt,
       openGraph: {
         title,
-        description: PLATFORM_BRAND.description,
+        description,
         siteName: PLATFORM_BRAND.name,
         url: `https://${PLATFORM_BRAND.domain}/`,
       },
       twitter: {
         card: "summary_large_image",
         title,
-        description: PLATFORM_BRAND.description,
+        description,
       },
     };
   }

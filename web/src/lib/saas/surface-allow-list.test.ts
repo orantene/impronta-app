@@ -342,6 +342,18 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/directory",
     "/agencia-de-talento",
     "/about",
+    "/contratar-modelos",
+    // Internal route path behind the /directory rewrite. Must stay reachable
+    // or the directory's og:image (served at /global-directory/opengraph-image-*)
+    // 404s and the page unfurls with no social card.
+    "/global-directory",
+    "/global-directory/opengraph-image-abc123",
+    // RSS feed for the resources library. It rides the existing "/resources"
+    // prefix (hasPrefix matches any path under it), so it needs no allow-list
+    // entry of its own — this line pins that, because a regression to exact
+    // matching would silently 404 the feed for every subscribed reader.
+    "/resources",
+    "/resources/feed.xml",
     // Auth surfaces are reachable on the marketing apex (tulala.digital): OAuth
     // callbacks use window.location.origin as the redirectTo base, and the
     // branded sign-in / registration entry points live on the apex too. The
