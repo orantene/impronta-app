@@ -63,6 +63,10 @@ export type TalentSelfProfile = {
   hasHeight: boolean;
   /** Contact policy — which client trust tiers can initiate inbound contact */
   contactPolicy: Record<string, boolean>;
+  /** Count of portfolio-eligible photos (non-deleted `gallery` variants).
+   *  Mirrors the workspace roster's portfolioCount so the talent's Day-1
+   *  checklist can report real progress instead of a stub. */
+  portfolioCount: number;
 };
 
 /**
@@ -149,6 +153,15 @@ export async function loadTalentSelfProfile(
     const mediaClient = admin ?? supabase;
     const headshotUrl = (await loadTalentCardThumbs(mediaClient, [p.id])).get(p.id) ?? null;
 
+    // Portfolio photo count — same definition the workspace roster uses
+    // (non-deleted `gallery` variants), so both surfaces agree on progress.
+    const { count: galleryCount } = await mediaClient
+      .from("media_assets")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_talent_profile_id", p.id)
+      .eq("variant_kind", "gallery")
+      .is("deleted_at", null);
+
     type RosterRaw = {
       status: string;
       agencies: { display_name: string } | { display_name: string }[] | null;
@@ -190,6 +203,7 @@ export async function loadTalentSelfProfile(
       hasBio: !!(p.short_bio?.trim() || p.bio_i18n?.en?.trim()),
       hasHeight: p.height_cm !== null,
       contactPolicy: p.contact_policy ?? { basic: true, verified: true, silver: true, gold: true },
+      portfolioCount: galleryCount ?? 0,
     };
   } catch (err) {
     logServerError("talent.loadSelfProfile", err);
@@ -264,6 +278,14 @@ export async function loadTalentSelfProfileByUser(
     // loader above), so this surface matches every other and picks up `hero`.
     const headshotUrl = (await loadTalentCardThumbs(trusted, [p.id])).get(p.id) ?? null;
 
+    // Portfolio photo count — see the sibling loader above.
+    const { count: galleryCount } = await trusted
+      .from("media_assets")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_talent_profile_id", p.id)
+      .eq("variant_kind", "gallery")
+      .is("deleted_at", null);
+
     const displayName =
       p.display_name?.trim() ||
       `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
@@ -297,6 +319,7 @@ export async function loadTalentSelfProfileByUser(
       hasBio: !!(p.short_bio?.trim() || p.bio_i18n?.en?.trim()),
       hasHeight: p.height_cm !== null,
       contactPolicy: p.contact_policy ?? { basic: true, verified: true, silver: true, gold: true },
+      portfolioCount: galleryCount ?? 0,
     };
   } catch (err) {
     logServerError("talent.loadSelfProfileByUser", err);

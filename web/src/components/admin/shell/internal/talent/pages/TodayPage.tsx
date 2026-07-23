@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { logServerError } from "@/lib/server/safe-error";
 import { useDashboardText } from "../../dashboard-i18n";
 import { computePaidThisMonth } from "@/lib/talent/paid-this-month";
 import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT } from "../../messages";
@@ -22,7 +23,16 @@ const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£
 
 export function TalentTodayPage() {
   const copy = useDashboardText();
-  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentEarnings, state } = useAdminShell();
+  const {
+    openDrawer,
+    setTalentPage,
+    bridgeTalentSelfProfile,
+    bridgeTalentEarnings,
+    bridgeTalentPayoutSnapshot,
+    bridgeTalentRepresentation,
+    bridgeTalentChecklistDismissed,
+    state,
+  } = useAdminShell();
   // "Start a workspace" tile is for talents who don't already own one.
   // `state.alsoTalent` flips to true once a workspace is provisioned for
   // this user (the hybrid identity), so we hide the tile in that case.
@@ -39,9 +49,24 @@ export function TalentTodayPage() {
   // Use real talentId from bridge when available; fall back to mock "t1".
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
-  // First-session checklist persists dismiss only for the session in the
-  // prototype. Production wires this to a per-user kv pair.
-  const [firstSessionDismissed, setFirstSessionDismissed] = useState(false);
+  // W14 — real Day-1 checklist inputs, so a talent who already uploaded
+  // photos or finished Stripe onboarding sees those rows ticked.
+  const portfolioCount = bridgeTalentSelfProfile?.portfolioCount ?? 0;
+  const payoutSet =
+    bridgeTalentPayoutSnapshot?.ok === true
+      ? bridgeTalentPayoutSnapshot.data.payoutsEnabled
+      : false;
+  // "Channels" = agency relationships actually representing this talent
+  // publicly (the talent's global hide switch turns them all off).
+  const channelsLive = bridgeTalentRepresentation
+    ? bridgeTalentRepresentation.globalHidden
+      ? 0
+      : bridgeTalentRepresentation.entries.filter((e) => e.effective === "live").length
+    : 0;
+  // Dismissal persists per user (user_prefs.talent_checklist_dismissed).
+  // Seeded from the bridge, then optimistic on click.
+  const [dismissedLocal, setFirstSessionDismissed] = useState(false);
+  const firstSessionDismissed = dismissedLocal || bridgeTalentChecklistDismissed === true;
 
   // ── Today's data is derived from conversations (bridge-aware) — the
   //    same source the messages shell reads. One source, one truth.
@@ -299,19 +324,25 @@ export function TalentTodayPage() {
       {/* First-session checklist — shows ONCE on Day-1 and routes the
           new talent through the 4 onboarding wins that unlock inquiries.
           Sits above the hero so it's the first thing they see.
-          polaroidCount/channelsLive/payoutSet are stubbed; production
-          derives them from the profile object. */}
+          W14: every row now reflects real bridge state (photo count, live
+          agency channels, payouts-enabled), so a talent who already did a
+          step sees it ticked instead of a permanently-empty checklist. */}
       {isDay1 && !firstSessionDismissed && !onboardingCompleteness && (
         <FirstSessionChecklist
           completeness={profile.completeness}
-          polaroidCount={0}
-          channelsLive={0}
-          payoutSet={false}
+          polaroidCount={portfolioCount}
+          channelsLive={channelsLive}
+          payoutSet={payoutSet}
           onProfile={() => openSection("identity")}
           onPolaroids={() => openSection("polaroids")}
           onReach={() => setTalentPage("money")}
           onPayouts={() => setTalentPage("payouts")}
-          onDismiss={() => setFirstSessionDismissed(true)}
+          onDismiss={() => {
+            setFirstSessionDismissed(true);
+            import("@/lib/server-actions/user-prefs")
+              .then(({ markTalentChecklistDismissed }) => markTalentChecklistDismissed())
+              .catch((err: unknown) => logServerError("talentchecklistdismiss", err));
+          }}
         />
       )}
 

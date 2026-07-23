@@ -32,6 +32,8 @@ export type NotificationChannelPrefs = {
 export type UserPrefs = {
   preferredSurface: "talent" | "workspace" | null;
   firstRunToggleTipSeen: boolean;
+  /** True once the talent dismissed the Day-1 checklist on /talent/today. */
+  talentChecklistDismissed: boolean;
   notificationPrefs: Record<string, NotificationChannelPrefs>;
   privacyPrefs: PrivacyPrefs;
 };
@@ -107,7 +109,7 @@ export async function loadUserPrefs(userId: string): Promise<UserPrefs | null> {
 
     const { data, error } = await supabase
       .from("user_prefs")
-      .select("preferred_surface, first_run_toggle_tip_seen, notification_prefs, privacy_prefs")
+      .select("preferred_surface, first_run_toggle_tip_seen, talent_checklist_dismissed, notification_prefs, privacy_prefs")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -125,6 +127,7 @@ export async function loadUserPrefs(userId: string): Promise<UserPrefs | null> {
     const row = data as {
       preferred_surface: string | null;
       first_run_toggle_tip_seen: boolean;
+      talent_checklist_dismissed: boolean | null;
       notification_prefs: Record<string, NotificationChannelPrefs> | null;
       privacy_prefs: unknown;
     };
@@ -135,6 +138,7 @@ export async function loadUserPrefs(userId: string): Promise<UserPrefs | null> {
           ? row.preferred_surface
           : null,
       firstRunToggleTipSeen: row.first_run_toggle_tip_seen ?? false,
+      talentChecklistDismissed: row.talent_checklist_dismissed ?? false,
       notificationPrefs: row.notification_prefs ?? {},
       privacyPrefs: normalizePrivacyPrefs(row.privacy_prefs),
     };
@@ -205,6 +209,37 @@ export async function markToggleTipSeen(): Promise<void> {
     }
   } catch (err) {
     logServerError("user-prefs.markToggleTipSeen", err);
+  }
+}
+
+/**
+ * Mark the talent Day-1 first-session checklist as dismissed. Fire-and-forget
+ * from the client. Auth required — reads user from session cookie.
+ */
+export async function markTalentChecklistDismissed(): Promise<void> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase.from("user_prefs").upsert(
+      {
+        user_id: user.id,
+        talent_checklist_dismissed: true,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+
+    if (error) {
+      logServerError("user-prefs.markTalentChecklistDismissed", error);
+    }
+  } catch (err) {
+    logServerError("user-prefs.markTalentChecklistDismissed", err);
   }
 }
 
