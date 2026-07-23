@@ -2795,6 +2795,13 @@ const ES_TEXT: Record<string, string> = {
   "A client": "Un cliente",
   "See all": "Ver las",
   "Rate your clients": "Califica a tus clientes",
+  // ── W8: services nudge + premium-pages read-only notice ──
+  "Add your first service": "Agrega tu primer servicio",
+  "Put your menu on your page: clients can ask about a service or book it directly. It takes about a minute per service.": "Pon tu menú en tu página: los clientes pueden preguntar por un servicio o reservarlo directamente. Toma alrededor de un minuto por servicio.",
+  "Set up services": "Configurar servicios",
+  "Later": "Más tarde",
+  "Read-only preview. Edit your page content from My pages.": "Vista de solo lectura. Edita el contenido de tu página desde Mis páginas.",
+
 };
 
 export function translateDashboardText(
