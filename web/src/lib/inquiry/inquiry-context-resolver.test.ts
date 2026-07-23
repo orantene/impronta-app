@@ -591,3 +591,118 @@ describe("DEAD-CTA GUARD — every terminal status resolves to terminal, never f
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// W2-B — the `replied` state: an UNSEEN agency reply on a SENT inquiry. The
+// hasUnseenAgencyReply input is additive/optional; every suite above omits it,
+// so their assertions are the "seen" control. This suite pins the new state and
+// the load-bearing "opening the thread clears it -> back to sent" invariant.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("resolveInquiryCta — replied (W2-B unseen agency reply)", () => {
+  it("has-unseen-agency-reply on a coordinator thread -> replied (with coordinator id)", () => {
+    assert.deepEqual(
+      resolve({
+        activePhase: "coordination",
+        activeStatus: "coordination",
+        coordinatorId: "coord-1",
+        lastMessageRole: "coordinator",
+        hasUnseenAgencyReply: true,
+      }),
+      { kind: "replied", phase: "coordination", coordinatorId: "coord-1" },
+    );
+  });
+
+  it("unseen reply beats the SEEN two-way (live_conversation) it would otherwise be", () => {
+    // Same coordinator+coordinator-last context that yields live_conversation
+    // when seen; the unseen flag promotes it to replied.
+    const seen = resolve({
+      activePhase: "coordination",
+      activeStatus: "coordination",
+      coordinatorId: "coord-1",
+      lastMessageRole: "coordinator",
+    });
+    assert.deepEqual(seen, {
+      kind: "live_conversation",
+      phase: "coordination",
+      coordinatorId: "coord-1",
+    });
+    const unseen = resolve({
+      activePhase: "coordination",
+      activeStatus: "coordination",
+      coordinatorId: "coord-1",
+      lastMessageRole: "coordinator",
+      hasUnseenAgencyReply: true,
+    });
+    assert.equal(unseen.kind, "replied");
+  });
+
+  it("seen (flag off / omitted) collapses back to sent_awaiting when no coordinator is seated", () => {
+    // Opening the thread flips hasUnseenAgencyReply off. With no coordinator
+    // seated + coordinator spoke last, the seen state is sent_awaiting — proving
+    // the label reverts from "{agency} replied" to "Inquiry sent" once read.
+    const unseen = resolve({
+      activePhase: "coordination",
+      activeStatus: "coordination",
+      coordinatorId: null,
+      lastMessageRole: "coordinator",
+      hasUnseenAgencyReply: true,
+    });
+    assert.equal(unseen.kind, "replied");
+    const seen = resolve({
+      activePhase: "coordination",
+      activeStatus: "coordination",
+      coordinatorId: null,
+      lastMessageRole: "coordinator",
+      hasUnseenAgencyReply: false,
+    });
+    assert.deepEqual(seen, { kind: "sent_awaiting", phase: "coordination" });
+  });
+
+  it("replied is reachable on every SENT/live phase", () => {
+    for (const phase of ["submitted", "coordination", "offer_pending", "approved"] as const) {
+      const out = resolve({
+        activePhase: phase,
+        activeStatus: phase,
+        coordinatorId: "coord-1",
+        lastMessageRole: "coordinator",
+        hasUnseenAgencyReply: true,
+      });
+      assert.deepEqual(out, { kind: "replied", phase, coordinatorId: "coord-1" });
+    }
+  });
+
+  it("a DRAFT never yields replied even if the unseen flag is set", () => {
+    // draft is NOT a SENT_LIVE_PHASE, so rule 1 (and the replied branch inside
+    // it) never fires; the resolver falls through to the draft/lineup states.
+    const out = resolve({
+      activePhase: "draft",
+      activeStatus: "draft",
+      talentProfileId: "talent-1",
+      isInLineup: true,
+      lineupCount: 2,
+      hasActiveDraft: true,
+      coordinatorId: "coord-1",
+      lastMessageRole: "coordinator",
+      hasUnseenAgencyReply: true,
+    });
+    assert.notEqual(out.kind, "replied");
+    assert.deepEqual(out, { kind: "in_lineup", lineupCount: 2 });
+  });
+
+  it("a TERMINAL inquiry never yields replied even with the unseen flag (rule 0 wins)", () => {
+    const out = resolve({
+      activePhase: "booked",
+      activeStatus: "booked",
+      coordinatorId: "coord-1",
+      lastMessageRole: "coordinator",
+      hasUnseenAgencyReply: true,
+    });
+    assert.deepEqual(out, { kind: "terminal", reason: "booked" });
+  });
+
+  it("no active inquiry: the unseen flag is inert (empty -> add_first)", () => {
+    const out = resolve({ hasUnseenAgencyReply: true });
+    assert.deepEqual(out, { kind: "add_first" });
+  });
+});

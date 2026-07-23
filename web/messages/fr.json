@@ -138,7 +138,7 @@
       "leaveMessage": "Parlez-nous de votre événement et nous trouverons le bon talent",
       "bookNow": "Réserver",
       "ctaMessage": "Écrire à {agency}",
-      "ctaLineup": "Votre liste ({count})",
+      "ctaLineup": "Votre liste · {count}",
       "ctaSent": "Demande envoyée",
       "ctaReplied": "{agency} a répondu",
       "ctaClosed": "Demande fermée",
