@@ -7,6 +7,7 @@ import {
 import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { ResourceArticleList } from "@/components/marketing/resource-article";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
+import { SubscribeModule } from "@/components/marketing/subscribe-module";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -105,6 +106,8 @@ export default async function ResourcesPage() {
           </Link>
         </MarketingContainer>
       </MarketingSection>
+
+      <SubscribeModule locale={locale} source="resources-hub" />
 
       <FinalCtaSection />
     </>

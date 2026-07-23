@@ -101,6 +101,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       "/network",
       "/pricing",
       "/faq",
+      // Public global talent directory (served at /directory via the
+      // proxy.ts rewrite to (marketing)/global-directory) — the demand-side
+      // surface, so it belongs in the crawlable manifest.
+      "/directory",
+      // Spanish-first "agencia de talento" hire landing (Keyword Planner's
+      // 100–1K/mo, LOW-competition term). The flatMap emits /agencia-de-talento
+      // and /es/agencia-de-talento; the page serves both locales.
+      "/agencia-de-talento",
+      // Supporting marketing pages. (/status and /waitlist are deliberately
+      // excluded — operational pages, not content we want ranked.)
+      "/integrations",
+      "/discover-agencies",
+      "/help",
       "/legal/privacy",
       "/legal/terms",
       // Talent-category landing pages, derived from the content model so

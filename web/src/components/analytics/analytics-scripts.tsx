@@ -26,6 +26,14 @@ export interface AnalyticsScriptsProps {
   tiktokPixelId?: string | null;
   /** LinkedIn Insight Tag Partner ID (numeric string). Tenant-only. */
   linkedInPartnerId?: string | null;
+  /**
+   * Stable tenant identifier threaded from publicScope.tenantId. When present,
+   * a `gtag('set', { tenant_id })` runs BEFORE `gtag('config', ...)` so GA4
+   * attributes every hit on this storefront to one tenant regardless of which
+   * domain served it — one row per tenant in GA4 Explore. Tenant-only: the
+   * platform/marketing surface has no publicScope and sends no tenant_id.
+   */
+  tenantId?: string | null;
 }
 
 const PLATFORM_GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || null;
@@ -57,6 +65,7 @@ export function AnalyticsScripts({
   metaPixelId,
   tiktokPixelId,
   linkedInPartnerId,
+  tenantId,
 }: AnalyticsScriptsProps) {
   // Tenant GA4 wins; platform GA4 is the inherit fallback; null = no GA4. The
   // platform env value is re-sanitized here (the same whitelist + catalog test
@@ -69,6 +78,18 @@ export function AnalyticsScripts({
   const meta = metaPixelId?.trim() || null;
   const tiktok = tiktokPixelId?.trim() || null;
   const linkedin = linkedInPartnerId?.trim() || null;
+
+  // Tenant identifier for GA4's `tenant_id` custom dimension. This value is
+  // interpolated raw into the gtag script body below, so treat it as hostile:
+  // allow ONLY [a-z0-9-], and drop the whole value (no tenant_id emitted) if
+  // anything else appears rather than trying to escape it. NOTE for the
+  // director: the matching GA4-side custom dimension (event- or user-scoped
+  // "tenant_id") must be registered once in the GA4 Admin UI (Admin → Custom
+  // definitions) for these values to surface in Explore — that is a manual UI
+  // step, not code.
+  const rawTenantId = tenantId?.trim() || null;
+  const tenantIdForGa =
+    rawTenantId && /^[a-z0-9-]+$/.test(rawTenantId) ? rawTenantId : null;
 
   const hasAnyScript = !!(gaId || gtm || meta || tiktok || linkedin);
   if (!hasAnyScript) return null;
@@ -113,7 +134,9 @@ export function AnalyticsScripts({
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 window.gtag = gtag;
-gtag('js', new Date());
+gtag('js', new Date());${
+  tenantIdForGa ? `\ngtag('set', { tenant_id: '${tenantIdForGa}' });` : ""
+}
 gtag('config', '${gaId}', { send_page_view: true });`,
             }}
           />

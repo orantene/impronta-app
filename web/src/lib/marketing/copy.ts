@@ -97,7 +97,7 @@ const en = {
   },
 
   hero: {
-    eyebrow: "The talent business platform",
+    eyebrow: "Sell your work. Run the business.",
     titleLine1: "Your Business. Your Brand. Your Bookings.",
     titleLine2: "All in one place.",
     subhead:
@@ -451,7 +451,7 @@ const es: MarketingCopy = {
   },
 
   hero: {
-    eyebrow: "La plataforma del negocio del talento",
+    eyebrow: "Vende tu trabajo. Lleva tu negocio.",
     titleLine1: "Tu Negocio. Tu Marca. Tus Reservas.",
     titleLine2: "Todo en un solo lugar.",
     subhead:
