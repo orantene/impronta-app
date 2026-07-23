@@ -726,7 +726,7 @@
   },
   "src/components/admin/shell/internal/page-modules/WorkspaceShell.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 2
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkspaceTopbar.tsx": {
@@ -1045,11 +1045,6 @@
   "src/components/admin/shell/internal/talent-drawers/today.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 9
-    }
-  },
-  "src/components/admin/shell/internal/talent.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/talent/pages/CalendarPage.tsx": {

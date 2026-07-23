@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useDashboardText } from "./dashboard-i18n";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_META, TALENT_TIER_META, useAdminShell, type TalentPage } from "./state";
@@ -245,6 +245,18 @@ function TalentSidebar() {
 
 function TalentRouter() {
   const { state } = useAdminShell();
+  // W12 — the entry fade must NOT run on the very first paint: the browser
+  // holds a CSS animation's timeline at frame 0 (from{opacity:0}) until the
+  // JS bundle finishes loading, so animating the initial page left the WHOLE
+  // dashboard invisible for the full hydration window (measured: opacity 0,
+  // animation "running", 8s after navigation). The animation only attaches
+  // once the user has actually SWITCHED pages — a fresh keyed remount plays
+  // it; the SSR'd first page never carries it, so first paint is instant.
+  const [initialPage] = useState(state.talentPage);
+  const navigatedAway = state.talentPage !== initialPage;
+  const [everNavigated, setEverNavigated] = useState(false);
+  useEffect(() => { if (navigatedAway) setEverNavigated(true); }, [navigatedAway]);
+  const animate = everNavigated || navigatedAway;
   let page: ReactNode = null;
   switch (state.talentPage) {
     case "today":
@@ -305,7 +317,7 @@ function TalentRouter() {
     page = <TalentRouterFallback talentPage={state.talentPage} />;
   }
   return (
-    <div key={state.talentPage} data-tulala-talent-page-anim style={{ animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" }}>
+    <div key={state.talentPage} data-tulala-talent-page-anim style={animate ? { animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" } : undefined}>
       <style>{`@keyframes tulala-page-fade { from { opacity: 0; } to { opacity: 1; } } @media (prefers-reduced-motion: reduce) { [data-tulala-talent-page-anim] { animation: none !important; } }`}</style>
       {page}
     </div>
