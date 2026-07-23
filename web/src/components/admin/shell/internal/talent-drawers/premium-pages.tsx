@@ -10,6 +10,7 @@
 // ════════════════════════════════════════════════════════════════════
 
 import { useT } from "@/i18n/use-t";
+import { useDashboardText } from "../dashboard-i18n";
 import { interpolate } from "@/i18n/interpolate";
 import {
   COLORS,
@@ -428,6 +429,21 @@ export function TalentPageTemplateDrawer() {
   );
 }
 
+
+// Honest read-only banner for the Phase 1.5 STRIP drawers (save CTA removed).
+// Without it these drawers looked editable but silently discarded everything.
+function ReadOnlyStripNotice() {
+  const copy = useDashboardText();
+  return (
+    <div
+      role="note"
+      className="mb-3 rounded-[9px] border border-[rgba(91,107,160,0.25)] bg-[rgba(91,107,160,0.10)] px-3 py-2 text-[12px] leading-[1.5] text-admin-indigo-deep"
+    >
+      {copy.t("Read-only preview. Edit your page content from My pages.")}
+    </div>
+  );
+}
+
 // ─── Media embeds ──────────────────────────────────────────────────
 
 
@@ -463,6 +479,7 @@ export function TalentMediaEmbedsDrawer() {
         </>
       }
     >
+      <ReadOnlyStripNotice />
       <CapsLabel>{t("dashboard.talentDrawers.premiumPages.liveOnPage")}</CapsLabel>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
         {embeds.map((e) => (
@@ -558,6 +575,7 @@ export function TalentPressDrawer() {
         </>
       }
     >
+      <ReadOnlyStripNotice />
       <div className="flex flex-col gap-2.5">
         {press.map((c) => (
           <div
@@ -686,6 +704,7 @@ export function TalentCustomDomainDrawer() {
         <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
       }
     >
+      <ReadOnlyStripNotice />
       <FieldRow label={t("dashboard.talentDrawers.premiumPages.domainLabel")} hint={t("dashboard.talentDrawers.premiumPages.domainHint")}>
         <TextInput placeholder="marta-reyes.com" defaultValue={sub.customDomain ?? ""} />
       </FieldRow>
