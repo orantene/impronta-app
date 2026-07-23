@@ -39,6 +39,20 @@ export function PlatformJsonLd() {
           height: 512,
         },
         description: "The Commerce Platform for Talent",
+        // Support address published in the FAQ page copy; the product ships
+        // EN + ES, so both languages are advertised.
+        contactPoint: {
+          "@type": "ContactPoint",
+          contactType: "customer support",
+          email: `hello@${PLATFORM_BRAND.domain}`,
+          availableLanguage: ["en", "es"],
+        },
+        // Where the product is actually sold and supported today: Mexico, plus
+        // the wider LATAM region the marketing surface addresses.
+        areaServed: [
+          { "@type": "Country", name: "Mexico" },
+          { "@type": "Place", name: "Latin America" },
+        ],
       },
       {
         "@type": "WebSite",

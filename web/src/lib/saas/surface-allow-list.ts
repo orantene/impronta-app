@@ -515,6 +515,9 @@ const MARKETING_PAGE_PREFIXES = [
   // "Agencia de talento" landing page — Spanish-first demand keyword page
   // (100-1K/mo, LOW competition in Mexico). Single page, no sub-routes.
   "/agencia-de-talento",
+  // Brand entity + trust page — what Tulala is, what it believes, what it
+  // builds, who it's for. Also the only contact surface (no /contact page).
+  "/about",
 ] as const;
 
 function hasPrefix(pathname: string, prefix: string): boolean {

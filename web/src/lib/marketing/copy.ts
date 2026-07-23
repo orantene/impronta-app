@@ -330,8 +330,9 @@ const en = {
       "Full export any time",
       "Upgrade to your own domain",
     ],
-    // Brand vision line. Closes the homepage; deliberately the only place this
-    // message appears (the hero carries the value message, the logo the category).
+    // Brand vision line. Closes every marketing page via FinalCtaSection; the
+    // hero carries the value message and the logo the category. /about restates
+    // it at display scale (keep the strings in sync).
     vision: "Your Talent. Your Business. Your Digital World.",
   },
 
@@ -359,7 +360,7 @@ const en = {
       },
       company: {
         label: "Company",
-        items: ["Pricing", "Start free", "FAQ", "Resources", "Privacy", "Terms"],
+        items: ["About", "Pricing", "Start free", "FAQ", "Resources", "Privacy", "Terms"],
       },
     },
   },
@@ -711,7 +712,15 @@ const es: MarketingCopy = {
       },
       company: {
         label: "Empresa",
-        items: ["Precios", "Empieza gratis", "Preguntas frecuentes", "Recursos", "Privacidad", "Términos"],
+        items: [
+          "Nosotros",
+          "Precios",
+          "Empieza gratis",
+          "Preguntas frecuentes",
+          "Recursos",
+          "Privacidad",
+          "Términos",
+        ],
       },
     },
   },

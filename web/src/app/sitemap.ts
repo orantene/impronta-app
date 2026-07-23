@@ -13,6 +13,37 @@ import { RESOURCE_ARTICLES } from "@/lib/marketing/resources";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
 
+/**
+ * Stable revision date for the static marketing tree.
+ *
+ * These pages are hard-coded copy, so there is no row in the database to read
+ * an honest `lastmod` from. Emitting `new Date()` told every crawler that every
+ * marketing page changed at crawl time, which is obviously false and gets the
+ * whole signal discounted. A pinned constant is both truthful and useful.
+ *
+ * BUMP THIS when marketing copy materially changes (new page, rewritten
+ * positioning, pricing change). Do not bump it for code-only refactors.
+ */
+const MARKETING_CONTENT_REVISED = new Date("2026-07-23T00:00:00.000Z");
+
+/**
+ * Real publication date per resource article, keyed by its sitemap path.
+ * Articles carry a `datePublished` in the content model, so they get their own
+ * honest date rather than the shared marketing revision.
+ */
+const RESOURCE_ARTICLE_LAST_MODIFIED = new Map<string, Date>();
+for (const article of RESOURCE_ARTICLES) {
+  const parsed = new Date(`${article.datePublished}T00:00:00.000Z`);
+  // A typo'd datePublished would otherwise emit `Invalid Date` into the XML.
+  // Skip it and let the shared marketing revision cover that article.
+  if (Number.isNaN(parsed.getTime())) continue;
+  RESOURCE_ARTICLE_LAST_MODIFIED.set(`/resources/${article.slug}`, parsed);
+}
+
+function marketingLastModified(path: string): Date {
+  return RESOURCE_ARTICLE_LAST_MODIFIED.get(path) ?? MARKETING_CONTENT_REVISED;
+}
+
 async function loadPlatformTalentSitemapEntries(): Promise<MetadataRoute.Sitemap> {
   const admin = createServiceRoleClient();
   if (!admin) return [];
@@ -58,6 +89,9 @@ async function loadPlatformTalentSitemapEntries(): Promise<MetadataRoute.Sitemap
     if (!profileCode) return [];
 
     const code = encodeURIComponent(profileCode);
+    // published_at/updated_at are the honest dates. The fallback stays
+    // `new Date()` because a published site row with neither timestamp gives us
+    // nothing truthful to assert, and dropping the entry would cost discovery.
     const lastModified = row.published_at || row.updated_at
       ? new Date(row.published_at ?? row.updated_at!)
       : new Date();
@@ -101,6 +135,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       "/network",
       "/pricing",
       "/faq",
+      // Company page (who runs Tulala, how support works). Serves EN at /about
+      // and Spanish at /es/about, like the rest of this list.
+      "/about",
       // Public global talent directory (served at /directory via the
       // proxy.ts rewrite to (marketing)/global-directory) — the demand-side
       // surface, so it belongs in the crawlable manifest.
@@ -125,13 +162,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...RESOURCE_ARTICLES.map((a) => `/resources/${a.slug}`),
     ];
     const marketingEntries: MetadataRoute.Sitemap = marketingPaths.flatMap(
-      (path) => [
-        { url: new URL(path, base).toString(), lastModified: new Date() },
-        {
-          url: new URL(withLocalePath(path, "es"), base).toString(),
-          lastModified: new Date(),
-        },
-      ],
+      (path) => {
+        // EN and ES ship together, so both locales share one lastmod.
+        const lastModified = marketingLastModified(path);
+        return [
+          { url: new URL(path, base).toString(), lastModified },
+          {
+            url: new URL(withLocalePath(path, "es"), base).toString(),
+            lastModified,
+          },
+        ];
+      },
     );
     return [...marketingEntries, ...platformTalentEntries];
   }
@@ -148,6 +189,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // always indexable.
   const fixedStaticPaths = ["/contact", "/directory", "/models"];
 
+  // These routes are framework-rendered from live tenant data (roster, contact
+  // details), and no single row owns them, so there is no truthful timestamp to
+  // read. Keeping `new Date()` here is deliberate: it is the crawl-time
+  // "unknown", not a claim about the marketing tree, which now uses a pinned
+  // revision constant.
   const fixedStaticEntries: MetadataRoute.Sitemap = fixedStaticPaths.flatMap(
     (path) => [
       { url: new URL(path, base).toString(), lastModified: new Date() },
@@ -159,6 +205,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   if (!supabase) {
+    // No DB client, so the homepage row (and its updated_at) is unreadable.
     return [
       { url: new URL("/", base).toString(), lastModified: new Date() },
       ...fixedStaticEntries,
@@ -169,6 +216,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Only agency storefronts expose cms_pages / cms_posts in their sitemap.
   const publicScope = await getPublicTenantScope();
   if (!publicScope) {
+    // Same as above: without a tenant scope there is no homepage row to date.
     return [
       { url: new URL("/", base).toString(), lastModified: new Date() },
       ...fixedStaticEntries,
@@ -217,14 +265,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     (row) => row.include_in_sitemap === false,
   );
 
+  // The homepage rows carry a real updated_at, so use the most recent one
+  // instead of crawl time. Falls back to `new Date()` only when every row is
+  // missing the timestamp (or the row itself is missing), where nothing
+  // truthful is available.
+  const homepageLastModified = [...homepageByLocale.values()].reduce<Date | null>(
+    (latest, row) => {
+      if (!row.updated_at) return latest;
+      const parsed = new Date(row.updated_at);
+      if (Number.isNaN(parsed.getTime())) return latest;
+      return latest && latest >= parsed ? latest : parsed;
+    },
+    null,
+  ) ?? new Date();
+
   const homepageEntries: MetadataRoute.Sitemap =
     anyHomepageNoindex || anyHomepageExcludedFromSitemap
     ? []
     : [
-        { url: new URL("/", base).toString(), lastModified: new Date() },
+        {
+          url: new URL("/", base).toString(),
+          lastModified: homepageLastModified,
+        },
         {
           url: new URL(withLocalePath("/", "es"), base).toString(),
-          lastModified: new Date(),
+          lastModified: homepageLastModified,
         },
       ];
 
@@ -242,6 +307,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .eq("noindex", false);
   const pages = (pagesRaw ?? []) as unknown as CmsSitemapRow[];
 
+  // CMS rows, posts, and talent profiles below all prefer their real
+  // updated_at. The `new Date()` fallbacks fire only when a row has no
+  // timestamp at all, where there is no honest date to publish.
   const cmsEntries: MetadataRoute.Sitemap = pages.map((row) => {
     const slug = row.slug;
     const locale = row.locale;

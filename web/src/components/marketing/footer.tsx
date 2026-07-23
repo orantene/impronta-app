@@ -15,7 +15,15 @@ const FOOTER_HREFS = {
   platform: ["/#builder", "/#messenger", "/network", "/integrations", "/how-it-works"],
   solutions: ["/operators", "/agencies", "/organizations", "/#stories"],
   discover: ["/directory", "/discover-agencies", "/#stories"],
-  company: ["/pricing", "/get-started", "/faq", "/resources", "/legal/privacy", "/legal/terms"],
+  company: [
+    "/about",
+    "/pricing",
+    "/get-started",
+    "/faq",
+    "/resources",
+    "/legal/privacy",
+    "/legal/terms",
+  ],
 };
 
 export async function MarketingFooter() {
