@@ -7,7 +7,12 @@ export const PLATFORM_ARTICLES: ResourceArticle[] = [
     slug: "custom-domain-vs-subdomain",
     photo: MARKETING_PHOTOS.agencyBuilder,
     datePublished: "2026-07-23",
-    related: ["bilingual-booking-page", "pricing-your-services", "booking-from-dms"],
+    related: [
+      "bilingual-booking-page",
+      "pricing-your-services",
+      "booking-from-dms",
+      "booking-page-vs-diy-website",
+    ],
     en: {
       eyebrow: "Your online home",
       title: "Custom domain or free subdomain?",
