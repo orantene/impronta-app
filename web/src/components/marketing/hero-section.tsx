@@ -22,9 +22,16 @@ const SLIDES: MarketingPhoto[] = [
 export function HeroSection({ locale }: { locale: string }) {
   const copy = getMarketingCopy(locale).hero;
   const [active, setActive] = useState(0);
+  // Slides 2..7 are full-bleed and absolutely positioned, so `loading="lazy"`
+  // does NOT defer them: they are inside the viewport and download immediately,
+  // starving the LCP image (measured 14.6s mobile LCP, 44% of it load delay).
+  // Ship only the first slide in the initial HTML and mount the rest after
+  // hydration; the carousel does not advance for 5.5s, so nothing is lost.
+  const [carouselReady, setCarouselReady] = useState(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
+    setCarouselReady(true);
     const t = setInterval(() => setActive((p) => (p + 1) % SLIDES.length), 5500);
     return () => clearInterval(t);
   }, []);
@@ -57,18 +64,24 @@ export function HeroSection({ locale }: { locale: string }) {
     >
       {/* Full-bleed background slider */}
       <div aria-hidden className="absolute inset-0">
-        {SLIDES.map((photo, idx) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={photo.key}
-            src={photo.url()}
-            alt=""
-            loading={idx === 0 ? "eager" : "lazy"}
-            fetchPriority={idx === 0 ? "high" : "auto"}
-            className="absolute inset-0 h-full w-full object-cover transition-opacity ease-out"
-            style={{ opacity: idx === active ? 1 : 0, transitionDuration: "1200ms", objectPosition: "50% 36%" }}
-          />
-        ))}
+        {SLIDES.map((photo, idx) =>
+          idx > 0 && !carouselReady ? null : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={photo.key}
+              src={photo.url()}
+              alt=""
+              loading={idx === 0 ? "eager" : "lazy"}
+              fetchPriority={idx === 0 ? "high" : "auto"}
+              className="absolute inset-0 h-full w-full object-cover transition-opacity ease-out"
+              style={{
+                opacity: idx === active ? 1 : 0,
+                transitionDuration: "1200ms",
+                objectPosition: "50% 36%",
+              }}
+            />
+          ),
+        )}
         <div
           className="absolute inset-0"
           style={{

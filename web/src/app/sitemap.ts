@@ -8,6 +8,7 @@ import { getPublicHostContext, getPublicTenantScope } from "@/lib/saas/scope";
 import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { TALENT_CATEGORIES } from "@/lib/marketing/talent-categories";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
 
@@ -101,6 +102,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       "/faq",
       "/legal/privacy",
       "/legal/terms",
+      // Talent-category landing pages, derived from the content model so
+      // adding a category is a single data edit, not a sitemap edit too.
+      ...TALENT_CATEGORIES.map((c) => `/for/${c.slug}`),
     ];
     const marketingEntries: MetadataRoute.Sitemap = marketingPaths.flatMap(
       (path) => [
