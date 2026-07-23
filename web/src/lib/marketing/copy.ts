@@ -88,6 +88,8 @@ const en = {
     contactSupport: "Contact support",
     savedTalent: "Saved talent",
     accountSettings: "Account settings",
+    /** Accessible name + heading for the header's globe language menu. */
+    language: "Language",
   },
 
   /** Logo lockup descriptor: header (desktop) + footer (always). Category
@@ -445,6 +447,7 @@ const es: MarketingCopy = {
     contactSupport: "Contactar soporte",
     savedTalent: "Talento guardado",
     accountSettings: "Configuración de cuenta",
+    language: "Idioma",
   },
 
   brand: {

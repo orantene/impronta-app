@@ -41,12 +41,10 @@ export function DesktopSupport({ copy }: { copy: MarketingCopy["nav"] }) {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex h-9 w-9 items-center justify-center rounded-[10px] transition-colors hover:bg-[var(--plt-bg-deep)]"
-        style={{
-          border: "1px solid var(--plt-hairline-strong)",
-          background: "var(--plt-bg-raised)",
-          color: "var(--plt-ink-soft)",
-        }}
+        /* Base colours are classes, not inline `style`. Inline declarations
+           outrank every stylesheet rule, so the previous `style` prop silently
+           killed the `hover:` variants below and the control read as inert. */
+        className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]"
       >
         <HelpGlyph />
       </button>
