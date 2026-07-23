@@ -276,7 +276,6 @@ import SkillOverridesPanel from "../skill-overrides-panel";
 import { LiveCategoryFieldsEditor } from "../live-category-fields-editor";
 import SkillHintsBanner from "../skill-hints-banner";
 import SkillFreshnessBanner from "../skill-freshness-banner";
-import dynamic from "next/dynamic";
 import {
   InboxSnippetsDrawer,
   NotificationsPrefsDrawer,
@@ -454,10 +453,11 @@ export { default as SkillFreshnessBanner } from "../skill-freshness-banner";
 
 // ── cross-cutting shared declarations (byte-for-byte from drawers.tsx) ──
 
-export const InquiryComposerLazyD = dynamic(
-  () => import("../messages").then((m) => m.InquiryComposer),
-  { ssr: false },
-);
+// STATIC import (2026-07-23 prod incident): the async edge into the
+// messages barrel participated in a cross-chunk cycle that deadlocked
+// webpack module resolution on fresh builds — React never hydrated on
+// the workspace admin surface. See pages-dynamic.tsx incident note.
+export { InquiryComposer as InquiryComposerLazyD } from "../messages";
 
 export function useSaveAndClose(message?: string) {
   const { closeDrawer, toast } = useAdminShell();

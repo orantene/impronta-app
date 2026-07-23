@@ -17,17 +17,11 @@
  */
 
 import React, { useEffect, useState, type ReactNode } from "react";
-import dynamic from "next/dynamic";
-// Lazy import — _messages.tsx pulls react-virtuoso transitively which
-// is not SSR-safe. ssr:false matches how _talent.tsx loads it too.
-const ClientMessagesShellLazy = dynamic(
-  () => import("./messages").then((m) => m.MessagesShell),
-  { ssr: false },
-);
-const InquiryComposerLazy = dynamic(
-  () => import("./messages").then((m) => m.InquiryComposer),
-  { ssr: false },
-);
+// STATIC import (2026-07-23 prod incident): every async edge into the
+// messages barrel participated in a cross-chunk cycle that deadlocked the
+// webpack module graph on fresh builds — React never booted on the whole
+// admin app. One chunk, no async cycle. react-virtuoso SSRs fine.
+import { MessagesShell as ClientMessagesShellLazy, InquiryComposer as InquiryComposerLazy } from "./messages";
 // Eager import — pinNextConversation is a tiny synchronous helper, no
 // React tree, so dynamic-ing it would just complicate the call site.
 import { pinNextConversation } from "./messages";
