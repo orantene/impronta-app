@@ -59,7 +59,10 @@ export async function buildPublicPageMetadata(
     (brandName ? `${baseDescription} ${brandName}.` : baseDescription);
 
   return {
-    title,
+    // `title` already carries the tenant brand suffix (`… · {brand}` above), so
+    // return it as `absolute` — otherwise the `(public)` layout's
+    // `%s · {brand}` template would append the brand a second time.
+    title: { absolute: title },
     description,
     openGraph: {
       title,
