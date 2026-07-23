@@ -17,6 +17,7 @@ export const BOOKING_AUDIT = {
   TALENT_ROW_ADDED: "booking.talent_row_added",
   TALENT_ROW_REMOVED: "booking.talent_row_removed",
   CLIENT_PORTAL_VISIBILITY_CHANGED: "booking.client_portal_visibility_changed",
+  JOB_FIELDS_UPDATED: "booking.job_fields_updated",
 } as const;
 
 export const INQUIRY_AUDIT = {

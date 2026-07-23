@@ -12,6 +12,7 @@ import { MOCK_THREAD, type Conversation } from "../talent";
 import { NEXT_STAGES, StageTransitionMenu } from "./admin-1";
 import { AdminInquiryDetail } from "./admin-2";
 import { AdminMessageStream } from "./admin-4";
+import { EditJobSheet } from "./EditJobSheet";
 import { isFirstConvWith } from "./shared/inbox-identity-1";
 import { LiveLineupPanel } from "./shared/machinery-11";
 import { OfferTab } from "./shared/machinery-12";
@@ -36,9 +37,10 @@ import type { Offer } from "./shared/machinery-9";
  * its inner body, not the shell.
  */
 export function AdminReservationView({ inquiry, onBack }: { inquiry: RichInquiry; onBack: () => void }) {
-  const { effectiveTenant } = useAdminShell();
+  const { effectiveTenant, toast } = useAdminShell();
+  const router = useRouter();
   const planTier = usePlanTierFromShell();
-  void effectiveTenant; // reserved for future server-action calls inside sheets
+  const [editJobOpen, setEditJobOpen] = React.useState(false);
 
   const allTalents = inquiry.requirementGroups.flatMap(g => g.talents);
   const lineupTotal = allTalents.length;
@@ -201,34 +203,73 @@ export function AdminReservationView({ inquiry, onBack }: { inquiry: RichInquiry
     />
   );
 
+  // Pencil next to the title — opens the unified "Edit job" editor (every
+  // inquiry request field + the booking-side fields once booked). Mounts into
+  // the header's `headerActions` slot, to the right of the title.
+  const editJobButton = (
+    <button
+      type="button"
+      onClick={() => setEditJobOpen(true)}
+      aria-label="Edit job details"
+      title="Edit job details"
+      style={{
+        border: "none",
+        background: "transparent",
+        padding: 5,
+        cursor: "pointer",
+        color: "inherit",
+        borderRadius: 6,
+        display: "inline-flex",
+        alignItems: "center",
+      }}
+    >
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+        <path d="M11.2 2.3l2.5 2.5-7.5 7.5-3 .5.5-3 7.5-7.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
+
   // AdminMessageStream embeds its own composer; the primitive's
   // composer slot stays empty.
   return (
-    <ReservationThread
-      pov="admin"
-      header={{
-        title: inquiry.brief || inquiry.clientName,
-        subtitle: [inquiry.clientName, eventStatus].filter(Boolean).join(" · "),
-        stage,
-        closedReason,
-        moveToMenu,
-      }}
-      pills={pills}
-      sheets={sheets}
-      stream={stream}
-      composer={
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label="Back to inbox"
-          style={{
-            display: "none",
-          }}
-        >
-          Back
-        </button>
-      }
-    />
+    <>
+      <ReservationThread
+        pov="admin"
+        header={{
+          title: inquiry.brief || inquiry.clientName,
+          subtitle: [inquiry.clientName, eventStatus].filter(Boolean).join(" · "),
+          stage,
+          closedReason,
+          headerActions: editJobButton,
+          moveToMenu,
+        }}
+        pills={pills}
+        sheets={sheets}
+        stream={stream}
+        composer={
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to inbox"
+            style={{
+              display: "none",
+            }}
+          >
+            Back
+          </button>
+        }
+      />
+      <EditJobSheet
+        open={editJobOpen}
+        inquiryId={inquiry.id}
+        tenantSlug={effectiveTenant.slug}
+        onClose={() => setEditJobOpen(false)}
+        onSaved={() => {
+          toast("Job details saved.");
+          router.refresh();
+        }}
+      />
+    </>
   );
 }
 
