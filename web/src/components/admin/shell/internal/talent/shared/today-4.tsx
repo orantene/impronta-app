@@ -1,5 +1,6 @@
 "use client";
 
+import { useDashboardText } from "../../dashboard-i18n";
 import { Icon } from "../../primitives";
 import { COLORS, FONTS, TRANSITION, useAdminShell, type TalentBooking } from "../../state";
 import { DateBlock, KindChip } from "./today-1";
@@ -7,6 +8,7 @@ import { DateBlock, KindChip } from "./today-1";
 
 
 function BookingRow({ booking }: { booking: TalentBooking }) {
+  const copy = useDashboardText();
   const { openDrawer } = useAdminShell();
   // Parse "Tue, May 6" or "May 14" → month "MAY", day "6" / "14".
   const dateMatch = booking.startDate.match(/([A-Za-z]+)\s+(\d{1,2})/);
@@ -48,9 +50,9 @@ function BookingRow({ booking }: { booking: TalentBooking }) {
             fontSize: 11.5,
           }}
         >
-          <KindChip label="Booked" tone="success" />
+          <KindChip label={copy.t("Booked")} tone="success" />
           <span className="text-admin-ink-muted">
-            {booking.location} · call {booking.call}
+            {booking.location} · {copy.t("call")} {booking.call}
           </span>
         </div>
       </div>

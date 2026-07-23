@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, type ReactNode } from "react";
+import { useDashboardText } from "./dashboard-i18n";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGES, TALENT_PAGE_META, TALENT_TIER_META, TRANSITION, useAdminShell } from "./state";
 import { CalendarPage } from "./talent/pages/CalendarPage";
@@ -32,12 +33,13 @@ export type { ConvOutcome, ConvSource, Conversation, Participant } from "./talen
 // ════════════════════════════════════════════════════════════════════
 
 export function TalentSurface() {
+  const copy = useDashboardText();
   return (
     <div style={{ minHeight: "calc(100vh - 50px - 56px)" }} className="bg-admin-surface">
       {/* WS-12.10 — skip link before topbar nav so keyboard users can
           bypass the talent page navigation */}
       <a href="#tulala-talent-content" className="skip-to-main">
-        Skip to page content
+        {copy.t("Skip to page content")}
       </a>
       <TalentTopbar />
       <main
@@ -70,6 +72,7 @@ export function TalentSurface() {
 // ─── Topbar (lighter than workspace admin) ─────────────────────────
 
 function TalentTopbar() {
+  const copy = useDashboardText();
   const { state, setTalentPage, openDrawer, bridgeTalentSelfProfile } = useAdminShell();
   // Prefer bridge data so a freshly-provisioned talent sees their own
   // public URL in the topbar, not Marta's. The bridge supplies a
@@ -118,7 +121,7 @@ function TalentTopbar() {
             User identity (Marta), agency-acting-as chip, mode toggle,
             bell + notifications all moved to the persistent identity
             bar above. */}
-        <nav ref={talentNavRef} data-tulala-app-topbar-nav aria-label="Talent sections" style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
+        <nav ref={talentNavRef} data-tulala-app-topbar-nav aria-label={copy.t("Talent sections")} style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
           {TALENT_PAGES.map((p) => {
             const active = state.talentPage === p;
             return (
@@ -146,7 +149,7 @@ function TalentTopbar() {
                   if (!active) e.currentTarget.style.color = COLORS.inkMuted;
                 }}
               >
-                {TALENT_PAGE_META[p].label}
+                {copy.t(TALENT_PAGE_META[p].label)}
                 <span
                   aria-hidden
                   style={{
@@ -176,7 +179,7 @@ function TalentTopbar() {
           type="button"
           onClick={() => openDrawer("talent-tier-compare")}
           data-tulala-talent-plan-nav
-          aria-label={`Plan — currently ${tierLabel}. Open plan comparison.`}
+          aria-label={`${copy.t("Plan")}, ${copy.t("currently")} ${tierLabel}. ${copy.t("Open plan comparison.")}`}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -197,7 +200,7 @@ function TalentTopbar() {
           onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.ink; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.inkMuted; }}
         >
-          Plan
+          {copy.t("Plan")}
           <span
             aria-hidden
             style={{
@@ -245,7 +248,7 @@ function TalentTopbar() {
             onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.inkMuted; }}
           >
             <Icon name="external" size={11} stroke={1.7} />
-            Preview profile
+            {copy.t("Preview profile")}
           </a>
         )}
         <style>{`
@@ -339,15 +342,16 @@ function TalentRouter() {
  * without surfacing an alarming error to the user.
  */
 function TalentRouterFallback({ talentPage }: { talentPage: string }) {
+  const copy = useDashboardText();
   return (
     <>
       <PageHeader
-        title="Loading"
-        subtitle="One moment — preparing your talent surface."
+        title={copy.t("Loading")}
+        subtitle={copy.t("One moment — preparing your talent surface.")}
       />
       <EmptyState
-        title="Almost there"
-        body={`We're loading the "${talentPage}" view. If this card stays up, refresh the page or pick another section from the top nav.`}
+        title={copy.t("Almost there")}
+        body={`${copy.t("We're loading this view:")} "${talentPage}". ${copy.t("If this card stays up, refresh the page or pick another section from the top nav.")}`}
       />
     </>
   );

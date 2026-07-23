@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDashboardText } from "../../../dashboard-i18n";
 import { PrimaryButton, SecondaryButton } from "../../../primitives";
 import { COLORS, FONTS, useAdminShell } from "../../../state";
 import { VoiceNoteBubble } from "./Bubbles";
@@ -10,6 +11,7 @@ import { type MsgStage } from "../../shared/conversations-1";
 
 
 export function ContentMessageBody({ msg, fromYou, isFirstOfGroup = true }: { msg: Msg; fromYou: boolean; isFirstOfGroup?: boolean }) {
+  const copy = useDashboardText();
   // Premium bubble palette:
   //   You    — ink with very subtle inner sheen (linear gradient)
   //   Other  — pure white with thin 1px borderSoft + soft shadow
@@ -91,7 +93,7 @@ export function ContentMessageBody({ msg, fromYou, isFirstOfGroup = true }: { ms
                     position: "relative",
                     overflow: "hidden",
                   }}
-                  aria-label={`Photo ${i + 1}`}
+                  aria-label={`${copy.t("Photo")} ${i + 1}`}
                 >
                   {/* Subtle texture overlay so it reads as photo, not flat block */}
                   <div style={{
@@ -182,7 +184,7 @@ export function ContentMessageBody({ msg, fromYou, isFirstOfGroup = true }: { ms
           <div style={{ fontSize: 12.5, fontWeight: 500, color: fromYou ? "#fff" : COLORS.ink }}>
             {msg.label}
           </div>
-          <div style={{ fontSize: 10.5, opacity: 0.7, marginTop: 2 }}>Tap to open in Maps</div>
+          <div style={{ fontSize: 10.5, opacity: 0.7, marginTop: 2 }}>{copy.t("Tap to open in Maps")}</div>
         </div>
       </a>
     );
@@ -192,6 +194,7 @@ export function ContentMessageBody({ msg, fromYou, isFirstOfGroup = true }: { ms
 
 
 export function ReadReceiptRow({ msg, fromYou }: { msg: Msg; fromYou: boolean }) {
+  const copy = useDashboardText();
   if (!fromYou || !("ts" in msg)) return null;
   const readBy = "readBy" in msg ? msg.readBy : undefined;
   const isRead = !!(readBy && readBy.length > 0);
@@ -201,8 +204,8 @@ export function ReadReceiptRow({ msg, fromYou }: { msg: Msg; fromYou: boolean })
   // the thread. For prototype, derive a plausible time string from the
   // sent ts so it reads consistently. e.g. "Read at 4:32pm"
   const readAtLabel = isRead
-    ? `Read by ${readBy?.[0] ?? "client"}${readBy && readBy.length > 1 ? ` +${readBy.length - 1}` : ""} · ${msg.ts}`
-    : `Sent · ${msg.ts}`;
+    ? `${copy.t("Read by")} ${readBy?.[0] ?? copy.t("client")}${readBy && readBy.length > 1 ? ` +${readBy.length - 1}` : ""} · ${msg.ts}`
+    : `${copy.t("Sent")} · ${msg.ts}`;
   return (
     <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4, marginTop: 3, fontSize: 10.5 }} className="text-admin-ink-muted">
       <span>{msg.ts}</span>
@@ -219,6 +222,7 @@ export function ReadReceiptRow({ msg, fromYou }: { msg: Msg; fromYou: boolean })
 
 
 export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; stage: MsgStage }) {
+  const copy = useDashboardText();
   const { toast, openDrawer } = useAdminShell();
   // Hoist all action-card state here to satisfy Rules of Hooks.
   const [rateVal, setRateVal] = useState((msg as { resolved?: string }).resolved ?? "");
@@ -247,19 +251,19 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <span className="text-base">💸</span>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: submitted ? COLORS.green : COLORS.ink }}>
-            {submitted ? "Rate sent to coordinator" : "What's your rate for this?"}
+            {submitted ? copy.t("Rate sent to coordinator") : copy.t("What's your rate for this?")}
           </span>
         </div>
         <div style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
-          1 day, full usage (web + social, 12 months, EU). Lunch + transport included.
-          {!submitted && " Your reply goes private to the coordinator first — they negotiate with the client."}
+          {copy.t("1 day, full usage (web + social, 12 months, EU). Lunch + transport included.")}
+          {!submitted && ` ${copy.t("Your reply goes private to the coordinator first — they negotiate with the client.")}`}
         </div>
         {submitted ? (
           <>
             <div className="text-admin-green text-admin-13 font-medium">€{val} / day</div>
             <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 6, fontSize: 10.5 }} className="text-admin-ink-muted">
               <span style={{ fontFamily: "monospace" }} className="text-admin-green">✓✓</span>
-              <span>Sent · Viewed by coordinator · Awaiting decision</span>
+              <span>{copy.t("Sent · Viewed by coordinator · Awaiting decision")}</span>
             </div>
           </>
         ) : (
@@ -295,7 +299,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
               <span className="text-admin-ink-muted text-admin-11">/day</span>
             </div>
             <PrimaryButton size="sm" onClick={() => { setRateSubmitted(true); }}>
-              Send
+              {copy.t("Send")}
             </PrimaryButton>
           </div>
         )}
@@ -308,7 +312,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
         <div className="flex items-center gap-2 mb-2">
           <span className="text-base">🚖</span>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: transportChosen ? COLORS.green : COLORS.ink }}>
-            {transportChosen ? `Transport confirmed · ${transportChosen}` : "Confirm your transport"}
+            {transportChosen ? `${copy.t("Transport confirmed")} · ${transportChosen}` : copy.t("Confirm your transport")}
           </span>
         </div>
         {!transportChosen && (
@@ -341,12 +345,12 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
     return (
       <div style={{ background: "#fff", border: `1px solid ${confirmBorderColor}`, borderLeft: `3px solid ${confirmAccent}`, borderRadius: 14, padding: "12px 14px", maxWidth: 360, fontFamily: FONTS.body }}>
         <div style={{ fontSize: 12.5, fontWeight: 600, color: confirmState === "pending" ? COLORS.ink : confirmAccent, marginBottom: confirmState === "pending" ? 10 : 0 }}>
-          {confirmState === "confirmed" ? `✓ ${msg.label} — confirmed` : confirmState === "issues" ? `⚠ ${msg.label} — issues flagged` : msg.label}
+          {confirmState === "confirmed" ? `✓ ${msg.label} — ${copy.t("confirmed")}` : confirmState === "issues" ? `⚠ ${msg.label} — ${copy.t("issues flagged")}` : msg.label}
         </div>
         {confirmState === "pending" && (
           <div className="flex gap-2">
-            <PrimaryButton size="sm" onClick={() => setConfirmState("confirmed")}>Confirm</PrimaryButton>
-            <SecondaryButton size="sm" onClick={() => setConfirmState("issues")}>Has issues</SecondaryButton>
+            <PrimaryButton size="sm" onClick={() => setConfirmState("confirmed")}>{copy.t("Confirm")}</PrimaryButton>
+            <SecondaryButton size="sm" onClick={() => setConfirmState("issues")}>{copy.t("Has issues")}</SecondaryButton>
           </div>
         )}
       </div>
@@ -361,7 +365,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
     return (
       <div style={{ background: "#fff", border: `1px solid ${hasConflict ? "rgba(176,52,52,0.30)" : COLORS.borderSoft}`, borderRadius: 14, padding: "12px 14px", maxWidth: 320, fontFamily: FONTS.body }}>
         <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 4 }} className="text-admin-indigo">
-          📅 Calendar invite
+          📅 {copy.t("Calendar invite")}
         </div>
         <div className="text-admin-ink text-admin-13h font-semibold">{msg.title}</div>
         <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{msg.date}</div>
@@ -380,19 +384,19 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
             lineHeight: 1.4,
           }}>
             <span aria-hidden className="text-xs">⚠</span>
-            <span><strong>Conflicts with Mango (May 18–19)</strong> · already on hold</span>
+            <span><strong>{copy.t("Conflicts with Mango (May 18–19)")}</strong> · {copy.t("already on hold")}</span>
           </div>
         )}
         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
           {calState === "pending" ? (
             <>
-              <PrimaryButton size="sm" onClick={() => setCalState("added")}>Add</PrimaryButton>
-              <SecondaryButton size="sm" onClick={() => setCalState("declined")}>Decline</SecondaryButton>
+              <PrimaryButton size="sm" onClick={() => setCalState("added")}>{copy.t("Add")}</PrimaryButton>
+              <SecondaryButton size="sm" onClick={() => setCalState("declined")}>{copy.t("Decline")}</SecondaryButton>
             </>
           ) : calState === "added" ? (
-            <div className="text-admin-green text-xs font-semibold">✓ Added to your calendar</div>
+            <div className="text-admin-green text-xs font-semibold">✓ {copy.t("Added to your calendar")}</div>
           ) : (
-            <div className="text-admin-ink-muted text-xs">Declined</div>
+            <div className="text-admin-ink-muted text-xs">{copy.t("Declined")}</div>
           )}
         </div>
       </div>
@@ -403,7 +407,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
       <div style={{ background: "#fff", border: `1px solid ${msg.resolved ? "rgba(46,125,91,0.30)" : COLORS.borderSoft}`, borderRadius: 14, padding: "12px 14px", maxWidth: 360, fontFamily: FONTS.body }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <span className="text-base">📑</span>
-          <span className="text-admin-ink text-admin-12h font-semibold">{msg.resolved ? "Contract signed" : "Sign contract"}</span>
+          <span className="text-admin-ink text-admin-12h font-semibold">{msg.resolved ? copy.t("Contract signed") : copy.t("Sign contract")}</span>
           {msg.resolved && <span className="text-admin-green text-admin-11 font-semibold">✓</span>}
         </div>
         <div style={{ fontSize: 11.5, marginBottom: 8 }} className="text-admin-ink-muted">{msg.filename}</div>
@@ -411,11 +415,11 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
           <div>
             <PrimaryButton
               size="sm"
-              onClick={() => toast("e-Signature is rolling out next sprint — your coordinator will share a signed PDF in the meantime.")}
+              onClick={() => toast(copy.t("e-Signature is rolling out next sprint — your coordinator will share a signed PDF in the meantime."))}
             >
-              Review & sign
+              {copy.t("Review & sign")}
             </PrimaryButton>
-            <div style={{ fontSize: 11, marginTop: 5 }} className="text-admin-ink-muted">e-Signature coming soon</div>
+            <div style={{ fontSize: 11, marginTop: 5 }} className="text-admin-ink-muted">{copy.t("e-Signature coming soon")}</div>
           </div>
         )}
       </div>
@@ -427,16 +431,16 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <span className="text-base">📸</span>
           <span className="text-admin-ink text-admin-12h font-semibold">
-            Polaroids requested {msg.resolved ? `· ${msg.resolved} sent` : ""}
+            {copy.t("Polaroids requested")} {msg.resolved ? `· ${msg.resolved} ${copy.t("sent")}` : ""}
           </span>
         </div>
         <div style={{ fontSize: 11.5, marginBottom: 8 }} className="text-admin-ink-muted">
-          Recent, unretouched, full-body + face. 5 minimum.
+          {copy.t("Recent, unretouched, full-body + face. 5 minimum.")}
         </div>
         {msg.resolved ? (
-          <div className="text-admin-green text-xs font-semibold">✓ {msg.resolved} polaroids delivered</div>
+          <div className="text-admin-green text-xs font-semibold">✓ {msg.resolved} {copy.t("polaroids delivered")}</div>
         ) : (
-          <PrimaryButton size="sm" onClick={() => openDrawer("talent-photo-edit", { focusSlot: "gallery" })}>Upload polaroids</PrimaryButton>
+          <PrimaryButton size="sm" onClick={() => openDrawer("talent-photo-edit", { focusSlot: "gallery" })}>{copy.t("Upload polaroids")}</PrimaryButton>
         )}
       </div>
     );
@@ -445,12 +449,12 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
     return (
       <div style={{ background: "rgba(46,125,91,0.06)", border: `1px solid rgba(46,125,91,0.25)`, borderRadius: 14, padding: "12px 14px", maxWidth: 320, fontFamily: FONTS.body }}>
         <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 4 }} className="text-admin-green">
-          ✓ Paid
+          ✓ {copy.t("Paid")}
         </div>
         <div style={{ fontSize: 18, fontWeight: 600, fontFamily: FONTS.display, letterSpacing: -0.2 }} className="text-admin-ink">
           {msg.amount}
         </div>
-        <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">via {msg.method} · {msg.ts}</div>
+        <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{copy.t("via")} {msg.method} · {msg.ts}</div>
       </div>
     );
   }
@@ -459,6 +463,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
 
 
 export function TypingIndicator({ name }: { name: string }) {
+  const copy = useDashboardText();
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0 0 6px", fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-muted">
       <span style={{ display: "inline-flex", gap: 3 }}>
@@ -476,7 +481,7 @@ export function TypingIndicator({ name }: { name: string }) {
           />
         ))}
       </span>
-      {name} is typing…
+      {name} {copy.t("is typing…")}
       <style>{`
         @keyframes tulala-typing {
           0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }

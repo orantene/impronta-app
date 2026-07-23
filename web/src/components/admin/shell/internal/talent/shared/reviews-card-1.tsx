@@ -34,6 +34,7 @@ import type {
   TalentReview,
 } from "@/lib/reviews/review-types";
 import { StarPicker, StaticStars } from "@/components/reviews/star-rating";
+import { useDashboardText } from "../../dashboard-i18n";
 import { FONTS, useAdminShell } from "../../state";
 
 const MAX_BODY = 1000;
@@ -60,6 +61,7 @@ function LeaveClientReviewForm({
   onClose: () => void;
   onSaved: (rating: number, body: string | null) => void;
 }) {
+  const copy = useDashboardText();
   const existing = counterparty.existingReview;
   const [rating, setRating] = useState(existing?.rating ?? 0);
   const [hover, setHover] = useState(0);
@@ -68,12 +70,12 @@ function LeaveClientReviewForm({
   const [error, setError] = useState<string | null>(null);
 
   const isEdit = existing != null;
-  const label = counterparty.clientName ?? "this client";
+  const label = counterparty.clientName ?? copy.t("this client");
   const saving = state === "saving";
 
   async function submit() {
     if (rating < 1 || rating > 5) {
-      setError("Please pick a star rating (1–5).");
+      setError(copy.t("Please pick a star rating (1–5)."));
       setState("error");
       return;
     }
@@ -91,7 +93,7 @@ function LeaveClientReviewForm({
       setState("saved");
       onSaved(rating, trimmed.length > 0 ? trimmed : null);
     } else {
-      setError(res.error || "Could not save your review.");
+      setError(res.error || copy.t("Could not save your review."));
       setState("error");
     }
   }
@@ -99,13 +101,13 @@ function LeaveClientReviewForm({
   if (state === "saved") {
     return (
       <div className="mt-[10px] flex items-center gap-[8px] rounded-admin-md border border-admin-accent-soft bg-admin-accent-soft px-[14px] py-[12px] font-admin-body text-admin-12h text-admin-accent-deep">
-        <span className="font-semibold">Thanks — your review of {label} is saved.</span>
+        <span className="font-semibold">{copy.t("Thanks — your review of")} {label} {copy.t("is saved.")}</span>
         <button
           type="button"
           onClick={onClose}
           className="ml-auto cursor-pointer border-none bg-transparent font-admin-body text-[12px] font-semibold text-admin-accent-deep"
         >
-          Done
+          {copy.t("Done")}
         </button>
       </div>
     );
@@ -114,14 +116,14 @@ function LeaveClientReviewForm({
   return (
     <div className="mt-[10px] rounded-admin-md border border-admin-border bg-white px-[14px] py-[12px] font-admin-body">
       <div className="mb-[8px] text-admin-12h font-bold text-admin-ink">
-        {isEdit ? `Edit your review of ${label}` : `Rate ${label}`}
+        {isEdit ? `${copy.t("Edit your review of")} ${label}` : `${copy.t("Rate")} ${label}`}
       </div>
 
       <StarPicker
         rating={rating}
         hover={hover}
         disabled={saving}
-        label={`Star rating for ${label}`}
+        label={`${copy.t("Star rating for")} ${label}`}
         fontFamily={FONTS.body}
         onSelect={setRating}
         onHover={setHover}
@@ -132,7 +134,7 @@ function LeaveClientReviewForm({
         disabled={saving}
         maxLength={MAX_BODY}
         onChange={(e) => setBody(e.target.value)}
-        placeholder={`What was it like working with ${label}?`}
+        placeholder={`${copy.t("What was it like working with")} ${label}?`}
         rows={3}
         className="mt-[8px] box-border min-h-[60px] w-full resize-y rounded-[8px] border border-admin-border-soft bg-admin-surface px-[11px] py-[9px] font-admin-body text-admin-12h leading-[1.5] text-admin-ink outline-none"
       />
@@ -152,7 +154,7 @@ function LeaveClientReviewForm({
             rating < 1 ? "bg-[rgba(11,11,13,0.18)]" : "bg-admin-accent"
           } ${saving || rating < 1 ? "cursor-default" : "cursor-pointer"} ${saving ? "opacity-80" : "opacity-100"}`}
         >
-          {saving ? "Saving…" : isEdit ? "Update review" : "Publish review"}
+          {copy.t(saving ? "Saving…" : isEdit ? "Update review" : "Publish review")}
         </button>
         {!saving && (
           <button
@@ -160,7 +162,7 @@ function LeaveClientReviewForm({
             onClick={onClose}
             className="cursor-pointer border-none bg-transparent font-admin-body text-[12px] font-semibold text-admin-ink-muted"
           >
-            Cancel
+            {copy.t("Cancel")}
           </button>
         )}
       </div>
@@ -184,6 +186,7 @@ function ReviewableClientRow({
   row: CounterpartyState;
   onSaved: (rating: number, body: string | null) => void;
 }) {
+  const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const { counterparty, saved } = row;
   const current =
@@ -192,7 +195,7 @@ function ReviewableClientRow({
       ? { rating: counterparty.existingReview.rating, body: counterparty.existingReview.body }
       : null);
   const reviewed = current != null;
-  const label = counterparty.clientName ?? "this client";
+  const label = counterparty.clientName ?? copy.t("this client");
 
   const forForm: ReviewableCounterparty = saved
     ? { ...counterparty, existingReview: { rating: saved.rating, body: saved.body } }
@@ -220,7 +223,7 @@ function ReviewableClientRow({
               <span className="inline-flex items-center gap-[5px]">
                 <StaticStars rating={current.rating} />
                 <span className="text-admin-11 text-admin-ink-muted">
-                  Your review
+                  {copy.t("Your review")}
                 </span>
               </span>
             )}
@@ -232,7 +235,7 @@ function ReviewableClientRow({
             onClick={() => setOpen(true)}
             className="shrink-0 cursor-pointer rounded-[8px] border border-admin-accent-soft bg-admin-accent-soft px-[12px] py-[6px] font-admin-body text-admin-11h font-semibold text-admin-accent"
           >
-            {reviewed ? "Edit review" : "Rate the client"}
+            {copy.t(reviewed ? "Edit review" : "Rate the client")}
           </button>
         )}
       </div>
@@ -253,6 +256,7 @@ function ReviewableClientRow({
 
 export function TalentReviewsCard() {
   const { tenantSlug, bridgeTalentSelfProfile, setTalentPage, openDrawer } = useAdminShell();
+  const copy = useDashboardText();
   const talentId = bridgeTalentSelfProfile?.id ?? null;
 
   const [received, setReceived] = useState<{
@@ -329,7 +333,7 @@ export function TalentReviewsCard() {
     <div className="flex flex-col gap-[14px] rounded-admin-lg border border-admin-border bg-admin-card p-[16px] font-admin-body">
       <div className="flex items-center justify-between gap-[10px]">
         <span className="text-admin-10h font-bold uppercase tracking-[0.8px] text-admin-ink-muted">
-          Reviews
+          {copy.t("Reviews")}
         </span>
         {hasReceived && (
           <button
@@ -337,7 +341,7 @@ export function TalentReviewsCard() {
             onClick={seeAllReviews}
             className="cursor-pointer border-none bg-transparent font-admin-body text-admin-11h font-semibold text-admin-ink-muted"
           >
-            See all reviews →
+            {copy.t("See all reviews →")}
           </button>
         )}
       </div>
@@ -351,7 +355,7 @@ export function TalentReviewsCard() {
               {received.summary.average.toFixed(1)}
             </span>
             <span className="text-[12px] text-admin-ink-muted">
-              from {received.summary.count} review{received.summary.count === 1 ? "" : "s"}
+              {copy.t("from")} {received.summary.count} {copy.t(received.summary.count === 1 ? "review" : "reviews")}
             </span>
           </div>
           {visibleReceived.map((r) => (
@@ -362,7 +366,7 @@ export function TalentReviewsCard() {
               <div className="flex flex-wrap items-center gap-[8px]">
                 <StaticStars rating={r.rating} />
                 <span className="text-[12px] font-semibold text-admin-ink">
-                  {r.clientName ?? "A client"}
+                  {r.clientName ?? copy.t("A client")}
                 </span>
                 <span className="text-admin-11 text-admin-ink-muted">
                   {formatDate(r.createdAt)}
@@ -381,8 +385,8 @@ export function TalentReviewsCard() {
             className="cursor-pointer self-start border-none bg-transparent p-0 font-admin-body text-admin-11h font-semibold text-admin-accent"
           >
             {hiddenCount > 0
-              ? `See all ${received.summary.count} reviews →`
-              : "See all reviews →"}
+              ? `${copy.t("See all")} ${received.summary.count} ${copy.t("reviews")} →`
+              : copy.t("See all reviews →")}
           </button>
         </div>
       )}
@@ -391,7 +395,7 @@ export function TalentReviewsCard() {
       {hasReviewables && (
         <div className="flex flex-col gap-[8px]">
           <span className="text-admin-11h font-semibold text-admin-ink">
-            Rate your clients ({reviewables.length})
+            {copy.t("Rate your clients")} ({reviewables.length})
           </span>
           {reviewables.map((row, i) => (
             <ReviewableClientRow

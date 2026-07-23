@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useDashboardText } from "../../dashboard-i18n";
 import { TALENT_RATE_FOR_CONV } from "../../messages";
 import { Avatar, Bullet, ClientTrustChip, Icon } from "../../primitives";
 import { COLORS, FONTS, TRANSITION, useAdminShell, type TalentRequest } from "../../state";
@@ -171,6 +172,7 @@ export function NeedsReplySection({
   onOpenInMessages: (convId: string) => void;
   onSeeAll: () => void;
 }) {
+  const copy = useDashboardText();
   // Subtitle counts the kinds of action-needed: inquiry rows ask for
   // a quote, hold rows ask for a confirmation. Same buckets the
   // messages shell uses, so the talent reads the same words on both
@@ -178,8 +180,8 @@ export function NeedsReplySection({
   const inquiryCount = conversations.filter((c) => c.stage === "inquiry").length;
   const holdCount = conversations.filter((c) => c.stage === "hold").length;
   const subtitleParts = [
-    inquiryCount > 0 && `${inquiryCount} ${inquiryCount === 1 ? "offer" : "offers"}`,
-    holdCount > 0 && `${holdCount} ${holdCount === 1 ? "hold" : "holds"}`,
+    inquiryCount > 0 && `${inquiryCount} ${inquiryCount === 1 ? copy.t("offer") : copy.t("offers")}`,
+    holdCount > 0 && `${holdCount} ${holdCount === 1 ? copy.t("hold") : copy.t("holds")}`,
   ].filter(Boolean).join(" · ");
   return (
     <section
@@ -192,9 +194,9 @@ export function NeedsReplySection({
       }}
     >
       <SectionHeader
-        title="Needs your reply"
-        subtitle={subtitleParts || `${conversations.length} waiting · sorted by urgency`}
-        actionLabel="Open inbox →"
+        title={copy.t("Needs your reply")}
+        subtitle={subtitleParts || `${conversations.length} ${copy.t("waiting · sorted by urgency")}`}
+        actionLabel={copy.t("Open inbox →")}
         onAction={onSeeAll}
       />
       <div className="mt-1">
@@ -224,21 +226,24 @@ function ConversationReplyRow({
   conv: import("../../talent").Conversation;
   onOpen: () => void;
 }) {
+  const copy = useDashboardText();
   const [hover, setHover] = useState(false);
   // Stage → kind chip styling. inquiry = quote requested (coral),
   // hold = client deciding (amber). Same tone vocabulary as the
   // messages shell so the chip means the same thing on both surfaces.
   const km =
-    conv.stage === "inquiry" ? { label: "Offer", tone: "coral" as const }
-    : conv.stage === "hold" ? { label: "Hold", tone: "amber" as const }
-    : { label: "Open", tone: "ink" as const };
+    conv.stage === "inquiry" ? { label: copy.t("Offer"), tone: "coral" as const }
+    : conv.stage === "hold" ? { label: copy.t("Hold"), tone: "amber" as const }
+    : { label: copy.t("Open"), tone: "ink" as const };
   // Take-home rate the talent earns on this job (talent POV). Looked
   // up from the same TALENT_RATE_FOR_CONV map the messages shell uses.
   const rate = TALENT_RATE_FOR_CONV[conv.id];
   // Age coloring escalates over time — same thresholds as the
   // existing RequestRow so the urgency cue feels consistent.
   const ageHrs = conv.lastMessage.ageHrs;
-  const ageLbl = ageHrs < 24 ? `${ageHrs}h ago` : `${Math.floor(ageHrs / 24)}d ago`;
+  const ageLbl = ageHrs < 24
+    ? (copy.isSpanish ? `hace ${ageHrs} h` : `${ageHrs}h ago`)
+    : (copy.isSpanish ? `hace ${Math.floor(ageHrs / 24)} d` : `${Math.floor(ageHrs / 24)}d ago`);
   const ageColor = ageHrs >= 24 ? COLORS.coralDeep : ageHrs >= 12 ? COLORS.coral : COLORS.inkDim;
   const ageWeight = ageHrs >= 24 ? 700 : ageHrs >= 12 ? 500 : 400;
   return (
@@ -295,7 +300,7 @@ function ConversationReplyRow({
       </div>
       {hover && (
         <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 7, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, letterSpacing: -0.05 }} className="bg-admin-coral-soft text-admin-coral-deep">
-          Reply →
+          {copy.t("Reply →")}
         </span>
       )}
       <span
@@ -331,13 +336,14 @@ function RequestRow({
    */
   compact?: boolean;
 }) {
+  const copy = useDashboardText();
   const { openDrawer } = useAdminShell();
   const [hover, setHover] = useState(false);
   const kindMeta: Record<TalentRequest["kind"], { label: string; tone: "coral" | "indigo" | "amber" | "ink" }> = {
-    offer: { label: "Offer", tone: "coral" },
-    hold: { label: "Hold", tone: "coral" },
-    casting: { label: "Casting", tone: "indigo" },
-    request: { label: "Request", tone: "ink" },
+    offer: { label: copy.t("Offer"), tone: "coral" },
+    hold: { label: copy.t("Hold"), tone: "coral" },
+    casting: { label: copy.t("Casting"), tone: "indigo" },
+    request: { label: copy.t("Request"), tone: "ink" },
   };
   const km = kindMeta[request.kind];
   // Parse the request date for the date block. Handles "Tue · May 6",
@@ -348,7 +354,9 @@ function RequestRow({
   // Timestamp urgency: 0–12h neutral, 12–24h coral, >24h coral bold.
   // Pressure rises with time.
   const ageLabel =
-    request.ageHrs < 24 ? `${request.ageHrs}h ago` : `${Math.floor(request.ageHrs / 24)}d ago`;
+    request.ageHrs < 24
+      ? (copy.isSpanish ? `hace ${request.ageHrs} h` : `${request.ageHrs}h ago`)
+      : (copy.isSpanish ? `hace ${Math.floor(request.ageHrs / 24)} d` : `${Math.floor(request.ageHrs / 24)}d ago`);
   const ageColor =
     request.ageHrs >= 24
       ? COLORS.coralDeep
@@ -410,7 +418,7 @@ function RequestRow({
           <span className="text-admin-ink-muted">
             {!compact && (
               <>
-                via {request.agency}
+                {copy.t("via")} {request.agency}
                 {(request.date || request.amount) && " · "}
               </>
             )}
@@ -428,7 +436,7 @@ function RequestRow({
           the user reaches for it directly instead of scanning. */}
       {compact && hover && (
         <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 7, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, letterSpacing: -0.05 }} className="bg-admin-coral-soft text-admin-coral-deep">
-          Reply →
+          {copy.t("Reply →")}
         </span>
       )}
       <span
@@ -460,6 +468,7 @@ export function ConversationCalendarRow({
   conv: import("../../talent").Conversation;
   onOpen: () => void;
 }) {
+  const copy = useDashboardText();
   // Parse the conversation's date label into a date-block. Handles:
   //   "Wed, May 14"  →  MAY 14
   //   "May 14–15"    →  MAY 14
@@ -514,9 +523,9 @@ export function ConversationCalendarRow({
             fontSize: 11.5,
           }}
         >
-          <KindChip label="Booked" tone="success" />
+          <KindChip label={copy.t("Booked")} tone="success" />
           <span className="text-admin-ink-muted">
-            {[locShort, callTime ? `call ${callTime}` : null].filter(Boolean).join(" · ")}
+            {[locShort, callTime ? `${copy.t("call")} ${callTime}` : null].filter(Boolean).join(" · ")}
           </span>
         </div>
       </div>

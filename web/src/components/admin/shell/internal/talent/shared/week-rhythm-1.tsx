@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useDashboardText } from "../../dashboard-i18n";
 import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT } from "../../messages";
 import { COLORS, FONTS, RADIUS, TRANSITION, useAdminShell } from "../../state";
 import { useTalentConversations } from "./conversation-adapter-1";
@@ -39,6 +40,7 @@ function convFirstDay(label?: string): { month: string; day: number } | null {
 
 
 export function WeekRhythmStrip() {
+  const copy = useDashboardText();
   const { setTalentPage } = useAdminShell();
   const conversations = useTalentConversations();
   // Build a Mon–Sun strip for the REAL current week. `todayDate` is pinned
@@ -99,7 +101,7 @@ export function WeekRhythmStrip() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">
-            This week
+            {copy.t("This week")}
           </div>
           <div style={{ fontSize: 10.5, fontFamily: FONTS.body, marginTop: 1 }} className="text-admin-ink-muted">
             {weekDays[0]!.toLocaleString("en-US", { month: "short", day: "numeric" })} – {weekDays[6]!.toLocaleString("en-US", { month: "short", day: "numeric" })}
@@ -110,7 +112,7 @@ export function WeekRhythmStrip() {
           onClick={() => setTalentPage("calendar")}
           style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}
         >
-          Open calendar →
+          {copy.t("Open calendar →")}
         </button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
@@ -133,7 +135,7 @@ export function WeekRhythmStrip() {
               {...(conv ? {
                 onClick: () => openConv(conv.id),
                 title: `${conv.client} · ${conv.brief}`,
-                "aria-label": `${dayShort} ${dayNum} — ${conv.client}, open booking`,
+                "aria-label": `${dayShort} ${dayNum} — ${conv.client}, ${copy.t("open booking")}`,
                 type: "button" as const,
               } : { title: status })}
               style={{
@@ -190,7 +192,7 @@ export function WeekRhythmStrip() {
                   fontSize: 9, color: theme.label, fontFamily: FONTS.body,
                   opacity: 0.6,
                 }}>
-                  {isToday ? "Today" : "Free"}
+                  {isToday ? copy.t("Today") : copy.t("Free")}
                 </div>
               )}
             </Tag>

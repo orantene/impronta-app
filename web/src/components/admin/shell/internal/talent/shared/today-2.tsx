@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useDashboardText } from "../../dashboard-i18n";
 import { Icon, SecondaryButton, Toggle } from "../../primitives";
 import { COLORS, FONTS } from "../../state";
 import { HeroNameLink, HeroStat, HeroStatDivider } from "./today-3";
@@ -194,6 +195,7 @@ export function TalentTodayHero({
   onOpenCalendar?: () => void;
   onOpenActivity?: () => void;
 }) {
+  const copy = useDashboardText();
   // Display location: drop the "·" separator for hero copy, keep it in
   // the chip. "Playa del Carmen · Mexico" → "Playa del Carmen, Mexico".
   const locationDisplay = currentLocation.replace(/\s*·\s*/, ", ");
@@ -206,18 +208,18 @@ export function TalentTodayHero({
   let headlineParts: ReactNode;
   let subline: string;
   if (isDay1) {
-    headlineParts = `Welcome to Tulala, ${firstName}.`;
+    headlineParts = `${copy.t("Welcome to Tulala,")} ${firstName}.`;
     subline =
-      "Your storefront is live. First inquiries usually arrive within a week — finish your profile to speed things up.";
+      copy.t("Your storefront is live. First inquiries usually arrive within a week — finish your profile to speed things up.");
   } else if (pendingCount === 0) {
     if (!availableForWork) {
-      headlineParts = `You're in ${locationDisplay} — not taking work.`;
-      subline = "Existing bookings aren't affected. Toggle availability when you're back.";
+      headlineParts = `${copy.t("You're in")} ${locationDisplay} ${copy.t("— not taking work.")}`;
+      subline = copy.t("Existing bookings aren't affected. Toggle availability when you're back.");
     } else {
-      headlineParts = `You're available to work in ${locationDisplay}.`;
+      headlineParts = `${copy.t("You're available to work in")} ${locationDisplay}.`;
       subline = availableToTravel
-        ? "Open to travel internationally."
-        : "Local jobs only — toggle travel anytime.";
+        ? copy.t("Open to travel internationally.")
+        : copy.t("Local jobs only — toggle travel anytime.");
     }
   } else if (pendingCount === 1) {
     headlineParts = (
@@ -225,33 +227,33 @@ export function TalentTodayHero({
         <HeroNameLink onClick={pendingTargets[0]!.onClick}>
           {pendingTargets[0]!.name}
         </HeroNameLink>{" "}
-        is waiting on you.
+        {copy.t("is waiting on you.")}
       </>
     );
-    subline = "Reply to keep the inquiry alive.";
+    subline = copy.t("Reply to keep the inquiry alive.");
   } else if (pendingCount === 2) {
     headlineParts = (
       <>
         <HeroNameLink onClick={pendingTargets[0]!.onClick}>
           {pendingTargets[0]!.name}
         </HeroNameLink>{" "}
-        and{" "}
+        {copy.t("and")}{" "}
         <HeroNameLink onClick={pendingTargets[1]!.onClick}>
           {pendingTargets[1]!.name}
         </HeroNameLink>{" "}
-        are waiting on you.
+        {copy.t("are waiting on you.")}
       </>
     );
-    subline = `${pendingCount} replies needed today.`;
+    subline = `${pendingCount} ${copy.t("replies needed today.")}`;
   } else {
-    headlineParts = `${pendingCount} things need your reply.`;
+    headlineParts = `${pendingCount} ${copy.t("things need your reply.")}`;
     // Audit #16 — concrete next-action microcopy. Names the oldest
     // waiter so the talent has a concrete starting point, not a vague
     // "top of inbox first" instruction.
     const oldest = pendingTargets[0]?.name;
     subline = oldest
-      ? `${oldest} has been waiting longest — start there.`
-      : "Reply in age order to keep relationships warm.";
+      ? `${oldest} ${copy.t("has been waiting longest — start there.")}`
+      : copy.t("Reply in age order to keep relationships warm.");
   }
 
   return (
@@ -313,7 +315,7 @@ export function TalentTodayHero({
       >
         <div className="flex-1 min-w-0">
           <div style={{ fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, marginBottom: 4, display: "none" }} className="text-admin-ink-muted">
-            Hi {firstName}
+            {copy.t("Hi")} {firstName}
           </div>
           <h1
             data-tulala-h1
@@ -360,10 +362,10 @@ export function TalentTodayHero({
                 {locationDisplay}
                 {" · "}
                 {!availableForWork
-                  ? "Paused"
+                  ? copy.t("Paused")
                   : availableToTravel
-                    ? "Open to travel"
-                    : "Local only"}
+                    ? copy.t("Open to travel")
+                    : copy.t("Local only")}
               </span>
             </button>
           )}
@@ -383,7 +385,7 @@ export function TalentTodayHero({
             />
           )}
           <SecondaryButton onClick={onAvailability}>
-            Availability
+            {copy.t("Availability")}
           </SecondaryButton>
         </div>
       </div>
@@ -404,26 +406,26 @@ export function TalentTodayHero({
         }}
       >
         <HeroStat
-          label="Confirmed"
+          label={copy.t("Confirmed")}
           value={String(upcomingCount)}
-          caption={nextBookingDate ? `next ${nextBookingDate}` : "none yet"}
+          caption={nextBookingDate ? `${copy.t("next")} ${nextBookingDate}` : copy.t("none yet")}
           tone="ink"
           onClick={onOpenCalendar}
         />
         <HeroStatDivider />
         <HeroStat
-          label="Paid this month"
+          label={copy.t("Paid this month")}
           value={`${paidCurrency}${paidThisMonth.toLocaleString()}`}
-          caption={paidThisMonth > 0 ? "This month's settled payouts" : "No payouts yet this month"}
+          caption={paidThisMonth > 0 ? copy.t("This month's settled payouts") : copy.t("No payouts yet this month")}
           captionTone={paidThisMonth > 0 ? "success" : "default"}
           tone="ink"
           onClick={onOpenActivity}
         />
         <HeroStatDivider />
         <HeroStat
-          label="Profile"
+          label={copy.t("Profile")}
           value={`${profileCompleteness}%`}
-          caption={profileCompleteness < 100 ? "tap to finish" : "complete"}
+          caption={profileCompleteness < 100 ? copy.t("tap to finish") : copy.t("complete")}
           tone="ink"
           onClick={onOpenProfile}
         />
@@ -446,6 +448,7 @@ function ReplyNowSplitButton({
   pendingTargets: { name: string; onClick: () => void; isNew?: boolean }[];
   onPrimary: () => void;
 }) {
+  const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   return (
     <div className="relative inline-flex">
@@ -467,12 +470,12 @@ function ReplyNowSplitButton({
           whiteSpace: "nowrap",
         }}
       >
-        Reply now →
+        {copy.t("Reply now →")}
       </button>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        aria-label="Choose which to reply to"
+        aria-label={copy.t("Choose which to reply to")}
         aria-expanded={open}
         style={{
           display: "inline-flex",
@@ -502,7 +505,7 @@ function ReplyNowSplitButton({
           />
           <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, minWidth: 220, background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, padding: 4, zIndex: 60, fontFamily: FONTS.body }} className="shadow-admin-hover">
             <div style={{ fontSize: 10.5, fontWeight: 600, padding: "6px 10px 4px" }} className="text-admin-ink-muted">
-              Reply to
+              {copy.t("Reply to")}
             </div>
             {pendingTargets.map((t) => (
               <button
